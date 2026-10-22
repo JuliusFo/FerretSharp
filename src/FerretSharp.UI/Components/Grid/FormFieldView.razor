@@ -72,7 +72,10 @@
         else if (Field.Options is { } options)
         {
             var current = _text;
-            <select class="field ff-input" @key="(RowVersion, Field.EditText)" value="@current" @onchange="PickAsync" title="@ValueTitle">
+            @* A member picked by typing (dom.js typeInLists) is typed text: kept as a draft, taken with Enter, on leaving or
+               before a write, dropped with Esc. Mouse and arrow keys take it at once (change). *@
+            <select class="field ff-input" @key="(RowVersion, Field.EditText)" value="@current" title="@ValueTitle"
+                    @onchange="PickAsync" @oninput="OnInput" @onblur="CommitAsync" @onkeydown="OnKeyDownAsync">
                 @if (Field.Info.Nullable || IsNewRow)
                 {
                     <option value="">NULL</option>

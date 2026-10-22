@@ -590,6 +590,20 @@
             : null;
     }, null);
 
+    /// <summary>
+    /// The flags editor for a value typed as digits (the sum): the boxes it ticks and the bits no member stands for as a
+    /// box of their own, as <see cref="GetFlagsEdit"/> has them for the stored value – grid.js does no bit arithmetic.
+    /// Null if the cell cannot be edited.
+    /// </summary>
+    [JSInvokable]
+    public FlagsEdit? GetFlagsEditOf(int rowIndex, string? newId, string colId, string text) => Guard(() =>
+    {
+        var column = ColumnIndex(colId);
+        return EditTextOf(rowIndex, newId, colId) is not null
+            ? Presentation.ValuesOf(column)?.FlagsEditOf(text, nullAllowed: Details.Columns[column].Nullable || newId is not null)
+            : null;
+    }, null);
+
     /// <summary>The edit text; for enum and bool columns the member's database value as the member list has it.</summary>
     private string EditText(int column, object? value) =>
         Presentation.ValuesOf(column)?.OptionOf(value) is { } option

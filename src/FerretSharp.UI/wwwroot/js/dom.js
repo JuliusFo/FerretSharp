@@ -1,6 +1,6 @@
 // Small DOM helpers that Blazor cannot do on its own.
 
-import { TYPE_PAUSE, TypedText, pickTyped, typedCharOf } from './cellTyping.js';
+import { TypedText, optionsOf, pickTyped, typedCharOf } from './cellTyping.js';
 
 /** block: 'nearest' keeps the element just visible (keyboard navigation), 'start' jumps to it (letter index). */
 export function scrollIntoViewById(id, block = 'nearest') {
@@ -194,8 +194,8 @@ export function trapFocus(box) {
 /**
  * Typing in the member lists (native selects) below root – the enum fields of the form: as in the grid's cell editor the
  * value first, then the label (cellTyping.js); the list's own search knows only the labels, digits found nothing. The pick
- * goes to Blazor (a change event) when typing pauses, on Enter or when the list loses the focus – not with every key, so
- * `1` `0` is one change, not two. The listeners are on root and go with it; lists rendered anew need nothing.
+ * goes to Blazor as typed text (an input event): the field keeps it as a draft like any typed text – taken with Enter,
+ * on leaving the list or before a write or another row, dropped with Esc. The listeners are on root and go with it.
  */
 export function typeInLists(root) {
   if (!root || root._typeInLists) {
@@ -203,41 +203,29 @@ export function typeInLists(root) {
   }
 
   root._typeInLists = true;
-  const states = new WeakMap(); // select → { typed, pending, timer }
-  const take = select => {
-    const state = states.get(select);
-    state?.typed.reset(); // the next key starts anew
-    if (!state?.pending) return;
-    clearTimeout(state.timer);
-    state.pending = false;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-  };
+  const typed = new WeakMap(); // select → TypedText
   root.addEventListener('keydown', e => {
     const select = e.target;
     if (!(select instanceof HTMLSelectElement)) return;
-    if (e.key === 'Enter') {
-      take(select);
+    let text = typed.get(select);
+    if (!text) typed.set(select, text = new TypedText());
+    const char = typedCharOf(e);
+    const now = Date.now();
+    // A space on its own opens the list as before; while typing it belongs to the text. Other keys end the typing.
+    if (char === null || (char === ' ' && !text.active(now))) {
+      text.reset();
       return;
     }
 
-    let state = states.get(select);
-    if (!state) states.set(select, state = { typed: new TypedText(), pending: false, timer: 0 });
-    const char = typedCharOf(e);
-    const now = Date.now();
-    // A space on its own opens the list as before; while typing it belongs to the text.
-    if (char === null || (char === ' ' && !state.typed.active(now))) return;
     e.preventDefault();
     e.stopPropagation();
-    const options = [...select.options].map(o => ({ value: o.value, label: o.textContent }));
-    const value = pickTyped(options, state.typed.add(char, now), select.value);
+    const value = pickTyped(optionsOf(select.options), text.add(char, now), select.value);
     if (value === null || value === select.value) return;
     select.value = value;
-    state.pending = true;
-    clearTimeout(state.timer);
-    state.timer = setTimeout(() => take(select), TYPE_PAUSE);
+    select.dispatchEvent(new Event('input', { bubbles: true }));
   }, true);
   root.addEventListener('focusout', e => {
-    if (e.target instanceof HTMLSelectElement) take(e.target);
+    if (e.target instanceof HTMLSelectElement) typed.get(e.target)?.reset();
   }, true);
 }
 

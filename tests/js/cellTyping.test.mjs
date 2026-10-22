@@ -1,8 +1,8 @@
-// Typing in the grid: AltGr characters, the member a typed text picks, the flags a typed sum ticks (ADR 0031). Run by `dotnet test` (UI.Tests,
+// Typing in the grid and the form: AltGr characters, the member a typed text picks (ADR 0031). Run by `dotnet test` (UI.Tests,
 // JsTests) through `node --test`; on its own: node --test tests/js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TYPE_PAUSE, TypedText, flagsOfSum, isAltGrChar, pickLabel, pickTyped, typedCharOf, typedSum } from '../../src/FerretSharp.UI/wwwroot/js/cellTyping.js';
+import { TYPE_PAUSE, TypedText, isAltGrChar, isDigits, optionsOf, pickLabel, pickTyped, typedCharOf } from '../../src/FerretSharp.UI/wwwroot/js/cellTyping.js';
 
 const key = (k, mods = {}) => ({ key: k, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, ...mods });
 const altGr = k => key(k, { ctrlKey: true, altKey: true });
@@ -97,19 +97,26 @@ test('labels only: a number in a label is no value, NULL comes last', () => {
   assert.equal(pickLabel(flags, '', null), null);
 });
 
-test('digits are a sum, anything else is not', () => {
-  assert.equal(typedSum('5'), 5n);
-  assert.equal(typedSum('012'), 12n);
-  assert.equal(typedSum('99999999999999999999'), 99999999999999999999n); // too large for a long: .NET says so
-  assert.equal(typedSum('5a'), null);
-  assert.equal(typedSum('-1'), null);
-  assert.equal(typedSum(''), null);
+test('numbers match by value, as .NET parses them', () => {
+  assert.equal(pickTyped(states, '01', '2'), '1');
+  assert.equal(pickTyped(states, '1,0', '2'), '1');
+  assert.equal(pickTyped(states, '1.0', '2'), '1');
+  assert.equal(pickTyped(states, '010', '2'), '10');
+  assert.equal(pickTyped([{ value: '-1', label: 'Unbekannt (-1)' }, { value: '1', label: 'Eins (1)' }], '-1', null), '-1');
+  assert.equal(pickTyped([{ value: '2.5', label: 'Halb (2.5)' }], '2,5', null), '2.5');
+  assert.equal(pickTyped(states, '1,', '2'), null); // not a number yet: nothing changes
 });
 
-test('a sum ticks the flags it holds and keeps the bits no box stands for', () => {
-  assert.deepEqual(flagsOfSum([1n, 2n, 4n, 8n], 5n), { ticked: [true, false, true, false], rest: 0n });
-  assert.deepEqual(flagsOfSum([1n, 2n, 4n], 0n), { ticked: [false, false, false], rest: 0n });
-  assert.deepEqual(flagsOfSum([1n, 2n, 4n], 17n), { ticked: [true, false, false], rest: 16n });
-  assert.deepEqual(flagsOfSum([1n, 2n, 16n], 17n), { ticked: [true, false, true], rest: 0n }); // the box of bits without a member
-  assert.deepEqual(flagsOfSum([0n, 1n], 1n), { ticked: [false, true], rest: 0n }); // NULL is never ticked
+test('only digits are a typed flags value', () => {
+  assert.equal(isDigits('5'), true);
+  assert.equal(isDigits('012'), true);
+  assert.equal(isDigits('99999999999999999999'), true); // too large for a long: .NET says so
+  assert.equal(isDigits('5a'), false);
+  assert.equal(isDigits('-1'), false);
+  assert.equal(isDigits(''), false);
+});
+
+test('list entries are taken with their value and the text shown', () => {
+  const list = [{ value: '', textContent: 'NULL' }, { value: '0', textContent: 'Neu (0)' }];
+  assert.deepEqual(optionsOf(list), [{ value: '', label: 'NULL' }, { value: '0', label: 'Neu (0)' }]);
 });

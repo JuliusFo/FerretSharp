@@ -148,6 +148,8 @@ public sealed class ValueTableTests
 
         Assert.Null(table.FlagsEditOf("0", nullAllowed: false)!.Null);
         Assert.Equal("1.5", table.FlagsEditOf("1.5", nullAllowed: false)!.Raw);
+        Assert.Equal("99999999999999999999", table.FlagsEditOf("99999999999999999999", nullAllowed: false)!.Raw); // typed in the grid
+
         Assert.Null(ValueTable.For(Kundenart, Number2)!.FlagsEditOf("1", nullAllowed: true));
     }
 
