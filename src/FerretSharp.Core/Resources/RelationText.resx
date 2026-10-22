@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="TooManyRows" xml:space="preserve">
+    <value>More than {0:N0} rows – choose fewer relationships or fewer levels of children.</value>
+    <comment>{0}: the limit of rows</comment>
+  </data>
+  <data name="TableNotInSchema" xml:space="preserve">
+    <value>Relationship {0} is not followed: the connection does not know table {1}.</value>
+    <comment>{0}: name of the relationship; {1}: OWNER.TABLE</comment>
+  </data>
+  <data name="ColumnMissing" xml:space="preserve">
+    <value>Relationship {0} is not followed: column {1} is missing in {2}.</value>
+    <comment>{0}: name of the relationship; {1}: column; {2}: OWNER.TABLE</comment>
+  </data>
+  <data name="KeyTypeNotComparable" xml:space="preserve">
+    <value>Relationship {0} is not followed: values of type {1} cannot be compared.</value>
+    <comment>{0}: name of the relationship; {1}: Oracle type, e.g. BINARY_DOUBLE</comment>
+  </data>
+</root>
