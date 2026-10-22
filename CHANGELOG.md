@@ -6,8 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
-- Settings › Data view: the Oracle type and `NOT NULL` in the column headers can each be switched off – in the grid of a table and in the result of a query. With both off the header loses that line and gets lower.
-- "SQL" in the filter bar can show `SELECT t.*` with the filter and the sorting only (Settings › Data view › SQL of a filter) instead of the grid's own statement with ROWID, each column, LOB previews and the first page – shorter to read and to go on with in the SQL editor. The grid's statement stays the default.
+- Settings › Data view: the Oracle type and `NOT NULL` in the column headers can each be switched off – in the grid of a table and in the result of a query. With both off the header loses that line and gets lower; what it hides shows in the header's tooltip.
+- "SQL" in the filter bar can show `SELECT t.*` with the filter and the sorting only (Settings › Data view › SQL of a filter) instead of the grid's own statement with ROWID, each column, LOB previews and the first page – shorter to read and to go on with in the SQL editor. A table without primary key still ends the order with `t.ROWID`, so the SQL editor reads every row exactly once when it pages. The grid's statement stays the default.
 
 ## [3.46.0] - 2026-10-22
 
