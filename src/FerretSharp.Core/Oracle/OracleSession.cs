@@ -52,7 +52,7 @@ public sealed partial class OracleSession : IAsyncDisposable
     private OracleSession(OracleConnection connection)
     {
         _connection = connection;
-        _gate = new SessionGate(OracleErrors.Translate, () =>
+        _gate = new SessionGate(Translate, () =>
         {
             _running = null;
             Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
@@ -369,26 +369,38 @@ public sealed partial class OracleSession : IAsyncDisposable
         // "Cancel", closing a view – the UI thread) froze with it (review 3.40.0, A3). ODP.NET only ever sees a token that
         // is cancelled on a pool thread – its own registrations (async calls) included.
         using var background = new CancellationTokenSource();
+        var trace = StartTrace(command);
         await using var forward = cancellationToken.Register(static b => CancelInBackground((CancellationTokenSource)b!), background);
-        await using var cancelRegistration = background.Token.Register(static c => ((OracleCommand)c!).Cancel(), command);
+        var cancelRegistration = background.Token.Register(static t => ((CommandTrace)t!).Cancel(), trace);
+        var ended = "with an error";
         try
         {
-            return await run(command, background.Token);
+            var result = await run(command, background.Token);
+            ended = "normally";
+            return result;
         }
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested && ex.CancellationToken != cancellationToken)
         {
+            ended = "cancelled";
             throw new OperationCanceledException(ex.Message, ex, cancellationToken);
         }
         catch (OracleException ex) when (ex.Number == OracleErrorCodes.UserCancelled)
         {
+            ended = "with ORA-01013";
             throw new OperationCanceledException("The statement was cancelled.", ex, cancellationToken);
         }
         catch (OracleException ex)
         {
+            ended = $"with {OracleErrorCodes.Code(ex.Number)}";
             throw new OracleStatementException(sql, parameters, ex);
         }
         finally
         {
+            // A break may still be sent until the registration is gone (disposing waits for one under way): note both.
+            trace.Returned();
+            await cancelRegistration.DisposeAsync();
+            trace.Ended(ended);
+
             // Disposing the command leaves its parameters alone; a LOB bind (LOB editor) may hold a temporary LOB that
             // would otherwise stay in TEMP until the finalizer runs – in sessions that live for hours.
             foreach (OracleParameter parameter in command.Parameters)

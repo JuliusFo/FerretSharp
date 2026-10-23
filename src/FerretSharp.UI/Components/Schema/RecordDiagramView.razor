@@ -107,10 +107,8 @@
                                     </g>
                                 }
                             </svg>
-                            @foreach (var shown in diagram.Rows)
+                            @foreach (var (node, box) in State.Drawn)
                             {
-                                var node = shown.Node;
-                                var box = placement.Nodes[node.Id];
                                 var parents = diagram.Pending(node, DiagramSide.Parents).Count;
                                 var children = diagram.Pending(node, DiagramSide.Children).Count;
                                 var open = OpenUnavailable(node);

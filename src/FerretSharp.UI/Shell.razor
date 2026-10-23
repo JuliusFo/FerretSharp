@@ -599,6 +599,7 @@
     {
         if (connection.ReportLost(error))
         {
+            QueryErrorLog.Log(LoggerFactory.CreateLogger<ConnectionKeepAlive>(), error, connection.Profile); // the ping's error went nowhere else
             StateHasChanged();
         }
     });

@@ -1,3 +1,4 @@
+using FerretSharp.Core;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Relations;
 using FerretSharp.Core.Schema;
@@ -13,9 +14,11 @@ public sealed class RecordDiagramStateTests
     private static readonly TableDetails Kunde = Table("KUNDE", Col("ID"));
     private static readonly TableDetails Auftrag = Table("AUFTRAG", Col("ID"), Col("KUNDE_ID"));
     private static readonly TableDetails Position = Table("POSITION", Col("ID"), Col("AUFTRAG_ID"));
+    private static readonly TableDetails Notiz = Table("NOTIZ", Col("ID"), Col("AUFTRAG_ID"));
 
     private static readonly ForeignKeyInfo AuftragKunde = new("FK_AUFTRAG_KUNDE", Auftrag.Table.Ref, ["KUNDE_ID"], Kunde.Table.Ref, ["ID"], FkSource.Declared);
     private static readonly ForeignKeyInfo PositionAuftrag = new("FK_POSITION_AUFTRAG", Position.Table.Ref, ["AUFTRAG_ID"], Auftrag.Table.Ref, ["ID"], FkSource.Declared);
+    private static readonly ForeignKeyInfo NotizAuftrag = new("FK_NOTIZ_AUFTRAG", Notiz.Table.Ref, ["AUFTRAG_ID"], Auftrag.Table.Ref, ["ID"], FkSource.Declared);
     private static readonly RelationGraph Relations = new([AuftragKunde, PositionAuftrag]);
 
     private readonly Dictionary<TableRef, List<object?[]>> _rows = new()
@@ -23,6 +26,7 @@ public sealed class RecordDiagramStateTests
         [Kunde.Table.Ref] = [[1m], [2m]],
         [Auftrag.Table.Ref] = [[100m, 1m], [101m, 1m], [102m, 2m]],
         [Position.Table.Ref] = [[1000m, 100m], [1001m, 100m]],
+        [Notiz.Table.Ref] = [[5000m, 100m]],
     };
 
     private readonly IDataAccess _data = Substitute.For<IDataAccess>();
@@ -67,8 +71,8 @@ public sealed class RecordDiagramStateTests
 
     private static RecordNode Node(TableDetails table, decimal id) => new(table.Table.Ref, new RowKey.PrimaryKey([id]));
 
-    private RowTraversal Traversal() =>
-        new(_data, Relations, (t, _) => Task.FromResult<TableDetails?>(new[] { Kunde, Auftrag, Position }.FirstOrDefault(d => d.Table.Ref == t)), wholeLobs: false);
+    private RowTraversal Traversal(RelationGraph? relations = null) =>
+        new(_data, relations ?? Relations, (t, _) => Task.FromResult<TableDetails?>(new[] { Kunde, Auftrag, Position, Notiz }.FirstOrDefault(d => d.Table.Ref == t)), wholeLobs: false);
 
     private static RecordDiagramState NewState(params string[] ids) => new(Auftrag.Table.Ref, rowIds: false, [.. ids.Select(id => (IReadOnlyList<string>)[id])], steps: null);
 
@@ -218,6 +222,28 @@ public sealed class RecordDiagramStateTests
 
         Assert.Equal(2, saved.Steps.Count);
         Assert.Equal(3, tab.ToState([tab]).Records!.Steps.Count);
+    }
+
+    /// <summary>
+    /// Error dialog: an expansion along two relationships reports its progress before the second read, which renders the tab;
+    /// the rows of the first were in the diagram but not yet laid out, and the tab crashed on the missing box.
+    /// </summary>
+    [Fact]
+    public async Task Rows_of_a_running_expansion_are_drawn_once_it_is_laid_out()
+    {
+        var relations = new RelationGraph([AuftragKunde, PositionAuftrag, NotizAuftrag]);
+        var state = new RecordDiagramState(Auftrag.Table.Ref, rowIds: false, [["100"]], steps: []);
+        await state.LoadAsync(Traversal(relations), relations, Auftrag, null, Ct);
+        Assert.Equal([Node(Auftrag, 100m)], state.Drawn.Select(d => d.Node));
+
+        var during = new List<(int Rows, int Drawn)>();
+        var progress = new SyncProgress<TraversalProgress>(_ => during.Add((state.Diagram!.Rows.Count, state.Drawn.Count)));
+        await state.ExpandAsync(Node(Auftrag, 100m), DiagramSide.Children, progress, Ct);
+
+        Assert.Equal(2, during.Count);
+        Assert.True(during[1].Rows > during[1].Drawn); // the rows of the first relationship are in, not yet laid out
+        Assert.Equal(state.Diagram!.Rows.Count, state.Drawn.Count);
+        Assert.Contains(state.Drawn, d => d.Node == Node(Notiz, 5000m));
     }
 
     [Fact]

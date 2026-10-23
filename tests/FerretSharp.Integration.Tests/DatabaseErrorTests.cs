@@ -135,6 +135,32 @@ public sealed class DatabaseErrorTests(OracleContainerFixture oracle)
 
         var error = await Assert.ThrowsAsync<DatabaseException>(() => connection.PingIfIdleAsync(TimeSpan.Zero, Ct));
         Assert.True(error.IsConnectionLost, error.Display);
+        Assert.EndsWith("no break sent since the session opened", error.SessionHistory);
+    }
+
+    /// <summary>
+    /// Diagnostics (ORA-12570 on the explorer session after the record diagram, 3.47.0): a lost connection names the last
+    /// break its session sent and how many commands followed it – for the log, to tell a network drop from a cancel.
+    /// </summary>
+    [Fact]
+    public async Task A_lost_connection_names_the_last_break_of_its_session()
+    {
+        var action = "Break test " + Guid.NewGuid().ToString("N")[..8];
+        var (profile, password) = oracle.RequireProfile();
+        await using var session = await OracleSession.OpenAsync(
+            OracleConnectionStringFactory.Create(profile, password), new SessionContext("FerretSharp", action), Ct);
+        using (var cancel = CancellationTokenSource.CreateLinkedTokenSource(Ct))
+        {
+            cancel.CancelAfter(TimeSpan.FromSeconds(1));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => session.ExecuteReaderAsync(
+                "SELECT COUNT(*) FROM all_objects a CROSS JOIN all_objects b CROSS JOIN all_objects c", [], (reader, ct) => reader.ReadAsync(ct), cancel.Token));
+        }
+
+        await KillAsync(action);
+
+        var error = await Assert.ThrowsAsync<DatabaseException>(() => session.PingAsync(Ct));
+        Assert.True(error.IsConnectionLost, error.Display);
+        Assert.Matches(@"into its command \(it ended (with ORA-01013|cancelled)\), 1 command\(s\) since", error.SessionHistory);
     }
 
     /// <summary>As SYSTEM (same password as the app user in the gvenzl image).</summary>

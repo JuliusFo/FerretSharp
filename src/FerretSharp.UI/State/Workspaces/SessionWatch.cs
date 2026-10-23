@@ -48,6 +48,12 @@ public sealed class SessionWatch(Func<CancellationToken, Task<SessionActivity?>>
 
             var knownUnavailable = schema.SessionActivityUnavailable;
             var result = await shell.RunDbAsync(logger, active, () => schema.GetSessionActivityAsync(tag, token), token);
+            if (result.Cancelled)
+            {
+                // A break on the explorer session; with the session's history in a lost connection's log entry, this says who sent it.
+                logger.LogInformation("{Connection}: the statement ended while a look at its session ran, the look was cancelled", active.Profile?.Name);
+            }
+
             token.ThrowIfCancellationRequested();
             if (result is { Succeeded: true, Value: null } && !knownUnavailable)
             {

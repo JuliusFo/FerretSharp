@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - Connected records: a tab opened or restored before the C# model was loaded showed no rows along the model's relationships on a side that had none without it (a header row without its positions, say), also after the model came – the expansion of that side was not remembered, and the tab was saved that way. It is now, and so is every step that has nothing to do when the tab is read again (a row deleted for now, a relationship not loaded yet), so it comes back with the row or the model.
+- Connected records: "+3" on a row with several relationships on that side could crash the tab ("The given key … was not present in the dictionary") while the rows were read – the rows of the first relationship were drawn before they had a place in the diagram. They now appear when the read ends.
+
+### Changed
+- The log says more about a lost connection: how long the session had been idle, when it last cancelled a command on the server and how that command ended, and how many commands followed – to tell a network drop from a session a cancel left out of step. A look at a running statement that is cancelled when the statement ends is logged too, and so is a connection the keep-alive ping found lost. No statement text or values go into it.
 
 ## [3.47.0] - 2026-10-23
 

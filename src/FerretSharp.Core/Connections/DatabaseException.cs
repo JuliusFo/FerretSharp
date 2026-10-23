@@ -24,6 +24,12 @@ public class DatabaseException(string message, string? errorCode = null, Excepti
     /// <summary>The session is gone; reconnecting is the only remedy.</summary>
     public bool IsConnectionLost { get; init; } = IsConnectionLostCode(errorCode);
 
+    /// <summary>
+    /// For a lost connection: how long the session had been idle and the last break it sent (<c>OracleSession.Breaks</c>), for
+    /// the log – to tell a connection the network dropped from one a cancelled command left out of step. Null otherwise.
+    /// </summary>
+    public string? SessionHistory { get; internal set; }
+
     public static bool IsConnectionLostCode(string? errorCode) => errorCode is not null && ConnectionLostCodes.Contains(errorCode);
 
     /// <summary>"ORA-00942: Tabelle … ist nicht vorhanden" or just the message.</summary>
