@@ -12,10 +12,7 @@ namespace FerretSharp.Core.Ddl;
 public static class AddColumnsScript
 {
     /// <param name="source">The table the columns come from, named in the header.</param>
-    /// <param name="target">
-    /// The table the statements change: on another connection the matching table there (owner may differ); an empty owner
-    /// writes the bare name, resolved in the schema of the connection that runs it.
-    /// </param>
+    /// <param name="target">The table the statements change: on another connection the matching table there (the owner may differ).</param>
     /// <param name="columns">The columns to add; their order does not matter (schema order, so a virtual column follows its base columns).</param>
     public static string Write(TableRef source, TableRef target, IEnumerable<ColumnInfo> columns)
     {

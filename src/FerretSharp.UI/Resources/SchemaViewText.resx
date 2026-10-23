@@ -1185,4 +1185,40 @@
     <value>Reading rows</value>
     <comment>Progress title before the first table is reported</comment>
   </data>
+  <data name="Columns_PickTitle" xml:space="preserve">
+    <value>Click, Ctrl+click or Shift+click picks columns; the right-click menu writes the ALTER TABLE that adds them elsewhere.</value>
+  </data>
+  <data name="Columns_PickedOne" xml:space="preserve">
+    <value>{0} column</value>
+    <comment>{0}: number of columns (1)</comment>
+  </data>
+  <data name="Columns_PickedOther" xml:space="preserve">
+    <value>{0:N0} columns</value>
+    <comment>{0}: number of columns</comment>
+  </data>
+  <data name="Columns_CopyAddScript" xml:space="preserve">
+    <value>Copy as ALTER TABLE … ADD</value>
+  </data>
+  <data name="Columns_CopyAddScriptTitle" xml:space="preserve">
+    <value>ALTER TABLE … ADD for the picked columns and COMMENT ON COLUMN for their comments – to add them to the same table on another database.</value>
+  </data>
+  <data name="Columns_AddScriptCopied" xml:space="preserve">
+    <value>ALTER TABLE for {0} copied.</value>
+    <comment>{0}: number of columns, like "3 columns"</comment>
+  </data>
+  <data name="Columns_OpenAddScriptIn" xml:space="preserve">
+    <value>Open in the SQL editor of</value>
+    <comment>Heading above the list of other connections</comment>
+  </data>
+  <data name="Columns_OpenAddScriptTitle" xml:space="preserve">
+    <value>Opens a SQL tab of {0} with the script for {1}, connecting if need be. Nothing runs until you run it there.</value>
+    <comment>{0}: connection; {1}: target table as OWNER.TABLE</comment>
+  </data>
+  <data name="Columns_NoOtherConnection" xml:space="preserve">
+    <value>No other connection</value>
+  </data>
+  <data name="Columns_PickedHint" xml:space="preserve">
+    <value>{0} picked – right-click for ALTER TABLE</value>
+    <comment>{0}: number of columns, like "3 columns"</comment>
+  </data>
 </root>

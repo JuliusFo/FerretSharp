@@ -1,6 +1,9 @@
-@* "Columns" view: the columns with type, NULL, default, flags and comment, filterable (Ctrl+F); for views also the definition. *@
+@* "Columns" view: the columns with type, NULL, default, flags and comment, filterable (Ctrl+F); for views also the definition.
+   Rows of a table can be picked (click, Ctrl, Shift): their right-click menu copies the ALTER TABLE … ADD that adds them to
+   the same table elsewhere, or opens it in a SQL tab of another connection (AddColumnsScript). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @inherits FerretComponent
@@ -8,6 +11,9 @@
 @inject IJSRuntime JS
 @inject ShortcutService Shortcuts
 @inject FerretSharp.Core.Display.DisplayColumnSource DisplaySource
+@inject ConnectionManager Connections
+@inject ConnectionHub Hub
+@inject AppSettingsService Settings
 
 @{
     var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
@@ -23,6 +29,9 @@
     var mapping = Models.Mapping;
     var entity = mapping?.EntityOf(Details.Table.Ref);
     var shown = _order.Apply(filtered, key => ValueOf(key, mapping));
+    var shownNames = shown.Select(c => c.Name).ToList();
+    // Only a table's columns can be added elsewhere.
+    var pickable = Details.Table.Kind == TableKind.Table;
     // Once per render, not per row: it looks at every project of the solution.
     var unusedTitle = Usage.State.Result is { } read ? CodeUsageRows.UnusedTitle(read) : "";
 }
@@ -33,6 +42,12 @@
             @SchemaViewText.Columns_Heading
             <span class="count">@(filtering ? TextFormat.Format(SchemaViewText.Columns_FilteredCount, shown.Count, Details.Columns.Count) : Details.Columns.Count.ToString(CultureInfo.CurrentCulture))</span>
         </h2>
+        @if (pickable && !_editing && _picked.In(shownNames).Count is var picked and > 0)
+        {
+            <span class="muted picked-hint" title="@SchemaViewText.Columns_PickTitle">
+                @TextFormat.Format(SchemaViewText.Columns_PickedHint, TextFormat.Plural(picked, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther))
+            </span>
+        }
         @if (entity is not null)
         {
             <span class="entity-name" title="@TextFormat.Format(SchemaViewText.Columns_EntityTitle, entity.Entity.ClrType)">
@@ -64,7 +79,7 @@
     {
         <AuditStatusLine Details="Details" OnOpen="() => (_editing, _startWithAudit) = (true, true)" />
     }
-    <table class="columns">
+    <table class="columns @(pickable ? "pickable" : "")">
         <thead>
             <tr>
                 <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Position" OnSort="_order.Toggle" Class="num">#</SortHeader>
@@ -88,7 +103,8 @@
             }
             @foreach (var column in shown)
             {
-                <tr>
+                <tr class="@(pickable && _picked.Contains(column.Name) ? "selected" : null)" @onclick="e => PickAsync(e, column.Name, shownNames, pickable)"
+                    @oncontextmenu="e => OpenMenuAsync(e, column.Name, shownNames, pickable)" @oncontextmenu:preventDefault="@pickable">
                     <td class="num">@column.Position</td>
                     <td class="name">
                         @column.Name
@@ -191,6 +207,32 @@
     }
 </section>
 
+@if (_menu is { } menu)
+{
+    var targets = AddColumnsTargets.Of(Connections.Profiles, Active.Profile?.Id ?? Guid.Empty);
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="320"
+                 EstimatedHeight="@(130 + 36 * Math.Max(1, targets.Count))" OnClose="() => _menu = null">
+        <div class="ctx-head">
+            <span class="ctx-col">@Details.Table.DisplayName</span>
+            <span class="ctx-value">@TextFormat.Plural(menu.Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther)</span>
+        </div>
+        <button class="menu-item" title="@SchemaViewText.Columns_CopyAddScriptTitle" @onclick="() => CopyScriptAsync(menu.Columns)">@SchemaViewText.Columns_CopyAddScript</button>
+        <div class="group-head-btn static">@SchemaViewText.Columns_OpenAddScriptIn</div>
+        @if (targets.Count == 0)
+        {
+            <button class="menu-item" disabled>@SchemaViewText.Columns_NoOtherConnection</button>
+        }
+        @foreach (var target in targets)
+        {
+            var table = TargetTable(target);
+            <button class="menu-item kind-@target.Kind.ToString().ToLowerInvariant()" @onclick="() => OpenInAsync(target, menu.Columns)"
+                    title="@TextFormat.Format(SchemaViewText.Columns_OpenAddScriptTitle, ConnectionLabel.Of(target, Settings.Current), $"{table.Owner}.{table.Name}")">
+                <span class="kind-badge">@ConnectionKindInfo.Short(target.Kind)</span> @ConnectionLabel.Of(target, Settings.Current)
+            </button>
+        }
+    </PopoverMenu>
+}
+
 @if (Details.Definition is { } definition)
 {
     <section>
@@ -210,6 +252,21 @@
 
     [CascadingParameter]
     public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    /// <summary>The picked rows for the script (column names).</summary>
+    private readonly ListSelection _picked = new();
+
+    /// <summary>The right-click menu of the picked rows: the columns, in the order shown, and where it opened.</summary>
+    private sealed record ColumnsMenu(IReadOnlyList<string> Columns, double X, double Y, double ViewportWidth, double ViewportHeight);
+
+    private ColumnsMenu? _menu;
+    private bool _disposed;
 
     private SearchBox? _filter;
     private DomModule? _dom;
@@ -357,6 +414,66 @@
         column.DefaultOnNull ? "DEFAULT ON NULL" : null,
     }.OfType<string>());
 
+    private async Task PickAsync(MouseEventArgs e, string column, IReadOnlyList<string> shown, bool pickable)
+    {
+        if (!pickable)
+        {
+            return;
+        }
+
+        _picked.Click(column, shown, ctrl: e.CtrlKey || e.MetaKey, shift: e.ShiftKey);
+        if (e.ShiftKey)
+        {
+            // Shift+click also extends the browser's text selection over the rows.
+            await Dom.InvokeVoidAsync("clearTextSelection");
+        }
+    }
+
+    private async Task OpenMenuAsync(MouseEventArgs e, string column, IReadOnlyList<string> shown, bool pickable)
+    {
+        if (!pickable)
+        {
+            return;
+        }
+
+        _picked.ContextClick(column);
+        var columns = _picked.In(shown);
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        _menu = new ColumnsMenu(columns, e.ClientX, e.ClientY, width, height);
+    }
+
+    /// <summary>The table the script changes on <paramref name="target"/>: the matching one if its schema is loaded, else by name in its schema.</summary>
+    private TableRef TargetTable(ConnectionProfile target) => AddColumnsTargets.Table(target, Hub.Find(target.Id)?.Active.Schema, Details.Table.Ref);
+
+    private string Script(TableRef target, IReadOnlyList<string> columns) =>
+        AddColumnsScript.Write(Details.Table.Ref, target, columns.Select(name => Details.Columns[Details.IndexOf(name)]));
+
+    private async Task CopyScriptAsync(IReadOnlyList<string> columns)
+    {
+        _menu = null;
+        if (await Dom.CopyTextAsync(Shell, Script(Details.Table.Ref, columns)))
+        {
+            Shell.Notify(TextFormat.Format(SchemaViewText.Columns_AddScriptCopied,
+                TextFormat.Plural(columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther)));
+        }
+    }
+
+    /// <summary>
+    /// The script in a SQL tab of <paramref name="target"/>, shown and connected if need be – as the schema comparison's
+    /// proposal (WP-22): it runs there like any script, with the confirmation of the schema path.
+    /// </summary>
+    private async Task OpenInAsync(ConnectionProfile target, IReadOnlyList<string> columns)
+    {
+        _menu = null;
+        Shell.OpenSqlIn(target.Id, Script(TargetTable(target), columns));
+        await Lifecycle.ConnectAsync(target);
+    }
+
     /// <summary>Ctrl+F: focuses the column filter and selects its text.</summary>
     public async Task FocusFilterAsync()
     {
@@ -368,6 +485,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         Presentations.Changed -= OnModelChanged;
         DisplaySource.Changed -= OnDisplayColumnsChanged;
         Usage.Changed -= OnUsageChanged;

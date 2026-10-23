@@ -70,6 +70,11 @@ export function viewportSize() {
   return [window.innerWidth, window.innerHeight];
 }
 
+/** Drops the text selection: Shift+click on rows that are picked (the columns view) would extend it over them. */
+export function clearTextSelection() {
+  window.getSelection()?.removeAllRanges();
+}
+
 /** Moves a fixed popup up if it reaches below the window (its height is only known once rendered). */
 export function keepInViewport(id, margin = 8) {
   const element = document.getElementById(id);

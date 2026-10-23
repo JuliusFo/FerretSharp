@@ -56,16 +56,12 @@ public class AddColumnsScriptTests
     }
 
     [Fact]
-    public void The_target_may_have_another_owner_or_none()
+    public void The_target_may_have_another_owner()
     {
-        ColumnInfo[] fax = [Column("FAX", "VARCHAR2", 3, length: 30, comment: "Fax")];
+        var script = AddColumnsScript.Write(Kunde, new TableRef("SHOP_PROD", "KUNDE"), [Column("FAX", "VARCHAR2", 3, length: 30, comment: "Fax")]);
 
-        var other = AddColumnsScript.Write(Kunde, new TableRef("SHOP_PROD", "KUNDE"), fax);
-        var bare = AddColumnsScript.Write(Kunde, new TableRef("", "KUNDE"), fax);
-
-        Assert.Contains("-- Spalten aus SHOP.KUNDE,", other);
-        Assert.Contains("ALTER TABLE \"SHOP_PROD\".\"KUNDE\" ADD (\"FAX\" VARCHAR2(30 CHAR));", other);
-        Assert.Contains("ALTER TABLE \"KUNDE\" ADD (\"FAX\" VARCHAR2(30 CHAR));", bare);
-        Assert.Contains("COMMENT ON COLUMN \"KUNDE\".\"FAX\" IS 'Fax';", bare);
+        Assert.Contains("-- Spalten aus SHOP.KUNDE,", script);
+        Assert.Contains("ALTER TABLE \"SHOP_PROD\".\"KUNDE\" ADD (\"FAX\" VARCHAR2(30 CHAR));", script);
+        Assert.Contains("COMMENT ON COLUMN \"SHOP_PROD\".\"KUNDE\".\"FAX\" IS 'Fax';", script);
     }
 }
