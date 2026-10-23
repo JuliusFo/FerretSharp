@@ -1170,4 +1170,19 @@
   <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
     <value>Andere Verbindung · {0}</value>
   </data>
+  <data name="GridMenu_RecordsGroup" xml:space="preserve">
+    <value>Datensatz-Diagramm · {0}</value>
+  </data>
+  <data name="GridMenu_Records" xml:space="preserve">
+    <value>Verbundene Datensätze zeigen</value>
+  </data>
+  <data name="GridMenu_RecordsTitle" xml:space="preserve">
+    <value>Öffnet einen Tab mit diesen Zeilen, den Zeilen, auf die sie verweisen, und denen, die auf sie verweisen – als Diagramm zum Weiteraufklappen.</value>
+  </data>
+  <data name="GridMenu_RecordsView" xml:space="preserve">
+    <value>Eine View hat keinen Schlüssel, über den sich ihre Zeilen lesen lassen.</value>
+  </data>
+  <data name="GridMenu_RecordsNoKey" xml:space="preserve">
+    <value>Der Schlüssel dieser Zeilen hat keinen genauen Text (ein Typ wie BINARY_DOUBLE) und lässt sich nicht mit dem Tab speichern.</value>
+  </data>
 </root>

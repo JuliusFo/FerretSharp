@@ -1,5 +1,10 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Data;
+using FerretSharp.Core.Relations;
+using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
+using FerretSharp.Core.Workspaces;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -16,4 +21,30 @@ public static class CopyTargets
                 () => scope.Workspaces.IsWritable(workspace.Id), scope.Active.Schema!, ct => scope.Workspaces.GetDataAsync(workspace.Id, ct),
                 scope.Active))),
     ];
+
+    /// <summary>Why rows of <paramref name="table"/> cannot be copied to another connection (a view, none open); null if they can.</summary>
+    public static string? Unavailable(ConnectionHub hub, ActiveConnection source, AppSettings settings, TableDetails? table) =>
+        table?.Table.Kind != TableKind.Table ? GridText.GridMenu_CopyToConnectionView
+        : Targets(hub, source, settings).Count == 0 ? GridText.GridMenu_CopyToConnectionNone
+        : null;
+
+    /// <summary>
+    /// The copy of rows of <paramref name="table"/> read on <paramref name="workspaceId"/>'s session into a workspace of another
+    /// connection (WP-42): from the cell menu, or from rows marked in a record diagram (WP-60). Null without a schema.
+    /// </summary>
+    public static SubgraphCopyDraft? Draft(
+        ConnectionHub hub, ActiveConnection source, AppSettings settings, WorkspaceManager workspaces, Guid workspaceId, TableDetails table,
+        IReadOnlyList<RowKey> keys)
+    {
+        if (source.Schema is not { } schema || source.Profile is not { } profile)
+        {
+            return null;
+        }
+
+        return new SubgraphCopyDraft(
+            ConnectionLabel.Of(profile, settings), schema.Owner, RelationGraph.Of(schema), table, keys,
+            ct => workspaces.GetDataAsync(workspaceId, ct),
+            async (other, ct) => schema.Find(other) is { } summary ? await schema.GetDetailsAsync(summary, ct) : null,
+            Targets(hub, source, settings));
+    }
 }

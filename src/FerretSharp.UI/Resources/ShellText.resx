@@ -1188,4 +1188,12 @@
     <value>Copy again</value>
     <comment>Button</comment>
   </data>
+  <data name="TabBar_RecordsTitleOne" xml:space="preserve">
+    <value>Record diagram of {1} – {0:N0} start row, read in this workspace’s session</value>
+    <comment>{0}: start rows; {1}: OWNER.TABLE</comment>
+  </data>
+  <data name="TabBar_RecordsTitleOther" xml:space="preserve">
+    <value>Record diagram of {1} – {0:N0} start rows, read in this workspace’s session</value>
+    <comment>{0}: start rows; {1}: OWNER.TABLE</comment>
+  </data>
 </root>

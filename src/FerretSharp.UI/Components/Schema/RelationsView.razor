@@ -55,9 +55,9 @@
         else
         {
             <div id="@CanvasId" class="relations-canvas" @onmouseleave="() => _hover = null">
-                <div class="relations-size" style="@Size(placement.Width * _state.Zoom, placement.Height * _state.Zoom)">
-                    <div class="relations-stage" style="@($"{Size(placement.Width, placement.Height)} transform: scale({_state.Zoom.ToString(CultureInfo.InvariantCulture)});")">
-                        <svg class="relations-edges" width="@Px(placement.Width)" height="@Px(placement.Height)">
+                <div class="relations-size" style="@DiagramStyle.Size(placement.Width * _state.Zoom, placement.Height * _state.Zoom)">
+                    <div class="relations-stage" style="@DiagramStyle.Stage(placement, _state.Zoom)">
+                        <svg class="relations-edges" width="@DiagramStyle.Px(placement.Width)" height="@DiagramStyle.Px(placement.Height)">
                             @foreach (var edge in placement.Edges)
                             {
                                 var relation = diagram.RelationOf(edge.Id);
@@ -65,7 +65,7 @@
                                 <g class="relations-edge @(relation is null ? "group" : KindClass(relation.Source)) @EdgeState(edge)" title="@(relation is null ? null : EdgeTitle(relation))">
                                     <path class="hit" d="@edge.Svg" />
                                     <path class="line" d="@edge.Svg" />
-                                    <circle cx="@Px(end.X)" cy="@Px(end.Y)" r="3" />
+                                    <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
                                 </g>
                             }
                         </svg>
@@ -76,7 +76,7 @@
                             var summary = Active.Schema?.Find(t);
                             var parents = diagram.HiddenCount(t, DiagramSide.Parents);
                             var children = diagram.HiddenCount(t, DiagramSide.Children);
-                            <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @NodeState(t, lit)" style="@Box(box)"
+                            <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @NodeState(t, lit)" style="@DiagramStyle.Box(box)"
                                  @onmouseenter="() => _hover = t" @onmouseleave="() => Leave(t)" @oncontextmenu="e => OpenMenuAsync(e, t)" @oncontextmenu:preventDefault="true">
                                 @if (parents > 0)
                                 {
@@ -109,7 +109,7 @@
                             var members = diagram.Members(g);
                             if (members.Count > 0 && placement.Nodes.TryGetValue(g.Id, out var box))
                             {
-                                <div class="relations-node group" style="@Box(box)">
+                                <div class="relations-node group" style="@DiagramStyle.Box(box)">
                                     <span class="relations-name">@TextFormat.Plural(members.Count, SchemaViewText.Relations_GroupOne, SchemaViewText.Relations_GroupOther)</span>
                                     <button class="btn small" title="@TextFormat.Format(SchemaViewText.Relations_GroupTitle, string.Join(", ", members.Select(Label)))"
                                             @onclick="() => Change(() => _state.Open(g), anchor: g.Table)">@SchemaViewText.Relations_GroupShow</button>
@@ -334,12 +334,6 @@
     private IReadOnlySet<TableRef> Neighbours(RelationDiagram diagram) =>
         _hover is not { } hover ? new HashSet<TableRef>()
         : diagram.Relations.Where(r => r.From == hover || r.To == hover).SelectMany(r => new[] { r.From, r.To }).ToHashSet();
-
-    private static string Px(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
-
-    private static string Size(double width, double height) => $"width: {Px(width)}px; height: {Px(height)}px;";
-
-    private static string Box(NodeBox box) => $"left: {Px(box.X)}px; top: {Px(box.Y)}px; {Size(box.Width, box.Height)}";
 
     public async ValueTask DisposeAsync()
     {

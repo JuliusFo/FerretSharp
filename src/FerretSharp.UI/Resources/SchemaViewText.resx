@@ -1041,4 +1041,132 @@
     <value>Constraint</value>
     <comment>Kind of one relationship in its tooltip: a foreign key constraint</comment>
   </data>
+  <data name="Records_RowsOne" xml:space="preserve">
+    <value>{0:N0} row read</value>
+    <comment>{0}: rows a record diagram holds</comment>
+  </data>
+  <data name="Records_RowsOther" xml:space="preserve">
+    <value>{0:N0} rows read</value>
+    <comment>{0}: rows a record diagram holds</comment>
+  </data>
+  <data name="Records_MarkedOne" xml:space="preserve">
+    <value>{0:N0} row marked</value>
+    <comment>{0}: rows marked for a copy</comment>
+  </data>
+  <data name="Records_MarkedOther" xml:space="preserve">
+    <value>{0:N0} rows marked</value>
+    <comment>{0}: rows marked for a copy</comment>
+  </data>
+  <data name="Records_ClearMarks" xml:space="preserve">
+    <value>Clear marks</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Records_CopyOneTable" xml:space="preserve">
+    <value>A copy starts from rows of one table: mark rows of one table only.</value>
+    <comment>Tooltip of the disabled copy button</comment>
+  </data>
+  <data name="Records_ResetTitle" xml:space="preserve">
+    <value>Back to the start rows, expanded on both sides – reads them again</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Records_CopyMermaidTitle" xml:space="preserve">
+    <value>Copies the diagram as a Mermaid flowchart for documentation and tickets – with the values shown</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Records_Reading" xml:space="preserve">
+    <value>Reading {0} – {1:N0} rows so far</value>
+    <comment>{0}: table; {1}: rows read so far</comment>
+  </data>
+  <data name="Records_ReadingStart" xml:space="preserve">
+    <value>Reading the start rows</value>
+    <comment>Progress title</comment>
+  </data>
+  <data name="Records_NotLoadedTitle" xml:space="preserve">
+    <value>Not read</value>
+    <comment>Empty state</comment>
+  </data>
+  <data name="Records_NotLoadedText" xml:space="preserve">
+    <value>Reading the rows was cancelled or failed.</value>
+    <comment>Empty state</comment>
+  </data>
+  <data name="Records_Load" xml:space="preserve">
+    <value>Read</value>
+    <comment>Button in the empty state</comment>
+  </data>
+  <data name="Records_StartGoneTitle" xml:space="preserve">
+    <value>The start rows are gone</value>
+    <comment>Empty state</comment>
+  </data>
+  <data name="Records_StartGoneText" xml:space="preserve">
+    <value>None of the rows of {0} the diagram started from exists any more – deleted, or their key changed.</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="Records_ShowParentsOne" xml:space="preserve">
+    <value>Load the rows it references (one relationship)</value>
+    <comment>Tooltip of the left handle; {0}: relationships</comment>
+  </data>
+  <data name="Records_ShowParentsOther" xml:space="preserve">
+    <value>Load the rows it references ({0:N0} relationships)</value>
+    <comment>Tooltip of the left handle; {0}: relationships</comment>
+  </data>
+  <data name="Records_ShowChildrenOne" xml:space="preserve">
+    <value>Load the rows that reference it (one relationship)</value>
+    <comment>Tooltip of the right handle; {0}: relationships</comment>
+  </data>
+  <data name="Records_ShowChildrenOther" xml:space="preserve">
+    <value>Load the rows that reference it ({0:N0} relationships)</value>
+    <comment>Tooltip of the right handle; {0}: relationships</comment>
+  </data>
+  <data name="Records_OpenTitle" xml:space="preserve">
+    <value>Open {0} filtered on this row</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="Records_OpenUnavailable" xml:space="preserve">
+    <value>Without a primary key the table cannot be filtered on the row.</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Records_MarkTitle" xml:space="preserve">
+    <value>Click: mark for a copy to another connection</value>
+    <comment>Tooltip of a row in the record diagram</comment>
+  </data>
+  <data name="Records_MenuOpen" xml:space="preserve">
+    <value>Open row in a tab</value>
+    <comment>Context menu</comment>
+  </data>
+  <data name="Records_MenuMark" xml:space="preserve">
+    <value>Mark for copying</value>
+    <comment>Context menu</comment>
+  </data>
+  <data name="Records_MenuUnmark" xml:space="preserve">
+    <value>Unmark</value>
+    <comment>Context menu</comment>
+  </data>
+  <data name="Records_MenuParents" xml:space="preserve">
+    <value>Rows it references</value>
+    <comment>Context menu heading</comment>
+  </data>
+  <data name="Records_MenuChildren" xml:space="preserve">
+    <value>Rows that reference it</value>
+    <comment>Context menu heading</comment>
+  </data>
+  <data name="Records_MenuAll" xml:space="preserve">
+    <value>All relationships</value>
+    <comment>Context menu</comment>
+  </data>
+  <data name="Records_Via" xml:space="preserve">
+    <value>{0} via {1}</value>
+    <comment>{0}: table; {1}: relationship</comment>
+  </data>
+  <data name="Records_Group" xml:space="preserve">
+    <value>{1} ×{0:N0}</value>
+    <comment>A collapsed node; {0}: rows; {1}: table</comment>
+  </data>
+  <data name="Records_ShowInTab" xml:space="preserve">
+    <value>Show in a tab</value>
+    <comment>Button beside a relationship with too many rows</comment>
+  </data>
+  <data name="Records_ShowInTabTitle" xml:space="preserve">
+    <value>Opens {0} filtered on these rows instead</value>
+    <comment>{0}: table</comment>
+  </data>
 </root>

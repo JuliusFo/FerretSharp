@@ -990,6 +990,14 @@ button.badge-btn:hover { filter: brightness(1.08); }
 .copy-parents label { display: inline-flex; align-items: center; gap: 6px; }
 .copy-issues { margin: 0; padding-left: 18px; font-size: 12.5px; }
 .copy-issues li { margin: 3px 0; }
+/* The copy preview as a diagram (WP-60): the drawing of the relations view in a box of its own. */
+.copy-preview-head { display: flex; align-items: center; gap: 12px; margin: 16px 0 6px; }
+.copy-preview-head h3 { margin: 0; }
+.copy-dialog .relations-view.copy-diagram { display: flex; flex-direction: column; height: min(360px, 50vh); }
+.copy-diagram .relations-canvas { border: 1px solid var(--border); border-radius: 8px; }
+.relations-node.copy-node { padding: 0 14px; gap: 2px; }
+.relations-node.copy-node.copy-error { border-color: var(--danger); }
+.relations-node.copy-node.copy-warning { border-color: var(--warn); }
 .copy-issues .copy-error { color: var(--danger); }
 .copy-issues .copy-warning { color: var(--warn); }
 .copy-issues .copy-info { color: var(--muted); }
@@ -1659,3 +1667,17 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-node.group { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px 0 14px; border-style: dashed; background: var(--surface-2); }
 .relations-node.group .relations-name { font-family: inherit; font-weight: 500; color: var(--muted); }
 .relations-node.group .btn { height: 24px; padding: 0 10px; font-size: 12px; }
+/* A record diagram tab (WP-60): the drawing of the relations view as the whole tab, problems above it. */
+.records-tab > .relations-view { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 14px 0 0 28px; }
+.records-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.records-loading { position: absolute; inset: 0; z-index: 5; display: flex; justify-content: center; align-items: flex-start; pointer-events: none; }
+.records-loading > .run-progress { pointer-events: auto; }
+.records-problems {
+  flex: none; display: flex; flex-direction: column; gap: 6px; margin: 0 28px 10px 0; padding: 8px 12px; list-style: none;
+  border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--warn) 10%, transparent); font-size: 12.5px;
+}
+.records-problems li { display: flex; align-items: center; gap: 10px; }
+.records-problems .btn { height: 24px; padding: 0 10px; font-size: 12px; }
+.relations-node.record { cursor: pointer; }
+.relations-node.record.marked { background: var(--accent-weak); border-color: var(--accent); }
+.relations-node.record button.relations-name:disabled { color: var(--text); cursor: inherit; }

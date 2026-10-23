@@ -963,4 +963,10 @@
   <data name="Dialogs_RedoCopyConfirm" xml:space="preserve">
     <value>Erneut kopieren</value>
   </data>
+  <data name="TabBar_RecordsTitleOne" xml:space="preserve">
+    <value>Datensatz-Diagramm von {1} – {0:N0} Startzeile, gelesen in der Session dieses Workspaces</value>
+  </data>
+  <data name="TabBar_RecordsTitleOther" xml:space="preserve">
+    <value>Datensatz-Diagramm von {1} – {0:N0} Startzeilen, gelesen in der Session dieses Workspaces</value>
+  </data>
 </root>
