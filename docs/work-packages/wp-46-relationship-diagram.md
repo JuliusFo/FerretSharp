@@ -1,4 +1,4 @@
-# WP-46 Beziehungsdiagramm → Release offen
+# WP-46 Beziehungsdiagramm → Release 3.47.0
 
 Branch `wp/46-relationship-diagram`, begonnen am 2026-10-23. ADR 0033. Baut auf dem Beziehungsgraphen aus WP-42 auf; das Datensatz-Diagramm (WP-60) nutzt Layout und Darstellung von hier.
 

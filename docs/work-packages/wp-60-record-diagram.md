@@ -1,4 +1,4 @@
-# WP-60 Datensatz-Diagramm → Release offen
+# WP-60 Datensatz-Diagramm → Release 3.47.0
 
 Branch `wp/60-record-diagram`, begonnen am 2026-10-23. ADR 0034. Baut auf der Traversierung aus WP-42 (`RowTraversal.FollowAsync`, `RowGraph`) und auf Layout und Darstellung aus WP-46 (`DiagramLayout`, `RelationsView`) auf.
 
