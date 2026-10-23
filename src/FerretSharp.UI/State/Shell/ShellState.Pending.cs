@@ -75,10 +75,13 @@ public sealed partial class ShellState
     /// The linked table on this connection: by owner and name, else by name in the connection's schema (Test and Prod
     /// have the same tables, the schema name may differ), else a synonym of that name.
     /// </summary>
-    public static TableSummary? LinkedTable(SchemaCache schema, TableLink link) =>
-        schema.Find(new TableRef(link.Owner, link.Table))
-        ?? schema.Tables.FirstOrDefault(t => t.Owner == schema.Owner && t.Name == link.Table && t.Synonym is null)
-        ?? schema.Tables.FirstOrDefault(t => t.Synonym?.Name == link.Table); // not any other schema's table of that name
+    public static TableSummary? LinkedTable(SchemaCache schema, TableLink link) => LinkedTable(schema, new TableRef(link.Owner, link.Table));
+
+    /// <summary>The table on this connection that matches <paramref name="table"/> of another one, found as a link finds it (also the columns view's script).</summary>
+    public static TableSummary? LinkedTable(SchemaCache schema, TableRef table) =>
+        schema.Find(table)
+        ?? schema.Tables.FirstOrDefault(t => t.Owner == schema.Owner && t.Name == table.Name && t.Synonym is null)
+        ?? schema.Tables.FirstOrDefault(t => t.Synonym?.Name == table.Name); // not any other schema's table of that name
 
     /// <summary>
     /// Opens a SQL tab with <paramref name="text"/> in the active workspace of the connection (WP-22: the DDL proposal of

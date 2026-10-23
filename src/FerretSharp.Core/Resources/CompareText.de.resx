@@ -234,4 +234,7 @@
   <data name="KeepsBlanks" xml:space="preserve">
     <value>Läuft mit Daten durch, aber jeder Wert behält die Leerzeichen, mit denen er aufgefüllt war – Vergleiche mit dem Text ohne sie treffen danach nicht mehr (anschließend RTRIM).</value>
   </data>
+  <data name="AddColumnsHeader" xml:space="preserve">
+    <value>Spalten aus {0}, zum Hinzufügen in dieselbe Tabelle.</value>
+  </data>
 </root>

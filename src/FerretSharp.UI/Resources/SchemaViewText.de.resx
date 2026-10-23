@@ -972,4 +972,34 @@
   <data name="Records_ReadingRows" xml:space="preserve">
     <value>Lese Zeilen</value>
   </data>
+  <data name="Columns_PickTitle" xml:space="preserve">
+    <value>Klick, Ctrl+Klick oder Shift+Klick wählt Spalten; das Rechtsklickmenü schreibt das ALTER TABLE, das sie anderswo hinzufügt.</value>
+  </data>
+  <data name="Columns_PickedOne" xml:space="preserve">
+    <value>{0} Spalte</value>
+  </data>
+  <data name="Columns_PickedOther" xml:space="preserve">
+    <value>{0:N0} Spalten</value>
+  </data>
+  <data name="Columns_CopyAddScript" xml:space="preserve">
+    <value>Als ALTER TABLE … ADD kopieren</value>
+  </data>
+  <data name="Columns_CopyAddScriptTitle" xml:space="preserve">
+    <value>ALTER TABLE … ADD für die gewählten Spalten und COMMENT ON COLUMN für ihre Kommentare – um sie in derselben Tabelle auf einer anderen Datenbank hinzuzufügen.</value>
+  </data>
+  <data name="Columns_AddScriptCopied" xml:space="preserve">
+    <value>ALTER TABLE für {0} kopiert.</value>
+  </data>
+  <data name="Columns_OpenAddScriptIn" xml:space="preserve">
+    <value>Im SQL-Editor öffnen von</value>
+  </data>
+  <data name="Columns_OpenAddScriptTitle" xml:space="preserve">
+    <value>Öffnet einen SQL-Tab von {0} mit dem Skript für {1} und verbindet bei Bedarf. Es läuft erst, wenn du es dort ausführst.</value>
+  </data>
+  <data name="Columns_NoOtherConnection" xml:space="preserve">
+    <value>Keine andere Verbindung</value>
+  </data>
+  <data name="Columns_PickedHint" xml:space="preserve">
+    <value>{0} gewählt – Rechtsklick für ALTER TABLE</value>
+  </data>
 </root>

@@ -488,6 +488,7 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .audit-status .link-btn.muted:hover { color: var(--muted); text-decoration: underline; }
 .audit-status.warn { padding: 6px 10px; border-radius: 7px; background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .structure-columns-head h2 { margin: 0; }
+.structure-columns-head .picked-hint { font-size: 12px; }
 .structure-filter {
   display: flex; align-items: center; gap: 6px; width: 280px; height: 28px; padding: 0 8px;
   border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); color: var(--faint);
@@ -511,6 +512,7 @@ table.columns .sort-mark:empty { display: none; }
 table.columns td { padding: 6px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 table.columns tr:last-child td { border-bottom: 0; }
 table.columns tr:hover td { background: var(--hover); }
+table.columns.pickable tr.selected td { background: var(--accent-weak); }
 table.columns .num { width: 36px; text-align: right; color: var(--faint); font-variant-numeric: tabular-nums; }
 table.columns .name { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
 table.columns .mono, .structure .mono { font-family: var(--mono); font-size: 12px; }
