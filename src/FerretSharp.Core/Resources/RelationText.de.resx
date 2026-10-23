@@ -117,4 +117,7 @@
   <data name="MermaidHiddenChildrenOther" xml:space="preserve">
     <value>{1}: {0:N0} weitere referenzierende Tabellen nicht gezeigt</value>
   </data>
+  <data name="RecordTooManyRows" xml:space="preserve">
+    <value>Beziehung {0} wird nicht verfolgt: Sie führt zu mehr als {1:N0} Zeilen.</value>
+  </data>
 </root>

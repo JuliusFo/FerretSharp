@@ -152,4 +152,8 @@
     <value>{1}: {0:N0} more referencing tables not shown</value>
     <comment>{0}: number of tables; {1}: table. A Mermaid comment below a relationship diagram</comment>
   </data>
+  <data name="RecordTooManyRows" xml:space="preserve">
+    <value>Relationship {0} is not followed: it leads to more than {1:N0} rows.</value>
+    <comment>{0}: name of the relationship; {1}: the limit of rows in a record diagram</comment>
+  </data>
 </root>

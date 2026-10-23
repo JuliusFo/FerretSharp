@@ -38,7 +38,7 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
             [Position.Table.Ref] = [new(new RowKey.PrimaryKey([100m]), [100m, 10m])],
         };
         var source = Substitute.For<IDataAccess>();
-        source.ReadByKeysAsync(default!, default, default!, default, default).ReturnsForAnyArgs(call =>
+        source.ReadByKeysAsync(default!, default, default!, default, default, default).ReturnsForAnyArgs(call =>
         {
             var table = call.ArgAt<TableDetails>(0);
             var column = call.ArgAt<IReadOnlyList<int>?>(1)![0];
@@ -46,7 +46,7 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
             return Task.FromResult<IReadOnlyList<RowData>>([.. rows[table.Table.Ref].Where(r => keys.Contains(r.Values[column]!))]);
         });
         var target = Substitute.For<IDataAccess>();
-        target.ReadByKeysAsync(default!, default, default!, default, default).ReturnsForAnyArgs(
+        target.ReadByKeysAsync(default!, default, default!, default, default, default).ReturnsForAnyArgs(
             targetError is null ? Task.FromResult<IReadOnlyList<RowData>>([]) : Task.FromException<IReadOnlyList<RowData>>(targetError));
 
         var reader = Substitute.For<ISchemaReader>();

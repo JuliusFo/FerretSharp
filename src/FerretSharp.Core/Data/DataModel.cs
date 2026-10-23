@@ -189,11 +189,16 @@ public interface IDataAccess : IRowLookup
     /// <param name="keyColumns">Indexes into the table's columns; null for ROWIDs (one text per key).</param>
     /// <param name="keys">Distinct keys, values in the order of <paramref name="keyColumns"/>, none NULL.</param>
     /// <param name="wholeLobs">LOB columns as whole values (a copy writes them), not as preview and length.</param>
+    /// <param name="maxRows">
+    /// Stops reading after this many rows of all statements together; null for all. A caller with a limit passes one more
+    /// than it takes, to tell that there were more (WP-60: a customer with 50 000 orders is not read whole over the VPN).
+    /// </param>
     Task<IReadOnlyList<RowData>> ReadByKeysAsync(
         TableDetails table,
         IReadOnlyList<int>? keyColumns,
         IReadOnlyList<IReadOnlyList<object>> keys,
         bool wholeLobs,
+        int? maxRows,
         CancellationToken cancellationToken);
 
     /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>

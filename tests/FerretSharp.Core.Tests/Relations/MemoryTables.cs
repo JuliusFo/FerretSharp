@@ -16,8 +16,8 @@ internal sealed class MemoryTables
     public MemoryTables()
     {
         Data = Substitute.For<IDataAccess>();
-        Data.ReadByKeysAsync(default!, default, default!, default, default).ReturnsForAnyArgs(call => Task.FromResult(Read(
-            call.ArgAt<TableDetails>(0), call.ArgAt<IReadOnlyList<int>?>(1), call.ArgAt<IReadOnlyList<IReadOnlyList<object>>>(2))));
+        Data.ReadByKeysAsync(default!, default, default!, default, default, default).ReturnsForAnyArgs(call => Task.FromResult(Read(
+            call.ArgAt<TableDetails>(0), call.ArgAt<IReadOnlyList<int>?>(1), call.ArgAt<IReadOnlyList<IReadOnlyList<object>>>(2), call.ArgAt<int?>(4))));
     }
 
     public IDataAccess Data { get; }
@@ -70,7 +70,7 @@ internal sealed class MemoryTables
             ? new RowKey.PrimaryKey([.. table.PrimaryKey.Select(c => values[table.IndexOf(c)])])
             : new RowKey.RowId("ROWID-" + string.Join("-", values));
 
-    private IReadOnlyList<RowData> Read(TableDetails table, IReadOnlyList<int>? columns, IReadOnlyList<IReadOnlyList<object>> keys)
+    private IReadOnlyList<RowData> Read(TableDetails table, IReadOnlyList<int>? columns, IReadOnlyList<IReadOnlyList<object>> keys, int? maxRows)
     {
         Assert.InRange(keys.Count, 1, QueryBuilder.MaxLookupKeys * 10);
         Reads.Add((table.Table.Ref, keys.Count));
@@ -79,7 +79,8 @@ internal sealed class MemoryTables
             .Where(row => keys.Any(key => columns is null
                 ? (string)key[0] == ((RowKey.RowId)KeyOf(details, row)).Value
                 : columns.Select((c, i) => Same(details.Columns[c], row[c], key[i])).All(same => same)))
-            .Select(row => new RowData(KeyOf(details, row), row))];
+            .Select(row => new RowData(KeyOf(details, row), row))
+            .Take(maxRows ?? int.MaxValue)];
     }
 
     private static bool Same(ColumnInfo column, object? value, object key) => (value, key) switch

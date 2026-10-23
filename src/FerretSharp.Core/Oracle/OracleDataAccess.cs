@@ -307,16 +307,23 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     }
 
     public async Task<IReadOnlyList<RowData>> ReadByKeysAsync(
-        TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, bool wholeLobs, CancellationToken cancellationToken)
+        TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, bool wholeLobs, int? maxRows,
+        CancellationToken cancellationToken)
     {
         var rows = new List<RowData>();
         foreach (var chunk in keys.Chunk(QueryBuilder.MaxLookupKeys))
         {
+            if (rows.Count >= maxRows)
+            {
+                break;
+            }
+
             var query = QueryBuilder.BuildRowsByKeys(table, keyColumns, chunk, wholeLobs);
+            var room = maxRows - rows.Count;
             rows.AddRange(await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
             {
                 var found = new List<RowData>();
-                while (await reader.ReadAsync(ct))
+                while (found.Count < (room ?? int.MaxValue) && await reader.ReadAsync(ct))
                 {
                     found.Add(ReadRow((OracleDataReader)reader, query, table));
                 }
