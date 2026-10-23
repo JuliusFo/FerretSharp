@@ -45,6 +45,9 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 
     public bool Sortable { get; init; }
 
+    /// <summary>Why the header does not sort, if not its type (<see cref="GridTexts.NotSortable"/>): a query result's.</summary>
+    public string? SortHint { get; init; }
+
     public bool Pinned { get; init; }
 
     public string? Comment { get; init; }

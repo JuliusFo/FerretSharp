@@ -168,7 +168,7 @@ class FerretHeader {
     }
     // Column comment (ALL_COL_COMMENTS) as tooltip; type and NOT NULL when the header line hides them (settings).
     this.eGui.title = [meta.alternate ? `${meta.label} · ${meta.alternate}` : null, meta.typeHint, meta.comment,
-      meta.sortable ? null : texts.notSortable].filter(Boolean).join('\n');
+      meta.sortable ? null : meta.sortHint ?? texts.notSortable].filter(Boolean).join('\n');
   }
   updateSort() {
     const sort = this.params.column.getSort();
@@ -1599,6 +1599,9 @@ export function updateColumns(elementId, columns, headerHeight, keepEditing) {
     if (!current) continue;
     const before = width(current);
     Object.assign(current, meta);
+    // A query result sorts once all its rows are loaded (ResultOrder): AG Grid reads sortable from the column def.
+    const column = api.getColumn(meta.id);
+    if (column && column.getColDef().sortable !== meta.sortable) column.getColDef().sortable = meta.sortable;
     const after = width(current);
     if (before !== after && api.getColumn(meta.id)?.getActualWidth() === before) resized.push({ key: meta.id, newWidth: after });
   }

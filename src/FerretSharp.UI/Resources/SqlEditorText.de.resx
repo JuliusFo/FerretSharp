@@ -441,6 +441,12 @@
   <data name="Result_ColumnOrigin" xml:space="preserve">
     <value>Aus {0}</value>
   </data>
+  <data name="Result_SortWhenLoaded" xml:space="preserve">
+    <value>Sortierbar, sobald alle Zeilen geladen sind: Die Abfrage begrenzt ihre Zeilen (FETCH, OFFSET) und hat Spalten gleichen Namens, die Datenbank kann sie deshalb nicht sortieren</value>
+  </data>
+  <data name="Result_SortNotPossible" xml:space="preserve">
+    <value>Nicht sortierbar: Die Abfrage begrenzt ihre Zeilen (FETCH, OFFSET) und hat Spalten gleichen Namens, und Werte dieses Typs sortiert nur die Datenbank</value>
+  </data>
   <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
     <value>INSERT INTO {0} mit den Spaltennamen des Ergebnisses als Zielspalten (wird nie ausgeführt)</value>
   </data>

@@ -526,6 +526,14 @@
     <value>From {0}</value>
     <comment>Header tooltip of a result column traced back to a table column; {0} = table.column, e.g. CUSTOMERS.NAME</comment>
   </data>
+  <data name="Result_SortWhenLoaded" xml:space="preserve">
+    <value>Sorts once all rows are loaded: the query limits its rows (FETCH, OFFSET) and has columns of the same name, so the database cannot sort it</value>
+    <comment>Header tooltip of a result column that does not sort yet</comment>
+  </data>
+  <data name="Result_SortNotPossible" xml:space="preserve">
+    <value>Cannot be sorted: the query limits its rows (FETCH, OFFSET) and has columns of the same name, and values of this type sort only in the database</value>
+    <comment>Header tooltip of a result column (e.g. INTERVAL) that neither the database nor memory can sort</comment>
+  </data>
   <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
     <value>INSERT INTO {0} with the result’s column names as target columns (never run)</value>
     <comment>{0} = table name</comment>
