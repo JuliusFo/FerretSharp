@@ -6,8 +6,9 @@ namespace FerretSharp.UI.State;
 /// <summary>
 /// What the "Relations" view of a table tab shows (WP-46): the diagram around a table – the tab's own or one put in the
 /// middle since –, its depth, the kinds of relationship shown, what was expanded and the zoom. Expanding and opening
-/// groups are remembered as steps and replayed when the diagram is built again (F5, schema reloaded, a kind switched).
-/// Only in memory, like the rest of the view.
+/// groups are remembered as steps and replayed when the diagram is built again (F5, schema reloaded, a kind switched) –
+/// laid out against the placement before, so nothing moves that need not (review: every build of the linked project
+/// reloads the model, and the diagram was sorted afresh each time). Only in memory, like the rest of the view.
 /// </summary>
 public sealed class RelationsDiagramState(TableRef home)
 {
@@ -44,7 +45,7 @@ public sealed class RelationsDiagramState(TableRef home)
     {
         _graph = graph;
         Sources = [.. graph.Relations.Select(r => r.Source).Distinct().Order()];
-        Rebuild();
+        Rebuild(Placement);
     }
 
     public void Expand(TableRef table, DiagramSide side)
@@ -75,13 +76,13 @@ public sealed class RelationsDiagramState(TableRef home)
     {
         Focus = table;
         _steps.Clear();
-        Rebuild();
+        Rebuild(previous: null);
     }
 
     public void SetDepth(int depth)
     {
         Depth = Math.Clamp(depth, 1, 2);
-        Rebuild();
+        Rebuild(Placement);
     }
 
     public void ToggleSource(FkSource source)
@@ -91,7 +92,7 @@ public sealed class RelationsDiagramState(TableRef home)
             _hiddenSources.Add(source);
         }
 
-        Rebuild();
+        Rebuild(Placement);
     }
 
     /// <summary>Back to the diagram the view opened with: the tab's table, one level, all kinds; the zoom stays.</summary>
@@ -101,7 +102,7 @@ public sealed class RelationsDiagramState(TableRef home)
         Depth = 1;
         _steps.Clear();
         _hiddenSources.Clear();
-        Rebuild();
+        Rebuild(previous: null);
     }
 
     public bool CanZoomIn => Zoom < ZoomSteps[^1];
@@ -114,7 +115,8 @@ public sealed class RelationsDiagramState(TableRef home)
 
     public void ResetZoom() => Zoom = 1;
 
-    private void Rebuild()
+    /// <param name="previous">The placement to keep the order of; null for a new diagram (another table in the middle, reset).</param>
+    private void Rebuild(DiagramPlacement? previous)
     {
         if (_graph is null)
         {
@@ -135,7 +137,7 @@ public sealed class RelationsDiagramState(TableRef home)
             }
         }
 
-        Arrange(previous: null);
+        Arrange(previous);
     }
 
     private void Arrange(DiagramPlacement? previous)

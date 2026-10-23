@@ -34,15 +34,22 @@ public static class DiagramLayout
         var layerOf = nodes.ToDictionary(n => n.Id, n => n.Layer, StringComparer.Ordinal);
         var neighbours = nodes.ToDictionary(n => n.Id, _ => new List<string>(), StringComparer.Ordinal);
         var columns = nodes.Select(n => (n.Id, n.Layer)).ToList();
-        var chains = new Dictionary<LayoutEdge, List<string>>();
-        foreach (var edge in edges.Where(e => e.From != e.To && layerOf.ContainsKey(e.From) && layerOf.ContainsKey(e.To)))
+        // By the edge's place in the list, not its id: two edges may share an id, each needs lanes of its own (review).
+        var chains = new List<string>?[edges.Count];
+        for (var index = 0; index < edges.Count; index++)
         {
+            var edge = edges[index];
+            if (edge.From == edge.To || !layerOf.ContainsKey(edge.From) || !layerOf.ContainsKey(edge.To))
+            {
+                continue;
+            }
+
             var chain = new List<string> { edge.From };
             var (from, to) = (layerOf[edge.From], layerOf[edge.To]);
             var step = Math.Sign(to - from);
             for (var layer = from + step; step != 0 && layer != to; layer += step)
             {
-                var waypoint = $"{WaypointMark}{edge.Id}{WaypointMark}{layer}";
+                var waypoint = $"{WaypointMark}{index}{WaypointMark}{layer}";
                 neighbours[waypoint] = [];
                 columns.Add((waypoint, layer));
                 chain.Add(waypoint);
@@ -55,7 +62,7 @@ public static class DiagramLayout
                 neighbours[chain[i]].Add(chain[i - 1]);
             }
 
-            chains[edge] = chain;
+            chains[index] = chain;
         }
 
         var layers = columns.GroupBy(c => c.Layer).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Select(c => c.Id).ToList());
@@ -214,21 +221,21 @@ public static class DiagramLayout
     /// reference as a loop on the right. Several edges between the same two nodes leave and arrive side by side.
     /// </summary>
     private static List<EdgePath> Route(
-        IReadOnlyList<LayoutEdge> edges, Dictionary<string, NodeBox> boxes, Dictionary<LayoutEdge, List<string>> chains, LayoutMetrics metrics)
+        IReadOnlyList<LayoutEdge> edges, Dictionary<string, NodeBox> boxes, List<string>?[] chains, LayoutMetrics metrics)
     {
         var paths = new List<EdgePath>();
-        var drawn = edges.Where(e => boxes.ContainsKey(e.From) && boxes.ContainsKey(e.To)).ToList();
-        foreach (var pair in drawn.GroupBy(e => string.CompareOrdinal(e.From, e.To) <= 0 ? (e.From, e.To) : (e.To, e.From)))
+        var drawn = edges.Select((edge, index) => (Edge: edge, Index: index)).Where(e => boxes.ContainsKey(e.Edge.From) && boxes.ContainsKey(e.Edge.To));
+        foreach (var pair in drawn.GroupBy(e => string.CompareOrdinal(e.Edge.From, e.Edge.To) <= 0 ? (e.Edge.From, e.Edge.To) : (e.Edge.To, e.Edge.From)))
         {
             var list = pair.ToList();
             for (var i = 0; i < list.Count; i++)
             {
-                var edge = list[i];
+                var (edge, index) = list[i];
                 var port = (i - ((list.Count - 1) / 2.0)) * PortSpacing;
                 var (from, to) = (boxes[edge.From], boxes[edge.To]);
                 var points = from.Id == to.Id ? Loop(from, port, metrics)
                     : from.Layer == to.Layer ? Arc(from, to, port, metrics)
-                    : Across([.. chains[edge].Select(id => boxes[id])], port, metrics);
+                    : Across([.. chains[index]!.Select(id => boxes[id])], port, metrics);
                 paths.Add(new EdgePath(edge.Id, edge.From, edge.To, points));
             }
         }

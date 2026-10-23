@@ -107,6 +107,17 @@ public class DiagramLayoutTests
     }
 
     [Fact]
+    public void Two_edges_with_the_same_id_across_columns_get_a_lane_each()
+    {
+        var placement = DiagramLayout.Arrange(
+            [N("a", 0), N("b", 1), N("c", 2)], [E("a", "b"), new("same", "a", "c"), new("same", "a", "c")], Metrics);
+
+        var across = placement.Edges.Where(e => e.Id == "same").ToList();
+        Assert.Equal(2, across.Count);
+        Assert.NotEqual(across[0].Points[4].Y, across[1].Points[4].Y);
+    }
+
+    [Fact]
     public void An_edge_across_columns_to_the_left_still_starts_at_its_from_node()
     {
         var placement = DiagramLayout.Arrange([N("p", 2), N("m", 1), N("c", 0)], [E("p", "m"), E("m", "c"), E("p", "c")], Metrics);

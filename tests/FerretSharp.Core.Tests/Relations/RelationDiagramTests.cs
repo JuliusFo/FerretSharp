@@ -58,13 +58,16 @@ public class RelationDiagramTests
         var diagram = new RelationDiagram(Graph, Kunde, DiagramOptions.Default);
         Assert.Equal(1, diagram.HiddenCount(Auftrag, DiagramSide.Parents));
         Assert.Equal(1, diagram.HiddenCount(Auftrag, DiagramSide.Children));
+        Assert.DoesNotContain(Vorgesetzter, diagram.Relations);
 
         Assert.Equal([Mitarbeiter], diagram.Expand(Auftrag, DiagramSide.Parents));
 
         Assert.Equal(0, LayerOf(diagram, Mitarbeiter));
         Assert.Equal(0, diagram.HiddenCount(Auftrag, DiagramSide.Parents));
         Assert.Empty(diagram.Expand(Auftrag, DiagramSide.Parents));
-        Assert.Contains(Vorgesetzter, diagram.Relations);
+        Assert.Contains(Vorgesetzter, diagram.Relations); // the relationships asked for before expanding are not kept
+        Assert.Same(AuftragBearbeiter, diagram.RelationOf(RelationGraph.KeyOf(AuftragBearbeiter)));
+        Assert.Null(diagram.RelationOf("g:APP.KUNDE:Children"));
     }
 
     [Fact]

@@ -12,7 +12,6 @@
 
 @if (_state.Diagram is { } diagram && _state.Placement is { } placement)
 {
-    var relations = ByKey(diagram);
     var lit = Neighbours(diagram);
     <div class="relations-view">
         <div class="relations-head">
@@ -61,7 +60,7 @@
                         <svg class="relations-edges" width="@Px(placement.Width)" height="@Px(placement.Height)">
                             @foreach (var edge in placement.Edges)
                             {
-                                var relation = relations.GetValueOrDefault(edge.Id);
+                                var relation = diagram.RelationOf(edge.Id);
                                 var end = edge.Points[^1];
                                 <g class="relations-edge @(relation is null ? "group" : KindClass(relation.Source)) @EdgeState(edge)" title="@(relation is null ? null : EdgeTitle(relation))">
                                     <path class="hit" d="@edge.Svg" />
@@ -169,6 +168,13 @@
     [Parameter]
     public int Version { get; set; }
 
+    /// <summary>
+    /// The view is what the user sees now (<c>TabView.IsShown</c>). A restored tab mounts its view hidden: scrolling to the
+    /// middle then does nothing, so it waits until the view is shown (review).
+    /// </summary>
+    [Parameter]
+    public bool Shown { get; set; }
+
     private DomModule Dom => _dom ??= new(JS);
 
     private string FocusId => _id + "-focus";
@@ -184,9 +190,13 @@
         Presentations.Changed += OnPresentationChanged;
     }
 
+    /// <summary>
+    /// F5, or the schema's relationships changed since: "Reload schema", or DDL in another tab, replaces them without an
+    /// event this view hears (review); the tab renders again when it is shown.
+    /// </summary>
     protected override void OnParametersSet()
     {
-        if (_loadedVersion != Version)
+        if (_loadedVersion != Version || !ReferenceEquals(Active.Schema?.ForeignKeys, _loadedRelations))
         {
             _loadedVersion = Version;
             Load();
@@ -195,7 +205,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_scroll && _state.Placement is not null)
+        if (_scroll && Shown && _state.Placement is not null)
         {
             _scroll = false;
             _scrollBy = null;
@@ -279,17 +289,13 @@
             return;
         }
 
-        if (await Dom.CopyTextAsync(Shell, RelationMermaid.Write(diagram, schema.Owner)))
+        if (await Dom.CopyTextAsync(Shell, RelationMermaid.Write(diagram, schema.LabelOf)))
         {
             Shell.Notify(SchemaViewText.Relations_MermaidCopied);
         }
     }
 
-    /// <summary>The name people know the table by: its synonym, the name, or owner and name for another schema.</summary>
-    private string Label(TableRef table) =>
-        Active.Schema?.Find(table) is { } summary && (summary.Synonym is not null || table.Owner == Active.Schema.Owner)
-            ? summary.DisplayName
-            : table.Owner == Active.Schema?.Owner ? table.Name : $"{table.Owner}.{table.Name}";
+    private string Label(TableRef table) => Active.Schema?.LabelOf(table) ?? table.ToString();
 
     /// <summary>The entity's name, if C# names are shown; otherwise the owner of a table reached through a synonym.</summary>
     private string? SubLabel(TableRef table) =>
@@ -328,18 +334,6 @@
     private IReadOnlySet<TableRef> Neighbours(RelationDiagram diagram) =>
         _hover is not { } hover ? new HashSet<TableRef>()
         : diagram.Relations.Where(r => r.From == hover || r.To == hover).SelectMany(r => new[] { r.From, r.To }).ToHashSet();
-
-    /// <summary>The relationships drawn, by the id of their edge.</summary>
-    private static Dictionary<string, ForeignKeyInfo> ByKey(RelationDiagram diagram)
-    {
-        var byKey = new Dictionary<string, ForeignKeyInfo>(StringComparer.Ordinal);
-        foreach (var relation in diagram.Relations)
-        {
-            byKey.TryAdd(RelationGraph.KeyOf(relation), relation);
-        }
-
-        return byKey;
-    }
 
     private static string Px(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
 

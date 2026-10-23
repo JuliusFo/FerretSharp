@@ -15,6 +15,8 @@ public sealed class RelationDiagram
     private readonly Dictionary<TableRef, int> _layers = [];
     private readonly List<TableRef> _order = [];
     private readonly List<DiagramGroup> _groups = [];
+    private List<ForeignKeyInfo>? _relations;
+    private Dictionary<string, ForeignKeyInfo>? _byKey;
 
     public RelationDiagram(RelationGraph graph, TableRef focus, DiagramOptions options)
     {
@@ -48,8 +50,26 @@ public sealed class RelationDiagram
     /// <summary>Neighbours shown as one node each, until opened.</summary>
     public IReadOnlyList<DiagramGroup> Groups => _groups;
 
-    /// <summary>Relationships between shown tables (self references included), in the order of the graph.</summary>
-    public IReadOnlyList<ForeignKeyInfo> Relations => [.. _graph.Relations.Where(r => _layers.ContainsKey(r.From) && _layers.ContainsKey(r.To))];
+    /// <summary>
+    /// Relationships between shown tables (self references included), in the order of the graph. Kept until a table is
+    /// shown: the view asks on every render, and the graph holds the whole schema's relationships (review).
+    /// </summary>
+    public IReadOnlyList<ForeignKeyInfo> Relations => _relations ??= [.. _graph.Relations.Where(r => _layers.ContainsKey(r.From) && _layers.ContainsKey(r.To))];
+
+    /// <summary>The shown relationship drawn as the edge <paramref name="edgeId"/> (<see cref="ToLayout"/>); null for the edge of a group.</summary>
+    public ForeignKeyInfo? RelationOf(string edgeId)
+    {
+        if (_byKey is null)
+        {
+            _byKey = new Dictionary<string, ForeignKeyInfo>(StringComparer.Ordinal);
+            foreach (var relation in Relations)
+            {
+                _byKey.TryAdd(RelationGraph.KeyOf(relation), relation);
+            }
+        }
+
+        return _byKey.GetValueOrDefault(edgeId);
+    }
 
     public bool IsShown(TableRef table) => _layers.ContainsKey(table);
 
@@ -127,6 +147,7 @@ public sealed class RelationDiagram
         if (_layers.TryAdd(table, layer))
         {
             _order.Add(table);
+            (_relations, _byKey) = (null, null);
         }
     }
 

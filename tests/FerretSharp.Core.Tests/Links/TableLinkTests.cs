@@ -36,10 +36,12 @@ public class TableLinkTests
         return read.Error!;
     }
 
-    [Fact]
-    public void The_usage_view_is_left_out_of_a_link()
+    [Theory]
+    [InlineData(TabMode.Usage)]
+    [InlineData(TabMode.Relations)]
+    public void Views_an_older_FerretSharp_does_not_know_are_left_out_of_a_link(TabMode mode)
     {
-        var link = TableLink.For(ErpTest, new TableRef("ERP", "AUFTRAG"), [], [], TabMode.Usage);
+        var link = TableLink.For(ErpTest, new TableRef("ERP", "AUFTRAG"), [], [], mode);
 
         Assert.Null(link.Mode);
         Assert.DoesNotContain("&m=", link.ToUri(), StringComparison.Ordinal);

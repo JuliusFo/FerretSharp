@@ -11,15 +11,15 @@ namespace FerretSharp.Core.Relations;
 /// </summary>
 public static class RelationMermaid
 {
-    /// <param name="owner">The connection's schema: tables of other schemas are written with their owner.</param>
-    public static string Write(RelationDiagram diagram, string owner)
+    /// <param name="label">The name of a table as the diagram shows it (<see cref="SchemaCache.LabelOf"/>).</param>
+    public static string Write(RelationDiagram diagram, Func<TableRef, string> label)
     {
         var text = new StringBuilder("erDiagram\n");
         var related = new HashSet<TableRef>();
         foreach (var relation in diagram.Relations)
         {
             var line = relation.Source == FkSource.Declared ? "--" : "..";
-            text.Append($"    {Name(relation.To, owner)} ||{line}o{{ {Name(relation.From, owner)} : {Quote(relation.Name)}\n");
+            text.Append($"    {Name(label(relation.To))} ||{line}o{{ {Name(label(relation.From))} : {Quote(relation.Name)}\n");
             related.Add(relation.From);
             related.Add(relation.To);
         }
@@ -27,7 +27,7 @@ public static class RelationMermaid
         // A table without relationships (all of its neighbours in a group) would not appear otherwise.
         foreach (var table in diagram.Tables.Select(t => t.Table).Where(t => !related.Contains(t)))
         {
-            text.Append($"    {Name(table, owner)}\n");
+            text.Append($"    {Name(label(table))}\n");
         }
 
         foreach (var group in diagram.Groups)
@@ -36,8 +36,8 @@ public static class RelationMermaid
             if (count > 0)
             {
                 var comment = group.Side == DiagramSide.Parents
-                    ? TextFormat.Plural(count, RelationText.MermaidHiddenParentsOne, RelationText.MermaidHiddenParentsOther, Label(group.Table, owner))
-                    : TextFormat.Plural(count, RelationText.MermaidHiddenChildrenOne, RelationText.MermaidHiddenChildrenOther, Label(group.Table, owner));
+                    ? TextFormat.Plural(count, RelationText.MermaidHiddenParentsOne, RelationText.MermaidHiddenParentsOther, label(group.Table))
+                    : TextFormat.Plural(count, RelationText.MermaidHiddenChildrenOne, RelationText.MermaidHiddenChildrenOther, label(group.Table));
                 text.Append($"    %% {comment}\n");
             }
         }
@@ -45,15 +45,8 @@ public static class RelationMermaid
         return text.ToString();
     }
 
-    /// <summary>The table as people know it here: its name, with the owner if it belongs to another schema.</summary>
-    public static string Label(TableRef table, string owner) => table.Owner == owner ? table.Name : $"{table.Owner}.{table.Name}";
-
     /// <summary>An entity name: plain if Mermaid takes it so (letters, digits, _ and -), otherwise in quotes.</summary>
-    private static string Name(TableRef table, string owner)
-    {
-        var label = Label(table, owner);
-        return label.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-') ? label : Quote(label);
-    }
+    private static string Name(string label) => label.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-') ? label : Quote(label);
 
     /// <summary>Mermaid has no escape for a double quote inside quotes.</summary>
     private static string Quote(string text) => $"\"{text.Replace('"', '\'')}\"";

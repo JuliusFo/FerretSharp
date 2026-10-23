@@ -122,7 +122,7 @@
                                     <DependenciesView Details="_details" Version="_version" />
                                     break;
                                 case TabMode.Relations:
-                                    <RelationsView Details="_details" Version="_version" />
+                                    <RelationsView Details="_details" Version="_version" Shown="IsShown(TabMode.Relations)" />
                                     break;
                                 case TabMode.Ddl:
                                     <DdlView Details="_details" Version="_version" />

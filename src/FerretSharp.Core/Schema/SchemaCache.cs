@@ -118,6 +118,16 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
     public TableSummary? Find(TableRef table) => _byRef.GetValueOrDefault(table);
 
+    /// <summary>
+    /// The name people know a table by here: the synonym it is reached through, its name in this schema, otherwise owner
+    /// and name (another schema without synonym, or a table the cache does not list). Links, the relationship diagram and
+    /// its Mermaid export all name tables so (WP-46 review: they had three versions of this rule).
+    /// </summary>
+    public string LabelOf(TableRef table) =>
+        Find(table) is { Synonym: not null } summary ? summary.DisplayName
+        : table.Owner == Owner ? table.Name
+        : table.ToString();
+
     public PlSqlObjectSummary? FindPlSql(PlSqlRef unit) => _plSqlByRef.GetValueOrDefault(unit);
 
     /// <summary>The PL/SQL unit behind an object of the dependency list (a package body leads to its package); null for other objects.</summary>

@@ -40,10 +40,27 @@ public sealed class RelationsDiagramStateTests
         Assert.Equal([Kunde, Auftrag, Position, Artikel], Shown(state));
         Assert.True(state.Changed);
 
-        state.Load(Graph);
+        var before = state.Placement!;
+
+        state.Load(new RelationGraph(Graph.Relations)); // what a model reload brings: the same relationships anew
 
         Assert.Equal([Kunde, Auftrag, Position, Artikel], Shown(state));
-        Assert.Equal(4, state.Placement!.Nodes.Count);
+        Assert.Equal(before.Nodes.Values.Select(b => (b.Id, b.Layer, b.Order, b.Y)), state.Placement!.Nodes.Values.Select(b => (b.Id, b.Layer, b.Order, b.Y)));
+    }
+
+    [Fact]
+    public void A_new_relationship_after_a_reload_joins_without_moving_the_others()
+    {
+        var state = Loaded();
+        state.Expand(Auftrag, DiagramSide.Children);
+        var order = state.Placement!.Nodes.Values.OrderBy(b => b.Layer).ThenBy(b => b.Order).Select(b => b.Id).ToList();
+        var lieferung = new TableRef(Owner, "LIEFERUNG");
+
+        state.Load(new RelationGraph([.. Graph.Relations, Fk("FK_LIEFERUNG_AUFTRAG", lieferung, Auftrag)]));
+
+        var after = state.Placement!.Nodes.Values.OrderBy(b => b.Layer).ThenBy(b => b.Order).Select(b => b.Id).ToList();
+        Assert.Equal(order, after.Where(order.Contains));
+        Assert.Contains(lieferung, Shown(state)); // the step "children of AUFTRAG" shows it too
     }
 
     [Fact]
