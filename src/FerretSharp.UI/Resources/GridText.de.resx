@@ -1185,4 +1185,10 @@
   <data name="GridMenu_RecordsNoKey" xml:space="preserve">
     <value>Der Schlüssel dieser Zeilen hat keinen genauen Text (ein Typ wie BINARY_DOUBLE) und lässt sich nicht mit dem Tab speichern.</value>
   </data>
+  <data name="ColumnValues_CopiedDistinctOne" xml:space="preserve">
+    <value>{0} Wert von {1} kopiert, jeder einmal.</value>
+  </data>
+  <data name="ColumnValues_CopiedDistinctOther" xml:space="preserve">
+    <value>{0:N0} Werte von {1} kopiert, jeder einmal.</value>
+  </data>
 </root>

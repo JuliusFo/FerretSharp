@@ -92,6 +92,27 @@ public class ColumnValuesTests
     }
 
     [Fact]
+    public void Distinct_lines_hold_each_shown_value_once_in_the_order_it_first_comes_without_null()
+    {
+        var column = new ExportColumn("Art", 0, Amount) { Present = value => value is 2m ? "Gewerbe (2)" : value };
+
+        var text = Copy(column, ColumnValuesFormat.DistinctLines, 7m, 2m, null, 7m, 2m, null);
+
+        Assert.Equal("7\r\nGewerbe (2)", text.Text);
+        Assert.Equal(2, text.Values);
+        Assert.Equal(["2 Zeilen ohne Wert (NULL) fehlen in der Liste."], text.Warnings);
+    }
+
+    [Fact]
+    public void Distinct_lines_read_with_select_distinct_name_their_nulls_without_a_number()
+    {
+        var copy = new ColumnValues(new ExportColumn("NAME", 0, Name), ColumnValuesFormat.DistinctLines) { NullsCollapsed = true };
+        copy.AddRange(["A", null]);
+
+        Assert.Equal(["Zeilen ohne Wert (NULL) fehlen in der Liste."], copy.Finish().Warnings);
+    }
+
+    [Fact]
     public void Nulls_collapsed_by_distinct_are_named_without_a_number()
     {
         var copy = new ColumnValues(new ExportColumn("NAME", 0, Name), ColumnValuesFormat.InList) { NullsCollapsed = true };

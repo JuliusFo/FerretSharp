@@ -31,6 +31,9 @@ public sealed record FkJump(
 
     public bool IsAvailable => Unavailable is null;
 
+    /// <summary>Every row's key is NULL: there is nothing to jump to (the menus fold such jumps into one line, WP-61).</summary>
+    public bool IsNull => Unavailable is not null && Rows > 0 && SkippedRows == Rows;
+
     /// <summary>An incoming jump into a base table of the row's table (<see cref="BaseTables"/>); null for a direct one.</summary>
     public InheritedReference? Inherited { get; init; }
 
@@ -43,6 +46,14 @@ public sealed record FkJump(
         ? TextFormat.Format(FkNavigation.German, QueryText.FkConditionInList, f.Column,
             string.Join("; ", f.Values.Take(ShownValues)) + (f.Values.Count > ShownValues ? "; …" : ""), f.Values.Count)
         : $"{f.Column} = {f.Values[0]}"));
+
+    /// <summary>
+    /// The key's values for an entry of one line (WP-61): <c>4711</c>, <c>4711, 2</c> for a key of two columns,
+    /// <c>5 values</c> for an IN list; empty if unavailable.
+    /// </summary>
+    public string Values => string.Join(", ", Filters.Select(f => f.Op == FilterOperator.In
+        ? TextFormat.Format(FkNavigation.German, QueryText.FkConditionValues, f.Values.Count)
+        : f.Values[0]));
 
     /// <summary>E.g. "2 rows without a value skipped"; null if every row had a key.</summary>
     public string? SkippedNote => SkippedRows == 0

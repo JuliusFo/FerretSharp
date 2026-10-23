@@ -13,10 +13,13 @@ public enum ColumnValuesFormat
 
     /// <summary>Oracle literals for an IN list (<c>'A', 'B'</c>): database values, each once, without NULL.</summary>
     InList,
+
+    /// <summary>One value per line like <see cref="Lines"/>, each once in the order it first comes, without NULL (WP-61).</summary>
+    DistinctLines,
 }
 
-/// <param name="Values">Values in the text: lines, or the distinct values of the IN list.</param>
-/// <param name="Warnings">NULLs left out of the IN list, a list longer than Oracle takes, values not exported.</param>
+/// <param name="Values">Values in the text: lines, or the distinct values of the IN list or the distinct lines.</param>
+/// <param name="Warnings">NULLs left out of the IN list or the distinct lines, a list longer than Oracle takes, values not exported.</param>
 public sealed record ColumnValuesText(string Text, int Values, IReadOnlyList<string> Warnings);
 
 /// <summary>
@@ -37,7 +40,8 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
 
     private readonly StringBuilder _text = new();
     private readonly ExportWarnings _warnings = new();
-    private readonly HashSet<string> _literals = new(StringComparer.Ordinal);
+    /// <summary>The IN list's literals or the distinct lines so far: each goes into the text once.</summary>
+    private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
     private int _nulls;
 
     /// <summary>Whether the values of a column can be copied: not for LOB, LONG and types read only as a marker.</summary>
@@ -51,7 +55,7 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
     /// </summary>
     public bool NullsCollapsed { get; init; }
 
-    /// <summary>Values collected so far (for an IN list: distinct ones).</summary>
+    /// <summary>Values collected so far (for an IN list and distinct lines: distinct ones).</summary>
     public int Count { get; private set; }
 
     /// <summary>There were more than <see cref="MaxValues"/> values, or more than <see cref="MaxCharacters"/> characters.</summary>
@@ -68,14 +72,14 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
             return false;
         }
 
+        if (format != ColumnValuesFormat.Lines && value is null or DBNull)
+        {
+            _nulls++;
+            return true;
+        }
+
         if (format == ColumnValuesFormat.InList)
         {
-            if (value is null or DBNull)
-            {
-                _nulls++;
-                return true;
-            }
-
             // Without the CHAR padding (review 3.44.0, A8): it finds the rows in its own column all the same (blank-padded
             // comparison), and in a VARCHAR2 column too – a relationship without a constraint, as FkNavigation.FilterValue.
             if (value is string text && OracleTypes.IsFixedChar(column.Column.DataType) && text.TrimEnd(' ') is { Length: > 0 } trimmed)
@@ -84,7 +88,7 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
             }
 
             var literal = InsertExport.Literal(column.Column, value, _warnings);
-            if (!_literals.Add(literal))
+            if (!_seen.Add(literal))
             {
                 return true;
             }
@@ -98,18 +102,24 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
             return true;
         }
 
+        var shown = column.Present is { } present ? present(value) : value;
+        var line = ExportNotation.Text(column.Column, shown, _warnings) ?? "";
+        if (format == ColumnValuesFormat.DistinctLines && !_seen.Add(line))
+        {
+            return true;
+        }
+
         if (!Counted())
         {
             return false;
         }
 
-        var shown = column.Present is { } present ? present(value) : value;
         if (Count > 1)
         {
             _text.Append("\r\n");
         }
 
-        DelimitedExport.AppendField(_text, ExportNotation.Text(column.Column, shown, _warnings) ?? "", DelimitedExport.ClipboardSeparator);
+        DelimitedExport.AppendField(_text, line, DelimitedExport.ClipboardSeparator);
         return true;
     }
 
@@ -136,6 +146,13 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
         }
 
         var warnings = _warnings.ToList(fractions: format != ColumnValuesFormat.InList);
+        if (format == ColumnValuesFormat.DistinctLines && _nulls > 0)
+        {
+            warnings.Add(NullsCollapsed
+                ? QueryText.ColumnValuesDistinctNullsLeftOut
+                : TextFormat.Plural(_nulls, QueryText.ColumnValuesDistinctNullsLeftOutOne, QueryText.ColumnValuesDistinctNullsLeftOutOther));
+        }
+
         if (format == ColumnValuesFormat.InList)
         {
             if (_nulls > 0)

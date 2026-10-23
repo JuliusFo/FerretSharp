@@ -1503,4 +1503,12 @@
     <value>The key of these rows has no exact text (a type like BINARY_DOUBLE) and cannot be saved with the tab.</value>
     <comment>Tooltip of the disabled entry</comment>
   </data>
+  <data name="ColumnValues_CopiedDistinctOne" xml:space="preserve">
+    <value>{0} value of {1} copied, each once.</value>
+    <comment>Notice; {0}: 1, {1}: column name</comment>
+  </data>
+  <data name="ColumnValues_CopiedDistinctOther" xml:space="preserve">
+    <value>{0:N0} values of {1} copied, each once.</value>
+    <comment>Notice; {0}: number of distinct values, {1}: column name</comment>
+  </data>
 </root>
