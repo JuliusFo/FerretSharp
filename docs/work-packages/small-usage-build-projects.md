@@ -16,11 +16,12 @@ Ohne Rückfrage entschieden (einfachste Variante, Fragen unten):
 - **Ein Build zur Zeit** mit dem „Neu bauen“ des verknüpften Projekts (`ClrModelManager.IsBuilding`); danach wird das Modell neu geladen wie dort. Das Ergebnis des Solution-Builds gehört der Verwendungsansicht (`CodeUsageService.LastSolutionBuild`), die Modellseite zeigt weiter nur den Build des Projekts.
 - Nach dem Build wird der Index **auch nach einem Fehlschlag** neu gelesen: Was gebaut wurde, zählt. Der Fehler steht mit Exit-Code unter dem Hinweis, die Ausgabe hinter „Details“.
 - Gleiche Schalter wie der Projekt-Build (ohne Build-Server, im Job-Objekt), Zeitgrenze 30 statt 10 Minuten.
+- **Abbrechen** (Entscheidung des Nutzers nach dem ersten Stand): „Abbrechen“ neben „Solution wird gebaut…“ beendet `dotnet build` samt Kindprozessen (`DotNetCli.KillTree` über das Token), danach „Build abgebrochen.“ und der Index wird neu gelesen wie nach einem Fehlschlag. Das Abbrechen läuft auf dem Pool, weil `KillTree` alle Prozesse des Systems durchgeht. Der Projekt-Build „Neu bauen“ bleibt ohne Abbrechen (kurz, eigenes Thema).
 
 ## Gebaut
-- Core: `ProjectBuild.References` (`BuildOutputLocator.FindAssembly`, volle Pfade der `ProjectReference`), `ProjectBuild.IsTestProject`, `CodeUsageProject.ReachesModel`, `CodeUsageBuilder.MarkModelReach`, `CodeUsageResult.Missing`; `IModelHostRunner.BuildSolutionAsync`, `ClrModelManager.BuildSolutionAsync` (gemeinsamer Weg mit `BuildAsync`), `CodeUsageService.BuildSolutionAsync`/`IsBuildingSolution`/`LastSolutionBuild`.
+- Core: `ProjectBuild.References` (`BuildOutputLocator.FindAssembly`, volle Pfade der `ProjectReference`), `ProjectBuild.IsTestProject`, `CodeUsageProject.ReachesModel`, `CodeUsageBuilder.MarkModelReach`, `CodeUsageResult.Missing`; `IModelHostRunner.BuildSolutionAsync`, `ClrModelManager.BuildSolutionAsync` (gemeinsamer Weg mit `BuildAsync`), `CodeUsageService.BuildSolutionAsync`/`IsBuildingSolution`/`LastSolutionBuild`, `CancelSolutionBuild`/`IsCancellingSolutionBuild`/`SolutionBuildCancelled`.
 - UI: `UsageBuildNote` (Schema; in `UsageView` und `UnusedReport`), `CodeUsageRows.UnusedTitle`, Tooltip der Projektzeile nennt nicht gebaute Projekte ohne Referenz eigens; Texte en/de; CSS `.usage-build-note`.
-- Tests: Core `SolutionAndBuilderTests` (Reichweite über Referenzketten, Rückfall ohne Entity-Projekt, Testprojekte aus Paket und `IsTestProject`), `CodeUsageServiceTests` (Build der gewählten Solution in der Konfiguration, Index danach neu, auch nach Exit-Code 1, `LastBuild` des Projekts unberührt); UI `CodeUsageRowsTests`.
+- Tests: Core `SolutionAndBuilderTests` (Reichweite über Referenzketten, Rückfall ohne Entity-Projekt, Testprojekte aus Paket und `IsTestProject`), `CodeUsageServiceTests` (Build der gewählten Solution in der Konfiguration, Index danach neu, auch nach Exit-Code 1, `LastBuild` des Projekts unberührt; Abbrechen über das Token, danach neu gelesen und ein weiterer Build möglich); UI `CodeUsageRowsTests`.
 
 ## E2E (2026-10-23)
 Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, hell), eigener Container `ferret-buildproj` mit dem Beispielschema (danach entfernt), verknüpft mit einer Kopie des Beispielmodells im Scratchpad: `Shop.slnx` mit Entities, Data, `Shop.Services` (referenziert Data, liest `Artikel.HerstellerId`, schreibt `Artikel.KategorieId`) und `Tools` (ohne Referenz); gebaut nur Data.
@@ -28,8 +29,8 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, hell), eigener C
 - „Projekte bauen“: Spinner und „Solution wird gebaut…“, danach Hinweis weg, „4 Projekte“, HERSTELLER_ID 1 Lesen, KATEGORIE_ID 1 Schreiben, 4 ungenutzt; `Tools` wurde mitgebaut.
 - Fehlerfall (Compilerfehler in `Shop.Services`, dessen DLL entfernt): „Build der Solution fehlgeschlagen (Exit-Code 1)“, Ausgabe mit CS1525 hinter „Details“, Hinweis bleibt. Die Modellseite zeigt den Fehler nur im Bericht, nicht als Fehler ihres eigenen Builds.
 - Log ohne `[ERR]`/`[WRN]`.
+- **Abbrechen** (zweiter Lauf, gleicher Aufbau, `Shop.Services` mit einem Target, das 2 Minuten wartet): „Solution wird gebaut… Abbrechen“; nach dem Klick „Build abgebrochen.“ mit dem Knopf, Index neu gelesen. `dotnet build` und das wartende `PING.EXE` waren beendet, kein MSBuild-Knoten des Builds blieb übrig (übrig waren nur Knoten mit `nodeReuse:true` von eigenen Builds davor). Danach ohne das Target erneut gebaut: Hinweis weg, 4 ungenutzt. Log ohne `[ERR]`/`[WRN]`.
 - **Nicht mit echter Windows-Eingabe geprüft:** Der `SendInput`-Klick auf „Projekte bauen“ kam nicht im DOM an (kein `mousedown`, wie im Leitfaden beschrieben); der Knopf per CDP-Eingabe (Stufe 2) bedient. Er ist ein normaler `@onclick`-Knopf.
 
 ## Offen / Fragen
-- Kein Abbrechen eines laufenden Solution-Builds (wie beim Projekt-Build); die Zeitgrenze sind 30 Minuten.
 - Baut Visual Studio dieselbe Solution gleichzeitig, können sich beide um `obj/` streiten (wie beim Projekt-Build).
