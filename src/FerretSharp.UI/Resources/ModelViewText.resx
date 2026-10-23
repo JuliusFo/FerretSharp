@@ -273,7 +273,31 @@
     <value>{0} unreadable</value>
   </data>
   <data name="Usage_NotBuilt" xml:space="preserve">
-    <value>not built (no assembly in the configuration of the link): its uses are missing, they do not count as unused</value>
+    <value>not built (no assembly in the configuration of the link): its uses are missing</value>
+  </data>
+  <data name="Usage_UnusedUncertain" xml:space="preserve">
+    <value>Not certain: projects that can use the model are not built (see Usage)</value>
+  </data>
+  <data name="Usage_BuildSolutionFailed" xml:space="preserve">
+    <value>Build of the solution failed (exit code {0}). The projects that did build are read.</value>
+    <comment>{0} = exit code of dotnet build</comment>
+  </data>
+  <data name="Usage_BuildingSolution" xml:space="preserve">
+    <value>Building the solution…</value>
+  </data>
+  <data name="Usage_BuildSolutionTitle" xml:space="preserve">
+    <value>dotnet build of {0} in configuration {1}, then read again</value>
+    <comment>{0} = solution file name, {1} = build configuration (Debug)</comment>
+  </data>
+  <data name="Usage_BuildSolution" xml:space="preserve">
+    <value>Build projects</value>
+  </data>
+  <data name="Usage_MissingNote" xml:space="preserve">
+    <value>Not built: {0} of the projects that can use the model. Their uses are missing – "unused" may be wrong.</value>
+    <comment>{0} = number of projects</comment>
+  </data>
+  <data name="Usage_NotBuiltNoModel" xml:space="preserve">
+    <value>not built; it does not reference the entities, so it cannot use them</value>
   </data>
   <data name="Usage_Stale" xml:space="preserve">
     <value>out of date: {0} changed after the build</value>

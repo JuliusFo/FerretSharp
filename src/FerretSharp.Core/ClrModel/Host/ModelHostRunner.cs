@@ -18,6 +18,9 @@ public interface IModelHostRunner
     /// <summary><c>dotnet build</c> of the linked project in its configuration.</summary>
     Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken);
 
+    /// <summary><c>dotnet build</c> of a whole solution in the given configuration (code usage reads all its projects).</summary>
+    Task<DotNetRun> BuildSolutionAsync(string solution, string configuration, CancellationToken cancellationToken);
+
     /// <summary>
     /// Starts the model host as LINQ console (ADR 0011) and waits until it has loaded the project and built the model.
     /// </summary>
@@ -208,8 +211,15 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     /// with the app – a compiler or Razor server it started would end with it, in the middle of other builds sharing it.
     /// </remarks>
     public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken) =>
-        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q", "-nodeReuse:false", "--disable-build-servers"],
-            Path.GetDirectoryName(link.ProjectFile)!, TimeSpan.FromMinutes(10), cancellationToken);
+        Build(link.ProjectFile, link.Configuration, TimeSpan.FromMinutes(10), cancellationToken);
+
+    /// <remarks>As <see cref="BuildAsync"/>; longer limit, a solution may have dozens of projects.</remarks>
+    public Task<DotNetRun> BuildSolutionAsync(string solution, string configuration, CancellationToken cancellationToken) =>
+        Build(solution, configuration, TimeSpan.FromMinutes(30), cancellationToken);
+
+    private static Task<DotNetRun> Build(string file, string configuration, TimeSpan timeout, CancellationToken cancellationToken) =>
+        DotNetCli.RunAsync(["build", file, "-c", configuration, "-nologo", "-v", "q", "-nodeReuse:false", "--disable-build-servers"],
+            Path.GetDirectoryName(file)!, timeout, cancellationToken);
 
     /// <summary>
     /// The project's runtime (a class library has no runtimeconfig of its own), rolling forward to a newer one if only

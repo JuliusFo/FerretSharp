@@ -1,0 +1,75 @@
+@* Projects that could use the model are not built (WP-40 addendum): "unused" may be wrong, so the views showing it say
+   so, with a build of the whole solution right there (decision of the user, 2026-10-23); also a failed build's output.
+   Without parameters it does not render with its parent: it follows both services itself. *@
+@using FerretSharp.Core.ClrModel
+@inherits FerretComponent
+@implements IDisposable
+
+@if (Usage.State.Result is { } result)
+{
+    var missing = result.Missing;
+    @if (missing.Count > 0 || Usage.IsBuildingSolution)
+    {
+        <div class="settings-note warn usage-build-note">
+            @if (missing.Count > 0)
+            {
+                <span title="@string.Join("\n", missing.Select(p => p.Name))">@TextFormat.Format(ModelViewText.Usage_MissingNote, missing.Count)</span>
+            }
+            @if (Usage.IsBuildingSolution)
+            {
+                <span class="muted"><span class="spinner small"></span> @ModelViewText.Usage_BuildingSolution</span>
+            }
+            else if (Usage.Solution is { } solution && Models.State.Link is { } link)
+            {
+                <button class="btn" disabled="@(Models.IsBuilding || Usage.State.Phase == CodeUsagePhase.Building)"
+                        title="@TextFormat.Format(ModelViewText.Usage_BuildSolutionTitle, System.IO.Path.GetFileName(solution), link.Configuration)"
+                        @onclick="BuildAsync">@ModelViewText.Usage_BuildSolution</button>
+            }
+        </div>
+    }
+    @if (Usage.LastSolutionBuild is { Succeeded: false } build && !Usage.IsBuildingSolution)
+    {
+        <div class="tab-error">
+            <span>@TextFormat.Format(ModelViewText.Usage_BuildSolutionFailed, build.ExitCode)</span>
+            <button class="link-btn" @onclick="() => _showOutput = !_showOutput">@(_showOutput ? ModelViewText.Model_HideDetails : CommonText.Details)</button>
+        </div>
+        @if (_showOutput)
+        {
+            <pre class="model-log">@build.Output</pre>
+        }
+    }
+}
+
+@code {
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    private readonly CancellationTokenSource _lifetime = new();
+
+    private bool _showOutput;
+
+    protected override void OnInitialized()
+    {
+        Usage.Changed += OnChanged;
+        Models.Changed += OnChanged;
+    }
+
+    private void OnChanged() => Fire(StateHasChanged);
+
+    private Task BuildAsync() => GuardAsync(async () =>
+    {
+        _showOutput = false;
+        await Usage.BuildSolutionAsync(_lifetime.Token);
+    });
+
+    public void Dispose()
+    {
+        Usage.Changed -= OnChanged;
+        Models.Changed -= OnChanged;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

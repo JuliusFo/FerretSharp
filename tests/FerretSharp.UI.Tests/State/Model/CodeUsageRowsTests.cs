@@ -208,6 +208,27 @@ public sealed class CodeUsageRowsTests : IDisposable
         }
     }
 
+    /// <summary>A project not built leaves "unused" uncertain only if it could use the model; the tooltips say which it is.</summary>
+    [Fact]
+    public async Task Unused_is_marked_uncertain_only_while_a_project_that_reaches_the_model_is_missing()
+    {
+        var (_, index) = await IndexAsync();
+        var tools = Project("Tools", built: false) with { ReachesModel = false };
+        var shop = Project("Shop", built: true) with { Uses = new AssemblyUses(AssemblyUses.CurrentFormatVersion, Guid.NewGuid(), "Shop", ["Shop"], false, true, [], []) };
+        var complete = new CodeUsageResult("Shop.slnx", [shop, tools], index);
+        var incomplete = complete with { Projects = [.. complete.Projects, Project("Web", built: false)] };
+
+        using (UiCulture.Use("en"))
+        {
+            Assert.Empty(complete.Missing);
+            Assert.Equal(ModelViewText.Usage_UnusedTitle, CodeUsageRows.UnusedTitle(complete));
+            Assert.Equal("Tools: " + ModelViewText.Usage_NotBuiltNoModel, CodeUsageRows.ProjectDetails(complete));
+
+            Assert.Equal(["Web"], incomplete.Missing.Select(p => p.Name));
+            Assert.EndsWith("\n" + ModelViewText.Usage_UnusedUncertain, CodeUsageRows.UnusedTitle(incomplete), StringComparison.Ordinal);
+        }
+    }
+
     /// <summary>A project below a temp root, built with Path.Combine (the CI runs the UI tests on Linux too).</summary>
     private static CodeUsageProject Project(string name, bool built, string? newer = null)
     {

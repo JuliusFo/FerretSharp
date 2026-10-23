@@ -134,7 +134,7 @@
                                 @property.Name@(property.IsShadow ? " (Shadow)" : "")
                                 @if (Usage.State.Result is { } usage && CodeUsageRows.Column(mapping, usage.Index, Details.Table.Ref, column.Name) is { Unused: true })
                                 {
-                                    <span class="fs-badge unused" title="@ModelViewText.Usage_UnusedTitle">@ModelViewText.Usage_Unused</span>
+                                    <span class="fs-badge unused" title="@CodeUsageRows.UnusedTitle(usage)">@ModelViewText.Usage_Unused</span>
                                 }
                                 @if (mismatches.Count > 0)
                                 {

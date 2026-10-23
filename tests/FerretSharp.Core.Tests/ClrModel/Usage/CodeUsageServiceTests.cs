@@ -178,6 +178,33 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         Assert.Equal(CodeUsagePhase.Ready, usage.State.Phase);
     }
 
+    /// <summary>"Build projects" builds the solution read, in the link's configuration, and reads what it wrote – also after a failed build.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task Building_the_solution_reads_the_new_builds_afterwards(int exitCode)
+    {
+        await ConnectAsync();
+        var first = await _usage.EnsureAsync(Ct);
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            Assert.True(_usage.IsBuildingSolution);
+            Assert.True(_models.IsBuilding); // no build of the linked project meanwhile
+            File.SetLastWriteTimeUtc(_dll, DateTime.UtcNow);
+            return new DotNetRun(exitCode, "output");
+        });
+
+        var run = await _usage.BuildSolutionAsync(Ct);
+
+        await _runner.Received(1).BuildSolutionAsync(_folder.Combine("Other.sln"), "Debug", Arg.Any<CancellationToken>());
+        Assert.Equal(exitCode, run!.ExitCode);
+        Assert.Same(run, _usage.LastSolutionBuild);
+        Assert.Null(_models.LastBuild); // the project's build result stays the project's
+        Assert.False(_usage.IsBuildingSolution);
+        Assert.NotSame(first, _usage.State.Result);
+        Assert.Equal(CodeUsagePhase.Ready, _usage.State.Phase);
+    }
+
     [Fact]
     public async Task The_solutions_are_known_after_the_first_build_and_reading_them_reads_nothing()
     {

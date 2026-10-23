@@ -316,7 +316,17 @@ public sealed class ClrModelManager : IDisposable
     }
 
     /// <summary><c>dotnet build</c> of the linked project, then reads the model again if the build succeeded.</summary>
-    public async Task<DotNetRun?> BuildAsync()
+    public Task<DotNetRun?> BuildAsync() => BuildAsync((link, ct) => _runner.BuildAsync(link, ct), remember: true);
+
+    /// <summary>
+    /// <c>dotnet build</c> of a solution with the linked project, in its configuration (code usage: projects not built), then
+    /// reads the model again like <see cref="BuildAsync()"/>. One build at a time with it; <see cref="LastBuild"/> stays the
+    /// project's – the result is the caller's.
+    /// </summary>
+    public Task<DotNetRun?> BuildSolutionAsync(string solution) =>
+        BuildAsync((link, ct) => _runner.BuildSolutionAsync(solution, link.Configuration, ct), remember: false);
+
+    private async Task<DotNetRun?> BuildAsync(Func<ClrProjectLink, CancellationToken, Task<DotNetRun>> build, bool remember)
     {
         if (CurrentLink is not { } link || IsBuilding)
         {
@@ -325,9 +335,10 @@ public sealed class ClrModelManager : IDisposable
 
         IsBuilding = true;
         Changed?.Invoke();
+        DotNetRun? run = null;
         try
         {
-            LastBuild = await Task.Run(() => _runner.BuildAsync(link, _lifetime.Token));
+            run = await Task.Run(() => build(link, _lifetime.Token));
         }
         catch (OperationCanceledException)
         {
@@ -335,20 +346,25 @@ public sealed class ClrModelManager : IDisposable
         }
         catch (Exception ex) when (ex is ClrModelException or IOException or System.ComponentModel.Win32Exception)
         {
-            LastBuild = new DotNetRun(-1, ex.Message);
+            run = new DotNetRun(-1, ex.Message);
         }
         finally
         {
+            if (remember && run is not null)
+            {
+                LastBuild = run;
+            }
+
             IsBuilding = false;
             Changed?.Invoke();
         }
 
-        if (LastBuild.Succeeded)
+        if (run.Succeeded)
         {
             await LoadAsync();
         }
 
-        return LastBuild;
+        return run;
     }
 
     public void Dispose()

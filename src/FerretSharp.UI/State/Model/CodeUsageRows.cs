@@ -167,11 +167,15 @@ public static class CodeUsageRows
         return string.Join(" · ", parts);
     }
 
+    /// <summary>Tooltip of the "unused" mark; says it is not certain while projects that could use the model are not read.</summary>
+    public static string UnusedTitle(CodeUsageResult result) =>
+        result.Missing.Count > 0 ? $"{ModelViewText.Usage_UnusedTitle}\n{ModelViewText.Usage_UnusedUncertain}" : ModelViewText.Usage_UnusedTitle;
+
     /// <summary>The projects behind <see cref="Projects"/> that are not built, out of date or unreadable, one per line (tooltip).</summary>
     public static string ProjectDetails(CodeUsageResult result) =>
         string.Join("\n", result.Projects
             .Select(p => p.Error is { } error ? $"{p.Name}: {error}"
-                : p.Build is { IsBuilt: false } ? $"{p.Name}: {ModelViewText.Usage_NotBuilt}"
+                : p.Build is { IsBuilt: false } ? $"{p.Name}: {(p.ReachesModel ? ModelViewText.Usage_NotBuilt : ModelViewText.Usage_NotBuiltNoModel)}"
                 : p.Build is { NewerSource: { } newer } ? $"{p.Name}: {TextFormat.Format(ModelViewText.Usage_Stale, FileName(newer))}"
                 : p.Uses is { HasPdb: false } ? $"{p.Name}: {ModelViewText.Usage_NoPdb}"
                 : null)

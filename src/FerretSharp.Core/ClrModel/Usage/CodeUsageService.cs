@@ -137,6 +137,49 @@ public sealed class CodeUsageService : IDisposable
         return notSaved;
     }
 
+    /// <summary>The solution is being built (<see cref="BuildSolutionAsync"/>).</summary>
+    public bool IsBuildingSolution { get; private set; }
+
+    /// <summary>Output of the last <see cref="BuildSolutionAsync"/> of this connection; null before.</summary>
+    public DotNetRun? LastSolutionBuild { get; private set; }
+
+    /// <summary>
+    /// <c>dotnet build</c> of the solution read, so projects not built (which leave "unused" uncertain) are read too; then
+    /// the index again, also after a failed build (the projects that did build are read, the cache serves the others).
+    /// </summary>
+    /// <returns>The build; null without a solution or while another build of the linked project runs.</returns>
+    public async Task<DotNetRun?> BuildSolutionAsync(CancellationToken cancellationToken)
+    {
+        if (Solution is not { } solution || IsBuildingSolution)
+        {
+            return null;
+        }
+
+        IsBuildingSolution = true;
+        Changed?.Invoke();
+        DotNetRun? run;
+        try
+        {
+            run = await _models.BuildSolutionAsync(solution);
+            if (run is not null)
+            {
+                LastSolutionBuild = run;
+            }
+        }
+        finally
+        {
+            IsBuildingSolution = false;
+            Changed?.Invoke();
+        }
+
+        if (run is not null)
+        {
+            await EnsureAsync(cancellationToken);
+        }
+
+        return run;
+    }
+
     private Task<CodeUsageResult?> GetAsync(bool force)
     {
         ClrProjectLink link;

@@ -65,6 +65,7 @@ else
         {
             <div class="tab-error"><span>@TextFormat.Format(ModelViewText.Usage_Failed, error)</span></div>
         }
+        <UsageBuildNote />
         @{
             var queries = result?.Index.ForEntity(entity.Entity) ?? [];
             var navigations = result?.Index.NavigationsTo(entity.Entity) ?? [];
@@ -164,7 +165,7 @@ else
                                 <td>
                                     @if (row.Unused)
                                     {
-                                        <span class="fs-badge unused" title="@ModelViewText.Usage_UnusedTitle">@ModelViewText.Usage_Unused</span>
+                                        <span class="fs-badge unused" title="@CodeUsageRows.UnusedTitle(result!)">@ModelViewText.Usage_Unused</span>
                                     }
                                     else if (row.Property?.IsShadow == true)
                                     {
