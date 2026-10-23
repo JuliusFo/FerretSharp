@@ -1,4 +1,4 @@
-# WP-42 Beziehungsgraph und Teilgraph kopieren → Release offen
+# WP-42 Beziehungsgraph und Teilgraph kopieren → Release 3.47.0
 
 Branch `wp/42-subgraph-copy`, begonnen am 2026-10-22. ADR 0032. Fundament für WP-46 (Beziehungsdiagramm), WP-60 (Datensatz-Diagramm) und WP-43 (Datenqualität der Beziehungen).
 

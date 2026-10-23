@@ -39,15 +39,6 @@ Branch `wp/41-designer-to-code`. Baut auf WP-40 (released 3.43.0, ADR 0030): des
 - **Ziel ist der aktive Arbeits-Klon der Gruppe (WP-40, `WorkClones`), nie der verknüpfte Branch-Klon** (der muss dem Stand der DB entsprechen und wird gepullt). Die Dateien des Arbeits-Klons werden selbst untersucht – sein Feature-Branch kann vom Branch-Klon abweichen, der Index aus WP-40 ist nur ein Hinweis, wo zu suchen ist. Die Vorschau nennt Ordner und Branch des Ziels und bietet den Wechsel an; ohne passenden Arbeits-Klon wird nicht geschrieben. Warnung, wenn der Klon auf dem Branch einer Verbindung steht (z. B. `dev`) oder die Zieldatei ungespeicherte Änderungen hat.
 - Offen: Umfang der ersten Stufe (Vorschlag: hinzufügen, Facetten ändern, löschen; Umbenennen später); woran „Branch einer Verbindung“ erkannt wird (Branches der verknüpften Klone oder Liste von Hand).
 
-### WP-42 Beziehungsgraph und Teilgraph kopieren
-Umgesetzt auf `wp/42-subgraph-copy` (Release offen, E2E steht noch aus): Planung, Entscheidungen und Stand in `docs/work-packages/wp-42-subgraph-copy.md`, ADR 0032. Für WP-46/WP-60 da: `RelationGraph` und `RowTraversal.FollowAsync` (Core/Relations).
-
-### WP-46 Beziehungsdiagramm
-Umgesetzt auf `wp/46-relationship-diagram` (Release offen, kommt mit WP-42): Planung, Entscheidungen und Stand in `docs/work-packages/wp-46-relationship-diagram.md`, ADR 0033. Für WP-60 da: `DiagramLayout` (Schichten-Layout über Knoten-IDs, stabil beim Wachsen) und die Darstellung in `RelationsView`.
-
-### WP-60 Datensatz-Diagramm
-Umgesetzt auf `wp/60-record-diagram` (Release offen, kommt mit WP-42 und WP-46): Planung, Entscheidungen und Stand in `docs/work-packages/wp-60-record-diagram.md`, ADR 0034.
-
 ### WP-43 Datenqualität der Beziehungen
 Branch `wp/43-relationship-check`.
 - Bericht je Verbindung über den Graphen aus WP-42: für jede Beziehung **ohne** FK-Constraint die Zahl verwaister Werte (`NOT EXISTS`), mit Beispielwerten; Enum-Spalten mit Werten, die das C#-Enum nicht kennt; deklarierte Constraints im Zustand DISABLED/NOVALIDATE mit verletzenden Zeilen.

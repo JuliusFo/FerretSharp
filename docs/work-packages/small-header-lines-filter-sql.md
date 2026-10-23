@@ -1,4 +1,4 @@
-# Klein: Typ/NOT NULL im Spaltenkopf abschaltbar, `SELECT t.*` als SQL eines Filters
+# Klein: Typ/NOT NULL im Spaltenkopf abschaltbar, `SELECT t.*` als SQL eines Filters → Release 3.47.0
 
 Branch `feat/header-lines-sql-preview` (von `main`), 2026-10-22.
 
