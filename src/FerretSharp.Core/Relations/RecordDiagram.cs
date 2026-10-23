@@ -125,26 +125,22 @@ public sealed class RecordDiagram
 
     /// <summary>
     /// Follows every pending relationship of <paramref name="nodes"/> on <paramref name="side"/>: one read per relationship
-    /// for all the rows (of one table) together. New rows come one column further out, or as a group if too many.
+    /// for all the rows (of one table) together. New rows come one column further out, or as a group if too many. The step is
+    /// kept also when there is nothing to follow now: relationships of the C# model may come in later, and the reload then
+    /// follows them (a tab opened before the model never got its children).
     /// </summary>
     /// <returns>The rows shown now.</returns>
     public async Task<IReadOnlyList<RecordNode>> ExpandAsync(
         IReadOnlyList<RecordNode> nodes, DiagramSide side, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
     {
-        var pending = nodes.Distinct().SelectMany(n => Pending(n, side).Select(r => (Node: n, Relation: r))).ToList();
-        if (pending.Count == 0)
+        var distinct = nodes.Distinct().ToList();
+        if (distinct.Count == 0)
         {
             return [];
         }
 
-        AddStep(new RecordStep(RecordStepKind.Expand, [.. nodes.Distinct().Select(n => n.Id)], side));
-        var shown = new List<RecordNode>();
-        foreach (var along in pending.GroupBy(p => p.Relation))
-        {
-            shown.AddRange(await FollowAsync([.. along.Select(p => p.Node)], along.Key, Direction(side), progress, cancellationToken));
-        }
-
-        return shown;
+        AddStep(new RecordStep(RecordStepKind.Expand, [.. distinct.Select(n => n.Id)], side));
+        return await ExpandSideAsync(distinct, side, progress, cancellationToken);
     }
 
     /// <summary>Follows one relationship of one row in one direction (the context menu).</summary>
@@ -163,19 +159,13 @@ public sealed class RecordDiagram
     /// <summary>Shows the rows of a group in its column; the group goes away.</summary>
     public IReadOnlyList<RecordNode> Open(RecordGroup group)
     {
-        if (!_groups.Remove(group))
+        if (!_groups.Contains(group))
         {
             return [];
         }
 
-        var members = Members(group);
-        foreach (var node in members)
-        {
-            Show(node, group.Layer);
-        }
-
         AddStep(new RecordStep(RecordStepKind.Open, [group.Node.Id], group.Side, RelationGraph.KeyOf(group.Relation)));
-        return members;
+        return OpenGroup(group);
     }
 
     /// <summary>The rows of a group still not shown otherwise (one may have come in along another relationship since).</summary>
@@ -183,30 +173,32 @@ public sealed class RecordDiagram
 
     /// <summary>
     /// Does <paramref name="steps"/> again on this diagram (of the same start rows, read again): a row that is gone, or a
-    /// relationship the schema no longer has, skips its step. Stops at the first error, as an expansion does.
+    /// relationship the schema does not have now, skips its step. Every step is kept all the same – the row may be back after
+    /// a rollback, the relationship once the C# model is loaded. Stops at the first error, as an expansion does.
     /// </summary>
     public async Task ReplayAsync(IReadOnlyList<RecordStep> steps, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
     {
         foreach (var step in steps)
         {
+            AddStep(step);
             var nodes = step.Nodes.Select(NodeOf).OfType<RecordNode>().ToList();
             if (nodes.Count == 0)
             {
                 continue;
             }
 
-            var relation = step.Relation is null ? null : _relations.Relations.FirstOrDefault(r => RelationGraph.KeyOf(r) == step.Relation);
+            var relation = step.Relation is null ? null : _relations.Find(step.Relation);
             switch (step.Kind)
             {
                 case RecordStepKind.Expand when step.Relation is null:
-                    await ExpandAsync(nodes, step.Side, progress, cancellationToken);
+                    await ExpandSideAsync(nodes, step.Side, progress, cancellationToken);
                     break;
-                case RecordStepKind.Expand when relation is not null:
-                    await ExpandAsync(nodes[0], relation, step.Side, progress, cancellationToken);
+                case RecordStepKind.Expand when relation is not null && Pending(nodes[0], step.Side).Contains(relation):
+                    await FollowAsync([nodes[0]], relation, Direction(step.Side), progress, cancellationToken);
                     break;
                 case RecordStepKind.Open when relation is not null
                     && _groups.FirstOrDefault(g => g.Node == nodes[0] && g.Relation == relation && g.Side == step.Side) is { } group:
-                    Open(group);
+                    OpenGroup(group);
                     break;
             }
         }
@@ -223,6 +215,32 @@ public sealed class RecordDiagram
                 : new LayoutEdge(g.Id, g.Node.Id, g.Id)))
             .ToList();
         return (nodes, edges);
+    }
+
+    /// <summary>Every pending relationship of <paramref name="nodes"/> on <paramref name="side"/>, one read per relationship.</summary>
+    private async Task<IReadOnlyList<RecordNode>> ExpandSideAsync(
+        IReadOnlyList<RecordNode> nodes, DiagramSide side, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
+    {
+        var shown = new List<RecordNode>();
+        var pending = nodes.SelectMany(n => Pending(n, side).Select(r => (Node: n, Relation: r))).ToList();
+        foreach (var along in pending.GroupBy(p => p.Relation))
+        {
+            shown.AddRange(await FollowAsync([.. along.Select(p => p.Node)], along.Key, Direction(side), progress, cancellationToken));
+        }
+
+        return shown;
+    }
+
+    private IReadOnlyList<RecordNode> OpenGroup(RecordGroup group)
+    {
+        _groups.Remove(group);
+        var members = Members(group);
+        foreach (var node in members)
+        {
+            Show(node, group.Layer);
+        }
+
+        return members;
     }
 
     private async Task<IReadOnlyList<RecordNode>> FollowAsync(

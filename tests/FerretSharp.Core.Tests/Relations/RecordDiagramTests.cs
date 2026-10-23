@@ -40,9 +40,14 @@ public class RecordDiagramTests
 
     private RelationGraph Relations => new([_auftragKunde, _auftragBearbeiter, _positionAuftrag, _vorgesetzter]);
 
-    private Task<RecordDiagram> StartAsync(TableDetails table, object[][] keys, int maxRows = RecordDiagram.DefaultMaxRows, int groupLimit = RecordDiagram.DefaultGroupLimit) =>
-        RecordDiagram.StartAsync(new RowTraversal(_db.Data, Relations, _db.DetailsOf, wholeLobs: false, maxRows), Relations, table,
+    private Task<RecordDiagram> StartAsync(
+        TableDetails table, object[][] keys, int maxRows = RecordDiagram.DefaultMaxRows, int groupLimit = RecordDiagram.DefaultGroupLimit,
+        RelationGraph? relations = null)
+    {
+        relations ??= Relations;
+        return RecordDiagram.StartAsync(new RowTraversal(_db.Data, relations, _db.DetailsOf, wholeLobs: false, maxRows), relations, table,
             [.. keys.Select(k => (RowKey)new RowKey.PrimaryKey(k))], Ct, groupLimit);
+    }
 
     private static RecordNode Node(TableDetails table, params object[] key) => new(table.Table.Ref, new RowKey.PrimaryKey(key));
 
@@ -198,20 +203,59 @@ public class RecordDiagramTests
         _db.Data.ReceivedCalls().Where(c => c.GetMethodInfo().Name == nameof(IDataAccess.ReadByKeysAsync)).Select(c => (int?)c.GetArguments()[4]).Last();
 
     [Fact]
-    public async Task The_steps_build_the_same_diagram_again_and_skip_what_is_gone()
+    public async Task The_steps_build_the_same_diagram_again_and_skip_what_is_gone_but_keep_its_step()
     {
         var first = await StartAsync(_kunde, [[1m]], groupLimit: 1);
         await first.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, null, Ct);
         first.Open(first.Groups[0]);
         await first.ExpandAsync([Node(_auftrag, 100m)], DiagramSide.Children, null, Ct);
         await first.ExpandAsync(Node(_auftrag, 100m), _auftragBearbeiter, DiagramSide.Parents, null, Ct);
+        var gone = new RecordStep(RecordStepKind.Expand, ["r:APP.GONE:1"], DiagramSide.Parents);
 
         var again = await StartAsync(_kunde, [[1m]], groupLimit: 1);
-        await again.ReplayAsync([.. first.Steps, new RecordStep(RecordStepKind.Expand, ["r:APP.GONE:1"], DiagramSide.Parents)], null, Ct);
+        await again.ReplayAsync([.. first.Steps, gone], null, Ct);
 
         Assert.Equal(first.Rows, again.Rows);
         Assert.Equal(first.Edges.Select(e => e.Id), again.Edges.Select(e => e.Id));
-        Assert.Equal(first.Steps, again.Steps, StepComparer.Instance);
+        Assert.Equal([.. first.Steps, gone], again.Steps, StepComparer.Instance); // the row may be back after a rollback
+    }
+
+    /// <summary>
+    /// A tab opened or restored before the C# model's relationships came in: the side without a relationship then was not
+    /// kept as a step, and the reload once the model was there did not expand it – the children never came.
+    /// </summary>
+    [Fact]
+    public async Task Expanding_a_side_with_nothing_to_follow_yet_is_kept_and_follows_relationships_that_come_later()
+    {
+        var withoutModel = new RelationGraph([_auftragKunde]);
+        var first = await StartAsync(_auftrag, [[100m]], relations: withoutModel);
+        await first.ExpandAsync(first.Start, DiagramSide.Parents, null, Ct);
+        await first.ExpandAsync(first.Start, DiagramSide.Children, null, Ct); // no relationship to the positions yet
+
+        Assert.Equal(2, first.Steps.Count);
+
+        var withModel = await StartAsync(_auftrag, [[100m]]);
+        await withModel.ReplayAsync(first.Steps, null, Ct);
+
+        Assert.Contains(Node(_position, 100m, 1m), withModel.Rows.Select(r => r.Node));
+        Assert.Contains(Node(_mitarbeiter, 12m), withModel.Rows.Select(r => r.Node));
+        Assert.Equal(first.Steps, withModel.Steps, StepComparer.Instance);
+    }
+
+    /// <summary>The same for one relationship: a step whose relationship the schema does not have (yet) stays for the next load.</summary>
+    [Fact]
+    public async Task A_step_along_a_relationship_the_schema_does_not_have_now_is_kept()
+    {
+        var withModel = await StartAsync(_auftrag, [[100m]]);
+        await withModel.ExpandAsync(Node(_auftrag, 100m), _auftragBearbeiter, DiagramSide.Parents, null, Ct);
+
+        var withoutModel = await StartAsync(_auftrag, [[100m]], relations: new RelationGraph([_auftragKunde]));
+        await withoutModel.ReplayAsync(withModel.Steps, null, Ct);
+        var again = await StartAsync(_auftrag, [[100m]]);
+        await again.ReplayAsync(withoutModel.Steps, null, Ct);
+
+        Assert.Equal([Node(_auftrag, 100m)], withoutModel.Rows.Select(r => r.Node));
+        Assert.Equal(withModel.Rows, again.Rows);
     }
 
     [Fact]
