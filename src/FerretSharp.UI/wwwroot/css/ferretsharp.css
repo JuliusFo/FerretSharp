@@ -528,6 +528,8 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 .usage-tabs .seg-count.unused { color: var(--key); }
 .usage-limits { margin-left: 6px; font-size: 12px; color: var(--faint); cursor: help; }
 .usage-section .structure-columns-head .spacer { flex: 1; }
+.usage-build-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.usage-section .usage-build-note, .usage-section .usage-build-note ~ .model-log { margin-left: 0; margin-right: 0; }
 .usage-solution { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .usage-list { list-style: none; margin: 0 0 10px; padding: 0; }
 .usage-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; white-space: nowrap; }

@@ -178,6 +178,81 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         Assert.Equal(CodeUsagePhase.Ready, usage.State.Phase);
     }
 
+    /// <summary>"Build projects" builds the solution read, in the link's configuration, and reads what it wrote – also after a failed build.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task Building_the_solution_reads_the_new_builds_afterwards(int exitCode)
+    {
+        await ConnectAsync();
+        var first = await _usage.EnsureAsync(Ct);
+        _runner.ClearReceivedCalls();
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            Assert.True(_usage.IsBuildingSolution);
+            Assert.True(_models.IsBuilding); // no build of the linked project meanwhile
+            File.SetLastWriteTimeUtc(_dll, DateTime.UtcNow);
+            return new DotNetRun(exitCode, "output");
+        });
+
+        var run = await _usage.BuildSolutionAsync(Ct);
+
+        await _runner.Received(1).BuildSolutionAsync(_folder.Combine("Other.sln"), "Debug", Arg.Any<CancellationToken>());
+        Assert.Equal(exitCode, run!.ExitCode);
+        Assert.Same(run, _usage.LastSolutionBuild);
+        Assert.Null(_models.LastBuild); // the project's build result stays the project's
+        Assert.False(_usage.IsBuildingSolution);
+        Assert.NotSame(first, _usage.State.Result);
+        Assert.Equal(CodeUsagePhase.Ready, _usage.State.Phase);
+        // Review of the PR: no forced reload of the model (up to 12 s without the cache, not cancellable); the build output
+        // watcher reads it again if the build changed the linked project.
+        await _runner.DidNotReceiveWithAnyArgs().ReadModelAsync(default!, default!, Ct, default);
+    }
+
+    /// <summary>"Cancel" stops dotnet build through its token; what was built until then is read, and another build can follow.</summary>
+    [Fact]
+    public async Task A_cancelled_build_of_the_solution_ends_and_reads_what_was_built()
+    {
+        await ConnectAsync();
+        var first = await _usage.EnsureAsync(Ct);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(async call =>
+        {
+            File.SetLastWriteTimeUtc(_dll, DateTime.UtcNow); // one project built before the cancel
+            started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>());
+            return new DotNetRun(0, "");
+        });
+
+        var building = _usage.BuildSolutionAsync(Ct);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        var cancelling = false; // the build may end on the pool before the next line runs: seen through Changed
+        _usage.Changed += () => cancelling |= _usage.IsCancellingSolutionBuild;
+        _usage.CancelSolutionBuild();
+
+        Assert.Null(await building.WaitAsync(TimeSpan.FromSeconds(10), Ct));
+        Assert.True(cancelling);
+        Assert.True(_usage.SolutionBuildCancelled);
+        Assert.Null(_usage.LastSolutionBuild);
+        Assert.False(_usage.IsBuildingSolution);
+        Assert.False(_usage.IsCancellingSolutionBuild);
+        Assert.False(_models.IsBuilding);
+        Assert.NotSame(first, _usage.State.Result);
+
+        // The next build starts without the cancel of the last one and can be cancelled again (review of the PR: the flag could stay).
+        var again = _usage.BuildSolutionAsync(Ct);
+        Assert.False(_usage.IsCancellingSolutionBuild);
+        _usage.CancelSolutionBuild();
+        Assert.Null(await again.WaitAsync(TimeSpan.FromSeconds(10), Ct));
+        Assert.True(_usage.SolutionBuildCancelled);
+
+        _usage.CancelSolutionBuild(); // nothing running: no effect
+        Assert.False(_usage.IsCancellingSolutionBuild);
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new DotNetRun(0, ""));
+        Assert.NotNull(await _usage.BuildSolutionAsync(Ct));
+        Assert.False(_usage.SolutionBuildCancelled);
+    }
+
     [Fact]
     public async Task The_solutions_are_known_after_the_first_build_and_reading_them_reads_nothing()
     {

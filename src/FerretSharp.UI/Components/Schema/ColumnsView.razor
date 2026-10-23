@@ -23,6 +23,8 @@
     var mapping = Models.Mapping;
     var entity = mapping?.EntityOf(Details.Table.Ref);
     var shown = _order.Apply(filtered, key => ValueOf(key, mapping));
+    // Once per render, not per row: it looks at every project of the solution.
+    var unusedTitle = Usage.State.Result is { } read ? CodeUsageRows.UnusedTitle(read) : "";
 }
 
 <section class="columns-section">
@@ -134,7 +136,7 @@
                                 @property.Name@(property.IsShadow ? " (Shadow)" : "")
                                 @if (Usage.State.Result is { } usage && CodeUsageRows.Column(mapping, usage.Index, Details.Table.Ref, column.Name) is { Unused: true })
                                 {
-                                    <span class="fs-badge unused" title="@ModelViewText.Usage_UnusedTitle">@ModelViewText.Usage_Unused</span>
+                                    <span class="fs-badge unused" title="@unusedTitle">@ModelViewText.Usage_Unused</span>
                                 }
                                 @if (mismatches.Count > 0)
                                 {

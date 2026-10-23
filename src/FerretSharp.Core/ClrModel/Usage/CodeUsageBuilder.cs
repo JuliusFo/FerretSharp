@@ -9,13 +9,26 @@ namespace FerretSharp.Core.ClrModel;
 /// <summary>One project of the solution and how it went into the index.</summary>
 /// <param name="Uses">What was read from its assembly; null if it is not built or could not be read.</param>
 /// <param name="Error">Why it could not be read (project file or assembly); null otherwise.</param>
-public sealed record CodeUsageProject(string ProjectFile, ProjectBuild? Build, AssemblyUses? Uses, string? Error)
+/// <param name="ReachesModel">
+/// It defines entity types or references a project that does (through other projects of the solution, too): only then can
+/// its code use them. True if that is not known (project file unreadable, no entity type found in the solution).
+/// </param>
+public sealed record CodeUsageProject(string ProjectFile, ProjectBuild? Build, AssemblyUses? Uses, string? Error, bool ReachesModel = true)
 {
     public string Name => Path.GetFileNameWithoutExtension(ProjectFile);
 }
 
 /// <param name="Solution">The solution read; null if the linked project was read alone (no solution found).</param>
-public sealed record CodeUsageResult(string? Solution, IReadOnlyList<CodeUsageProject> Projects, CodeUsageIndex Index);
+public sealed record CodeUsageResult(string? Solution, IReadOnlyList<CodeUsageProject> Projects, CodeUsageIndex Index)
+{
+    /// <summary>
+    /// Projects whose code could use the model but was not read (not built, or unreadable): "unused" may be wrong while there
+    /// are any. Projects that cannot reach the entity types do not count – they cannot use them, built or not –, nor do test
+    /// projects, whose uses "unused" leaves out anyway (known from the project file, <see cref="ProjectBuild.IsTestProject"/>).
+    /// </summary>
+    public IReadOnlyList<CodeUsageProject> Missing =>
+        Projects.Where(p => p.ReachesModel && p.Uses is null && p.Build is not { IsTestProject: true }).ToList();
+}
 
 /// <summary>
 /// Builds the code usage index of a linked project's solution (WP-40, ADR 0030): finds each project's assembly, reads it
@@ -52,7 +65,42 @@ public partial class CodeUsageBuilder(string cacheDirectory, TimeProvider? time 
 
         PruneCache();
         var index = CodeUsageIndex.Build(model, read.Select(p => p.Uses).OfType<AssemblyUses>().ToList());
-        return new CodeUsageResult(solution, read, index);
+        return new CodeUsageResult(solution, MarkModelReach(read, model), index);
+    }
+
+    /// <summary>
+    /// Sets <see cref="CodeUsageProject.ReachesModel"/>: the projects whose assembly defines an entity type, and every project
+    /// referencing one of them, directly or through others (<c>ProjectReference</c>, read without building – so it is known
+    /// for projects not built, too). Without a project defining one (entities outside the solution, or not built), all may.
+    /// What is not known counts as reaching (review of the PR): a project whose file could not be read or whose references
+    /// are not all known (<see cref="ProjectBuild.ReferencesUnknown"/>), and a reference to a project outside the solution –
+    /// its own references are not read, it may lead to the entities.
+    /// </summary>
+    internal static IReadOnlyList<CodeUsageProject> MarkModelReach(IReadOnlyList<CodeUsageProject> projects, ModelExport model)
+    {
+        var entityTypes = model.Entities.Select(e => e.ClrType).ToHashSet(StringComparer.Ordinal);
+        var defining = projects
+            .Where(p => p.Uses?.Types.Any(t => entityTypes.Contains(t.Type)) == true)
+            .Select(p => p.ProjectFile)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (defining.Count == 0)
+        {
+            return projects;
+        }
+
+        var builds = projects
+            .GroupBy(p => p.ProjectFile, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Build, StringComparer.OrdinalIgnoreCase);
+
+        bool Reaches(string project, HashSet<string> seen) =>
+            defining.Contains(project)
+            || !builds.TryGetValue(project, out var build) // outside the solution
+            || build is null or { ReferencesUnknown: true }
+            || (seen.Add(project) && (build.References ?? []).Any(r => Reaches(r, seen)));
+
+        return projects
+            .Select(p => p with { ReachesModel = Reaches(p.ProjectFile, new HashSet<string>(StringComparer.OrdinalIgnoreCase)) })
+            .ToList();
     }
 
     private static CodeUsageProject Locate(string project, string configuration)

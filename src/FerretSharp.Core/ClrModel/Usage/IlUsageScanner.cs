@@ -20,8 +20,6 @@ public static class IlUsageScanner
     /// <summary>EF Core 7–9: <c>ExecuteUpdate(s =&gt; s.SetProperty(x =&gt; x.Email, …))</c> writes <c>Email</c>.</summary>
     private const string SetPropertyCallsType = "Microsoft.EntityFrameworkCore.Query.SetPropertyCalls`1";
 
-    private static readonly string[] TestFrameworks = ["xunit", "nunit.framework", "Microsoft.VisualStudio.TestPlatform", "Microsoft.Testing.Platform", "MSTest", "TUnit"];
-
     /// <param name="solutionAssemblies">
     /// Names of the solution's assemblies: a use counts only if its type is defined in one of them (the assembly itself
     /// always counts).
@@ -90,7 +88,7 @@ public static class IlUsageScanner
     private static bool IsTest(MetadataReader reader) =>
         reader.AssemblyReferences
             .Select(h => reader.GetString(reader.GetAssemblyReference(h).Name))
-            .Any(name => TestFrameworks.Any(f => name.StartsWith(f, StringComparison.OrdinalIgnoreCase)));
+            .Any(TestFrameworks.IsTestAssembly);
 
     private sealed class Scanner(MetadataReader reader, MetadataReader? pdb, string assemblyName, HashSet<string> solution)
     {

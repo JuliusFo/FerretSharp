@@ -137,6 +137,126 @@ public sealed class CodeUsageService : IDisposable
         return notSaved;
     }
 
+    /// <summary>The running build of the solution, stopped through it; null while none runs. With the flag, under the lock.</summary>
+    private CancellationTokenSource? _solutionBuild;
+
+    private bool _cancellingSolutionBuild;
+
+    /// <summary>The solution is being built (<see cref="BuildSolutionAsync"/>).</summary>
+    public bool IsBuildingSolution
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _solutionBuild is not null;
+            }
+        }
+    }
+
+    /// <summary>The running build of the solution was asked to stop (<see cref="CancelSolutionBuild"/>).</summary>
+    public bool IsCancellingSolutionBuild
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _cancellingSolutionBuild;
+            }
+        }
+    }
+
+    /// <summary>Output of the last <see cref="BuildSolutionAsync"/> of this connection; null before and after a cancelled one.</summary>
+    public DotNetRun? LastSolutionBuild { get; private set; }
+
+    /// <summary>The last build of the solution was cancelled.</summary>
+    public bool SolutionBuildCancelled { get; private set; }
+
+    /// <summary>
+    /// <c>dotnet build</c> of the solution read, so projects not built (which leave "unused" uncertain) are read too; then
+    /// the index again, also after a failed or cancelled build (the projects that did build are read, the cache serves the
+    /// others).
+    /// </summary>
+    /// <param name="cancellationToken">Stops waiting for the index afterwards, not the build (<see cref="CancelSolutionBuild"/>).</param>
+    /// <returns>The build; null if cancelled, without a solution, or while another build of the linked project runs.</returns>
+    public async Task<DotNetRun?> BuildSolutionAsync(CancellationToken cancellationToken)
+    {
+        if (Solution is not { } solution)
+        {
+            return null;
+        }
+
+        using var stop = new CancellationTokenSource();
+        lock (_lock)
+        {
+            if (_solutionBuild is not null)
+            {
+                return null;
+            }
+
+            // Set and cleared together, under the lock: a cancel between the build's end and its clean-up left the flag set
+            // for good – later builds showed "cancelling" and could not be cancelled (review of the PR).
+            (_solutionBuild, _cancellingSolutionBuild) = (stop, false);
+        }
+
+        (LastSolutionBuild, SolutionBuildCancelled) = (null, false);
+        Changed?.Invoke();
+        DotNetRun? run;
+        try
+        {
+            run = await _models.BuildSolutionAsync(solution, stop.Token);
+            LastSolutionBuild = run;
+            SolutionBuildCancelled = run is null && stop.IsCancellationRequested;
+        }
+        finally
+        {
+            lock (_lock)
+            {
+                (_solutionBuild, _cancellingSolutionBuild) = (null, false);
+            }
+
+            Changed?.Invoke();
+        }
+
+        if (run is not null || SolutionBuildCancelled)
+        {
+            await EnsureAsync(cancellationToken);
+        }
+
+        return run;
+    }
+
+    /// <summary>
+    /// Stops a running build of the solution: <c>dotnet build</c> and its processes end, the index is read again. Ending the
+    /// process tree walks every process of the system, so it runs on the pool, not on the caller's (the UI's) thread.
+    /// </summary>
+    public void CancelSolutionBuild()
+    {
+        CancellationTokenSource stop;
+        lock (_lock)
+        {
+            if (_solutionBuild is null || _cancellingSolutionBuild)
+            {
+                return;
+            }
+
+            (stop, _cancellingSolutionBuild) = (_solutionBuild, true);
+        }
+
+        Changed?.Invoke();
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                stop.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the build ended meanwhile
+            }
+        });
+    }
+
     private Task<CodeUsageResult?> GetAsync(bool force)
     {
         ClrProjectLink link;

@@ -316,7 +316,22 @@ public sealed class ClrModelManager : IDisposable
     }
 
     /// <summary><c>dotnet build</c> of the linked project, then reads the model again if the build succeeded.</summary>
-    public async Task<DotNetRun?> BuildAsync()
+    public Task<DotNetRun?> BuildAsync() => BuildAsync((link, ct) => _runner.BuildAsync(link, ct), ofProject: true);
+
+    /// <summary>
+    /// <c>dotnet build</c> of a solution with the linked project, in its configuration (code usage: projects not built). One
+    /// build at a time with <see cref="BuildAsync()"/>; <see cref="LastBuild"/> stays the project's – the result is the
+    /// caller's. The model is not read again here: if the build changed the linked project, the build output watcher does,
+    /// like after a build in Visual Studio (review of the PR: a forced reload without the cache took up to 12 s more, and
+    /// could not be cancelled).
+    /// </summary>
+    /// <param name="cancellationToken">Stops the build (<c>dotnet build</c> and its processes end); the result is then null.</param>
+    public Task<DotNetRun?> BuildSolutionAsync(string solution, CancellationToken cancellationToken) =>
+        BuildAsync((link, ct) => _runner.BuildSolutionAsync(solution, link.Configuration, ct), ofProject: false, cancellationToken);
+
+    /// <param name="ofProject">The project's own build: remembered as <see cref="LastBuild"/>, the model read again after it.</param>
+    private async Task<DotNetRun?> BuildAsync(Func<ClrProjectLink, CancellationToken, Task<DotNetRun>> build, bool ofProject,
+        CancellationToken cancellationToken = default)
     {
         if (CurrentLink is not { } link || IsBuilding)
         {
@@ -325,30 +340,37 @@ public sealed class ClrModelManager : IDisposable
 
         IsBuilding = true;
         Changed?.Invoke();
+        DotNetRun? run = null;
         try
         {
-            LastBuild = await Task.Run(() => _runner.BuildAsync(link, _lifetime.Token));
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, cancellationToken);
+            run = await Task.Run(() => build(link, cancel.Token));
         }
         catch (OperationCanceledException)
         {
-            return null; // closed meanwhile; nobody waits for the result
+            return null; // closed or cancelled meanwhile
         }
         catch (Exception ex) when (ex is ClrModelException or IOException or System.ComponentModel.Win32Exception)
         {
-            LastBuild = new DotNetRun(-1, ex.Message);
+            run = new DotNetRun(-1, ex.Message);
         }
         finally
         {
+            if (ofProject && run is not null)
+            {
+                LastBuild = run;
+            }
+
             IsBuilding = false;
             Changed?.Invoke();
         }
 
-        if (LastBuild.Succeeded)
+        if (ofProject && run.Succeeded)
         {
             await LoadAsync();
         }
 
-        return LastBuild;
+        return run;
     }
 
     public void Dispose()
