@@ -2,7 +2,8 @@
    by" with the rows behind incoming jumps, counted at once or on hover (FkCountMode), then "Referenced via" for what
    references a base table of the row's table (BaseTables); a jump opens the target table filtered. Each on one line (WP-61):
    jumps without a target (NULL) folded into "7 more are NULL", a long list of incoming ones into "… 22 more" – not shortened
-   otherwise, the user jumps often. Typing into the menu's filter shows every jump whose table it matches. *@
+   otherwise, the user jumps often. The line stays when opened and folds them again: removing it would take the focus out of
+   the menu (Escape and ↑ ↓ would no longer reach it). Typing into the menu's filter shows every jump whose table it matches. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @inherits FerretComponent
@@ -23,20 +24,18 @@
     }
     @if (outFolded.Count > 0)
     {
+        <button type="button" class="menu-item ctx-fold" aria-expanded="@(_nullsOpen ? "true" : "false")"
+                title="@string.Join(Environment.NewLine, outFolded.Select(j => FkTargets.Label(Active, j.Table)))" @onclick="() => _nullsOpen = !_nullsOpen">
+            <span class="ctx-arrow">○</span>
+            <span class="ctx-fold-text">@TextFormat.Plural(outFolded.Count, GridText.FkJump_MoreNullOne, GridText.FkJump_MoreNullOther)</span>
+            <span class="chev @(_nullsOpen ? "" : "closed")">▾</span>
+        </button>
         @if (_nullsOpen)
         {
             @foreach (var jump in outFolded)
             {
                 <FkJumpItem Jump="jump" OneLine="true" OnJump="JumpAsync" />
             }
-        }
-        else
-        {
-            <button type="button" class="menu-item ctx-fold" title="@string.Join(Environment.NewLine, outFolded.Select(j => FkTargets.Label(Active, j.Table)))"
-                    @onclick="() => _nullsOpen = true">
-                <span class="ctx-arrow">○</span>
-                <span class="ctx-fold-text">@TextFormat.Plural(outFolded.Count, GridText.FkJump_MoreNullOne, GridText.FkJump_MoreNullOther)</span>
-            </button>
         }
     }
 }
@@ -49,7 +48,9 @@
         continue;
     }
 
-    var (shown, folded) = Filtering || _open.Contains(via?.ToString() ?? "") ? (jumps, []) : FkJumpLists.FoldIncoming(jumps);
+    var key = via?.ToString() ?? "";
+    var (shown, folded) = Filtering ? (jumps, []) : FkJumpLists.FoldIncoming(jumps);
+    var open = _open.Contains(key);
     <div class="group-head-btn static" title="@(via is null ? null : FkTargets.ViaTitle(Active, via, all))">
         @(via is null ? TextFormat.Format(GridText.GridMenu_ReferencedBy, RowsText) : TextFormat.Format(GridText.GridMenu_ReferencedVia, FkTargets.Label(Active, via), RowsText))
     </div>
@@ -59,12 +60,19 @@
     }
     @if (folded.Count > 0)
     {
-        var key = via?.ToString() ?? "";
-        <button type="button" class="menu-item ctx-fold" title="@string.Join(Environment.NewLine, folded.Select(j => FkTargets.Label(Active, j.Table)))"
-                @onclick="() => _open.Add(key)">
+        <button type="button" class="menu-item ctx-fold" aria-expanded="@(open ? "true" : "false")"
+                title="@string.Join(Environment.NewLine, folded.Select(j => FkTargets.Label(Active, j.Table)))" @onclick="() => Toggle(key)">
             <span class="ctx-arrow">…</span>
             <span class="ctx-fold-text">@TextFormat.Format(GridText.FkJump_More, folded.Count)</span>
+            <span class="chev @(open ? "" : "closed")">▾</span>
         </button>
+        @if (open)
+        {
+            @foreach (var jump in folded)
+            {
+                <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="Related(jump)" OneLine="true" OnJump="JumpAsync" OnEnter="Hover" OnLeave="_counts.Leave" />
+            }
+        }
     }
 }
 
@@ -97,10 +105,10 @@ else if (MissingRows > 0 && !Filtering)
     private readonly CancellationTokenSource _cts = new();
     private FkCounts _counts = null!;
 
-    /// <summary>"7 more are NULL" was opened.</summary>
+    /// <summary>"7 more are NULL" is open.</summary>
     private bool _nullsOpen;
 
-    /// <summary>Groups of incoming jumps whose "… more" was opened, by base table (empty: the direct ones).</summary>
+    /// <summary>Groups of incoming jumps whose "… more" is open, by base table (empty: the direct ones).</summary>
     private readonly HashSet<string> _open = [];
 
     /// <summary>Jumps to the rows the selected rows reference, those over the clicked column first.</summary>
@@ -139,6 +147,14 @@ else if (MissingRows > 0 && !Filtering)
     public EventCallback OnJumped { get; set; }
 
     private bool Filtering => Filter?.Active == true;
+
+    private void Toggle(string group)
+    {
+        if (!_open.Remove(group))
+        {
+            _open.Add(group);
+        }
+    }
 
     /// <summary>The filter matches the jump's table (as labeled, with the C# entity), its key's columns or its constraint.</summary>
     private bool Shown(FkJump jump) =>

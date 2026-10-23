@@ -949,6 +949,7 @@ table.binds td { font-family: var(--mono); }
 .ctx-jump.one-line .ctx-meta { flex: none; max-width: 45%; }
 .ctx-fold { color: var(--muted); }
 .ctx-fold-text { flex: 1; font-size: 12.5px; }
+.ctx-fold .chev { color: var(--faint); font-size: 11px; }
 /* the column menus' head: the column's facts and comment */
 .ctx-facts { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 6px; }
 .ctx-fact { padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; white-space: nowrap; }
