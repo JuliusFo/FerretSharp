@@ -168,11 +168,19 @@
     <value>The tables of the copy as a diagram: parents to the left, in the order the rows are inserted</value>
     <comment>Tooltip</comment>
   </data>
-  <data name="DiagramRows" xml:space="preserve">
+  <data name="DiagramRowsOne" xml:space="preserve">
+    <value>{0:N0} row · {1:N0} new · {2:N0} existing</value>
+    <comment>{0}: rows; {1}: new rows; {2}: rows the target has</comment>
+  </data>
+  <data name="DiagramRowsOther" xml:space="preserve">
     <value>{0:N0} rows · {1:N0} new · {2:N0} existing</value>
     <comment>{0}: rows; {1}: new rows; {2}: rows the target has</comment>
   </data>
   <data name="DiagramConflict" xml:space="preserve">
+    <value>Existing: {0}</value>
+    <comment>{0}: conflict mode, e.g. Skip</comment>
+  </data>
+  <data name="DiagramConflictDiffering" xml:space="preserve">
     <value>Existing: {0} ({1:N0} differing)</value>
     <comment>{0}: conflict mode, e.g. Skip; {1}: existing rows with other values</comment>
   </data>

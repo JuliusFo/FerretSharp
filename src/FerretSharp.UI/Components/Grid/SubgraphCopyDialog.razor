@@ -315,13 +315,15 @@
                             var box = placement.Nodes[RelationDiagram.IdOf(table.Table)];
                             var own = issues.Where(i => i.Table == table.Table).ToList();
                             var worst = own.Count == 0 ? null : (CopySeverity?)own.Min(i => i.Severity);
-                            <div class="relations-node copy-node @(worst is { } w ? SeverityClass(w) : "")" style="@Schema.DiagramStyle.Box(box)"
+                            <div class="relations-node copy-table-node @(worst is { } w ? SeverityClass(w) : "")" style="@Schema.DiagramStyle.Box(box)"
                                  title="@(own.Count == 0 ? null : string.Join(Environment.NewLine, own.Select(i => i.Message)))">
                                 <span class="relations-name">@table.Source.Details.Table.DisplayName</span>
-                                <span class="relations-sub">@TextFormat.Format(CopyViewText.DiagramRows, table.Rows.Count, table.NewRows, table.Existing.Count)</span>
+                                <span class="relations-sub">@TextFormat.Plural(table.Rows.Count, CopyViewText.DiagramRowsOne, CopyViewText.DiagramRowsOther, table.NewRows, table.Existing.Count)</span>
                                 @if (table.Existing.Count > 0)
                                 {
-                                    <span class="relations-sub">@TextFormat.Format(CopyViewText.DiagramConflict, ModeLabel(Draft.ModeOf(table)), table.Differing.Count)</span>
+                                    <span class="relations-sub">@(table.Differing.Count > 0
+                                        ? TextFormat.Format(CopyViewText.DiagramConflictDiffering, ModeLabel(Draft.ModeOf(table)), table.Differing.Count)
+                                        : TextFormat.Format(CopyViewText.DiagramConflict, ModeLabel(Draft.ModeOf(table))))</span>
                                 }
                             </div>
                         }
@@ -332,7 +334,7 @@
     }
 
     /// <summary>Taller nodes than in the relationship diagram: name, rows and the conflict mode.</summary>
-    private static readonly LayoutMetrics PreviewMetrics = LayoutMetrics.Default with { NodeWidth = 230, NodeHeight = 64, LayerGap = 90 };
+    private static readonly LayoutMetrics PreviewMetrics = LayoutMetrics.Default with { NodeWidth = 200, NodeHeight = 64, LayerGap = 64 };
 
     private static string ModeLabel(ConflictMode mode) => mode switch
     {

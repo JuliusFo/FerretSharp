@@ -1125,10 +1125,6 @@
     <value>Without a primary key the table cannot be filtered on the row.</value>
     <comment>Tooltip</comment>
   </data>
-  <data name="Records_MarkTitle" xml:space="preserve">
-    <value>Click: mark for a copy to another connection</value>
-    <comment>Tooltip of a row in the record diagram</comment>
-  </data>
   <data name="Records_MenuOpen" xml:space="preserve">
     <value>Open row in a tab</value>
     <comment>Context menu</comment>
@@ -1168,5 +1164,25 @@
   <data name="Records_ShowInTabTitle" xml:space="preserve">
     <value>Opens {0} filtered on these rows instead</value>
     <comment>{0}: table</comment>
+  </data>
+  <data name="Records_MarkHint" xml:space="preserve">
+    <value>Click a row to mark it for a copy</value>
+    <comment>Hint in the head of a record diagram</comment>
+  </data>
+  <data name="Records_GroupVia" xml:space="preserve">
+    <value>via {0}</value>
+    <comment>Second line of a collapsed node; {0}: relationship</comment>
+  </data>
+  <data name="Records_ProblemFrom" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>{0}: the row (or rows) a relationship was not followed from; {1}: why</comment>
+  </data>
+  <data name="Records_NothingNew" xml:space="preserve">
+    <value>No further rows there.</value>
+    <comment>Notice after expanding brought nothing</comment>
+  </data>
+  <data name="Records_ReadingRows" xml:space="preserve">
+    <value>Reading rows</value>
+    <comment>Progress title before the first table is reported</comment>
   </data>
 </root>

@@ -46,7 +46,9 @@ public static class ShellActions
         ShortcutAction.Forward => InExplorer(context) ?? (context.CanGoForward ? null : ShellText.Palette_NothingToGoForwardTo),
         ShortcutAction.CloseTab or ShortcutAction.CloseOtherTabs or ShortcutAction.CloseAllTabs or ShortcutAction.PinTab => WithTab(context),
         ShortcutAction.ApplyFilters => WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab ? null : ShellText.Palette_NotInThisTab),
-        ShortcutAction.Refresh or ShortcutAction.FindColumn =>
+        ShortcutAction.Refresh =>
+            WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab or PlSqlTab or RecordTab ? null : ShellText.Palette_NotInThisTab),
+        ShortcutAction.FindColumn =>
             WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.RunScript => WithTab(context) ?? (context.ActiveTab is SqlTab ? null : ShellText.Palette_OnlyInSqlTab),
         ShortcutAction.NewSql or ShortcutAction.ToggleChanges => InExplorer(context),

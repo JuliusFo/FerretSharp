@@ -927,9 +927,6 @@
   <data name="Records_OpenUnavailable" xml:space="preserve">
     <value>Ohne Primärschlüssel lässt sich die Tabelle nicht auf die Zeile filtern.</value>
   </data>
-  <data name="Records_MarkTitle" xml:space="preserve">
-    <value>Klick: zum Kopieren in eine andere Verbindung markieren</value>
-  </data>
   <data name="Records_MenuOpen" xml:space="preserve">
     <value>Zeile im Tab öffnen</value>
   </data>
@@ -959,5 +956,20 @@
   </data>
   <data name="Records_ShowInTabTitle" xml:space="preserve">
     <value>Öffnet stattdessen {0}, gefiltert auf diese Zeilen</value>
+  </data>
+  <data name="Records_MarkHint" xml:space="preserve">
+    <value>Klick auf eine Zeile markiert sie zum Kopieren</value>
+  </data>
+  <data name="Records_GroupVia" xml:space="preserve">
+    <value>über {0}</value>
+  </data>
+  <data name="Records_ProblemFrom" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Records_NothingNew" xml:space="preserve">
+    <value>Dort gibt es keine weiteren Zeilen.</value>
+  </data>
+  <data name="Records_ReadingRows" xml:space="preserve">
+    <value>Lese Zeilen</value>
   </data>
 </root>

@@ -995,9 +995,9 @@ button.badge-btn:hover { filter: brightness(1.08); }
 .copy-preview-head h3 { margin: 0; }
 .copy-dialog .relations-view.copy-diagram { display: flex; flex-direction: column; height: min(360px, 50vh); }
 .copy-diagram .relations-canvas { border: 1px solid var(--border); border-radius: 8px; }
-.relations-node.copy-node { padding: 0 14px; gap: 2px; }
-.relations-node.copy-node.copy-error { border-color: var(--danger); }
-.relations-node.copy-node.copy-warning { border-color: var(--warn); }
+.relations-node.copy-table-node { padding: 0 14px; gap: 2px; }
+.relations-node.copy-table-node.copy-error { border-color: var(--danger); }
+.relations-node.copy-table-node.copy-warning { border-color: var(--warn); }
 .copy-issues .copy-error { color: var(--danger); }
 .copy-issues .copy-warning { color: var(--warn); }
 .copy-issues .copy-info { color: var(--muted); }
@@ -1681,3 +1681,4 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-node.record { cursor: pointer; }
 .relations-node.record.marked { background: var(--accent-weak); border-color: var(--accent); }
 .relations-node.record button.relations-name:disabled { color: var(--text); cursor: inherit; }
+.records-group-text { display: flex; flex-direction: column; min-width: 0; }

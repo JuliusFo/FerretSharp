@@ -144,6 +144,21 @@ public sealed class RecordDiagramStateTests
         Assert.Empty(state.Diagram!.Rows);
     }
 
+    /// <summary>E2E: the saved state shared the diagram's list of steps, so the workspace saw no change and kept the old file.</summary>
+    [Fact]
+    public async Task The_saved_state_of_a_tab_does_not_change_with_later_steps()
+    {
+        var state = NewState("100");
+        var tab = new RecordTab(Guid.NewGuid(), Auftrag.Table, state);
+        await LoadAsync(state);
+        var saved = tab.ToState([tab]).Records!;
+
+        await state.ExpandAsync(Node(Kunde, 1m), DiagramSide.Children, null, Ct);
+
+        Assert.Equal(2, saved.Steps.Count);
+        Assert.Equal(3, tab.ToState([tab]).Records!.Steps.Count);
+    }
+
     [Fact]
     public async Task Marked_rows_of_one_table_can_start_a_copy()
     {

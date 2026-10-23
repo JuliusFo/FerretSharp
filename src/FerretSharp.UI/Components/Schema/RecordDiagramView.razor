@@ -28,7 +28,11 @@
                 <span class="relations-source"><span class="relations-swatch @KindClass(source)"></span>@SourceLabel(source)</span>
             }
             <span class="spacer"></span>
-            @if (State.Marked.Count > 0)
+            @if (State.Marked.Count == 0)
+            {
+                <span class="muted">@SchemaViewText.Records_MarkHint</span>
+            }
+            else
             {
                 var copyUnavailable = CopyUnavailable;
                 <span class="muted">@TextFormat.Plural(State.Marked.Count, SchemaViewText.Records_MarkedOne, SchemaViewText.Records_MarkedOther)</span>
@@ -51,7 +55,7 @@
                 {
                     var p = problem;
                     <li>
-                        <span>@p.Message</span>
+                        <span>@ProblemText(p)</span>
                         @if (p.TooMany && JumpOf(p) is { IsAvailable: true } jump)
                         {
                             <button class="btn small" title="@TextFormat.Format(SchemaViewText.Records_ShowInTabTitle, Label(jump.Table))"
@@ -110,7 +114,7 @@
                                 var children = diagram.Pending(node, DiagramSide.Children).Count;
                                 var open = OpenUnavailable(node);
                                 <div id="@(node == FirstStart ? FocusId : null)" class="relations-node record @(diagram.Start.Contains(node) ? "focus" : "") @(State.IsMarked(node) ? "marked" : "") @NodeState(node, lit)"
-                                     style="@DiagramStyle.Box(box)" title="@SchemaViewText.Records_MarkTitle"
+                                     style="@DiagramStyle.Box(box)"
                                      @onclick="() => State.ToggleMark(node)"
                                      @onmouseenter="() => _hover = node" @onmouseleave="() => Leave(node)" @oncontextmenu="e => OpenMenuAsync(e, node)" @oncontextmenu:preventDefault="true">
                                     @if (parents > 0)
@@ -134,10 +138,12 @@
                                 var members = diagram.Members(g);
                                 if (members.Count > 0 && placement.Nodes.TryGetValue(g.Id, out var box))
                                 {
-                                    <div class="relations-node group" style="@DiagramStyle.Box(box)">
-                                        <span class="relations-name" title="@TextFormat.Format(SchemaViewText.Records_Via, Label(g.Table), g.Relation.Name)">@TextFormat.Format(SchemaViewText.Records_Group, members.Count, NameOf(g.Table))</span>
-                                        <button class="btn small" title="@TextFormat.Format(SchemaViewText.Records_Via, Label(g.Table), g.Relation.Name)"
-                                                @onclick="() => Change(() => State.Open(g), anchor: g.Node)">@SchemaViewText.Relations_GroupShow</button>
+                                    <div class="relations-node group" style="@DiagramStyle.Box(box)" title="@EdgeTitle(g.Relation)">
+                                        <span class="records-group-text">
+                                            <span class="relations-name">@TextFormat.Format(SchemaViewText.Records_Group, members.Count, NameOf(g.Table))</span>
+                                            <span class="relations-sub">@TextFormat.Format(SchemaViewText.Records_GroupVia, g.Relation.Name)</span>
+                                        </span>
+                                        <button class="btn small" @onclick="() => Change(() => State.Open(g), anchor: g.Node)">@SchemaViewText.Relations_GroupShow</button>
                                     </div>
                                 }
                             }
@@ -236,7 +242,7 @@
     private RecordNode? FirstStart => State.Diagram?.Start.FirstOrDefault();
 
     /// <summary>A running read: since when, and how to stop it.</summary>
-    private sealed record Run(DateTimeOffset Started, CancellationTokenSource Cancellation);
+    private sealed record Run(DateTimeOffset Started, CancellationTokenSource Cancellation, bool Starting);
 
     /// <summary>The row whose right-click menu is open, with the mouse position and window size.</summary>
     private sealed record NodeMenu(RecordNode Node, double X, double Y, double ViewportWidth, double ViewportHeight);
@@ -286,7 +292,7 @@
     }
 
     /// <summary>Reads the start rows again and does what was done (F5, the first time, reset).</summary>
-    private Task LoadAsync() => RunAsync(async (progress, token) =>
+    private Task LoadAsync() => RunAsync(starting: true, async (progress, token) =>
     {
         if (Active.Schema is not { } schema)
         {
@@ -306,17 +312,23 @@
     }
 
     private Task ExpandAsync(RecordNode node, DiagramSide side) =>
-        RunAsync((progress, token) => State.ExpandAsync(node, side, progress, token), node);
+        RunAsync(starting: false, (progress, token) => State.ExpandAsync(node, side, progress, token), node, sayIfNothing: true);
 
     private Task ExpandAsync(RecordNode node, ForeignKeyInfo relation, DiagramSide side) =>
-        RunAsync((progress, token) => State.ExpandAsync(node, relation, side, progress, token), node);
+        RunAsync(starting: false, (progress, token) => State.ExpandAsync(node, relation, side, progress, token), node, sayIfNothing: true);
 
     /// <summary>
     /// One read at a time, on the UI thread (the diagram is not thread-safe; the database calls themselves are asynchronous).
     /// Errors go to the error dialog, a refusal to a notice; what came in before stays.
     /// </summary>
+    /// <param name="starting">The start rows are read first (loading, F5): the title until the first table is reported.</param>
     /// <param name="anchor">The row clicked: it stays where it is on the screen while the diagram grows around it.</param>
-    private async Task RunAsync(Func<IProgress<TraversalProgress>, CancellationToken, Task> work, RecordNode? anchor)
+    /// <param name="sayIfNothing">
+    /// An expansion that brought nothing says so (E2E: the handle only went from "+3" to "+2", and it looked as if the click
+    /// had been lost).
+    /// </param>
+    private async Task RunAsync(
+        bool starting, Func<IProgress<TraversalProgress>, CancellationToken, Task> work, RecordNode? anchor, bool sayIfNothing = false)
     {
         if (_running is not null)
         {
@@ -324,10 +336,11 @@
         }
 
         _hover = null;
-        var run = new Run(DateTimeOffset.Now, new CancellationTokenSource());
+        var run = new Run(DateTimeOffset.Now, new CancellationTokenSource(), starting);
         _running = run;
         _progress = null;
         var before = AnchorBox(anchor);
+        var shownBefore = Shape;
         var progress = new Progress<TraversalProgress>(p =>
         {
             _progress = p;
@@ -346,7 +359,11 @@
             return;
         }
 
-        Shell.ShowFailure(result);
+        if (Shell.ShowFailure(result) && sayIfNothing && Shape == shownBefore)
+        {
+            Shell.Notify(SchemaViewText.Records_NothingNew);
+        }
+
         if (before is not null && AnchorBox(anchor) is { } after)
         {
             _scrollBy = ((after.X - before.X) * State.Zoom, (after.Y - before.Y) * State.Zoom);
@@ -355,6 +372,20 @@
         Shell.MarkDirty(); // the steps are saved with the workspace
         StateHasChanged();
     }
+
+    /// <summary>What the diagram shows, to tell whether an expansion brought anything.</summary>
+    private (int Rows, int Groups, int Problems) Shape =>
+        State.Diagram is { } diagram ? (diagram.Rows.Count, diagram.Groups.Count, diagram.Problems.Count) : default;
+
+    /// <summary>A relationship not followed, with the row (or rows) it was followed from – a diagram may hold many of a table.</summary>
+    private string ProblemText(RecordProblem problem) => problem.From switch
+    {
+        [var node] when State.Diagram is { } diagram =>
+            TextFormat.Format(SchemaViewText.Records_ProblemFrom, $"{NameOf(node.Table)} {RowText(diagram, node)}", problem.Message),
+        [var first, ..] =>
+            TextFormat.Format(SchemaViewText.Records_ProblemFrom, TextFormat.Format(SchemaViewText.Records_Group, problem.From.Count, NameOf(first.Table)), problem.Message),
+        _ => problem.Message,
+    };
 
     private NodeBox? AnchorBox(RecordNode? node) => node is null ? null : State.Placement?.Nodes.GetValueOrDefault(node.Id);
 
@@ -386,7 +417,7 @@
 
     private string ProgressText => _progress is { } p
         ? TextFormat.Format(SchemaViewText.Records_Reading, Label(p.Table), p.Rows)
-        : SchemaViewText.Records_ReadingStart;
+        : _running?.Starting == true ? SchemaViewText.Records_ReadingStart : SchemaViewText.Records_ReadingRows;
 
     /// <param name="anchor">The row clicked: it stays where it is on the screen.</param>
     private void Change(Action change, RecordNode? anchor = null)
