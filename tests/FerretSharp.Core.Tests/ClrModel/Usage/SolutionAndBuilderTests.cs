@@ -11,11 +11,12 @@ public sealed class SolutionAndBuilderTests : IDisposable
 
     public void Dispose() => _folder.Dispose();
 
-    private string Project(string relative)
+    private string Project(string relative, params string[] references)
     {
         var file = _folder.Combine(relative.Split('/'));
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-        File.WriteAllText(file, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>");
+        var items = string.Concat(references.Select(r => $"<ProjectReference Include=\"{r}\" />"));
+        File.WriteAllText(file, $"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup><ItemGroup>{items}</ItemGroup></Project>");
         File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddHours(-2));
         return file;
     }
@@ -106,6 +107,49 @@ public sealed class SolutionAndBuilderTests : IDisposable
         var third = await builder.BuildAsync(link, null, CodeUsageIndexTests.Model(), TestContext.Current.CancellationToken);
         Assert.Contains(third.Index.ForProperty(customer, "Email"), u => u.Use.CallerMethod == "ReadEmail");
         Assert.Null(third.Solution);
+    }
+
+    /// <summary>
+    /// Projects not built leave "unused" uncertain only if their code could use the entity types: the project defining them
+    /// (here the built Shop.Entities) and every project referencing it, directly or through others – read from the project
+    /// files, so it is known without a build.
+    /// </summary>
+    [Fact]
+    public async Task Only_projects_not_built_that_reach_the_entity_types_are_missing()
+    {
+        var entities = Project("Shop.Entities/Shop.Entities.csproj");
+        Built(entities, "Shop.Entities");
+        var data = Project("Shop.Data/Shop.Data.csproj", @"..\Shop.Entities\Shop.Entities.csproj");
+        Project("Shop.Web/Shop.Web.csproj", "../Shop.Data/Shop.Data.csproj");
+        Project("Tools/Tools.csproj");
+        File.WriteAllText(_folder.Combine("Shop.slnx"), """
+            <Solution>
+              <Project Path="Shop.Entities/Shop.Entities.csproj" />
+              <Project Path="Shop.Data/Shop.Data.csproj" />
+              <Project Path="Shop.Web/Shop.Web.csproj" />
+              <Project Path="Tools/Tools.csproj" />
+            </Solution>
+            """);
+
+        var result = await new CodeUsageBuilder(_folder.Combine("cache")).BuildAsync(new ClrProjectLink(data), _folder.Combine("Shop.slnx"),
+            CodeUsageIndexTests.Model(), TestContext.Current.CancellationToken);
+
+        Assert.Equal([_folder.Combine("Shop.Entities", "Shop.Entities.csproj")], BuildOutputLocator.FindAssembly(data, "Debug").References);
+        Assert.Equal([true, true, true, false], result.Projects.Select(p => p.ReachesModel));
+        Assert.Equal(["Shop.Data", "Shop.Web"], result.Missing.Select(p => p.Name));
+    }
+
+    [Fact]
+    public async Task Without_a_project_defining_an_entity_type_every_project_not_built_is_missing()
+    {
+        var data = Project("Shop.Data/Shop.Data.csproj");
+        Project("Tools/Tools.csproj");
+        File.WriteAllText(_folder.Combine("Shop.slnx"), """<Solution><Project Path="Shop.Data/Shop.Data.csproj" /><Project Path="Tools/Tools.csproj" /></Solution>""");
+
+        var result = await new CodeUsageBuilder(_folder.Combine("cache")).BuildAsync(new ClrProjectLink(data), _folder.Combine("Shop.slnx"),
+            CodeUsageIndexTests.Model(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Shop.Data", "Tools"], result.Missing.Select(p => p.Name));
     }
 
     [Fact]

@@ -26,7 +26,9 @@ public sealed record BuildOutput(
 /// <summary>The compiled assembly of one project of a solution (WP-40).</summary>
 /// <param name="Assembly">The newest <c>.dll</c> of the configuration; null if the project is not built.</param>
 /// <param name="NewerSource">A source file of the project changed after the build; null if the build is current.</param>
-public sealed record ProjectBuild(string ProjectFile, string AssemblyName, string? Assembly, DateTime? BuiltAtUtc, string? NewerSource)
+/// <param name="References">The projects it references (<c>ProjectReference</c>), full paths; read without building.</param>
+public sealed record ProjectBuild(string ProjectFile, string AssemblyName, string? Assembly, DateTime? BuiltAtUtc, string? NewerSource,
+    IReadOnlyList<string>? References = null)
 {
     public bool IsBuilt => Assembly is not null;
 
@@ -164,7 +166,11 @@ public static partial class BuildOutputLocator
         }
 
         var projectDirectory = Path.GetDirectoryName(Path.GetFullPath(projectFile))!;
-        var assemblyName = ReadProject(projectFile).AssemblyName ?? projectName;
+        var project = ReadProject(projectFile);
+        var assemblyName = project.AssemblyName ?? projectName;
+        var references = project.ProjectReferences
+            .Select(r => Path.GetFullPath(Path.Combine(projectDirectory, r.Replace('\\', Path.DirectorySeparatorChar))))
+            .ToList();
         var assembly = OutputDirectories(projectDirectory, projectName, configuration)
             .Where(Directory.Exists)
             .SelectMany(d => Directory.EnumerateFiles(d, assemblyName + ".dll", SearchOption.AllDirectories))
@@ -174,7 +180,7 @@ public static partial class BuildOutputLocator
             .FirstOrDefault();
         if (assembly is null)
         {
-            return new ProjectBuild(projectFile, assemblyName, null, null, null);
+            return new ProjectBuild(projectFile, assemblyName, null, null, null, references);
         }
 
         var builtAt = File.GetLastWriteTimeUtc(assembly);
@@ -185,7 +191,7 @@ public static partial class BuildOutputLocator
             .OrderByDescending(f => f.At)
             .Select(f => f.File)
             .FirstOrDefault();
-        return new ProjectBuild(projectFile, assemblyName, assembly, builtAt, newer);
+        return new ProjectBuild(projectFile, assemblyName, assembly, builtAt, newer, references);
     }
 
     /// <summary><c>bin/&lt;Configuration&gt;</c>, or an artifacts layout (<c>UseArtifactsOutput</c>) further up.</summary>
