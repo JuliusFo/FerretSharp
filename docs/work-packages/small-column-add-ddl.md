@@ -1,4 +1,4 @@
-# Klein: Spalten als ALTER TABLE in eine andere Datenbank übertragen → Release offen
+# Klein: Spalten als ALTER TABLE in eine andere Datenbank übertragen → Release 3.48.0
 
 Branch `feat/column-add-ddl` (von `main`), 2026-10-23.
 
