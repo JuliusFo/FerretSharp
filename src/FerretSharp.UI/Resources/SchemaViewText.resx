@@ -1037,4 +1037,8 @@
     <value>Relationships of {0} are only of kinds switched off.</value>
     <comment>{0}: table name</comment>
   </data>
+  <data name="Relations_KindDeclared" xml:space="preserve">
+    <value>Constraint</value>
+    <comment>Kind of one relationship in its tooltip: a foreign key constraint</comment>
+  </data>
 </root>

@@ -55,14 +55,14 @@
         }
         else
         {
-            <div class="relations-canvas" @onmouseleave="() => _hover = null">
+            <div id="@CanvasId" class="relations-canvas" @onmouseleave="() => _hover = null">
                 <div class="relations-size" style="@Size(placement.Width * _state.Zoom, placement.Height * _state.Zoom)">
                     <div class="relations-stage" style="@($"{Size(placement.Width, placement.Height)} transform: scale({_state.Zoom.ToString(CultureInfo.InvariantCulture)});")">
                         <svg class="relations-edges" width="@Px(placement.Width)" height="@Px(placement.Height)">
                             @foreach (var edge in placement.Edges)
                             {
                                 var relation = relations.GetValueOrDefault(edge.Id);
-                                var end = edge.Points[3];
+                                var end = edge.Points[^1];
                                 <g class="relations-edge @(relation is null ? "group" : KindClass(relation.Source)) @EdgeState(edge)" title="@(relation is null ? null : EdgeTitle(relation))">
                                     <path class="hit" d="@edge.Svg" />
                                     <path class="line" d="@edge.Svg" />
@@ -78,11 +78,11 @@
                             var parents = diagram.HiddenCount(t, DiagramSide.Parents);
                             var children = diagram.HiddenCount(t, DiagramSide.Children);
                             <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @NodeState(t, lit)" style="@Box(box)"
-                                 @onmouseenter="() => _hover = t" @oncontextmenu="e => OpenMenuAsync(e, t)" @oncontextmenu:preventDefault="true">
+                                 @onmouseenter="() => _hover = t" @onmouseleave="() => Leave(t)" @oncontextmenu="e => OpenMenuAsync(e, t)" @oncontextmenu:preventDefault="true">
                                 @if (parents > 0)
                                 {
                                     <button class="relations-handle left" title="@TextFormat.Plural(parents, SchemaViewText.Relations_ShowParentsOne, SchemaViewText.Relations_ShowParentsOther)"
-                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Parents))">+@parents</button>
+                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Parents), anchor: t)">+@parents</button>
                                 }
                                 @if (summary is not null)
                                 {
@@ -100,7 +100,7 @@
                                 @if (children > 0)
                                 {
                                     <button class="relations-handle right" title="@TextFormat.Plural(children, SchemaViewText.Relations_ShowChildrenOne, SchemaViewText.Relations_ShowChildrenOther)"
-                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Children))">+@children</button>
+                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Children), anchor: t)">+@children</button>
                                 }
                             </div>
                         }
@@ -113,7 +113,7 @@
                                 <div class="relations-node group" style="@Box(box)">
                                     <span class="relations-name">@TextFormat.Plural(members.Count, SchemaViewText.Relations_GroupOne, SchemaViewText.Relations_GroupOther)</span>
                                     <button class="btn small" title="@TextFormat.Format(SchemaViewText.Relations_GroupTitle, string.Join(", ", members.Select(Label)))"
-                                            @onclick="() => Change(() => _state.Open(g))">@SchemaViewText.Relations_GroupShow</button>
+                                            @onclick="() => Change(() => _state.Open(g), anchor: g.Table)">@SchemaViewText.Relations_GroupShow</button>
                                 </div>
                             }
                         }
@@ -135,9 +135,9 @@
         <button class="menu-item" disabled="@(menu.Table == _state.Focus)" @onclick="() => FromMenu(() => _state.Recenter(menu.Table), scroll: true)">@SchemaViewText.Relations_MenuCenter</button>
         <div class="menu-sep"></div>
         <button class="menu-item" disabled="@(diagram?.HiddenCount(menu.Table, DiagramSide.Parents) is not > 0)"
-                @onclick="() => FromMenu(() => _state.Expand(menu.Table, DiagramSide.Parents))">@SchemaViewText.Relations_MenuShowParents</button>
+                @onclick="() => FromMenu(() => _state.Expand(menu.Table, DiagramSide.Parents), anchor: menu.Table)">@SchemaViewText.Relations_MenuShowParents</button>
         <button class="menu-item" disabled="@(diagram?.HiddenCount(menu.Table, DiagramSide.Children) is not > 0)"
-                @onclick="() => FromMenu(() => _state.Expand(menu.Table, DiagramSide.Children))">@SchemaViewText.Relations_MenuShowChildren</button>
+                @onclick="() => FromMenu(() => _state.Expand(menu.Table, DiagramSide.Children), anchor: menu.Table)">@SchemaViewText.Relations_MenuShowChildren</button>
     </PopoverMenu>
 }
 
@@ -149,6 +149,7 @@
     private TableRef? _hover;
     private NodeMenu? _menu;
     private bool _scroll = true;
+    private (double X, double Y)? _scrollBy;
     private bool _disposed;
     private DomModule? _dom;
 
@@ -171,6 +172,8 @@
     private DomModule Dom => _dom ??= new(JS);
 
     private string FocusId => _id + "-focus";
+
+    private string CanvasId => _id + "-canvas";
 
     /// <summary>The node whose right-click menu is open, with the mouse position and window size.</summary>
     private sealed record NodeMenu(TableRef Table, double X, double Y, double ViewportWidth, double ViewportHeight);
@@ -195,7 +198,13 @@
         if (_scroll && _state.Placement is not null)
         {
             _scroll = false;
+            _scrollBy = null;
             await Dom.InvokeVoidAsync("scrollIntoViewById", FocusId, "center");
+        }
+        else if (_scrollBy is { } by)
+        {
+            _scrollBy = null;
+            await Dom.InvokeVoidAsync("scrollByPx", CanvasId, by.X, by.Y);
         }
     }
 
@@ -222,17 +231,34 @@
         StateHasChanged();
     });
 
-    private void Change(Action change, bool scroll = false)
+    /// <param name="anchor">
+    /// The table clicked: it stays where it is on the screen – a new column to the left, a taller column above it, would
+    /// move it away from under the mouse.
+    /// </param>
+    private void Change(Action change, bool scroll = false, TableRef? anchor = null)
     {
         _hover = null;
+        var before = anchor is null ? null : _state.Placement?.Nodes.GetValueOrDefault(RelationDiagram.IdOf(anchor));
         change();
         _scroll |= scroll;
+        if (before is not null && _state.Placement?.Nodes.GetValueOrDefault(RelationDiagram.IdOf(anchor!)) is { } after)
+        {
+            _scrollBy = ((after.X - before.X) * _state.Zoom, (after.Y - before.Y) * _state.Zoom);
+        }
     }
 
-    private void FromMenu(Action action, bool scroll = false)
+    private void Leave(TableRef table)
+    {
+        if (_hover == table)
+        {
+            _hover = null;
+        }
+    }
+
+    private void FromMenu(Action action, bool scroll = false, TableRef? anchor = null)
     {
         _menu = null;
-        Change(action, scroll);
+        Change(action, scroll, anchor);
     }
 
     private async Task OpenMenuAsync(MouseEventArgs e, TableRef table)
@@ -272,7 +298,7 @@
 
     private string EdgeTitle(ForeignKeyInfo relation) => TextFormat.Format(SchemaViewText.Relations_EdgeTitle,
         relation.Name, Label(relation.From), string.Join(", ", relation.FromColumns), Label(relation.To), string.Join(", ", relation.ToColumns),
-        SourceLabel(relation.Source));
+        relation.Source == FkSource.Declared ? SchemaViewText.Relations_KindDeclared : SourceLabel(relation.Source));
 
     private static string SourceLabel(FkSource source) => source switch
     {

@@ -1609,7 +1609,8 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .settings-page > .page-head { max-width: 1340px; }
 
 /* Relationship diagram (WP-46): fills .structure, the canvas scrolls on its own. Nodes are HTML over an SVG of the
-   edges; edges in the colour of their kind (constraint, C# model, other), a dot at the referencing end. */
+   edges; edges in the colour of their kind (constraint, C# model, other), a dot at the referencing end. The "+n" handles
+   sit on the top corners: in the middle of a side they covered where the edges end. */
 .structure > .relations-view { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 14px 0 0 28px; }
 .relations-head { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding-right: 28px; margin-bottom: 10px; }
 .relations-head .spacer { flex: 1; }
@@ -1648,12 +1649,12 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-node button.relations-name:hover { color: var(--accent); text-decoration: underline; }
 .relations-node .relations-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); }
 .relations-handle {
-  position: absolute; top: 50%; transform: translateY(-50%); min-width: 26px; height: 20px; padding: 0 4px;
+  position: absolute; top: -10px; min-width: 26px; height: 20px; padding: 0 4px;
   border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-2); color: var(--muted);
   font-size: 11px; font-variant-numeric: tabular-nums;
 }
-.relations-handle.left { left: -14px; }
-.relations-handle.right { right: -14px; }
+.relations-handle.left { left: -10px; }
+.relations-handle.right { right: -10px; }
 .relations-handle:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
 .relations-node.group { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px 0 14px; border-style: dashed; background: var(--surface-2); }
 .relations-node.group .relations-name { font-family: inherit; font-weight: 500; color: var(--muted); }

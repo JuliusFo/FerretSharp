@@ -861,4 +861,7 @@
   <data name="Relations_NoneHiddenText" xml:space="preserve">
     <value>{0} hat nur Beziehungen der ausgeschalteten Arten.</value>
   </data>
+  <data name="Relations_KindDeclared" xml:space="preserve">
+    <value>Constraint</value>
+  </data>
 </root>

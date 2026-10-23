@@ -89,6 +89,34 @@ public class DiagramLayoutTests
     }
 
     [Fact]
+    public void An_edge_across_a_column_passes_the_nodes_there_in_a_lane_of_its_own()
+    {
+        // a → c skips the column of b, which stands level with both.
+        var placement = DiagramLayout.Arrange([N("a", 0), N("b", 1), N("c", 2)], [E("a", "b"), E("b", "c"), E("a", "c")], Metrics);
+        var b = placement.Nodes["b"];
+        var across = placement.Edges.Single(e => e.Id == "a>c");
+
+        Assert.Equal(10, across.Points.Count); // three curves: into the lane, through it, out of it
+        Assert.Equal(placement.Nodes["a"].Right, across.Points[0].X);
+        Assert.Equal(placement.Nodes["c"].X, across.Points[^1].X);
+        var inLane = across.Points.Where(p => p.X >= b.X && p.X <= b.Right).ToList();
+        Assert.NotEmpty(inLane);
+        Assert.All(inLane, p => Assert.True(p.Y < b.Y || p.Y > b.Bottom));
+        Assert.Equal(3, placement.Nodes.Count); // the lane is no node
+        Assert.Equal(3, across.Svg.Split(" C ").Length - 1);
+    }
+
+    [Fact]
+    public void An_edge_across_columns_to_the_left_still_starts_at_its_from_node()
+    {
+        var placement = DiagramLayout.Arrange([N("p", 2), N("m", 1), N("c", 0)], [E("p", "m"), E("m", "c"), E("p", "c")], Metrics);
+        var across = placement.Edges.Single(e => e.Id == "p>c");
+
+        Assert.Equal(placement.Nodes["p"].X, across.Points[0].X);
+        Assert.Equal(placement.Nodes["c"].Right, across.Points[^1].X);
+    }
+
+    [Fact]
     public void A_self_reference_loops_on_the_right_of_its_node()
     {
         var placement = DiagramLayout.Arrange([N("m", 0)], [E("m", "m")], Metrics);
