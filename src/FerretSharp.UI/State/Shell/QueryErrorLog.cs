@@ -14,9 +14,21 @@ public static partial class QueryErrorLog
     {
         var masks = profile?.MasksValues == true;
         var statement = error.Statement is { } s ? SqlRedaction.Redact(BindValues.Describe(s, masks)) : "(no statement)";
-        Failed(logger, error.Display, error.IsConnectionLost, masks ? SqlRedaction.WithoutLiterals(statement) : statement);
+        statement = masks ? SqlRedaction.WithoutLiterals(statement) : statement;
+        if (error.SessionHistory is { } history)
+        {
+            Lost(logger, error.Display, history, statement);
+        }
+        else
+        {
+            Failed(logger, error.Display, error.IsConnectionLost, statement);
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Query failed: {Error} (connection lost: {Lost})\n{Statement}")]
     private static partial void Failed(ILogger logger, string error, bool lost, string statement);
+
+    /// <summary>A lost connection with what its session did before (idle time, the last break sent): network or driver.</summary>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Query failed: {Error} (connection lost: True; {History})\n{Statement}")]
+    private static partial void Lost(ILogger logger, string error, string history, string statement);
 }

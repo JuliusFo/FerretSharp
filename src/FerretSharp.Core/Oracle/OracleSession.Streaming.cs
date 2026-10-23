@@ -54,7 +54,7 @@ public sealed partial class OracleSession
             {
                 return await session.ReadCoreAsync(sql, parameters, read, cancellationToken);
             }
-            catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
+            catch (Exception ex) when (session.Translate(ex) is { } translated)
             {
                 throw translated;
             }
