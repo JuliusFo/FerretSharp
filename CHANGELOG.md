@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.48.0] - 2026-10-23
+
+Query results and the columns and usage views can be sorted by their headers, columns can be added to the same table on another database, and "Usage" says when projects that are not built make "unused" uncertain – and builds them.
+
 ### Added
 - The result of the SQL editor and the LINQ console can be sorted by a click on a column header, Shift+click adds a column, as in a table. Once every row is loaded – a result of up to 500 rows at once –, the rows are sorted in memory, without reading them again, in the order Oracle gives them (text by its characters, NULL last ascending); rows with the same value keep the query's own order. Before that the query is read again sorted by the column: in front of its own ORDER BY, which then breaks ties, and around the query when it limits its rows with `FETCH FIRST` or `OFFSET` – then only those rows are sorted. A query that limits its rows and has two columns of the same name can only be sorted once all its rows are loaded; the header says so. Copying all values of a column, marked cells and exporting all rows follow the order.
 - The "Columns" and "Usage" views of a table sort their rows by a click on a header: ascending, descending, then back to the table's own order. Rows without a value (a column without property or comment) stay last; "Usage" sorts by the reads and writes in the application's code, then in tests.

@@ -1,4 +1,4 @@
-# Klein: Nicht gebaute Projekte in „Verwendung“, „Projekte bauen“ → Release offen
+# Klein: Nicht gebaute Projekte in „Verwendung“, „Projekte bauen“ → Release 3.48.0
 
 Branch `feat/usage-build-projects` (von `main`), 2026-10-23. Nachtrag zu WP-40 (ADR 0030).
 

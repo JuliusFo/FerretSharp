@@ -1,4 +1,4 @@
-# Klein: SQL-Ergebnisse sortieren, Spalten- und Verwendungsansicht sortierbar → Release offen
+# Klein: SQL-Ergebnisse sortieren, Spalten- und Verwendungsansicht sortierbar → Release 3.48.0
 
 Branch `feat/sort-results-and-column-lists` (von `main`), 2026-10-23.
 
