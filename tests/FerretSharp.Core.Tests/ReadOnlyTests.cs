@@ -168,14 +168,14 @@ public class ReadOnlyTests
                 "BeginTransactionAsync", "SavepointAsync", "RollbackToSavepointAsync", "CommitAsync", "RollbackAsync",
             ]
         },
-        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadColumnAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
+        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadByKeysAsync", "ReadColumnAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
         { typeof(IRowLookup), ["LookupAsync"] },
         {
             typeof(ISchemaReader), [
                 "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetDdlAsync", "GetDependenciesAsync",
                 "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetObjectInfoAsync",
                 "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetPrimaryKeysAsync", "GetSessionActivityAsync", "GetSourceAsync", "GetSubprogramsAsync", "GetSynonymTargetsAsync",
-                "GetTablesAsync", "GetTriggerColumnsAsync", "ReadSnapshotAsync", "SearchSourceAsync",
+                "GetTableTriggersAsync", "GetTablesAsync", "GetTriggerColumnsAsync", "ReadSnapshotAsync", "SearchSourceAsync",
             ]
         },
         { typeof(IDatabaseConnection), ["PingIfIdleAsync", "SetActionAsync", "StopReadOnlySnapshotsAsync", "UseReadOnlySnapshotsAsync"] },

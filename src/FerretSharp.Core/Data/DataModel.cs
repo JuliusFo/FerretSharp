@@ -180,6 +180,22 @@ public interface IDataAccess : IRowLookup
         RowBlockHandler onBlock,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The rows of a table whose key columns hold one of the keys – the rows a relationship leads to (WP-42,
+    /// <see cref="QueryBuilder.BuildRowsByKeys"/>), in statements of at most <see cref="QueryBuilder.MaxLookupKeys"/> keys. In
+    /// the workspace's session, so it sees the workspace's own uncommitted rows; values as the grid reads them, LOBs whole if
+    /// asked for. A key that finds no row returns nothing; one that finds several returns all of them.
+    /// </summary>
+    /// <param name="keyColumns">Indexes into the table's columns; null for ROWIDs (one text per key).</param>
+    /// <param name="keys">Distinct keys, values in the order of <paramref name="keyColumns"/>, none NULL.</param>
+    /// <param name="wholeLobs">LOB columns as whole values (a copy writes them), not as preview and length.</param>
+    Task<IReadOnlyList<RowData>> ReadByKeysAsync(
+        TableDetails table,
+        IReadOnlyList<int>? keyColumns,
+        IReadOnlyList<IReadOnlyList<object>> keys,
+        bool wholeLobs,
+        CancellationToken cancellationToken);
+
     /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>
     public const int ActualPlanPageSize = 500;
 

@@ -141,4 +141,7 @@
   <data name="FillInvalidInColumn" xml:space="preserve">
     <value>{0}: {1}</value>
   </data>
+  <data name="CopyFailed" xml:space="preserve">
+    <value>Kopieren in {0} gescheitert, von der Kopie bleibt nichts: {1}</value>
+  </data>
 </root>

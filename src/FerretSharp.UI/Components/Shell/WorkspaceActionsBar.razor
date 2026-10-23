@@ -68,5 +68,10 @@
     /// <summary>A SQL/LINQ write of the workspace is running: commit and rollback would take it along unseen (review 3.40.0, A1).</summary>
     private bool StatementRunning => Editing.IsStatementRunning(Workspace.WorkspaceId);
 
-    private static string SourceOf(WriteAction action) => action.Kind == WriteActionKind.Grid ? "Grid" : "SQL/LINQ";
+    private static string SourceOf(WriteAction action) => action.Kind switch
+    {
+        WriteActionKind.Grid => "Grid",
+        WriteActionKind.Copy => ShellText.Changes_SourceCopy,
+        _ => "SQL/LINQ",
+    };
 }

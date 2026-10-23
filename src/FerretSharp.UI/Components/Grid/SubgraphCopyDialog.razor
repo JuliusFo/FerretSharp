@@ -1,0 +1,391 @@
+@* "Copy to another connection…" of the cell menu (WP-42): the selected rows with their parents and the chosen children go
+   into a workspace of another open connection, as one action of its transaction. Target and children are chosen first,
+   "Read rows" collects them on this workspace's read path and checks them against the target (tables, columns, existing
+   rows, triggers); "Copy" writes. Any change of the choice asks to read again. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Relations
+@using FerretSharp.Core.Schema
+@implements IDisposable
+@inject AppSettingsService Settings
+@inject ILogger<SubgraphCopyDialog> Logger
+
+<ModalFrame Label="@CopyViewText.Title" Class="copy-dialog" OnCancel="CloseAsync">
+    <header>
+        <span>@CopyViewText.Title</span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="CloseAsync">✕</button>
+    </header>
+    <div class="dialog-body">
+        <p class="copy-source">@TextFormat.Plural(Draft.StartRows, CopyViewText.SourceOne, CopyViewText.SourceOther, Draft.Start.Table.DisplayName, Draft.SourceName)</p>
+        @if (SourceHasTransaction)
+        {
+            <p class="copy-hint warn-text">@CopyViewText.SourceTransaction</p>
+        }
+
+        <h3>@CopyViewText.TargetHeading</h3>
+        @if (Draft.Targets.Count == 0)
+        {
+            <p class="copy-hint">@CopyViewText.NoTarget</p>
+        }
+        else
+        {
+            <select class="copy-target" value="@Draft.Target?.WorkspaceId" disabled="@Busy" @onchange="ChooseTarget">
+                @foreach (var target in Draft.Targets)
+                {
+                    <option value="@target.WorkspaceId">@(target.Writable ? target.Label : TextFormat.Format(CopyViewText.TargetLocked, target.Label))</option>
+                }
+            </select>
+        }
+
+        <h3>@CopyViewText.ChildrenHeading</h3>
+        <p class="copy-hint">@TextFormat.Format(CopyViewText.ChildrenHint, TraversalPlan.MaxDepth)</p>
+        @if (Draft.ChildrenBelow([]).Count == 0)
+        {
+            <p class="copy-hint">@TextFormat.Format(CopyViewText.NoChildren, Draft.Start.Table.DisplayName)</p>
+        }
+        else
+        {
+            <ul class="copy-tree">@Children([])</ul>
+        }
+
+        <h3>@CopyViewText.ParentsHeading</h3>
+        <p class="copy-hint">@CopyViewText.ParentsHint</p>
+        @foreach (var root in Draft.ParentRoots.Where(r => Draft.ParentsBelow(r).Count > 0))
+        {
+            <div class="copy-root" @key="root">@root.Name</div>
+            <ul class="copy-tree">@Parents(root, [root])</ul>
+        }
+
+
+        @if (Draft.Stage == CopyStage.Planned && Draft.Plan is { } plan)
+        {
+            <h3>@CopyViewText.PreviewHeading</h3>
+            <table class="copy-tables">
+                <thead>
+                    <tr>
+                        <th>@CopyViewText.ColumnTable</th>
+                        <th>@CopyViewText.ColumnTarget</th>
+                        <th class="num">@CopyViewText.ColumnRows</th>
+                        <th class="num">@CopyViewText.ColumnNew</th>
+                        <th class="num">@CopyViewText.ColumnExisting</th>
+                        <th>@CopyViewText.ColumnConflict</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var table in plan.Tables)
+                    {
+                        var t = table;
+                        <tr>
+                            <td>@t.Source.Details.Table.DisplayName</td>
+                            <td class="faint">@(t.Target?.Table.Ref.ToString() ?? "–")</td>
+                            <td class="num">@t.Rows.Count.ToString("N0")</td>
+                            <td class="num">@t.NewRows.ToString("N0")</td>
+                            @if (t.Differing.Count > 0)
+                            {
+                                <td class="num warn-text" title="@CopyViewText.ExistingDifferTitle">@TextFormat.Format(CopyViewText.ExistingDiffer, t.Existing.Count, t.Differing.Count)</td>
+                            }
+                            else
+                            {
+                                <td class="num">@t.Existing.Count.ToString("N0")</td>
+                            }
+                            <td>
+                                @if (t.Existing.Count > 0)
+                                {
+                                    <select value="@Draft.ModeOf(t)" @onchange="e => SetMode(t, e)">
+                                        <option value="@ConflictMode.Skip">@CopyViewText.ModeSkip</option>
+                                        <option value="@ConflictMode.Update" disabled="@(!t.CanUpdate)" title="@(t.CanUpdate ? null : CopyViewText.UpdateNeedsKey)">@CopyViewText.ModeUpdate</option>
+                                        <option value="@ConflictMode.Abort">@CopyViewText.ModeAbort</option>
+                                    </select>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @if (Draft.Issues.Count > 0)
+            {
+                <h3>@CopyViewText.CheckHeading</h3>
+                <ul class="copy-issues">
+                    @foreach (var issue in Draft.Issues)
+                    {
+                        <li class="@SeverityClass(issue.Severity)">@issue.Message</li>
+                    }
+                </ul>
+            }
+        }
+    </div>
+    <footer>
+        <div class="copy-read">
+            @if (Draft.Stage == CopyStage.Loading)
+            {
+                <span class="spinner"></span>
+                <span>@(_progress is { } p ? TextFormat.Format(CopyViewText.Reading, p.Table.Name, p.Rows) : "")</span>
+                <button class="btn" @onclick="CancelRead">@CommonText.Cancel</button>
+            }
+            else
+            {
+                <button class="btn @(Draft.Stage == CopyStage.Planned ? "" : "primary")" disabled="@(Draft.Target is null)" @onclick="ReadAsync">
+                    @(_readOnce ? CopyViewText.ReadAgain : CopyViewText.Read)
+                </button>
+                @if (_readOnce && Draft.Stage == CopyStage.Choosing && Draft.LoadError is null)
+                {
+                    <span class="copy-hint">@CopyViewText.ChoiceChanged</span>
+                }
+                @if (Draft.LoadError is { } error)
+                {
+                    <span class="warn-text">@error</span>
+                }
+                else if (Draft.Target is { Writable: false } locked)
+                {
+                    <span class="warn-text">@TextFormat.Format(CopyViewText.TargetLockedHint, locked.Label)</span>
+                }
+            }
+        </div>
+        <span class="spacer"></span>
+        <button class="btn" @onclick="CloseAsync">@CommonText.Cancel</button>
+        <button class="btn primary" disabled="@(!Draft.CanCopy || _copying)" title="@CopyTitle" @onclick="CopyAsync">@CopyViewText.Copy</button>
+    </footer>
+</ModalFrame>
+
+@code {
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+    private CancellationTokenSource? _reading;
+    private TraversalProgress? _progress;
+    private bool _readOnce;
+    private bool _copying;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SubgraphCopyDraft Draft { get; set; } = null!;
+
+    /// <summary>The source workspace has an open writing transaction: its uncommitted rows are what the copy reads.</summary>
+    [Parameter]
+    public bool SourceHasTransaction { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private bool Busy => Draft.Stage == CopyStage.Loading || _copying;
+
+    /// <summary>Why "Copy" is off when the target is locked, otherwise what it does.</summary>
+    private string CopyTitle => Draft.Target is { Writable: false } locked ? TextFormat.Format(CopyViewText.TargetLockedHint, locked.Label) : CopyViewText.CopyTitle;
+
+    /// <summary>The child relationships below a path, each with its checkbox and, while it may go deeper, a way to show the next level.</summary>
+    private RenderFragment Children(IReadOnlyList<ForeignKeyInfo> parent) => __builder =>
+    {
+        foreach (var relation in Draft.ChildrenBelow(parent))
+        {
+            IReadOnlyList<ForeignKeyInfo> path = [.. parent, relation];
+            var key = string.Join("|", path.Select(RelationGraph.KeyOf));
+            var deeper = path.Count < TraversalPlan.MaxDepth && Draft.ChildrenBelow(path).Count > 0;
+            var open = _expanded.Contains(key);
+            <li @key="key">
+                <span class="copy-node">
+                    @if (deeper)
+                    {
+                        <button class="icon-btn ghost tree-toggle" title="@TextFormat.Format(CopyViewText.ShowChildren, relation.From.Name)" @onclick="() => Expand(key)">@(open ? "▾" : "▸")</button>
+                    }
+                    else
+                    {
+                        <span class="tree-toggle"></span>
+                    }
+                    <label>
+                        <input type="checkbox" checked="@Draft.IsChosen(path)" disabled="@Busy" @onchange="() => Draft.Toggle(path)" />
+                        <b>@relation.From.Name</b> <span class="faint">@TextFormat.Format(CopyViewText.Via, relation.Name)</span>
+                    </label>
+                    @SourceBadge(relation)
+                    @Count(Draft.ReachedAlong(path))
+                </span>
+                @if (deeper && open)
+                {
+                    <ul>@Children(path)</ul>
+                }
+            </li>
+        }
+    };
+
+    /// <summary>
+    /// The parent relationships of a table, each with its checkbox; a switched-on one opens to the parents of its table, as
+    /// long as that table is not on the way already (a circle, a self reference) and is no root of its own (its parents are
+    /// listed there).
+    /// </summary>
+    private RenderFragment Parents(TableRef table, IReadOnlyList<TableRef> way) => __builder =>
+    {
+        var roots = Draft.ParentRoots;
+        foreach (var relation in Draft.ParentsBelow(table))
+        {
+            var key = "p|" + string.Join("|", way.Select(t => t.ToString())) + "|" + RelationGraph.KeyOf(relation);
+            var on = !Draft.IsParentSkipped(relation);
+            var deeper = on && !way.Contains(relation.To) && !roots.Contains(relation.To) && Draft.ParentsBelow(relation.To).Count > 0;
+            var open = _expanded.Contains(key);
+            <li @key="key">
+                <span class="copy-node">
+                    @if (deeper)
+                    {
+                        <button class="icon-btn ghost tree-toggle" title="@TextFormat.Format(CopyViewText.ShowParents, relation.To.Name)" @onclick="() => Expand(key)">@(open ? "▾" : "▸")</button>
+                    }
+                    else
+                    {
+                        <span class="tree-toggle"></span>
+                    }
+                    <label>
+                        <input type="checkbox" checked="@on" disabled="@Busy" @onchange="() => Draft.ToggleParent(relation)" />
+                        <b>@relation.To.Name</b> <span class="faint">@TextFormat.Format(CopyViewText.Via, relation.Name)</span>
+                    </label>
+                    @SourceBadge(relation)
+                    @Count(Draft.ParentsAlong(relation))
+                </span>
+                @if (deeper && open)
+                {
+                    <ul>@Parents(relation.To, [.. way, relation.To])</ul>
+                }
+            </li>
+        }
+    };
+
+    /// <summary>Rows a strand brought with the last read, behind its name.</summary>
+    private static RenderFragment Count(int? rows) => __builder =>
+    {
+        if (rows is { } n)
+        {
+            <span class="copy-count" title="@CopyViewText.StrandRowsTitle">@n.ToString("N0")</span>
+        }
+    };
+
+    private RenderFragment SourceBadge(ForeignKeyInfo relation) => __builder =>
+    {
+        if (relation.Source == FkSource.ClrModel)
+        {
+            <span class="ctx-source" title="@GridText.FkJump_ModelRelationship">@GridText.FkJump_FromModel</span>
+        }
+    };
+
+    private static string SeverityClass(CopySeverity severity) => severity switch
+    {
+        CopySeverity.Error => "copy-error",
+        CopySeverity.Warning => "copy-warning",
+        _ => "copy-info",
+    };
+
+    private void Expand(string key)
+    {
+        if (!_expanded.Remove(key))
+        {
+            _expanded.Add(key);
+        }
+    }
+
+    private void ChooseTarget(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var id) && Draft.Targets.FirstOrDefault(t => t.WorkspaceId == id) is { } target)
+        {
+            Draft.ChooseTarget(target);
+        }
+    }
+
+    private void SetMode(TableCopy table, ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ConflictMode>(e.Value?.ToString(), out var mode))
+        {
+            Draft.SetMode(table.Table, mode);
+        }
+    }
+
+    private async Task ReadAsync()
+    {
+        _reading?.Dispose();
+        _reading = new CancellationTokenSource();
+        _readOnce = true;
+        _progress = null;
+        var token = _reading.Token;
+        var progress = new Progress<TraversalProgress>(p =>
+        {
+            _progress = p;
+            InvokeAsync(StateHasChanged);
+        });
+        // Reading the source and checking against the target each with its own connection: a failure is logged as that
+        // connection masks values, and a lost session shows the banner of the connection it belongs to.
+        var collecting = Shell.RunDbAsync(Logger, Active, () => Draft.CollectAsync(progress, token), token);
+        StateHasChanged(); // the stage is Loading now
+        var collected = await collecting;
+        if (Failed(collected) || !collected.Value || Draft.Target is not { } target)
+        {
+            return;
+        }
+
+        Failed(await Shell.RunDbAsync(Logger, target.Connection, () => Draft.PlanAsync(token), token));
+    }
+
+    /// <summary>Shows the error of a step of reading; true if there was one.</summary>
+    private bool Failed<T>(DbResult<T> result)
+    {
+        if (result.Error is { } error)
+        {
+            Shell.ShowError(error, result.MaskValues);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>On a pool thread: ODP.NET sends the break synchronously, over a silent VPN it blocks (A3).</summary>
+    private void CancelRead()
+    {
+        if (_reading is not { } reading)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                reading.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the dialog is gone, and its read with it
+            }
+        });
+    }
+
+    private async Task CopyAsync()
+    {
+        if (!Draft.CanCopy || Draft.Target is not { } target)
+        {
+            return;
+        }
+
+        _copying = true;
+        try
+        {
+            var write = Draft.Write(Settings.Current.LockWaitSeconds);
+            var workspace = Shell.FindWorkspace(target.WorkspaceId) ?? new WorkspaceTabs(target.WorkspaceId, target.ConnectionId);
+            if (await Lifecycle.Editing.CopyAsync(workspace, write) is { } action)
+            {
+                Shell.Notify(TextFormat.Format(CopyViewText.Copied, action.Display, target.Label));
+                await CloseAsync();
+            }
+        }
+        finally
+        {
+            _copying = false;
+        }
+    }
+
+    private Task CloseAsync()
+    {
+        CancelRead();
+        return OnClose.InvokeAsync();
+    }
+
+    public void Dispose() => _reading?.Dispose();
+}

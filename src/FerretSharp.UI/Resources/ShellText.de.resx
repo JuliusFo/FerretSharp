@@ -945,4 +945,22 @@
   <data name="Status_ReconnectHolding" xml:space="preserve">
     <value>Verbindung verloren – verbindet nach der laufenden Arbeit neu</value>
   </data>
+  <data name="Changes_SourceCopy" xml:space="preserve">
+    <value>Kopie</value>
+  </data>
+  <data name="Changes_MoreStatements" xml:space="preserve">
+    <value>-- … {0:N0} weitere Statements</value>
+  </data>
+  <data name="Changes_RedoCopyTitle" xml:space="preserve">
+    <value>Die Zeilen erneut kopieren – fragt vorher</value>
+  </data>
+  <data name="Dialogs_RedoCopyTitle" xml:space="preserve">
+    <value>Erneut kopieren</value>
+  </data>
+  <data name="Dialogs_RedoCopyText" xml:space="preserve">
+    <value>„{0}“ erneut in {1} kopieren? Die Daten können sich seit dem Zurücknehmen geändert haben – eine Zeile, die das Ziel inzwischen hat, lässt die Kopie scheitern, und es bleibt nichts.</value>
+  </data>
+  <data name="Dialogs_RedoCopyConfirm" xml:space="preserve">
+    <value>Erneut kopieren</value>
+  </data>
 </root>

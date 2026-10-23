@@ -437,6 +437,20 @@ public sealed class WorkspaceManager : IAsyncDisposable
     }
 
     /// <summary>
+    /// Rows copied from another connection into the workspace's transaction (WP-42); see <see cref="IDataEditor.CopyAsync"/>.
+    /// Refused on a workspace that may not write (a locked Prod), before its session is touched.
+    /// </summary>
+    public async Task<WriteAction> CopyAsync(Guid workspaceId, CopyWrite copy, CancellationToken cancellationToken)
+    {
+        if (!IsWritable(workspaceId))
+        {
+            throw new RefusedException(OracleText.WorkspaceReadOnly);
+        }
+
+        return await (await GetEditorAsync(workspaceId, cancellationToken)).CopyAsync(copy, cancellationToken);
+    }
+
+    /// <summary>
     /// A DDL statement of the SQL editor on the workspace's session (WP-22); see <see cref="IDataEditor.ExecuteDdlAsync"/>.
     /// Refused on a workspace that may not write, before its session is touched.
     /// </summary>

@@ -116,8 +116,43 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
     public Task<WriteAction> RedoAsync(Guid actionId, CancellationToken cancellationToken) => Task.FromResult(Locked(() =>
     {
         var redone = _log.CheckRedo(actionId);
-        return Execute(redone.Statements.Single(), redone);
+        return redone.Copy is { } copy ? Copy(copy, redone) : Execute(redone.Statements.Single(), redone);
     }));
+
+    /// <summary>The copies written, in order (WP-42).</summary>
+    public IReadOnlyList<CopyWrite> Copies => Locked(() => (IReadOnlyList<CopyWrite>)[.. _copies]);
+
+    private readonly List<CopyWrite> _copies = [];
+
+    /// <summary>A copy fails with this (a constraint in the target); null writes.</summary>
+    public Func<CopyWrite, Exception?>? FailCopy { get; set; }
+
+    public Task<WriteAction> CopyAsync(CopyWrite copy, CancellationToken cancellationToken)
+    {
+        if (ReadOnly)
+        {
+            return Task.FromException<WriteAction>(new RefusedException(OracleText.WorkspaceReadOnly));
+        }
+
+        return FailCopy?.Invoke(copy) is { } failure
+            ? Task.FromException<WriteAction>(failure)
+            : Task.FromResult(Locked(() => Copy(copy, null)));
+    }
+
+    /// <summary>Under <see cref="_gate"/>.</summary>
+    private WriteAction Copy(CopyWrite copy, WriteAction? redone)
+    {
+        _written = true;
+        _copies.Add(copy);
+        var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Copy, copy.Description, copy.Rows, DateTimeOffset.Now)
+        {
+            Statements = [.. copy.Steps.OfType<CopyInsert>().SelectMany(i => i.Batch.Expand())],
+            RedoOf = redone?.Origin,
+            Copy = copy,
+        };
+        _log.Add(action, Savepoint());
+        return action;
+    }
 
     public async Task CommitAsync(CancellationToken cancellationToken)
     {

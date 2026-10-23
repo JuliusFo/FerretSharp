@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="TooManyRows" xml:space="preserve">
+    <value>Mehr als {0:N0} Zeilen – wähle weniger Beziehungen oder weniger Ebenen von Kindern.</value>
+  </data>
+  <data name="TableNotInSchema" xml:space="preserve">
+    <value>Beziehung {0} wird nicht verfolgt: Die Verbindung kennt die Tabelle {1} nicht.</value>
+  </data>
+  <data name="ColumnMissing" xml:space="preserve">
+    <value>Beziehung {0} wird nicht verfolgt: Die Spalte {1} fehlt in {2}.</value>
+  </data>
+  <data name="KeyTypeNotComparable" xml:space="preserve">
+    <value>Beziehung {0} wird nicht verfolgt: Werte vom Typ {1} lassen sich nicht vergleichen.</value>
+  </data>
+  <data name="CopyCycle" xml:space="preserve">
+    <value>Diese Tabellen verweisen im Kreis aufeinander, ihre Zeilen lassen sich nicht nacheinander einfügen: {0}.</value>
+  </data>
+  <data name="CopyRowCycle" xml:space="preserve">
+    <value>Zeilen von {0} verweisen im Kreis aufeinander und lassen sich nicht nacheinander einfügen.</value>
+  </data>
+  <data name="CopyNotATable" xml:space="preserve">
+    <value>{0} ist eine View: Kopieren lassen sich nur Zeilen von Tabellen.</value>
+  </data>
+  <data name="CopyTableMissing" xml:space="preserve">
+    <value>{0} lässt sich nicht kopieren: Im Ziel gibt es keine Tabelle {1}.</value>
+  </data>
+  <data name="CopyTargetNotATable" xml:space="preserve">
+    <value>{0} lässt sich nicht kopieren: {1} ist im Ziel keine Tabelle.</value>
+  </data>
+  <data name="CopyNoConflictKey" xml:space="preserve">
+    <value>{0} hat im Ziel keinen Primär- oder Unique-Schlüssel: Zeilen werden immer eingefügt, vorhandene nicht erkannt.</value>
+  </data>
+  <data name="CopyTriggers" xml:space="preserve">
+    <value>Trigger auf {0} im Ziel laufen beim Kopieren mit: {1}.</value>
+  </data>
+  <data name="CopyColumnMissing" xml:space="preserve">
+    <value>Die Spalte {0}.{1} gibt es im Ziel nicht: Ihre Werte werden nicht kopiert.</value>
+  </data>
+  <data name="CopyColumnOnlyInTarget" xml:space="preserve">
+    <value>Die Spalte {0}.{1} gibt es nur im Ziel, NOT NULL ohne Default: Keine Zeile lässt sich einfügen.</value>
+  </data>
+  <data name="CopyIdentityKey" xml:space="preserve">
+    <value>Die Schlüsselspalte {0}.{1} ist im Ziel eine Identity GENERATED ALWAYS: Die Zeilen können ihre Schlüssel nicht behalten.</value>
+  </data>
+  <data name="CopyIdentityValue" xml:space="preserve">
+    <value>Die Spalte {0}.{1} ist im Ziel eine Identity GENERATED ALWAYS: Das Ziel vergibt neue Werte.</value>
+  </data>
+  <data name="CopyColumnNotCopyable" xml:space="preserve">
+    <value>Die Spalte {0}.{1} ({2}) wird nicht kopiert: Werte dieses Typs schreibt FerretSharp nicht.</value>
+  </data>
+  <data name="CopyColumnType" xml:space="preserve">
+    <value>Die Spalte {0}.{1} ist in der Quelle {2} und im Ziel {3}: Werte passen womöglich nicht.</value>
+  </data>
+  <data name="CopyAbortExistingOne" xml:space="preserve">
+    <value>{1}: {0:N0} Zeile gibt es im Ziel schon, und bei Konflikten ist „Abbrechen“ gewählt.</value>
+  </data>
+  <data name="CopyAbortExistingOther" xml:space="preserve">
+    <value>{1}: {0:N0} Zeilen gibt es im Ziel schon, und bei Konflikten ist „Abbrechen“ gewählt.</value>
+  </data>
+  <data name="CopyActionOne" xml:space="preserve">
+    <value>Kopie aus {1}: {0:N0} Zeile</value>
+  </data>
+  <data name="CopyActionOther" xml:space="preserve">
+    <value>Kopie aus {1}: {0:N0} Zeilen</value>
+  </data>
+  <data name="CopyExistingDifferOne" xml:space="preserve">
+    <value>{1}: {0:N0} Zeile hat im Ziel denselben Schlüssel, aber andere Werte in {2} – womöglich ein anderer Datensatz. Beim Überspringen verweisen mitkopierte Zeilen auf diesen.</value>
+  </data>
+  <data name="CopyExistingDifferOther" xml:space="preserve">
+    <value>{1}: {0:N0} Zeilen haben im Ziel denselben Schlüssel, aber andere Werte in {2} – womöglich andere Datensätze. Beim Überspringen verweisen mitkopierte Zeilen auf diese.</value>
+  </data>
+  <data name="CopyUniqueTakenOne" xml:space="preserve">
+    <value>{1}: {0:N0} neue Zeile hat in {2} Werte, die eine Zeile des Ziels schon unter anderem Schlüssel hat – derselbe Datensatz mit anderer ID, oder das Einfügen scheitert (ORA-00001).</value>
+  </data>
+  <data name="CopyUniqueTakenOther" xml:space="preserve">
+    <value>{1}: {0:N0} neue Zeilen haben in {2} Werte, die Zeilen des Ziels schon unter anderem Schlüssel haben – dieselben Datensätze mit anderer ID, oder das Einfügen scheitert (ORA-00001).</value>
+  </data>
+  <data name="CopyParentMissingOne" xml:space="preserve">
+    <value>{1}: {0:N0} Zeile von {2}, auf die verwiesen wird, fehlt im Ziel, und die Beziehung {3} ist abgewählt – der Constraint des Ziels lehnt das Einfügen ab.</value>
+  </data>
+  <data name="CopyParentMissingOther" xml:space="preserve">
+    <value>{1}: {0:N0} Zeilen von {2}, auf die verwiesen wird, fehlen im Ziel, und die Beziehung {3} ist abgewählt – der Constraint des Ziels lehnt das Einfügen ab.</value>
+  </data>
+  <data name="CopyParentMissingUncheckedOne" xml:space="preserve">
+    <value>{1}: {0:N0} Zeile von {2}, auf die verwiesen wird, fehlt im Ziel, und die Beziehung {3} ist abgewählt – die kopierten Zeilen verweisen dort ins Leere.</value>
+  </data>
+  <data name="CopyParentMissingUncheckedOther" xml:space="preserve">
+    <value>{1}: {0:N0} Zeilen von {2}, auf die verwiesen wird, fehlen im Ziel, und die Beziehung {3} ist abgewählt – die kopierten Zeilen verweisen dort ins Leere.</value>
+  </data>
+  <data name="CopyValueNotConvertibleOne" xml:space="preserve">
+    <value>{1}: {0:N0} Wert der Spalte {2} lässt sich nicht in {3} des Ziels umwandeln.</value>
+  </data>
+  <data name="CopyValueNotConvertibleOther" xml:space="preserve">
+    <value>{1}: {0:N0} Werte der Spalte {2} lassen sich nicht in {3} des Ziels umwandeln.</value>
+  </data>
+</root>

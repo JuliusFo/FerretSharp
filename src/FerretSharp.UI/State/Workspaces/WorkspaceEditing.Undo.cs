@@ -138,6 +138,25 @@ public sealed partial class WorkspaceEditing
         return again;
     }
 
+    /// <summary>
+    /// Copies rows from another connection into the workspace's transaction (WP-42) as one write; its table tabs reload. Undo
+    /// and redo treat it like a statement (redo asks first and compares the rows).
+    /// </summary>
+    /// <returns>The write; null if it did not run (the reason was shown).</returns>
+    public async Task<WriteAction?> CopyAsync(WorkspaceTabs workspace, CopyWrite copy)
+    {
+        WriteAction? done = null;
+        await RunAsync(workspace, async () =>
+        {
+            var id = workspace.WorkspaceId;
+            done = await WorkspacesOf(id).CopyAsync(id, copy, CancellationToken.None);
+            KeepRedoable(id);
+            shell.ReloadTableTabs(id);
+            return true;
+        });
+        return done;
+    }
+
     /// <summary>A statement of the SQL editor or the LINQ console was written: the change overview names its tab and jumps there.</summary>
     public void NoteStatement(WorkspaceTab tab, WriteAction action)
     {

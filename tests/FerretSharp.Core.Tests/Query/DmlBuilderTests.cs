@@ -86,6 +86,31 @@ public class DmlBuilderTests
     }
 
     [Fact]
+    public void A_batch_insert_binds_a_value_per_row_with_each_columns_type()
+    {
+        var batch = DmlBuilder.InsertBatch(Position, [3, 0, 1], [["eins", "A1", 1m], [null, "A1", 2m]]);
+
+        Assert.Equal("INSERT INTO \"APP\".\"Pos Tabelle\" (\"Text\", \"MANDANT\", \"NR\")\nVALUES (:v3, :v0, :v1)", batch.Sql);
+        Assert.Equal(2, batch.Rows);
+        Assert.Equal([("v3", OracleTypeHint.NVarchar2), ("v0", OracleTypeHint.Char), ("v1", OracleTypeHint.Number)], batch.Parameters.Select(p => (p.Name, p.Type)));
+        Assert.Equal(["eins", null], batch.Parameters[0].Values);
+        Assert.True(OracleSession.IsWriteStatement(batch.Sql));
+
+        var rows = batch.Expand().ToList();
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, AssertBindsMatch);
+        Assert.Equal([null, "A1", 2m], rows[1].Parameters.Select(p => p.Value));
+    }
+
+    [Fact]
+    public void A_batch_insert_needs_columns_rows_and_a_value_per_column()
+    {
+        Assert.Throws<ArgumentException>(() => DmlBuilder.InsertBatch(Position, [], [[]]));
+        Assert.Throws<ArgumentException>(() => DmlBuilder.InsertBatch(Position, [0], []));
+        Assert.Throws<ArgumentException>(() => DmlBuilder.InsertBatch(Position, [0, 1], [["A1"]]));
+    }
+
+    [Fact]
     public void Rows_without_key_or_with_null_key_cannot_be_written()
     {
         Assert.Throws<RefusedException>(() => DmlBuilder.Delete(Notizen, RowKey.None.Instance));

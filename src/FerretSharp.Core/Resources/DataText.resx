@@ -174,4 +174,8 @@
     <value>{0}: {1}</value>
     <comment>A typed value for several columns does not fit one of them. {0} = column name, {1} = why (a sentence)</comment>
   </data>
+  <data name="CopyFailed" xml:space="preserve">
+    <value>Copying into {0} failed, nothing of the copy was kept: {1}</value>
+    <comment>{0}: target table; {1}: the reason, a full sentence</comment>
+  </data>
 </root>

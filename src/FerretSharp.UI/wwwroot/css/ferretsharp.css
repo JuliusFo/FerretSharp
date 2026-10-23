@@ -965,6 +965,35 @@ button.badge-btn:hover { filter: brightness(1.08); }
 .set-value-dialog .ff-copy { display: none; }
 .set-value-hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 
+/* Copy to another connection (WP-42): target, tree of child relationships, preview of the tables, parents, check */
+.dialog.copy-dialog { width: min(860px, 94vw); }
+.copy-dialog h3 { margin: 16px 0 4px; font-size: 13px; font-weight: 600; }
+.copy-source { margin: 0; font-weight: 500; }
+.copy-hint { margin: 2px 0 6px; color: var(--muted); font-size: 12px; }
+.copy-target { min-width: 360px; max-width: 100%; }
+.copy-tree, .copy-tree ul { list-style: none; margin: 0; padding-left: 0; }
+.copy-tree ul { padding-left: 22px; }
+.copy-node { display: flex; align-items: center; gap: 4px; min-height: 26px; }
+.copy-node label { display: inline-flex; align-items: center; gap: 6px; }
+.copy-node .tree-toggle { width: 22px; min-width: 22px; height: 22px; padding: 0; }
+.copy-root { margin: 6px 0 2px; font-weight: 600; font-size: 12.5px; }
+.copy-count { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.copy-read { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; font-size: 12.5px; }
+.copy-tables { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.copy-tables th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); padding: 4px 8px; }
+.copy-tables td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.copy-tables .num { text-align: right; font-variant-numeric: tabular-nums; }
+.copy-tables .faint { color: var(--faint); font-family: var(--mono); }
+.copy-tree .faint, .copy-parents .faint { color: var(--faint); }
+.copy-parents { list-style: none; margin: 0; padding: 0; }
+.copy-parents li { margin: 3px 0; }
+.copy-parents label { display: inline-flex; align-items: center; gap: 6px; }
+.copy-issues { margin: 0; padding-left: 18px; font-size: 12.5px; }
+.copy-issues li { margin: 3px 0; }
+.copy-issues .copy-error { color: var(--danger); }
+.copy-issues .copy-warning { color: var(--warn); }
+.copy-issues .copy-info { color: var(--muted); }
+
 /* LOB editor (WP-10) */
 .dialog.lob-dialog { width: min(980px, 94vw); }
 .lob-type { margin-left: 8px; color: var(--muted); font-weight: 400; font-size: 12px; }

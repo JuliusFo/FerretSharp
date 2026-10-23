@@ -154,7 +154,7 @@
                                 @if (next)
                                 {
                                     <button class="status-btn" disabled="@(busy || blocker is not null)"
-                                            title="@(blocker ?? (action.Kind == WriteActionKind.Grid ? ShellText.Changes_RedoGridTitle : ShellText.Changes_RedoStatementTitle))"
+                                            title="@(blocker ?? action.Kind switch { WriteActionKind.Grid => ShellText.Changes_RedoGridTitle, WriteActionKind.Copy => ShellText.Changes_RedoCopyTitle, _ => ShellText.Changes_RedoStatementTitle })"
                                             @onclick="() => Lifecycle.RequestRedo(workspace, action)">@ShellText.Changes_Redo</button>
                                 }
                             </div>
@@ -301,6 +301,7 @@
         var kind = (action.Kind, tab) switch
         {
             (WriteActionKind.Grid, _) => "Grid",
+            (WriteActionKind.Copy, _) => ShellText.Changes_SourceCopy,
             (_, LinqTab) => "LINQ",
             (_, SqlTab) => "SQL",
             _ => "SQL/LINQ",

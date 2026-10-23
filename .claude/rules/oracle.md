@@ -50,6 +50,7 @@ Gilt für den Oracle-Layer und alles, was SQL, Typen und Werte anfasst. Domänen
 ## Code im Oracle-Layer
 - `OracleSchemaReader` ist nach Thema aufgeteilt (`.cs` Katalog und gemeinsame Select-Listen, `.ObjectDetails.cs`, `.Snapshot.cs`, `.Diagnostics.cs`). Statements für eine Tabelle und für das ganze Schema entstehen aus **derselben** Select-Liste plus WHERE/ORDER – nie eine Spaltenliste von Hand kopieren (`ReadColumn` liest nach Position).
 - Zeilen lesen über `OracleReading` (`ReadListAsync`, `Text`/`Int`/`Long`/`Date`, `FetchManyRows`).
+- Array Binding (WP-42, `ExecuteNonQueryAsync(BatchSpec)`): ODP.NET braucht je Parameter einen festen `OracleDbType` (aus einem Array leitet es keinen ab), NULL als `DBNull` im Array; CLOB/BLOB gehen (gegen Oracle 23 geprüft). Scheitert eine Zeile, kommt **ORA-24381** („Fehler in Array-DML“), der eigentliche Fehler (ORA-02291 …) steht erst in `OracleException.Errors` – `OracleErrors.Translate` nimmt den ersten Fehler einer Zeile.
 - `ReadOnlyTests` prüfen jeden SELECT/WITH-Text (Konstante oder statisches Feld) aller Typen in `Core/Oracle` gegen die Lesesperre.
 - Row-Key: Bei Tabellen ist ein PK nur Row-Key, wenn er `ENABLED` und `VALIDATED` ist (`TableDetails.PrimaryKeyEnforced`), sonst ROWID; UPDATE/DELETE, das nicht genau eine Zeile trifft, geht zum Savepoint zurück (R5a). Schlüssel über INVISIBLE-Spalten → ROWID (die Spaltenliste filtert `hidden_column = 'NO'`).
 

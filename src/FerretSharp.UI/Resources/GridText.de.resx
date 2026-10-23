@@ -1155,4 +1155,19 @@
   <data name="SetValue_SeveralColumns" xml:space="preserve">
     <value>Der Wert geht in jede markierte Spalte, und jede prüft ihn selbst. Spalten, die ihn nicht nehmen können, bleiben, wie sie sind.</value>
   </data>
+  <data name="GridMenu_CopyToConnection" xml:space="preserve">
+    <value>In andere Verbindung kopieren …</value>
+  </data>
+  <data name="GridMenu_CopyToConnectionTitle" xml:space="preserve">
+    <value>Kopiert die markierten Zeilen samt Eltern und gewählten Kindern in einen Workspace einer anderen offenen Verbindung, als eine Aktion seiner Transaktion.</value>
+  </data>
+  <data name="GridMenu_CopyToConnectionNone" xml:space="preserve">
+    <value>Öffne zuerst die Zielverbindung: Keine andere Verbindung ist offen.</value>
+  </data>
+  <data name="GridMenu_CopyToConnectionView" xml:space="preserve">
+    <value>Kopieren lassen sich nur Zeilen von Tabellen.</value>
+  </data>
+  <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
+    <value>Andere Verbindung · {0}</value>
+  </data>
 </root>

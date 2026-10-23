@@ -10,6 +10,7 @@
 @inject ILogger<TabView> Logger
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
+@inject ConnectionHub Hub
 
 <div class="tabview">
     <div class="tab-toolbar">
@@ -144,7 +145,13 @@
                      OnRevertRows="rows => _grid?.ChangeRowsAsync(rows, delete: false) ?? Task.CompletedTask"
                      OnOpenLob="() => _grid?.OpenLobAsync(menu.RowIndex, menu.Column) ?? Task.CompletedTask"
                      OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare"
-                     OnFillMarks="fill => _grid?.FillAsync(menu.Marks!.Marks, fill) ?? Task.CompletedTask" OnSetValue="r => _setValue = r" />
+                     OnFillMarks="fill => _grid?.FillAsync(menu.Marks!.Marks, fill) ?? Task.CompletedTask" OnSetValue="r => _setValue = r"
+                     CopyUnavailable="@CopyUnavailable" OnCopyToConnection="() => OpenCopy(menu)" />
+}
+
+@if (_copy is { } copy)
+{
+    <SubgraphCopyDialog @key="copy" Draft="copy" SourceHasTransaction="@(Workspaces.ActionsOf(Tab.WorkspaceId).Count > 0)" OnClose="() => _copy = null" />
 }
 
 @if (_setValue is { } setValue && _details is not null)
@@ -232,6 +239,32 @@
 
     /// <summary>"Set value…" of the cell menu, open (WP-59).</summary>
     private SetValueRequest? _setValue;
+
+    /// <summary>"Copy to another connection…" of the cell menu, open (WP-42).</summary>
+    private SubgraphCopyDraft? _copy;
+
+    /// <summary>Why the rows cannot be copied to another connection; null if they can.</summary>
+    private string? CopyUnavailable =>
+        _details?.Table.Kind != TableKind.Table ? GridText.GridMenu_CopyToConnectionView
+        : CopyTargets.Targets(Hub, Active, Settings.Current).Count == 0 ? GridText.GridMenu_CopyToConnectionNone
+        : null;
+
+    /// <summary>The copy of the selected rows (or the clicked one) into a workspace of another open connection (WP-42).</summary>
+    private void OpenCopy(GridContextMenuRequest menu)
+    {
+        if (_details is null || Active.Schema is not { } schema || Active.Profile is not { } profile)
+        {
+            return;
+        }
+
+        var workspace = Tab.WorkspaceId;
+        _copy = new SubgraphCopyDraft(
+            ConnectionLabel.Of(profile, Settings.Current), schema.Owner, Core.Relations.RelationGraph.Of(schema), _details,
+            [.. menu.JumpRows.Select(r => r.Key)],
+            ct => Workspaces.GetDataAsync(workspace, ct),
+            async (table, ct) => schema.Find(table) is { } summary ? await schema.GetDetailsAsync(summary, ct) : null,
+            CopyTargets.Targets(Hub, Active, Settings.Current));
+    }
 
     /// <summary>The value of "Set value…" for its cells; the dialog closes itself once it is set (its OnClose).</summary>
     private async Task<string?> ApplySetValueAsync(string text)

@@ -143,6 +143,43 @@ public sealed partial class OracleSession
     }
 
     /// <summary>
+    /// The write path for many rows at once (WP-42, ADR 0032): one INSERT/UPDATE/DELETE/MERGE with a value per row in every
+    /// bind variable (array binding, one round trip) – the same guards as a single statement: never DDL, never autocommit.
+    /// </summary>
+    /// <returns>Affected rows of all of them.</returns>
+    internal async Task<int> ExecuteNonQueryAsync(BatchSpec batch, CancellationToken cancellationToken)
+    {
+        if (!IsWriteStatement(batch.Sql))
+        {
+            throw new InvalidOperationException("Writes only take a single INSERT, UPDATE, DELETE or MERGE statement.");
+        }
+
+        if (batch.Rows < 1 || batch.Parameters.Count == 0 || batch.Parameters.Any(p => p.Values.Count != batch.Rows))
+        {
+            throw new ArgumentException("A batch has at least one row and one parameter, a value per row in each.", nameof(batch));
+        }
+
+        return await ExclusiveAsync(() =>
+        {
+            if (_open is null)
+            {
+                throw new RefusedException(OracleText.WriteOnlyInTransaction);
+            }
+
+            return RunAsync(batch.Sql, [], async (command, ct) =>
+            {
+                command.ArrayBindCount = batch.Rows;
+                foreach (var parameter in batch.Parameters)
+                {
+                    command.Parameters.Add(OracleParameters.FromArray(parameter));
+                }
+
+                return await command.ExecuteNonQueryAsync(ct);
+            }, cancellationToken);
+        }, cancellationToken);
+    }
+
+    /// <summary>
     /// The schema path (WP-22, ADR 0019), next to the write path and just as narrow: a single DDL statement
     /// (<see cref="IsDdlStatement"/>), never in a locked session and never while a transaction is open – Oracle commits
     /// before and after DDL, so it would commit the open transaction silently. A locked session always has its read-only

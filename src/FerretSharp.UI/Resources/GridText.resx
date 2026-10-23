@@ -1466,4 +1466,21 @@
   <data name="SetValue_SeveralColumns" xml:space="preserve">
     <value>The value goes into every marked column, and each checks it itself. Columns that cannot take it stay as they are.</value>
   </data>
+  <data name="GridMenu_CopyToConnection" xml:space="preserve">
+    <value>Copy to another connection…</value>
+    <comment>Menu entry: copies the selected rows with related rows into another connection</comment>
+  </data>
+  <data name="GridMenu_CopyToConnectionTitle" xml:space="preserve">
+    <value>Copies the selected rows with their parents and chosen children into a workspace of another open connection, as one action of its transaction.</value>
+  </data>
+  <data name="GridMenu_CopyToConnectionNone" xml:space="preserve">
+    <value>Open the target connection first: no other connection is open.</value>
+  </data>
+  <data name="GridMenu_CopyToConnectionView" xml:space="preserve">
+    <value>Only rows of tables can be copied.</value>
+  </data>
+  <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
+    <value>Other connection · {0}</value>
+    <comment>Group heading in the cell menu; {0}: e.g. '3 rows'</comment>
+  </data>
 </root>
