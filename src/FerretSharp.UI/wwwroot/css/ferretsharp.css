@@ -1607,3 +1607,54 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .settings-content .settings-no-match { margin: 12px 0 0; }
 .settings-page .no-match { display: none; }
 .settings-page > .page-head { max-width: 1340px; }
+
+/* Relationship diagram (WP-46): fills .structure, the canvas scrolls on its own. Nodes are HTML over an SVG of the
+   edges; edges in the colour of their kind (constraint, C# model, other), a dot at the referencing end. */
+.structure > .relations-view { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 14px 0 0 28px; }
+.relations-head { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding-right: 28px; margin-bottom: 10px; }
+.relations-head .spacer { flex: 1; }
+.relations-head .muted { color: var(--muted); font-size: 12px; }
+.relations-source { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.relations-source input { margin: 0; accent-color: var(--accent); }
+.relations-swatch { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--rel-color); }
+.relations-swatch:not(.declared) { border-top-style: dashed; }
+.relations-zoom { min-width: 58px; font-variant-numeric: tabular-nums; }
+.relations-empty { position: relative; flex: 1; min-height: 0; }
+.relations-canvas { position: relative; flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--border); background: var(--bg); }
+.relations-size { position: relative; }
+.relations-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.relations-edges { position: absolute; left: 0; top: 0; overflow: visible; }
+.relations-view .declared { --rel-color: var(--accent); }
+.relations-view .clr { --rel-color: var(--clr); }
+.relations-view .other { --rel-color: var(--warn); }
+.relations-edge.group { --rel-color: var(--faint); }
+.relations-edge .line { fill: none; stroke: var(--rel-color); stroke-width: 1.6; }
+.relations-edge:not(.declared) .line { stroke-dasharray: 5 4; }
+.relations-edge .hit { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; }
+.relations-edge circle { fill: var(--rel-color); }
+.relations-edge.lit .line { stroke-width: 2.6; }
+.relations-edge.faded { opacity: .25; }
+.relations-node {
+  position: absolute; display: flex; flex-direction: column; justify-content: center; padding: 0 22px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+.relations-node.focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-weak); }
+.relations-node.lit { border-color: var(--accent); }
+.relations-node.faded { opacity: .45; }
+.relations-node .relations-name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; padding: 0; border: 0; background: transparent;
+  font: 600 12.5px var(--mono); color: var(--text);
+}
+.relations-node button.relations-name:hover { color: var(--accent); text-decoration: underline; }
+.relations-node .relations-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); }
+.relations-handle {
+  position: absolute; top: 50%; transform: translateY(-50%); min-width: 26px; height: 20px; padding: 0 4px;
+  border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-2); color: var(--muted);
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.relations-handle.left { left: -14px; }
+.relations-handle.right { right: -14px; }
+.relations-handle:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+.relations-node.group { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px 0 14px; border-style: dashed; background: var(--surface-2); }
+.relations-node.group .relations-name { font-family: inherit; font-weight: 500; color: var(--muted); }
+.relations-node.group .btn { height: 24px; padding: 0 10px; font-size: 12px; }

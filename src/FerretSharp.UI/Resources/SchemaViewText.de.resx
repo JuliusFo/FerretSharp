@@ -768,4 +768,97 @@
   <data name="Tab_ViewUsage" xml:space="preserve">
     <value>Verwendung</value>
   </data>
+  <data name="Tab_ViewRelations" xml:space="preserve">
+    <value>Beziehungen</value>
+  </data>
+  <data name="Relations_Levels" xml:space="preserve">
+    <value>Ebenen</value>
+  </data>
+  <data name="Relations_LevelsTitle" xml:space="preserve">
+    <value>Wie weit Referenzen verfolgt werden: 1 zeigt die Nachbarn, 2 auch die Eltern der Eltern und die Kinder der Kinder</value>
+  </data>
+  <data name="Relations_SourceDeclared" xml:space="preserve">
+    <value>Constraints</value>
+  </data>
+  <data name="Relations_SourceClrModel" xml:space="preserve">
+    <value>C#-Modell</value>
+  </data>
+  <data name="Relations_SourceManual" xml:space="preserve">
+    <value>Manuell</value>
+  </data>
+  <data name="Relations_SourceConvention" xml:space="preserve">
+    <value>Nach Konvention</value>
+  </data>
+  <data name="Relations_SourceTitle" xml:space="preserve">
+    <value>Beziehungen dieser Art zeigen</value>
+  </data>
+  <data name="Relations_ZoomIn" xml:space="preserve">
+    <value>Vergrößern</value>
+  </data>
+  <data name="Relations_ZoomOut" xml:space="preserve">
+    <value>Verkleinern</value>
+  </data>
+  <data name="Relations_ZoomReset" xml:space="preserve">
+    <value>Zurück auf 100 %</value>
+  </data>
+  <data name="Relations_ResetTitle" xml:space="preserve">
+    <value>Zurück zu {0}: eine Ebene, alle Arten von Beziehungen, nichts aufgeklappt</value>
+  </data>
+  <data name="Relations_CopyMermaid" xml:space="preserve">
+    <value>Als Mermaid kopieren</value>
+  </data>
+  <data name="Relations_CopyMermaidTitle" xml:space="preserve">
+    <value>Kopiert das Diagramm als Mermaid-erDiagram für Doku und Tickets – Beziehungen ohne Constraint gestrichelt</value>
+  </data>
+  <data name="Relations_MermaidCopied" xml:space="preserve">
+    <value>Diagramm als Mermaid kopiert.</value>
+  </data>
+  <data name="Relations_OpenTitle" xml:space="preserve">
+    <value>{0} öffnen</value>
+  </data>
+  <data name="Relations_ShowParentsOne" xml:space="preserve">
+    <value>{0:N0} referenzierte Tabelle zeigen</value>
+  </data>
+  <data name="Relations_ShowParentsOther" xml:space="preserve">
+    <value>{0:N0} referenzierte Tabellen zeigen</value>
+  </data>
+  <data name="Relations_ShowChildrenOne" xml:space="preserve">
+    <value>{0:N0} referenzierende Tabelle zeigen</value>
+  </data>
+  <data name="Relations_ShowChildrenOther" xml:space="preserve">
+    <value>{0:N0} referenzierende Tabellen zeigen</value>
+  </data>
+  <data name="Relations_GroupOne" xml:space="preserve">
+    <value>{0:N0} Tabelle</value>
+  </data>
+  <data name="Relations_GroupOther" xml:space="preserve">
+    <value>{0:N0} Tabellen</value>
+  </data>
+  <data name="Relations_GroupShow" xml:space="preserve">
+    <value>Zeigen</value>
+  </data>
+  <data name="Relations_GroupTitle" xml:space="preserve">
+    <value>Diese Tabellen zeigen: {0}</value>
+  </data>
+  <data name="Relations_MenuCenter" xml:space="preserve">
+    <value>In die Mitte stellen</value>
+  </data>
+  <data name="Relations_MenuShowParents" xml:space="preserve">
+    <value>Referenzierte Tabellen zeigen</value>
+  </data>
+  <data name="Relations_MenuShowChildren" xml:space="preserve">
+    <value>Referenzierende Tabellen zeigen</value>
+  </data>
+  <data name="Relations_EdgeTitle" xml:space="preserve">
+    <value>{0}: {1} ({2}) referenziert {3} ({4}) – {5}</value>
+  </data>
+  <data name="Relations_NoneTitle" xml:space="preserve">
+    <value>Keine Beziehungen</value>
+  </data>
+  <data name="Relations_NoneText" xml:space="preserve">
+    <value>{0} referenziert keine Tabelle, und keine Tabelle referenziert sie.</value>
+  </data>
+  <data name="Relations_NoneHiddenText" xml:space="preserve">
+    <value>{0} hat nur Beziehungen der ausgeschalteten Arten.</value>
+  </data>
 </root>
