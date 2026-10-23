@@ -105,4 +105,16 @@
   <data name="CopyValueNotConvertibleOther" xml:space="preserve">
     <value>{1}: {0:N0} Werte der Spalte {2} lassen sich nicht in {3} des Ziels umwandeln.</value>
   </data>
+  <data name="MermaidHiddenParentsOne" xml:space="preserve">
+    <value>{1}: {0:N0} weitere referenzierte Tabelle nicht gezeigt</value>
+  </data>
+  <data name="MermaidHiddenParentsOther" xml:space="preserve">
+    <value>{1}: {0:N0} weitere referenzierte Tabellen nicht gezeigt</value>
+  </data>
+  <data name="MermaidHiddenChildrenOne" xml:space="preserve">
+    <value>{1}: {0:N0} weitere referenzierende Tabelle nicht gezeigt</value>
+  </data>
+  <data name="MermaidHiddenChildrenOther" xml:space="preserve">
+    <value>{1}: {0:N0} weitere referenzierende Tabellen nicht gezeigt</value>
+  </data>
 </root>

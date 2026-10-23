@@ -11,6 +11,9 @@ public enum TabMode
     Constraints,
     Indexes,
     Dependencies,
+
+    /// <summary>Diagram of the tables it references and that reference it (WP-46). Stored by name, so its place here is free.</summary>
+    Relations,
     Ddl,
 
     /// <summary>Uses of the columns in the linked solution's code (WP-40).</summary>

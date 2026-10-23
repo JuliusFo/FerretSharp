@@ -924,4 +924,121 @@
   <data name="Tab_ViewUsage" xml:space="preserve">
     <value>Usage</value>
   </data>
+  <data name="Tab_ViewRelations" xml:space="preserve">
+    <value>Relations</value>
+    <comment>View of a table tab: the relationship diagram</comment>
+  </data>
+  <data name="Relations_Levels" xml:space="preserve">
+    <value>Levels</value>
+    <comment>Label before the switch 1 | 2</comment>
+  </data>
+  <data name="Relations_LevelsTitle" xml:space="preserve">
+    <value>How far to follow references: 1 shows the neighbours, 2 also the parents of the parents and the children of the children</value>
+  </data>
+  <data name="Relations_SourceDeclared" xml:space="preserve">
+    <value>Constraints</value>
+    <comment>Kind of relationship: foreign key constraints in the database</comment>
+  </data>
+  <data name="Relations_SourceClrModel" xml:space="preserve">
+    <value>C# model</value>
+    <comment>Kind of relationship: navigations of the C# model without constraint</comment>
+  </data>
+  <data name="Relations_SourceManual" xml:space="preserve">
+    <value>Manual</value>
+    <comment>Kind of relationship: defined by hand</comment>
+  </data>
+  <data name="Relations_SourceConvention" xml:space="preserve">
+    <value>By convention</value>
+    <comment>Kind of relationship: guessed from column names</comment>
+  </data>
+  <data name="Relations_SourceTitle" xml:space="preserve">
+    <value>Show relationships of this kind</value>
+  </data>
+  <data name="Relations_ZoomIn" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="Relations_ZoomOut" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="Relations_ZoomReset" xml:space="preserve">
+    <value>Back to 100 %</value>
+  </data>
+  <data name="Relations_ResetTitle" xml:space="preserve">
+    <value>Back to {0}: one level, all kinds of relationship, nothing expanded</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="Relations_CopyMermaid" xml:space="preserve">
+    <value>Copy as Mermaid</value>
+  </data>
+  <data name="Relations_CopyMermaidTitle" xml:space="preserve">
+    <value>Copies the diagram as a Mermaid erDiagram for documentation and tickets – relationships without constraint dashed</value>
+  </data>
+  <data name="Relations_MermaidCopied" xml:space="preserve">
+    <value>Diagram copied as Mermaid.</value>
+  </data>
+  <data name="Relations_OpenTitle" xml:space="preserve">
+    <value>Open {0}</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="Relations_ShowParentsOne" xml:space="preserve">
+    <value>Show {0:N0} table it references</value>
+    <comment>{0}: number of tables; the "+n" handle on the left of a table</comment>
+  </data>
+  <data name="Relations_ShowParentsOther" xml:space="preserve">
+    <value>Show {0:N0} tables it references</value>
+    <comment>{0}: number of tables; the "+n" handle on the left of a table</comment>
+  </data>
+  <data name="Relations_ShowChildrenOne" xml:space="preserve">
+    <value>Show {0:N0} table that references it</value>
+    <comment>{0}: number of tables; the "+n" handle on the right of a table</comment>
+  </data>
+  <data name="Relations_ShowChildrenOther" xml:space="preserve">
+    <value>Show {0:N0} tables that reference it</value>
+    <comment>{0}: number of tables; the "+n" handle on the right of a table</comment>
+  </data>
+  <data name="Relations_GroupOne" xml:space="preserve">
+    <value>{0:N0} table</value>
+    <comment>{0}: number of tables in a collapsed node</comment>
+  </data>
+  <data name="Relations_GroupOther" xml:space="preserve">
+    <value>{0:N0} tables</value>
+    <comment>{0}: number of tables in a collapsed node</comment>
+  </data>
+  <data name="Relations_GroupShow" xml:space="preserve">
+    <value>Show</value>
+    <comment>Button in a collapsed node</comment>
+  </data>
+  <data name="Relations_GroupTitle" xml:space="preserve">
+    <value>Show these tables: {0}</value>
+    <comment>{0}: list of table names</comment>
+  </data>
+  <data name="Relations_MenuCenter" xml:space="preserve">
+    <value>Put in the middle</value>
+    <comment>Node menu: the diagram is built around this table</comment>
+  </data>
+  <data name="Relations_MenuShowParents" xml:space="preserve">
+    <value>Show the tables it references</value>
+  </data>
+  <data name="Relations_MenuShowChildren" xml:space="preserve">
+    <value>Show the tables that reference it</value>
+  </data>
+  <data name="Relations_EdgeTitle" xml:space="preserve">
+    <value>{0}: {1} ({2}) references {3} ({4}) – {5}</value>
+    <comment>{0}: relationship name; {1}: referencing table; {2}: its columns; {3}: referenced table; {4}: its columns; {5}: kind, e.g. C# model</comment>
+  </data>
+  <data name="Relations_NoneTitle" xml:space="preserve">
+    <value>No relationships</value>
+  </data>
+  <data name="Relations_NoneText" xml:space="preserve">
+    <value>{0} references no table, and no table references it.</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="Relations_NoneHiddenText" xml:space="preserve">
+    <value>Relationships of {0} are only of kinds switched off.</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="Relations_KindDeclared" xml:space="preserve">
+    <value>Constraint</value>
+    <comment>Kind of one relationship in its tooltip: a foreign key constraint</comment>
+  </data>
 </root>

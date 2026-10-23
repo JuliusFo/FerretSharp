@@ -43,10 +43,7 @@ Branch `wp/41-designer-to-code`. Baut auf WP-40 (released 3.43.0, ADR 0030): des
 Umgesetzt auf `wp/42-subgraph-copy` (Release offen, E2E steht noch aus): Planung, Entscheidungen und Stand in `docs/work-packages/wp-42-subgraph-copy.md`, ADR 0032. Für WP-46/WP-60 da: `RelationGraph` und `RowTraversal.FollowAsync` (Core/Relations).
 
 ### WP-46 Beziehungsdiagramm
-(braucht WP-42; seit 2026-10-22 direkt danach, vor WP-43.) Branch `wp/46-relationship-diagram`. Schema-Ebene; die Ebene der Datensätze folgt in WP-60 und nutzt Layout und Darstellung von hier.
-- Nachbarschaft einer Tabelle über 1–2 Ebenen als Diagramm, Kanten nach `FkSource` gefärbt (deklariert, C#-Modell, später manuell/vermutet), Knoten mit Tabellen- und Entity-Namen; Klick öffnet den Tab, Doppelklick erweitert den Knoten. „Als Mermaid kopieren“ für Doku und Tickets.
-- Das Layout muss schrittweises Erweitern und zusammengefasste Knoten tragen („Position ×200“, aufklappbar), weil WP-60 darauf aufbaut.
-- Offen: Platz (Ansicht im Tabellen-Tab oder eigener Tab); Layout – SVG aus Razor mit einem einfachen Schichten-Layout im Core (keine neue Bibliothek, keine Logik in JS) oder eine Layout-Bibliothek wie elkjs lokal unter `wwwroot/lib` (dann ADR zum Stack). Vorschlag wegen WP-60: eigenes Layout, über das wir die Kontrolle behalten.
+Umgesetzt auf `wp/46-relationship-diagram` (Release offen, kommt mit WP-42): Planung, Entscheidungen und Stand in `docs/work-packages/wp-46-relationship-diagram.md`, ADR 0033. Für WP-60 da: `DiagramLayout` (Schichten-Layout über Knoten-IDs, stabil beim Wachsen) und die Darstellung in `RelationsView`.
 
 ### WP-60 Datensatz-Diagramm
 (Idee des Nutzers, 2026-10-22; braucht WP-42 und WP-46.) Branch `wp/60-record-diagram`.

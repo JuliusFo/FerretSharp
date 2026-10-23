@@ -136,4 +136,20 @@
     <value>{1}: {0:N0} values of column {2} do not convert to {3} in the target.</value>
     <comment>{0}: number of values; {1}: table; {2}: column; {3}: target type, e.g. NUMBER(10)</comment>
   </data>
+  <data name="MermaidHiddenParentsOne" xml:space="preserve">
+    <value>{1}: {0:N0} more referenced table not shown</value>
+    <comment>{0}: number of tables; {1}: table. A Mermaid comment below a relationship diagram</comment>
+  </data>
+  <data name="MermaidHiddenParentsOther" xml:space="preserve">
+    <value>{1}: {0:N0} more referenced tables not shown</value>
+    <comment>{0}: number of tables; {1}: table. A Mermaid comment below a relationship diagram</comment>
+  </data>
+  <data name="MermaidHiddenChildrenOne" xml:space="preserve">
+    <value>{1}: {0:N0} more referencing table not shown</value>
+    <comment>{0}: number of tables; {1}: table. A Mermaid comment below a relationship diagram</comment>
+  </data>
+  <data name="MermaidHiddenChildrenOther" xml:space="preserve">
+    <value>{1}: {0:N0} more referencing tables not shown</value>
+    <comment>{0}: number of tables; {1}: table. A Mermaid comment below a relationship diagram</comment>
+  </data>
 </root>

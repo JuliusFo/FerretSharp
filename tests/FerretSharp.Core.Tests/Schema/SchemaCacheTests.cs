@@ -109,6 +109,21 @@ public class SchemaCacheTests
     }
 
     [Fact]
+    public async Task A_table_is_labelled_by_its_synonym_its_own_name_or_owner_and_name()
+    {
+        var produkt = new TableSummary("ERP", "PRODUKT", TableKind.Table, new SynonymInfo(Owner, "S_PRODUKT"));
+        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([produkt], []));
+        var cache = new SchemaCache(_reader, Owner);
+
+        await cache.LoadAsync(Ct);
+
+        Assert.Equal("S_PRODUKT", cache.LabelOf(produkt.Ref));
+        Assert.Equal("KUNDEN", cache.LabelOf(Kunden.Ref));
+        Assert.Equal("ERP.LAGER", cache.LabelOf(new TableRef("ERP", "LAGER")));
+        Assert.Equal("NEU", cache.LabelOf(new TableRef(Owner, "NEU")));
+    }
+
+    [Fact]
     public async Task Primary_keys_are_loaded_and_relationships_into_a_base_table_reach_its_extension()
     {
         // KUNDE_EXT extends KUNDEN by a relationship of the C# model; AUFTRAG references KUNDEN.

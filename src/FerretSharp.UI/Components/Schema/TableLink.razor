@@ -4,7 +4,7 @@
 @if (Active.Schema?.Find(Target) is { } table)
 {
     <button class="link" title="@(table.Synonym is null ? SchemaViewText.TableLink_ShowStructure : TextFormat.Format(SchemaViewText.TableLink_ShowStructureViaSynonym, Target))"
-            @onclick="() => Shell.OpenTable(table, TabMode.Structure)">@Label(table)</button>
+            @onclick="() => Shell.OpenTable(table, TabMode.Structure)">@Active.Schema.LabelOf(Target)</button>
 }
 else
 {
@@ -20,8 +20,4 @@ else
 
     [Parameter, EditorRequired]
     public TableRef Target { get; set; } = null!;
-
-    /// <summary>Synonym name if the object is known by one; owner only for other schemas without synonym.</summary>
-    private string Label(TableSummary table) =>
-        table.Synonym is not null || Target.Owner == Active.Schema?.Owner ? table.DisplayName : Target.ToString();
 }

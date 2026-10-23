@@ -7,6 +7,11 @@ export function scrollIntoViewById(id, block = 'nearest') {
   document.getElementById(id)?.scrollIntoView({ block });
 }
 
+/** Scrolls an element by a distance: keeps what was clicked in place while content grows to the left of or above it. */
+export function scrollByPx(id, dx, dy) {
+  document.getElementById(id)?.scrollBy(dx, dy);
+}
+
 export function focusAndSelect(element) {
   element?.focus();
   element?.select();
