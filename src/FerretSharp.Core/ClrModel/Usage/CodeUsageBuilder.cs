@@ -72,6 +72,9 @@ public partial class CodeUsageBuilder(string cacheDirectory, TimeProvider? time 
     /// Sets <see cref="CodeUsageProject.ReachesModel"/>: the projects whose assembly defines an entity type, and every project
     /// referencing one of them, directly or through others (<c>ProjectReference</c>, read without building – so it is known
     /// for projects not built, too). Without a project defining one (entities outside the solution, or not built), all may.
+    /// What is not known counts as reaching (review of the PR): a project whose file could not be read or whose references
+    /// are not all known (<see cref="ProjectBuild.ReferencesUnknown"/>), and a reference to a project outside the solution –
+    /// its own references are not read, it may lead to the entities.
     /// </summary>
     internal static IReadOnlyList<CodeUsageProject> MarkModelReach(IReadOnlyList<CodeUsageProject> projects, ModelExport model)
     {
@@ -85,16 +88,18 @@ public partial class CodeUsageBuilder(string cacheDirectory, TimeProvider? time 
             return projects;
         }
 
-        var references = projects
+        var builds = projects
             .GroupBy(p => p.ProjectFile, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Build?.References ?? [], StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Key, g => g.First().Build, StringComparer.OrdinalIgnoreCase);
 
         bool Reaches(string project, HashSet<string> seen) =>
             defining.Contains(project)
-            || (seen.Add(project) && references.TryGetValue(project, out var referenced) && referenced.Any(r => Reaches(r, seen)));
+            || !builds.TryGetValue(project, out var build) // outside the solution
+            || build is null or { ReferencesUnknown: true }
+            || (seen.Add(project) && (build.References ?? []).Any(r => Reaches(r, seen)));
 
         return projects
-            .Select(p => p with { ReachesModel = p.Build is null || Reaches(p.ProjectFile, new HashSet<string>(StringComparer.OrdinalIgnoreCase)) })
+            .Select(p => p with { ReachesModel = Reaches(p.ProjectFile, new HashSet<string>(StringComparer.OrdinalIgnoreCase)) })
             .ToList();
     }
 

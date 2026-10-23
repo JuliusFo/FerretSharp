@@ -65,12 +65,13 @@ else
         {
             <div class="tab-error"><span>@TextFormat.Format(ModelViewText.Usage_Failed, error)</span></div>
         }
-        <UsageBuildNote />
+        <UsageBuildNote Shown="Shown" />
         @{
             var queries = result?.Index.ForEntity(entity.Entity) ?? [];
             var navigations = result?.Index.NavigationsTo(entity.Entity) ?? [];
             var rows = result is null ? [] : CodeUsageRows.Columns(mapping, result.Index, Details);
             var unused = CodeUsageRows.UnusedCount(rows);
+            var unusedTitle = result is null ? "" : CodeUsageRows.UnusedTitle(result); // once, not per row
         }
         <div class="usage-bar">
             <div class="segmented small usage-tabs" role="tablist">
@@ -165,7 +166,7 @@ else
                                 <td>
                                     @if (row.Unused)
                                     {
-                                        <span class="fs-badge unused" title="@CodeUsageRows.UnusedTitle(result!)">@ModelViewText.Usage_Unused</span>
+                                        <span class="fs-badge unused" title="@unusedTitle">@ModelViewText.Usage_Unused</span>
                                     }
                                     else if (row.Property?.IsShadow == true)
                                     {

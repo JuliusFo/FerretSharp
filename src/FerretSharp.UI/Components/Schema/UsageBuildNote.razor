@@ -1,6 +1,6 @@
 @* Projects that could use the model are not built (WP-40 addendum): "unused" may be wrong, so the views showing it say
    so, with a build of the whole solution right there (decision of the user, 2026-10-23); also a failed build's output.
-   Without parameters it does not render with its parent: it follows both services itself. *@
+   It follows both services itself, while its view is shown. *@
 @using FerretSharp.Core.ClrModel
 @inherits FerretComponent
 @implements IDisposable
@@ -59,6 +59,13 @@
     [CascadingParameter]
     public CodeUsageService Usage { get; set; } = null!;
 
+    /// <summary>
+    /// False while the view around it is hidden: it then does not render on every step of the model (review 3.44.0, A35 for
+    /// the view itself; the note follows the services on its own). Shown again, the parameter renders it.
+    /// </summary>
+    [Parameter]
+    public bool Shown { get; set; } = true;
+
     private readonly CancellationTokenSource _lifetime = new();
 
     private bool _showOutput;
@@ -68,6 +75,8 @@
         Usage.Changed += OnChanged;
         Models.Changed += OnChanged;
     }
+
+    protected override bool ShouldRender() => Shown;
 
     private void OnChanged() => Fire(StateHasChanged);
 

@@ -175,6 +175,66 @@ public sealed class SolutionAndBuilderTests : IDisposable
         Assert.Equal(["Shop.Testing"], result.Missing.Select(p => p.Name));
     }
 
+    /// <summary>
+    /// Review of the PR: a reference read wrong made a project unable to reach the model, and the warning disappeared. What
+    /// is not known now counts as reaching – an MSBuild property in the path, a file that does not exist, references in the
+    /// Directory.Build.props MSBuild imports, and a project outside the solution (its references are not read).
+    /// </summary>
+    [Fact]
+    public async Task References_that_are_not_known_from_the_project_file_count_as_reaching_the_model()
+    {
+        var entities = Project("Shop.Entities/Shop.Entities.csproj");
+        Built(entities, "Shop.Entities");
+        var property = Project("Web/Web.csproj", @"$(SolutionDir)Shop.Entities\Shop.Entities.csproj");
+        var missingFile = Project("Api/Api.csproj", "../Gone/Gone.csproj");
+        var imported = Project("Imported/Sub/Imported.csproj");
+        File.WriteAllText(_folder.Combine("Imported", "Directory.Build.props"),
+            """<Project><ItemGroup><ProjectReference Include="$(MSBuildThisFileDirectory)..\Shop.Entities\Shop.Entities.csproj" /></ItemGroup></Project>""");
+        Project("Outside/Outside.csproj", "../Shop.Entities/Shop.Entities.csproj");
+        var viaOutside = Project("Jobs/Jobs.csproj", "../Outside/Outside.csproj");
+        var plain = Project("Tools/Tools.csproj", "../Shop.Entities/Shop.Entities.csproj");
+        File.WriteAllText(_folder.Combine("Shop.slnx"), """
+            <Solution>
+              <Project Path="Shop.Entities/Shop.Entities.csproj" />
+              <Project Path="Web/Web.csproj" />
+              <Project Path="Api/Api.csproj" />
+              <Project Path="Imported/Sub/Imported.csproj" />
+              <Project Path="Jobs/Jobs.csproj" />
+              <Project Path="Tools/Tools.csproj" />
+            </Solution>
+            """);
+
+        var result = await new CodeUsageBuilder(_folder.Combine("cache")).BuildAsync(new ClrProjectLink(entities), _folder.Combine("Shop.slnx"),
+            CodeUsageIndexTests.Model(), TestContext.Current.CancellationToken);
+
+        Assert.Equal([true, true, true, false, false],
+            new[] { property, missingFile, imported, viaOutside, plain }.Select(p => BuildOutputLocator.FindAssembly(p, "Debug").ReferencesUnknown));
+        Assert.Equal(["Web", "Api", "Imported", "Jobs", "Tools"], result.Missing.Select(p => p.Name));
+    }
+
+    /// <summary>Review of the PR: an IsTestProject under a Condition (or with a property) is not known – the packages decide.</summary>
+    [Fact]
+    public void A_conditional_or_computed_IsTestProject_leaves_it_to_the_packages()
+    {
+        var conditional = Project("A/A.csproj");
+        File.WriteAllText(conditional, """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup Condition="'$(CI)' == 'true'"><IsTestProject>false</IsTestProject></PropertyGroup>
+              <ItemGroup><PackageReference Include="xunit.v3" /></ItemGroup>
+            </Project>
+            """);
+        var computed = Project("B/B.csproj");
+        File.WriteAllText(computed, """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup><IsTestProject>$(IsUnitTest)</IsTestProject></PropertyGroup>
+              <ItemGroup><PackageReference Include="MSTest" /></ItemGroup>
+            </Project>
+            """);
+
+        Assert.True(BuildOutputLocator.FindAssembly(conditional, "Debug").IsTestProject);
+        Assert.True(BuildOutputLocator.FindAssembly(computed, "Debug").IsTestProject);
+    }
+
     [Fact]
     public async Task Without_a_project_defining_an_entity_type_every_project_not_built_is_missing()
     {

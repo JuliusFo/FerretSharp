@@ -137,19 +137,40 @@ public sealed class CodeUsageService : IDisposable
         return notSaved;
     }
 
+    /// <summary>The running build of the solution, stopped through it; null while none runs. With the flag, under the lock.</summary>
+    private CancellationTokenSource? _solutionBuild;
+
+    private bool _cancellingSolutionBuild;
+
     /// <summary>The solution is being built (<see cref="BuildSolutionAsync"/>).</summary>
-    public bool IsBuildingSolution { get; private set; }
+    public bool IsBuildingSolution
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _solutionBuild is not null;
+            }
+        }
+    }
+
+    /// <summary>The running build of the solution was asked to stop (<see cref="CancelSolutionBuild"/>).</summary>
+    public bool IsCancellingSolutionBuild
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _cancellingSolutionBuild;
+            }
+        }
+    }
 
     /// <summary>Output of the last <see cref="BuildSolutionAsync"/> of this connection; null before and after a cancelled one.</summary>
     public DotNetRun? LastSolutionBuild { get; private set; }
 
-    /// <summary>The running build of the solution was asked to stop (<see cref="CancelSolutionBuild"/>).</summary>
-    public bool IsCancellingSolutionBuild { get; private set; }
-
     /// <summary>The last build of the solution was cancelled.</summary>
     public bool SolutionBuildCancelled { get; private set; }
-
-    private CancellationTokenSource? _solutionBuild;
 
     /// <summary>
     /// <c>dotnet build</c> of the solution read, so projects not built (which leave "unused" uncertain) are read too; then
@@ -160,7 +181,7 @@ public sealed class CodeUsageService : IDisposable
     /// <returns>The build; null if cancelled, without a solution, or while another build of the linked project runs.</returns>
     public async Task<DotNetRun?> BuildSolutionAsync(CancellationToken cancellationToken)
     {
-        if (Solution is not { } solution || IsBuildingSolution)
+        if (Solution is not { } solution)
         {
             return null;
         }
@@ -168,10 +189,17 @@ public sealed class CodeUsageService : IDisposable
         using var stop = new CancellationTokenSource();
         lock (_lock)
         {
-            _solutionBuild = stop;
+            if (_solutionBuild is not null)
+            {
+                return null;
+            }
+
+            // Set and cleared together, under the lock: a cancel between the build's end and its clean-up left the flag set
+            // for good – later builds showed "cancelling" and could not be cancelled (review of the PR).
+            (_solutionBuild, _cancellingSolutionBuild) = (stop, false);
         }
 
-        (IsBuildingSolution, LastSolutionBuild, SolutionBuildCancelled) = (true, null, false);
+        (LastSolutionBuild, SolutionBuildCancelled) = (null, false);
         Changed?.Invoke();
         DotNetRun? run;
         try
@@ -184,10 +212,9 @@ public sealed class CodeUsageService : IDisposable
         {
             lock (_lock)
             {
-                _solutionBuild = null;
+                (_solutionBuild, _cancellingSolutionBuild) = (null, false);
             }
 
-            (IsBuildingSolution, IsCancellingSolutionBuild) = (false, false);
             Changed?.Invoke();
         }
 
@@ -205,18 +232,17 @@ public sealed class CodeUsageService : IDisposable
     /// </summary>
     public void CancelSolutionBuild()
     {
-        CancellationTokenSource? stop;
+        CancellationTokenSource stop;
         lock (_lock)
         {
-            stop = _solutionBuild;
+            if (_solutionBuild is null || _cancellingSolutionBuild)
+            {
+                return;
+            }
+
+            (stop, _cancellingSolutionBuild) = (_solutionBuild, true);
         }
 
-        if (stop is null || IsCancellingSolutionBuild)
-        {
-            return;
-        }
-
-        IsCancellingSolutionBuild = true;
         Changed?.Invoke();
         _ = Task.Run(() =>
         {

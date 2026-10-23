@@ -31,8 +31,13 @@ public sealed record BuildOutput(
 /// The project file says it is a test project (<c>IsTestProject</c>, a test framework package); read without building, so
 /// known for a project not built. Packages added in a <c>Directory.Build.props</c> are not seen.
 /// </param>
+/// <param name="ReferencesUnknown">
+/// Not every reference is known from the project file alone: an MSBuild property in a path (<c>$(SolutionDir)…</c>), a
+/// referenced file that does not exist, or project references in a <c>Directory.Build.props/targets</c>. It may then reach
+/// any project (review of the PR: such a project counted as unable to use the model).
+/// </param>
 public sealed record ProjectBuild(string ProjectFile, string AssemblyName, string? Assembly, DateTime? BuiltAtUtc, string? NewerSource,
-    IReadOnlyList<string>? References = null, bool IsTestProject = false)
+    IReadOnlyList<string>? References = null, bool IsTestProject = false, bool ReferencesUnknown = false)
 {
     public bool IsBuilt => Assembly is not null;
 
@@ -130,12 +135,6 @@ public static partial class BuildOutputLocator
 
     private sealed record ProjectInfo(string? AssemblyName, IReadOnlyList<string> SharedFrameworks, IReadOnlyList<string> ProjectReferences, bool IsTestProject);
 
-    /// <summary>
-    /// Packages that make a project a test project (by name prefix: <c>xunit.v3</c>, <c>NUnit3TestAdapter</c>,
-    /// <c>MSTest.TestFramework</c>); the assembly scan knows them by their assembly names (<c>IlUsageScanner</c>).
-    /// </summary>
-    private static readonly string[] TestPackages = ["xunit", "NUnit", "MSTest", "TUnit", "Microsoft.Testing.Platform", "Microsoft.NET.Test.Sdk"];
-
     private static ProjectInfo ReadProject(string projectFile)
     {
         var document = XDocument.Load(projectFile);
@@ -158,15 +157,73 @@ public static partial class BuildOutputLocator
             .OfType<string>()
             .ToList();
 
-        // An explicit IsTestProject wins (false: a helper library that brings a test package for its own use).
-        var isTest = elements.LastOrDefault(e => e.Name.LocalName == "IsTestProject") is { } flag
+        // An explicit IsTestProject wins (false: a helper library that brings a test package for its own use) – but only a
+        // plain one: under a Condition or with an MSBuild property its value is not known here (review of the PR).
+        var isTest = elements.LastOrDefault(e => e.Name.LocalName == "IsTestProject" && IsPlainFlag(e)) is { } flag
             ? flag.Value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
             : elements
                 .Where(e => e.Name.LocalName == "PackageReference")
                 .Select(e => (string?)e.Attribute("Include"))
                 .OfType<string>()
-                .Any(p => TestPackages.Any(t => p.StartsWith(t, StringComparison.OrdinalIgnoreCase)));
+                .Any(TestFrameworks.IsTestPackage);
         return new ProjectInfo(assemblyName, frameworks.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), references, isTest);
+    }
+
+    /// <summary><c>true</c> or <c>false</c>, set without a Condition on it or its property group.</summary>
+    private static bool IsPlainFlag(XElement element) =>
+        element.Attribute("Condition") is null && element.Parent?.Attribute("Condition") is null
+        && element.Value.Trim() is var value
+        && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value.Equals("false", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// The project's references as full paths, and whether they may be more: a path with an MSBuild property or item
+    /// (<c>$(SolutionDir)…</c>), a referenced file that does not exist, or project references in the
+    /// <c>Directory.Build.props/targets</c> MSBuild imports for it.
+    /// </summary>
+    private static (IReadOnlyList<string> Resolved, bool Unknown) ResolveReferences(string projectDirectory, IReadOnlyList<string> references)
+    {
+        var resolved = new List<string>();
+        var unknown = false;
+        foreach (var reference in references)
+        {
+            var path = reference.Contains("$(", StringComparison.Ordinal) || reference.Contains("@(", StringComparison.Ordinal)
+                ? null
+                : Path.GetFullPath(Path.Combine(projectDirectory, reference.Replace('\\', Path.DirectorySeparatorChar)));
+            if (path is not null && File.Exists(path))
+            {
+                resolved.Add(path);
+            }
+            else
+            {
+                unknown = true;
+            }
+        }
+
+        return (resolved, unknown || ImportsProjectReferences(projectDirectory, "Directory.Build.props") || ImportsProjectReferences(projectDirectory, "Directory.Build.targets"));
+    }
+
+    /// <summary>The nearest file of this name in the project's folder or above (the one MSBuild imports) has a ProjectReference.</summary>
+    private static bool ImportsProjectReferences(string projectDirectory, string fileName)
+    {
+        for (var directory = new DirectoryInfo(projectDirectory); directory is not null; directory = directory.Parent)
+        {
+            var file = Path.Combine(directory.FullName, fileName);
+            if (!File.Exists(file))
+            {
+                continue;
+            }
+
+            try
+            {
+                return XDocument.Load(file).Descendants().Any(e => e.Name.LocalName == "ProjectReference");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+            {
+                return true; // not known: it may add references
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -187,9 +244,7 @@ public static partial class BuildOutputLocator
         var projectDirectory = Path.GetDirectoryName(Path.GetFullPath(projectFile))!;
         var project = ReadProject(projectFile);
         var assemblyName = project.AssemblyName ?? projectName;
-        var references = project.ProjectReferences
-            .Select(r => Path.GetFullPath(Path.Combine(projectDirectory, r.Replace('\\', Path.DirectorySeparatorChar))))
-            .ToList();
+        var (references, referencesUnknown) = ResolveReferences(projectDirectory, project.ProjectReferences);
         var assembly = OutputDirectories(projectDirectory, projectName, configuration)
             .Where(Directory.Exists)
             .SelectMany(d => Directory.EnumerateFiles(d, assemblyName + ".dll", SearchOption.AllDirectories))
@@ -199,7 +254,7 @@ public static partial class BuildOutputLocator
             .FirstOrDefault();
         if (assembly is null)
         {
-            return new ProjectBuild(projectFile, assemblyName, null, null, null, references, project.IsTestProject);
+            return new ProjectBuild(projectFile, assemblyName, null, null, null, references, project.IsTestProject, referencesUnknown);
         }
 
         var builtAt = File.GetLastWriteTimeUtc(assembly);
@@ -210,7 +265,7 @@ public static partial class BuildOutputLocator
             .OrderByDescending(f => f.At)
             .Select(f => f.File)
             .FirstOrDefault();
-        return new ProjectBuild(projectFile, assemblyName, assembly, builtAt, newer, references, project.IsTestProject);
+        return new ProjectBuild(projectFile, assemblyName, assembly, builtAt, newer, references, project.IsTestProject, referencesUnknown);
     }
 
     /// <summary><c>bin/&lt;Configuration&gt;</c>, or an artifacts layout (<c>UseArtifactsOutput</c>) further up.</summary>

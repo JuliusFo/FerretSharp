@@ -186,6 +186,7 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
     {
         await ConnectAsync();
         var first = await _usage.EnsureAsync(Ct);
+        _runner.ClearReceivedCalls();
         _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
         {
             Assert.True(_usage.IsBuildingSolution);
@@ -203,6 +204,9 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         Assert.False(_usage.IsBuildingSolution);
         Assert.NotSame(first, _usage.State.Result);
         Assert.Equal(CodeUsagePhase.Ready, _usage.State.Phase);
+        // Review of the PR: no forced reload of the model (up to 12 s without the cache, not cancellable); the build output
+        // watcher reads it again if the build changed the linked project.
+        await _runner.DidNotReceiveWithAnyArgs().ReadModelAsync(default!, default!, Ct, default);
     }
 
     /// <summary>"Cancel" stops dotnet build through its token; what was built until then is read, and another build can follow.</summary>
@@ -215,7 +219,7 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(async call =>
         {
             File.SetLastWriteTimeUtc(_dll, DateTime.UtcNow); // one project built before the cancel
-            started.SetResult();
+            started.TrySetResult();
             await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>());
             return new DotNetRun(0, "");
         });
@@ -235,6 +239,15 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         Assert.False(_models.IsBuilding);
         Assert.NotSame(first, _usage.State.Result);
 
+        // The next build starts without the cancel of the last one and can be cancelled again (review of the PR: the flag could stay).
+        var again = _usage.BuildSolutionAsync(Ct);
+        Assert.False(_usage.IsCancellingSolutionBuild);
+        _usage.CancelSolutionBuild();
+        Assert.Null(await again.WaitAsync(TimeSpan.FromSeconds(10), Ct));
+        Assert.True(_usage.SolutionBuildCancelled);
+
+        _usage.CancelSolutionBuild(); // nothing running: no effect
+        Assert.False(_usage.IsCancellingSolutionBuild);
         _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new DotNetRun(0, ""));
         Assert.NotNull(await _usage.BuildSolutionAsync(Ct));
         Assert.False(_usage.SolutionBuildCancelled);
