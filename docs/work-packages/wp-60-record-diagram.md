@@ -61,7 +61,7 @@ Eigener Container mit der Beispiel-DB (`ferret-e2e60`, danach entfernt), zwei Ve
 7. Farbe, Name und Tooltip einer Beziehungsart und die Hover-Zustände stehen einmal in `DiagramStyle` (Beziehungs- und Datensatz-Diagramm, Kopier-Vorschau).
 8. Ein unsichtbares Steuerzeichen im Quelltext (`ShellState.OpenRecords`) ist jetzt die Escape-Folge ``.
 
-## Nachtrag nach 3.47.0: Schritte ohne Wirkung (2026-10-23) → Release offen
+## Nachtrag nach 3.47.0: Schritte ohne Wirkung (2026-10-23) → Release 3.47.1
 Branch `fix/record-diagram-steps`. Bei der Frage des Nutzers nach einem Kopf ohne Positionen gefunden (dort war es richtig: der Kopf hatte keine).
 - **Fehler:** `RecordDiagram.ExpandAsync(nodes, side)` hielt den Schritt nur fest, wenn es auf der Seite etwas zu folgen gab, und `ReplayAsync` übernahm nur die Schritte, die gerade etwas taten. Ein Tab, geöffnet oder wiederhergestellt, bevor die Beziehungen des C#-Modells da waren, verlor so „rechts aufklappen“, wenn die Tabelle ohne Modell keine Kind-Beziehung hat; das Neuladen beim Eintreffen des Modells (`OnPresentationChanged` → `OnParametersSet`) spielte die verkürzte Liste ab, und so wurde sie gespeichert. Übrig blieb nur der Griff „+1“.
 - **Behoben:** Eine ganze Seite aufzuklappen ist immer ein Schritt. `ReplayAsync` behält jeden Schritt, auch einen, der gerade übersprungen wird (Zeile fehlt, Beziehung unbekannt, Gruppe nicht da), und ruft die Arbeit ohne eigenes Festhalten (`ExpandSideAsync`, `OpenGroup`). Wie Review-Befund 1: die Zeile kann nach einem Rollback zurück sein, die Beziehung mit dem Modell. Gespeicherte Schritte toter Zeilen bleiben damit in der Workspace-Datei – klein, und „Zurücksetzen“ räumt sie ab.
