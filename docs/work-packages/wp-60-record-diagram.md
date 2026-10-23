@@ -50,3 +50,13 @@ Eigener Container mit der Beispiel-DB (`ferret-e2e60`, danach entfernt), zwei Ve
   7. Beim Aufklappen stand „Lese die Startzeilen“ im Fortschritt, bis die erste Tabelle gemeldet war – jetzt „Lese Zeilen“.
   8. Kopier-Vorschau: „1 rows“, „(0 differing)“, drei Spalten breiter als der Dialog, und der Text war zentriert – die Klasse `copy-node` gab es im Dialog schon (Knoten des Beziehungsbaums). Einzahl, Abweichungen nur wenn vorhanden, schmalere Knoten, eigene Klasse `copy-table-node`.
 - **Nicht geprüft:** echte Windows-Eingabe (alles per CDP, wie in WP-46: neu sind nur einfache Klicks, Rechtsklick und Hover); Abbrechen eines laufenden Lesens (lokal unter einer Sekunde).
+
+## Review (2026-10-23), behoben
+1. Fand F5 keine Startzeile (gelöscht in einem anderen Workspace, noch nicht committet), wurden die Schritte durch die leere Liste des neuen Diagramms ersetzt und gespeichert – nach einem Rollback standen nur noch die Startzeilen da. Die Schritte bleiben jetzt.
+2. Ein Tab, gespeichert bevor sein erstes Laden fertig war (geschlossen, abgebrochen, Verbindung weg), hatte keine Schritte und kam ohne Eltern und Kinder zurück. Keine Schritte heißen jetzt „neues Diagramm“.
+3. Das Neuladen ging über die Schrittliste des alten Diagramms; „Zeigen“ einer Gruppe war während des Lesens nicht gesperrt und hängte an dieselbe Liste an – die Schleife warf. Ursache wie beim E2E-Befund 2: `RecordDiagram.Steps` gab die Liste selbst heraus und ist jetzt eine Momentaufnahme (die Kopie in `RecordTab.ToState` entfällt).
+4. Während eines Lesens sind auch „Zeigen“, Markieren, „Markierung aufheben“ und Mermaid aus.
+5. Die Lesegrenze zählt den freien Platz und die Zeilen, die das Diagramm von der Zieltabelle schon hat: Ein fast volles Diagramm las vorher noch 2 001 Zeilen, eine Beziehung zu überwiegend bekannten Zeilen wurde abgewiesen.
+6. Jede Zeile baute bei jedem Rendern (jedem Hover) ihre eigene `TablePresentation`; jetzt eine je Tabelle, bis sich C#-Modell oder Anzeigespalten ändern. Die Kopier-Vorschau wird einmal je Plan ausgelegt.
+7. Farbe, Name und Tooltip einer Beziehungsart und die Hover-Zustände stehen einmal in `DiagramStyle` (Beziehungs- und Datensatz-Diagramm, Kopier-Vorschau).
+8. Ein unsichtbares Steuerzeichen im Quelltext (`ShellState.OpenRecords`) ist jetzt die Escape-Folge ``.
