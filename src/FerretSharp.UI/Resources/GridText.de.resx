@@ -108,9 +108,6 @@
   <data name="GridMenu_DiscardPending" xml:space="preserve">
     <value>Ausstehende Änderungen verwerfen</value>
   </data>
-  <data name="GridMenu_ExportGroup" xml:space="preserve">
-    <value>Export · {0}</value>
-  </data>
   <data name="GridMenu_CopyTableTitle" xml:space="preserve">
     <value>Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen</value>
   </data>
@@ -960,14 +957,8 @@
   <data name="Compare_FooterNoteResult" xml:space="preserve">
     <value>Abweichende Werte markiert · Werte wie im Ergebnis</value>
   </data>
-  <data name="GridMenu_CopyColumn" xml:space="preserve">
-    <value>Spalte {0} kopieren</value>
-  </data>
   <data name="GridMenu_CopyColumnTitle" xml:space="preserve">
     <value>Die Werte dieser Spalte aus den markierten Zeilen, einer je Zeile, wie angezeigt – mit ausstehenden Änderungen, wie Ctrl+C</value>
-  </data>
-  <data name="GridMenu_CopyColumnInList" xml:space="preserve">
-    <value>Spalte {0} als IN-Liste kopieren</value>
   </data>
   <data name="GridMenu_CopyColumnInListTitle" xml:space="preserve">
     <value>Die Datenbankwerte als Oracle-Literale für eine IN-Liste ('A', 'B'): jeder Wert einmal, ohne NULL</value>
@@ -1167,12 +1158,6 @@
   <data name="GridMenu_CopyToConnectionView" xml:space="preserve">
     <value>Kopieren lassen sich nur Zeilen von Tabellen.</value>
   </data>
-  <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
-    <value>Andere Verbindung · {0}</value>
-  </data>
-  <data name="GridMenu_RecordsGroup" xml:space="preserve">
-    <value>Datensatz-Diagramm · {0}</value>
-  </data>
   <data name="GridMenu_Records" xml:space="preserve">
     <value>Verbundene Datensätze zeigen</value>
   </data>
@@ -1184,5 +1169,92 @@
   </data>
   <data name="GridMenu_RecordsNoKey" xml:space="preserve">
     <value>Der Schlüssel dieser Zeilen hat keinen genauen Text (ein Typ wie BINARY_DOUBLE) und lässt sich nicht mit dem Tab speichern.</value>
+  </data>
+  <data name="ColumnValues_CopiedDistinctOne" xml:space="preserve">
+    <value>{0} Wert von {1} kopiert, jeder einmal.</value>
+  </data>
+  <data name="ColumnValues_CopiedDistinctOther" xml:space="preserve">
+    <value>{0:N0} Werte von {1} kopiert, jeder einmal.</value>
+  </data>
+  <data name="Quick_ValueIsNull" xml:space="preserve">
+    <value>Der Wert ist NULL.</value>
+  </data>
+  <data name="Menu_FilterPlaceholder" xml:space="preserve">
+    <value>Aktionen, Tabellen filtern …</value>
+  </data>
+  <data name="Menu_NoMatch" xml:space="preserve">
+    <value>Nichts passt.</value>
+  </data>
+  <data name="Matrix_Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="Matrix_Copy" xml:space="preserve">
+    <value>kopieren</value>
+  </data>
+  <data name="Matrix_SelectionTitle" xml:space="preserve">
+    <value>Die markierten Zeilen als Datei speichern</value>
+  </data>
+  <data name="Matrix_All" xml:space="preserve">
+    <value>alle</value>
+  </data>
+  <data name="Matrix_Table" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="Matrix_ExcelRaw" xml:space="preserve">
+    <value>Excel (roh)</value>
+  </data>
+  <data name="Matrix_CSharpObjects" xml:space="preserve">
+    <value>C#-Objekte</value>
+  </data>
+  <data name="Matrix_Column" xml:space="preserve">
+    <value>Spalte {0}</value>
+  </data>
+  <data name="Chip_Lines" xml:space="preserve">
+    <value>Zeilen</value>
+  </data>
+  <data name="Chip_InList" xml:space="preserve">
+    <value>IN-Liste</value>
+  </data>
+  <data name="Chip_Distinct" xml:space="preserve">
+    <value>distinct</value>
+  </data>
+  <data name="Chip_DistinctTitle" xml:space="preserve">
+    <value>Jeder Wert einmal, einer je Zeile, in der Reihenfolge seines ersten Vorkommens – ohne NULL</value>
+  </data>
+  <data name="FkJump_MoreNullOne" xml:space="preserve">
+    <value>{0} weitere ist NULL</value>
+  </data>
+  <data name="FkJump_MoreNullOther" xml:space="preserve">
+    <value>{0} weitere sind NULL</value>
+  </data>
+  <data name="FkJump_More" xml:space="preserve">
+    <value>{0} weitere</value>
+  </data>
+  <data name="Caption_Pin" xml:space="preserve">
+    <value>Anheften</value>
+  </data>
+  <data name="Caption_Select" xml:space="preserve">
+    <value>Markieren</value>
+  </data>
+  <data name="Caption_Display" xml:space="preserve">
+    <value>Anzeige</value>
+  </data>
+  <data name="Caption_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="ColumnMenu_CopyName" xml:space="preserve">
+    <value>Spaltennamen kopieren</value>
+  </data>
+  <data name="ColumnMenu_NameCopied" xml:space="preserve">
+    <value>{0} kopiert.</value>
+  </data>
+  <data name="ColumnMenu_OpenTable" xml:space="preserve">
+    <value>Tabelle öffnen</value>
+  </data>
+  <data name="ColumnFact_Nullable" xml:space="preserve">
+    <value>NULL erlaubt</value>
+  </data>
+  <data name="ColumnFact_PropertyTitle" xml:space="preserve">
+    <value>Property und CLR-Typ im verknüpften C#-Modell</value>
   </data>
 </root>

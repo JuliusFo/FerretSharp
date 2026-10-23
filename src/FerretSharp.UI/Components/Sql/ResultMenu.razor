@@ -1,6 +1,8 @@
-@* Right-click menu of a query result (SQL editor, LINQ console): copy the value, the form or the comparison of the selected
-   rows (WP-56), export them – or all rows of the query, run again (SQL editor, WP-54) – and, for columns traced back to their
-   tables (WP-48), jump along foreign keys like in a table grid. Inside marked cells (WP-58) their group comes first. *@
+@* Right-click menu of a query result (SQL editor, LINQ console), built like the grid's cell menu (WP-61): the cell as head,
+   a quick bar to copy the value and for the form or the comparison of the selected rows (WP-56), a filter field, the group
+   of marked cells (WP-58), the export as a matrix – the selected rows or all rows of the query, run again (SQL editor,
+   WP-54) – with the clicked column's values as chips, and, for columns traced back to their tables (WP-48), the jumps along
+   foreign keys like in a table grid. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Forms
@@ -13,27 +15,35 @@
 @inject ILogger<ResultMenu> Logger
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
-             Width="MenuWidth" EstimatedHeight="EstimatedHeight" OnClose="CloseAsync">
-    <div class="ctx-head">
-        <span class="ctx-col">@Column.Name</span>
-        <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
-    </div>
-    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">@CommonText.CopyValue</button>
-    <FormMenuItems Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" OffersForm="OffersForm" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
+             Width="MenuWidth" EstimatedHeight="EstimatedHeight" KeyNavigation="true" OnClose="CloseAsync">
+    <CascadingValue Value="_filter">
+        <div class="ctx-head">
+            <span class="ctx-col">@Column.Name</span>
+            <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
+        </div>
+        <QuickBar>
+            <QuickAction Icon="Icons.Copy" Label="@CommonText.CopyValue" Unavailable="@(Request.CellText is null ? GridText.Quick_ValueIsNull : null)"
+                         OnClick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])" />
+            <FormQuickAction Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" OffersForm="OffersForm" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
+        </QuickBar>
+        <SearchBox Class="popover-search ctx-filter" Value="@_filter.Text" ValueChanged="text => _filter.Set(text)" Placeholder="@GridText.Menu_FilterPlaceholder" />
 
-    @if (Request.Marks is { } marks)
-    {
-        <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
-    }
-    <ExportMenuItems Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns" Marked="@(Request.Marks is not null)"
-                     InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
-                     InsertTitle="@(InsertTarget is { } insert
-                         ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
-                         : SqlEditorText.ResultMenu_CopyInsertUnavailable)"
-                     AllRows="AllRows" Column="@XlsxColumns.First(c => c.Source == Request.Column)" />
+        <div class="ctx-body" data-empty="@GridText.Menu_NoMatch">
+            @if (Request.Marks is { } marks)
+            {
+                <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
+            }
+            <ExportMatrix Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns" Marked="@(Request.Marks is not null)"
+                          InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
+                          InsertTitle="@(InsertTarget is { } insert
+                              ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
+                              : SqlEditorText.ResultMenu_CopyInsertUnavailable)"
+                          AllRows="AllRows" Column="@XlsxColumns.First(c => c.Source == Request.Column)" />
 
-    <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="Related" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
-                   WorkspaceId="WorkspaceId" OnJumped="CloseAsync" />
+            <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="Related" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
+                           WorkspaceId="WorkspaceId" OnJumped="CloseAsync" />
+        </div>
+    </CascadingValue>
 </PopoverMenu>
 
 @code {
@@ -41,8 +51,9 @@
     public ActiveConnection Active { get; set; } = null!;
 
     private const double MenuWidth = 400;
-    private const double ItemHeight = 44;
+    private const double LineHeight = 32;
 
+    private readonly MenuFilter _filter = new();
     private FkJumpLists _jumps = FkJumpLists.None;
 
     /// <summary>The result's view of each jump: which row sources it starts from (for <see cref="Related"/>).</summary>
@@ -107,10 +118,9 @@
 
     private ColumnInfo Column => Result.Columns[Request.Column];
 
-    /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 244 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.ColumnEntries + ExportMenuItems.AllRowsEntries(AllRows, XlsxColumns))
-                                      + (_jumps.Count > 0 ? 80 : 0) + (AllRows is null ? 0 : 40)
-                                      + (Request.Marks is null ? 0 : ItemHeight * (MarkedCellsMenuItems.Entries - 1 - ExportMenuItems.ColumnEntries));
+    /// <summary>For the first placement; dom.js menuKeys corrects it once rendered, and whenever the menu grows.</summary>
+    private double EstimatedHeight => 170 + LineHeight * (ExportMatrix.Lines(XlsxColumns, 0) + (Request.Marks is null ? 0 : MarkedCellsMenuItems.Entries)
+                                                          + _jumps.Headings + Math.Min(_jumps.Count, 2 * FkJumpLists.ShownIncoming));
 
     protected override void OnInitialized()
     {

@@ -1196,9 +1196,6 @@
     <value>{0:N0} columns</value>
     <comment>{0}: number of columns</comment>
   </data>
-  <data name="Columns_CopyAddScript" xml:space="preserve">
-    <value>Copy as ALTER TABLE … ADD</value>
-  </data>
   <data name="Columns_CopyAddScriptTitle" xml:space="preserve">
     <value>ALTER TABLE … ADD for the picked columns and COMMENT ON COLUMN for their comments – to add them to the same table on another database.</value>
   </data>
@@ -1220,5 +1217,17 @@
   <data name="Columns_PickedHint" xml:space="preserve">
     <value>{0} picked – right-click for ALTER TABLE</value>
     <comment>{0}: number of columns, like "3 columns"</comment>
+  </data>
+  <data name="Columns_AddScriptGroup" xml:space="preserve">
+    <value>ALTER TABLE … ADD · {0}</value>
+    <comment>Heading of the group that adds columns elsewhere; {0}: "2 columns" (Columns_PickedOther)</comment>
+  </data>
+  <data name="Columns_CopyAddScriptChip" xml:space="preserve">
+    <value>Copy</value>
+    <comment>Chip that copies the ALTER TABLE … ADD script</comment>
+  </data>
+  <data name="Columns_FilterConnections" xml:space="preserve">
+    <value>Filter connections …</value>
+    <comment>Placeholder of the filter field in the columns view's menu with many connections</comment>
   </data>
 </root>

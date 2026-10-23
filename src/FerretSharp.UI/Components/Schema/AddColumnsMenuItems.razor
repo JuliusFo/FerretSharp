@@ -1,0 +1,103 @@
+@* Columns of a table added to the same table elsewhere (small-column-add-ddl, chips since WP-61): copy the ALTER TABLE … ADD
+   of the columns, or open it in a SQL tab of another connection, connecting if need be (AddColumnsScript). The menu of the
+   "Columns" view and the column header menu of a table grid (the column, or all marked columns with it). Connections the
+   menu's filter does not match are left out. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Schema
+@inject ConnectionManager Connections
+@inject ConnectionHub Hub
+@inject AppSettingsService Settings
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@{
+    var targets = AddColumnsTargets.Of(Connections.Profiles, Active.Profile?.Id ?? Guid.Empty)
+        .Where(t => Filter?.Matches(ConnectionLabel.Of(t, Settings.Current), ConnectionKindInfo.Short(t.Kind)) != false).ToList();
+}
+<div class="ctx-section">
+    <div class="group-head-btn static" title="@SchemaViewText.Columns_CopyAddScriptTitle">
+        @TextFormat.Format(SchemaViewText.Columns_AddScriptGroup, TextFormat.Plural(Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther))
+    </div>
+    <div class="chips menu-chips">
+        <button type="button" class="menu-chip" title="@SchemaViewText.Columns_CopyAddScriptTitle" @onclick="CopyAsync">@Icons.Copy @SchemaViewText.Columns_CopyAddScriptChip</button>
+    </div>
+    <div class="group-head-btn static">@SchemaViewText.Columns_OpenAddScriptIn</div>
+    <div class="chips menu-chips">
+        @foreach (var target in targets)
+        {
+            var table = TargetTable(target);
+            <button type="button" class="menu-chip conn kind-@target.Kind.ToString().ToLowerInvariant()" @onclick="() => OpenInAsync(target)"
+                    title="@TextFormat.Format(SchemaViewText.Columns_OpenAddScriptTitle, ConnectionLabel.Of(target, Settings.Current), $"{table.Owner}.{table.Name}")">
+                <span class="kind-badge">@ConnectionKindInfo.Short(target.Kind)</span> @ConnectionLabel.Of(target, Settings.Current)
+            </button>
+        }
+        @if (targets.Count == 0)
+        {
+            <span class="ctx-empty">@(Filter?.Active == true ? GridText.Menu_NoMatch : SchemaViewText.Columns_NoOtherConnection)</span>
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [CascadingParameter]
+    public MenuFilter? Filter { get; set; }
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The columns to add, by name, in the order the script adds them.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Columns { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private DomModule? _dom;
+
+    /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    /// <summary>Connections shown before the menu offers a filter field (the "Columns" view).</summary>
+    public const int ShownWithoutFilter = 8;
+
+    /// <summary>The table the script changes on <paramref name="target"/>: the matching one if its schema is loaded, else by name in its schema.</summary>
+    private TableRef TargetTable(ConnectionProfile target) => AddColumnsTargets.Table(target, Hub.Find(target.Id)?.Active.Schema, Details.Table.Ref);
+
+    private string Script(TableRef target) =>
+        AddColumnsScript.Write(Details.Table.Ref, target, Columns.Select(name => Details.Columns[Details.IndexOf(name)]));
+
+    private async Task CopyAsync()
+    {
+        if (await Dom.CopyTextAsync(Shell, Script(Details.Table.Ref)))
+        {
+            Shell.Notify(TextFormat.Format(SchemaViewText.Columns_AddScriptCopied,
+                TextFormat.Plural(Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther)));
+        }
+
+        await OnClose.InvokeAsync();
+    }
+
+    /// <summary>
+    /// The script in a SQL tab of <paramref name="target"/>, shown and connected if need be – as the schema comparison's
+    /// proposal (WP-22): it runs there like any script, with the confirmation of the schema path.
+    /// </summary>
+    private async Task OpenInAsync(ConnectionProfile target)
+    {
+        var script = Script(TargetTable(target));
+        await OnClose.InvokeAsync();
+        Shell.OpenSqlIn(target.Id, script);
+        await Lifecycle.ConnectAsync(target);
+    }
+
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+}

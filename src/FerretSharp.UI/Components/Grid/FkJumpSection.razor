@@ -1,6 +1,9 @@
 @* The FK jumps of a context menu (the grid's cell menu, the menu of a query result – WP-48): "Points to" and "Referenced
    by" with the rows behind incoming jumps, counted at once or on hover (FkCountMode), then "Referenced via" for what
-   references a base table of the row's table (BaseTables); a jump opens the target table filtered. *@
+   references a base table of the row's table (BaseTables); a jump opens the target table filtered. Each on one line (WP-61):
+   jumps without a target (NULL) folded into "7 more are NULL", a long list of incoming ones into "… 22 more" – not shortened
+   otherwise, the user jumps often. The line stays when opened and folds them again: removing it would take the focus out of
+   the menu (Escape and ↑ ↓ would no longer reach it). Typing into the menu's filter shows every jump whose table it matches. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @inherits FerretComponent
@@ -8,34 +11,79 @@
 @inject ILogger<FkJumpSection> Logger
 @inject AppSettingsService Settings
 
-@if (Outgoing.Count > 0)
+@{
+    var outgoing = Outgoing.Where(Shown).ToList();
+    var (outShown, outFolded) = Filtering ? (outgoing, []) : FkJumpLists.FoldNull(outgoing, Related);
+}
+@if (outgoing.Count > 0)
 {
     <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_PointsTo, RowsText)</div>
-    @foreach (var jump in Outgoing)
+    @foreach (var jump in outShown)
     {
-        <FkJumpItem Jump="jump" Related="Related(jump)" OnJump="JumpAsync" />
+        <FkJumpItem Jump="jump" Related="Related(jump)" OneLine="true" OnJump="JumpAsync" />
+    }
+    @if (outFolded.Count > 0)
+    {
+        <button type="button" class="menu-item ctx-fold" aria-expanded="@(_nullsOpen ? "true" : "false")"
+                title="@string.Join(Environment.NewLine, outFolded.Select(j => FkTargets.Label(Active, j.Table)))" @onclick="() => _nullsOpen = !_nullsOpen">
+            <span class="ctx-arrow">○</span>
+            <span class="ctx-fold-text">@TextFormat.Plural(outFolded.Count, GridText.FkJump_MoreNullOne, GridText.FkJump_MoreNullOther)</span>
+            <span class="chev @(_nullsOpen ? "" : "closed")">▾</span>
+        </button>
+        @if (_nullsOpen)
+        {
+            @foreach (var jump in outFolded)
+            {
+                <FkJumpItem Jump="jump" OneLine="true" OnJump="JumpAsync" />
+            }
+        }
     }
 }
 
-@foreach (var (via, jumps) in FkJumpLists.Groups(Incoming))
+@foreach (var (via, all) in FkJumpLists.Groups(Incoming))
 {
-    <div class="group-head-btn static" title="@(via is null ? null : FkTargets.ViaTitle(Active, via, jumps))">
+    var jumps = all.Where(Shown).ToList();
+    if (jumps.Count == 0)
+    {
+        continue;
+    }
+
+    var key = via?.ToString() ?? "";
+    var (shown, folded) = Filtering ? (jumps, []) : FkJumpLists.FoldIncoming(jumps);
+    var open = _open.Contains(key);
+    <div class="group-head-btn static" title="@(via is null ? null : FkTargets.ViaTitle(Active, via, all))">
         @(via is null ? TextFormat.Format(GridText.GridMenu_ReferencedBy, RowsText) : TextFormat.Format(GridText.GridMenu_ReferencedVia, FkTargets.Label(Active, via), RowsText))
     </div>
-    @foreach (var jump in jumps)
+    @foreach (var jump in shown)
     {
-        <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="Related(jump)" OnJump="JumpAsync" OnEnter="Hover" OnLeave="_counts.Leave" />
+        <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="Related(jump)" OneLine="true" OnJump="JumpAsync" OnEnter="Hover" OnLeave="_counts.Leave" />
+    }
+    @if (folded.Count > 0)
+    {
+        <button type="button" class="menu-item ctx-fold" aria-expanded="@(open ? "true" : "false")"
+                title="@string.Join(Environment.NewLine, folded.Select(j => FkTargets.Label(Active, j.Table)))" @onclick="() => Toggle(key)">
+            <span class="ctx-arrow">…</span>
+            <span class="ctx-fold-text">@TextFormat.Format(GridText.FkJump_More, folded.Count)</span>
+            <span class="chev @(open ? "" : "closed")">▾</span>
+        </button>
+        @if (open)
+        {
+            @foreach (var jump in folded)
+            {
+                <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="Related(jump)" OneLine="true" OnJump="JumpAsync" OnEnter="Hover" OnLeave="_counts.Leave" />
+            }
+        }
     }
 }
 
 @if (Outgoing.Count == 0 && Incoming.Count == 0)
 {
-    @if (ShowEmpty)
+    @if (ShowEmpty && !Filtering)
     {
         <div class="ctx-empty">@GridText.GridMenu_NoForeignKeys</div>
     }
 }
-else if (MissingRows > 0)
+else if (MissingRows > 0 && !Filtering)
 {
     <div class="ctx-note">@TextFormat.Format(GridText.GridMenu_MissingRows, ExportActions.RowsText(MissingRows))</div>
 }
@@ -50,8 +98,18 @@ else if (MissingRows > 0)
     [CascadingParameter]
     public WorkspaceManager Workspaces { get; set; } = null!;
 
+    /// <summary>What is typed into the menu's filter field; none in menus without one.</summary>
+    [CascadingParameter]
+    public MenuFilter? Filter { get; set; }
+
     private readonly CancellationTokenSource _cts = new();
     private FkCounts _counts = null!;
+
+    /// <summary>"7 more are NULL" is open.</summary>
+    private bool _nullsOpen;
+
+    /// <summary>Groups of incoming jumps whose "… more" is open, by base table (empty: the direct ones).</summary>
+    private readonly HashSet<string> _open = [];
 
     /// <summary>Jumps to the rows the selected rows reference, those over the clicked column first.</summary>
     [Parameter, EditorRequired]
@@ -64,7 +122,7 @@ else if (MissingRows > 0)
     [Parameter, EditorRequired]
     public IReadOnlyList<FkJump> Incoming { get; set; } = [];
 
-    /// <summary>The jump goes over the clicked column: highlighted.</summary>
+    /// <summary>The jump goes over the clicked column: highlighted, never folded.</summary>
     [Parameter, EditorRequired]
     public Func<FkJump, bool> Related { get; set; } = _ => false;
 
@@ -87,6 +145,20 @@ else if (MissingRows > 0)
     /// <summary>After a jump opened its tab: the menu closes.</summary>
     [Parameter]
     public EventCallback OnJumped { get; set; }
+
+    private bool Filtering => Filter?.Active == true;
+
+    private void Toggle(string group)
+    {
+        if (!_open.Remove(group))
+        {
+            _open.Add(group);
+        }
+    }
+
+    /// <summary>The filter matches the jump's table (as labeled, with the C# entity), its key's columns or its constraint.</summary>
+    private bool Shown(FkJump jump) =>
+        Filter?.Matches(FkTargets.Label(Active, jump.Table), jump.Table.Name, string.Join(" ", jump.RowColumns), jump.ForeignKey.Name) != false;
 
     protected override void OnInitialized()
     {

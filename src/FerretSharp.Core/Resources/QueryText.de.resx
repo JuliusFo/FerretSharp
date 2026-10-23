@@ -285,4 +285,16 @@
   <data name="ColumnValuesFractionsCut" xml:space="preserve">
     <value>{0}: Die Literale sind nur auf {1} Nachkommastellen genau – ein Wert mit feineren Bruchteilen findet seine Zeile nicht.</value>
   </data>
+  <data name="FkConditionValues" xml:space="preserve">
+    <value>{0:N0} Werte</value>
+  </data>
+  <data name="ColumnValuesDistinctNullsLeftOut" xml:space="preserve">
+    <value>Zeilen ohne Wert (NULL) fehlen in der Liste.</value>
+  </data>
+  <data name="ColumnValuesDistinctNullsLeftOutOne" xml:space="preserve">
+    <value>{0} Zeile ohne Wert (NULL) fehlt in der Liste.</value>
+  </data>
+  <data name="ColumnValuesDistinctNullsLeftOutOther" xml:space="preserve">
+    <value>{0:N0} Zeilen ohne Wert (NULL) fehlen in der Liste.</value>
+  </data>
 </root>

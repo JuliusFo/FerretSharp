@@ -1,0 +1,34 @@
+@* A text line of a right-click menu with a quick bar (WP-61): the groups that stay lines – editing rows, marked cells –
+   under their heading. Left out while the menu's filter (MenuFilter) matches neither its label nor its group. *@
+
+@if (Filter?.Matches(Label, Group) != false)
+{
+    <button type="button" class="menu-item @(Danger ? "danger" : "")" disabled="@(Unavailable is not null)" title="@(Unavailable ?? Title)" @onclick="OnClick">
+        @Label
+    </button>
+}
+
+@code {
+    [CascadingParameter]
+    public MenuFilter? Filter { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>The heading of its group: typing it shows the whole group.</summary>
+    [Parameter]
+    public string? Group { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>Why it is not possible here (disabled, as tooltip); null if it is.</summary>
+    [Parameter]
+    public string? Unavailable { get; set; }
+
+    [Parameter]
+    public bool Danger { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+}

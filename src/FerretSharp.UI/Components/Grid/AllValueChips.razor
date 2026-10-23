@@ -1,20 +1,14 @@
-@* The group of a column header menu that copies all values of the column (WP-57) – of the table tab's filter or of the SQL
-   editor's result, read again in the background: one value per line, or an IN list. *@
+@* The chips of a column header menu that copy all values of the column (WP-57, as chips since WP-61) – of the table tab's
+   filter or of the SQL editor's result, read again in the background: one value per line, as IN list, or each once. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @inject IClipboardService Clipboard
-@inject ILogger<ColumnValuesMenuItems> Logger
+@inject ILogger<AllValueChips> Logger
 
-<div class="menu-sep"></div>
-<div class="group-head-btn static">@All.Heading</div>
-<button class="menu-item" disabled="@(!CanCopy)" title="@Title(GridText.ColumnMenu_CopyValuesTitle)" @onclick="() => CopyAsync(ColumnValuesFormat.Lines)">
-    @GridText.ColumnMenu_CopyValues
-</button>
-<button class="menu-item" disabled="@(!CanCopy)" title="@Title(GridText.GridMenu_CopyColumnInListTitle)" @onclick="() => CopyAsync(ColumnValuesFormat.InList)">
-    @GridText.ColumnMenu_CopyInList
-</button>
+<ValueChips Heading="@All.Heading" Stacked="true" Title="@All.Tooltip" Unavailable="@(ColumnValues.CanCopy(Column) ? null : GridText.GridMenu_CopyColumnUnavailable)"
+            OnCopy="CopyAsync" />
 
 @code {
     [CascadingParameter]
@@ -40,13 +34,6 @@
     /// <summary>Rows with pending changes of the column: the read does not have them, the notice says so (WP-58).</summary>
     [Parameter]
     public int Pending { get; set; }
-
-    /// <summary>Rows of the group – separator, heading and two entries – for the menu's estimated height.</summary>
-    public const int Entries = 4;
-
-    private bool CanCopy => ColumnValues.CanCopy(Column);
-
-    private string Title(string first) => CanCopy ? first + Environment.NewLine + All.Tooltip : GridText.GridMenu_CopyColumnUnavailable;
 
     /// <summary>Closes the menu first: the read goes on in the background, shown in the status bar.</summary>
     private async Task CopyAsync(ColumnValuesFormat format)

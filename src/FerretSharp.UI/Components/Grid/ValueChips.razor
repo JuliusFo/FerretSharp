@@ -1,0 +1,56 @@
+@* The values of a column as chips (WP-57, WP-61): one per line as shown, as IN list (database literals, each once, without
+   NULL), or each once per line ("distinct"). In the cell menus from the selected rows, beside the column's name; in the
+   column menus all values of the filter or the result, below a heading. Left out while the menu's filter matches none. *@
+@using FerretSharp.Core.Query
+
+@if (Filter is null || Filter.Matches(Heading) || Chips.Any(c => Filter.Matches(c.Label)))
+{
+    var all = Filter is null || Filter.Matches(Heading);
+    <div class="ctx-section value-chips @(Stacked ? "stacked" : "")">
+        <span class="chips-label" title="@Title">@Heading</span>
+        <div class="chips">
+            @foreach (var chip in Chips.Where(c => all || Filter!.Matches(c.Label)))
+            {
+                <button type="button" class="menu-chip" disabled="@(Unavailable is not null)" @onclick="() => OnCopy.InvokeAsync(chip.Format)"
+                        title="@(Unavailable ?? (Title is null ? chip.Title : chip.Title + Environment.NewLine + Title))">
+                    @Icons.Copy @chip.Label
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public MenuFilter? Filter { get; set; }
+
+    /// <summary>"Column KUNDE_ID" beside the chips, or "All rows of the filter · 1,234 rows" above them (<see cref="Stacked"/>).</summary>
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = "";
+
+    /// <summary>The heading above the chips (column menus) instead of beside them (cell menus).</summary>
+    [Parameter]
+    public bool Stacked { get; set; }
+
+    /// <summary>Tooltip of the heading and second line of the chips' tooltips: what is read, and what it costs.</summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>Tooltip of "lines": the selected rows (with the key that does the same) or all rows.</summary>
+    [Parameter]
+    public string LinesTitle { get; set; } = GridText.ColumnMenu_CopyValuesTitle;
+
+    /// <summary>Why the values cannot be copied (a LOB); null if they can.</summary>
+    [Parameter]
+    public string? Unavailable { get; set; }
+
+    [Parameter]
+    public EventCallback<ColumnValuesFormat> OnCopy { get; set; }
+
+    private IEnumerable<(ColumnValuesFormat Format, string Label, string Title)> Chips =>
+    [
+        (ColumnValuesFormat.Lines, GridText.Chip_Lines, LinesTitle),
+        (ColumnValuesFormat.InList, GridText.Chip_InList, GridText.GridMenu_CopyColumnInListTitle),
+        (ColumnValuesFormat.DistinctLines, GridText.Chip_Distinct, GridText.Chip_DistinctTitle),
+    ];
+}

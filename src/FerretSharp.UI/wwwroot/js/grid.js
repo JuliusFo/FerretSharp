@@ -765,7 +765,7 @@ export function create(elementId, dotnet, columns, options) {
     e.preventDefault();
     const colId = e.target.closest?.('.ag-header-cell')?.getAttribute('col-id');
     if (colId && (table || headerMenu)) {
-      dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight).catch(callFailed);
+      dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight, marksOf()).catch(callFailed);
     }
   });
 

@@ -363,4 +363,20 @@
     <value>{0}: the literals are exact to {1} fractional digits only – a value with finer fractions does not find its row.</value>
     <comment>Warning after copying an IN list of a TIMESTAMP(8/9) column. {0} = data type, {1} = 7</comment>
   </data>
+  <data name="FkConditionValues" xml:space="preserve">
+    <value>{0:N0} values</value>
+    <comment>Values of an FK jump from several rows on one line of a menu. {0} = number of values (at least 2)</comment>
+  </data>
+  <data name="ColumnValuesDistinctNullsLeftOut" xml:space="preserve">
+    <value>Rows without a value (NULL) are left out.</value>
+    <comment>Warning after copying each value once, read with SELECT DISTINCT (the number of NULL rows is not known)</comment>
+  </data>
+  <data name="ColumnValuesDistinctNullsLeftOutOne" xml:space="preserve">
+    <value>{0} row without a value (NULL) is left out.</value>
+    <comment>Warning after copying each value once. {0} = number of NULL values (1)</comment>
+  </data>
+  <data name="ColumnValuesDistinctNullsLeftOutOther" xml:space="preserve">
+    <value>{0:N0} rows without a value (NULL) are left out.</value>
+    <comment>Warning after copying each value once. {0} = number of NULL values</comment>
+  </data>
 </root>

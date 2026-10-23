@@ -1,15 +1,17 @@
 @* One FK jump as a menu entry (R3b; was written twice, in the grid's cell menu and the form): arrow, target table,
-   "from C# model", the condition (or why the jump is not possible) and – for incoming jumps – the row count. *@
+   "from C# model", the condition (or why the jump is not possible) and – for incoming jumps – the row count. In the
+   right-click menus on one line (WP-61): the key's values on the right, the condition in the tooltip. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 
-<button class="menu-item ctx-jump @(Related ? "related" : "") @(Count is FkCount.Done { Count: 0 } ? "no-rows" : "")"
-        disabled="@(!Jump.IsAvailable)" title="@FkTargets.Tooltip(Jump)" @onclick="() => OnJump.InvokeAsync(Jump)"
+<button class="menu-item ctx-jump @(OneLine ? "one-line" : "") @(Related ? "related" : "") @(Count is FkCount.Done { Count: 0 } ? "no-rows" : "")"
+        disabled="@(!Jump.IsAvailable)" title="@Tooltip" @onclick="() => OnJump.InvokeAsync(Jump)"
         @onmouseenter="() => OnEnter.InvokeAsync(Jump)" @onmouseleave="() => OnLeave.InvokeAsync(Jump)"
         @onfocus="() => OnEnter.InvokeAsync(Jump)" @onblur="() => OnLeave.InvokeAsync(Jump)">
     <span class="ctx-arrow">@(Jump.Direction == JumpDirection.Outgoing ? "→" : "←")</span>
-    <span class="ctx-target">
+    @if (OneLine)
+    {
         <span class="ctx-table">
             @FkTargets.Label(Active, Jump.Table)
             @if (Jump.ForeignKey.Source == FkSource.ClrModel)
@@ -17,8 +19,24 @@
                 <span class="ctx-source">@GridText.FkJump_FromModel</span>
             }
         </span>
-        <span class="ctx-meta @(Jump.IsAvailable ? "" : "wrap")">@(Jump.Unavailable ?? Jump.Condition)</span>
-    </span>
+        @if (Jump.Direction == JumpDirection.Outgoing || !Jump.IsAvailable)
+        {
+            <span class="ctx-meta">@(Jump.IsNull ? "NULL" : Jump.Unavailable ?? Jump.Values)</span>
+        }
+    }
+    else
+    {
+        <span class="ctx-target">
+            <span class="ctx-table">
+                @FkTargets.Label(Active, Jump.Table)
+                @if (Jump.ForeignKey.Source == FkSource.ClrModel)
+                {
+                    <span class="ctx-source">@GridText.FkJump_FromModel</span>
+                }
+            </span>
+            <span class="ctx-meta @(Jump.IsAvailable ? "" : "wrap")">@(Jump.Unavailable ?? Jump.Condition)</span>
+        </span>
+    }
     @switch (Count)
     {
         case FkCount.Loading:
@@ -51,6 +69,10 @@
     [Parameter]
     public bool Related { get; set; }
 
+    /// <summary>One line (right-click menus, WP-61): the values or the count on the right, the condition in the tooltip.</summary>
+    [Parameter]
+    public bool OneLine { get; set; }
+
     [Parameter]
     public EventCallback<FkJump> OnJump { get; set; }
 
@@ -60,4 +82,6 @@
 
     [Parameter]
     public EventCallback<FkJump> OnLeave { get; set; }
+
+    private string Tooltip => OneLine && Jump.IsAvailable ? Jump.Condition + Environment.NewLine + FkTargets.Tooltip(Jump) : FkTargets.Tooltip(Jump);
 }

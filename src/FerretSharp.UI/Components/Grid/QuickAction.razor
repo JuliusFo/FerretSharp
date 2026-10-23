@@ -1,0 +1,48 @@
+@* One action of a QuickBar (WP-61): an icon – with a caption below in the column menus –, its name and what it does in the
+   tooltip, disabled with the reason. Left out while the menu's filter (MenuFilter) does not match its name. *@
+
+@if (Filter?.Matches(Label, Caption) != false)
+{
+    <button type="button" class="quick-btn @(Active ? "active" : "")" disabled="@(Unavailable is not null)" title="@Tooltip" aria-label="@Label"
+            aria-pressed="@(Active ? "true" : null)" @onclick="OnClick">
+        @Icon
+        @if (Caption is not null)
+        {
+            <span class="quick-caption">@Caption</span>
+        }
+    </button>
+}
+
+@code {
+    /// <summary>What is typed into the menu's filter field; none in menus without one.</summary>
+    [CascadingParameter]
+    public MenuFilter? Filter { get; set; }
+
+    [Parameter, EditorRequired]
+    public MarkupString Icon { get; set; }
+
+    /// <summary>The action's name: first line of the tooltip, found by the filter.</summary>
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>A word or two below the icon (<see cref="QuickBar.Captions"/>); none in the cell menus.</summary>
+    [Parameter]
+    public string? Caption { get; set; }
+
+    /// <summary>What the action does: second line of the tooltip.</summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>Why the action is not possible here; null if it is.</summary>
+    [Parameter]
+    public string? Unavailable { get; set; }
+
+    /// <summary>The state the action switches is on (a pinned column, the display column): outlined.</summary>
+    [Parameter]
+    public bool Active { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    private string Tooltip => (Unavailable ?? Title) is { Length: > 0 } second ? Label + Environment.NewLine + second : Label;
+}

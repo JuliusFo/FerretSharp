@@ -59,6 +59,16 @@ public class FkNavigationTests
         Assert.False(jump.IsAvailable);
         Assert.Equal("KUNDE_ID ist NULL.", jump.Unavailable);
         Assert.Empty(jump.Filters);
+        Assert.True(jump.IsNull);
+        Assert.Equal("", jump.Values);
+    }
+
+    [Fact]
+    public void Values_of_a_jump_fit_on_one_line()
+    {
+        Assert.Equal("815", FkNavigation.Outgoing(Auftrag, Row(1m, 4711m, 815m, null), AuftragKunde).Values);
+        Assert.Equal("1, 4711", FkNavigation.Incoming(Auftrag, Row(1m, 4711m, 815m, null), PositionAuftrag).Values);
+        Assert.Equal("3 Werte", FkNavigation.Outgoing(Auftrag, Orders(815m, 4711m, 12m), AuftragKunde).Values);
     }
 
     [Fact]
@@ -174,6 +184,7 @@ public class FkNavigationTests
         Assert.False(jump.IsAvailable);
         Assert.Equal("KUNDE_ID ist in allen 3 Zeilen NULL.", jump.Unavailable);
         Assert.Empty(jump.Filters);
+        Assert.True(jump.IsNull);
     }
 
     [Fact]

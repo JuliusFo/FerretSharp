@@ -86,6 +86,40 @@ export function keepInViewport(id, margin = 8) {
 }
 
 /**
+ * The keys of a right-click menu with a filter field (WP-61), which gets the focus: ↑ ↓ move it through the entries (buttons
+ * and the field as shown, disabled ones skipped), Enter and Space click the focused one as browsers do; a character or
+ * Backspace while an entry has the focus focuses the field first, so the key lands there. The menu stays in the window as it
+ * grows or shrinks (a folded list opened, the filter typed): at `top` if it fits, else as far up as needed.
+ */
+export function menuKeys(id, top) {
+  const menu = document.getElementById(id);
+  if (!menu) return;
+  const field = () => menu.querySelector('.ctx-filter input');
+  (field() ?? menu).focus();
+  menu.addEventListener('keydown', e => {
+    if (e.isComposing) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const entries = [...menu.querySelectorAll('button:not(:disabled):not([tabindex="-1"]), input:not(:disabled)')]
+        .filter(element => element.getClientRects().length > 0);
+      if (entries.length === 0) return;
+      e.preventDefault();
+      const at = entries.indexOf(document.activeElement);
+      const next = e.key === 'ArrowDown' ? (at + 1) % entries.length : at <= 0 ? entries.length - 1 : at - 1;
+      entries[next].focus();
+      entries[next].scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    const input = field();
+    if (!input || document.activeElement === input || e.ctrlKey || e.altKey || e.metaKey) return;
+    if ((e.key.length === 1 && e.key !== ' ') || e.key === 'Backspace') input.focus();
+  });
+  new ResizeObserver(() => {
+    const height = menu.getBoundingClientRect().height;
+    menu.style.top = Math.max(8, Math.min(top, window.innerHeight - height - 8)) + 'px';
+  }).observe(menu);
+}
+
+/**
  * Drags the left edge of a side panel (the form beside the grid, WP-21) while the pointer is down: the width follows
  * the pointer, between min and maxFraction of the parent. Resolves with the final width when the pointer is released.
  */

@@ -112,7 +112,7 @@ public static class ColumnValueCopies
         ColumnValuesFormat format, AllColumnValues all, IReadOnlyList<string>? extra = null)
     {
         var index = all.ValueIndexes[0];
-        var distinct = format == ColumnValuesFormat.InList;
+        var distinct = format != ColumnValuesFormat.Lines;
         // SELECT DISTINCT reads each value once: the rows of the tab are no total for it (review 3.44.0, A15: "71 of 150,000").
         var total = distinct && all.DistinctInQuery ? null : all.Total;
         var values = new ColumnValues(column, format) { NullsCollapsed = distinct && all.DistinctInQuery };
@@ -179,9 +179,12 @@ public static class ColumnValueCopies
         }
         else if (await copy(text.Text))
         {
-            shell.Notify(values.Format == ColumnValuesFormat.InList
-                ? TextFormat.Plural(text.Values, GridText.ColumnValues_CopiedInListOne, GridText.ColumnValues_CopiedInListOther, columnName)
-                : TextFormat.Plural(text.Values, GridText.ColumnValues_CopiedOne, GridText.ColumnValues_CopiedOther, columnName), warnings);
+            shell.Notify(values.Format switch
+            {
+                ColumnValuesFormat.InList => TextFormat.Plural(text.Values, GridText.ColumnValues_CopiedInListOne, GridText.ColumnValues_CopiedInListOther, columnName),
+                ColumnValuesFormat.DistinctLines => TextFormat.Plural(text.Values, GridText.ColumnValues_CopiedDistinctOne, GridText.ColumnValues_CopiedDistinctOther, columnName),
+                _ => TextFormat.Plural(text.Values, GridText.ColumnValues_CopiedOne, GridText.ColumnValues_CopiedOther, columnName),
+            }, warnings);
         }
         else
         {

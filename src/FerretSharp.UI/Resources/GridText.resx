@@ -135,10 +135,6 @@
     <value>Discard pending changes</value>
     <comment>Menu item</comment>
   </data>
-  <data name="GridMenu_ExportGroup" xml:space="preserve">
-    <value>Export · {0}</value>
-    <comment>Menu group heading; {0}: number of rows, e.g. "3 rows"</comment>
-  </data>
   <data name="GridMenu_CopyTableTitle" xml:space="preserve">
     <value>Tab-separated with a header row – paste it straight into Excel</value>
     <comment>Tooltip</comment>
@@ -1217,17 +1213,9 @@
   <data name="Compare_FooterNoteResult" xml:space="preserve">
     <value>Differing values marked · values as shown in the result</value>
   </data>
-  <data name="GridMenu_CopyColumn" xml:space="preserve">
-    <value>Copy column {0}</value>
-    <comment>Cell menu entry (WP-57); {0}: column name</comment>
-  </data>
   <data name="GridMenu_CopyColumnTitle" xml:space="preserve">
     <value>The values of this column from the selected rows, one per line, as shown – pending changes included, like Ctrl+C</value>
     <comment>Tooltip; {0}: shortcut hint like " (Ctrl+…)" or empty</comment>
-  </data>
-  <data name="GridMenu_CopyColumnInList" xml:space="preserve">
-    <value>Copy column {0} as IN list</value>
-    <comment>Cell menu entry (WP-57); {0}: column name</comment>
   </data>
   <data name="GridMenu_CopyColumnInListTitle" xml:space="preserve">
     <value>The database values as Oracle literals for an IN list ('A', 'B'): each value once, without NULL</value>
@@ -1479,14 +1467,6 @@
   <data name="GridMenu_CopyToConnectionView" xml:space="preserve">
     <value>Only rows of tables can be copied.</value>
   </data>
-  <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
-    <value>Other connection · {0}</value>
-    <comment>Group heading in the cell menu; {0}: e.g. '3 rows'</comment>
-  </data>
-  <data name="GridMenu_RecordsGroup" xml:space="preserve">
-    <value>Record diagram · {0}</value>
-    <comment>Group heading in the cell menu; {0}: e.g. '3 rows'</comment>
-  </data>
   <data name="GridMenu_Records" xml:space="preserve">
     <value>Show connected records</value>
     <comment>Menu entry</comment>
@@ -1502,5 +1482,121 @@
   <data name="GridMenu_RecordsNoKey" xml:space="preserve">
     <value>The key of these rows has no exact text (a type like BINARY_DOUBLE) and cannot be saved with the tab.</value>
     <comment>Tooltip of the disabled entry</comment>
+  </data>
+  <data name="ColumnValues_CopiedDistinctOne" xml:space="preserve">
+    <value>{0} value of {1} copied, each once.</value>
+    <comment>Notice; {0}: 1, {1}: column name</comment>
+  </data>
+  <data name="ColumnValues_CopiedDistinctOther" xml:space="preserve">
+    <value>{0:N0} values of {1} copied, each once.</value>
+    <comment>Notice; {0}: number of distinct values, {1}: column name</comment>
+  </data>
+  <data name="Quick_ValueIsNull" xml:space="preserve">
+    <value>The value is NULL.</value>
+    <comment>Tooltip of the disabled "Copy value" in the cell menu's quick bar</comment>
+  </data>
+  <data name="Menu_FilterPlaceholder" xml:space="preserve">
+    <value>Filter actions, tables …</value>
+    <comment>Placeholder of the filter field in the cell menu (WP-61)</comment>
+  </data>
+  <data name="Menu_NoMatch" xml:space="preserve">
+    <value>Nothing matches.</value>
+    <comment>Cell menu: the filter field leaves no entry</comment>
+  </data>
+  <data name="Matrix_Export" xml:space="preserve">
+    <value>Export</value>
+    <comment>Head of the first column of the export matrix (formats)</comment>
+  </data>
+  <data name="Matrix_Copy" xml:space="preserve">
+    <value>copy</value>
+    <comment>Head of the export matrix column that copies to the clipboard; lower case like the other heads</comment>
+  </data>
+  <data name="Matrix_SelectionTitle" xml:space="preserve">
+    <value>Save the selected rows as a file</value>
+    <comment>Tooltip of the export matrix column head "3 rows"</comment>
+  </data>
+  <data name="Matrix_All" xml:space="preserve">
+    <value>all</value>
+    <comment>Head of the export matrix column that saves all rows of the query; lower case</comment>
+  </data>
+  <data name="Matrix_Table" xml:space="preserve">
+    <value>Table</value>
+    <comment>Export matrix row: tab-separated with headers</comment>
+  </data>
+  <data name="Matrix_ExcelRaw" xml:space="preserve">
+    <value>Excel (raw)</value>
+    <comment>Export matrix row: Excel with database names and raw values; short</comment>
+  </data>
+  <data name="Matrix_CSharpObjects" xml:space="preserve">
+    <value>C# objects</value>
+    <comment>Export matrix row: object initializers</comment>
+  </data>
+  <data name="Matrix_Column" xml:space="preserve">
+    <value>Column {0}</value>
+    <comment>Beside the chips that copy the clicked column's values; {0}: column name</comment>
+  </data>
+  <data name="Chip_Lines" xml:space="preserve">
+    <value>lines</value>
+    <comment>Chip: copy the values one per line; lower case</comment>
+  </data>
+  <data name="Chip_InList" xml:space="preserve">
+    <value>IN list</value>
+    <comment>Chip: copy the values as an IN list</comment>
+  </data>
+  <data name="Chip_Distinct" xml:space="preserve">
+    <value>distinct</value>
+    <comment>Chip: copy each value once, one per line (SQL word, kept in German)</comment>
+  </data>
+  <data name="Chip_DistinctTitle" xml:space="preserve">
+    <value>Each value once, one per line, in the order it first comes – without NULL</value>
+    <comment>Tooltip of the chip "distinct"</comment>
+  </data>
+  <data name="FkJump_MoreNullOne" xml:space="preserve">
+    <value>{0} more is NULL</value>
+    <comment>Folded outgoing FK jumps whose key is NULL; {0}: 1</comment>
+  </data>
+  <data name="FkJump_MoreNullOther" xml:space="preserve">
+    <value>{0} more are NULL</value>
+    <comment>Folded outgoing FK jumps whose key is NULL; {0}: number</comment>
+  </data>
+  <data name="FkJump_More" xml:space="preserve">
+    <value>{0} more</value>
+    <comment>Folded incoming FK jumps of a long list; {0}: number</comment>
+  </data>
+  <data name="Caption_Pin" xml:space="preserve">
+    <value>Pin</value>
+    <comment>Caption below the pin icon in the column menu's quick bar; short</comment>
+  </data>
+  <data name="Caption_Select" xml:space="preserve">
+    <value>Select</value>
+    <comment>Caption below the icon that selects the whole column; short</comment>
+  </data>
+  <data name="Caption_Display" xml:space="preserve">
+    <value>Display</value>
+    <comment>Caption below the icon that marks the display column (WP-31); short</comment>
+  </data>
+  <data name="Caption_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Caption below the icon that copies the column name; short</comment>
+  </data>
+  <data name="ColumnMenu_CopyName" xml:space="preserve">
+    <value>Copy column name</value>
+    <comment>Column menu action</comment>
+  </data>
+  <data name="ColumnMenu_NameCopied" xml:space="preserve">
+    <value>{0} copied.</value>
+    <comment>Notice after copying a column name; {0}: column name</comment>
+  </data>
+  <data name="ColumnMenu_OpenTable" xml:space="preserve">
+    <value>Open table</value>
+    <comment>Beside a foreign key target in the column menu</comment>
+  </data>
+  <data name="ColumnFact_Nullable" xml:space="preserve">
+    <value>NULL allowed</value>
+    <comment>Fact in the column menu's head; the other is NOT NULL (not translated)</comment>
+  </data>
+  <data name="ColumnFact_PropertyTitle" xml:space="preserve">
+    <value>Property and CLR type in the linked C# model</value>
+    <comment>Tooltip of the C# fact in the column menu's head</comment>
   </data>
 </root>

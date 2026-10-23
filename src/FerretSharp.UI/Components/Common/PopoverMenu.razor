@@ -32,6 +32,13 @@
     [Parameter]
     public double EstimatedHeight { get; set; } = 230;
 
+    /// <summary>
+    /// The keys of a menu with a filter field (WP-61, dom.js menuKeys): the field gets the focus, ↑ ↓ move through the entries,
+    /// typing goes into the field; the menu stays in the window while it grows or shrinks.
+    /// </summary>
+    [Parameter]
+    public bool KeyNavigation { get; set; }
+
     [Parameter]
     public EventCallback OnClose { get; set; }
 
@@ -54,7 +61,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && KeyNavigation)
+        {
+            await Dom.InvokeVoidAsync("menuKeys", _id, Math.Max(8, Y)); // Escape outside the field's text closes
+        }
+        else if (firstRender)
         {
             await Dom.InvokeVoidAsync("focusById", _id); // Escape closes
             await Dom.InvokeVoidAsync("keepInViewport", _id);
