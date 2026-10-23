@@ -252,6 +252,9 @@
   <data name="Usage_NotBuiltNoModel" xml:space="preserve">
     <value>nicht gebaut; referenziert die Entities nicht, kann sie also nicht nutzen</value>
   </data>
+  <data name="Usage_NotBuiltTest" xml:space="preserve">
+    <value>nicht gebaut; ein Testprojekt – „ungenutzt“ lässt Tests ohnehin außen vor</value>
+  </data>
   <data name="Usage_Stale" xml:space="preserve">
     <value>veraltet: {0} wurde nach dem Build geändert</value>
   </data>

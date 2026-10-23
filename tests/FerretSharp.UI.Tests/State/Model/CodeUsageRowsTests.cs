@@ -215,14 +215,17 @@ public sealed class CodeUsageRowsTests : IDisposable
         var (_, index) = await IndexAsync();
         var tools = Project("Tools", built: false) with { ReachesModel = false };
         var shop = Project("Shop", built: true) with { Uses = new AssemblyUses(AssemblyUses.CurrentFormatVersion, Guid.NewGuid(), "Shop", ["Shop"], false, true, [], []) };
-        var complete = new CodeUsageResult("Shop.slnx", [shop, tools], index);
+        var tests = Project("Shop.Tests", built: false);
+        tests = tests with { Build = tests.Build! with { IsTestProject = true } };
+        var complete = new CodeUsageResult("Shop.slnx", [shop, tools, tests], index);
         var incomplete = complete with { Projects = [.. complete.Projects, Project("Web", built: false)] };
 
         using (UiCulture.Use("en"))
         {
             Assert.Empty(complete.Missing);
             Assert.Equal(ModelViewText.Usage_UnusedTitle, CodeUsageRows.UnusedTitle(complete));
-            Assert.Equal("Tools: " + ModelViewText.Usage_NotBuiltNoModel, CodeUsageRows.ProjectDetails(complete));
+            Assert.Equal(["Tools: " + ModelViewText.Usage_NotBuiltNoModel, "Shop.Tests: " + ModelViewText.Usage_NotBuiltTest],
+                CodeUsageRows.ProjectDetails(complete).Split('\n'));
 
             Assert.Equal(["Web"], incomplete.Missing.Select(p => p.Name));
             Assert.EndsWith("\n" + ModelViewText.Usage_UnusedUncertain, CodeUsageRows.UnusedTitle(incomplete), StringComparison.Ordinal);

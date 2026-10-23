@@ -139,6 +139,42 @@ public sealed class SolutionAndBuilderTests : IDisposable
         Assert.Equal(["Shop.Data", "Shop.Web"], result.Missing.Select(p => p.Name));
     }
 
+    /// <summary>
+    /// A test project not built leaves "unused" as it is – tests do not count there. Known from the project file: a test
+    /// framework package, or IsTestProject, which wins both ways.
+    /// </summary>
+    [Fact]
+    public async Task Test_projects_are_known_from_the_project_file_and_never_missing()
+    {
+        string WithItems(string relative, string items)
+        {
+            var file = Project(relative, "../Shop.Data/Shop.Data.csproj");
+            File.WriteAllText(file, File.ReadAllText(file).Replace("</ItemGroup>", items + "</ItemGroup>", StringComparison.Ordinal));
+            return file;
+        }
+
+        var data = Project("Shop.Data/Shop.Data.csproj");
+        Built(data, "Shop.Data");
+        var xunit = WithItems("Shop.Tests/Shop.Tests.csproj", """<PackageReference Include="xunit.v3" />""");
+        var flagged = WithItems("Shop.Specs/Shop.Specs.csproj", "</ItemGroup><PropertyGroup><IsTestProject>true</IsTestProject></PropertyGroup><ItemGroup>");
+        var helper = WithItems("Shop.Testing/Shop.Testing.csproj",
+            """<PackageReference Include="NUnit" /></ItemGroup><PropertyGroup><IsTestProject>false</IsTestProject></PropertyGroup><ItemGroup>""");
+        File.WriteAllText(_folder.Combine("Shop.slnx"), """
+            <Solution>
+              <Project Path="Shop.Data/Shop.Data.csproj" />
+              <Project Path="Shop.Tests/Shop.Tests.csproj" />
+              <Project Path="Shop.Specs/Shop.Specs.csproj" />
+              <Project Path="Shop.Testing/Shop.Testing.csproj" />
+            </Solution>
+            """);
+
+        var result = await new CodeUsageBuilder(_folder.Combine("cache")).BuildAsync(new ClrProjectLink(data), _folder.Combine("Shop.slnx"),
+            CodeUsageIndexTests.Model(), TestContext.Current.CancellationToken);
+
+        Assert.Equal([false, true, true, false], new[] { data, xunit, flagged, helper }.Select(p => BuildOutputLocator.FindAssembly(p, "Debug").IsTestProject));
+        Assert.Equal(["Shop.Testing"], result.Missing.Select(p => p.Name));
+    }
+
     [Fact]
     public async Task Without_a_project_defining_an_entity_type_every_project_not_built_is_missing()
     {

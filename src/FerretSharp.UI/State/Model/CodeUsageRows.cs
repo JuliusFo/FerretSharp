@@ -175,11 +175,17 @@ public static class CodeUsageRows
     public static string ProjectDetails(CodeUsageResult result) =>
         string.Join("\n", result.Projects
             .Select(p => p.Error is { } error ? $"{p.Name}: {error}"
-                : p.Build is { IsBuilt: false } ? $"{p.Name}: {(p.ReachesModel ? ModelViewText.Usage_NotBuilt : ModelViewText.Usage_NotBuiltNoModel)}"
+                : p.Build is { IsBuilt: false } build ? $"{p.Name}: {NotBuilt(p, build)}"
                 : p.Build is { NewerSource: { } newer } ? $"{p.Name}: {TextFormat.Format(ModelViewText.Usage_Stale, FileName(newer))}"
                 : p.Uses is { HasPdb: false } ? $"{p.Name}: {ModelViewText.Usage_NoPdb}"
                 : null)
             .OfType<string>());
+
+    /// <summary>Why a project not built does (or does not) leave "unused" uncertain.</summary>
+    private static string NotBuilt(CodeUsageProject project, ProjectBuild build) =>
+        !project.ReachesModel ? ModelViewText.Usage_NotBuiltNoModel
+        : build.IsTestProject ? ModelViewText.Usage_NotBuiltTest
+        : ModelViewText.Usage_NotBuilt;
 
     private static string FileName(string path) => path[(path.LastIndexOfAny(['/', '\\']) + 1)..];
 }

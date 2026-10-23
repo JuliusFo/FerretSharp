@@ -23,9 +23,11 @@ public sealed record CodeUsageResult(string? Solution, IReadOnlyList<CodeUsagePr
 {
     /// <summary>
     /// Projects whose code could use the model but was not read (not built, or unreadable): "unused" may be wrong while there
-    /// are any. Projects that cannot reach the entity types do not count – they cannot use them, built or not.
+    /// are any. Projects that cannot reach the entity types do not count – they cannot use them, built or not –, nor do test
+    /// projects, whose uses "unused" leaves out anyway (known from the project file, <see cref="ProjectBuild.IsTestProject"/>).
     /// </summary>
-    public IReadOnlyList<CodeUsageProject> Missing => Projects.Where(p => p.ReachesModel && p.Uses is null).ToList();
+    public IReadOnlyList<CodeUsageProject> Missing =>
+        Projects.Where(p => p.ReachesModel && p.Uses is null && p.Build is not { IsTestProject: true }).ToList();
 }
 
 /// <summary>

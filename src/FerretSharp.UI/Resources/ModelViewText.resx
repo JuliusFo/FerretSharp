@@ -299,6 +299,9 @@
   <data name="Usage_NotBuiltNoModel" xml:space="preserve">
     <value>not built; it does not reference the entities, so it cannot use them</value>
   </data>
+  <data name="Usage_NotBuiltTest" xml:space="preserve">
+    <value>not built; a test project – "unused" leaves tests out anyway</value>
+  </data>
   <data name="Usage_Stale" xml:space="preserve">
     <value>out of date: {0} changed after the build</value>
   </data>

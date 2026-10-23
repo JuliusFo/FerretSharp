@@ -27,8 +27,12 @@ public sealed record BuildOutput(
 /// <param name="Assembly">The newest <c>.dll</c> of the configuration; null if the project is not built.</param>
 /// <param name="NewerSource">A source file of the project changed after the build; null if the build is current.</param>
 /// <param name="References">The projects it references (<c>ProjectReference</c>), full paths; read without building.</param>
+/// <param name="IsTestProject">
+/// The project file says it is a test project (<c>IsTestProject</c>, a test framework package); read without building, so
+/// known for a project not built. Packages added in a <c>Directory.Build.props</c> are not seen.
+/// </param>
 public sealed record ProjectBuild(string ProjectFile, string AssemblyName, string? Assembly, DateTime? BuiltAtUtc, string? NewerSource,
-    IReadOnlyList<string>? References = null)
+    IReadOnlyList<string>? References = null, bool IsTestProject = false)
 {
     public bool IsBuilt => Assembly is not null;
 
@@ -124,7 +128,13 @@ public static partial class BuildOutputLocator
         return new BuildOutput(assembly, deps, framework, builtAt, PackageFolders(projectDirectory), project.SharedFrameworks, newer);
     }
 
-    private sealed record ProjectInfo(string? AssemblyName, IReadOnlyList<string> SharedFrameworks, IReadOnlyList<string> ProjectReferences);
+    private sealed record ProjectInfo(string? AssemblyName, IReadOnlyList<string> SharedFrameworks, IReadOnlyList<string> ProjectReferences, bool IsTestProject);
+
+    /// <summary>
+    /// Packages that make a project a test project (by name prefix: <c>xunit.v3</c>, <c>NUnit3TestAdapter</c>,
+    /// <c>MSTest.TestFramework</c>); the assembly scan knows them by their assembly names (<c>IlUsageScanner</c>).
+    /// </summary>
+    private static readonly string[] TestPackages = ["xunit", "NUnit", "MSTest", "TUnit", "Microsoft.Testing.Platform", "Microsoft.NET.Test.Sdk"];
 
     private static ProjectInfo ReadProject(string projectFile)
     {
@@ -147,7 +157,16 @@ public static partial class BuildOutputLocator
             .Select(e => (string?)e.Attribute("Include"))
             .OfType<string>()
             .ToList();
-        return new ProjectInfo(assemblyName, frameworks.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), references);
+
+        // An explicit IsTestProject wins (false: a helper library that brings a test package for its own use).
+        var isTest = elements.LastOrDefault(e => e.Name.LocalName == "IsTestProject") is { } flag
+            ? flag.Value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
+            : elements
+                .Where(e => e.Name.LocalName == "PackageReference")
+                .Select(e => (string?)e.Attribute("Include"))
+                .OfType<string>()
+                .Any(p => TestPackages.Any(t => p.StartsWith(t, StringComparison.OrdinalIgnoreCase)));
+        return new ProjectInfo(assemblyName, frameworks.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), references, isTest);
     }
 
     /// <summary>
@@ -180,7 +199,7 @@ public static partial class BuildOutputLocator
             .FirstOrDefault();
         if (assembly is null)
         {
-            return new ProjectBuild(projectFile, assemblyName, null, null, null, references);
+            return new ProjectBuild(projectFile, assemblyName, null, null, null, references, project.IsTestProject);
         }
 
         var builtAt = File.GetLastWriteTimeUtc(assembly);
@@ -191,7 +210,7 @@ public static partial class BuildOutputLocator
             .OrderByDescending(f => f.At)
             .Select(f => f.File)
             .FirstOrDefault();
-        return new ProjectBuild(projectFile, assemblyName, assembly, builtAt, newer, references);
+        return new ProjectBuild(projectFile, assemblyName, assembly, builtAt, newer, references, project.IsTestProject);
     }
 
     /// <summary><c>bin/&lt;Configuration&gt;</c>, or an artifacts layout (<c>UseArtifactsOutput</c>) further up.</summary>
