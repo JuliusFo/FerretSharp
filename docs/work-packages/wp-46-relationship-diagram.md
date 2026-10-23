@@ -45,3 +45,15 @@ Eigener Container mit der Beispiel-DB, verknüpftes `samples`-Projekt (C#-Modell
   4. Die Hervorhebung blieb nach dem Verlassen eines Knotens, bis die Maus die Fläche verließ – `mouseleave` am Knoten.
   5. Der Tooltip einer Kante sagte „– Constraints“ (die Mehrzahl der Legende) – eigener Text in der Einzahl.
 - **Nicht geprüft:** echte Windows-Eingabe. Per `SendInput` kamen weder Bewegungen noch Klicks im WebView an (wie in `docs/e2e-testing.md` beschrieben), alles lief per CDP. Neu sind nur einfache Klicks, Rechtsklick und Hover, kein Doppelklick und kein Ziehen.
+
+## Review (2026-10-23), behoben
+1. Ein Link aus der Ansicht „Beziehungen“ trug `m=Relations`; FerretSharp 3.46 lehnt einen Link mit unbekannter Ansicht ganz ab. Die Ansicht bleibt wie „Verwendung“ draußen (`TableLink.For`).
+2. Jedes Neuladen des C#-Modells (nach jedem Build des verknüpften Projekts) baute das Diagramm frisch auf und sortierte die Spalten neu. `RelationsDiagramState` legt jetzt beim Neuladen, beim Umschalten einer Art und der Ebenen gegen die vorige Anordnung aus; nur „In die Mitte“ und „Zurücksetzen“ beginnen neu.
+3. „Schema neu laden“ und DDL in einem anderen Tab erreichten das Diagramm erst mit F5. Die Ansicht vergleicht bei jedem Rendern des Tabs, ob `SchemaCache.ForeignKeys` noch dieselbe Liste ist.
+4. Ein wiederhergestellter Tab in dieser Ansicht scrollte verdeckt und damit ins Leere. Jetzt geschieht das erst, wenn die Ansicht sichtbar ist (`Shown` wie bei `UsageView`).
+5. Zwei Kanten mit derselben ID über mehrere Spalten bekamen dieselben Spuren-IDs, und das Layout warf. Die Spuren tragen jetzt die Stelle der Kante in der Liste.
+6. `RelationDiagram.Relations` lief bei jedem Rendern (jedem Hover) über alle Beziehungen des Schemas. Jetzt bleibt das Ergebnis gespeichert, bis eine Tabelle dazukommt; `RelationOf(edgeId)` ersetzt das Nachschlagen in der Ansicht.
+7. Der Mermaid-Export nannte Tabellen hinter einem Synonym `OWNER.NAME`, die Ansicht dagegen beim Synonym.
+8. Daraus folgt: eine Regel für den Namen einer Tabelle, `SchemaCache.LabelOf` – Synonym, eigener Name oder Owner und Name. `TableLink.razor`, die Ansicht und `RelationMermaid.Write(diagram, label)` nutzen sie.
+
+Nur mit Tests geprüft (`TableLinkTests`, `SchemaCacheTests`, `DiagramLayoutTests`, `RelationDiagramTests`, `RelationMermaidTests`, `RelationsDiagramStateTests`), kein neuer E2E-Lauf.
