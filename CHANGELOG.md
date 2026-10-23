@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- The right-click menu of a cell – in a table and in a query result – is rebuilt; it had grown to some 40 lines. The single actions are icons in a bar at the top, named in their tooltips: copy the value, copy it as C# value, open a LOB, pin the column, form or comparison, connected records, copy to another connection, link to the rows, link to the view. Typing goes straight into a filter field below and narrows actions, formats and foreign keys; ↑ ↓ move through the entries, Enter runs one, Esc clears the filter, then closes the menu. The export is a small table of formats – table, CSV, Excel, Excel with raw values, INSERT, C# objects, HasData – by copy, save the selected rows and save all rows of the filter, with a dash where there is no such combination. The values of the clicked column are chips beside it: lines, IN list, distinct. Foreign keys take one line each, with the key's value or the number of rows referencing; those without a value fold into "3 more are NULL" and a long list of tables referencing into its first eight and "… more" – a click opens them, the jumps over the clicked column always stay in sight. Editing rows and marked cells stay lines below the filter.
+
+  ![The new cell menu: the cell at the top, a bar of icons, the filter field, “Delete row”, the export as a table of formats by copy, one row and all rows, the column’s values as chips, and the foreign keys on one line each with three NULL ones folded.](docs/images/changelog/3.49.0-cell-menu.png)
+
+- The menu of a column header shows what the column is: NULL allowed or NOT NULL, primary key, the tables its foreign keys point to (relationships of the C# model too), its C# property with its type, and its comment. Below come Pin, Select, Display (the table's display column, outlined when it is one) and Name, which copies the column's name, then all values of the filter as chips (lines, IN list, distinct), and the tables its foreign keys point to, opened with a click. A query result's column header has Select, Name and the chips.
+
+  ![The new menu of a column header: name and type, NULL allowed, the foreign key to MITARBEITER, the C# property and the comment, buttons for Pin, Select, Display and Name, chips for its values, ALTER TABLE … ADD with the other connections, and MITARBEITER to open.](docs/images/changelog/3.49.0-column-menu.png)
+
+### Added
+- "distinct" copies the values of a column each once, one per line in the order they first come, without NULL – in the cell menu from the selected rows, in the column menu all values of the filter or the result (a table reads them with `SELECT DISTINCT`).
+- The column header menu of a table adds the column to the same table on another database, like the "Columns" view: "Copy" gives its `ALTER TABLE … ADD`, a connection opens it in a SQL tab there. With whole columns selected (Ctrl+click on the headers) it takes all of them. The menu of the "Columns" view is built the same way and gets a filter field for the connections when there are more than eight.
+
 ## [3.48.0] - 2026-10-23
 
 Query results and the columns and usage views can be sorted by their headers, columns can be added to the same table on another database, and "Usage" says when projects that are not built make "unused" uncertain – and builds them.
