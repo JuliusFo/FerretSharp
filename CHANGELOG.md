@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- Connected records: a tab opened or restored before the C# model was loaded showed no rows along the model's relationships on a side that had none without it (a header row without its positions, say), also after the model came – the expansion of that side was not remembered, and the tab was saved that way. It is now, and so is every step that has nothing to do when the tab is read again (a row deleted for now, a relationship not loaded yet), so it comes back with the row or the model.
+
 ## [3.47.0] - 2026-10-23
 
 Rows can be copied into another connection together with everything that hangs on them, a table's relationships and a row's connected records show as diagrams, and the type and NOT NULL lines of the column headers can be switched off.
