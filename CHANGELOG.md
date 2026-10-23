@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - Connected records: a tab opened or restored before the C# model was loaded showed no rows along the model's relationships on a side that had none without it (a header row without its positions, say), also after the model came – the expansion of that side was not remembered, and the tab was saved that way. It is now, and so is every step that has nothing to do when the tab is read again (a row deleted for now, a relationship not loaded yet), so it comes back with the row or the model.
+- Connected records: "+3" on a row with several relationships on that side could crash the tab ("The given key … was not present in the dictionary") while the rows were read – the rows of the first relationship were drawn before they had a place in the diagram. They now appear when the read ends.
 
 ## [3.47.0] - 2026-10-23
 

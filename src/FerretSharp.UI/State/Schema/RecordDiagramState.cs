@@ -45,6 +45,15 @@ public sealed class RecordDiagramState
     public DiagramPlacement? Placement { get; private set; }
 
     /// <summary>
+    /// The rows to draw, with their boxes. During an expansion the diagram already holds the rows of the relationships read so
+    /// far, but the layout comes only when it ends: those rows wait for it (a progress report rendered them without a box, and
+    /// the tab crashed).
+    /// </summary>
+    public IReadOnlyList<(RecordNode Node, NodeBox Box)> Drawn => Diagram is { } diagram && Placement is { } placement
+        ? [.. diagram.Rows.Where(r => placement.Nodes.ContainsKey(r.Node.Id)).Select(r => (r.Node, placement.Nodes[r.Node.Id]))]
+        : [];
+
+    /// <summary>
     /// What to save: the steps of the diagram shown, or those to do if it has not been loaded yet – or found none of its start
     /// rows (review: they may come back after a rollback, and their steps with them). Empty for a new diagram.
     /// </summary>
