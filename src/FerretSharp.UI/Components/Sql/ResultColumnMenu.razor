@@ -1,19 +1,26 @@
-@* Right-click menu of a column header of a SQL editor result (WP-57): select the column as a whole (WP-58), copy all values of
-   the column – the query run again, unless every row is loaded. *@
+@* Right-click menu of a column header of a SQL editor result (WP-57), with the blocks of the table's column menu (WP-61): name
+   and type, a quick bar to select the column as a whole (WP-58) or copy its name, and chips that copy all values of the
+   column – the query run again, unless every row is loaded. *@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
-             Width="300" EstimatedHeight="@(104 + 44 * ColumnValuesMenuItems.Entries)" OnClose="OnClose">
-    <div class="ctx-head">
-        <span class="ctx-col">@Column.Name</span>
-        <span class="ctx-value">@Column.DisplayType</span>
-    </div>
-    <button class="menu-item" title="@GridText.ResultColumnMenu_MarkColumnTitle" @onclick="MarkAsync">@GridText.ColumnMenu_MarkColumn</button>
-    <ColumnValuesMenuItems Column="Column" Presented="Presented" All="All" OnClose="OnClose" />
+             Width="300" EstimatedHeight="230" KeyNavigation="true" OnClose="OnClose">
+    <ColumnMenuHead Column="Column" Facts="false" />
+    <QuickBar Captions="true">
+        <QuickAction Icon="Icons.SelectColumn" Caption="@GridText.Caption_Select" Label="@GridText.ColumnMenu_MarkColumn" Title="@GridText.ResultColumnMenu_MarkColumnTitle"
+                     OnClick="MarkAsync" />
+        <QuickAction Icon="Icons.Copy" Caption="@GridText.Caption_Name" Label="@GridText.ColumnMenu_CopyName" Title="@Column.Name" OnClick="CopyNameAsync" />
+    </QuickBar>
+    <AllValueChips Column="Column" Presented="Presented" All="All" OnClose="OnClose" />
 </PopoverMenu>
 
 @code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public ColumnMenuRequest Request { get; set; } = null!;
 
@@ -35,9 +42,26 @@
     [Parameter]
     public EventCallback OnMarkColumn { get; set; }
 
+    private DomModule? _dom;
+
+    /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
     private async Task MarkAsync()
     {
         await OnClose.InvokeAsync();
         await OnMarkColumn.InvokeAsync();
     }
+
+    private async Task CopyNameAsync()
+    {
+        if (await Dom.CopyTextAsync(Shell, Column.Name))
+        {
+            Shell.Notify(TextFormat.Format(GridText.ColumnMenu_NameCopied, Column.Name));
+        }
+
+        await OnClose.InvokeAsync();
+    }
+
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
 }

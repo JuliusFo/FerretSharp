@@ -26,6 +26,31 @@ public sealed record FkJumpLists(IReadOnlyList<FkJump> Outgoing, IReadOnlyList<F
     }
 
     /// <summary>
+    /// Incoming jumps of one group shown before "… 22 more" (WP-61): the user jumps often, so a long list is folded only well
+    /// beyond this.
+    /// </summary>
+    public const int ShownIncoming = 8;
+
+    /// <summary>
+    /// Outgoing jumps without a target (every row's key is NULL, <see cref="FkJump.IsNull"/>) folded into one line ("7 more
+    /// are NULL", WP-61) – from two on, and never one over the clicked column: it says why there is no jump.
+    /// </summary>
+    /// <returns>The jumps shown, and those behind the line (empty if there is none).</returns>
+    public static (IReadOnlyList<FkJump> Shown, IReadOnlyList<FkJump> Folded) FoldNull(IReadOnlyList<FkJump> outgoing, Func<FkJump, bool> related)
+    {
+        bool Folds(FkJump jump) => jump.IsNull && !related(jump);
+        var folded = outgoing.Where(Folds).ToList();
+        return folded.Count < 2 ? (outgoing, []) : ([.. outgoing.Where(j => !Folds(j))], folded);
+    }
+
+    /// <summary>
+    /// The first <see cref="ShownIncoming"/> jumps of a group of incoming ones and the rest behind "… 22 more" (WP-61); a
+    /// list with at most one more is shown whole – the line would be as long as the entry.
+    /// </summary>
+    public static (IReadOnlyList<FkJump> Shown, IReadOnlyList<FkJump> Folded) FoldIncoming(IReadOnlyList<FkJump> jumps) =>
+        jumps.Count <= ShownIncoming + 1 ? (jumps, []) : ([.. jumps.Take(ShownIncoming)], [.. jumps.Skip(ShownIncoming)]);
+
+    /// <summary>
     /// Incoming jumps by the table they point to: those into the row's own table (<c>Via</c> null) first, then those through
     /// each base table (<see cref="FkJump.Inherited"/>), in the order the base tables first appear.
     /// </summary>

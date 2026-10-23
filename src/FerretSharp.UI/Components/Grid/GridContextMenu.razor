@@ -1,8 +1,11 @@
-@* Right-click menu of a grid cell: copy the value (also as C#), open a LOB, pin the column, the form or the comparison of
-   the selected rows, delete or revert them, export them or the clicked column's values (ExportMenuItems) or copy a link,
-   C# objects and seed data, and jump along foreign keys from them (outgoing and incoming with counts). Inside marked cells
-   or columns (WP-58) their group comes first, and the row's entries take the clicked row; on a writable workspace one value,
-   NULL or the top row's values for them, or one value for a column of the selected rows (WP-59). *@
+@* Right-click menu of a grid cell, rebuilt in WP-61 (it had grown to some 40 lines): the cell as head, a quick bar of icons
+   for the single actions – copy the value (also as C#), open a LOB, pin the column, the form or the comparison of the
+   selected rows, the record diagram, the copy into another connection, links –, a filter field that narrows actions and
+   foreign keys as you type, the lines for editing (delete or revert the selected rows, one value for a column of them,
+   WP-59) and for marked cells or columns (WP-58: copy them, one value, NULL or the top row's values for them), the export
+   as a matrix of format × copy / save selected / save all with the clicked column's values as chips (ExportMatrix, C#
+   objects and seed data with an entity), and the jumps along foreign keys (outgoing and incoming with counts, one line
+   each, NULL ones and long lists folded). Inside marked cells the row's entries take the clicked row. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -19,107 +22,101 @@
 @inject ILogger<GridContextMenu> Logger
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
-             Width="MenuWidth" EstimatedHeight="EstimatedHeight" OnClose="CloseAsync">
-    <div class="ctx-head">
-        <span class="ctx-col">@Column.Name</span>
-        <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
-    </div>
-    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">@CommonText.CopyValue</button>
-    @if (_cell is { } cell)
-    {
-        <button class="menu-item" disabled="@(cell.Code is null)" title="@(cell.Problem ?? cell.Code)" @onclick="() => Export.CopyTextAsync(cell.Code!)">
-            @GridText.GridMenu_CopyAsCSharpValue
-        </button>
-    }
-    @if (OracleTypeMapper.IsLob(Column))
-    {
-        <button class="menu-item" title="@(CanEdit ? GridText.GridMenu_OpenLobTitleEdit : GridText.GridMenu_OpenLobTitle)" @onclick="OpenLobAsync">
-            @GridText.Grid_OpenContent
-        </button>
-    }
-    @if (!Details.PrimaryKey.Contains(Column.Name))
-    {
-        <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)</button>
-    }
-    <FormMenuItems Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
+             Width="MenuWidth" EstimatedHeight="EstimatedHeight" KeyNavigation="true" OnClose="CloseAsync">
+    <CascadingValue Value="_filter">
+        <div class="ctx-head">
+            <span class="ctx-col">@Column.Name</span>
+            <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
+        </div>
+        <QuickBar>
+            <QuickAction Icon="Icons.Copy" Label="@CommonText.CopyValue" Unavailable="@(Request.CellText is null ? GridText.Quick_ValueIsNull : null)"
+                         OnClick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])" />
+            @if (_cell is { } cell)
+            {
+                <QuickAction Icon="Icons.Braces" Label="@GridText.GridMenu_CopyAsCSharpValue" Title="@cell.Code" Unavailable="@cell.Problem"
+                             OnClick="() => Export.CopyTextAsync(cell.Code!)" />
+            }
+            @if (OracleTypeMapper.IsLob(Column))
+            {
+                <QuickAction Icon="Icons.Document" Label="@GridText.Grid_OpenContent" Title="@(CanEdit ? GridText.GridMenu_OpenLobTitleEdit : GridText.GridMenu_OpenLobTitle)"
+                             OnClick="OpenLobAsync" />
+            }
+            @{ var primary = Details.PrimaryKey.Contains(Column.Name); }
+            <QuickAction Icon="Icons.Pin" Label="@(Pinned || primary ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)" Active="@(Pinned || primary)"
+                         Unavailable="@(primary ? GridText.ColumnMenu_PkPinnedTitle : null)" OnClick="TogglePinAsync" />
+            <FormQuickAction Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
+            <QuickAction Icon="Icons.Records" Label="@($"{GridText.GridMenu_Records} · {RowsText(Request.JumpRows.Count)}")" Title="@GridText.GridMenu_RecordsTitle"
+                         Unavailable="@RecordsUnavailable" OnClick="ShowRecordsAsync" />
+            <QuickAction Icon="Icons.Transfer" Label="@($"{GridText.GridMenu_CopyToConnection} · {RowsText(Request.JumpRows.Count)}")" Title="@GridText.GridMenu_CopyToConnectionTitle"
+                         Unavailable="@CopyUnavailable" OnClick="CopyToConnectionAsync" />
+            @if (Active.Profile is { } linkProfile)
+            {
+                @* Links (WP-37): to the selected rows by their primary key, or to the view with its filters and sort order. *@
+                var rowsLink = Core.Links.TableLink.ForRows(linkProfile, Details, Request.Selected);
+                <QuickAction Icon="Icons.Link" Label="@GridText.GridMenu_CopyRowsLink" Title="@GridText.GridMenu_CopyRowsLinkTitle" Unavailable="@rowsLink.Unavailable"
+                             OnClick="() => CopyLinkAsync(linkProfile, rowsLink.Link!, rowsOnly: true)" />
+                <QuickAction Icon="Icons.LinkView" Label="@GridText.GridMenu_CopyViewLink" Title="@GridText.GridMenu_CopyViewLinkTitle"
+                             OnClick="() => CopyLinkAsync(linkProfile, Core.Links.TableLink.For(linkProfile, Details.Table.Ref, Tab.AppliedFilters, Tab.Sorts, Tab.Mode), rowsOnly: false)" />
+            }
+        </QuickBar>
+        <SearchBox Class="popover-search ctx-filter" Value="@_filter.Text" ValueChanged="text => _filter.Set(text)" Placeholder="@GridText.Menu_FilterPlaceholder" />
 
-    @if (CanEdit && Tab.Changes is { } changes)
-    {
-        var selected = Request.Selected.Select(r => changes.Find(r.Key)).ToList();
-        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_EditGroup, RowsText(Request.Selected.Count))</div>
-        @if (selected.Any(c => c?.Deleted is null))
-        {
-            <button class="menu-item danger" title="@TextFormat.Format(GridText.GridMenu_DeleteRowTitle, Shortcuts.Hint(ShortcutAction.Flush))" @onclick="() => EditRowsAsync(OnDeleteRows)">@GridText.GridMenu_DeleteRow</button>
-        }
-        @if (selected.Any(c => c is { HasPending: true }))
-        {
-            <button class="menu-item" title="@GridText.GridMenu_DiscardPendingTitle" @onclick="() => EditRowsAsync(OnRevertRows)">
-                @GridText.GridMenu_DiscardPending
-            </button>
-        }
-        @if (Request.Marks is null && Request.Selected.Count > 1)
-        {
-            var reason = NotSettable(Request.Column);
-            <button class="menu-item" disabled="@(reason is not null)" title="@(reason ?? GridText.GridMenu_SetValueRowsTitle)" @onclick="SetRowsValueAsync">
-                @TextFormat.Format(GridText.GridMenu_SetValueInColumn, Column.Name)
-            </button>
-        }
-    }
+        <div class="ctx-body" data-empty="@GridText.Menu_NoMatch">
+            @if (CanEdit && Tab.Changes is { } changes)
+            {
+                var selected = Request.Selected.Select(r => changes.Find(r.Key)).ToList();
+                var group = TextFormat.Format(GridText.GridMenu_EditGroup, RowsText(Request.Selected.Count));
+                var delete = selected.Any(c => c?.Deleted is null);
+                var revert = selected.Any(c => c is { HasPending: true });
+                var setValue = Request.Marks is null && Request.Selected.Count > 1;
+                var setLabel = TextFormat.Format(GridText.GridMenu_SetValueInColumn, Column.Name);
+                @if ((delete || revert || setValue) && Matches(group, delete ? GridText.GridMenu_DeleteRow : null, revert ? GridText.GridMenu_DiscardPending : null, setValue ? setLabel : null))
+                {
+                    <div class="group-head-btn static">@group</div>
+                }
+                @if (delete)
+                {
+                    <MenuEntry Label="@GridText.GridMenu_DeleteRow" Group="@group" Danger="true" Title="@TextFormat.Format(GridText.GridMenu_DeleteRowTitle, Shortcuts.Hint(ShortcutAction.Flush))"
+                               OnClick="() => EditRowsAsync(OnDeleteRows)" />
+                }
+                @if (revert)
+                {
+                    <MenuEntry Label="@GridText.GridMenu_DiscardPending" Group="@group" Title="@GridText.GridMenu_DiscardPendingTitle" OnClick="() => EditRowsAsync(OnRevertRows)" />
+                }
+                @if (setValue)
+                {
+                    <MenuEntry Label="@setLabel" Group="@group" Unavailable="@NotSettable(Request.Column)" Title="@GridText.GridMenu_SetValueRowsTitle" OnClick="SetRowsValueAsync" />
+                }
+            }
 
-    @if (Request.Marks is { } marks)
-    {
-        <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
-        @if (CanEdit && Tab.Changes is not null)
-        {
-            var refused = MarksRefusal(marks.Marks, CellFill.Null);
-            var down = MarksRefusal(marks.Marks, CellFill.Down);
-            var editor = refused is null ? EditorColumn(marks.Marks) : null;
-            <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_EditGroup, marks.Marks.Text)</div>
-            <button class="menu-item" disabled="@(editor is null)" title="@(refused ?? (editor is null ? GridText.GridMenu_SetValueNoColumn : GridText.GridMenu_SetValueTitle))"
-                    @onclick="() => SetMarksValueAsync(marks.Marks, editor!.Value)">@GridText.GridMenu_SetValue</button>
-            <button class="menu-item" disabled="@(refused is not null)" title="@(refused ?? GridText.GridMenu_SetNullTitle)" @onclick="() => FillAsync(CellFill.Null)">
-                @GridText.GridMenu_SetNull
-            </button>
-            <button class="menu-item" disabled="@(down is not null)" title="@(down ?? GridText.GridMenu_FillDownTitle)" @onclick="() => FillAsync(CellFill.Down)">
-                @GridText.GridMenu_FillDown
-            </button>
-        }
-    }
-    <ExportMenuItems Export="Export" Table="Details" Rows="Request.Selected" FileName="@Details.Table.DisplayName" XlsxColumns="_xlsxColumns" InsertTable="Details"
-                     XlsxColumnsToSave="@(() => PresentedExport.Columns(_presentation, Names.Copy()))" AllRows="_allRows" Marked="@(Request.Marks is not null)"
-                     Column="@PresentedExport.Column(_presentation, Request.Column, Column.Name, Request.Column)">
-        <button class="menu-item" @onclick="SaveInsertAsync">@GridText.GridMenu_SaveInsert</button>
-        @if (Active.Profile is { } linkProfile)
-        {
-            @* Links (WP-37): to the selected rows by their primary key, or to the view with its filters and sort order. *@
-            var rowsLink = Core.Links.TableLink.ForRows(linkProfile, Details, Request.Selected);
-            <button class="menu-item" disabled="@(rowsLink.Link is null)" title="@(rowsLink.Unavailable ?? GridText.GridMenu_CopyRowsLinkTitle)"
-                    @onclick="() => CopyLinkAsync(linkProfile, rowsLink.Link!, rowsOnly: true)">@GridText.GridMenu_CopyRowsLink</button>
-            <button class="menu-item" title="@GridText.GridMenu_CopyViewLinkTitle"
-                    @onclick="() => CopyLinkAsync(linkProfile, Core.Links.TableLink.For(linkProfile, Details.Table.Ref, Tab.AppliedFilters, Tab.Sorts, Tab.Mode), rowsOnly: false)">@GridText.GridMenu_CopyViewLink</button>
-        }
-    </ExportMenuItems>
+            @if (Request.Marks is { } marks)
+            {
+                <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
+                @if (CanEdit && Tab.Changes is not null)
+                {
+                    var refused = MarksRefusal(marks.Marks, CellFill.Null);
+                    var down = MarksRefusal(marks.Marks, CellFill.Down);
+                    var editor = refused is null ? EditorColumn(marks.Marks) : null;
+                    var group = TextFormat.Format(GridText.GridMenu_EditGroup, marks.Marks.Text);
+                    @if (Matches(group, GridText.GridMenu_SetValue, GridText.GridMenu_SetNull, GridText.GridMenu_FillDown))
+                    {
+                        <div class="group-head-btn static">@group</div>
+                    }
+                    <MenuEntry Label="@GridText.GridMenu_SetValue" Group="@group" Unavailable="@(refused ?? (editor is null ? GridText.GridMenu_SetValueNoColumn : null))"
+                               Title="@GridText.GridMenu_SetValueTitle" OnClick="() => SetMarksValueAsync(marks.Marks, editor!.Value)" />
+                    <MenuEntry Label="@GridText.GridMenu_SetNull" Group="@group" Unavailable="@refused" Title="@GridText.GridMenu_SetNullTitle" OnClick="() => FillAsync(CellFill.Null)" />
+                    <MenuEntry Label="@GridText.GridMenu_FillDown" Group="@group" Unavailable="@down" Title="@GridText.GridMenu_FillDownTitle" OnClick="() => FillAsync(CellFill.Down)" />
+                }
+            }
 
-    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_RecordsGroup, RowsText(Request.JumpRows.Count))</div>
-    <button class="menu-item" disabled="@(RecordsUnavailable is not null)" title="@(RecordsUnavailable ?? GridText.GridMenu_RecordsTitle)" @onclick="ShowRecordsAsync">
-        @GridText.GridMenu_Records
-    </button>
+            <ExportMatrix Export="Export" Table="Details" Rows="Request.Selected" FileName="@Details.Table.DisplayName" XlsxColumns="_xlsxColumns" InsertTable="Details" InsertFile="true"
+                          XlsxColumnsToSave="@(() => PresentedExport.Columns(_presentation, Names.Copy()))" AllRows="_allRows" Marked="@(Request.Marks is not null)" More="_csharp"
+                          Column="@PresentedExport.Column(_presentation, Request.Column, Column.Name, Request.Column)" />
 
-    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_CopyToConnectionGroup, RowsText(Request.JumpRows.Count))</div>
-    <button class="menu-item" disabled="@(CopyUnavailable is not null)" title="@(CopyUnavailable ?? GridText.GridMenu_CopyToConnectionTitle)" @onclick="CopyToConnectionAsync">
-        @GridText.GridMenu_CopyToConnection
-    </button>
-
-    @if (_presentation.Entity is not null)
-    {
-        var seed = CSharpRows.HasDataUnavailable(_presentation);
-        <div class="group-head-btn static">C# · @_presentation.EntityName · @RowsText(Request.Selected.Count)</div>
-        <button class="menu-item" title="@GridText.GridMenu_CopyObjectsTitle" @onclick="CopyObjectsAsync">@GridText.GridMenu_CopyObjects</button>
-        <button class="menu-item" disabled="@(seed is not null)" title="@(seed ?? GridText.GridMenu_CopySeedTitle)" @onclick="CopySeedAsync">@GridText.GridMenu_CopySeed</button>
-    }
-
-    <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="InvolvesColumn" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
-                   WorkspaceId="Tab.WorkspaceId" ShowEmpty="true" OnJumped="CloseAsync" />
+            <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="InvolvesColumn" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
+                           WorkspaceId="Tab.WorkspaceId" ShowEmpty="true" OnJumped="CloseAsync" />
+        </div>
+    </CascadingValue>
 </PopoverMenu>
 
 @code {
@@ -133,9 +130,13 @@
     public WorkspaceManager Workspaces { get; set; } = null!;
 
     private const double MenuWidth = 400;
-    private const double ItemHeight = 44;
+    private const double LineHeight = 32;
 
+    private readonly MenuFilter _filter = new();
     private FkJumpLists _jumps = FkJumpLists.None;
+
+    /// <summary>C# objects and seed data of the selected rows as rows of the export matrix; none without an entity.</summary>
+    private IReadOnlyList<ExportMatrixRow> _csharp = [];
     private DomModule? _dom;
     private ExportActions? _export;
 
@@ -292,11 +293,13 @@
         await OnSetValue.InvokeAsync(new SetValueRequest(Request.Row, Request.Column, null, rows, $"{Column.Name} · {RowsText(rows.Count)}"));
     }
 
-    /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 336 + 2 * ItemHeight + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.ColumnEntries + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
-                                      + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0)
-                                      + (Request.Marks is null ? 0 : ItemHeight * (MarkedCellsMenuItems.Entries - 1 - ExportMenuItems.ColumnEntries))
-                                      + (!CanEdit ? 0 : Request.Marks is not null ? ItemHeight * 4 : Request.Selected.Count > 1 ? ItemHeight : 0);
+    /// <summary>For the first placement; dom.js menuKeys corrects it once rendered, and whenever the menu grows.</summary>
+    private double EstimatedHeight => 170 + LineHeight * (ExportMatrix.Lines(_xlsxColumns, _csharp.Count) + JumpLines + (CanEdit ? 3 : 0))
+                                      + (Request.Marks is null ? 0 : LineHeight * MarkedCellsMenuItems.Entries);
+
+    /// <summary>Jumps shown before a folded line opens, with their headings.</summary>
+    private int JumpLines =>
+        _jumps.Headings + FkJumpLists.FoldNull(_jumps.Outgoing, InvolvesColumn).Shown.Count + 1 + Math.Min(_jumps.Incoming.Count, FkJumpLists.ShownIncoming + 1);
 
     protected override void OnInitialized()
     {
@@ -304,6 +307,11 @@
         _xlsxColumns = PresentedExport.Columns(_presentation, Names);
         _allRows = AllRowsExports.ForTable(Tab, Details, _presentation, Names, Presentations.For, Workspaces.GetDataAsync);
         _cell = _presentation.Entity is null ? null : CSharpRows.Cell(_presentation, Request.Column, Request.Row.Values[Request.Column]);
+        _csharp = _presentation.Entity is null ? [] :
+        [
+            new(GridText.Matrix_CSharpObjects, new(GridText.GridMenu_CopyObjects, $"{_presentation.EntityName}: {GridText.GridMenu_CopyObjectsTitle}", CopyObjectsAsync)),
+            new("HasData", new(GridText.GridMenu_CopySeed, GridText.GridMenu_CopySeedTitle, CopySeedAsync, CSharpRows.HasDataUnavailable(_presentation))),
+        ];
         if (Active.Schema is not { } schema)
         {
             return;
@@ -324,12 +332,13 @@
 
     private static string RowsText(long rows) => ExportActions.RowsText(rows);
 
+    /// <summary>A heading stays while the filter matches it or one of its lines (null: a line not offered).</summary>
+    private bool Matches(string group, params string?[] lines) =>
+        !_filter.Active || _filter.Matches(group) || lines.Any(line => line is not null && _filter.Matches(line));
+
     private Task CopyObjectsAsync() => Export.CopyAsync(CSharpRows.Initializers(_presentation, Request.Selected), ExportCopy.CSharpObjects);
 
     private Task CopySeedAsync() => Export.CopyAsync(CSharpRows.HasData(_presentation, Request.Selected), ExportCopy.HasData);
-
-    private Task SaveInsertAsync() =>
-        Export.SaveAsync(InsertExport.Build(Details, Request.Selected), Details.Table.DisplayName + ".sql", GridText.Export_SqlScriptFilter, utf8Bom: false);
 
     private async Task CopyLinkAsync(FerretSharp.Core.Connections.ConnectionProfile profile, Core.Links.TableLink link, bool rowsOnly)
     {

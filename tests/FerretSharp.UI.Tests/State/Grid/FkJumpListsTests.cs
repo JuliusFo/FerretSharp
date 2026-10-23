@@ -74,4 +74,49 @@ public class FkJumpListsTests
         Assert.Equal(" · 2 Zeilen", Request([Row(2m), Row(3m)]).JumpRowsText);
         Assert.Equal(" · 1 Zeile", Request([Row(2m)], missing: 1).JumpRowsText);
     }
+
+    private static FkJump NullJump(string name) => Jump(name, JumpDirection.Outgoing) with { Unavailable = "KUNDE_ID ist NULL.", SkippedRows = 1 };
+
+    [Fact]
+    public void Two_or_more_null_jumps_fold_into_one_line_but_not_one_over_the_clicked_column()
+    {
+        var a = Jump("A", JumpDirection.Outgoing);
+        var n1 = NullJump("N1");
+        var n2 = NullJump("N2");
+        var mine = NullJump("MINE");
+
+        var (shown, folded) = FkJumpLists.FoldNull([mine, a, n1, n2], j => j == mine);
+
+        Assert.Equal([mine, a], shown);
+        Assert.Equal([n1, n2], folded);
+        Assert.Empty(FkJumpLists.FoldNull([a, n1, mine], j => j == mine).Folded);
+    }
+
+    [Fact]
+    public void A_long_incoming_list_shows_the_first_eight_but_one_more_does_not_fold()
+    {
+        var nine = Enumerable.Range(0, 9).Select(i => Jump($"F{i}", JumpDirection.Incoming)).ToList();
+        var ten = Enumerable.Range(0, 10).Select(i => Jump($"F{i}", JumpDirection.Incoming)).ToList();
+
+        Assert.Empty(FkJumpLists.FoldIncoming(nine).Folded);
+        var (shown, folded) = FkJumpLists.FoldIncoming(ten);
+        Assert.Equal(ten.Take(8), shown);
+        Assert.Equal(ten.Skip(8), folded);
+    }
+
+    [Fact]
+    public void The_menu_filter_keeps_entries_with_every_typed_word_in_one_of_their_labels()
+    {
+        var filter = new MenuFilter();
+        Assert.False(filter.Active);
+        Assert.True(filter.Matches("Copy as table"));
+
+        filter.Set("  exc  ROH ");
+
+        Assert.True(filter.Active);
+        Assert.True(filter.Matches("Excel (Rohwerte)", null));
+        Assert.True(filter.Matches("Excel", "Rohwerte speichern"));
+        Assert.False(filter.Matches("Excel"));
+        Assert.False(filter.Matches(null, "CSV"));
+    }
 }

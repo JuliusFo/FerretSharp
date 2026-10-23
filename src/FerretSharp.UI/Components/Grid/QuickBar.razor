@@ -1,0 +1,15 @@
+@* The quick bar of a right-click menu (WP-61): its single actions side by side as QuickAction. In the cell menus icons only,
+   in the column menus with a short caption below each. Hides itself (CSS) while the menu's filter leaves no action. *@
+
+<div class="quick-bar @(Captions ? "with-captions" : "")" role="toolbar">
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>The actions show a caption below the icon (column menus: few actions, room for words).</summary>
+    [Parameter]
+    public bool Captions { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

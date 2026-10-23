@@ -1002,4 +1002,13 @@
   <data name="Columns_PickedHint" xml:space="preserve">
     <value>{0} gewählt – Rechtsklick für ALTER TABLE</value>
   </data>
+  <data name="Columns_AddScriptGroup" xml:space="preserve">
+    <value>ALTER TABLE … ADD · {0}</value>
+  </data>
+  <data name="Columns_CopyAddScriptChip" xml:space="preserve">
+    <value>Kopieren</value>
+  </data>
+  <data name="Columns_FilterConnections" xml:space="preserve">
+    <value>Verbindungen filtern …</value>
+  </data>
 </root>

@@ -1,23 +1,32 @@
 @* The group of a right-click menu for marked cells or whole columns (WP-58): copy them tab-separated, as a table with the
-   headers, or – one column – as an IN list. Whole columns mean all their rows, read again. *@
+   headers, or – one column – as an IN list. Whole columns mean all their rows, read again. Lines under the quick bar
+   (WP-61), left out by the menu's filter like the other lines. *@
 
-<div class="group-head-btn static">@Menu.Marks.Text</div>
-<button class="menu-item" title="@Title(Menu.Marks.Whole ? GridText.GridMenu_CopyColumnsTitle : GridText.GridMenu_CopyCellsTitle)" @onclick="() => CopyAsync(MarksCopy.Cells)">
-    @(Menu.Marks.Whole ? GridText.ColumnMenu_CopyValues : GridText.GridMenu_CopyCells)
-</button>
-<button class="menu-item" title="@Title(GridText.GridMenu_CopyTableTitle)" @onclick="() => CopyAsync(MarksCopy.Table)">@GridText.GridMenu_CopyTable</button>
-<button class="menu-item" disabled="@(Menu.InListUnavailable is not null)" title="@(Menu.InListUnavailable ?? Title(GridText.GridMenu_CopyColumnInListTitle))"
-        @onclick="() => CopyAsync(MarksCopy.InList)">@GridText.ColumnMenu_CopyInList</button>
+@if (Filter?.Active != true || Labels().Any(l => Filter.Matches(l, Menu.Marks.Text)))
+{
+    <div class="group-head-btn static">@Menu.Marks.Text</div>
+}
+<MenuEntry Label="@(Menu.Marks.Whole ? GridText.ColumnMenu_CopyValues : GridText.GridMenu_CopyCells)" Group="@Menu.Marks.Text"
+           Title="@Title(Menu.Marks.Whole ? GridText.GridMenu_CopyColumnsTitle : GridText.GridMenu_CopyCellsTitle)" OnClick="() => CopyAsync(MarksCopy.Cells)" />
+<MenuEntry Label="@GridText.GridMenu_CopyTable" Group="@Menu.Marks.Text" Title="@Title(GridText.GridMenu_CopyTableTitle)" OnClick="() => CopyAsync(MarksCopy.Table)" />
+<MenuEntry Label="@GridText.ColumnMenu_CopyInList" Group="@Menu.Marks.Text" Unavailable="@Menu.InListUnavailable" Title="@Title(GridText.GridMenu_CopyColumnInListTitle)"
+           OnClick="() => CopyAsync(MarksCopy.InList)" />
 
 @code {
+    [CascadingParameter]
+    public MenuFilter? Filter { get; set; }
+
     [Parameter, EditorRequired]
     public MarksMenu Menu { get; set; } = null!;
 
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    /// <summary>Rows of the group – heading and three entries – for the menu's estimated height.</summary>
+    /// <summary>Lines of the group – heading and three entries – for the menu's estimated height.</summary>
     public const int Entries = 4;
+
+    private IEnumerable<string> Labels() =>
+        [Menu.Marks.Whole ? GridText.ColumnMenu_CopyValues : GridText.GridMenu_CopyCells, GridText.GridMenu_CopyTable, GridText.ColumnMenu_CopyInList];
 
     private string Title(string first) => Menu.AllRowsTooltip is { } all ? first + Environment.NewLine + all : first;
 

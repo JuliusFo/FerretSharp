@@ -1,45 +1,62 @@
-@* Right-click menu of a column header: pin the column to the left or release it; select it as a whole (WP-58); mark it as the
-   table's display column (WP-31); copy all its values under the tab's filter (WP-57). *@
+@* Right-click menu of a column header, built from the cell menu's blocks (WP-61): the column with its facts as head – NULL,
+   primary key, foreign keys, C# property and CLR type, comment –, a quick bar with captions to pin the column or release it,
+   select it as a whole (WP-58), mark it as the table's display column (WP-31) and copy its name; chips that copy all its
+   values under the tab's filter (WP-57); its ALTER TABLE … ADD for the same table elsewhere – with every column marked with
+   it –, and the tables its foreign keys point to. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Display
 @using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject DisplayColumnSource DisplaySource
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
-             Width="300" EstimatedHeight="@(169 + 44 * ColumnValuesMenuItems.Entries)" OnClose="OnClose">
-    <div class="ctx-head">
-        <span class="ctx-col">@Column.Name</span>
-        <span class="ctx-value">@Column.DisplayType</span>
-    </div>
-    @if (Details.PrimaryKey.Contains(Column.Name))
-    {
-        <button class="menu-item" disabled title="@GridText.ColumnMenu_PkPinnedTitle">@GridText.ColumnMenu_PkPinned</button>
-    }
-    else
-    {
-        <button class="menu-item" @onclick="ToggleAsync">@(Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)</button>
-    }
-    <button class="menu-item" title="@GridText.ColumnMenu_MarkColumnTitle" @onclick="MarkAsync">@GridText.ColumnMenu_MarkColumn</button>
+             Width="340" EstimatedHeight="@EstimatedHeight" KeyNavigation="true" OnClose="OnClose">
+    <ColumnMenuHead Column="Column" PrimaryKey="@Details.PrimaryKey.Contains(Column.Name)" ForeignKeys="_foreignKeys" Property="_property" />
     @{
+        var primary = Details.PrimaryKey.Contains(Column.Name);
         var display = DisplaySource.Current();
         var isDisplay = display.Columns.ColumnOf(Details.Table.Name) == Column.Name;
         var notPossible = display.Error ?? display.ReadOnly
                           ?? (isDisplay ? null : Details.Table.Kind == TableKind.View ? GridText.ColumnMenu_DisplayView : DisplayColumns.NotDisplayableReason(Column));
     }
-    <div class="menu-sep"></div>
-    <button class="menu-item" disabled="@(notPossible is not null)" @onclick="() => SetDisplayAsync(isDisplay ? null : Column.Name)"
-            title="@(notPossible ?? (isDisplay ? null : TextFormat.Format(GridText.ColumnMenu_UseAsDisplayTitle, Details.Table.DisplayName, display.Path)))">
-        @(isDisplay ? GridText.ColumnMenu_RemoveDisplay : GridText.ColumnMenu_UseAsDisplay)
-    </button>
-    <ColumnValuesMenuItems Column="Column" Presented="@PresentedExport.Column(Presentations.For(Details), Request.Column, Column.Name, Request.Column)"
-                           All="@ColumnValueCopies.ForTable(Tab, Details, [Request.Column], Workspaces.GetDataAsync)" OnClose="OnClose"
-                           Pending="@(Tab.Changes?.PendingIn([Request.Column]) ?? 0)" />
+    <QuickBar Captions="true">
+        <QuickAction Icon="Icons.Pin" Caption="@GridText.Caption_Pin" Label="@(primary ? GridText.ColumnMenu_PkPinned : Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)"
+                     Active="@(Pinned || primary)" Unavailable="@(primary ? GridText.ColumnMenu_PkPinnedTitle : null)" OnClick="ToggleAsync" />
+        <QuickAction Icon="Icons.SelectColumn" Caption="@GridText.Caption_Select" Label="@GridText.ColumnMenu_MarkColumn" Title="@GridText.ColumnMenu_MarkColumnTitle" OnClick="MarkAsync" />
+        <QuickAction Icon="Icons.Star" Caption="@GridText.Caption_Display" Label="@(isDisplay ? GridText.ColumnMenu_RemoveDisplay : GridText.ColumnMenu_UseAsDisplay)" Active="isDisplay"
+                     Unavailable="@notPossible" Title="@(isDisplay ? null : TextFormat.Format(GridText.ColumnMenu_UseAsDisplayTitle, Details.Table.DisplayName, display.Path))"
+                     OnClick="() => SetDisplayAsync(isDisplay ? null : Column.Name)" />
+        <QuickAction Icon="Icons.Copy" Caption="@GridText.Caption_Name" Label="@GridText.ColumnMenu_CopyName" Title="@Column.Name" OnClick="CopyNameAsync" />
+    </QuickBar>
+    <AllValueChips Column="Column" Presented="@PresentedExport.Column(Presentations.For(Details), Request.Column, Column.Name, Request.Column)"
+                   All="@ColumnValueCopies.ForTable(Tab, Details, [Request.Column], Workspaces.GetDataAsync)" OnClose="OnClose"
+                   Pending="@(Tab.Changes?.PendingIn([Request.Column]) ?? 0)" />
+    @if (Details.Table.Kind == TableKind.Table)
+    {
+        <AddColumnsMenuItems Details="Details" Columns="AddedColumns" OnClose="OnClose" />
+    }
+    @if (_foreignKeys.Count > 0)
+    {
+        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_PointsTo, "")</div>
+        @foreach (var fk in _foreignKeys)
+        {
+            <button type="button" class="menu-item ctx-jump one-line" title="@ColumnFacts.Title(fk)" @onclick="() => OpenTargetAsync(fk)">
+                <span class="ctx-arrow">→</span>
+                <span class="ctx-table">@FkTargets.Label(Active, fk.To)</span>
+                <span class="ctx-open">@GridText.ColumnMenu_OpenTable</span>
+            </button>
+        }
+    }
 </PopoverMenu>
 
 @code {
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
 
     [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
@@ -71,7 +88,29 @@
     [Parameter]
     public EventCallback<int> OnMarkColumn { get; set; }
 
+    /// <summary>The foreign keys over the column (constraints, the C# model and the rest), each target once.</summary>
+    private IReadOnlyList<ForeignKeyInfo> _foreignKeys = [];
+
+    /// <summary>The column's C# property (WP-11); null without a model or mapping.</summary>
+    private PropertyExport? _property;
+
+    private DomModule? _dom;
+
+    /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
     private ColumnInfo Column => Details.Columns[Request.Column];
+
+    /// <summary>The column and those marked with it, in display order (WP-58).</summary>
+    private IReadOnlyList<string> AddedColumns => Request.Marked is { Count: > 1 } marked ? [.. marked.Select(i => Details.Columns[i].Name)] : [Column.Name];
+
+    private double EstimatedHeight => 300 + (Details.Table.Kind == TableKind.Table ? 110 : 0) + 30 * _foreignKeys.Count + (Column.Comment is null ? 0 : 30);
+
+    protected override void OnInitialized()
+    {
+        _foreignKeys = ColumnFacts.ForeignKeysOf(Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [], Column.Name);
+        _property = Presentations.For(Details).PropertyOf(Request.Column);
+    }
 
     private async Task MarkAsync()
     {
@@ -83,6 +122,22 @@
     {
         await OnClose.InvokeAsync();
         await OnTogglePin.InvokeAsync(Request.Column);
+    }
+
+    private async Task CopyNameAsync()
+    {
+        if (await Dom.CopyTextAsync(Shell, Column.Name))
+        {
+            Shell.Notify(TextFormat.Format(GridText.ColumnMenu_NameCopied, Column.Name));
+        }
+
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task OpenTargetAsync(ForeignKeyInfo fk)
+    {
+        await OnClose.InvokeAsync();
+        Shell.OpenTable(FkTargets.SummaryOf(Active, fk.To));
     }
 
     /// <summary>
@@ -105,4 +160,6 @@
             Shell.Notify(ex.Message);
         }
     }
+
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
 }

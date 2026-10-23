@@ -1,0 +1,56 @@
+@* The head of a column menu (WP-61): name and type, then what the column is – NULL allowed or NOT NULL, primary key, the
+   tables its foreign keys point to, its C# property with the CLR type – and its comment. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+
+<div class="ctx-head-block">
+    <div class="ctx-head">
+        <span class="ctx-col">@Column.Name</span>
+        <span class="ctx-value">@Column.DisplayType</span>
+    </div>
+    @if (Facts)
+    {
+        <div class="ctx-facts">
+            <span class="ctx-fact">@(Column.Nullable ? GridText.ColumnFact_Nullable : "NOT NULL")</span>
+            @if (PrimaryKey)
+            {
+                <span class="ctx-fact key">PK</span>
+            }
+            @foreach (var fk in ForeignKeys)
+            {
+                <span class="ctx-fact fk" title="@ColumnFacts.Title(fk)">FK → @FkTargets.Label(Active, fk.To)</span>
+            }
+            @if (Property is { } property)
+            {
+                <span class="ctx-fact clr" title="@GridText.ColumnFact_PropertyTitle">C# @property.Name · @TablePresentation.ClrTypeText(property)</span>
+            }
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Column.Comment))
+    {
+        <div class="ctx-comment">@Column.Comment</div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ColumnInfo Column { get; set; } = null!;
+
+    /// <summary>The facts line: a table's column; a query result's column knows only its type.</summary>
+    [Parameter]
+    public bool Facts { get; set; } = true;
+
+    [Parameter]
+    public bool PrimaryKey { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ForeignKeyInfo> ForeignKeys { get; set; } = [];
+
+    /// <summary>The column's C# property (WP-11); null without a model or mapping.</summary>
+    [Parameter]
+    public PropertyExport? Property { get; set; }
+}

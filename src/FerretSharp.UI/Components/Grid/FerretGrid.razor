@@ -975,8 +975,9 @@
     });
 
     [JSInvokable]
-    public Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight) =>
-        GuardAsync(() => OnColumnMenu.InvokeAsync(new ColumnMenuRequest(ColumnIndex(colId), x, y, viewportWidth, viewportHeight)));
+    public Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight, GridMarks? marks) =>
+        GuardAsync(() => OnColumnMenu.InvokeAsync(new ColumnMenuRequest(ColumnIndex(colId), x, y, viewportWidth, viewportHeight,
+            marks is { Whole: true } && marks.Columns.Contains(colId) ? marks.ColumnIndexes : null)));
 
     [JSInvokable]
     public Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel) =>
