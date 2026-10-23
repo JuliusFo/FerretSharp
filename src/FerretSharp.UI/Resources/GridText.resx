@@ -135,10 +135,6 @@
     <value>Discard pending changes</value>
     <comment>Menu item</comment>
   </data>
-  <data name="GridMenu_ExportGroup" xml:space="preserve">
-    <value>Export · {0}</value>
-    <comment>Menu group heading; {0}: number of rows, e.g. "3 rows"</comment>
-  </data>
   <data name="GridMenu_CopyTableTitle" xml:space="preserve">
     <value>Tab-separated with a header row – paste it straight into Excel</value>
     <comment>Tooltip</comment>
@@ -1217,17 +1213,9 @@
   <data name="Compare_FooterNoteResult" xml:space="preserve">
     <value>Differing values marked · values as shown in the result</value>
   </data>
-  <data name="GridMenu_CopyColumn" xml:space="preserve">
-    <value>Copy column {0}</value>
-    <comment>Cell menu entry (WP-57); {0}: column name</comment>
-  </data>
   <data name="GridMenu_CopyColumnTitle" xml:space="preserve">
     <value>The values of this column from the selected rows, one per line, as shown – pending changes included, like Ctrl+C</value>
     <comment>Tooltip; {0}: shortcut hint like " (Ctrl+…)" or empty</comment>
-  </data>
-  <data name="GridMenu_CopyColumnInList" xml:space="preserve">
-    <value>Copy column {0} as IN list</value>
-    <comment>Cell menu entry (WP-57); {0}: column name</comment>
   </data>
   <data name="GridMenu_CopyColumnInListTitle" xml:space="preserve">
     <value>The database values as Oracle literals for an IN list ('A', 'B'): each value once, without NULL</value>
@@ -1478,14 +1466,6 @@
   </data>
   <data name="GridMenu_CopyToConnectionView" xml:space="preserve">
     <value>Only rows of tables can be copied.</value>
-  </data>
-  <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
-    <value>Other connection · {0}</value>
-    <comment>Group heading in the cell menu; {0}: e.g. '3 rows'</comment>
-  </data>
-  <data name="GridMenu_RecordsGroup" xml:space="preserve">
-    <value>Record diagram · {0}</value>
-    <comment>Group heading in the cell menu; {0}: e.g. '3 rows'</comment>
   </data>
   <data name="GridMenu_Records" xml:space="preserve">
     <value>Show connected records</value>

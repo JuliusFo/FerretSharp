@@ -108,9 +108,6 @@
   <data name="GridMenu_DiscardPending" xml:space="preserve">
     <value>Ausstehende Änderungen verwerfen</value>
   </data>
-  <data name="GridMenu_ExportGroup" xml:space="preserve">
-    <value>Export · {0}</value>
-  </data>
   <data name="GridMenu_CopyTableTitle" xml:space="preserve">
     <value>Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen</value>
   </data>
@@ -960,14 +957,8 @@
   <data name="Compare_FooterNoteResult" xml:space="preserve">
     <value>Abweichende Werte markiert · Werte wie im Ergebnis</value>
   </data>
-  <data name="GridMenu_CopyColumn" xml:space="preserve">
-    <value>Spalte {0} kopieren</value>
-  </data>
   <data name="GridMenu_CopyColumnTitle" xml:space="preserve">
     <value>Die Werte dieser Spalte aus den markierten Zeilen, einer je Zeile, wie angezeigt – mit ausstehenden Änderungen, wie Ctrl+C</value>
-  </data>
-  <data name="GridMenu_CopyColumnInList" xml:space="preserve">
-    <value>Spalte {0} als IN-Liste kopieren</value>
   </data>
   <data name="GridMenu_CopyColumnInListTitle" xml:space="preserve">
     <value>Die Datenbankwerte als Oracle-Literale für eine IN-Liste ('A', 'B'): jeder Wert einmal, ohne NULL</value>
@@ -1166,12 +1157,6 @@
   </data>
   <data name="GridMenu_CopyToConnectionView" xml:space="preserve">
     <value>Kopieren lassen sich nur Zeilen von Tabellen.</value>
-  </data>
-  <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
-    <value>Andere Verbindung · {0}</value>
-  </data>
-  <data name="GridMenu_RecordsGroup" xml:space="preserve">
-    <value>Datensatz-Diagramm · {0}</value>
   </data>
   <data name="GridMenu_Records" xml:space="preserve">
     <value>Verbundene Datensätze zeigen</value>

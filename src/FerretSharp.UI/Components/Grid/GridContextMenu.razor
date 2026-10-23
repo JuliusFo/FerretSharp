@@ -42,7 +42,7 @@
                              OnClick="OpenLobAsync" />
             }
             @{ var primary = Details.PrimaryKey.Contains(Column.Name); }
-            <QuickAction Icon="Icons.Pin" Label="@(Pinned || primary ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)" Active="@(Pinned || primary)"
+            <QuickAction Icon="Icons.Pin" Label="@(primary ? GridText.ColumnMenu_PkPinned : Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)" Active="@(Pinned || primary)"
                          Unavailable="@(primary ? GridText.ColumnMenu_PkPinnedTitle : null)" OnClick="TogglePinAsync" />
             <FormQuickAction Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
             <QuickAction Icon="Icons.Records" Label="@($"{GridText.GridMenu_Records} · {RowsText(Request.JumpRows.Count)}")" Title="@GridText.GridMenu_RecordsTitle"

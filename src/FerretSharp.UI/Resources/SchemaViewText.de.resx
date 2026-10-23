@@ -981,9 +981,6 @@
   <data name="Columns_PickedOther" xml:space="preserve">
     <value>{0:N0} Spalten</value>
   </data>
-  <data name="Columns_CopyAddScript" xml:space="preserve">
-    <value>Als ALTER TABLE … ADD kopieren</value>
-  </data>
   <data name="Columns_CopyAddScriptTitle" xml:space="preserve">
     <value>ALTER TABLE … ADD für die gewählten Spalten und COMMENT ON COLUMN für ihre Kommentare – um sie in derselben Tabelle auf einer anderen Datenbank hinzuzufügen.</value>
   </data>

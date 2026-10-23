@@ -1196,9 +1196,6 @@
     <value>{0:N0} columns</value>
     <comment>{0}: number of columns</comment>
   </data>
-  <data name="Columns_CopyAddScript" xml:space="preserve">
-    <value>Copy as ALTER TABLE … ADD</value>
-  </data>
   <data name="Columns_CopyAddScriptTitle" xml:space="preserve">
     <value>ALTER TABLE … ADD for the picked columns and COMMENT ON COLUMN for their comments – to add them to the same table on another database.</value>
   </data>
