@@ -3,6 +3,7 @@
    the rows along its relationships of that side (one read per relationship, on the workspace's session, cancellable);
    the context menu follows one relationship. A click on the name opens the row's table filtered on it, a click on the row
    marks it for a copy to another connection (WP-42). Values only in memory; the tab saves the keys and what was expanded. *@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Display
@@ -25,7 +26,7 @@
             <span class="muted">@TextFormat.Plural(State.Diagram?.RowCount ?? 0, SchemaViewText.Records_RowsOne, SchemaViewText.Records_RowsOther)</span>
             @foreach (var source in Sources)
             {
-                <span class="relations-source"><span class="relations-swatch @KindClass(source)"></span>@SourceLabel(source)</span>
+                <span class="relations-source"><span class="relations-swatch @DiagramStyle.KindClass(source)"></span>@DiagramStyle.SourceLabel(source)</span>
             }
             <span class="spacer"></span>
             @if (State.Marked.Count == 0)
@@ -38,13 +39,13 @@
                 <span class="muted">@TextFormat.Plural(State.Marked.Count, SchemaViewText.Records_MarkedOne, SchemaViewText.Records_MarkedOther)</span>
                 <button class="btn" disabled="@(copyUnavailable is not null || Running)" title="@(copyUnavailable ?? GridText.GridMenu_CopyToConnectionTitle)"
                         @onclick="OpenCopyAsync">@GridText.GridMenu_CopyToConnection</button>
-                <button class="btn ghost" @onclick="State.ClearMarks">@SchemaViewText.Records_ClearMarks</button>
+                <button class="btn ghost" disabled="@Running" @onclick="State.ClearMarks">@SchemaViewText.Records_ClearMarks</button>
             }
             <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!State.CanZoomOut)" @onclick="State.ZoomOut">−</button>
             <button class="btn ghost relations-zoom" title="@SchemaViewText.Relations_ZoomReset" @onclick="State.ResetZoom">@($"{State.Zoom:P0}")</button>
             <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!State.CanZoomIn)" @onclick="State.ZoomIn">+</button>
             <button class="btn ghost" title="@SchemaViewText.Records_ResetTitle" disabled="@(!State.Changed || Running)" @onclick="ResetAsync">@CommonText.Reset</button>
-            <button class="btn ghost" title="@SchemaViewText.Records_CopyMermaidTitle" disabled="@(State.Diagram is null)" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
+            <button class="btn ghost" title="@SchemaViewText.Records_CopyMermaidTitle" disabled="@(State.Diagram is null || Running)" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
             <button class="icon-btn ghost" title="@(CommonText.Reload + Shortcuts.Hint(ShortcutAction.Refresh))" disabled="@Running" @onclick="LoadAsync">@Icons.Refresh</button>
         </div>
 
@@ -99,7 +100,7 @@
                                     var link = diagram.EdgeOf(edge.Id);
                                     var relation = link?.Relation ?? diagram.Groups.FirstOrDefault(g => g.Id == edge.Id)?.Relation;
                                     var end = edge.Points[^1];
-                                    <g class="relations-edge @(relation is null ? "group" : KindClass(relation.Source)) @EdgeState(edge)" title="@(relation is null ? null : EdgeTitle(relation))">
+                                    <g class="relations-edge @(relation is null ? "group" : DiagramStyle.KindClass(relation.Source)) @DiagramStyle.EdgeState(edge, _hover?.Id)" title="@(relation is null ? null : EdgeTitle(relation))">
                                         <path class="hit" d="@edge.Svg" />
                                         <path class="line" d="@edge.Svg" />
                                         <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
@@ -113,9 +114,9 @@
                                 var parents = diagram.Pending(node, DiagramSide.Parents).Count;
                                 var children = diagram.Pending(node, DiagramSide.Children).Count;
                                 var open = OpenUnavailable(node);
-                                <div id="@(node == FirstStart ? FocusId : null)" class="relations-node record @(diagram.Start.Contains(node) ? "focus" : "") @(State.IsMarked(node) ? "marked" : "") @NodeState(node, lit)"
+                                <div id="@(node == FirstStart ? FocusId : null)" class="relations-node record @(diagram.Start.Contains(node) ? "focus" : "") @(State.IsMarked(node) ? "marked" : "") @DiagramStyle.NodeState(node, _hover, lit)"
                                      style="@DiagramStyle.Box(box)"
-                                     @onclick="() => State.ToggleMark(node)"
+                                     @onclick="() => ToggleMark(node)"
                                      @onmouseenter="() => _hover = node" @onmouseleave="() => Leave(node)" @oncontextmenu="e => OpenMenuAsync(e, node)" @oncontextmenu:preventDefault="true">
                                     @if (parents > 0)
                                     {
@@ -143,7 +144,7 @@
                                             <span class="relations-name">@TextFormat.Format(SchemaViewText.Records_Group, members.Count, NameOf(g.Table))</span>
                                             <span class="relations-sub">@TextFormat.Format(SchemaViewText.Records_GroupVia, g.Relation.Name)</span>
                                         </span>
-                                        <button class="btn small" @onclick="() => Change(() => State.Open(g), anchor: g.Node)">@SchemaViewText.Relations_GroupShow</button>
+                                        <button class="btn small" disabled="@Running" @onclick="() => Change(() => State.Open(g), anchor: g.Node)">@SchemaViewText.Relations_GroupShow</button>
                                     </div>
                                 }
                             }
@@ -163,7 +164,7 @@
     <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="320"
                  EstimatedHeight="@(120 + 28 * (parents.Count + children.Count))" OnClose="() => _menu = null">
         <button class="menu-item" disabled="@(open is not null)" title="@open" @onclick="() => FromMenu(() => OpenRow(menu.Node))">@SchemaViewText.Records_MenuOpen</button>
-        <button class="menu-item" @onclick="() => FromMenu(() => State.ToggleMark(menu.Node))">
+        <button class="menu-item" disabled="@Running" @onclick="() => FromMenu(() => ToggleMark(menu.Node))">
             @(State.IsMarked(menu.Node) ? SchemaViewText.Records_MenuUnmark : SchemaViewText.Records_MenuMark)
         </button>
         @foreach (var (side, relations, heading) in new[] { (DiagramSide.Parents, parents, SchemaViewText.Records_MenuParents), (DiagramSide.Children, children, SchemaViewText.Records_MenuChildren) })
@@ -210,6 +211,8 @@
     private bool _disposed;
     private DomModule? _dom;
     private SubgraphCopyDraft? _copy;
+    private readonly Dictionary<TableDetails, TablePresentation> _presentations = new(ReferenceEqualityComparer.Instance);
+    private (int Model, int DisplayColumns)? _presentationsFor;
 
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
@@ -433,6 +436,15 @@
         Shell.MarkDirty();
     }
 
+    /// <summary>Not while a read runs (review): a reload replaces the diagram, and marks of rows it no longer shows go.</summary>
+    private void ToggleMark(RecordNode node)
+    {
+        if (!Running)
+        {
+            State.ToggleMark(node);
+        }
+    }
+
     private void Leave(RecordNode node)
     {
         if (_hover == node)
@@ -539,7 +551,7 @@
             return "";
         }
 
-        var presentation = Presentations.For(details);
+        var presentation = PresentationOf(details);
         var key = node.Key is RowKey.PrimaryKey
             ? string.Join(" · ", details.PrimaryKey.Select(details.IndexOf).Where(i => i >= 0).Select(i => presentation.Present(i, row.Values[i]).Text))
             : "ROWID";
@@ -549,38 +561,32 @@
             : key;
     }
 
+    /// <summary>
+    /// The presentation of a table's values, built once per table (review: every hover rendered every row, and each built its
+    /// own); dropped when the C# model or the display columns change.
+    /// </summary>
+    private TablePresentation PresentationOf(TableDetails details)
+    {
+        if (_presentationsFor != (Presentations.Version, DisplayColumns.Version))
+        {
+            _presentations.Clear();
+            _presentationsFor = (Presentations.Version, DisplayColumns.Version);
+        }
+
+        if (!_presentations.TryGetValue(details, out var presentation))
+        {
+            _presentations[details] = presentation = Presentations.For(details);
+        }
+
+        return presentation;
+    }
+
     /// <summary>Kinds of relationship among the drawn links, for the legend.</summary>
     private IReadOnlyList<FkSource> Sources => State.Diagram is { } diagram
         ? [.. diagram.Edges.Select(e => e.Relation.Source).Concat(diagram.Groups.Select(g => g.Relation.Source)).Distinct().Order()]
         : [];
 
-    private string EdgeTitle(ForeignKeyInfo relation) => TextFormat.Format(SchemaViewText.Relations_EdgeTitle,
-        relation.Name, Label(relation.From), string.Join(", ", relation.FromColumns), Label(relation.To), string.Join(", ", relation.ToColumns),
-        relation.Source == FkSource.Declared ? SchemaViewText.Relations_KindDeclared : SourceLabel(relation.Source));
-
-    private static string SourceLabel(FkSource source) => source switch
-    {
-        FkSource.Declared => SchemaViewText.Relations_SourceDeclared,
-        FkSource.ClrModel => SchemaViewText.Relations_SourceClrModel,
-        FkSource.Manual => SchemaViewText.Relations_SourceManual,
-        _ => SchemaViewText.Relations_SourceConvention,
-    };
-
-    private static string KindClass(FkSource source) => source switch
-    {
-        FkSource.Declared => "declared",
-        FkSource.ClrModel => "clr",
-        _ => "other",
-    };
-
-    /// <summary>While the mouse rests on a row, its edges stand out and the rest fades.</summary>
-    private string EdgeState(EdgePath edge) =>
-        _hover is not { } hover ? ""
-        : edge.From == hover.Id || edge.To == hover.Id ? "lit"
-        : "faded";
-
-    private string NodeState(RecordNode node, IReadOnlySet<RecordNode> lit) =>
-        _hover is null || _hover == node ? "" : lit.Contains(node) ? "lit" : "faded";
+    private string EdgeTitle(ForeignKeyInfo relation) => DiagramStyle.EdgeTitle(relation, Label);
 
     /// <summary>The rows linked to the one under the mouse.</summary>
     private IReadOnlySet<RecordNode> Neighbours(RecordDiagram diagram) =>

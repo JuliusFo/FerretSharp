@@ -190,7 +190,7 @@ public sealed partial class ShellState
         }
 
         var keys = rows.Select(r => RecordKeys.ToText(details, r.Key)).OfType<IReadOnlyList<string>>()
-            .DistinctBy(k => string.Join("", k)).ToList();
+            .DistinctBy(k => string.Join("\u0001", k)).ToList();
         if (keys.Count == 0)
         {
             return null;

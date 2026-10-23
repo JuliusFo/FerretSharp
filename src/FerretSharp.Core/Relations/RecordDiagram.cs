@@ -30,6 +30,7 @@ public sealed class RecordDiagram
     private readonly List<RecordGroup> _groups = [];
     private readonly List<RecordProblem> _problems = [];
     private readonly List<RecordStep> _steps = [];
+    private RecordStep[]? _stepsTaken;
     private List<RecordEdge>? _edges;
     private Dictionary<string, RecordEdge>? _edgeById;
 
@@ -70,8 +71,12 @@ public sealed class RecordDiagram
     /// <summary>Rows shown as one node each, until opened.</summary>
     public IReadOnlyList<RecordGroup> Groups => _groups;
 
-    /// <summary>What the user did, in order: to build the diagram again (<see cref="ReplayAsync"/>).</summary>
-    public IReadOnlyList<RecordStep> Steps => _steps;
+    /// <summary>
+    /// What the user did, in order: to build the diagram again (<see cref="ReplayAsync"/>). A snapshot that later steps leave
+    /// as it is (review: holders of the list itself saw it grow – the saved state always equalled the next one, and a replay
+    /// over it broke when a step came in meanwhile).
+    /// </summary>
+    public IReadOnlyList<RecordStep> Steps => _stepsTaken ??= [.. _steps];
 
     /// <summary>
     /// Relationships that could not be followed: too many rows along them (<see cref="RecordProblem.TooMany"/>) or, from the
@@ -132,7 +137,7 @@ public sealed class RecordDiagram
             return [];
         }
 
-        _steps.Add(new RecordStep(RecordStepKind.Expand, [.. nodes.Distinct().Select(n => n.Id)], side));
+        AddStep(new RecordStep(RecordStepKind.Expand, [.. nodes.Distinct().Select(n => n.Id)], side));
         var shown = new List<RecordNode>();
         foreach (var along in pending.GroupBy(p => p.Relation))
         {
@@ -151,7 +156,7 @@ public sealed class RecordDiagram
             return [];
         }
 
-        _steps.Add(new RecordStep(RecordStepKind.Expand, [node.Id], side, RelationGraph.KeyOf(relation)));
+        AddStep(new RecordStep(RecordStepKind.Expand, [node.Id], side, RelationGraph.KeyOf(relation)));
         return await FollowAsync([node], relation, Direction(side), progress, cancellationToken);
     }
 
@@ -169,7 +174,7 @@ public sealed class RecordDiagram
             Show(node, group.Layer);
         }
 
-        _steps.Add(new RecordStep(RecordStepKind.Open, [group.Node.Id], group.Side, RelationGraph.KeyOf(group.Relation)));
+        AddStep(new RecordStep(RecordStepKind.Open, [group.Node.Id], group.Side, RelationGraph.KeyOf(group.Relation)));
         return members;
     }
 
@@ -284,6 +289,12 @@ public sealed class RecordDiagram
         _edges = null;
         _edgeById = null;
         return shown;
+    }
+
+    private void AddStep(RecordStep step)
+    {
+        _steps.Add(step);
+        _stepsTaken = null;
     }
 
     private void Show(RecordNode node, int layer)

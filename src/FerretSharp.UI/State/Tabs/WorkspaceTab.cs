@@ -212,15 +212,16 @@ public sealed class RecordTab(Guid workspaceId, TableSummary table, RecordDiagra
         _ => Table.DisplayName,
     };
 
-    /// <summary>
-    /// A copy of the steps: the diagram adds to its list, and a saved state sharing it would always equal the next one – the
-    /// workspace compares them before saving (E2E: the last expansion was lost on restart).
-    /// </summary>
     public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
-        TabState.OfRecords(new RecordTabState(Table.Owner, Table.Name, Diagram.RowIds, Diagram.Keys, [.. Diagram.Steps]));
+        TabState.OfRecords(new RecordTabState(Table.Owner, Table.Name, Diagram.RowIds, Diagram.Keys, Diagram.Steps));
 
+    /// <summary>
+    /// The tab of a saved state. No steps is a new diagram, expanded on both sides: a tab saved before its first load ended
+    /// (closed meanwhile, cancelled, the connection lost) has none (review) – and start rows without any relationship
+    /// expand to nothing either way.
+    /// </summary>
     public static RecordTab Restore(Guid workspaceId, TableSummary table, RecordTabState state) =>
-        new(workspaceId, table, new RecordDiagramState(table.Ref, state.RowIds, state.Keys, state.Steps));
+        new(workspaceId, table, new RecordDiagramState(table.Ref, state.RowIds, state.Keys, state.Steps.Count == 0 ? null : state.Steps));
 }
 
 /// <summary>

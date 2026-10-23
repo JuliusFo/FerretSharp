@@ -243,10 +243,12 @@ public sealed class RowTraversal(
         }
 
         // Read no more than the limit lets in, and add nothing if it is passed: the record diagram (WP-60) goes on with the
-        // graph as it was, so one relationship is followed whole or not at all.
-        var found = await data.ReadByKeysAsync(details, targetIndexes, toRead, wholeLobs, maxRows + 1, cancellationToken);
+        // graph as it was, so one relationship is followed whole or not at all. Rows the graph has already come back too and
+        // take no room (review: a relationship to mostly known rows was refused, a nearly full graph still read 2 001 rows).
         var before = graph.Of(target);
-        if (found.Count > maxRows || graph.RowCount + found.Count(r => before?.Contains(r.Key) != true) > maxRows)
+        var fits = maxRows - graph.RowCount + (before?.Rows.Count ?? 0);
+        var found = await data.ReadByKeysAsync(details, targetIndexes, toRead, wholeLobs, fits + 1, cancellationToken);
+        if (found.Count > fits || graph.RowCount + found.Count(r => before?.Contains(r.Key) != true) > maxRows)
         {
             throw new TooManyRowsException(maxRows);
         }

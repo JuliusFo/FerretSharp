@@ -285,14 +285,23 @@
     /// <summary>"Diagram" instead of the table of the preview (WP-60); only in memory.</summary>
     private bool _asDiagram;
 
+    /// <summary>The preview laid out for this plan (review: every render of the dialog laid it out again).</summary>
+    private SubgraphCopyPlan? _previewOf;
+    private DiagramPlacement? _preview;
+
     /// <summary>
     /// The preview as a diagram (WP-60): a node per table with its rows, new and existing ones, the edges along the relationships
     /// that link copied rows. A table with an error or warning of the check has its border in that colour, the messages as tooltip.
     /// </summary>
     private RenderFragment PreviewDiagram(SubgraphCopyPlan plan, RowGraph graph)
     {
-        var (nodes, edges) = CopyPreviewDiagram.ToLayout(plan, graph);
-        var placement = DiagramLayout.Arrange(nodes, edges, PreviewMetrics);
+        if (!ReferenceEquals(_previewOf, plan) || _preview is null)
+        {
+            var (nodes, edges) = CopyPreviewDiagram.ToLayout(plan, graph);
+            (_previewOf, _preview) = (plan, DiagramLayout.Arrange(nodes, edges, PreviewMetrics));
+        }
+
+        var placement = _preview;
         var issues = Draft.Issues;
         return @<div class="relations-view copy-diagram">
             <div class="relations-canvas">
@@ -303,7 +312,7 @@
                             {
                                 var relation = Draft.Relations.Find(edge.Id);
                                 var end = edge.Points[^1];
-                                <g class="relations-edge @(relation?.Source == FkSource.Declared ? "declared" : relation?.Source == FkSource.ClrModel ? "clr" : "other")" title="@relation?.Name">
+                                <g class="relations-edge @(relation is null ? "other" : Schema.DiagramStyle.KindClass(relation.Source))" title="@relation?.Name">
                                     <path class="hit" d="@edge.Svg" />
                                     <path class="line" d="@edge.Svg" />
                                     <circle cx="@Schema.DiagramStyle.Px(end.X)" cy="@Schema.DiagramStyle.Px(end.Y)" r="3" />

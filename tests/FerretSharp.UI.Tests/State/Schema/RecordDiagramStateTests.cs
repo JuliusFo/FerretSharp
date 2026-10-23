@@ -1,6 +1,7 @@
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Relations;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
 using NSubstitute;
 
@@ -29,24 +30,34 @@ public sealed class RecordDiagramStateTests
     /// <summary>Thrown by every read once set (a lost session).</summary>
     private Exception? _failure;
 
+    /// <summary>Reads so far, and the one that waits for <see cref="_hold"/> (to do something while a load is under way).</summary>
+    private int _reads;
+    private int _holdAt;
+    private TaskCompletionSource? _hold;
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public RecordDiagramStateTests()
     {
-        _data.ReadByKeysAsync(default!, default, default!, default, default, default).ReturnsForAnyArgs(call =>
-        {
-            if (_failure is not null)
-            {
-                return Task.FromException<IReadOnlyList<RowData>>(_failure);
-            }
+        _data.ReadByKeysAsync(default!, default, default!, default, default, default).ReturnsForAnyArgs(call => ReadAsync(
+            call.ArgAt<TableDetails>(0), call.ArgAt<IReadOnlyList<int>?>(1)!, call.ArgAt<IReadOnlyList<IReadOnlyList<object>>>(2)));
+    }
 
-            var table = call.ArgAt<TableDetails>(0);
-            var columns = call.ArgAt<IReadOnlyList<int>?>(1)!;
-            var keys = call.ArgAt<IReadOnlyList<IReadOnlyList<object>>>(2);
-            return Task.FromResult<IReadOnlyList<RowData>>([.. _rows[table.Table.Ref]
-                .Where(row => keys.Any(key => columns.Select((c, i) => Equals(row[c], key[i])).All(same => same)))
-                .Select(row => new RowData(new RowKey.PrimaryKey([row[0]]), row))]);
-        });
+    private async Task<IReadOnlyList<RowData>> ReadAsync(TableDetails table, IReadOnlyList<int> columns, IReadOnlyList<IReadOnlyList<object>> keys)
+    {
+        if (_failure is not null)
+        {
+            throw _failure;
+        }
+
+        if (++_reads == _holdAt && _hold is { } hold)
+        {
+            await hold.Task;
+        }
+
+        return [.. _rows[table.Table.Ref]
+            .Where(row => keys.Any(key => columns.Select((c, i) => Equals(row[c], key[i])).All(same => same)))
+            .Select(row => new RowData(new RowKey.PrimaryKey([row[0]]), row))];
     }
 
     private static ColumnInfo Col(string name) => new(name, "NUMBER", null, false, 10, 0, name != "ID", false, null, 0);
@@ -131,6 +142,56 @@ public sealed class RecordDiagramStateTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => LoadAsync(state));
 
         Assert.Same(shown, state.Diagram);
+    }
+
+    /// <summary>Review: start rows deleted in another workspace (not yet committed) come back after its rollback.</summary>
+    [Fact]
+    public async Task Start_rows_that_are_gone_keep_the_steps_for_when_they_are_back()
+    {
+        var state = NewState("100");
+        await LoadAsync(state);
+        await state.ExpandAsync(Node(Kunde, 1m), DiagramSide.Children, null, Ct);
+        var row = _rows[Auftrag.Table.Ref][0];
+        _rows[Auftrag.Table.Ref].Remove(row);
+
+        await LoadAsync(state);
+        Assert.True(state.StartGone);
+        Assert.Equal(3, state.Steps.Count);
+
+        _rows[Auftrag.Table.Ref].Insert(0, row);
+        await LoadAsync(state);
+        Assert.Contains(state.Diagram!.Rows, r => r.Node == Node(Auftrag, 101m));
+    }
+
+    /// <summary>Review: a tab saved before its first load ended has no steps, and came back without its parents and children.</summary>
+    [Fact]
+    public async Task A_tab_saved_without_steps_comes_back_as_a_new_diagram()
+    {
+        var saved = new RecordTabState("APP", "AUFTRAG", RowIds: false, [["100"]], []);
+
+        var tab = RecordTab.Restore(Guid.NewGuid(), Auftrag.Table, saved);
+        await LoadAsync(tab.Diagram);
+
+        Assert.Contains(tab.Diagram.Diagram!.Rows, r => r.Node == Node(Kunde, 1m));
+        Assert.False(tab.Diagram.Changed);
+    }
+
+    /// <summary>Review: the reload went over the old diagram's steps while a group of it was opened.</summary>
+    [Fact]
+    public async Task A_step_on_the_old_diagram_during_a_reload_does_not_break_it()
+    {
+        var state = NewState("100");
+        await LoadAsync(state);
+        var old = state.Diagram!;
+        _hold = new TaskCompletionSource();
+        _holdAt = _reads + 2; // the start rows, then the first step of the replay waits, inside its loop over the steps
+
+        var load = LoadAsync(state);
+        await old.ExpandAsync([Node(Kunde, 1m)], DiagramSide.Children, null, Ct); // a step on the diagram still shown
+        _hold.SetResult();
+        await load;
+
+        Assert.Equal(2, state.Steps.Count);
     }
 
     [Fact]

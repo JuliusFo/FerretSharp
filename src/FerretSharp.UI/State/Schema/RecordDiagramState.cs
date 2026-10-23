@@ -44,8 +44,11 @@ public sealed class RecordDiagramState
 
     public DiagramPlacement? Placement { get; private set; }
 
-    /// <summary>What to save: the steps of the diagram shown, or those saved if it has not been loaded yet.</summary>
-    public IReadOnlyList<RecordStep> Steps => Diagram?.Steps ?? _steps ?? [];
+    /// <summary>
+    /// What to save: the steps of the diagram shown, or those to do if it has not been loaded yet – or found none of its start
+    /// rows (review: they may come back after a rollback, and their steps with them). Empty for a new diagram.
+    /// </summary>
+    public IReadOnlyList<RecordStep> Steps => Diagram is { Start.Count: > 0 } diagram ? diagram.Steps : _steps ?? [];
 
     /// <summary>Something was done since the start rows were expanded (the first two steps of a new diagram).</summary>
     public bool Changed => Steps.Count > InitialSteps;
@@ -91,11 +94,14 @@ public sealed class RecordDiagramState
     public async Task LoadAsync(
         RowTraversal traversal, RelationGraph relations, TableDetails table, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
     {
+        // The steps of the diagram shown (a snapshot, taken now) or those saved; null for a new diagram. Kept if no start row
+        // is found (review: the rows may be back after a rollback, and their steps with them).
+        var steps = Diagram is { Start.Count: > 0 } shown ? shown.Steps : _steps;
         var keys = Keys.Select(k => RecordKeys.FromText(table, RowIds, k)).OfType<RowKey>().ToList();
         var diagram = await RecordDiagram.StartAsync(traversal, relations, table, keys, cancellationToken);
         if (diagram.Start.Count > 0)
         {
-            if (_steps is { } steps)
+            if (steps is not null)
             {
                 await diagram.ReplayAsync(steps, progress, cancellationToken);
             }
@@ -109,7 +115,7 @@ public sealed class RecordDiagramState
 
         var previous = Diagram is null ? null : Placement;
         Diagram = diagram;
-        _steps = diagram.Steps;
+        _steps = diagram.Start.Count > 0 ? diagram.Steps : steps;
         _marked.RemoveWhere(n => !diagram.IsShown(n));
         Arrange(previous);
     }

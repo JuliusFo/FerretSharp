@@ -155,15 +155,47 @@ public class RecordDiagramTests
     }
 
     [Fact]
-    public async Task Reading_stops_one_row_past_the_limit()
+    public async Task Reading_stops_one_row_past_the_room_left()
     {
         var diagram = await StartAsync(_kunde, [[1m]], maxRows: 2);
 
         await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, null, Ct);
 
-        Assert.Equal(3, _db.Data.ReceivedCalls().Where(c => c.GetMethodInfo().Name == nameof(IDataAccess.ReadByKeysAsync))
-            .Select(c => (int?)c.GetArguments()[4]).Last());
+        // One row of two is taken by the customer, no order is known yet: one fits, the second read says there are more.
+        Assert.Equal(2, LastReadLimit());
     }
+
+    /// <summary>Review: rows the graph has already come back along the relationship too, and take no room.</summary>
+    [Fact]
+    public async Task Rows_the_graph_has_already_do_not_count_against_the_limit()
+    {
+        var diagram = await StartAsync(_auftrag, [[100m], [101m]], maxRows: 3);
+        await diagram.ExpandAsync(Node(_auftrag, 100m), _auftragKunde, DiagramSide.Parents, null, Ct); // the customer: 3 rows
+
+        await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, null, Ct); // orders 100 and 101, both known
+
+        Assert.Empty(diagram.Problems);
+        Assert.Equal(3, diagram.RowCount);
+        Assert.Equal(3, LastReadLimit()); // no room left, but the two known orders may come back
+    }
+
+    /// <summary>Review: a replay went over the list the diagram kept adding to.</summary>
+    [Fact]
+    public async Task The_steps_are_a_snapshot_that_later_steps_leave_alone()
+    {
+        var diagram = await StartAsync(_kunde, [[1m]]);
+        await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, null, Ct);
+        var steps = diagram.Steps;
+
+        await diagram.ExpandAsync([Node(_auftrag, 100m)], DiagramSide.Children, null, Ct);
+
+        Assert.Single(steps);
+        Assert.Equal(2, diagram.Steps.Count);
+        Assert.Same(diagram.Steps, diagram.Steps); // taken once until the next step
+    }
+
+    private int? LastReadLimit() =>
+        _db.Data.ReceivedCalls().Where(c => c.GetMethodInfo().Name == nameof(IDataAccess.ReadByKeysAsync)).Select(c => (int?)c.GetArguments()[4]).Last();
 
     [Fact]
     public async Task The_steps_build_the_same_diagram_again_and_skip_what_is_gone()
