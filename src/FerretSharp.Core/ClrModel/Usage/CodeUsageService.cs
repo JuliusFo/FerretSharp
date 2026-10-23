@@ -140,14 +140,24 @@ public sealed class CodeUsageService : IDisposable
     /// <summary>The solution is being built (<see cref="BuildSolutionAsync"/>).</summary>
     public bool IsBuildingSolution { get; private set; }
 
-    /// <summary>Output of the last <see cref="BuildSolutionAsync"/> of this connection; null before.</summary>
+    /// <summary>Output of the last <see cref="BuildSolutionAsync"/> of this connection; null before and after a cancelled one.</summary>
     public DotNetRun? LastSolutionBuild { get; private set; }
+
+    /// <summary>The running build of the solution was asked to stop (<see cref="CancelSolutionBuild"/>).</summary>
+    public bool IsCancellingSolutionBuild { get; private set; }
+
+    /// <summary>The last build of the solution was cancelled.</summary>
+    public bool SolutionBuildCancelled { get; private set; }
+
+    private CancellationTokenSource? _solutionBuild;
 
     /// <summary>
     /// <c>dotnet build</c> of the solution read, so projects not built (which leave "unused" uncertain) are read too; then
-    /// the index again, also after a failed build (the projects that did build are read, the cache serves the others).
+    /// the index again, also after a failed or cancelled build (the projects that did build are read, the cache serves the
+    /// others).
     /// </summary>
-    /// <returns>The build; null without a solution or while another build of the linked project runs.</returns>
+    /// <param name="cancellationToken">Stops waiting for the index afterwards, not the build (<see cref="CancelSolutionBuild"/>).</param>
+    /// <returns>The build; null if cancelled, without a solution, or while another build of the linked project runs.</returns>
     public async Task<DotNetRun?> BuildSolutionAsync(CancellationToken cancellationToken)
     {
         if (Solution is not { } solution || IsBuildingSolution)
@@ -155,29 +165,70 @@ public sealed class CodeUsageService : IDisposable
             return null;
         }
 
-        IsBuildingSolution = true;
+        using var stop = new CancellationTokenSource();
+        lock (_lock)
+        {
+            _solutionBuild = stop;
+        }
+
+        (IsBuildingSolution, LastSolutionBuild, SolutionBuildCancelled) = (true, null, false);
         Changed?.Invoke();
         DotNetRun? run;
         try
         {
-            run = await _models.BuildSolutionAsync(solution);
-            if (run is not null)
-            {
-                LastSolutionBuild = run;
-            }
+            run = await _models.BuildSolutionAsync(solution, stop.Token);
+            LastSolutionBuild = run;
+            SolutionBuildCancelled = run is null && stop.IsCancellationRequested;
         }
         finally
         {
-            IsBuildingSolution = false;
+            lock (_lock)
+            {
+                _solutionBuild = null;
+            }
+
+            (IsBuildingSolution, IsCancellingSolutionBuild) = (false, false);
             Changed?.Invoke();
         }
 
-        if (run is not null)
+        if (run is not null || SolutionBuildCancelled)
         {
             await EnsureAsync(cancellationToken);
         }
 
         return run;
+    }
+
+    /// <summary>
+    /// Stops a running build of the solution: <c>dotnet build</c> and its processes end, the index is read again. Ending the
+    /// process tree walks every process of the system, so it runs on the pool, not on the caller's (the UI's) thread.
+    /// </summary>
+    public void CancelSolutionBuild()
+    {
+        CancellationTokenSource? stop;
+        lock (_lock)
+        {
+            stop = _solutionBuild;
+        }
+
+        if (stop is null || IsCancellingSolutionBuild)
+        {
+            return;
+        }
+
+        IsCancellingSolutionBuild = true;
+        Changed?.Invoke();
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                stop.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the build ended meanwhile
+            }
+        });
     }
 
     private Task<CodeUsageResult?> GetAsync(bool force)

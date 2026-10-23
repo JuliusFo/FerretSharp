@@ -18,9 +18,21 @@
             @if (Usage.IsBuildingSolution)
             {
                 <span class="muted"><span class="spinner small"></span> @ModelViewText.Usage_BuildingSolution</span>
+                @if (Usage.IsCancellingSolutionBuild)
+                {
+                    <span class="muted">@ModelViewText.Usage_BuildSolutionCancelling</span>
+                }
+                else
+                {
+                    <button class="link-btn" title="@ModelViewText.Usage_BuildSolutionCancelTitle" @onclick="Usage.CancelSolutionBuild">@CommonText.Cancel</button>
+                }
             }
             else if (Usage.Solution is { } solution && Models.State.Link is { } link)
             {
+                @if (Usage.SolutionBuildCancelled)
+                {
+                    <span class="muted">@ModelViewText.Usage_BuildSolutionCancelled</span>
+                }
                 <button class="btn" disabled="@(Models.IsBuilding || Usage.State.Phase == CodeUsagePhase.Building)"
                         title="@TextFormat.Format(ModelViewText.Usage_BuildSolutionTitle, System.IO.Path.GetFileName(solution), link.Configuration)"
                         @onclick="BuildAsync">@ModelViewText.Usage_BuildSolution</button>

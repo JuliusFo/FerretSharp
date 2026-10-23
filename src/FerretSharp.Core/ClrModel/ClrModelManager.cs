@@ -323,10 +323,12 @@ public sealed class ClrModelManager : IDisposable
     /// reads the model again like <see cref="BuildAsync()"/>. One build at a time with it; <see cref="LastBuild"/> stays the
     /// project's – the result is the caller's.
     /// </summary>
-    public Task<DotNetRun?> BuildSolutionAsync(string solution) =>
-        BuildAsync((link, ct) => _runner.BuildSolutionAsync(solution, link.Configuration, ct), remember: false);
+    /// <param name="cancellationToken">Stops the build (<c>dotnet build</c> and its processes end); the result is then null.</param>
+    public Task<DotNetRun?> BuildSolutionAsync(string solution, CancellationToken cancellationToken) =>
+        BuildAsync((link, ct) => _runner.BuildSolutionAsync(solution, link.Configuration, ct), remember: false, cancellationToken);
 
-    private async Task<DotNetRun?> BuildAsync(Func<ClrProjectLink, CancellationToken, Task<DotNetRun>> build, bool remember)
+    private async Task<DotNetRun?> BuildAsync(Func<ClrProjectLink, CancellationToken, Task<DotNetRun>> build, bool remember,
+        CancellationToken cancellationToken = default)
     {
         if (CurrentLink is not { } link || IsBuilding)
         {
@@ -338,11 +340,12 @@ public sealed class ClrModelManager : IDisposable
         DotNetRun? run = null;
         try
         {
-            run = await Task.Run(() => build(link, _lifetime.Token));
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, cancellationToken);
+            run = await Task.Run(() => build(link, cancel.Token));
         }
         catch (OperationCanceledException)
         {
-            return null; // closed meanwhile; nobody waits for the result
+            return null; // closed or cancelled meanwhile
         }
         catch (Exception ex) when (ex is ClrModelException or IOException or System.ComponentModel.Win32Exception)
         {

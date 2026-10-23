@@ -285,6 +285,15 @@
   <data name="Usage_BuildingSolution" xml:space="preserve">
     <value>Building the solution…</value>
   </data>
+  <data name="Usage_BuildSolutionCancelTitle" xml:space="preserve">
+    <value>Stops dotnet build; what was built until then is read</value>
+  </data>
+  <data name="Usage_BuildSolutionCancelling" xml:space="preserve">
+    <value>Cancelling…</value>
+  </data>
+  <data name="Usage_BuildSolutionCancelled" xml:space="preserve">
+    <value>Build cancelled.</value>
+  </data>
   <data name="Usage_BuildSolutionTitle" xml:space="preserve">
     <value>dotnet build of {0} in configuration {1}, then read again</value>
     <comment>{0} = solution file name, {1} = build configuration (Debug)</comment>

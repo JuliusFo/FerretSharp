@@ -240,6 +240,15 @@
   <data name="Usage_BuildingSolution" xml:space="preserve">
     <value>Solution wird gebaut…</value>
   </data>
+  <data name="Usage_BuildSolutionCancelTitle" xml:space="preserve">
+    <value>Beendet dotnet build; gelesen wird, was bis dahin gebaut war</value>
+  </data>
+  <data name="Usage_BuildSolutionCancelling" xml:space="preserve">
+    <value>Wird abgebrochen…</value>
+  </data>
+  <data name="Usage_BuildSolutionCancelled" xml:space="preserve">
+    <value>Build abgebrochen.</value>
+  </data>
   <data name="Usage_BuildSolutionTitle" xml:space="preserve">
     <value>dotnet build von {0} in der Konfiguration {1}, danach neu einlesen</value>
   </data>

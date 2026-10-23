@@ -205,6 +205,41 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         Assert.Equal(CodeUsagePhase.Ready, _usage.State.Phase);
     }
 
+    /// <summary>"Cancel" stops dotnet build through its token; what was built until then is read, and another build can follow.</summary>
+    [Fact]
+    public async Task A_cancelled_build_of_the_solution_ends_and_reads_what_was_built()
+    {
+        await ConnectAsync();
+        var first = await _usage.EnsureAsync(Ct);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(async call =>
+        {
+            File.SetLastWriteTimeUtc(_dll, DateTime.UtcNow); // one project built before the cancel
+            started.SetResult();
+            await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>());
+            return new DotNetRun(0, "");
+        });
+
+        var building = _usage.BuildSolutionAsync(Ct);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        var cancelling = false; // the build may end on the pool before the next line runs: seen through Changed
+        _usage.Changed += () => cancelling |= _usage.IsCancellingSolutionBuild;
+        _usage.CancelSolutionBuild();
+
+        Assert.Null(await building.WaitAsync(TimeSpan.FromSeconds(10), Ct));
+        Assert.True(cancelling);
+        Assert.True(_usage.SolutionBuildCancelled);
+        Assert.Null(_usage.LastSolutionBuild);
+        Assert.False(_usage.IsBuildingSolution);
+        Assert.False(_usage.IsCancellingSolutionBuild);
+        Assert.False(_models.IsBuilding);
+        Assert.NotSame(first, _usage.State.Result);
+
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new DotNetRun(0, ""));
+        Assert.NotNull(await _usage.BuildSolutionAsync(Ct));
+        Assert.False(_usage.SolutionBuildCancelled);
+    }
+
     [Fact]
     public async Task The_solutions_are_known_after_the_first_build_and_reading_them_reads_nothing()
     {
