@@ -66,5 +66,27 @@ Branch `wp/47-since-last-visit`.
 - **Startseite nach dem Verbinden:** Unterschiede zum letzten Stand über den Schema-Vergleich (WP-20, zwei Snapshots derselben Verbindung) – neue/entfernte Tabellen und Spalten, geänderte Typen, neu ungültige Objekte –, neue Abweichungen zum C#-Modell (WP-27), offene Transaktionen anderer Workspaces, zuletzt benutzte Workspaces. Der Release-Check (Backlog, „später“) käme dort als weiterer Block dazu.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
+### WP-61 Kontextmenüs aufräumen (Zelle und Spaltenkopf)
+(Wunsch des Nutzers, 2026-10-23: Das Zellmenü ist mit WP-37 … WP-60 auf rund 40 Zeilen gewachsen. Von drei Varianten – Untermenüs, Schnellleiste mit Export-Matrix, zwei Spalten – hat er die Schnellleiste gewählt, Zell- und Spaltenmenü als ein Paket.) Branch `wp/61-context-menus`. Platz in der Reihenfolge: mit dem Nutzer beim Start klären.
+- **Warum es lang ist:** Der Export (14 Zeilen samt „Alle Zeilen“ und C#) ist eine Matrix aus Format × Ziel (Zwischenablage/Datei) × Umfang (Auswahl/alle), als Liste wiederholt sie sich. Dazu kommen Gruppen mit nur einem Eintrag (Datensatz-Diagramm, andere Verbindung) und FK-Sprünge, die NULL sind (`ShowEmpty`) – im Beispiel des Nutzers 7 von 13 bei „Points to“.
+- **Zellmenü** (`GridContextMenu`, gleiche Bausteine im `ResultMenu` des SQL-Editors, weil `ExportMenuItems` und `FkJumpSection` geteilt sind):
+  - **Kopf** wie heute (Spalte, Wert).
+  - **Schnellleiste** mit Icons statt Textzeilen für die Einzelaktionen: Wert kopieren, als C#-Wert kopieren, Anheften, Formular, Datensatz-Diagramm, in andere Verbindung, Links. Beschriftung über `title` (Kürzel über `Shortcuts.Hint`), deaktiviert mit Grund wie heute. Icons als eigene SVGs in `Icons.cs`, keine Icon-Bibliothek.
+  - **Filterfeld**, gewünscht vom Nutzer: Tippen grenzt Aktionen und FK-Ziele ein.
+  - **Export-Matrix:** Zeilen Table, CSV, Excel, Excel (Rohwerte), INSERT, C#-Objekte, HasData (C# nur mit Entity); Spalten „kopieren“, „Auswahl speichern“, „alle Zeilen speichern“; leere Felder, wo es die Kombination nicht gibt. Darunter die Werte der geklickten Spalte (Zeilen, IN-Liste) als Chips.
+  - **FK-Sprünge nicht kürzen** – der Nutzer springt häufig. Nur NULL-Referenzen zu einer aufklappbaren Zeile „7 weitere sind NULL“ zusammenfassen; „Referenced by“ erst ab vielen Einträgen mit „… weitere“. Sprünge der geklickten Spalte bleiben oben und hervorgehoben.
+- **Spaltenmenü** (`ColumnMenu`, `ResultColumnMenu`) mit denselben Bausteinen, ohne Filterfeld (zu wenige Einträge):
+  - **Kopf mit Infos zur Spalte:** NULL erlaubt, PK, FK mit Ziel, C#-Property und CLR-Typ (Annotation-Schicht), Spaltenkommentar (`ColumnInfo.Comment`).
+  - **Leiste mit kurzer Beschriftung** unter dem Icon: Anheften (beim PK gesperrt mit Grund), Spalte markieren, Anzeigespalte (umrandet, wenn gesetzt; Klick nimmt sie weg).
+  - **Werte als Chips** wie im Zellmenü (alle Zeilen des Filters bzw. des Ergebnisses).
+- **Gemeinsam:** Bausteine als Komponenten unter `Components/Grid` (Leiste, Matrix, Chip-Zeile), Menüs bleiben `PopoverMenu`. Die geschätzte Höhe (`EstimatedHeight`) neu rechnen. Jeder neue Text englisch und deutsch. E2E mit echter Maus, auch am Fensterrand.
+- Offen:
+  - Die übrigen Gruppen des Zellmenüs: Bearbeiten (Zeile löschen, Ausstehendes verwerfen, Wert setzen, WP-59), markierte Zellen (WP-58), LOB öffnen – als Textzeilen unter der Leiste (Vorschlag) oder mit in die Leiste.
+  - Leiste im Zellmenü nur Icons oder wie im Spaltenmenü mit Beschriftung.
+  - Tastatur: Pfeiltasten durch Leiste, Matrix und Liste; tippen ohne vorher ins Filterfeld zu klicken.
+  - Ab wie vielen eingehenden Sprüngen „… weitere“ (Vorschlag 8), und ob der aufgeklappte Zustand gemerkt wird.
+  - Kleine Zusätze im Mockup, die neu wären: Spaltennamen kopieren, IN-Liste ohne Dubletten („distinct“), im Spaltenmenü das FK-Ziel als Tabelle öffnen.
+  - WP-55 bringt „Werte zählen“ ins Spaltenmenü – Platz dafür vorsehen, falls WP-55 vorher kommt.
+
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
