@@ -88,6 +88,7 @@ Branch `wp/47-since-last-visit`.
   - Kleine Zusätze im Mockup, die neu wären: Spaltennamen kopieren, IN-Liste ohne Dubletten („distinct“), im Spaltenmenü das FK-Ziel als Tabelle öffnen.
   - WP-55 bringt „Werte zählen“ ins Spaltenmenü – Platz dafür vorsehen, falls WP-55 vorher kommt.
   - „Als ALTER TABLE … ADD kopieren“ und „Im SQL-Editor öffnen von …“ der Spaltenansicht (`small-column-add-ddl.md`, `AddColumnsScript`, `AddColumnsTargets`) auch im Spaltenkopf-Menü des Grids, für die markierten Spalten (WP-58).
+  - Das Rechtsklickmenü der Spaltenansicht selbst (`ColumnsView`, seit `small-column-add-ddl.md`: Kopf, Kopieren, Liste der Verbindungen) mit denselben Bausteinen umstylen (Wunsch des Nutzers, 2026-10-23) – bei vielen Verbindungen etwa mit dem Filterfeld.
 
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
