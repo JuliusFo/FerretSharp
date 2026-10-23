@@ -67,10 +67,11 @@ public sealed class SqlResultPresentation : IColumnPresentation
     IReadOnlyList<ColumnInfo> IColumnPresentation.Columns => _infos;
 
     /// <param name="header">Type and NOT NULL as the settings show them.</param>
-    public IReadOnlyList<GridColumn> Columns(ColumnHeaderLines header)
+    /// <param name="order">Which headers sort and why the others do not (<see cref="ResultOrder"/>); none without.</param>
+    public IReadOnlyList<GridColumn> Columns(ColumnHeaderLines header, ResultOrder? order = null)
     {
         ArgumentNullException.ThrowIfNull(header);
-        return [.. _columns.Select((_, i) => ColumnOf(i, header))];
+        return [.. _columns.Select((_, i) => ColumnOf(i, header) with { Sortable = order?.Sortable(i) ?? false, SortHint = order?.HintOf(i) })];
     }
 
     /// <summary>

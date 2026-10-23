@@ -16,12 +16,13 @@
     var uniqueColumns = Details.UniqueKeys.SelectMany(k => k).ToHashSet();
     // The table's display column (WP-31): its values stand beside foreign keys to the table.
     var displayColumn = Details.Table.Kind == TableKind.View ? null : DisplaySource.Current().Columns.ColumnOf(Details.Table.Name);
-    // Filtering keeps the schema order: this is a table of the columns, not a list of search hits.
-    var shown = ColumnSearch.Find(Details.Columns, _columnQuery).Order().Select(i => Details.Columns[i]).ToList();
+    // Filtering keeps the schema order (or the one a header sorts by): this is a table of the columns, not a list of search hits.
+    var filtered = ColumnSearch.Find(Details.Columns, _columnQuery).Order().Select(i => Details.Columns[i]).ToList();
     var filtering = !string.IsNullOrWhiteSpace(_columnQuery);
     // C# model of the linked project (WP-11): entity of this table and the property of each column.
     var mapping = Models.Mapping;
     var entity = mapping?.EntityOf(Details.Table.Ref);
+    var shown = _order.Apply(filtered, key => ValueOf(key, mapping));
 }
 
 <section class="columns-section">
@@ -64,12 +65,18 @@
     <table class="columns">
         <thead>
             <tr>
-                <th class="num">#</th><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Type</th>
+                <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Position" OnSort="_order.Toggle" Class="num">#</SortHeader>
+                <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Name" OnSort="_order.Toggle">@SchemaViewText.Head_Name</SortHeader>
+                <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Type" OnSort="_order.Toggle">@SchemaViewText.Head_Type</SortHeader>
                 @if (entity is not null)
                 {
-                    <th>@SchemaViewText.Columns_Property</th><th>@SchemaViewText.Columns_ClrType</th>
+                    <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Property" OnSort="_order.Toggle">@SchemaViewText.Columns_Property</SortHeader>
+                    <SortHeader TKey="SortKey" Order="_order" Key="SortKey.ClrType" OnSort="_order.Toggle">@SchemaViewText.Columns_ClrType</SortHeader>
                 }
-                <th>@SchemaViewText.Columns_Null</th><th>@SchemaViewText.Head_Default</th><th></th><th>@SchemaViewText.Columns_Comment</th>
+                <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Null" OnSort="_order.Toggle">@SchemaViewText.Columns_Null</SortHeader>
+                <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Default" OnSort="_order.Toggle">@SchemaViewText.Head_Default</SortHeader>
+                <th></th>
+                <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Comment" OnSort="_order.Toggle">@SchemaViewText.Columns_Comment</SortHeader>
             </tr>
         </thead>
         <tbody>
@@ -223,6 +230,25 @@
 
     private readonly CancellationTokenSource _lifetime = new();
     private string _columnQuery = "";
+
+    /// <summary>What the table's headers sort by.</summary>
+    private enum SortKey { Position, Name, Type, Property, ClrType, Null, Default, Comment }
+
+    /// <summary>The order a header click gives; the schema's until then (kept while the view is mounted).</summary>
+    private readonly ListOrder<SortKey> _order = new();
+
+    /// <summary>A column's value under a header; NOT NULL before nullable, as the column shows it.</summary>
+    private Func<ColumnInfo, IComparable?> ValueOf(SortKey key, ClrModelMapping? mapping) => key switch
+    {
+        SortKey.Position => c => c.Position,
+        SortKey.Name => c => c.Name,
+        SortKey.Type => c => c.DisplayType,
+        SortKey.Property => c => mapping?.PropertyOf(Details.Table.Ref, c.Name)?.Name,
+        SortKey.ClrType => c => mapping?.PropertyOf(Details.Table.Ref, c.Name) is { } property ? TablePresentation.ClrTypeText(property) : null,
+        SortKey.Null => c => c.Nullable,
+        SortKey.Default => c => string.IsNullOrWhiteSpace(c.Default) ? null : c.Default,
+        _ => c => string.IsNullOrWhiteSpace(c.Comment) ? null : c.Comment,
+    };
 
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;

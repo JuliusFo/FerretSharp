@@ -1,0 +1,27 @@
+@* A header of a list view that sorts its rows (ListOrder): a click goes ascending, descending, back to the list's order. *@
+@typeparam TKey where TKey : struct, Enum
+
+<th class="sort-header @Class" aria-sort="@Order.AriaSort(Key)" title="@Title">
+    <button type="button" class="sort-btn" @onclick="() => OnSort.InvokeAsync(Key)">@ChildContent<span class="sort-mark">@Order.Mark(Key)</span></button>
+</th>
+
+@code {
+    [Parameter, EditorRequired]
+    public ListOrder<TKey> Order { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TKey Key { get; set; }
+
+    /// <summary>The header was clicked: the view toggles <see cref="Order"/> and renders (an EventCallback, so it does).</summary>
+    [Parameter]
+    public EventCallback<TKey> OnSort { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -1,7 +1,8 @@
 @* Result of a query FerretSharp did not build (LINQ console, ADR 0011; SQL editor, WP-17): read in the workspace's session page by page,
-   shown with the same grid bridge as tables – read-only, unsorted (the query's own ORDER BY counts). Beside it the form of the
-   focused row, and the selected rows side by side (WP-56), both read-only. In the SQL editor a column header menu copies all
-   values of the column (WP-57). Marked cells – and in the SQL editor whole columns – are copied as text (WP-58). *@
+   shown with the same grid bridge as tables – read-only, in the query's own order until a header sorts it (in memory once
+   every row is loaded, else by the database: ResultOrder). Beside it the form of the focused row, and the selected rows side
+   by side (WP-56), both read-only. In the SQL editor a column header menu copies all values of the column (WP-57). Marked
+   cells – and in the SQL editor whole columns – are copied as text (WP-58). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Forms
@@ -72,6 +73,9 @@
     private GridBridge _grid = null!;
     private IReadOnlyList<SqlColumn> _columns = [];
     private SqlPage? _firstPage;
+
+    /// <summary>The order the headers ask for, and whether the rows for it are known in memory.</summary>
+    private ResultOrder _order = new(new QuerySpec("", []), []);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -176,8 +180,11 @@
         }
 
         _header = header;
-        await _grid.CallAsync("updateColumns", _presentation.Columns(header), _presentation.HeaderHeight(header), true);
+        await _grid.CallAsync("updateColumns", GridColumns(_presentation), _presentation.HeaderHeight(header), true);
     });
+
+    /// <summary>The columns for grid.js, with the headers that sort now.</summary>
+    private IReadOnlyList<GridColumn> GridColumns(SqlResultPresentation presentation) => presentation.Columns(_header, _order);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -217,6 +224,7 @@
         }
 
         _columns = _firstPage.Columns;
+        _order = new ResultOrder(Query, _columns);
         _presentation = SqlResultPresentation.Plain(_columns);
         var traced = TraceAsync(Query.Sql, _columns);
         await Task.WhenAny(traced, Task.Delay(SourcesWait));
@@ -227,7 +235,7 @@
 
         // The result is shown whatever becomes of the tracing; a failure that is a bug reaches the error boundary afterwards.
         _header = Presentations.Header;
-        await _grid.CreateAsync(_presentation.Columns(_header), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight(_header), Table: false) { Form = true, HeaderMenu = ExportsAllRows });
+        await _grid.CreateAsync(GridColumns(_presentation), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight(_header), Table: false) { Form = true, HeaderMenu = ExportsAllRows });
         OnHeaderChanged(); // header lines that came while the grid was created (R4a)
         if (!traced.IsCompletedSuccessfully)
         {
@@ -263,7 +271,7 @@
         }
 
         _presentation = presentation;
-        if (await _grid.CallAsync("updateColumns", presentation.Columns(_header), presentation.HeaderHeight(_header)))
+        if (await _grid.CallAsync("updateColumns", GridColumns(presentation), presentation.HeaderHeight(_header)))
         {
             await _grid.CallAsync("updateRows", _blocks.All().Select(r => new GridRowUpdate(r.Index, presentation.Row(r.Row.Values))).ToList());
         }
@@ -277,10 +285,24 @@
     /// <summary>Review 3.40.0, A29: a failure of the presentation went back to grid.js – an empty grid, nothing in the log.</summary>
     [JSInvokable]
     public Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel) =>
-        GuardAsync(() => GetRowsCoreAsync(startRow, endRow), GridPage.Failure);
+        GuardAsync(() => GetRowsCoreAsync(startRow, endRow, ResultOrder.Of(sortModel)), GridPage.Failure);
 
-    private async Task<GridPage> GetRowsCoreAsync(int startRow, int endRow)
+    private async Task<GridPage> GetRowsCoreAsync(int startRow, int endRow, IReadOnlyList<ResultSort> sorts)
     {
+        if (_order.Apply(sorts))
+        {
+            // Another order: the kept blocks hold other rows at these indexes, and the first page is the query's own.
+            _blocks.Clear();
+            _firstPage = null;
+            _rowsLoaded = 0;
+            _allLoaded = false;
+        }
+
+        if (_order.Ordered is { } ordered)
+        {
+            return await FromMemoryAsync(ordered, startRow, endRow);
+        }
+
         SqlPage page;
         if (startRow == 0 && _firstPage is { } first)
         {
@@ -289,7 +311,7 @@
         }
         else
         {
-            var query = Query;
+            var query = _order.Query;
             var result = await Shell.RunDbAsync(Logger, Active, async () =>
                 await Workspaces.ReadSqlAsync(WorkspaceId, query, startRow, endRow - startRow, CancellationToken.None));
             if (result.Value is not { } read)
@@ -309,7 +331,43 @@
         var presentation = _presentation;
         var rows = page.Rows.Select(presentation.Row).ToList();
         RowsChanged?.Invoke();
+        if (_allLoaded && _order.Sorts.Count == 0 && LoadedRows() is { } all && _order.Loaded(all))
+        {
+            Fire(() => _grid.CallAsync("updateColumns", GridColumns(_presentation), _presentation.HeaderHeight(_header), true));
+        }
+
         return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
+    }
+
+    /// <summary>A block of the rows sorted in memory: no read, the result's size is known (and the snapshot stays).</summary>
+    private async Task<GridPage> FromMemoryAsync(IReadOnlyList<RowData> ordered, int startRow, int endRow)
+    {
+        var block = ordered.Skip(startRow).Take(endRow - startRow).ToList();
+        _blocks.Keep(startRow, block);
+        _rowsLoaded = ordered.Count;
+        _allLoaded = true;
+        await Status(new SqlGridStatus(false, _rowsLoaded, true, null, _dataAsOf, null, _snapshotMoved));
+        var presentation = _presentation;
+        var rows = block.Select(r => presentation.Row(r.Values)).ToList();
+        RowsChanged?.Invoke();
+        return new GridPage(rows, ordered.Count);
+    }
+
+    /// <summary>Every row of the result in grid order if they are all loaded and still kept; null otherwise.</summary>
+    private IReadOnlyList<RowData>? LoadedRows()
+    {
+        if (_order.Ordered is { } ordered)
+        {
+            return ordered;
+        }
+
+        if (!_allLoaded)
+        {
+            return null;
+        }
+
+        var kept = _blocks.All();
+        return kept.Count() == _rowsLoaded ? [.. kept.OrderBy(r => r.Index).Select(r => r.Row)] : null;
     }
 
     /// <summary>
@@ -355,22 +413,18 @@
 
     /// <summary>
     /// All values of result columns: from the loaded rows if every row is loaded and still kept (WP-58), else the query runs
-    /// again (WP-57).
+    /// again (WP-57) – in the order the headers sort.
     /// </summary>
-    private AllColumnValues AllValuesOf(IReadOnlyList<int> columns)
-    {
-        var rows = _allLoaded ? _blocks.All().Select(r => r.Row).ToList() : null;
-        return rows is not null && rows.Count == _rowsLoaded
-            ? ColumnValueCopies.ForLoaded(rows, columns, WorkspaceId)
-            : ColumnValueCopies.ForResult(Query, _columns, columns, _allLoaded ? _rowsLoaded : null, WorkspaceId, Workspaces.GetDataAsync);
-    }
+    private AllColumnValues AllValuesOf(IReadOnlyList<int> columns) => LoadedRows() is { } rows
+        ? ColumnValueCopies.ForLoaded(rows, columns, WorkspaceId)
+        : ColumnValueCopies.ForResult(_order.Query, _columns, columns, _allLoaded ? _rowsLoaded : null, WorkspaceId, Workspaces.GetDataAsync);
 
     /// <summary>A column as the result presents it; the names of a traced foreign key follow it with the same source.</summary>
     private ExportColumn PresentedColumn(int column) => _presentation.ExportColumns().First(c => c.Source == column);
 
-    /// <summary>All rows of the query, run again in the workspace's session (WP-54).</summary>
+    /// <summary>All rows of the query, run again in the workspace's session (WP-54), sorted as the headers ask.</summary>
     private AllRowsExport AllRowsOf() =>
-        AllRowsExports.ForResult(Query, _columns, _allLoaded ? _rowsLoaded : null, _presentation.ExportColumns(), WorkspaceId, Workspaces.GetDataAsync);
+        AllRowsExports.ForResult(_order.Query, _columns, _allLoaded ? _rowsLoaded : null, _presentation.ExportColumns(), WorkspaceId, Workspaces.GetDataAsync);
 
     /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>
     private TableDetails AsTable() => new(new TableSummary("", ExportName, TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);
@@ -423,10 +477,18 @@
         ExportsAllRows ? AllValuesOf : null,
         _ => 0);
 
-    /// <summary>Rows of a marked range that are not loaded: the query read for them like a block; null if it failed.</summary>
+    /// <summary>
+    /// Rows of a marked range that are not loaded: from the rows sorted in memory, else the query read for them like a
+    /// block; null if it failed.
+    /// </summary>
     private async Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count)
     {
-        var query = Query;
+        if (_order.Ordered is { } ordered)
+        {
+            return ordered.Skip(start).Take(count).ToList();
+        }
+
+        var query = _order.Query;
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
             await Workspaces.ReadSqlAsync(WorkspaceId, query, start, count, CancellationToken.None));
         return Shell.ShowFailure(result) ? result.Value!.Rows.Select(values => new RowData(RowKey.None.Instance, values)).ToList() : null;
