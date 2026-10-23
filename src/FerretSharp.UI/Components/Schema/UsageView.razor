@@ -134,7 +134,7 @@ else
         }
         else if (result is not null)
         {
-            var shown = CodeUsageRows.Filter(rows, _access);
+            var shown = _order.Apply(CodeUsageRows.Filter(rows, _access), ValueOf);
             @if (shown.Count == 0)
             {
                 <p class="muted">@(_access == UsageAccess.Write ? ModelViewText.Usage_NoWrites : ModelViewText.Usage_NoReads)</p>
@@ -144,9 +144,10 @@ else
                 <table class="columns usage-columns">
                     <thead>
                         <tr>
-                            <th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Columns_Property</th>
-                            <th class="num" title="@ModelViewText.Usage_ReadsTitle">@ModelViewText.Usage_ReadsShort</th>
-                            <th class="num" title="@ModelViewText.Usage_WritesTitle">@ModelViewText.Usage_WritesShort</th>
+                            <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Name" OnSort="_order.Toggle">@SchemaViewText.Head_Name</SortHeader>
+                            <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Property" OnSort="_order.Toggle">@SchemaViewText.Columns_Property</SortHeader>
+                            <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Reads" OnSort="_order.Toggle" Class="num" Title="@ModelViewText.Usage_ReadsTitle">@ModelViewText.Usage_ReadsShort</SortHeader>
+                            <SortHeader TKey="SortKey" Order="_order" Key="SortKey.Writes" OnSort="_order.Toggle" Class="num" Title="@ModelViewText.Usage_WritesTitle">@ModelViewText.Usage_WritesShort</SortHeader>
                             <th></th>
                         </tr>
                     </thead>
@@ -221,6 +222,21 @@ else
 
     /// <summary>The read/write filter of the "Columns" sub-tab; kept like the sub-tab, not saved.</summary>
     private UsageAccess _access;
+
+    /// <summary>What the column table's headers sort by.</summary>
+    private enum SortKey { Name, Property, Reads, Writes }
+
+    /// <summary>The order a header click gives (the schema's until then); kept like the filter, not saved.</summary>
+    private readonly ListOrder<SortKey> _order = new();
+
+    /// <summary>A row's value under a header: reads and writes in application code first, then those in tests.</summary>
+    private static Func<ColumnUsageRow, IComparable?> ValueOf(SortKey key) => key switch
+    {
+        SortKey.Name => r => r.Column,
+        SortKey.Property => r => r.Property?.Name,
+        SortKey.Reads => r => (r.Count(UsageAccess.Read, tests: false), r.Count(UsageAccess.Read, tests: true)),
+        _ => r => (r.Count(UsageAccess.Write, tests: false), r.Count(UsageAccess.Write, tests: true)),
+    };
     private readonly CancellationTokenSource _lifetime = new();
 
     private static IEnumerable<(UsageAccess Access, string Label)> AccessChoices =>
