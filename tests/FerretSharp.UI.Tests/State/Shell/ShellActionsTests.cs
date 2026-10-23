@@ -115,4 +115,16 @@ public sealed class ShellActionsTests
         Assert.Null(ShellActions.Unavailable(ShortcutAction.ApplyFilters, linq));
         Assert.Null(ShellActions.Unavailable(ShortcutAction.CloseTab, newTable));
     }
+
+    /// <summary>WP-60, E2E: F5 reads a record diagram again; it has no filters and no columns to find.</summary>
+    [Fact]
+    public void A_record_diagram_reloads_with_f5_only()
+    {
+        var kunden = new TableSummary("APP", "KUNDEN", TableKind.Table);
+        var records = Ready with { ActiveTab = new RecordTab(Workspace, kunden, new RecordDiagramState(kunden.Ref, rowIds: false, [["1"]], steps: null)) };
+
+        Assert.Null(ShellActions.Unavailable(ShortcutAction.Refresh, records));
+        Assert.Equal("Nicht in diesem Tab.", ShellActions.Unavailable(ShortcutAction.ApplyFilters, records));
+        Assert.Equal("Nicht in diesem Tab.", ShellActions.Unavailable(ShortcutAction.FindColumn, records));
+    }
 }

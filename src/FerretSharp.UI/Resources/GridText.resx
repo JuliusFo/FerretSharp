@@ -1483,4 +1483,24 @@
     <value>Other connection · {0}</value>
     <comment>Group heading in the cell menu; {0}: e.g. '3 rows'</comment>
   </data>
+  <data name="GridMenu_RecordsGroup" xml:space="preserve">
+    <value>Record diagram · {0}</value>
+    <comment>Group heading in the cell menu; {0}: e.g. '3 rows'</comment>
+  </data>
+  <data name="GridMenu_Records" xml:space="preserve">
+    <value>Show connected records</value>
+    <comment>Menu entry</comment>
+  </data>
+  <data name="GridMenu_RecordsTitle" xml:space="preserve">
+    <value>Opens a tab with these rows, the rows they reference and those that reference them, as a diagram to expand further.</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_RecordsView" xml:space="preserve">
+    <value>A view has no key to read its rows by.</value>
+    <comment>Tooltip of the disabled entry</comment>
+  </data>
+  <data name="GridMenu_RecordsNoKey" xml:space="preserve">
+    <value>The key of these rows has no exact text (a type like BINARY_DOUBLE) and cannot be saved with the tab.</value>
+    <comment>Tooltip of the disabled entry</comment>
+  </data>
 </root>

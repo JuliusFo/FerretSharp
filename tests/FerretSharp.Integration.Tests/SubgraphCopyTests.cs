@@ -208,8 +208,8 @@ public sealed class SubgraphCopyTests(OracleContainerFixture oracle) : IAsyncLif
         var position = await DetailsAsync(source, "CP_POSITION");
         var data = new OracleDataAccess(_source!);
 
-        var byKey = await data.ReadByKeysAsync(position, [0, 1], [[100m, 2m], [101m, 1m], [999m, 1m]], wholeLobs: false, Ct);
-        var byRowId = await data.ReadByKeysAsync(position, null, [[((RowKey.RowId)new RowKey.RowId(await RowIdAsync())).Value]], wholeLobs: false, Ct);
+        var byKey = await data.ReadByKeysAsync(position, [0, 1], [[100m, 2m], [101m, 1m], [999m, 1m]], wholeLobs: false, maxRows: null, Ct);
+        var byRowId = await data.ReadByKeysAsync(position, null, [[((RowKey.RowId)new RowKey.RowId(await RowIdAsync())).Value]], wholeLobs: false, maxRows: null, Ct);
 
         Assert.Equal([new RowKey.PrimaryKey([100m, 2m]), new RowKey.PrimaryKey([101m, 1m])], byKey.Select(r => r.Key));
         Assert.Equal("Brot", Assert.Single(byRowId).Values[2]);

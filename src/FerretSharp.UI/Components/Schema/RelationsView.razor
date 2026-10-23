@@ -32,8 +32,8 @@
                     {
                         <input type="checkbox" checked="@_state.Shows(s)" @onchange="() => Change(() => _state.ToggleSource(s))" />
                     }
-                    <span class="relations-swatch @KindClass(s)"></span>
-                    @SourceLabel(s)
+                    <span class="relations-swatch @DiagramStyle.KindClass(s)"></span>
+                    @DiagramStyle.SourceLabel(s)
                 </label>
             }
             <span class="spacer"></span>
@@ -55,17 +55,17 @@
         else
         {
             <div id="@CanvasId" class="relations-canvas" @onmouseleave="() => _hover = null">
-                <div class="relations-size" style="@Size(placement.Width * _state.Zoom, placement.Height * _state.Zoom)">
-                    <div class="relations-stage" style="@($"{Size(placement.Width, placement.Height)} transform: scale({_state.Zoom.ToString(CultureInfo.InvariantCulture)});")">
-                        <svg class="relations-edges" width="@Px(placement.Width)" height="@Px(placement.Height)">
+                <div class="relations-size" style="@DiagramStyle.Size(placement.Width * _state.Zoom, placement.Height * _state.Zoom)">
+                    <div class="relations-stage" style="@DiagramStyle.Stage(placement, _state.Zoom)">
+                        <svg class="relations-edges" width="@DiagramStyle.Px(placement.Width)" height="@DiagramStyle.Px(placement.Height)">
                             @foreach (var edge in placement.Edges)
                             {
                                 var relation = diagram.RelationOf(edge.Id);
                                 var end = edge.Points[^1];
-                                <g class="relations-edge @(relation is null ? "group" : KindClass(relation.Source)) @EdgeState(edge)" title="@(relation is null ? null : EdgeTitle(relation))">
+                                <g class="relations-edge @(relation is null ? "group" : DiagramStyle.KindClass(relation.Source)) @DiagramStyle.EdgeState(edge, HoverId)" title="@(relation is null ? null : DiagramStyle.EdgeTitle(relation, Label))">
                                     <path class="hit" d="@edge.Svg" />
                                     <path class="line" d="@edge.Svg" />
-                                    <circle cx="@Px(end.X)" cy="@Px(end.Y)" r="3" />
+                                    <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
                                 </g>
                             }
                         </svg>
@@ -76,7 +76,7 @@
                             var summary = Active.Schema?.Find(t);
                             var parents = diagram.HiddenCount(t, DiagramSide.Parents);
                             var children = diagram.HiddenCount(t, DiagramSide.Children);
-                            <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @NodeState(t, lit)" style="@Box(box)"
+                            <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @DiagramStyle.NodeState(t, _hover, lit)" style="@DiagramStyle.Box(box)"
                                  @onmouseenter="() => _hover = t" @onmouseleave="() => Leave(t)" @oncontextmenu="e => OpenMenuAsync(e, t)" @oncontextmenu:preventDefault="true">
                                 @if (parents > 0)
                                 {
@@ -109,7 +109,7 @@
                             var members = diagram.Members(g);
                             if (members.Count > 0 && placement.Nodes.TryGetValue(g.Id, out var box))
                             {
-                                <div class="relations-node group" style="@Box(box)">
+                                <div class="relations-node group" style="@DiagramStyle.Box(box)">
                                     <span class="relations-name">@TextFormat.Plural(members.Count, SchemaViewText.Relations_GroupOne, SchemaViewText.Relations_GroupOther)</span>
                                     <button class="btn small" title="@TextFormat.Format(SchemaViewText.Relations_GroupTitle, string.Join(", ", members.Select(Label)))"
                                             @onclick="() => Change(() => _state.Open(g), anchor: g.Table)">@SchemaViewText.Relations_GroupShow</button>
@@ -302,44 +302,12 @@
         Presentations.ShownEntityNameOf(table)
         ?? (Active.Schema?.Find(table)?.Synonym is not null ? table.Owner : null);
 
-    private string EdgeTitle(ForeignKeyInfo relation) => TextFormat.Format(SchemaViewText.Relations_EdgeTitle,
-        relation.Name, Label(relation.From), string.Join(", ", relation.FromColumns), Label(relation.To), string.Join(", ", relation.ToColumns),
-        relation.Source == FkSource.Declared ? SchemaViewText.Relations_KindDeclared : SourceLabel(relation.Source));
-
-    private static string SourceLabel(FkSource source) => source switch
-    {
-        FkSource.Declared => SchemaViewText.Relations_SourceDeclared,
-        FkSource.ClrModel => SchemaViewText.Relations_SourceClrModel,
-        FkSource.Manual => SchemaViewText.Relations_SourceManual,
-        _ => SchemaViewText.Relations_SourceConvention,
-    };
-
-    private static string KindClass(FkSource source) => source switch
-    {
-        FkSource.Declared => "declared",
-        FkSource.ClrModel => "clr",
-        _ => "other",
-    };
-
-    /// <summary>While the mouse rests on a node, its edges stand out and the rest fades.</summary>
-    private string EdgeState(EdgePath edge) =>
-        _hover is not { } hover ? ""
-        : edge.From == RelationDiagram.IdOf(hover) || edge.To == RelationDiagram.IdOf(hover) ? "lit"
-        : "faded";
-
-    private string NodeState(TableRef table, IReadOnlySet<TableRef> lit) =>
-        _hover is null || _hover == table ? "" : lit.Contains(table) ? "lit" : "faded";
+    private string? HoverId => _hover is { } hover ? RelationDiagram.IdOf(hover) : null;
 
     /// <summary>The tables related to the one under the mouse.</summary>
     private IReadOnlySet<TableRef> Neighbours(RelationDiagram diagram) =>
         _hover is not { } hover ? new HashSet<TableRef>()
         : diagram.Relations.Where(r => r.From == hover || r.To == hover).SelectMany(r => new[] { r.From, r.To }).ToHashSet();
-
-    private static string Px(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
-
-    private static string Size(double width, double height) => $"width: {Px(width)}px; height: {Px(height)}px;";
-
-    private static string Box(NodeBox box) => $"left: {Px(box.X)}px; top: {Px(box.Y)}px; {Size(box.Width, box.Height)}";
 
     public async ValueTask DisposeAsync()
     {

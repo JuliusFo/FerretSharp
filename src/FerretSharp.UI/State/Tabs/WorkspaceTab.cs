@@ -8,7 +8,7 @@ namespace FerretSharp.UI.State;
 
 /// <summary>
 /// A tab of a workspace: a table (<see cref="TableTab"/>), a LINQ console (<see cref="LinqTab"/>), a SQL editor
-/// (<see cref="SqlTab"/>) or a PL/SQL unit (<see cref="PlSqlTab"/>).
+/// (<see cref="SqlTab"/>), a PL/SQL unit (<see cref="PlSqlTab"/>) or a record diagram (<see cref="RecordTab"/>).
 /// </summary>
 public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
 {
@@ -48,6 +48,7 @@ public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
         TableTab table => table.Table.DisplayName,
         NewTableTab draft => draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable,
         PlSqlTab plSql => plSql.Unit.DisplayName,
+        RecordTab records => records.Title,
         ITitledTab titled => titled.Title,
         _ => "",
     };
@@ -190,6 +191,37 @@ public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary un
         tab.View = tab.Views.Contains(state.View) ? state.View : PlSqlView.Source;
         return tab;
     }
+}
+
+/// <summary>
+/// A record diagram (WP-60): the rows connected to rows of a table, read on the workspace's session as the user expands
+/// them. Saved with the start rows' keys and what was expanded; the rows are read again when the tab is shown.
+/// </summary>
+public sealed class RecordTab(Guid workspaceId, TableSummary table, RecordDiagramState diagram) : WorkspaceTab(workspaceId, "records-")
+{
+    /// <summary>The table of the start rows.</summary>
+    public TableSummary Table { get; } = table;
+
+    public RecordDiagramState Diagram { get; } = diagram;
+
+    /// <summary>"AUFTRAG 4711" for one start row, "AUFTRAG ×3" for several; ROWIDs say nothing to the user.</summary>
+    public string Title => Diagram.Keys switch
+    {
+        [var key] when !Diagram.RowIds => $"{Table.DisplayName} {string.Join(" · ", key)}",
+        { Count: > 1 } keys => $"{Table.DisplayName} ×{keys.Count}",
+        _ => Table.DisplayName,
+    };
+
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
+        TabState.OfRecords(new RecordTabState(Table.Owner, Table.Name, Diagram.RowIds, Diagram.Keys, Diagram.Steps));
+
+    /// <summary>
+    /// The tab of a saved state. No steps is a new diagram, expanded on both sides: a tab saved before its first load ended
+    /// (closed meanwhile, cancelled, the connection lost) has none (review) – and start rows without any relationship
+    /// expand to nothing either way.
+    /// </summary>
+    public static RecordTab Restore(Guid workspaceId, TableSummary table, RecordTabState state) =>
+        new(workspaceId, table, new RecordDiagramState(table.Ref, state.RowIds, state.Keys, state.Steps.Count == 0 ? null : state.Steps));
 }
 
 /// <summary>

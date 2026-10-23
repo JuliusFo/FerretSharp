@@ -12,10 +12,9 @@ namespace FerretSharp.UI.State;
 /// </summary>
 public sealed class RelationsDiagramState(TableRef home)
 {
-    private static readonly double[] ZoomSteps = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5];
-
     private readonly List<Step> _steps = [];
     private readonly HashSet<FkSource> _hiddenSources = [];
+    private readonly DiagramZoom _zoom = new();
     private RelationGraph? _graph;
 
     /// <summary>The tab's table: where "Reset" goes back to.</summary>
@@ -26,7 +25,7 @@ public sealed class RelationsDiagramState(TableRef home)
 
     public int Depth { get; private set; } = 1;
 
-    public double Zoom { get; private set; } = 1;
+    public double Zoom => _zoom.Value;
 
     public RelationDiagram? Diagram { get; private set; }
 
@@ -105,15 +104,15 @@ public sealed class RelationsDiagramState(TableRef home)
         Rebuild(previous: null);
     }
 
-    public bool CanZoomIn => Zoom < ZoomSteps[^1];
+    public bool CanZoomIn => _zoom.CanZoomIn;
 
-    public bool CanZoomOut => Zoom > ZoomSteps[0];
+    public bool CanZoomOut => _zoom.CanZoomOut;
 
-    public void ZoomIn() => Zoom = ZoomSteps.FirstOrDefault(z => z > Zoom, ZoomSteps[^1]);
+    public void ZoomIn() => _zoom.ZoomIn();
 
-    public void ZoomOut() => Zoom = ZoomSteps.LastOrDefault(z => z < Zoom, ZoomSteps[0]);
+    public void ZoomOut() => _zoom.ZoomOut();
 
-    public void ResetZoom() => Zoom = 1;
+    public void ResetZoom() => _zoom.Reset();
 
     /// <param name="previous">The placement to keep the order of; null for a new diagram (another table in the middle, reset).</param>
     private void Rebuild(DiagramPlacement? previous)

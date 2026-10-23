@@ -1,5 +1,7 @@
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Links;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Relations;
 using FerretSharp.Core.Resources;
 using FerretSharp.UI.Resources;
 using FerretSharp.Core.Schema;
@@ -174,6 +176,29 @@ public sealed partial class ShellState
 
         var title = Workspace.FirstFreeName("SQL ", workspace.Tabs.OfType<SqlTab>().Select(t => t.Title));
         return InsertAfterActive(workspace, new SqlTab(workspace.WorkspaceId, title) { Text = text ?? "", Variables = variables ?? [], Visited = true });
+    }
+
+    /// <summary>
+    /// A record diagram of <paramref name="rows"/> of <paramref name="table"/> after the active tab (WP-60). Rows whose key has
+    /// no exact text (<see cref="RecordKeys"/>) are left out; null if none is left.
+    /// </summary>
+    public RecordTab? OpenRecords(TableSummary table, TableDetails details, IReadOnlyList<RowData> rows)
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        var keys = rows.Select(r => RecordKeys.ToText(details, r.Key)).OfType<IReadOnlyList<string>>()
+            .DistinctBy(k => string.Join("\u0001", k)).ToList();
+        if (keys.Count == 0)
+        {
+            return null;
+        }
+
+        var rowIds = QueryBuilder.RowKeyOf(details) == RowKeyKind.RowId;
+        var tab = new RecordTab(workspace.WorkspaceId, table, new RecordDiagramState(table.Ref, rowIds, keys, steps: null)) { Visited = true };
+        return InsertAfterActive(workspace, tab);
     }
 
     /// <summary>A tab for a new table in the designer (WP-23, stage 3), after the active tab; the table goes into <paramref name="owner"/>.</summary>
@@ -367,6 +392,7 @@ public sealed partial class ShellState
     {
         TableTab table => Vanished(table, schema),
         PlSqlTab plSql => schema.FindPlSql(plSql.Unit.Ref) is null,
+        RecordTab records => schema.Find(records.Table.Ref) is null && string.Equals(records.Table.Owner, schema.Owner, StringComparison.Ordinal),
         _ => false,
     });
 
@@ -439,6 +465,15 @@ public sealed partial class ShellState
             else if (state.Sql is { } sql)
             {
                 tab = SqlTab.Restore(workspace.Id, sql, state.Form);
+            }
+            else if (state.Records is { Owner: not null, Name: not null } records)
+            {
+                if ((schema.Find(records.Table) ?? OpenedByName(records.Table, schema)) is not { } table)
+                {
+                    continue; // dropped, or no longer reachable through a synonym
+                }
+
+                tab = RecordTab.Restore(workspace.Id, table, records);
             }
             else if (state.PlSql is { } plSql)
             {

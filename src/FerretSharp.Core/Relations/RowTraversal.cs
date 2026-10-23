@@ -67,12 +67,12 @@ public sealed class RowTraversal(
         var byRowId = keys.OfType<RowKey.RowId>().Select(k => (IReadOnlyList<object>)[k.Value]).ToList();
         if (byKey.Count > 0)
         {
-            AddAll(graph, table, await data.ReadByKeysAsync(table, [.. table.PrimaryKey.Select(table.IndexOf)], byKey, wholeLobs, cancellationToken));
+            AddAll(graph, table, await data.ReadByKeysAsync(table, [.. table.PrimaryKey.Select(table.IndexOf)], byKey, wholeLobs, maxRows: null, cancellationToken));
         }
 
         if (byRowId.Count > 0)
         {
-            AddAll(graph, table, await data.ReadByKeysAsync(table, null, byRowId, wholeLobs, cancellationToken));
+            AddAll(graph, table, await data.ReadByKeysAsync(table, null, byRowId, wholeLobs, maxRows: null, cancellationToken));
         }
 
         return graph;
@@ -242,17 +242,23 @@ public sealed class RowTraversal(
             return [];
         }
 
-        var found = await data.ReadByKeysAsync(details, targetIndexes, toRead, wholeLobs, cancellationToken);
+        // Read no more than the limit lets in, and add nothing if it is passed: the record diagram (WP-60) goes on with the
+        // graph as it was, so one relationship is followed whole or not at all. Rows the graph has already come back too and
+        // take no room (review: a relationship to mostly known rows was refused, a nearly full graph still read 2 001 rows).
+        var before = graph.Of(target);
+        var fits = maxRows - graph.RowCount + (before?.Rows.Count ?? 0);
+        var found = await data.ReadByKeysAsync(details, targetIndexes, toRead, wholeLobs, fits + 1, cancellationToken);
+        if (found.Count > fits || graph.RowCount + found.Count(r => before?.Contains(r.Key) != true) > maxRows)
+        {
+            throw new TooManyRowsException(maxRows);
+        }
+
         var added = new List<RowData>();
         foreach (var row in found)
         {
             if (graph.Add(details, row))
             {
                 added.Add(row);
-                if (graph.RowCount > maxRows)
-                {
-                    throw new TooManyRowsException(maxRows);
-                }
             }
 
             var text = KeyText([.. targetIndexes.Select(i => trim && row.Values[i] is string s ? s.TrimEnd(' ') : row.Values[i]!)], trim);

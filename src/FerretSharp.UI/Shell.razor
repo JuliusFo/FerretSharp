@@ -107,6 +107,10 @@
                                                     {
                                                         <PlSqlTabView Tab="plSqlTab" />
                                                     }
+                                                    else if (tab is RecordTab recordTab)
+                                                    {
+                                                        <RecordDiagramView Tab="recordTab" />
+                                                    }
                                                 </TabFrame>
                                             </div>
                                         }

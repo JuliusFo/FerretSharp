@@ -68,6 +68,9 @@ public sealed record TabState(
     /// <summary>Set for a PL/SQL tab (WP-28); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
     public PlSqlTabState? PlSql { get; init; }
 
+    /// <summary>Set for a record diagram tab (WP-60); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
+    public RecordTabState? Records { get; init; }
+
     /// <summary>A LINQ console tab in the file format of table tabs.</summary>
     public static TabState OfLinq(LinqTabState linq) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Linq = linq };
 
@@ -76,6 +79,20 @@ public sealed record TabState(
 
     /// <summary>A PL/SQL tab in the file format of table tabs.</summary>
     public static TabState OfPlSql(PlSqlTabState plSql) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { PlSql = plSql };
+
+    /// <summary>A record diagram tab in the file format of table tabs.</summary>
+    public static TabState OfRecords(RecordTabState records) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Records = records };
+}
+
+/// <summary>
+/// A record diagram tab (WP-60): the table of the start rows (the real object), their keys as text
+/// (<see cref="Relations.RecordKeys"/>) and what was expanded since. The rows are read again when the tab is shown.
+/// </summary>
+/// <param name="RowIds">The keys are ROWIDs (a table without an enforced primary key).</param>
+public sealed record RecordTabState(string Owner, string Name, bool RowIds, IReadOnlyList<IReadOnlyList<string>> Keys, IReadOnlyList<Relations.RecordStep> Steps)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TableRef Table => new(Owner, Name);
 }
 
 /// <summary>The form view of a tab (WP-21, WP-56): whether the panel is open, its width and "leere ausblenden".</summary>
@@ -145,6 +162,11 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
             Sorts = (tab.Sorts ?? []).OfType<SortSpec>().ToList(),
             PinnedColumns = (tab.PinnedColumns ?? []).OfType<string>().ToList(),
             Sql = tab.Sql is { } sql ? sql with { Text = sql.Text ?? "", Variables = (sql.Variables ?? []).OfType<SqlVariable>().ToList() } : null,
+            Records = tab.Records is { } records ? records with
+            {
+                Keys = (records.Keys ?? []).Where(k => k is not null).Select(k => (IReadOnlyList<string>)k.OfType<string>().ToList()).ToList(),
+                Steps = (records.Steps ?? []).Where(s => s is not null).Select(s => s with { Nodes = (s.Nodes ?? []).OfType<string>().ToList() }).ToList(),
+            } : null,
         }).ToList(),
     };
 

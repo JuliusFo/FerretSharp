@@ -66,6 +66,8 @@
             TableTab table => TabTooltip(table),
             PlSqlTab plSql => TextFormat.Format(ShellText.TabBar_PlSqlTitle, ExplorerList.KindLabel(plSql.Unit.Kind), plSql.Unit.Owner, plSql.Unit.Name),
             NewTableTab => ShellText.TabBar_NewTableTitle,
+            RecordTab records => TextFormat.Plural(records.Diagram.Keys.Count, ShellText.TabBar_RecordsTitleOne, ShellText.TabBar_RecordsTitleOther,
+                $"{records.Table.Owner}.{records.Table.Name}"),
             _ when _renaming == tab => null,
             LinqTab => WithTitle(tab, ShellText.TabBar_LinqTitle),
             _ => WithTitle(tab, ShellText.TabBar_SqlTitle),
@@ -99,6 +101,10 @@
                     @Icons.For(FerretSharp.Core.Schema.TableKind.Table)
                     <span class="tab-name">@tab.Caption</span>
                     <span class="filter-pill">@ShellText.TabBar_NewTableBadge</span>
+                    break;
+                case RecordTab:
+                    @Icons.Records
+                    <span class="tab-name">@tab.Caption</span>
                     break;
                 case PlSqlTab plSql:
                     @Icons.For(plSql.Unit.Kind)
@@ -181,6 +187,7 @@
         LinqTab => "linq",
         SqlTab => "sql",
         PlSqlTab => "plsql",
+        RecordTab => "records",
         _ => "",
     };
 

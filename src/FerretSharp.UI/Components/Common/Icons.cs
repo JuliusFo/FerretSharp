@@ -65,6 +65,10 @@ internal static class Icons
     public static readonly MarkupString Pin = Svg(
         """<path d="M6 2h4l-.5 4 2.5 2.5v1H4v-1L6.5 6 6 2Z"/><path d="M8 9.5V14"/>""", 1.4);
 
+    /// <summary>Three rows joined by lines: a record diagram (WP-60).</summary>
+    public static readonly MarkupString Records = Svg(
+        """<rect x="1.5" y="6" width="4.5" height="4" rx="1"/><rect x="10" y="2" width="4.5" height="4" rx="1"/><rect x="10" y="10" width="4.5" height="4" rx="1"/><path d="M6 8h2v-4h2M8 8v4h2"/>""");
+
     /// <summary>Open padlock: a workspace unlocked for writing (WP-10).</summary>
     public static readonly MarkupString Unlocked = Svg(
         """<rect x="3" y="7.5" width="10" height="6.5" rx="1.5"/><path d="M5.5 7.5V5a2.5 2.5 0 0 1 4.9-.7"/>""", 1.6);

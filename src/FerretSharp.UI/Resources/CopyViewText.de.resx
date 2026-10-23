@@ -126,4 +126,25 @@
   <data name="TargetLockedHint" xml:space="preserve">
     <value>{0} ist gesperrt: Schalte den Workspace dort frei, um hineinzukopieren.</value>
   </data>
+  <data name="PreviewAsTable" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="PreviewAsDiagram" xml:space="preserve">
+    <value>Diagramm</value>
+  </data>
+  <data name="PreviewAsDiagramTitle" xml:space="preserve">
+    <value>Die Tabellen der Kopie als Diagramm: Eltern links, in der Reihenfolge, in der die Zeilen eingefügt werden</value>
+  </data>
+  <data name="DiagramRowsOne" xml:space="preserve">
+    <value>{0:N0} Zeile · {1:N0} neu · {2:N0} vorhanden</value>
+  </data>
+  <data name="DiagramRowsOther" xml:space="preserve">
+    <value>{0:N0} Zeilen · {1:N0} neu · {2:N0} vorhanden</value>
+  </data>
+  <data name="DiagramConflict" xml:space="preserve">
+    <value>Vorhandene: {0}</value>
+  </data>
+  <data name="DiagramConflictDiffering" xml:space="preserve">
+    <value>Vorhandene: {0} ({1:N0} abweichend)</value>
+  </data>
 </root>

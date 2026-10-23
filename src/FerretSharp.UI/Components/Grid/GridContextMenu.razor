@@ -100,6 +100,11 @@
         }
     </ExportMenuItems>
 
+    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_RecordsGroup, RowsText(Request.JumpRows.Count))</div>
+    <button class="menu-item" disabled="@(RecordsUnavailable is not null)" title="@(RecordsUnavailable ?? GridText.GridMenu_RecordsTitle)" @onclick="ShowRecordsAsync">
+        @GridText.GridMenu_Records
+    </button>
+
     <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_CopyToConnectionGroup, RowsText(Request.JumpRows.Count))</div>
     <button class="menu-item" disabled="@(CopyUnavailable is not null)" title="@(CopyUnavailable ?? GridText.GridMenu_CopyToConnectionTitle)" @onclick="CopyToConnectionAsync">
         @GridText.GridMenu_CopyToConnection
@@ -218,6 +223,20 @@
     {
         await CloseAsync();
         await OnCopyToConnection.InvokeAsync();
+    }
+
+    /// <summary>Why the rows cannot start a record diagram (a view, keys without exact text); null if they can (WP-60).</summary>
+    [Parameter]
+    public string? RecordsUnavailable { get; set; }
+
+    /// <summary>Opens a record diagram tab of the selected rows (or the clicked one), WP-60.</summary>
+    [Parameter]
+    public EventCallback OnShowRecords { get; set; }
+
+    private async Task ShowRecordsAsync()
+    {
+        await CloseAsync();
+        await OnShowRecords.InvokeAsync();
     }
 
     private async Task OpenLobAsync()

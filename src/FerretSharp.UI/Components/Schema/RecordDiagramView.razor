@@ -1,0 +1,622 @@
+@* A record diagram tab (WP-60): rows instead of tables, drawn like the "Relations" view (WP-46, ADR 0033). The start rows
+   stand in the middle, the rows they reference to the left, those that reference them to the right. "+n" on a row loads
+   the rows along its relationships of that side (one read per relationship, on the workspace's session, cancellable);
+   the context menu follows one relationship. A click on the name opens the row's table filtered on it, a click on the row
+   marks it for a copy to another connection (WP-42). Values only in memory; the tab saves the keys and what was expanded. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Display
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Relations
+@using FerretSharp.Core.Schema
+@using FerretSharp.Core.Workspaces
+@inherits FerretComponent
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ILogger<RecordDiagramView> Logger
+@inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
+@inject ConnectionHub Hub
+@inject DisplayColumnSource DisplayColumns
+
+<div class="tabview records-tab">
+    <div class="relations-view">
+        <div class="relations-head">
+            <span class="muted">@TextFormat.Plural(State.Diagram?.RowCount ?? 0, SchemaViewText.Records_RowsOne, SchemaViewText.Records_RowsOther)</span>
+            @foreach (var source in Sources)
+            {
+                <span class="relations-source"><span class="relations-swatch @DiagramStyle.KindClass(source)"></span>@DiagramStyle.SourceLabel(source)</span>
+            }
+            <span class="spacer"></span>
+            @if (State.Marked.Count == 0)
+            {
+                <span class="muted">@SchemaViewText.Records_MarkHint</span>
+            }
+            else
+            {
+                var copyUnavailable = CopyUnavailable;
+                <span class="muted">@TextFormat.Plural(State.Marked.Count, SchemaViewText.Records_MarkedOne, SchemaViewText.Records_MarkedOther)</span>
+                <button class="btn" disabled="@(copyUnavailable is not null || Running)" title="@(copyUnavailable ?? GridText.GridMenu_CopyToConnectionTitle)"
+                        @onclick="OpenCopyAsync">@GridText.GridMenu_CopyToConnection</button>
+                <button class="btn ghost" disabled="@Running" @onclick="State.ClearMarks">@SchemaViewText.Records_ClearMarks</button>
+            }
+            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!State.CanZoomOut)" @onclick="State.ZoomOut">−</button>
+            <button class="btn ghost relations-zoom" title="@SchemaViewText.Relations_ZoomReset" @onclick="State.ResetZoom">@($"{State.Zoom:P0}")</button>
+            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!State.CanZoomIn)" @onclick="State.ZoomIn">+</button>
+            <button class="btn ghost" title="@SchemaViewText.Records_ResetTitle" disabled="@(!State.Changed || Running)" @onclick="ResetAsync">@CommonText.Reset</button>
+            <button class="btn ghost" title="@SchemaViewText.Records_CopyMermaidTitle" disabled="@(State.Diagram is null || Running)" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
+            <button class="icon-btn ghost" title="@(CommonText.Reload + Shortcuts.Hint(ShortcutAction.Refresh))" disabled="@Running" @onclick="LoadAsync">@Icons.Refresh</button>
+        </div>
+
+        @if (State.Diagram?.Problems is { Count: > 0 } problems)
+        {
+            <ul class="records-problems">
+                @foreach (var problem in problems)
+                {
+                    var p = problem;
+                    <li>
+                        <span>@ProblemText(p)</span>
+                        @if (p.TooMany && JumpOf(p) is { IsAvailable: true } jump)
+                        {
+                            <button class="btn small" title="@TextFormat.Format(SchemaViewText.Records_ShowInTabTitle, Label(jump.Table))"
+                                    @onclick="() => Shell.OpenFiltered(FkTargets.SummaryOf(Active, jump.Table), jump.Filters)">@SchemaViewText.Records_ShowInTab</button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        <div class="records-body">
+            @if (_running is { } running)
+            {
+                <div class="records-loading">
+                    <RunProgress @key="running" WorkspaceId="Tab.WorkspaceId" Title="@ProgressText" Started="running.Started" OnCancel="Cancel" />
+                </div>
+            }
+
+            @if (State.Diagram is not { } diagram || State.Placement is not { } placement)
+            {
+                @if (_running is null)
+                {
+                    <EmptyState Title="@SchemaViewText.Records_NotLoadedTitle" Text="@SchemaViewText.Records_NotLoadedText">
+                        <button class="btn primary" @onclick="LoadAsync">@SchemaViewText.Records_Load</button>
+                    </EmptyState>
+                }
+            }
+            else if (State.StartGone)
+            {
+                <EmptyState Title="@SchemaViewText.Records_StartGoneTitle" Text="@TextFormat.Format(SchemaViewText.Records_StartGoneText, Label(State.Table))" />
+            }
+            else
+            {
+                var lit = Neighbours(diagram);
+                <div id="@CanvasId" class="relations-canvas" @onmouseleave="() => _hover = null">
+                    <div class="relations-size" style="@DiagramStyle.Size(placement.Width * State.Zoom, placement.Height * State.Zoom)">
+                        <div class="relations-stage" style="@DiagramStyle.Stage(placement, State.Zoom)">
+                            <svg class="relations-edges" width="@DiagramStyle.Px(placement.Width)" height="@DiagramStyle.Px(placement.Height)">
+                                @foreach (var edge in placement.Edges)
+                                {
+                                    var link = diagram.EdgeOf(edge.Id);
+                                    var relation = link?.Relation ?? diagram.Groups.FirstOrDefault(g => g.Id == edge.Id)?.Relation;
+                                    var end = edge.Points[^1];
+                                    <g class="relations-edge @(relation is null ? "group" : DiagramStyle.KindClass(relation.Source)) @DiagramStyle.EdgeState(edge, _hover?.Id)" title="@(relation is null ? null : EdgeTitle(relation))">
+                                        <path class="hit" d="@edge.Svg" />
+                                        <path class="line" d="@edge.Svg" />
+                                        <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
+                                    </g>
+                                }
+                            </svg>
+                            @foreach (var shown in diagram.Rows)
+                            {
+                                var node = shown.Node;
+                                var box = placement.Nodes[node.Id];
+                                var parents = diagram.Pending(node, DiagramSide.Parents).Count;
+                                var children = diagram.Pending(node, DiagramSide.Children).Count;
+                                var open = OpenUnavailable(node);
+                                <div id="@(node == FirstStart ? FocusId : null)" class="relations-node record @(diagram.Start.Contains(node) ? "focus" : "") @(State.IsMarked(node) ? "marked" : "") @DiagramStyle.NodeState(node, _hover, lit)"
+                                     style="@DiagramStyle.Box(box)"
+                                     @onclick="() => ToggleMark(node)"
+                                     @onmouseenter="() => _hover = node" @onmouseleave="() => Leave(node)" @oncontextmenu="e => OpenMenuAsync(e, node)" @oncontextmenu:preventDefault="true">
+                                    @if (parents > 0)
+                                    {
+                                        <button class="relations-handle left" disabled="@Running" title="@TextFormat.Plural(parents, SchemaViewText.Records_ShowParentsOne, SchemaViewText.Records_ShowParentsOther)"
+                                                @onclick="() => ExpandAsync(node, DiagramSide.Parents)" @onclick:stopPropagation="true">+@parents</button>
+                                    }
+                                    <button class="relations-name" disabled="@(open is not null)" title="@(open ?? TextFormat.Format(SchemaViewText.Records_OpenTitle, Label(node.Table)))"
+                                            @onclick="() => OpenRow(node)" @onclick:stopPropagation="true">@NameOf(node.Table)</button>
+                                    <span class="relations-sub">@RowText(diagram, node)</span>
+                                    @if (children > 0)
+                                    {
+                                        <button class="relations-handle right" disabled="@Running" title="@TextFormat.Plural(children, SchemaViewText.Records_ShowChildrenOne, SchemaViewText.Records_ShowChildrenOther)"
+                                                @onclick="() => ExpandAsync(node, DiagramSide.Children)" @onclick:stopPropagation="true">+@children</button>
+                                    }
+                                </div>
+                            }
+                            @foreach (var group in diagram.Groups)
+                            {
+                                var g = group;
+                                var members = diagram.Members(g);
+                                if (members.Count > 0 && placement.Nodes.TryGetValue(g.Id, out var box))
+                                {
+                                    <div class="relations-node group" style="@DiagramStyle.Box(box)" title="@EdgeTitle(g.Relation)">
+                                        <span class="records-group-text">
+                                            <span class="relations-name">@TextFormat.Format(SchemaViewText.Records_Group, members.Count, NameOf(g.Table))</span>
+                                            <span class="relations-sub">@TextFormat.Format(SchemaViewText.Records_GroupVia, g.Relation.Name)</span>
+                                        </span>
+                                        <button class="btn small" disabled="@Running" @onclick="() => Change(() => State.Open(g), anchor: g.Node)">@SchemaViewText.Relations_GroupShow</button>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (_menu is { } menu && State.Diagram is { } menuDiagram)
+{
+    var open = OpenUnavailable(menu.Node);
+    var parents = menuDiagram.Pending(menu.Node, DiagramSide.Parents);
+    var children = menuDiagram.Pending(menu.Node, DiagramSide.Children);
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="320"
+                 EstimatedHeight="@(120 + 28 * (parents.Count + children.Count))" OnClose="() => _menu = null">
+        <button class="menu-item" disabled="@(open is not null)" title="@open" @onclick="() => FromMenu(() => OpenRow(menu.Node))">@SchemaViewText.Records_MenuOpen</button>
+        <button class="menu-item" disabled="@Running" @onclick="() => FromMenu(() => ToggleMark(menu.Node))">
+            @(State.IsMarked(menu.Node) ? SchemaViewText.Records_MenuUnmark : SchemaViewText.Records_MenuMark)
+        </button>
+        @foreach (var (side, relations, heading) in new[] { (DiagramSide.Parents, parents, SchemaViewText.Records_MenuParents), (DiagramSide.Children, children, SchemaViewText.Records_MenuChildren) })
+        {
+            if (relations.Count == 0)
+            {
+                continue;
+            }
+
+            var s = side;
+            <div class="group-head-btn static">@heading</div>
+            @if (relations.Count > 1)
+            {
+                <button class="menu-item" disabled="@Running" @onclick="() => FromMenuAsync(() => ExpandAsync(menu.Node, s))">@SchemaViewText.Records_MenuAll</button>
+            }
+            @foreach (var relation in relations)
+            {
+                var r = relation;
+                var other = s == DiagramSide.Parents ? r.To : r.From;
+                <button class="menu-item" disabled="@Running" title="@EdgeTitle(r)" @onclick="() => FromMenuAsync(() => ExpandAsync(menu.Node, r, s))">
+                    @TextFormat.Format(SchemaViewText.Records_Via, Label(other), r.Name)
+                </button>
+            }
+        }
+    </PopoverMenu>
+}
+
+@if (_copy is { } copy)
+{
+    <SubgraphCopyDialog @key="copy" Draft="copy" SourceHasTransaction="@(Workspaces.ActionsOf(Tab.WorkspaceId).Count > 0)" OnClose="() => _copy = null" />
+}
+
+@code {
+    private readonly string _id = "rec-" + Guid.NewGuid().ToString("N");
+    private IReadOnlyList<ForeignKeyInfo>? _loadedRelations;
+    private HashSet<string>? _loadedKeys;
+    private bool _loadedOnce;
+    private RecordNode? _hover;
+    private NodeMenu? _menu;
+    private Run? _running;
+    private TraversalProgress? _progress;
+    private bool _scroll = true;
+    private (double X, double Y)? _scrollBy;
+    private bool _disposed;
+    private DomModule? _dom;
+    private SubgraphCopyDraft? _copy;
+    private readonly Dictionary<TableDetails, TablePresentation> _presentations = new(ReferenceEqualityComparer.Instance);
+    private (int Model, int DisplayColumns)? _presentationsFor;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public RecordTab Tab { get; set; } = null!;
+
+    private RecordDiagramState State => Tab.Diagram;
+
+    private bool Running => _running is not null;
+
+    /// <summary>The tab is what the user sees now; a restored tab mounts hidden, and scrolling it does nothing then.</summary>
+    private bool Shown => ReferenceEquals(Shell.ActiveTab, Tab) && Shell.Page == ShellPage.Explorer;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    private string FocusId => _id + "-focus";
+
+    private string CanvasId => _id + "-canvas";
+
+    private RecordNode? FirstStart => State.Diagram?.Start.FirstOrDefault();
+
+    /// <summary>A running read: since when, and how to stop it.</summary>
+    private sealed record Run(DateTimeOffset Started, CancellationTokenSource Cancellation, bool Starting);
+
+    /// <summary>The row whose right-click menu is open, with the mouse position and window size.</summary>
+    private sealed record NodeMenu(RecordNode Node, double X, double Y, double ViewportWidth, double ViewportHeight);
+
+    protected override void OnInitialized()
+    {
+        Shell.TabCommandRequested += OnTabCommand;
+        Presentations.Changed += OnPresentationChanged;
+        DisplayColumns.Changed += OnDisplayColumnsChanged;
+    }
+
+    /// <summary>
+    /// The first time the tab is there, and again when the schema's relationships changed since (a C# model loaded, "Reload
+    /// schema"): the steps may follow relationships that were not there before. Not for a new list with the same
+    /// relationships – every build of the linked project loads the model again.
+    /// </summary>
+    protected override void OnParametersSet()
+    {
+        if (Active.Schema is not { } schema || Running || ReferenceEquals(schema.ForeignKeys, _loadedRelations))
+        {
+            return;
+        }
+
+        var keys = schema.ForeignKeys.Select(RelationGraph.KeyOf).ToHashSet(StringComparer.Ordinal);
+        _loadedRelations = schema.ForeignKeys;
+        if (!_loadedOnce || _loadedKeys?.SetEquals(keys) != true)
+        {
+            _loadedOnce = true;
+            _loadedKeys = keys;
+            Fire(LoadAsync);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scroll && Shown && State.Placement is not null && _running is null)
+        {
+            _scroll = false;
+            _scrollBy = null;
+            await Dom.InvokeVoidAsync("scrollIntoViewById", FocusId, "center");
+        }
+        else if (_scrollBy is { } by)
+        {
+            _scrollBy = null;
+            await Dom.InvokeVoidAsync("scrollByPx", CanvasId, by.X, by.Y);
+        }
+    }
+
+    /// <summary>Reads the start rows again and does what was done (F5, the first time, reset).</summary>
+    private Task LoadAsync() => RunAsync(starting: true, async (progress, token) =>
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        var table = await schema.GetDetailsAsync(FkTargets.SummaryOf(Active, State.Table), token);
+        var relations = RelationGraph.Of(schema);
+        await State.LoadAsync(await TraversalAsync(schema, relations, token), relations, table, progress, token);
+        _scroll = true;
+    }, anchor: null);
+
+    private async Task ResetAsync()
+    {
+        State.Reset();
+        await LoadAsync();
+    }
+
+    private Task ExpandAsync(RecordNode node, DiagramSide side) =>
+        RunAsync(starting: false, (progress, token) => State.ExpandAsync(node, side, progress, token), node, sayIfNothing: true);
+
+    private Task ExpandAsync(RecordNode node, ForeignKeyInfo relation, DiagramSide side) =>
+        RunAsync(starting: false, (progress, token) => State.ExpandAsync(node, relation, side, progress, token), node, sayIfNothing: true);
+
+    /// <summary>
+    /// One read at a time, on the UI thread (the diagram is not thread-safe; the database calls themselves are asynchronous).
+    /// Errors go to the error dialog, a refusal to a notice; what came in before stays.
+    /// </summary>
+    /// <param name="starting">The start rows are read first (loading, F5): the title until the first table is reported.</param>
+    /// <param name="anchor">The row clicked: it stays where it is on the screen while the diagram grows around it.</param>
+    /// <param name="sayIfNothing">
+    /// An expansion that brought nothing says so (E2E: the handle only went from "+3" to "+2", and it looked as if the click
+    /// had been lost).
+    /// </param>
+    private async Task RunAsync(
+        bool starting, Func<IProgress<TraversalProgress>, CancellationToken, Task> work, RecordNode? anchor, bool sayIfNothing = false)
+    {
+        if (_running is not null)
+        {
+            return;
+        }
+
+        _hover = null;
+        var run = new Run(DateTimeOffset.Now, new CancellationTokenSource(), starting);
+        _running = run;
+        _progress = null;
+        var before = AnchorBox(anchor);
+        var shownBefore = Shape;
+        var progress = new Progress<TraversalProgress>(p =>
+        {
+            _progress = p;
+            InvokeAsync(StateHasChanged);
+        });
+        StateHasChanged();
+        var result = await Shell.CallDbAsync(Logger, Active, async () =>
+        {
+            await work(progress, run.Cancellation.Token);
+            return true;
+        });
+        _running = null;
+        run.Cancellation.Dispose();
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (Shell.ShowFailure(result) && sayIfNothing && Shape == shownBefore)
+        {
+            Shell.Notify(SchemaViewText.Records_NothingNew);
+        }
+
+        if (before is not null && AnchorBox(anchor) is { } after)
+        {
+            _scrollBy = ((after.X - before.X) * State.Zoom, (after.Y - before.Y) * State.Zoom);
+        }
+
+        Shell.MarkDirty(); // the steps are saved with the workspace
+        StateHasChanged();
+    }
+
+    /// <summary>What the diagram shows, to tell whether an expansion brought anything.</summary>
+    private (int Rows, int Groups, int Problems) Shape =>
+        State.Diagram is { } diagram ? (diagram.Rows.Count, diagram.Groups.Count, diagram.Problems.Count) : default;
+
+    /// <summary>A relationship not followed, with the row (or rows) it was followed from – a diagram may hold many of a table.</summary>
+    private string ProblemText(RecordProblem problem) => problem.From switch
+    {
+        [var node] when State.Diagram is { } diagram =>
+            TextFormat.Format(SchemaViewText.Records_ProblemFrom, $"{NameOf(node.Table)} {RowText(diagram, node)}", problem.Message),
+        [var first, ..] =>
+            TextFormat.Format(SchemaViewText.Records_ProblemFrom, TextFormat.Format(SchemaViewText.Records_Group, problem.From.Count, NameOf(first.Table)), problem.Message),
+        _ => problem.Message,
+    };
+
+    private NodeBox? AnchorBox(RecordNode? node) => node is null ? null : State.Placement?.Nodes.GetValueOrDefault(node.Id);
+
+    private async Task<RowTraversal> TraversalAsync(SchemaCache schema, RelationGraph relations, CancellationToken token) =>
+        new(await Workspaces.GetDataAsync(Tab.WorkspaceId, token), relations,
+            async (table, ct) => schema.Find(table) is { } summary ? await schema.GetDetailsAsync(summary, ct) : null,
+            wholeLobs: false, RecordDiagram.DefaultMaxRows);
+
+    /// <summary>On a pool thread: ODP.NET sends the break synchronously, over a silent VPN it blocks (A3).</summary>
+    private void Cancel()
+    {
+        if (_running is not { } run)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                run.Cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the read ended meanwhile
+            }
+        });
+    }
+
+    private string ProgressText => _progress is { } p
+        ? TextFormat.Format(SchemaViewText.Records_Reading, Label(p.Table), p.Rows)
+        : _running?.Starting == true ? SchemaViewText.Records_ReadingStart : SchemaViewText.Records_ReadingRows;
+
+    /// <param name="anchor">The row clicked: it stays where it is on the screen.</param>
+    private void Change(Action change, RecordNode? anchor = null)
+    {
+        _hover = null;
+        var before = AnchorBox(anchor);
+        change();
+        if (before is not null && AnchorBox(anchor) is { } after)
+        {
+            _scrollBy = ((after.X - before.X) * State.Zoom, (after.Y - before.Y) * State.Zoom);
+        }
+
+        Shell.MarkDirty();
+    }
+
+    /// <summary>Not while a read runs (review): a reload replaces the diagram, and marks of rows it no longer shows go.</summary>
+    private void ToggleMark(RecordNode node)
+    {
+        if (!Running)
+        {
+            State.ToggleMark(node);
+        }
+    }
+
+    private void Leave(RecordNode node)
+    {
+        if (_hover == node)
+        {
+            _hover = null;
+        }
+    }
+
+    private void FromMenu(Action action)
+    {
+        _menu = null;
+        action();
+    }
+
+    private async Task FromMenuAsync(Func<Task> action)
+    {
+        _menu = null;
+        await action();
+    }
+
+    private async Task OpenMenuAsync(MouseEventArgs e, RecordNode node)
+    {
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        _menu = new NodeMenu(node, e.ClientX, e.ClientY, width, height);
+    }
+
+    /// <summary>Why the row's table cannot be opened filtered on it (no primary key, a type without filter text); null if it can.</summary>
+    private string? OpenUnavailable(RecordNode node)
+    {
+        if (State.Diagram?.DetailsOf(node.Table) is not { } details || State.Diagram.RowOf(node) is not { } row)
+        {
+            return SchemaViewText.Records_OpenUnavailable;
+        }
+
+        return node.Key is RowKey.PrimaryKey ? FkNavigation.KeyFilters(details, [row], details.PrimaryKey, details.PrimaryKey).Unavailable
+            : SchemaViewText.Records_OpenUnavailable;
+    }
+
+    /// <summary>A new tab on the row's table, filtered on its primary key – like an FK jump, the diagram stays.</summary>
+    private void OpenRow(RecordNode node)
+    {
+        if (State.Diagram?.DetailsOf(node.Table) is { } details && State.Diagram.RowOf(node) is { } row
+            && FkNavigation.KeyFilters(details, [row], details.PrimaryKey, details.PrimaryKey) is { Unavailable: null } key)
+        {
+            Shell.OpenFiltered(FkTargets.SummaryOf(Active, node.Table), key.Filters);
+        }
+    }
+
+    /// <summary>The rows a relationship was not followed from, as an FK jump: to show them in a tab instead.</summary>
+    private FkJump? JumpOf(RecordProblem problem)
+    {
+        if (State.Diagram is not { } diagram || problem.Direction is not { } direction || problem.From is not [var first, ..]
+            || diagram.DetailsOf(first.Table) is not { } details)
+        {
+            return null;
+        }
+
+        var rows = problem.From.Select(diagram.RowOf).OfType<RowData>().ToList();
+        return direction == LinkDirection.Children ? FkNavigation.Incoming(details, rows, problem.Relation) : FkNavigation.Outgoing(details, rows, problem.Relation);
+    }
+
+    /// <summary>Why the marked rows cannot be copied (several tables, a view, no other connection); null if they can.</summary>
+    private string? CopyUnavailable => State.MarkedTable is not { } table ? SchemaViewText.Records_CopyOneTable
+        : CopyTargets.Unavailable(Hub, Active, Settings.Current, State.Diagram?.DetailsOf(table));
+
+    private Task OpenCopyAsync()
+    {
+        if (State.MarkedTable is { } table && State.Diagram?.DetailsOf(table) is { } details)
+        {
+            _copy = CopyTargets.Draft(Hub, Active, Settings.Current, Workspaces, Tab.WorkspaceId, details, [.. State.Marked.Select(n => n.Key)]);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task CopyMermaidAsync()
+    {
+        if (State.Diagram is not { } diagram)
+        {
+            return;
+        }
+
+        if (await Dom.CopyTextAsync(Shell, RecordMermaid.Write(diagram, n => $"{NameOf(n.Table)} {RowText(diagram, n)}", NameOf)))
+        {
+            Shell.Notify(SchemaViewText.Relations_MermaidCopied);
+        }
+    }
+
+    private string Label(TableRef table) => Active.Schema?.LabelOf(table) ?? table.ToString();
+
+    /// <summary>The entity's name, if C# names are shown; otherwise the table's.</summary>
+    private string NameOf(TableRef table) => Presentations.ShownEntityNameOf(table) ?? Label(table);
+
+    /// <summary>The key as the grid shows it (enum names included), then the display column's value if the table has one.</summary>
+    private string RowText(RecordDiagram diagram, RecordNode node)
+    {
+        if (diagram.DetailsOf(node.Table) is not { } details || diagram.RowOf(node) is not { } row)
+        {
+            return "";
+        }
+
+        var presentation = PresentationOf(details);
+        var key = node.Key is RowKey.PrimaryKey
+            ? string.Join(" · ", details.PrimaryKey.Select(details.IndexOf).Where(i => i >= 0).Select(i => presentation.Present(i, row.Values[i]).Text))
+            : "ROWID";
+        return DisplayColumns.Shown.IndexIn(details) is { } display && !details.PrimaryKey.Contains(details.Columns[display].Name)
+               && presentation.Present(display, row.Values[display]).Text is { Length: > 0 } text
+            ? $"{key} · {text}"
+            : key;
+    }
+
+    /// <summary>
+    /// The presentation of a table's values, built once per table (review: every hover rendered every row, and each built its
+    /// own); dropped when the C# model or the display columns change.
+    /// </summary>
+    private TablePresentation PresentationOf(TableDetails details)
+    {
+        if (_presentationsFor != (Presentations.Version, DisplayColumns.Version))
+        {
+            _presentations.Clear();
+            _presentationsFor = (Presentations.Version, DisplayColumns.Version);
+        }
+
+        if (!_presentations.TryGetValue(details, out var presentation))
+        {
+            _presentations[details] = presentation = Presentations.For(details);
+        }
+
+        return presentation;
+    }
+
+    /// <summary>Kinds of relationship among the drawn links, for the legend.</summary>
+    private IReadOnlyList<FkSource> Sources => State.Diagram is { } diagram
+        ? [.. diagram.Edges.Select(e => e.Relation.Source).Concat(diagram.Groups.Select(g => g.Relation.Source)).Distinct().Order()]
+        : [];
+
+    private string EdgeTitle(ForeignKeyInfo relation) => DiagramStyle.EdgeTitle(relation, Label);
+
+    /// <summary>The rows linked to the one under the mouse.</summary>
+    private IReadOnlySet<RecordNode> Neighbours(RecordDiagram diagram) =>
+        _hover is not { } hover ? new HashSet<RecordNode>()
+        : diagram.Edges.Where(e => e.Child == hover || e.Parent == hover).SelectMany(e => new[] { e.Child, e.Parent }).ToHashSet();
+
+    private void OnTabCommand(WorkspaceTab tab, TabCommand command)
+    {
+        if (tab == Tab && command == TabCommand.Refresh)
+        {
+            Fire(LoadAsync);
+        }
+    }
+
+    /// <summary>A loaded or changed C# model: entity names and enum names change.</summary>
+    private void OnPresentationChanged() => Fire(() =>
+    {
+        OnParametersSet();
+        StateHasChanged();
+    });
+
+    private void OnDisplayColumnsChanged() => Fire(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Shell.TabCommandRequested -= OnTabCommand;
+        Presentations.Changed -= OnPresentationChanged;
+        DisplayColumns.Changed -= OnDisplayColumnsChanged;
+        Cancel();
+        await Dom.DisposeAsync();
+    }
+}

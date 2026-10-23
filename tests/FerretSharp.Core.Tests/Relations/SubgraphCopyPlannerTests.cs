@@ -75,6 +75,19 @@ public class SubgraphCopyPlannerTests
     }
 
     [Fact]
+    public async Task The_preview_as_a_diagram_puts_each_table_right_of_its_parents_without_self_references()
+    {
+        SameTablesInTarget();
+        var graph = await CollectAsync();
+        var plan = await new SubgraphCopyPlanner("APP", await _target.SchemaAsync(Target), _target.Data).PlanAsync(graph, Ct);
+
+        var (nodes, edges) = CopyPreviewDiagram.ToLayout(plan, graph);
+
+        Assert.Equal([("t:APP.KUNDE", 0), ("t:APP.MITARBEITER", 0), ("t:APP.AUFTRAG", 1)], nodes.Select(n => (n.Id, n.Layer)));
+        Assert.Equal([("t:APP.MITARBEITER", "t:APP.AUFTRAG"), ("t:APP.KUNDE", "t:APP.AUFTRAG")], edges.Select(e => (e.From, e.To)));
+    }
+
+    [Fact]
     public async Task Rows_of_a_self_reference_come_after_the_rows_they_reference()
     {
         SameTablesInTarget();

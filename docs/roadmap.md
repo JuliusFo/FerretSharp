@@ -46,11 +46,7 @@ Umgesetzt auf `wp/42-subgraph-copy` (Release offen, E2E steht noch aus): Planung
 Umgesetzt auf `wp/46-relationship-diagram` (Release offen, kommt mit WP-42): Planung, Entscheidungen und Stand in `docs/work-packages/wp-46-relationship-diagram.md`, ADR 0033. Für WP-60 da: `DiagramLayout` (Schichten-Layout über Knoten-IDs, stabil beim Wachsen) und die Darstellung in `RelationsView`.
 
 ### WP-60 Datensatz-Diagramm
-(Idee des Nutzers, 2026-10-22; braucht WP-42 und WP-46.) Branch `wp/60-record-diagram`.
-- Von markierten Zeilen eines Tabs aus die verbundenen Datensätze als Diagramm: Knoten sind Zeilen (Tabellen-/Entity-Name, Schlüssel, Anzeigespalte über die Präsentationsschicht), Kanten die Beziehungen aus dem Graphen von WP-42, die diese Zeilen tatsächlich verbinden. Doppelklick lädt Eltern oder Kinder einer Kante nach, Klick öffnet den Tab mit Filter auf die Zeile.
-- Laden über die Traversierung aus WP-42 (Leseweg der Workspace-Session, Blöcke mit `in`, abbrechbar), Darstellung und Layout aus WP-46. Viele Kinder an einer Kante werden zu einem Knoten zusammengefasst („Position ×200“), aufklappbar. Werte nur im Speicher.
-- **Verbindung zum Kopieren (WP-42):** Knoten markieren und „Teilgraph kopieren“ mit diesen Zeilen als Start; die Kopier-Vorschau von WP-42 als Diagramm mit Zeilenzahl und Konflikten am Knoten.
-- Offen: Grenze, ab der zusammengefasst wird; ob das Diagramm die Tabellen-Vorschau von WP-42 ersetzt oder ergänzt; Start auch aus einem Ergebnis von SQL-Editor/LINQ-Konsole, wenn die Herkunft bekannt ist (WP-48); „Als Mermaid kopieren“ auch hier (enthält Werte).
+Umgesetzt auf `wp/60-record-diagram` (Release offen, kommt mit WP-42 und WP-46): Planung, Entscheidungen und Stand in `docs/work-packages/wp-60-record-diagram.md`, ADR 0034.
 
 ### WP-43 Datenqualität der Beziehungen
 Branch `wp/43-relationship-check`.

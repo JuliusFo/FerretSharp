@@ -115,7 +115,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
             return comesAlong;
         }
 
-        foreach (var found in await targetData.ReadByKeysAsync(parentDetails, key, [.. wanted.Values], wholeLobs: false, cancellationToken))
+        foreach (var found in await targetData.ReadByKeysAsync(parentDetails, key, [.. wanted.Values], wholeLobs: false, maxRows: null, cancellationToken))
         {
             wanted.Remove(RowTraversal.KeyText([.. key.Select(i => found.Values[i] ?? "")], true));
         }
@@ -382,7 +382,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
             return matched;
         }
 
-        foreach (var found in await targetData.ReadByKeysAsync(target, key, keys, wholeLobs: false, cancellationToken))
+        foreach (var found in await targetData.ReadByKeysAsync(target, key, keys, wholeLobs: false, maxRows: null, cancellationToken))
         {
             var text = RowTraversal.KeyText([.. key.Select(i => trim && found.Values[i] is string s ? s.TrimEnd(' ') : found.Values[i]!)], trim);
             foreach (var row in byText.GetValueOrDefault(text) ?? [])
