@@ -278,4 +278,8 @@
   <data name="KeepsBlanks" xml:space="preserve">
     <value>Goes through with data, but every value keeps the blanks it was padded with – comparisons with the text without them no longer match (RTRIM afterwards).</value>
   </data>
+  <data name="AddColumnsHeader" xml:space="preserve">
+    <value>Columns of {0}, to add to the same table.</value>
+    <comment>{0}: source table as OWNER.TABLE</comment>
+  </data>
 </root>

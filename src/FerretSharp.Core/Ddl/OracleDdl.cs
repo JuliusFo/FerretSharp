@@ -14,7 +14,8 @@ internal static class OracleDdl
 {
     public static string Q(string name) => OracleIdentifier.Quote(name);
 
-    private static string T(TableRef table) => OracleIdentifier.Qualify(table.Owner, table.Name);
+    /// <summary>The table with its owner; without one (<see cref="AddColumnsScript"/> for a connection whose table is unknown) the bare name.</summary>
+    private static string T(TableRef table) => table.Owner.Length == 0 ? Q(table.Name) : OracleIdentifier.Qualify(table.Owner, table.Name);
 
     // ---- tables ----
 
