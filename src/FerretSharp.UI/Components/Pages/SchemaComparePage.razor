@@ -136,8 +136,9 @@
                             }
                         </tr>
                     </thead>
+                    @{ var visible = Visible(result); }
                     <tbody>
-                        @foreach (var row in VisibleObjects(result))
+                        @foreach (var row in visible.Take(_shown))
                         {
                             var open = _open.Contains(row.Key);
                             var children = Children(row).ToList();
@@ -153,7 +154,7 @@
                                 </td>
                                 @foreach (var cell in row.Cells)
                                 {
-                                    <CompareCellView Cell="cell" />
+                                    @CellView(cell)
                                 }
                             </tr>
                             @if (open)
@@ -164,7 +165,7 @@
                                         <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
                                         @foreach (var cell in child.Cells)
                                         {
-                                            <CompareCellView Cell="cell" />
+                                            @CellView(cell)
                                         }
                                     </tr>
                                 }
@@ -172,7 +173,15 @@
                         }
                     </tbody>
                 </table>
-                @if (!VisibleObjects(result).Any())
+                @if (visible.Count > _shown)
+                {
+                    var rest = visible.Count - _shown;
+                    <div class="compare-more">
+                        <span class="muted">@TextFormat.Plural(rest, CompareViewText.Compare_MoreObjectsOne, CompareViewText.Compare_MoreObjectsOther)</span>
+                        <button class="btn" @onclick="() => _shown += RowsPerStep">@TextFormat.Format(CompareViewText.Compare_ShowMore, Math.Min(rest, RowsPerStep))</button>
+                    </div>
+                }
+                @if (visible.Count == 0)
                 {
                     <div class="compare-none">@(result.Objects.Any(o => o.HasDifferences) ? CompareViewText.Compare_NoMatch : CompareViewText.Compare_NoDifferences)</div>
                 }
@@ -306,18 +315,18 @@
         Compare.SetSides(Compare.Current.Sides.Where((_, i) => i != index).ToList(), reference);
     }
 
-    private void SetReference(int index, bool on) =>
-        Compare.SetOptions(on ? index : null, Compare.Current.ColumnOrder, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
+    private Task SetReference(int index, bool on) =>
+        Compare.SetOptionsAsync(on ? index : null, Compare.Current.ColumnOrder, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
 
-    private void SetColumnOrder(bool on) =>
-        Compare.SetOptions(Compare.Current.Reference, on, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
+    private Task SetColumnOrder(bool on) =>
+        Compare.SetOptionsAsync(Compare.Current.Reference, on, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
 
-    private void SetOnlyDifferences(bool on) =>
-        Compare.SetOptions(Compare.Current.Reference, Compare.Current.ColumnOrder, on, Compare.Current.Kinds);
+    private Task SetOnlyDifferences(bool on) =>
+        Compare.SetOptionsAsync(Compare.Current.Reference, Compare.Current.ColumnOrder, on, Compare.Current.Kinds);
 
     private bool IsShown(CompareKind[] kinds) => Compare.Current.Kinds is not { } shown || kinds.All(shown.Contains);
 
-    private void SetKinds(CompareKind[] kinds, bool on)
+    private Task SetKinds(CompareKind[] kinds, bool on)
     {
         var shown = (Compare.Current.Kinds ?? KindFilters.SelectMany(f => f.Kinds).ToList()).Except(kinds).ToList();
         if (on)
@@ -326,7 +335,7 @@
         }
 
         var all = shown.Count == KindFilters.Sum(f => f.Kinds.Length);
-        Compare.SetOptions(Compare.Current.Reference, Compare.Current.ColumnOrder, Compare.Current.OnlyDifferences, all ? null : shown);
+        return Compare.SetOptionsAsync(Compare.Current.Reference, Compare.Current.ColumnOrder, Compare.Current.OnlyDifferences, all ? null : shown);
     }
 
     private async Task UsePassword(Guid connectionId)
@@ -339,10 +348,72 @@
         }
     }
 
-    private IEnumerable<CompareRow> VisibleObjects(SchemaComparison result) =>
-        result.Objects.Where(row =>
-            CompareExport.Shown(row, Compare.Current.OnlyDifferences, Compare.Current.Kinds)
-            && new TextSearch(_search).Matches(row.Name));
+    /// <summary>Objects rendered at first and added per click: a matrix of thousands of rows froze the window while rendering.</summary>
+    private const int RowsPerStep = 300;
+
+    private int _shown = RowsPerStep;
+    private (SchemaComparison Result, bool OnlyDifferences, IReadOnlyList<CompareKind>? Kinds, string Search, IReadOnlyList<CompareRow> Rows)? _visible;
+
+    /// <summary>
+    /// The objects the filters and the search let through, computed once per change of them rather than on every render
+    /// (a click on a row rendered the page, which filtered all objects twice). A new selection starts with the first rows.
+    /// </summary>
+    private IReadOnlyList<CompareRow> Visible(SchemaComparison result)
+    {
+        var (only, kinds) = (Compare.Current.OnlyDifferences, Compare.Current.Kinds);
+        if (_visible is { } known && ReferenceEquals(known.Result, result) && known.OnlyDifferences == only && ReferenceEquals(known.Kinds, kinds) && known.Search == _search)
+        {
+            return known.Rows;
+        }
+
+        var search = new TextSearch(_search);
+        var rows = result.Objects.Where(row => CompareExport.Shown(row, only, kinds) && search.Matches(row.Name)).ToList();
+        _visible = (result, only, kinds, _search, rows);
+        _shown = RowsPerStep;
+        return rows;
+    }
+
+    /// <summary>One cell: the side's definition, coloured by its group; a dash where it is missing. A fragment, not a component – thousands of them re-rendered on every click.</summary>
+    private static RenderFragment CellView(CompareCell cell) => __builder =>
+    {
+        <td class="cell @CellCss(cell)" title="@CellTitle(cell)">
+            @if (cell.State == CellState.Missing)
+            {
+                <span>–</span>
+            }
+            else
+            {
+                <span class="mono">@cell.Definition</span>
+                @if (ShownName(cell) is { } name)
+                {
+                    <span class="compare-alias">@TextFormat.Format(GridText.CompareCell_As, name)</span>
+                }
+            }
+        </td>
+    };
+
+    /// <summary>
+    /// The side's own name next to the definition: another letter case or a name the user gave differently. Names Oracle
+    /// generated (<c>SYS_C…</c>) differ on every database – only in the tooltip.
+    /// </summary>
+    private static string? ShownName(CompareCell cell) =>
+        cell.Name is { } name && (cell.State == CellState.OtherCase || !name.StartsWith("SYS_", StringComparison.Ordinal)) ? name : null;
+
+    private static string CellCss(CompareCell cell) => cell.State switch
+    {
+        CellState.Missing => "missing",
+        CellState.OtherCase => "other-case",
+        CellState.Different => $"different g{Math.Min(cell.Group, 3)}",
+        _ => "same",
+    };
+
+    private static string CellTitle(CompareCell cell) => cell.State switch
+    {
+        CellState.Missing => GridText.CompareCell_Missing,
+        CellState.OtherCase => TextFormat.Format(GridText.CompareCell_OtherCase, cell.Name),
+        CellState.Different => TextFormat.Format(GridText.CompareCell_Different, cell.Group + 1),
+        _ => GridText.CompareCell_Same,
+    } + (cell.Name is { } name && ShownName(cell) is null ? $" · {name}" : "");
 
     private IEnumerable<CompareRow> Children(CompareRow row) =>
         row.Children.Where(c => (!Compare.Current.OnlyDifferences || c.Differs) && (Compare.Current.Kinds is not { } kinds || kinds.Contains(c.Kind)));

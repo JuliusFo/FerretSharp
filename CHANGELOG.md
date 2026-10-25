@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- The schema comparison no longer freezes the window. Its sessions were opened and read on the UI thread, where the driver's synchronous steps (the session settings after logging in) held the window for a round trip per connection – over a slow VPN a second or more –, and the matrix was computed there too; both now run in the background. Turning on "Only differences" or a kind filter no longer computes the matrix again. A large matrix shows its first 300 objects and adds 300 more per click, with the number of the others below.
+
 ### Changed
 - The schema comparison shows the group of a connection: the list of a side reads "Kunde A › DEV" and is ordered like the connection switcher – by group (connections without one last), then kind and name –, and the column headers of the matrix and its export carry the group too, so two groups' connections of the same name stay apart. The list to choose the connection of an app's statements from does the same: the suggested connections first, then all others by group. With "Group before the connection name" off, all of them show the bare name as before.
 - The connection switcher is wider (720 instead of 560 pixels), so the group in front of the name of an open or recent connection is cut less often.

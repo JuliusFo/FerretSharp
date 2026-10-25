@@ -35,6 +35,9 @@ public sealed class SchemaCompareService(
     private CancellationTokenSource? _cts;
     private bool _loaded;
 
+    /// <summary>Counts matrix computations; a computation whose number is no longer the latest drops its result.</summary>
+    private int _matrix;
+
     /// <summary>Raised on every change; may fire on a background thread.</summary>
     public event Action? Changed;
 
@@ -132,12 +135,20 @@ public sealed class SchemaCompareService(
         ResetSides();
     }
 
-    /// <summary>Reference, column order and filters: the matrix is recomputed from the snapshots already read.</summary>
-    public void SetOptions(int? reference, bool columnOrder, bool onlyDifferences, IReadOnlyList<CompareKind>? kinds)
+    /// <summary>
+    /// Reference, column order and filters. The first two recompute the matrix from the snapshots already read; the
+    /// filters only change which rows the page shows.
+    /// </summary>
+    public async Task SetOptionsAsync(int? reference, bool columnOrder, bool onlyDifferences, IReadOnlyList<CompareKind>? kinds)
     {
+        var recompute = reference != Current.Reference || columnOrder != Current.ColumnOrder;
         Current = Current with { Reference = reference, ColumnOrder = columnOrder, OnlyDifferences = onlyDifferences, Kinds = kinds };
-        Recompute();
         Changed?.Invoke();
+        if (recompute)
+        {
+            await RecomputeAsync();
+            Changed?.Invoke();
+        }
     }
 
     /// <summary>
@@ -165,6 +176,7 @@ public sealed class SchemaCompareService(
             (state.Loading, state.Step, state.Snapshot, state.Error, state.NeedsPassword) = (true, null, null, null, false);
         }
 
+        Interlocked.Increment(ref _matrix); // a matrix still being computed from the old snapshots is not wanted
         Result = null;
         Changed?.Invoke();
         try
@@ -202,7 +214,12 @@ public sealed class SchemaCompareService(
             }
         }
 
-        Recompute();
+        if (_cts is not null)
+        {
+            return; // cancelled by a newer comparison, which builds the matrix when it ends
+        }
+
+        await RecomputeAsync();
         Changed?.Invoke();
     }
 
@@ -264,15 +281,20 @@ public sealed class SchemaCompareService(
 
     private void ResetSides()
     {
+        Interlocked.Increment(ref _matrix);
         Sides = Current.Sides.Select(side => new SideState(side)).ToList();
         Result = null;
         ResultSides = [];
         Changed?.Invoke();
     }
 
-    /// <summary>The matrix over the sides that loaded; the reference only if it loaded too.</summary>
-    private void Recompute()
+    /// <summary>
+    /// The matrix over the sides that loaded; the reference only if it loaded too. Computed on the thread pool – over
+    /// large schemas the diff took long enough to freeze the window – and dropped if the sides or options changed meanwhile.
+    /// </summary>
+    private async Task RecomputeAsync()
     {
+        var version = Interlocked.Increment(ref _matrix);
         var loaded = Sides.Select((state, index) => (state, index)).Where(s => s.state.Snapshot is not null).ToList();
         if (loaded.Count == 0)
         {
@@ -281,7 +303,12 @@ public sealed class SchemaCompareService(
         }
 
         var reference = Current.Reference is { } r ? loaded.FindIndex(s => s.index == r) : -1;
-        ResultSides = loaded.Select(s => s.index).ToList();
-        Result = SchemaDiff.Compare(loaded.Select(s => s.state.Snapshot!).ToList(), new CompareOptions(reference >= 0 ? reference : null, Current.ColumnOrder));
+        var snapshots = loaded.Select(s => s.state.Snapshot!).ToList();
+        var options = new CompareOptions(reference >= 0 ? reference : null, Current.ColumnOrder);
+        var result = await Task.Run(() => SchemaDiff.Compare(snapshots, options));
+        if (version == Volatile.Read(ref _matrix))
+        {
+            (Result, ResultSides) = (result, loaded.Select(s => s.index).ToList());
+        }
     }
 }

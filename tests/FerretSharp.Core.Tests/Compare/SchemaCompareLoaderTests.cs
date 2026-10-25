@@ -153,6 +153,52 @@ public sealed class SchemaCompareLoaderTests
         Assert.Equal([(0, "Verbinde"), (0, "Spalten")], steps);
     }
 
+    /// <summary>
+    /// Started from the UI thread, the sessions open and read on the thread pool: <c>Task.Yield</c> came back to the UI
+    /// thread's context, and the whole snapshot was read there – the window stopped responding while comparing.
+    /// </summary>
+    [Fact]
+    public async Task Sides_are_read_off_the_callers_thread()
+    {
+        using var ui = new UiThread();
+        _secrets.GetPassword(Arg.Any<Guid>()).Returns("geheim");
+        var onUi = new List<string>();
+        foreach (var profile in new[] { _dev, _test })
+        {
+            var reader = Substitute.For<ISchemaReader>();
+            reader.ReadSnapshotAsync(Arg.Any<string>(), Arg.Any<IProgress<string>?>(), Arg.Any<CancellationToken>()).Returns(call =>
+            {
+                Note("read " + profile.Name);
+                return Snapshot(call.Arg<string>());
+            });
+            var connection = Substitute.For<IDatabaseConnection>();
+            connection.Schema.Returns(reader);
+            _connector.OpenAsync(profile, Arg.Any<string>(), SchemaCompareLoader.SessionAction, Arg.Any<CancellationToken>()).Returns(_ =>
+            {
+                Note("open " + profile.Name);
+                return connection;
+            });
+        }
+
+        var loader = await LoaderAsync();
+
+        var results = await ui.RunAsync(() => loader.LoadAsync([new CompareSide(_dev.Id), new CompareSide(_test.Id)], null, Ct));
+
+        Assert.All(results, r => Assert.True(r.Loaded));
+        Assert.Empty(onUi);
+
+        void Note(string what)
+        {
+            if (ui.IsCurrent)
+            {
+                lock (onUi)
+                {
+                    onUi.Add(what);
+                }
+            }
+        }
+    }
+
     [Fact]
     public async Task Saved_comparisons_survive_a_round_trip()
     {
