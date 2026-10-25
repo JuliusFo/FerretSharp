@@ -51,6 +51,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | JS-Interop | ein ES-Modul pro Thema in `wwwroot/js` | JS bleibt dünn. **Keine Geschäftslogik in JS.** |
 | Hosting, Logging | `Microsoft.Extensions.Hosting`; **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Die BlazorWebView nutzt den Service Provider des Hosts. |
 | Grid, Editor | **AG Grid Community 36.2.0** (Infinite Row Model), **Monaco 0.57** (ADR 0011), beide lokal | Keine AG-Grid-Enterprise-Features. |
+| Icons | **Lucide 1.55** als Pfade in `Icons.cs` (ADR 0035) | Kein Paket, keine Icon-Schrift; neue Icons aus derselben Version. |
 | Excel-Export | **SpreadCheetah** (ADR 0028), nur in `Core/Data/XlsxExport` | Text bleibt Text, nie Formeln. |
 | App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Nie Connection-String oder Parameter (`EfEvents`). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, async mit `CancellationToken`. `OFFSET/FETCH` ab 12c, kein ROWNUM-Fallback. |

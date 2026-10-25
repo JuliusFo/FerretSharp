@@ -8,7 +8,7 @@
         {
             <button class="btn" title="@SqlEditorText.SqlPreview_OpenInEditorTitle" @onclick="OnOpenInEditor">@CommonText.OpenInSqlEditor</button>
         }
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
     </header>
     @if (Error is not null)
     {

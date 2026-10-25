@@ -11,7 +11,7 @@
 <ModalFrame Label="@GridText.SetValue_Title" Class="set-value-dialog" OnCancel="OnClose">
     <header>
         <span>@GridText.SetValue_Title <span class="lob-type">@Request.Target</span></span>
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
     </header>
     <div class="dialog-body" @ref="_body" @onkeydown="OnKeyDownAsync">
         <FormFieldView Field="_field" Id="set-value-field" Draft="@_draft" Error="@_error" RowVersion="0"

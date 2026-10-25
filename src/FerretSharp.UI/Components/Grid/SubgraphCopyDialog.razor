@@ -12,7 +12,7 @@
 <ModalFrame Label="@CopyViewText.Title" Class="copy-dialog" OnCancel="CloseAsync">
     <header>
         <span>@CopyViewText.Title</span>
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="CloseAsync">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="CloseAsync">@Icons.Close</button>
     </header>
     <div class="dialog-body">
         <p class="copy-source">@TextFormat.Plural(Draft.StartRows, CopyViewText.SourceOne, CopyViewText.SourceOther, Draft.Start.Table.DisplayName, Draft.SourceName)</p>
@@ -205,7 +205,7 @@
                 <span class="copy-node">
                     @if (deeper)
                     {
-                        <button class="icon-btn ghost tree-toggle" title="@TextFormat.Format(CopyViewText.ShowChildren, relation.From.Name)" @onclick="() => Expand(key)">@(open ? "▾" : "▸")</button>
+                        <button class="icon-btn ghost tree-toggle" title="@TextFormat.Format(CopyViewText.ShowChildren, relation.From.Name)" @onclick="() => Expand(key)">@(open ? Icons.ChevronDown : Icons.ChevronRight)</button>
                     }
                     else
                     {
@@ -244,7 +244,7 @@
                 <span class="copy-node">
                     @if (deeper)
                     {
-                        <button class="icon-btn ghost tree-toggle" title="@TextFormat.Format(CopyViewText.ShowParents, relation.To.Name)" @onclick="() => Expand(key)">@(open ? "▾" : "▸")</button>
+                        <button class="icon-btn ghost tree-toggle" title="@TextFormat.Format(CopyViewText.ShowParents, relation.To.Name)" @onclick="() => Expand(key)">@(open ? Icons.ChevronDown : Icons.ChevronRight)</button>
                     }
                     else
                     {

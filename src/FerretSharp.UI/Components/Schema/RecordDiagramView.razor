@@ -41,9 +41,9 @@
                         @onclick="OpenCopyAsync">@GridText.GridMenu_CopyToConnection</button>
                 <button class="btn ghost" disabled="@Running" @onclick="State.ClearMarks">@SchemaViewText.Records_ClearMarks</button>
             }
-            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!State.CanZoomOut)" @onclick="State.ZoomOut">−</button>
+            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!State.CanZoomOut)" @onclick="State.ZoomOut">@Icons.ZoomOut</button>
             <button class="btn ghost relations-zoom" title="@SchemaViewText.Relations_ZoomReset" @onclick="State.ResetZoom">@($"{State.Zoom:P0}")</button>
-            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!State.CanZoomIn)" @onclick="State.ZoomIn">+</button>
+            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!State.CanZoomIn)" @onclick="State.ZoomIn">@Icons.ZoomIn</button>
             <button class="btn ghost" title="@SchemaViewText.Records_ResetTitle" disabled="@(!State.Changed || Running)" @onclick="ResetAsync">@CommonText.Reset</button>
             <button class="btn ghost" title="@SchemaViewText.Records_CopyMermaidTitle" disabled="@(State.Diagram is null || Running)" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
             <button class="icon-btn ghost" title="@(CommonText.Reload + Shortcuts.Hint(ShortcutAction.Refresh))" disabled="@Running" @onclick="LoadAsync">@Icons.Refresh</button>

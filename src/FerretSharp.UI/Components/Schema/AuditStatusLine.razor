@@ -23,7 +23,7 @@
         break;
     case { Health: AuditHealth.Outdated } status:
         <div class="audit-status warn" title="@($"{SchemaViewText.Audit_OutdatedTitle}\n{_templateLabel}")">
-            ⚠ @SchemaViewText.Audit_Label @AuditTable(status.Names)
+            @Icons.Warning @SchemaViewText.Audit_Label @AuditTable(status.Names)
             <span>@TextFormat.Format(SchemaViewText.Audit_Outdated, string.Join("; ", status.Reasons))</span>
             · <button class="link-btn" @onclick="() => OnOpen.InvokeAsync()">@SchemaViewText.Audit_Sync</button>
         </div>

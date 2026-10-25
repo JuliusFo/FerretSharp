@@ -21,7 +21,7 @@
             @TextFormat.Plural(differing, GridText.Compare_ColumnsDifferOne, GridText.Compare_ColumnsDifferOther)@(view.Fields.Count < view.Total ? " · " + TextFormat.Format(GridText.Compare_Shown, view.Fields.Count, view.Total) : "")
         </span>
         <span class="spacer"></span>
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
     </header>
     <div class="dialog-body compare-rows-body">
         <table class="compare-rows">

@@ -15,11 +15,11 @@
         @onclick="Shell.OpenWorkClones">
     @if (_active is null)
     {
-        <span class="muted">⎇ @ShellText.WorkClone_StatusNone</span>
+        <span class="muted">@Icons.Branch @ShellText.WorkClone_StatusNone</span>
     }
     else
     {
-        <span>⎇ @_active.Name@(_active.Branch is { } branch ? $" ({branch})" : "")</span>
+        <span>@Icons.Branch @_active.Name@(_active.Branch is { } branch ? $" ({branch})" : "")</span>
     }
 </button>
 

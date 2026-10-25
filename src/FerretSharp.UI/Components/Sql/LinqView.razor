@@ -26,7 +26,7 @@
         <span class="spacer"></span>
         <button class="btn primary" disabled="@(_running || Console.State.Phase == LinqConsolePhase.NotLinked)" @onclick="RunAsync"
                 title="@SqlEditorText.Linq_RunTitle">
-            ▶ @CommonText.Run <Kbd Action="ShortcutAction.ApplyFilters" />
+            @Icons.Run @CommonText.Run <Kbd Action="ShortcutAction.ApplyFilters" />
         </button>
     </div>
 

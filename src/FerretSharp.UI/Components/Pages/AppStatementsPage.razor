@@ -211,7 +211,7 @@
                     @AppStatementsText.AppStatements_Statements
                     @if (Trace.OriginFilter is { } filtered)
                     {
-                        <button class="btn ghost app-trace-filter" @onclick="() => Trace.OriginFilter = null">@TextFormat.Format(AppStatementsText.AppStatements_OnlyOrigin, OriginText(filtered)) ✕</button>
+                        <button class="btn ghost app-trace-filter" @onclick="() => Trace.OriginFilter = null">@TextFormat.Format(AppStatementsText.AppStatements_OnlyOrigin, OriginText(filtered)) @Icons.Close</button>
                     }
                 </h2>
                 @if (snapshot.Truncated)

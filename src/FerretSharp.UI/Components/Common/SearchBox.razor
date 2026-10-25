@@ -13,7 +13,7 @@
     {
         @* mousedown without default: the field keeps the focus. *@
         <button type="button" class="search-clear" tabindex="-1" title="@ShellText.SearchBox_Clear" @onmousedown:preventDefault
-                @onclick="ClearAsync">@Icons.Clear</button>
+                @onclick="ClearAsync">@Icons.Close</button>
     }
     @ChildContent
 </label>

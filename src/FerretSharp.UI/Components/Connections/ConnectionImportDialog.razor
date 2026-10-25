@@ -152,7 +152,7 @@
                                             var lockTitle = r.Overwrites is { } kept && (kept.ReadOnly || kept.Kind == ConnectionKind.Prod) && !r.KindGuessed && r.Kind != ConnectionKind.Prod
                                                 ? ConnectionViewText.Import_KeepsReadOnlyTitle
                                                 : ConnectionViewText.Import_ReadOnlyTitle;
-                                            <span class="import-lock" title="@lockTitle" aria-label="@lockTitle">🔒</span>
+                                            <span class="import-lock" title="@lockTitle" aria-label="@lockTitle">@Icons.Locked</span>
                                         }
                                     </td>
                                 </tr>

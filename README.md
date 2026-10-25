@@ -297,5 +297,5 @@ dotnet run --project src/FerretSharp.App
 
 ## License
 
-[MIT](LICENSE). AG Grid Community and Monaco Editor are included under their MIT licenses
-(see `src/FerretSharp.UI/wwwroot/lib`).
+[MIT](LICENSE). AG Grid Community and Monaco Editor are included under their MIT licenses, the icons come from
+[Lucide](https://lucide.dev) under the ISC license (see `src/FerretSharp.UI/wwwroot/lib`).

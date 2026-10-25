@@ -43,7 +43,7 @@
         @foreach (var fk in _foreignKeys)
         {
             <button type="button" class="menu-item ctx-jump one-line" title="@ColumnFacts.Title(fk)" @onclick="() => OpenTargetAsync(fk)">
-                <span class="ctx-arrow">→</span>
+                <span class="ctx-arrow">@Icons.ArrowRight</span>
                 <span class="ctx-table">@FkTargets.Label(Active, fk.To)</span>
                 <span class="ctx-open">@GridText.ColumnMenu_OpenTable</span>
             </button>

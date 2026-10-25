@@ -15,7 +15,7 @@
     [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
 
-    private static readonly RenderFragment Label = @<text>C# ▾</text>;
+    private static readonly RenderFragment Label = @<text>C# <span class="chev">@Icons.ChevronDown</span></text>;
 
     private DomModule? _dom;
 

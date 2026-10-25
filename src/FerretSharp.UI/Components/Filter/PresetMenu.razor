@@ -18,11 +18,11 @@
     <Label>
         @if (active is null)
         {
-            @GridText.Presets_Button<text> ▾</text>
+            @GridText.Presets_Button<span class="chev">@Icons.ChevronDown</span>
         }
         else
         {
-            <span class="preset-active-name">@active.Name</span>@if (changed) { <span class="preset-changed">· @GridText.Presets_Changed</span> }<text> ▾</text>
+            <span class="preset-active-name">@active.Name</span>@if (changed) { <span class="preset-changed">· @GridText.Presets_Changed</span> }<span class="chev">@Icons.ChevronDown</span>
         }
     </Label>
     <ChildContent>
@@ -46,9 +46,9 @@
             var p = preset;
             <div class="preset-item @(p.Id == active?.Id ? "active" : "")">
                 <button class="menu-item preset-apply" title="@FilterPresetText.Describe(p, Presentation)" @onclick="() => ApplyAsync(p, append: false)">@p.Name</button>
-                <button class="icon-btn ghost" title="@GridText.Presets_AppendTitle" @onclick="() => ApplyAsync(p, append: true)">+</button>
-                <button class="icon-btn ghost" title="@ShellText.Rename" @onclick="() => OpenRename(p)">✎</button>
-                <button class="icon-btn ghost preset-delete" title="@CommonText.Delete" @onclick="() => AskDelete(p)">✕</button>
+                <button class="icon-btn ghost" title="@GridText.Presets_AppendTitle" @onclick="() => ApplyAsync(p, append: true)">@Icons.Plus</button>
+                <button class="icon-btn ghost" title="@ShellText.Rename" @onclick="() => OpenRename(p)">@Icons.Rename</button>
+                <button class="icon-btn ghost preset-delete" title="@CommonText.Delete" @onclick="() => AskDelete(p)">@Icons.Close</button>
             </div>
         }
         <div class="menu-sep"></div>

@@ -51,7 +51,7 @@
                             }
                             <span class="spacer"></span>
                             <button class="btn ghost small" title="@GridText.Filter_GroupAddRowTitle" @onclick="() => AddRow(group)"><span class="plus">+</span> @GridText.Filter_GroupAddRow</button>
-                            <button class="icon-btn" title="@GridText.Filter_GroupDissolve" @onclick="() => DissolveAsync(group)">✕</button>
+                            <button class="icon-btn" title="@GridText.Filter_GroupDissolve" @onclick="() => DissolveAsync(group)">@Icons.Close</button>
                         </div>
                     </div>
                     @foreach (var row in rows)
@@ -152,7 +152,7 @@
         var values = column is null ? null : presentation.ValuesOf(IndexOf(column));
         var valueCount = FilterRules.ValueCount(r.Op);
         <div @key="r" class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")" data-drop="@(r.Group is null ? NoGroup : null)">
-            <span class="filter-grip" title="@GridText.Filter_DragTitle" @onpointerdown="e => DragAsync(r, e)" @onpointerdown:preventDefault="true">⠿</span>
+            <span class="filter-grip" title="@GridText.Filter_DragTitle" @onpointerdown="e => DragAsync(r, e)" @onpointerdown:preventDefault="true">@Icons.Grip</span>
             <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="@GridText.Filter_Enabled"
                    @onchange="e => { r.Enabled = e.Value is true; Shell.MarkDirty(); }" />
             <ColumnPicker Details="Details" Value="@r.Column" OnChange="name => ChangeColumn(r, name)" AutoFocus="r == _newRow" />
@@ -188,7 +188,7 @@
                 }
             </div>
             <MenuButton Class="icon-btn" Title="@GridText.Filter_RowMenu" Width="MenuWidth" EstimatedHeight="@(40 + 30 * Tab.FilterGroups.Count)" ShiftX="40" ShiftY="14">
-                <Label>⋯</Label>
+                <Label>@Icons.More</Label>
                 <ChildContent Context="menu">
                     @for (var i = 0; i < Tab.FilterGroups.Count; i++)
                     {
@@ -206,8 +206,8 @@
                     }
                 </ChildContent>
             </MenuButton>
-            <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => RemoveRow(r)">−</button>
-            <button class="icon-btn" title="@GridText.Filter_AddTitle" @onclick="() => AddRow(r.Group)">+</button>
+            <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => RemoveRow(r)">@Icons.Minus</button>
+            <button class="icon-btn" title="@GridText.Filter_AddTitle" @onclick="() => AddRow(r.Group)">@Icons.Plus</button>
             @if (r.Error is not null)
             {
                 <span class="filter-error">@r.Error</span>
@@ -290,7 +290,7 @@
 
     /// <summary>"+ Group ▾" (WP-50): an OR or a NOT group with a first row to fill in.</summary>
     private RenderFragment AddGroupButton => @<MenuButton Class="btn ghost" Title="@GridText.Filter_AddGroupTitle" Width="MenuWidth" EstimatedHeight="80" ShiftX="40" ShiftY="14">
-        <Label><span class="plus">+</span> @GridText.Filter_AddGroup ▾</Label>
+        <Label><span class="plus">+</span> @GridText.Filter_AddGroup <span class="chev">@Icons.ChevronDown</span></Label>
         <ChildContent Context="menu">
             <button class="menu-item" @onclick="() => { menu.Close(); AddGroup(FilterGroupKind.Any); }">@GridText.Filter_GroupAny</button>
             <button class="menu-item" @onclick="() => { menu.Close(); AddGroup(FilterGroupKind.None); }">@GridText.Filter_GroupNone</button>

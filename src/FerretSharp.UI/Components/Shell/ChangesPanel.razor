@@ -20,7 +20,7 @@
             <span class="changes-ws" title="@Lifecycle.WorkspaceName(shown.WorkspaceId)">@Lifecycle.WorkspaceName(shown.WorkspaceId)</span>
         }
         <span class="spacer"></span>
-        <button class="icon-btn ghost" title="@(CommonText.Close + Shortcuts.Hint(ShortcutAction.ToggleChanges))" @onclick="Shell.CloseChanges">✕</button>
+        <button class="icon-btn ghost" title="@(CommonText.Close + Shortcuts.Hint(ShortcutAction.ToggleChanges))" @onclick="Shell.CloseChanges">@Icons.Close</button>
     </header>
 
     @if (Workspace is not { } workspace)
@@ -79,8 +79,8 @@
                                     <span class="change-kind @KindClass(row.Kind)">@KindLabel(row.Kind)</span>
                                     <span class="change-key" title="@(string.Join(", ", tab.Changes!.Table.PrimaryKey))">@(row.Key ?? ShellText.Changes_NewRow)</span>
                                     <span class="spacer"></span>
-                                    <button class="icon-btn ghost small" title="@ShellText.Changes_ShowRow" @onclick="() => Shell.ShowRow(tab, row.Change)">⤴</button>
-                                    <button class="icon-btn ghost small" title="@ShellText.Changes_DiscardRowTitle" disabled="@busy" @onclick="() => Discard(tab, t => DiscardRow(t, row))">✕</button>
+                                    <button class="icon-btn ghost small" title="@ShellText.Changes_ShowRow" @onclick="() => Shell.ShowRow(tab, row.Change)">@Icons.ShowRow</button>
+                                    <button class="icon-btn ghost small" title="@ShellText.Changes_DiscardRowTitle" disabled="@busy" @onclick="() => Discard(tab, t => DiscardRow(t, row))">@Icons.Close</button>
                                 </div>
                                 @foreach (var cell in row.Cells)
                                 {
@@ -90,13 +90,13 @@
                                             @if (row.Kind == OperationKind.Update)
                                             {
                                                 <span class="change-old">@Value(cell.Old)</span>
-                                                <span class="change-arrow">→</span>
+                                                <span class="change-arrow">@Icons.ArrowRight</span>
                                             }
                                             <span class="change-new">@Value(cell.New)</span>
                                         </span>
                                         @if (row.Kind == OperationKind.Update)
                                         {
-                                            <button class="icon-btn ghost small" title="@ShellText.Changes_DiscardCellTitle" disabled="@busy" @onclick="() => Discard(tab, t => t.Revert(row.Change, cell.Column))">✕</button>
+                                            <button class="icon-btn ghost small" title="@ShellText.Changes_DiscardCellTitle" disabled="@busy" @onclick="() => Discard(tab, t => t.Revert(row.Change, cell.Column))">@Icons.Close</button>
                                         }
                                     </div>
                                 }
@@ -128,7 +128,7 @@
                             <button class="status-btn" title="@ShellText.Changes_UndoToTitle" disabled="@busy"
                                     @onmouseenter="() => _undoFrom = index" @onmouseleave="() => _undoFrom = null"
                                     @onfocus="() => _undoFrom = index" @onblur="() => _undoFrom = null"
-                                    @onclick="() => UndoToAsync(workspace, action, newest)">@ShellText.Changes_UndoTo</button>
+                                    @onclick="() => UndoToAsync(workspace, action, newest)">@Icons.Undo @ShellText.Changes_UndoTo</button>
                         </div>
                         @Statements(action)
                     </div>
@@ -155,7 +155,7 @@
                                 {
                                     <button class="status-btn" disabled="@(busy || blocker is not null)"
                                             title="@(blocker ?? action.Kind switch { WriteActionKind.Grid => ShellText.Changes_RedoGridTitle, WriteActionKind.Copy => ShellText.Changes_RedoCopyTitle, _ => ShellText.Changes_RedoStatementTitle })"
-                                            @onclick="() => Lifecycle.RequestRedo(workspace, action)">@ShellText.Changes_Redo</button>
+                                            @onclick="() => Lifecycle.RequestRedo(workspace, action)">@Icons.Redo @ShellText.Changes_Redo</button>
                                 }
                             </div>
                             @if (next && blocker is not null)

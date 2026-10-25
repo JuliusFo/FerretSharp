@@ -32,11 +32,11 @@
                         <span class="work-clone-name">@c.Name</span>
                         @if (c.Branch is { } branch)
                         {
-                            <span class="mono small">⎇ @branch</span>
+                            <span class="mono small">@Icons.Branch @branch</span>
                         }
                         @if (FitText(c.Fit) is { } fit)
                         {
-                            <span class="small warn-text">⚠ @fit</span>
+                            <span class="small warn-text">@Icons.Warning @fit</span>
                         }
                         <span class="muted small path">@c.Path</span>
                     </button>

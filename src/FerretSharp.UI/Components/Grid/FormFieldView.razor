@@ -111,7 +111,7 @@
         @foreach (var jump in Field.Jumps.Where(j => j.IsAvailable))
         {
             <button class="link-btn ff-jump" title="@($"{jump.Condition}\n{FkTargets.Tooltip(jump)}")" @onclick="() => OnJump(jump)">
-                → @TableLabel(jump.Table)@(jump.ForeignKey.Source == FkSource.ClrModel ? " (C#)" : "")
+                @Icons.ArrowRight @TableLabel(jump.Table)@(jump.ForeignKey.Source == FkSource.ClrModel ? " (C#)" : "")
             </button>
         }
 
@@ -123,7 +123,7 @@
 
     @if (!Field.IsNull)
     {
-        <button class="icon-btn ghost ff-copy" title="@GridText.Form_CopyValueTitle" @onclick="() => OnCopy(Field)">⧉</button>
+        <button class="icon-btn ghost ff-copy" title="@GridText.Form_CopyValueTitle" @onclick="() => OnCopy(Field)">@Icons.Copy</button>
     }
 </div>
 

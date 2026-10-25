@@ -7,7 +7,7 @@
     <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "valpick-unset" : "")" title="@Summary"
             @onclick="Toggle" @onkeydown="OnKeyDown" @onkeydown:preventDefault="_open">
         <span class="valpick-text">@(Selected.Count == 0 ? (Multiple ? GridText.ValuePicker_ChooseValues : GridText.ValuePicker_ChooseValue) : Summary)</span>
-        <span class="valpick-caret">▾</span>
+        <span class="valpick-caret">@Icons.ChevronDown</span>
     </button>
     @if (_open)
     {

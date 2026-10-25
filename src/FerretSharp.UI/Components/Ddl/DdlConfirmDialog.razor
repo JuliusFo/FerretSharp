@@ -11,7 +11,7 @@
     <DdlStatementList Statements="Statements" />
     @foreach (var note in Notes)
     {
-        <p class="hint">⚠ @note</p>
+        <p class="hint">@Icons.Warning @note</p>
     }
     @if (Active.Profile is { Kind: ConnectionKind.Prod } profile)
     {
