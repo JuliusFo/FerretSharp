@@ -22,3 +22,10 @@ WP-60 zeigt konkrete Datensätze und ihre Verbindungen als Diagramm, in der Dars
 - Ein wiederhergestellter Tab kostet beim ersten Zeigen so viele Abfragen wie seine Schritte Beziehungen haben; restaurierte Tabs mounten aber ohnehin erst beim ersten Zeigen.
 - Kommt das C#-Modell nach dem ersten Laden, lädt der Tab neu, wenn sich die Menge der Beziehungen wirklich ändert – nicht bei jedem Build des verknüpften Projekts, der eine neue, gleiche Liste bringt.
 - Eine Kopie aus Zeilen mehrerer Tabellen und der Start aus einem SQL- oder LINQ-Ergebnis bleiben im Backlog.
+
+## Nachtrag: mehrere Ebenen (WP-62, 2026-10-25)
+
+- **Ebene** ist ein Schritt entlang einer Beziehung, in beide Richtungen: Kunde → Adressen (Kinder) → Land (Elternteil der Adresse) sind zwei Ebenen. Eingestellt im Kopf des Diagramms (1–4, Standard 1, gespeichert im Tab); sie gilt beim Öffnen, für „Zurücksetzen“ und für die Griffe „+n“. Einer einzelnen Beziehung aus dem Kontextmenü wird eine Ebene weit gefolgt.
+- **Abbiegeregel:** Ein Pfad darf von abwärts (Kinder) nach aufwärts (Eltern) abbiegen, nie von aufwärts wieder abwärts. Sonst kämen über jeden Elternteil seine anderen Kinder herein – über das Land alle Adressen des Landes, über den Kunden alle seine anderen Aufträge. Links der Startzeilen geht es also nur aufwärts; was rechts als Kind erreicht wird, bekommt in der nächsten Ebene auch seine Eltern (die Nachschlagetabellen). Dieselbe Richtung wie beim Kopieren (WP-42), dort ohne Tiefe.
+- **Lesen:** eine Breitensuche über `ExpandSideAsync`. Ausgangspunkt jeder Ebene sind die Zeilen, die die vorige neu gezeigt hat; eine Abfrage je Beziehung und Ebene für alle ihre Zeilen. Zeilen einer Gruppe gehen nicht weiter, die Grenze von 2 000 Zeilen bleibt – sie gilt je Beziehung über alle Zeilen der Ebene, also gröber als beim Aufklappen einer Zeile.
+- **Schritte:** `RecordStep.Depth` (Standard 1, ältere Dateien gehen eine Ebene). Das Abspielen sucht auf den aktuellen Daten neu, statt die erreichten Zeilen zu speichern.
