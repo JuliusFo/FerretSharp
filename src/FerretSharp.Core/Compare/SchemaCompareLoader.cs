@@ -30,7 +30,11 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
     {
         var results = new SideResult[sides.Count];
         var groups = sides.Select((side, index) => (side, index)).GroupBy(s => s.side.ConnectionId);
-        await Task.WhenAll(groups.Select(group => LoadConnectionAsync(group.Key, group.ToList(), progress, results, cancellationToken)));
+
+        // Task.Run, not Task.Yield: under the UI thread's context Yield comes back to it, and the snapshots were read
+        // there – the window stopped responding while comparing. On the pool the connections also open in parallel.
+        await Task.WhenAll(groups.Select(group =>
+            Task.Run(() => LoadConnectionAsync(group.Key, group.ToList(), progress, results, cancellationToken), CancellationToken.None)));
         return results;
     }
 
@@ -41,8 +45,6 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
         SideResult[] results,
         CancellationToken cancellationToken)
     {
-        await Task.Yield(); // the connections open in parallel, not one after another on the caller's thread
-
         void FailAll(SideResult result)
         {
             foreach (var (_, index) in sides)

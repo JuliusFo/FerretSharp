@@ -250,4 +250,15 @@
     <value>Not saved: the saved comparisons could not be read ({0}). Fix or remove the file first – saving now would replace all of them.</value>
     <comment>{0}: why the file could not be read</comment>
   </data>
+  <data name="Compare_MoreObjectsOne" xml:space="preserve">
+    <value>1 more object is not shown – narrow the list with the search or the filters.</value>
+  </data>
+  <data name="Compare_MoreObjectsOther" xml:space="preserve">
+    <value>{0} more objects are not shown – narrow the list with the search or the filters.</value>
+    <comment>{0}: number of objects of the matrix not rendered yet</comment>
+  </data>
+  <data name="Compare_ShowMore" xml:space="preserve">
+    <value>Show {0} more</value>
+    <comment>{0}: number of objects the button adds to the matrix</comment>
+  </data>
 </root>

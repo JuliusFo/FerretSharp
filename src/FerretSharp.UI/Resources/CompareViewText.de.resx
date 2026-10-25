@@ -204,4 +204,13 @@
   <data name="Compare_NotSavedUnread" xml:space="preserve">
     <value>Nicht gespeichert: Die gespeicherten Vergleiche ließen sich nicht lesen ({0}). Erst die Datei reparieren oder entfernen – Speichern würde sonst alle ersetzen.</value>
   </data>
+  <data name="Compare_MoreObjectsOne" xml:space="preserve">
+    <value>1 weiteres Objekt ist nicht angezeigt – mit der Suche oder den Filtern eingrenzen.</value>
+  </data>
+  <data name="Compare_MoreObjectsOther" xml:space="preserve">
+    <value>{0} weitere Objekte sind nicht angezeigt – mit der Suche oder den Filtern eingrenzen.</value>
+  </data>
+  <data name="Compare_ShowMore" xml:space="preserve">
+    <value>{0} weitere anzeigen</value>
+  </data>
 </root>

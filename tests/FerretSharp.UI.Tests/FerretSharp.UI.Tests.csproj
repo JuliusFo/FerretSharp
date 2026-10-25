@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <Compile Include="..\Shared\TestFolder.cs" Link="Shared\TestFolder.cs" />
+    <Compile Include="..\Shared\UiThread.cs" Link="Shared\UiThread.cs" />
     <Compile Include="..\Shared\UiCulture.cs" Link="Shared\UiCulture.cs" />
     <Compile Include="..\Shared\ResourceChecks.cs" Link="Shared\ResourceChecks.cs" />
     <Compile Include="..\Shared\FakeDatabase.cs" Link="Shared\FakeDatabase.cs" />

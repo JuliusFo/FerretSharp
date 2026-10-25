@@ -111,7 +111,7 @@ public sealed class SchemaCompareServiceTests : IDisposable
         await service.CompareAsync();
         var snapshot = service.Sides[1].Snapshot;
 
-        service.SetOptions(reference: 1, columnOrder: true, onlyDifferences: false, kinds: [CompareKind.Column]);
+        await service.SetOptionsAsync(reference: 1, columnOrder: true, onlyDifferences: false, kinds: [CompareKind.Column]);
 
         Assert.Same(snapshot, service.Sides[1].Snapshot); // nothing read again
         Assert.NotNull(service.Result);
@@ -123,6 +123,55 @@ public sealed class SchemaCompareServiceTests : IDisposable
         Assert.Equal((null, []), (service.Result, service.ResultSides));
         Assert.Null(service.Current.Reference); // the reference pointed past the sides
         await _connector.Received(1).OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Filters_keep_the_matrix_and_only_reference_and_column_order_recompute_it()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev);
+        Opens(_test);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+        var first = service.Result;
+
+        await service.SetOptionsAsync(service.Current.Reference, service.Current.ColumnOrder, onlyDifferences: true, kinds: [CompareKind.Index]);
+        Assert.Same(first, service.Result);
+
+        await service.SetOptionsAsync(reference: 0, service.Current.ColumnOrder, service.Current.OnlyDifferences, service.Current.Kinds);
+        Assert.NotSame(first, service.Result);
+        Assert.Equal(0, service.Result!.Options.Reference);
+    }
+
+    /// <summary>Compared from the UI thread, the sides load and the matrix builds without holding it (the window froze).</summary>
+    [Fact]
+    public async Task Comparing_from_the_ui_thread_leaves_it_free()
+    {
+        using var ui = new UiThread();
+        _secrets.SetPassword(_dev.Id, "pw");
+        var reading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reader = Substitute.For<ISchemaReader>();
+        reader.ReadSnapshotAsync(Arg.Any<string>(), Arg.Any<IProgress<string>?>(), Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            reading.TrySetResult();
+            release.Task.Wait(Ct); // a synchronous read, as a driver may do it
+            return new SchemaSnapshot(call.Arg<string>(), DateTimeOffset.Now, []);
+        });
+        var connection = FakeDatabase.Connection(reader);
+        _connector.OpenAsync(_dev, Arg.Any<string>(), SchemaCompareLoader.SessionAction, Arg.Any<CancellationToken>()).Returns(connection);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id);
+
+        var comparing = ui.RunAsync(() => service.CompareAsync());
+        await reading.Task.WaitAsync(Ct);
+        await ui.RunAsync(() => Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5), Ct); // the UI thread still answers
+        release.SetResult();
+        await comparing.WaitAsync(Ct);
+
+        Assert.NotNull(service.Result);
     }
 
     [Fact]
