@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- The connection switcher is wider (720 instead of 560 pixels), so the group in front of the name of an open or recent connection is cut less often.
+
 ## [3.49.0] - 2026-10-25
 
 The menus of a cell and a column header are rebuilt – a bar of icons, a filter field to type into, the export as a table of formats, the values of a column as chips –, the column header menu says what the column is and adds it to another database, and all icons are redrawn from Lucide.
