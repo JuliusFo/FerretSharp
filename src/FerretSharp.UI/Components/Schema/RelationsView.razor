@@ -76,12 +76,14 @@
                             var summary = Active.Schema?.Find(t);
                             var parents = diagram.HiddenCount(t, DiagramSide.Parents);
                             var children = diagram.HiddenCount(t, DiagramSide.Children);
+                            var toParents = parents > 0 ? diagram.HiddenRelations(t, DiagramSide.Parents) : [];
+                            var toChildren = children > 0 ? diagram.HiddenRelations(t, DiagramSide.Children) : [];
                             <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @DiagramStyle.NodeState(t, _hover, lit)" style="@DiagramStyle.Box(box)"
                                  @onmouseenter="() => _hover = t" @onmouseleave="() => Leave(t)" @oncontextmenu="e => OpenMenuAsync(e, t)" @oncontextmenu:preventDefault="true">
                                 @if (parents > 0)
                                 {
-                                    <button class="relations-handle left" title="@TextFormat.Plural(parents, SchemaViewText.Relations_ShowParentsOne, SchemaViewText.Relations_ShowParentsOther)"
-                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Parents), anchor: t)">+@parents</button>
+                                    <button class="relations-handle left @DiagramStyle.HandleClass(toParents)" title="@DiagramStyle.HandleTitle(TextFormat.Plural(parents, SchemaViewText.Relations_ShowParentsOne, SchemaViewText.Relations_ShowParentsOther), toParents)"
+                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Parents), anchor: t)">@Icons.ChevronsLeft+@parents</button>
                                 }
                                 @if (summary is not null)
                                 {
@@ -98,8 +100,8 @@
                                 }
                                 @if (children > 0)
                                 {
-                                    <button class="relations-handle right" title="@TextFormat.Plural(children, SchemaViewText.Relations_ShowChildrenOne, SchemaViewText.Relations_ShowChildrenOther)"
-                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Children), anchor: t)">+@children</button>
+                                    <button class="relations-handle right @DiagramStyle.HandleClass(toChildren)" title="@DiagramStyle.HandleTitle(TextFormat.Plural(children, SchemaViewText.Relations_ShowChildrenOne, SchemaViewText.Relations_ShowChildrenOther), toChildren)"
+                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Children), anchor: t)">+@children@Icons.ChevronsRight</button>
                                 }
                             </div>
                         }

@@ -996,6 +996,10 @@
     <value>Show {0:N0} tables that reference it</value>
     <comment>{0}: number of tables; the "+n" handle on the right of a table</comment>
   </data>
+  <data name="Relations_HandleKinds" xml:space="preserve">
+    <value>Relationships: {0}</value>
+    <comment>Second line of the tooltip of a "+n" handle; {0}: kinds with their number, e.g. "Constraints 2 · C# model 1"</comment>
+  </data>
   <data name="Relations_GroupOne" xml:space="preserve">
     <value>{0:N0} table</value>
     <comment>{0}: number of tables in a collapsed node</comment>

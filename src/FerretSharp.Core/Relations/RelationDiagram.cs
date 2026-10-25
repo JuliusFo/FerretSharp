@@ -76,6 +76,15 @@ public sealed class RelationDiagram
     /// <summary>Neighbours of a shown table on one side that are neither shown nor in a group – the number on its "+" handle.</summary>
     public int HiddenCount(TableRef table, DiagramSide side) => Hidden(table, side).Count;
 
+    /// <summary>The relationships to the hidden neighbours of a shown table on one side – their kinds colour its "+" handle.</summary>
+    public IReadOnlyList<ForeignKeyInfo> HiddenRelations(TableRef table, DiagramSide side)
+    {
+        var hidden = Hidden(table, side).ToHashSet();
+        return side == DiagramSide.Parents
+            ? [.. _graph.ParentsOf(table).Where(r => hidden.Contains(r.To))]
+            : [.. _graph.ChildrenOf(table).Where(r => hidden.Contains(r.From))];
+    }
+
     /// <summary>Shows the hidden neighbours of <paramref name="table"/> on <paramref name="side"/> one column further out – or as a group, if too many.</summary>
     /// <returns>The tables shown now (none if they went into a group).</returns>
     public IReadOnlyList<TableRef> Expand(TableRef table, DiagramSide side)

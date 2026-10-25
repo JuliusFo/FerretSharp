@@ -71,6 +71,17 @@ public class RelationDiagramTests
     }
 
     [Fact]
+    public void Hidden_relations_lead_only_to_hidden_neighbours()
+    {
+        var diagram = new RelationDiagram(Graph, Auftrag, DiagramOptions.Default);
+
+        Assert.Equal([PositionArtikel], diagram.HiddenRelations(Position, DiagramSide.Parents)); // not the one to AUFTRAG, shown
+        Assert.Empty(diagram.HiddenRelations(Auftrag, DiagramSide.Parents));
+        Assert.Empty(diagram.HiddenRelations(Mitarbeiter, DiagramSide.Parents)); // the self reference
+        Assert.Equal([PositionAuftrag], new RelationDiagram(Graph, Kunde, DiagramOptions.Default).HiddenRelations(Auftrag, DiagramSide.Children));
+    }
+
+    [Fact]
     public void A_self_reference_is_drawn_but_counts_as_no_neighbour()
     {
         var diagram = new RelationDiagram(Graph, Mitarbeiter, DiagramOptions.Default);

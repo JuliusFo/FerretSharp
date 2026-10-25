@@ -30,6 +30,14 @@ internal static class Icons
     public static readonly MarkupString ChevronRight = Svg(
         """<path d="m9 18 6-6-6-6"/>""");
 
+    /// <summary>Lucide <c>chevrons-left</c>: expand a diagram to the left, towards the parents.</summary>
+    public static readonly MarkupString ChevronsLeft = Svg(
+        """<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>""");
+
+    /// <summary>Lucide <c>chevrons-right</c>: expand a diagram to the right, towards the children.</summary>
+    public static readonly MarkupString ChevronsRight = Svg(
+        """<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>""");
+
     /// <summary>Lucide <c>arrow-up</c>: move an entry up.</summary>
     public static readonly MarkupString ArrowUp = Svg(
         """<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>""");
