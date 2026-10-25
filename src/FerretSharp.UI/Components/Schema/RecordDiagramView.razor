@@ -1,7 +1,7 @@
 @* A record diagram tab (WP-60): rows instead of tables, drawn like the "Relations" view (WP-46, ADR 0033). The start rows
    stand in the middle, the rows they reference to the left, those that reference them to the right. "+n" on a row loads
-   the rows along its relationships of that side (one read per relationship, on the workspace's session, cancellable);
-   the context menu follows one relationship. A click on the name opens the row's table filtered on it, a click on the row
+   the rows along its relationships of that side, as many levels as "Ebenen" in the header says (WP-62; one read per
+   relationship and level, on the workspace's session, cancellable); the context menu follows one relationship. A click on the name opens the row's table filtered on it, a click on the row
    marks it for a copy to another connection (WP-42). Values only in memory; the tab saves the keys and what was expanded. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
@@ -23,6 +23,15 @@
 <div class="tabview records-tab">
     <div class="relations-view">
         <div class="relations-head">
+            <span class="muted" title="@SchemaViewText.Records_LevelsTitle">@SchemaViewText.Relations_Levels</span>
+            <div class="segmented small" role="group" title="@SchemaViewText.Records_LevelsTitle">
+                @for (var depth = 1; depth <= RecordDiagram.MaxDepth; depth++)
+                {
+                    var d = depth;
+                    <button class="seg @(State.Depth == d ? "active" : "")" aria-pressed="@(State.Depth == d ? "true" : "false")" disabled="@Running"
+                            @onclick="() => SetDepthAsync(d)">@d</button>
+                }
+            </div>
             <span class="muted">@TextFormat.Plural(State.Diagram?.RowCount ?? 0, SchemaViewText.Records_RowsOne, SchemaViewText.Records_RowsOther)</span>
             @foreach (var source in Sources)
             {
@@ -314,6 +323,24 @@
         await LoadAsync();
     }
 
+    /// <summary>The levels; a diagram nothing was done in yet is built again with them.</summary>
+    private async Task SetDepthAsync(int depth)
+    {
+        if (Running)
+        {
+            return;
+        }
+
+        if (State.SetDepth(depth))
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            Shell.MarkDirty(); // saved with the tab
+        }
+    }
+
     private Task ExpandAsync(RecordNode node, DiagramSide side) =>
         RunAsync(starting: false, (progress, token) => State.ExpandAsync(node, side, progress, token), node, sayIfNothing: true);
 
@@ -418,9 +445,12 @@
         });
     }
 
-    private string ProgressText => _progress is { } p
-        ? TextFormat.Format(SchemaViewText.Records_Reading, Label(p.Table), p.Rows)
-        : _running?.Starting == true ? SchemaViewText.Records_ReadingStart : SchemaViewText.Records_ReadingRows;
+    private string ProgressText => _progress switch
+    {
+        { Level: { } level } p => TextFormat.Format(SchemaViewText.Records_ReadingLevel, level.Number, level.Of, Label(p.Table), p.Rows),
+        { } p => TextFormat.Format(SchemaViewText.Records_Reading, Label(p.Table), p.Rows),
+        _ => _running?.Starting == true ? SchemaViewText.Records_ReadingStart : SchemaViewText.Records_ReadingRows,
+    };
 
     /// <param name="anchor">The row clicked: it stays where it is on the screen.</param>
     private void Change(Action change, RecordNode? anchor = null)

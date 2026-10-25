@@ -135,6 +135,52 @@ public sealed class RecordDiagramStateTests
         Assert.False(state.Changed);
     }
 
+    /// <summary>WP-62: the levels apply to opening; the two steps of a new diagram count as unchanged with them too.</summary>
+    [Fact]
+    public async Task A_new_diagram_goes_as_many_levels_as_set()
+    {
+        var state = new RecordDiagramState(Kunde.Table.Ref, rowIds: false, [["1"]], steps: null, depth: 2);
+
+        await state.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
+
+        Assert.Equal([Node(Kunde, 1m), Node(Auftrag, 100m), Node(Auftrag, 101m), Node(Position, 1000m), Node(Position, 1001m)],
+            state.Diagram!.Rows.Select(r => r.Node));
+        Assert.Equal([2, 2], state.Steps.Select(s => s.Depth));
+        Assert.False(state.Changed);
+    }
+
+    [Fact]
+    public async Task Other_levels_build_an_unchanged_diagram_again()
+    {
+        var state = new RecordDiagramState(Kunde.Table.Ref, rowIds: false, [["1"]], steps: null);
+        await state.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
+        Assert.DoesNotContain(state.Diagram!.Rows, r => r.Node == Node(Position, 1000m));
+
+        Assert.False(state.SetDepth(1)); // the same
+        Assert.True(state.SetDepth(2));
+        Assert.Null(state.Diagram);
+        await state.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
+
+        Assert.Contains(state.Diagram!.Rows, r => r.Node == Node(Position, 1000m));
+        Assert.False(state.Changed);
+    }
+
+    [Fact]
+    public async Task Other_levels_leave_a_changed_diagram_and_apply_to_the_next_handle()
+    {
+        var state = NewState("100");
+        await LoadAsync(state);
+        await state.ExpandAsync(Node(Kunde, 1m), DiagramSide.Children, null, Ct); // orders 101 (and 100)
+        var rows = state.Diagram!.Rows.Count;
+
+        Assert.False(state.SetDepth(2));
+        Assert.Equal(rows, state.Diagram!.Rows.Count);
+        Assert.Equal(2, state.Depth);
+        await state.ExpandAsync(Node(Auftrag, 101m), DiagramSide.Children, null, Ct);
+
+        Assert.Equal(2, state.Steps[^1].Depth);
+    }
+
     [Fact]
     public async Task A_failed_load_keeps_the_diagram_shown()
     {

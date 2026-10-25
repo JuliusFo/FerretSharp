@@ -1189,6 +1189,13 @@
     <value>Reading rows</value>
     <comment>Progress title before the first table is reported</comment>
   </data>
+  <data name="Records_ReadingLevel" xml:space="preserve">
+    <value>Level {0} of {1}: reading {2} – {3:N0} rows so far</value>
+    <comment>Progress title of an expansion over several levels; {2} is the table</comment>
+  </data>
+  <data name="Records_LevelsTitle" xml:space="preserve">
+    <value>How far opening and the "+" handles go: 2 also brings the children of the children and their parents. Going up never turns down again, so no siblings come in. Each level reads once per relationship.</value>
+  </data>
   <data name="Columns_PickTitle" xml:space="preserve">
     <value>Click, Ctrl+click or Shift+click picks columns; the right-click menu writes the ALTER TABLE that adds them elsewhere.</value>
   </data>

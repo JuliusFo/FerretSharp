@@ -975,6 +975,12 @@
   <data name="Records_ReadingRows" xml:space="preserve">
     <value>Lese Zeilen</value>
   </data>
+  <data name="Records_ReadingLevel" xml:space="preserve">
+    <value>Ebene {0} von {1}: Lese {2} – bisher {3:N0} Zeilen</value>
+  </data>
+  <data name="Records_LevelsTitle" xml:space="preserve">
+    <value>Wie weit Öffnen und die „+“-Griffe gehen: 2 bringt auch die Kinder der Kinder und deren Eltern. Wer aufwärts geht, biegt nie wieder abwärts ab, Geschwister kommen also nicht dazu. Jede Ebene liest einmal je Beziehung.</value>
+  </data>
   <data name="Columns_PickTitle" xml:space="preserve">
     <value>Klick, Ctrl+Klick oder Shift+Klick wählt Spalten; das Rechtsklickmenü schreibt das ALTER TABLE, das sie anderswo hinzufügt.</value>
   </data>
