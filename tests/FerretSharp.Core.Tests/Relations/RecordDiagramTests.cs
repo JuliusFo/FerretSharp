@@ -258,6 +258,124 @@ public class RecordDiagramTests
         Assert.Equal(withModel.Rows, again.Rows);
     }
 
+    /// <summary>WP-62: the children of the children, and their parents – a path going down may turn up.</summary>
+    [Fact]
+    public async Task Two_levels_to_the_right_bring_the_childrens_children_and_their_parents()
+    {
+        var diagram = await StartAsync(_kunde, [[1m]]);
+        var reads = _db.Reads.Count;
+
+        var shown = await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, 2, null, Ct);
+
+        Assert.Equal(
+            [Node(_auftrag, 100m), Node(_auftrag, 101m), Node(_mitarbeiter, 12m), Node(_position, 100m, 1m), Node(_position, 100m, 2m), Node(_position, 101m, 1m)],
+            shown);
+        Assert.Equal(1, LayerOf(diagram, Node(_auftrag, 101m)));
+        Assert.Equal(2, LayerOf(diagram, Node(_position, 101m, 1m)));
+        Assert.Equal(0, LayerOf(diagram, Node(_mitarbeiter, 12m))); // the clerk, left of his order
+        Assert.Equal(reads + 3, _db.Reads.Count); // one read per relationship and level, for all the rows of the level
+        Assert.Equal([new RecordStep(RecordStepKind.Expand, [Node(_kunde, 1m).Id], DiagramSide.Children, Depth: 2)], diagram.Steps, StepComparer.Instance);
+    }
+
+    /// <summary>WP-62: going up never turns down again – the other orders of the customer would be siblings.</summary>
+    [Fact]
+    public async Task Levels_to_the_left_go_up_only()
+    {
+        var diagram = await StartAsync(_position, [[100m, 1m]]);
+
+        await diagram.ExpandAsync(diagram.Start, DiagramSide.Parents, RecordDiagram.MaxDepth, null, Ct);
+
+        Assert.Equivalent(new[] { Node(_position, 100m, 1m), Node(_auftrag, 100m), Node(_mitarbeiter, 12m), Node(_kunde, 1m), Node(_mitarbeiter, 11m), Node(_mitarbeiter, 10m) },
+            diagram.Rows.Select(r => r.Node), strict: true);
+        Assert.Equal(-4, LayerOf(diagram, Node(_mitarbeiter, 10m)));
+        // Left for the handles: the order's other position, the customer's other order.
+        Assert.Equal([_positionAuftrag], diagram.Pending(Node(_auftrag, 100m), DiagramSide.Children));
+        Assert.Equal([_auftragKunde], diagram.Pending(Node(_kunde, 1m), DiagramSide.Children));
+    }
+
+    [Fact]
+    public async Task A_row_reached_going_up_stays_up_also_after_turning()
+    {
+        var diagram = await StartAsync(_kunde, [[1m]]);
+
+        await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, 3, null, Ct);
+
+        Assert.Equal(-1, LayerOf(diagram, Node(_mitarbeiter, 11m))); // the clerk's manager
+        Assert.False(diagram.IsShown(Node(_mitarbeiter, 10m))); // three levels: order, clerk, manager
+        Assert.Equal([_auftragBearbeiter, _vorgesetzter], diagram.Pending(Node(_mitarbeiter, 12m), DiagramSide.Children).OrderBy(r => r.Name, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task Rows_of_a_group_go_no_further()
+    {
+        var diagram = await StartAsync(_kunde, [[1m]], groupLimit: 1);
+
+        var shown = await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, 2, null, Ct);
+
+        Assert.Empty(shown);
+        Assert.Single(diagram.Groups);
+        Assert.Equal(3, diagram.RowCount); // the customer and the orders of the group
+    }
+
+    [Fact]
+    public async Task Too_many_rows_on_a_level_are_reported_from_all_its_rows_and_the_rest_comes()
+    {
+        var diagram = await StartAsync(_kunde, [[1m]], maxRows: 4);
+
+        await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, 2, null, Ct);
+
+        Assert.True(diagram.IsShown(Node(_mitarbeiter, 12m)));
+        var problem = Assert.Single(diagram.Problems);
+        Assert.Equal(_positionAuftrag, problem.Relation);
+        Assert.Equal([Node(_auftrag, 100m), Node(_auftrag, 101m)], problem.From);
+    }
+
+    [Fact]
+    public async Task The_progress_names_the_level_of_several()
+    {
+        var reports = new List<TraversalProgress>();
+        var progress = new SyncProgress(reports.Add);
+        var diagram = await StartAsync(_kunde, [[1m]]);
+
+        await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, 2, progress, Ct);
+        await diagram.ExpandAsync([Node(_mitarbeiter, 12m)], DiagramSide.Parents, progress, Ct);
+
+        Assert.Equal<TraversalLevel?>([new(1, 2), new(2, 2), new(2, 2), null], reports.Select(r => r.Level));
+        Assert.Equal(_auftrag.Table.Ref, reports[0].Table);
+    }
+
+    [Fact]
+    public async Task Steps_with_levels_build_the_same_diagram_again()
+    {
+        var first = await StartAsync(_kunde, [[1m]]);
+        await first.ExpandAsync(first.Start, DiagramSide.Children, 3, null, Ct);
+        await first.ExpandAsync([Node(_mitarbeiter, 12m)], DiagramSide.Children, 2, null, Ct);
+
+        var again = await StartAsync(_kunde, [[1m]]);
+        await again.ReplayAsync(first.Steps, null, Ct);
+
+        Assert.Equal(first.Rows, again.Rows);
+        Assert.Equal(first.Steps, again.Steps, StepComparer.Instance);
+    }
+
+    [Fact]
+    public async Task A_depth_out_of_range_is_held_in_it()
+    {
+        var diagram = await StartAsync(_kunde, [[1m]]);
+
+        await diagram.ExpandAsync(diagram.Start, DiagramSide.Children, 0, null, Ct);
+        await diagram.ExpandAsync(diagram.Start, DiagramSide.Parents, 99, null, Ct);
+
+        Assert.Equal([1, RecordDiagram.MaxDepth], diagram.Steps.Select(s => s.Depth));
+        Assert.False(diagram.IsShown(Node(_position, 100m, 1m))); // one level only
+    }
+
+    /// <summary>Reports at once, on the caller's thread (<see cref="Progress{T}"/> posts them).</summary>
+    private sealed class SyncProgress(Action<TraversalProgress> report) : IProgress<TraversalProgress>
+    {
+        public void Report(TraversalProgress value) => report(value);
+    }
+
     [Fact]
     public void A_node_id_is_the_same_for_equal_numbers_of_another_scale()
     {
@@ -303,8 +421,9 @@ public class RecordDiagramTests
         public static readonly StepComparer Instance = new();
 
         public bool Equals(RecordStep? x, RecordStep? y) =>
-            x is not null && y is not null && x.Kind == y.Kind && x.Side == y.Side && x.Relation == y.Relation && x.Nodes.SequenceEqual(y.Nodes);
+            x is not null && y is not null && x.Kind == y.Kind && x.Side == y.Side && x.Relation == y.Relation && x.Depth == y.Depth
+            && x.Nodes.SequenceEqual(y.Nodes);
 
-        public int GetHashCode(RecordStep step) => HashCode.Combine(step.Kind, step.Side, step.Relation);
+        public int GetHashCode(RecordStep step) => HashCode.Combine(step.Kind, step.Side, step.Relation, step.Depth);
     }
 }

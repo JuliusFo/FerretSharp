@@ -308,4 +308,8 @@ public sealed class RowTraversal(
 }
 
 /// <summary>Where a traversal is: the table it reads next and the rows found so far.</summary>
-public sealed record TraversalProgress(TableRef Table, int Rows);
+/// <param name="Level">The level of a record diagram's expansion over several (WP-62); null otherwise.</param>
+public sealed record TraversalProgress(TableRef Table, int Rows, TraversalLevel? Level = null);
+
+/// <summary>Level <paramref name="Number"/> of <paramref name="Of"/>, from 1.</summary>
+public sealed record TraversalLevel(int Number, int Of);

@@ -1,4 +1,5 @@
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Relations;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 
@@ -199,6 +200,43 @@ public sealed class WorkspaceStoreTests : IDisposable
         var tab = Assert.Single(workspace.Tabs);
         Assert.Equal("", workspace.Notes);
         Assert.Equal((0, 0, 0, 0, 0, ""), (tab.FilterRows.Count, tab.AppliedFilters.Count, tab.Sorts.Count, tab.PinnedColumns.Count, tab.Sql!.Variables.Count, tab.Sql.Text));
+    }
+
+    /// <summary>WP-62: a record diagram saved before the levels goes one level, as it did; a depth set by hand stays in range.</summary>
+    [Fact]
+    public async Task Record_tabs_saved_before_the_levels_go_one_level()
+    {
+        Directory.CreateDirectory(_directory);
+        var id = Guid.NewGuid();
+        await File.WriteAllTextAsync(Path.Combine(_directory, id + ".json"), $$"""
+            { "version": 1, "workspace": { "id": "{{id}}", "connectionId": "{{_connectionId}}", "name": "Alt", "tabs": [
+              { "table": { "owner": "", "name": "" }, "mode": "data", "filterRows": [], "appliedFilters": [], "sorts": [],
+                "records": { "owner": "APP", "name": "KUNDE", "rowIds": false, "keys": [ [ "1" ] ],
+                  "steps": [ { "kind": "expand", "nodes": [ "r:APP.KUNDE:1" ], "side": "children" },
+                             { "kind": "expand", "nodes": [ "r:APP.KUNDE:1" ], "side": "parents", "depth": 99 } ] } },
+              { "table": { "owner": "", "name": "" }, "mode": "data", "filterRows": [], "appliedFilters": [], "sorts": [],
+                "records": { "owner": "APP", "name": "KUNDE", "rowIds": false, "keys": [ [ "1" ] ], "steps": [], "depth": 0 } } ] } }
+            """, Ct);
+
+        var tabs = Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Workspaces).Tabs;
+
+        var records = tabs[0].Records!;
+        Assert.Equal(1, records.Depth);
+        Assert.Equal([1, RecordDiagram.MaxDepth], records.Steps.Select(s => s.Depth));
+        Assert.Equal(1, tabs[1].Records!.Depth);
+    }
+
+    [Fact]
+    public async Task Record_tabs_keep_their_depth_and_that_of_each_step()
+    {
+        var steps = new[] { new RecordStep(RecordStepKind.Expand, ["r:APP.KUNDE:1"], DiagramSide.Children, Depth: 3) };
+        var workspace = Sample() with { Tabs = [TabState.OfRecords(new RecordTabState("APP", "KUNDE", false, [["1"]], steps, Depth: 3))] };
+
+        await _store.SaveAsync(workspace, Ct);
+        var records = Assert.Single(Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Workspaces).Tabs).Records!;
+
+        Assert.Equal(3, records.Depth);
+        Assert.Equal(3, Assert.Single(records.Steps).Depth);
     }
 
     /// <summary>R5b: a newer file whose shape this version cannot read was reported as broken; now as newer, for its own connection only.</summary>
