@@ -20,7 +20,7 @@ Branch `wp/62-record-depth`, begonnen am 2026-10-25. Nachtrag zu ADR 0034. Baut 
 - **Core:**
   - `RecordDiagram.ExpandAsync(nodes, side, depth, …)` (die Überladung ohne Tiefe geht eine Ebene): Breitensuche in `ExpandSideAsync`. Jede Ebene liest einmal je Beziehung für alle Zeilen, die die vorige neu gezeigt hat; jede Zeile trägt mit, ob sie noch abwärts darf (nur eine als Kind erreichte). Die erste Ebene geht nur zur angefragten Seite, ab der zweiten biegen Kinder zu ihren Eltern ab. Zeilen einer Gruppe gehen nicht weiter. `MaxDepth = 4`, eine Tiefe außerhalb wird darauf gehalten.
   - `RecordStep.Depth` (Standard 1, ältere Dateien gehen eine Ebene), `ReplayAsync` sucht damit neu. `RecordTabState.Depth` (Standard 1); `Workspace.Normalized` hält beide Tiefen zwischen 1 und 4.
-  - `TraversalProgress.Level` (`TraversalLevel`: Ebene n von m) nur bei mehr als einer Ebene.
+  - `TraversalProgress.Level` (`TraversalLevel`: Ebene n von m) nur bei mehr als einer Ebene; `OpenAsync` öffnet ein neues Diagramm nach beiden Seiten (Review).
 - **UI:**
   - `RecordDiagramState.Depth`, `SetDepth` (true: unverändertes Diagramm, der nächste `LoadAsync` baut es neu), Öffnen und Griffe nehmen die Tiefe, „Zurücksetzen“ behält sie. `RecordTab` speichert und stellt sie wieder her.
   - `RecordDiagramView`: Wahlfeld „Ebenen“ 1–4 vorn in der Kopfzeile (Beschriftung `Relations_Levels`, Tooltip `Records_LevelsTitle` mit der Abbiegeregel), aus während eines Lesens. Fortschritt „Ebene 2 von 3: Lese MITARBEITER – bisher 4 Zeilen“ (`Records_ReadingLevel`).
@@ -36,4 +36,14 @@ Eigener Container mit der Beispiel-DB (`ferret-e2e62`, Port 1562, danach entfern
   - Wechsel auf 1 am veränderten Diagramm lässt es stehen; F5 baut es gleich wieder auf (die Schritte behalten Tiefe 3). „Zurücksetzen“ baut mit Ebene 1, der Wechsel auf 2 danach wieder neu.
   - Workspace-Datei: `depth` am Tab und an jedem Schritt. Nach dem Neustart Ebene 2 aktiv, dieselben neun Zeilen, englische Texte und Tooltip. Log ohne `[ERR]`/`[WRN]`.
 - **Nicht mit echter Eingabe geprüft:** Per `SendInput` kamen nur Bewegungen an, kein `mousedown` (der Fall aus `e2e-testing.md`, ein Hook filtert eingeschleuste Klicks) – das Wahlfeld ist ein einfacher Knopf wie im Beziehungsdiagramm. Abbrechen eines Lesens über mehrere Ebenen (lokal unter einer Sekunde).
-- **Gesehen, unverändert:** Der Fortschritt sagt „bisher 1 Zeilen“ (Einzahl fehlt seit WP-60, Backlog). Die Ebenen zählen je Seite: Beim Öffnen läuft „Ebene 1 von 3“ erst links, dann rechts noch einmal.
+- **Gesehen:** „bisher 1 Zeilen“ (Einzahl fehlte seit WP-60) und die Ebenen je Seite beim Öffnen – beide im Review behoben (Befunde 5 und 6).
+
+## Review (2026-10-26), behoben (Vorschläge übernommen, Entscheidung des Nutzers)
+1. Der Wechsel der Ebenen lief über `Reset()`: Das gezeigte Diagramm war weg, bevor das neue gelesen war – abgebrochen oder gescheitert blieb ein leerer Tab, und „Laden“ baute wieder mit der neuen Tiefe. Jetzt setzt `SetDepth` nur die Tiefe; `LoadAsync` öffnet ein Diagramm, das nur geöffnet wurde (`OnlyOpened`: zwei Schritte über die Startzeilen, beide Seiten), bei anderen Ebenen neu (`RecordDiagram.OpenAsync`). Das gezeigte, seine Anordnung und die Markierungen bleiben, bis das neue fertig ist.
+2. Passte eine Beziehung über alle Zeilen einer Ebene nicht unter die Grenze, galt sie bei jeder dieser Zeilen als verfolgt – ein Auftrag mit drei Positionen bot sie nicht mehr an. Jetzt nur noch bei einer einzelnen Zeile; von mehreren bleibt sie jeder angeboten (auch beim Öffnen mehrerer Startzeilen).
+3. Der Wechsel löschte die markierten Zeilen (über `Reset()`) – mit 1 behoben, sie bleiben, solange die Zeilen gezeigt werden.
+4. Ohne geladenes Diagramm (erstes Laden gescheitert, gespeicherter Tab) merkte sich der Wechsel nur die Zahl, und das Laden spielte die alte Tiefe ab. Mit 1 behoben: Auch ein gespeichertes, nur geöffnetes Diagramm öffnet mit den Ebenen des Tabs.
+5. „bisher 1 Zeilen“: Die Fortschrittstexte haben eine Einzahl (`Records_ReadingOne/Other`, `Records_ReadingLevelOne/Other` über `TextFormat.Plural`), auch der aus WP-60.
+6. Beim Öffnen zählte der Fortschritt je Seite („Ebene 1 von 3“ zweimal). `OpenAsync` zählt beide Seiten zusammen („Ebene 4 von 6“), das Abspielen alle Schritte einer ganzen Seite.
+7. Die Tiefe wurde an fünf Stellen begrenzt – jetzt `RecordDiagram.ClampDepth` an den Eingängen (Datei, Nutzer, `ExpandAsync`/`OpenAsync`), nicht mehr beim Abspielen.
+- **Tests:** Core `Too_many_rows_from_several_rows_leave_the_relationship_to_each_of_them`, `Opening_counts_the_levels_of_both_sides_together_and_so_does_the_replay`; UI `Other_levels_keep_the_diagram_and_its_marks_if_the_load_fails`, `Other_levels_before_the_first_load_open_a_restored_diagram_at_them`, `A_restored_diagram_that_did_more_than_open_keeps_its_levels`.
