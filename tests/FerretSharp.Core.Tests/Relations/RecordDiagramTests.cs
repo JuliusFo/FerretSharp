@@ -330,6 +330,44 @@ public class RecordDiagramTests
         Assert.Equal([Node(_auftrag, 100m), Node(_auftrag, 101m)], problem.From);
     }
 
+    /// <summary>Review: one order's few positions were lost with the many of all orders of the level.</summary>
+    [Fact]
+    public async Task Too_many_rows_from_several_rows_leave_the_relationship_to_each_of_them()
+    {
+        var diagram = await StartAsync(_kunde, [[1m]], maxRows: 5); // customer, two orders, clerk: room for one more
+
+        await diagram.ExpandAsync([Node(_kunde, 1m)], DiagramSide.Children, 2, null, Ct); // positions of both orders: too many
+
+        Assert.Equal([_positionAuftrag], diagram.Pending(Node(_auftrag, 101m), DiagramSide.Children));
+        await diagram.ExpandAsync([Node(_auftrag, 101m)], DiagramSide.Children, null, Ct); // one position: it fits
+
+        Assert.True(diagram.IsShown(Node(_position, 101m, 1m)));
+    }
+
+    /// <summary>Review: opening said "level 1 of 3" for the left side, then again for the right.</summary>
+    [Fact]
+    public async Task Opening_counts_the_levels_of_both_sides_together_and_so_does_the_replay()
+    {
+        var reports = new List<TraversalProgress>();
+        var first = await StartAsync(_auftrag, [[100m]]);
+
+        await first.OpenAsync(2, new SyncProgress(reports.Add), Ct);
+
+        Assert.Equal(2, first.Steps.Count);
+        Assert.All(first.Steps, s => Assert.Equal((RecordStepKind.Expand, (string?)null, 2), (s.Kind, s.Relation, s.Depth)));
+        Assert.Equal([1, 2, 3], reports.Select(r => r.Level!.Number).Distinct());
+        Assert.All(reports, r => Assert.Equal(4, r.Level!.Of));
+
+        reports.Clear();
+        var again = await StartAsync(_auftrag, [[100m]]);
+        await again.ReplayAsync([.. first.Steps, new RecordStep(RecordStepKind.Expand, [Node(_kunde, 1m).Id], DiagramSide.Children)],
+            new SyncProgress(reports.Add), Ct);
+
+        Assert.Equal(first.Rows, again.Rows.Take(first.Rows.Count));
+        Assert.Equal([1, 2, 3, 5], reports.Select(r => r.Level!.Number).Distinct());
+        Assert.All(reports, r => Assert.Equal(5, r.Level!.Of));
+    }
+
     [Fact]
     public async Task The_progress_names_the_level_of_several()
     {

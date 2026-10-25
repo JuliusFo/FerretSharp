@@ -891,8 +891,11 @@
   <data name="Records_CopyMermaidTitle" xml:space="preserve">
     <value>Kopiert das Diagramm als Mermaid-Flowchart für Doku und Tickets – mit den gezeigten Werten</value>
   </data>
-  <data name="Records_Reading" xml:space="preserve">
-    <value>Lese {0} – bisher {1:N0} Zeilen</value>
+  <data name="Records_ReadingOne" xml:space="preserve">
+    <value>Lese {1} – bisher {0:N0} Zeile</value>
+  </data>
+  <data name="Records_ReadingOther" xml:space="preserve">
+    <value>Lese {1} – bisher {0:N0} Zeilen</value>
   </data>
   <data name="Records_ReadingStart" xml:space="preserve">
     <value>Lese die Startzeilen</value>
@@ -975,8 +978,11 @@
   <data name="Records_ReadingRows" xml:space="preserve">
     <value>Lese Zeilen</value>
   </data>
-  <data name="Records_ReadingLevel" xml:space="preserve">
-    <value>Ebene {0} von {1}: Lese {2} – bisher {3:N0} Zeilen</value>
+  <data name="Records_ReadingLevelOne" xml:space="preserve">
+    <value>Ebene {1} von {2}: Lese {3} – bisher {0:N0} Zeile</value>
+  </data>
+  <data name="Records_ReadingLevelOther" xml:space="preserve">
+    <value>Ebene {1} von {2}: Lese {3} – bisher {0:N0} Zeilen</value>
   </data>
   <data name="Records_LevelsTitle" xml:space="preserve">
     <value>Wie weit Öffnen und die „+“-Griffe gehen: 2 bringt auch die Kinder der Kinder und deren Eltern. Wer aufwärts geht, biegt nie wieder abwärts ab, Geschwister kommen also nicht dazu. Jede Ebene liest einmal je Beziehung.</value>

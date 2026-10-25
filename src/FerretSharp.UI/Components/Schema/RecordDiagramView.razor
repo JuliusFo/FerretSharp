@@ -1,8 +1,9 @@
 @* A record diagram tab (WP-60): rows instead of tables, drawn like the "Relations" view (WP-46, ADR 0033). The start rows
    stand in the middle, the rows they reference to the left, those that reference them to the right. "+n" on a row loads
    the rows along its relationships of that side, as many levels as "Ebenen" in the header says (WP-62; one read per
-   relationship and level, on the workspace's session, cancellable); the context menu follows one relationship. A click on the name opens the row's table filtered on it, a click on the row
-   marks it for a copy to another connection (WP-42). Values only in memory; the tab saves the keys and what was expanded. *@
+   relationship and level, on the workspace's session, cancellable); the context menu follows one relationship. A click
+   on the name opens the row's table filtered on it, a click on the row marks it for a copy to another connection (WP-42).
+   Values only in memory; the tab saves the keys and what was expanded. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -447,8 +448,8 @@
 
     private string ProgressText => _progress switch
     {
-        { Level: { } level } p => TextFormat.Format(SchemaViewText.Records_ReadingLevel, level.Number, level.Of, Label(p.Table), p.Rows),
-        { } p => TextFormat.Format(SchemaViewText.Records_Reading, Label(p.Table), p.Rows),
+        { Level: { } level } p => TextFormat.Plural(p.Rows, SchemaViewText.Records_ReadingLevelOne, SchemaViewText.Records_ReadingLevelOther, level.Number, level.Of, Label(p.Table)),
+        { } p => TextFormat.Plural(p.Rows, SchemaViewText.Records_ReadingOne, SchemaViewText.Records_ReadingOther, Label(p.Table)),
         _ => _running?.Starting == true ? SchemaViewText.Records_ReadingStart : SchemaViewText.Records_ReadingRows,
     };
 

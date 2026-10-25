@@ -168,8 +168,8 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
             {
                 Keys = (records.Keys ?? []).Where(k => k is not null).Select(k => (IReadOnlyList<string>)k.OfType<string>().ToList()).ToList(),
                 Steps = (records.Steps ?? []).Where(s => s is not null)
-                    .Select(s => s with { Nodes = (s.Nodes ?? []).OfType<string>().ToList(), Depth = Math.Clamp(s.Depth, 1, Relations.RecordDiagram.MaxDepth) }).ToList(),
-                Depth = Math.Clamp(records.Depth, 1, Relations.RecordDiagram.MaxDepth),
+                    .Select(s => s with { Nodes = (s.Nodes ?? []).OfType<string>().ToList(), Depth = Relations.RecordDiagram.ClampDepth(s.Depth) }).ToList(),
+                Depth = Relations.RecordDiagram.ClampDepth(records.Depth),
             } : null,
         }).ToList(),
     };

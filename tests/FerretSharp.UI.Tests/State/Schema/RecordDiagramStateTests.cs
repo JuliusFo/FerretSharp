@@ -158,11 +158,62 @@ public sealed class RecordDiagramStateTests
 
         Assert.False(state.SetDepth(1)); // the same
         Assert.True(state.SetDepth(2));
-        Assert.Null(state.Diagram);
+        Assert.NotNull(state.Diagram); // until the new one is there
         await state.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
 
         Assert.Contains(state.Diagram!.Rows, r => r.Node == Node(Position, 1000m));
+        Assert.Equal([2, 2], state.Steps.Select(s => s.Depth));
         Assert.False(state.Changed);
+    }
+
+    /// <summary>Review: the levels went through Reset – a cancelled or failed load left an empty tab, and the marks were gone.</summary>
+    [Fact]
+    public async Task Other_levels_keep_the_diagram_and_its_marks_if_the_load_fails()
+    {
+        var state = new RecordDiagramState(Kunde.Table.Ref, rowIds: false, [["1"]], steps: null);
+        await state.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
+        var shown = state.Diagram;
+        state.ToggleMark(Node(Auftrag, 100m));
+        Assert.True(state.SetDepth(2));
+
+        _failure = new InvalidOperationException("ORA-03113");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => state.LoadAsync(Traversal(), Relations, Kunde, null, Ct));
+        Assert.Same(shown, state.Diagram);
+        Assert.Equal([Node(Auftrag, 100m)], state.Marked);
+
+        _failure = null;
+        await state.LoadAsync(Traversal(), Relations, Kunde, null, Ct); // F5: opened again at the new levels
+        Assert.Contains(state.Diagram!.Rows, r => r.Node == Node(Position, 1000m));
+        Assert.Equal([Node(Auftrag, 100m)], state.Marked);
+    }
+
+    /// <summary>Review: with nothing loaded the levels were only noted, and the load replayed the saved ones.</summary>
+    [Fact]
+    public async Task Other_levels_before_the_first_load_open_a_restored_diagram_at_them()
+    {
+        var first = new RecordDiagramState(Kunde.Table.Ref, rowIds: false, [["1"]], steps: null);
+        await first.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
+        var restored = new RecordDiagramState(Kunde.Table.Ref, rowIds: false, first.Keys, first.Steps);
+
+        Assert.False(restored.SetDepth(2)); // nothing shown to load now
+        await restored.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
+
+        Assert.Contains(restored.Diagram!.Rows, r => r.Node == Node(Position, 1000m));
+        Assert.False(restored.Changed);
+    }
+
+    [Fact]
+    public async Task A_restored_diagram_that_did_more_than_open_keeps_its_levels()
+    {
+        var first = new RecordDiagramState(Kunde.Table.Ref, rowIds: false, [["1"]], steps: null);
+        await first.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
+        await first.ExpandAsync(Node(Auftrag, 101m), DiagramSide.Children, null, Ct);
+        var restored = new RecordDiagramState(Kunde.Table.Ref, rowIds: false, first.Keys, first.Steps, depth: 2);
+
+        await restored.LoadAsync(Traversal(), Relations, Kunde, null, Ct);
+
+        Assert.Equal(first.Diagram!.Rows, restored.Diagram!.Rows);
+        Assert.Equal([1, 1, 1], restored.Steps.Select(s => s.Depth));
     }
 
     [Fact]
