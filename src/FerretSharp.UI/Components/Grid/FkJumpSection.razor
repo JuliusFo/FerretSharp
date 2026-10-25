@@ -26,7 +26,7 @@
     {
         <button type="button" class="menu-item ctx-fold" aria-expanded="@(_nullsOpen ? "true" : "false")"
                 title="@string.Join(Environment.NewLine, outFolded.Select(j => FkTargets.Label(Active, j.Table)))" @onclick="() => _nullsOpen = !_nullsOpen">
-            <span class="ctx-arrow">○</span>
+            <span class="ctx-arrow">@Icons.Empty</span>
             <span class="ctx-fold-text">@TextFormat.Plural(outFolded.Count, GridText.FkJump_MoreNullOne, GridText.FkJump_MoreNullOther)</span>
             <span class="chev @(_nullsOpen ? "" : "closed")">@Icons.ChevronDown</span>
         </button>

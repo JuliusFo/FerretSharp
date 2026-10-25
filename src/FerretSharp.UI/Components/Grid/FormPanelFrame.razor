@@ -14,8 +14,8 @@
 <aside class="form-panel" style="@WidthStyle" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
     <div class="form-resize" @ref="_handle" title="@GridText.Form_ResizeWidth" @onpointerdown="StartResizeAsync"></div>
     <header class="form-head">
-        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_PreviousRow, Shortcuts.Hint(ShortcutAction.FormPrevious))" disabled="@(!CanPrevious)" @onclick="() => OnMove.InvokeAsync(-1)">▲</button>
-        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_NextRow, Shortcuts.Hint(ShortcutAction.FormNext))" disabled="@(!CanNext)" @onclick="() => OnMove.InvokeAsync(1)">▼</button>
+        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_PreviousRow, Shortcuts.Hint(ShortcutAction.FormPrevious))" disabled="@(!CanPrevious)" @onclick="() => OnMove.InvokeAsync(-1)">@Icons.ChevronUp</button>
+        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_NextRow, Shortcuts.Hint(ShortcutAction.FormNext))" disabled="@(!CanNext)" @onclick="() => OnMove.InvokeAsync(1)">@Icons.ChevronDown</button>
         <span class="form-pos">
             @if (Position is not null)
             {

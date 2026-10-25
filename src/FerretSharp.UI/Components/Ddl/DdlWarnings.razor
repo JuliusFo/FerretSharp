@@ -4,7 +4,7 @@
 
 @foreach (var other in Lifecycle.OtherWriters(WorkspaceId))
 {
-    <p class="hint small">⚠ @(other.Tables.Count > 0
+    <p class="hint small">@Icons.Warning @(other.Tables.Count > 0
         ? TextFormat.Format(SqlEditorText.SqlView_ConfirmDdlOtherWriterTables, other.Workspace, string.Join(", ", other.Tables))
         : TextFormat.Format(SqlEditorText.SqlView_ConfirmDdlOtherWriter, other.Workspace))</p>
 }

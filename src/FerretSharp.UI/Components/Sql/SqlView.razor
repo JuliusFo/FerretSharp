@@ -26,10 +26,10 @@
             <button class="btn ghost" title="@SqlEditorText.SqlView_PlanTitle" @onclick="() => _planOpen = true">@SqlEditorText.Plan_Open</button>
         }
         <button class="btn" disabled="@Busy" @onclick="RunScriptAsync" title="@SqlEditorText.SqlView_RunScriptTitle">
-            ▶▶ @SqlEditorText.SqlView_RunScript <Kbd Action="ShortcutAction.RunScript" />
+            @Icons.RunScript @SqlEditorText.SqlView_RunScript <Kbd Action="ShortcutAction.RunScript" />
         </button>
         <button class="btn primary" disabled="@Busy" @onclick="RunAsync" title="@SqlEditorText.SqlView_RunTitle">
-            ▶ @CommonText.Run <Kbd Action="ShortcutAction.ApplyFilters" />
+            @Icons.Run @CommonText.Run <Kbd Action="ShortcutAction.ApplyFilters" />
         </button>
     </div>
 

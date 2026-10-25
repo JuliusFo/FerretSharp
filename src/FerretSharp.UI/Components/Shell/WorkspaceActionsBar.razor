@@ -12,9 +12,9 @@
     {
         var redoBlocker = Summary.CanRedo ? Editing.RedoBlocker(Workspace) : null;
         <button class="status-btn" title="@(Summary.Actions is [.., var last] ? TextFormat.Format(ShellText.Status_UndoTitle, last.Display, SourceOf(last)) : ShellText.Status_NothingToUndo)"
-                disabled="@(Busy || !Summary.CanUndo)" @onclick="() => Editing.UndoLastAsync(Workspace, Summary.Actions is [.., var newest] ? newest.Id : null)">↶</button>
+                disabled="@(Busy || !Summary.CanUndo)" @onclick="() => Editing.UndoLastAsync(Workspace, Summary.Actions is [.., var newest] ? newest.Id : null)">@Icons.Undo</button>
         <button class="status-btn" title="@(Summary.Undone is [var next, ..] ? redoBlocker ?? TextFormat.Format(ShellText.Status_RedoTitle, next.Display, SourceOf(next)) : ShellText.Status_NothingToRedo)"
-                disabled="@(Busy || !Summary.CanRedo || redoBlocker is not null)" @onclick="() => Summary.Undone is [var redo, ..] ? Lifecycle.RequestRedo(Workspace, redo) : Task.CompletedTask">↷</button>
+                disabled="@(Busy || !Summary.CanRedo || redoBlocker is not null)" @onclick="() => Summary.Undone is [var redo, ..] ? Lifecycle.RequestRedo(Workspace, redo) : Task.CompletedTask">@Icons.Redo</button>
     }
     <button class="status-btn commit" title="@(StatementRunning ? GridText.Editing_StatementRunning : TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit)))"
             disabled="@(Busy || StatementRunning)" @onclick="() => Lifecycle.RequestCommitAsync(Workspace)">Commit</button>

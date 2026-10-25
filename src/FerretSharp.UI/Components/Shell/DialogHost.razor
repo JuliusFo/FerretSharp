@@ -46,7 +46,7 @@
         <div class="toast-text">@notice.Text</div>
         @foreach (var warning in notice.Warnings)
         {
-            <div class="toast-warning">⚠ @warning</div>
+            <div class="toast-warning">@Icons.Warning @warning</div>
         }
         <button class="icon-btn ghost toast-close" title="@CommonText.Close" @onclick="() => Shell.DismissNotice(notice)">@Icons.Close</button>
     </div>

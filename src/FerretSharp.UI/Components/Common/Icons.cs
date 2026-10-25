@@ -46,9 +46,45 @@ internal static class Icons
     public static readonly MarkupString ArrowRight = Svg(
         """<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>""");
 
-    /// <summary>Lucide <c>undo-2</c>: take back a drop in the designer.</summary>
-    public static readonly MarkupString Restore = Svg(
+    /// <summary>Lucide <c>chevron-up</c>: the previous row of the form.</summary>
+    public static readonly MarkupString ChevronUp = Svg(
+        """<path d="m18 15-6-6-6 6"/>""");
+
+    /// <summary>Lucide <c>undo-2</c>: undo a change, take back a drop in the designer.</summary>
+    public static readonly MarkupString Undo = Svg(
         """<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>""");
+
+    /// <summary>Lucide <c>redo-2</c>: redo a change.</summary>
+    public static readonly MarkupString Redo = Svg(
+        """<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/>""");
+
+    /// <summary>Lucide <c>pencil</c>: rename.</summary>
+    public static readonly MarkupString Rename = Svg(
+        """<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>""");
+
+    /// <summary>Lucide <c>circle</c>: foreign keys without a value (NULL), folded in the cell menu.</summary>
+    public static readonly MarkupString Empty = Svg(
+        """<circle cx="12" cy="12" r="10"/>""");
+
+    /// <summary>Lucide <c>locate</c>: show a changed row in its tab.</summary>
+    public static readonly MarkupString ShowRow = Svg(
+        """<line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/>""");
+
+    /// <summary>Lucide <c>play</c>: run the statement at the cursor, the LINQ query.</summary>
+    public static readonly MarkupString Run = Svg(
+        """<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/>""");
+
+    /// <summary>Lucide <c>fast-forward</c>: run the whole script.</summary>
+    public static readonly MarkupString RunScript = Svg(
+        """<path d="M12 6a2 2 0 0 1 3.414-1.414l6 6a2 2 0 0 1 0 2.828l-6 6A2 2 0 0 1 12 18z"/><path d="M2 6a2 2 0 0 1 3.414-1.414l6 6a2 2 0 0 1 0 2.828l-6 6A2 2 0 0 1 2 18z"/>""");
+
+    /// <summary>Lucide <c>triangle-alert</c>: a warning before a line of text.</summary>
+    public static readonly MarkupString Warning = Svg(
+        """<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>""");
+
+    /// <summary>Lucide <c>git-branch</c>: a work clone and its branch.</summary>
+    public static readonly MarkupString Branch = Svg(
+        """<path d="M15 6a9 9 0 0 0-9 9V3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>""");
 
     /// <summary>Lucide <c>copy</c>: copy to the clipboard.</summary>
     public static readonly MarkupString Copy = Svg(
@@ -168,9 +204,9 @@ internal static class Icons
     public static readonly MarkupString Package = Svg(
         """<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>""");
 
-    /// <summary>Lucide <c>play</c>: a stored procedure.</summary>
+    /// <summary>Lucide <c>square-play</c>: a stored procedure (beside <c>square-function</c>; <c>play</c> is Run).</summary>
     public static readonly MarkupString Procedure = Svg(
-        """<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/>""");
+        """<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"/>""");
 
     /// <summary>Lucide <c>square-function</c>: a stored function.</summary>
     public static readonly MarkupString Function = Svg(

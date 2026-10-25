@@ -560,7 +560,7 @@
     <value>Nothing written.</value>
   </data>
   <data name="Changes_UndoTo" xml:space="preserve">
-    <value>↶ Up to here</value>
+    <value>Up to here</value>
     <comment>Button: undo this write action and every later one</comment>
   </data>
   <data name="Changes_UndoToTitle" xml:space="preserve">
@@ -574,7 +574,7 @@
     <value>Taken back in this transaction. Redo applies them again in order, as long as nothing new is written.</value>
   </data>
   <data name="Changes_Redo" xml:space="preserve">
-    <value>↷ Redo</value>
+    <value>Redo</value>
     <comment>Button: apply an undone write action again</comment>
   </data>
   <data name="Changes_RedoGridTitle" xml:space="preserve">

@@ -457,7 +457,7 @@
     <value>Nichts geschrieben.</value>
   </data>
   <data name="Changes_UndoTo" xml:space="preserve">
-    <value>↶ Bis hier</value>
+    <value>Bis hier</value>
   </data>
   <data name="Changes_UndoToTitle" xml:space="preserve">
     <value>Diese und alle späteren Aktionen (markiert) zurücknehmen – ein Savepoint nimmt alles danach mit. Grid-Änderungen werden wieder ausstehend.</value>
@@ -469,7 +469,7 @@
     <value>In dieser Transaktion zurückgenommen. Wiederholen wendet sie der Reihe nach wieder an, solange nichts Neues geschrieben wird.</value>
   </data>
   <data name="Changes_Redo" xml:space="preserve">
-    <value>↷ Wiederholen</value>
+    <value>Wiederholen</value>
   </data>
   <data name="Changes_RedoGridTitle" xml:space="preserve">
     <value>Die Änderungen erneut schreiben, mit der üblichen Zeilensperre und Konfliktprüfung</value>
