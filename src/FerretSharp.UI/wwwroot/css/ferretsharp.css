@@ -721,7 +721,7 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filter-more { grid-column: 1 / -1; display: none; align-items: center; justify-content: center; height: 30px; border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--muted); font-size: 12px; }
 .filterbar.dragging .filter-more { display: flex; }
 .filterbar .btn.small { height: 26px; padding: 0 8px; }
-.filter-grip { color: var(--faint); cursor: grab; user-select: none; text-align: center; line-height: 30px; touch-action: none; }
+.filter-grip { display: grid; place-items: center; height: 30px; color: var(--faint); cursor: grab; user-select: none; touch-action: none; }
 .filter-grip:hover { color: var(--text); }
 .filterbar.dragging, .filterbar.dragging * { cursor: grabbing !important; }
 .filter-rows .drop-over { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--accent-weak); }

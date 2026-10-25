@@ -37,9 +37,9 @@
                 </label>
             }
             <span class="spacer"></span>
-            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!_state.CanZoomOut)" @onclick="_state.ZoomOut">−</button>
+            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!_state.CanZoomOut)" @onclick="_state.ZoomOut">@Icons.ZoomOut</button>
             <button class="btn ghost relations-zoom" title="@SchemaViewText.Relations_ZoomReset" @onclick="_state.ResetZoom">@($"{_state.Zoom:P0}")</button>
-            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!_state.CanZoomIn)" @onclick="_state.ZoomIn">+</button>
+            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!_state.CanZoomIn)" @onclick="_state.ZoomIn">@Icons.ZoomIn</button>
             <button class="btn ghost" title="@TextFormat.Format(SchemaViewText.Relations_ResetTitle, Label(_state.Home))" disabled="@(!_state.Changed)"
                     @onclick="() => Change(_state.Reset, scroll: true)">@CommonText.Reset</button>
             <button class="btn ghost" title="@SchemaViewText.Relations_CopyMermaidTitle" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>

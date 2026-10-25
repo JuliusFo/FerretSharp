@@ -30,7 +30,7 @@ else
         <div class="structure-columns-head">
             <h2 title="@ModelViewText.Usage_Limits">
                 <Fmt Text="@ModelViewText.Usage_Heading"><Arg0><strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong></Arg0></Fmt>
-                <span class="usage-limits" aria-label="@ModelViewText.Usage_Limits">ⓘ</span>
+                <span class="usage-limits" aria-label="@ModelViewText.Usage_Limits">@Icons.Info</span>
             </h2>
             @if (Usage.Solutions is { Count: > 1 } solutions)
             {

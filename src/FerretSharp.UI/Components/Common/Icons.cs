@@ -46,6 +46,30 @@ internal static class Icons
     public static readonly MarkupString ArrowRight = Svg(
         """<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>""");
 
+    /// <summary>Lucide <c>minus</c>: remove a filter row (beside <see cref="Plus"/>).</summary>
+    public static readonly MarkupString Minus = Svg(
+        """<path d="M5 12h14"/>""");
+
+    /// <summary>Lucide <c>zoom-in</c>: zoom into a diagram.</summary>
+    public static readonly MarkupString ZoomIn = Svg(
+        """<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/>""");
+
+    /// <summary>Lucide <c>zoom-out</c>: zoom out of a diagram.</summary>
+    public static readonly MarkupString ZoomOut = Svg(
+        """<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/>""");
+
+    /// <summary>Lucide <c>grip-vertical</c>: the handle a filter row is dragged by.</summary>
+    public static readonly MarkupString Grip = Svg(
+        """<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>""");
+
+    /// <summary>Lucide <c>lock</c>: a connection that is imported read-only.</summary>
+    public static readonly MarkupString Locked = Svg(
+        """<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>""");
+
+    /// <summary>Lucide <c>info</c>: more about a view in its tooltip.</summary>
+    public static readonly MarkupString Info = Svg(
+        """<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>""");
+
     /// <summary>Lucide <c>chevron-up</c>: the previous row of the form.</summary>
     public static readonly MarkupString ChevronUp = Svg(
         """<path d="m18 15-6-6-6 6"/>""");

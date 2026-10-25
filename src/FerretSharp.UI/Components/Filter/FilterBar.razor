@@ -152,7 +152,7 @@
         var values = column is null ? null : presentation.ValuesOf(IndexOf(column));
         var valueCount = FilterRules.ValueCount(r.Op);
         <div @key="r" class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")" data-drop="@(r.Group is null ? NoGroup : null)">
-            <span class="filter-grip" title="@GridText.Filter_DragTitle" @onpointerdown="e => DragAsync(r, e)" @onpointerdown:preventDefault="true">⠿</span>
+            <span class="filter-grip" title="@GridText.Filter_DragTitle" @onpointerdown="e => DragAsync(r, e)" @onpointerdown:preventDefault="true">@Icons.Grip</span>
             <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="@GridText.Filter_Enabled"
                    @onchange="e => { r.Enabled = e.Value is true; Shell.MarkDirty(); }" />
             <ColumnPicker Details="Details" Value="@r.Column" OnChange="name => ChangeColumn(r, name)" AutoFocus="r == _newRow" />
@@ -206,8 +206,8 @@
                     }
                 </ChildContent>
             </MenuButton>
-            <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => RemoveRow(r)">−</button>
-            <button class="icon-btn" title="@GridText.Filter_AddTitle" @onclick="() => AddRow(r.Group)">+</button>
+            <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => RemoveRow(r)">@Icons.Minus</button>
+            <button class="icon-btn" title="@GridText.Filter_AddTitle" @onclick="() => AddRow(r.Group)">@Icons.Plus</button>
             @if (r.Error is not null)
             {
                 <span class="filter-error">@r.Error</span>
