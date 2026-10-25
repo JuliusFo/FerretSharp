@@ -10,7 +10,7 @@
     <ModalFrame Label="@TextFormat.Format(ShellText.Update_DialogTitle, update.Version)" Class="update-dialog" OnCancel="Updates.HideDetails" FocusOnOpen="true">
         <header>
             <span>@TextFormat.Format(ShellText.Update_DialogTitle, update.Version)</span>
-            <button class="icon-btn ghost" title="@CommonText.Close" @onclick="Updates.HideDetails">✕</button>
+            <button class="icon-btn ghost" title="@CommonText.Close" @onclick="Updates.HideDetails">@Icons.Close</button>
         </header>
         <div class="dialog-body">
             <p class="update-current">@TextFormat.Format(ShellText.Update_YouHave, CurrentVersion)</p>

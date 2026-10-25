@@ -32,7 +32,7 @@
         {
             <span>@ConnectionViewText.Switcher_ChooseConnection</span>
         }
-        <span class="chev">▾</span>
+        <span class="chev">@Icons.ChevronDown</span>
     </button>
 
     @if (Shell.SwitcherOpen)
@@ -78,7 +78,7 @@
                     var key = group.Name ?? "";
                     var collapsed = !Searching && _collapsed.Contains(key);
                     <button class="group-head-btn" @onclick="() => ToggleGroup(key)">
-                        <span class="chev @(collapsed ? "closed" : "")">▾</span>
+                        <span class="chev @(collapsed ? "closed" : "")">@Icons.ChevronDown</span>
                         <span>@(group.Name ?? ConnectionViewText.Connection_NoGroup)</span>
                         <span class="count">@group.Profiles.Count</span>
                     </button>

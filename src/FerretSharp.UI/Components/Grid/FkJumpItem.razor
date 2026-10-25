@@ -9,7 +9,7 @@
         disabled="@(!Jump.IsAvailable)" title="@Tooltip" @onclick="() => OnJump.InvokeAsync(Jump)"
         @onmouseenter="() => OnEnter.InvokeAsync(Jump)" @onmouseleave="() => OnLeave.InvokeAsync(Jump)"
         @onfocus="() => OnEnter.InvokeAsync(Jump)" @onblur="() => OnLeave.InvokeAsync(Jump)">
-    <span class="ctx-arrow">@(Jump.Direction == JumpDirection.Outgoing ? "→" : "←")</span>
+    <span class="ctx-arrow">@(Jump.Direction == JumpDirection.Outgoing ? Icons.ArrowRight : Icons.ArrowLeft)</span>
     @if (OneLine)
     {
         <span class="ctx-table">

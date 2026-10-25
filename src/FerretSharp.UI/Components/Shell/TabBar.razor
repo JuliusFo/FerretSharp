@@ -135,7 +135,7 @@
             else
             {
                 <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))"
-                        @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">✕</button>
+                        @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">@Icons.Close</button>
             }
         </div>;
 

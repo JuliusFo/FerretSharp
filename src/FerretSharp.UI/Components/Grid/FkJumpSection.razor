@@ -28,7 +28,7 @@
                 title="@string.Join(Environment.NewLine, outFolded.Select(j => FkTargets.Label(Active, j.Table)))" @onclick="() => _nullsOpen = !_nullsOpen">
             <span class="ctx-arrow">○</span>
             <span class="ctx-fold-text">@TextFormat.Plural(outFolded.Count, GridText.FkJump_MoreNullOne, GridText.FkJump_MoreNullOther)</span>
-            <span class="chev @(_nullsOpen ? "" : "closed")">▾</span>
+            <span class="chev @(_nullsOpen ? "" : "closed")">@Icons.ChevronDown</span>
         </button>
         @if (_nullsOpen)
         {
@@ -64,7 +64,7 @@
                 title="@string.Join(Environment.NewLine, folded.Select(j => FkTargets.Label(Active, j.Table)))" @onclick="() => Toggle(key)">
             <span class="ctx-arrow">…</span>
             <span class="ctx-fold-text">@TextFormat.Format(GridText.FkJump_More, folded.Count)</span>
-            <span class="chev @(open ? "" : "closed")">▾</span>
+            <span class="chev @(open ? "" : "closed")">@Icons.ChevronDown</span>
         </button>
         @if (open)
         {

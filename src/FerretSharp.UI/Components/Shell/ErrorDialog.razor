@@ -7,7 +7,7 @@
         <span>@ShellText.ErrorDialog_Title</span>
         <span class="spacer"></span>
         <button class="btn" @onclick="CopyAsync">@(_copied ? CommonText.CopiedCheck : CommonText.Copy)</button>
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
     </header>
     <div class="error-detail left">
         @if (Error.ErrorCode is { } errorCode)

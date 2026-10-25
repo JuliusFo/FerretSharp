@@ -28,7 +28,7 @@
                 }
                 @if (!used)
                 {
-                    <button class="icon-btn ghost" title="@SqlEditorText.SqlVariables_Remove" @onclick="() => RemoveAsync(v)">✕</button>
+                    <button class="icon-btn ghost" title="@SqlEditorText.SqlVariables_Remove" @onclick="() => RemoveAsync(v)">@Icons.Close</button>
                 }
             </div>
         }

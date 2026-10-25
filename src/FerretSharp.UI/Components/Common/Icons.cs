@@ -14,9 +14,41 @@ internal static class Icons
     public static readonly MarkupString Search = Svg(
         """<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>""");
 
-    /// <summary>Lucide <c>x</c>: clears a search field.</summary>
-    public static readonly MarkupString Clear = Svg(
+    /// <summary>Lucide <c>x</c>: closes a dialog, panel or tab, removes an entry, clears a search field.</summary>
+    public static readonly MarkupString Close = Svg(
         """<path d="M18 6 6 18"/><path d="m6 6 12 12"/>""");
+
+    /// <summary>Lucide <c>ellipsis</c>: a menu of more actions.</summary>
+    public static readonly MarkupString More = Svg(
+        """<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>""");
+
+    /// <summary>Lucide <c>chevron-down</c>: opens a menu, an open group (turned by <c>.chev.closed</c> when folded).</summary>
+    public static readonly MarkupString ChevronDown = Svg(
+        """<path d="m6 9 6 6 6-6"/>""");
+
+    /// <summary>Lucide <c>chevron-right</c>: a folded node of a tree.</summary>
+    public static readonly MarkupString ChevronRight = Svg(
+        """<path d="m9 18 6-6-6-6"/>""");
+
+    /// <summary>Lucide <c>arrow-up</c>: move an entry up.</summary>
+    public static readonly MarkupString ArrowUp = Svg(
+        """<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>""");
+
+    /// <summary>Lucide <c>arrow-down</c>: move an entry down.</summary>
+    public static readonly MarkupString ArrowDown = Svg(
+        """<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>""");
+
+    /// <summary>Lucide <c>arrow-left</c>: back, a foreign key pointing here.</summary>
+    public static readonly MarkupString ArrowLeft = Svg(
+        """<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>""");
+
+    /// <summary>Lucide <c>arrow-right</c>: forward, the target of a foreign key or synonym, a new value.</summary>
+    public static readonly MarkupString ArrowRight = Svg(
+        """<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>""");
+
+    /// <summary>Lucide <c>undo-2</c>: take back a drop in the designer.</summary>
+    public static readonly MarkupString Restore = Svg(
+        """<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>""");
 
     /// <summary>Lucide <c>copy</c>: copy to the clipboard.</summary>
     public static readonly MarkupString Copy = Svg(

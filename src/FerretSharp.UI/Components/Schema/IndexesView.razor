@@ -48,9 +48,9 @@ else
                             var at = i;
                             <span class="index-draft-column">
                                 <span class="mono">@editor.Columns[at]</span>
-                                <button class="icon-btn" disabled="@(at == 0)" title="@SchemaViewText.Indexes_ColumnEarlier" @onclick="() => editor.Move(at, -1)">↑</button>
-                                <button class="icon-btn" disabled="@(at == editor.Columns.Count - 1)" title="@SchemaViewText.Indexes_ColumnLater" @onclick="() => editor.Move(at, 1)">↓</button>
-                                <button class="icon-btn" title="@SchemaViewText.Indexes_ColumnRemove" @onclick="() => editor.Remove(at)">✕</button>
+                                <button class="icon-btn" disabled="@(at == 0)" title="@SchemaViewText.Indexes_ColumnEarlier" @onclick="() => editor.Move(at, -1)">@Icons.ArrowUp</button>
+                                <button class="icon-btn" disabled="@(at == editor.Columns.Count - 1)" title="@SchemaViewText.Indexes_ColumnLater" @onclick="() => editor.Move(at, 1)">@Icons.ArrowDown</button>
+                                <button class="icon-btn" title="@SchemaViewText.Indexes_ColumnRemove" @onclick="() => editor.Remove(at)">@Icons.Close</button>
                             </span>
                         }
                         @{ var free = Details.Columns.Where(c => !editor.Columns.Contains(c.Name) && !OracleTypes.IsLobOrLong(c.DataType)).ToList(); /* LOBs cannot be indexed */ }

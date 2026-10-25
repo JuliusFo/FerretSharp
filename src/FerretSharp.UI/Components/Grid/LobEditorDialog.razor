@@ -12,7 +12,7 @@
 <ModalFrame Label="@Column.Name" Class="lob-dialog" OnCancel="CancelAsync" FocusOnOpen="true">
     <header>
         <span>@Column.Name <span class="lob-type">@Column.DisplayType · @Details.Table.DisplayName</span></span>
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
     </header>
     <div class="dialog-body">
         @if (_loading)

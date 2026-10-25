@@ -29,7 +29,7 @@
             <button class="btn" title="@TextFormat.Format(CompareViewText.CompareDdl_OpenInEditorTitle, Labels[_target])"
                     @onclick="() => OnOpenInEditor.InvokeAsync(runnable)">@CommonText.OpenInSqlEditor</button>
         }
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
     </header>
     <div class="settings-note compare-ddl-note">
         @CompareViewText.CompareDdl_Note

@@ -82,7 +82,7 @@
                         }
                     </span>
                     <button class="icon-btn ghost" title="@CompareViewText.Compare_RemoveSide" disabled="@(Compare.Sides.Count <= 1 || Compare.Loading)"
-                            @onclick="() => RemoveSide(index)">✕</button>
+                            @onclick="() => RemoveSide(index)">@Icons.Close</button>
                 </div>
             }
             <div class="compare-actions">
@@ -143,7 +143,7 @@
                             var children = Children(row).ToList();
                             <tr class="object @(row.HasDifferences ? "differs" : "")" @onclick="() => Toggle(row.Key)">
                                 <td class="name">
-                                    <span class="twisty">@(children.Count > 0 ? open ? "▾" : "▸" : "")</span>
+                                    <span class="twisty">@(children.Count > 0 ? open ? Icons.ChevronDown : Icons.ChevronRight : default)</span>
                                     @Icons.For(KindOf(row))
                                     <span class="mono">@row.Name</span>
                                     @if (!row.Differs && row.HasDifferences)

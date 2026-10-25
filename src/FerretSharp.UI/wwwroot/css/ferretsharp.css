@@ -1006,6 +1006,18 @@ table.binds td { font-family: var(--mono); }
 .icon-btn.ghost { border-color: transparent; background: transparent; }
 /* An inline SVG sits on the text baseline and rides up by the descender; as a block it is centered like a glyph would be. */
 .icon-btn .icon { display: block; }
+/* Icons in place of the former text glyphs (✕ ▾ ▸ ⋯ arrows): centered instead of on the baseline, small where the glyph was. */
+.chev, .valpick-caret, .twisty, .ctx-arrow, .change-arrow, .relation .arrow { display: inline-flex; align-items: center; justify-content: center; }
+.chev .icon, .valpick-caret .icon, .twisty .icon, .ctx-arrow .icon, .change-arrow .icon { width: 12px; height: 12px; vertical-align: middle; }
+.change-arrow { align-self: center; }
+.ws-close, .tab-close { display: grid; place-items: center; padding: 0; }
+.ws-close .icon, .ws-delete .icon, .tab-close .icon, .icon-btn.small .icon, .index-draft-column .icon-btn .icon,
+.ff-copy .icon, .tree-toggle .icon { width: 12px; height: 12px; }
+.ff-jump { display: inline-flex; align-items: center; gap: 4px; }
+.ff-jump .icon { width: 11px; height: 11px; }
+.nav-btn { gap: 6px; }
+.nav-btn .icon { flex: none; width: 13px; height: 13px; }
+td.name .twisty { margin-right: 4px; vertical-align: -1px; }
 .btn.danger { color: var(--danger); }
 .btn.danger:hover:not(:disabled) { background: var(--danger-weak); color: var(--danger); }
 

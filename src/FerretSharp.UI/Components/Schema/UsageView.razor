@@ -159,7 +159,7 @@ else
                             var open = _expanded.Contains(row.Column);
                             var uses = row.Matching(_access);
                             <tr class="@(uses.Count > 0 ? "clickable" : "")" @onclick="() => Toggle(row)">
-                                <td class="name">@(uses.Count > 0 ? (open ? "▾ " : "▸ ") : "")@row.Column</td>
+                                <td class="name">@if (uses.Count > 0) { <span class="twisty">@(open ? Icons.ChevronDown : Icons.ChevronRight)</span> }@row.Column</td>
                                 <td class="mono">@(row.Property?.Name ?? "–")</td>
                                 <td class="num" title="@ModelViewText.Usage_ReadsTitle">@AccessCount(row, UsageAccess.Read)</td>
                                 <td class="num" title="@ModelViewText.Usage_WritesTitle">@AccessCount(row, UsageAccess.Write)</td>

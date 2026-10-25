@@ -16,11 +16,11 @@
     <div class="tab-toolbar">
         @if (Tab.BackTarget(Shell.Tabs) is { } back)
         {
-            <button class="btn ghost nav-btn" title="@TextFormat.Format(SchemaViewText.Tab_BackTo, NavLabel(back), Shortcuts.Hint(ShortcutAction.Back))" @onclick="Shell.GoBack">← @back.Table.DisplayName</button>
+            <button class="btn ghost nav-btn" title="@TextFormat.Format(SchemaViewText.Tab_BackTo, NavLabel(back), Shortcuts.Hint(ShortcutAction.Back))" @onclick="Shell.GoBack">@Icons.ArrowLeft @back.Table.DisplayName</button>
         }
         @if (Tab.ForwardTarget(Shell.Tabs) is { } forward)
         {
-            <button class="btn ghost nav-btn" title="@TextFormat.Format(SchemaViewText.Tab_ForwardTo, NavLabel(forward), Shortcuts.Hint(ShortcutAction.Forward))" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
+            <button class="btn ghost nav-btn" title="@TextFormat.Format(SchemaViewText.Tab_ForwardTo, NavLabel(forward), Shortcuts.Hint(ShortcutAction.Forward))" @onclick="Shell.GoForward">@forward.Table.DisplayName @Icons.ArrowRight</button>
         }
         <div class="segmented small" role="tablist">
             @foreach (var (mode, label) in Modes)

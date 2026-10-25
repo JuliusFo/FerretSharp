@@ -34,7 +34,7 @@
             @if (open.Count > 1 && _renaming != w.Id)
             {
                 <button class="ws-close" title="@ShellText.Workspaces_CloseTitle"
-                        @onclick:stopPropagation="true" @onclick="() => CloseAsync(w)">✕</button>
+                        @onclick:stopPropagation="true" @onclick="() => CloseAsync(w)">@Icons.Close</button>
             }
         </div>
     }
@@ -58,7 +58,7 @@
                                     <span class="ws-name">@w.Name</span>
                                     <span class="ws-meta">@TabCount(w) · @w.LastActive.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</span>
                                 </button>
-                                <button class="icon-btn ghost ws-delete" title="@ShellText.Workspaces_DeletePermanently" @onclick="() => RunAction(menu, () => _pendingDelete = w)">✕</button>
+                                <button class="icon-btn ghost ws-delete" title="@ShellText.Workspaces_DeletePermanently" @onclick="() => RunAction(menu, () => _pendingDelete = w)">@Icons.Close</button>
                             </div>
                         }
                     }
@@ -137,7 +137,7 @@
         await action();
     }
 
-    private static readonly RenderFragment Dots = @<text>⋯</text>;
+    private static readonly RenderFragment Dots = @<text>@Icons.More</text>;
 
     private static readonly RenderFragment Plus = @<text>+</text>;
 

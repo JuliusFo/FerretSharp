@@ -25,4 +25,4 @@ Geprüft (Übersicht mit allen Icons hell und dunkel und den Kandidaten je Motiv
 ## Folgen
 
 - Ein Update von Lucide ändert nichts von selbst: Pfade werden bewusst neu kopiert, README und Summary nachgezogen.
-- Textzeichen, die im Markup als Icons dienen (✕ zum Schließen, ▾, ⋯, Pfeile), bleiben vorerst Schrift; ob sie auch auf Lucide umziehen, steht im Backlog.
+- Textzeichen, die als Icon dienten, sind ebenfalls Lucide (Entscheidung des Nutzers im selben Branch): ✕ als `Close` (`x`), ▾/▸ als `ChevronDown`/`ChevronRight`, ⋯ als `More` (`ellipsis`), ↑ ↓ ← → als `Arrow*`, ↺ als `Restore` (`undo-2`), ⧉ als `Copy`. Das gilt für ein Zeichen, das allein einen Knopf füllt oder als Markierung vor einer Zeile steht (Chevron, Sprungrichtung, Pfeil zwischen altem und neuem Wert). Pfeile im laufenden Text bleiben Schrift: „FK → KUNDEN“, „→ OWNER.NAME“ eines Synonyms, Tooltips, Sortiermarken in Spaltenköpfen und Fußzeile.
