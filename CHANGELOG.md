@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.49.0] - 2026-10-25
+
+The menus of a cell and a column header are rebuilt – a bar of icons, a filter field to type into, the export as a table of formats, the values of a column as chips –, the column header menu says what the column is and adds it to another database, and all icons are redrawn from Lucide.
+
 ### Changed
 - The right-click menu of a cell – in a table and in a query result – is rebuilt; it had grown to some 40 lines. The single actions are icons in a bar at the top, named in their tooltips: copy the value, copy it as C# value, open a LOB, pin the column, form or comparison, connected records, copy to another connection, link to the rows, link to the view. Typing goes straight into a filter field below and narrows actions, formats and foreign keys; ↑ ↓ move through the entries, Enter runs one, Esc clears the filter, then closes the menu. The export is a small table of formats – table, CSV, Excel, Excel with raw values, INSERT, C# objects, HasData – by copy, save the selected rows and save all rows of the filter, with a dash where there is no such combination. The values of the clicked column are chips beside it: lines, IN list, distinct. Foreign keys take one line each, with the key's value or the number of rows referencing; those without a value fold into "3 more are NULL" and a long list of tables referencing into its first eight and "… more" – a click opens them, the jumps over the clicked column always stay in sight. Editing rows and marked cells stay lines below the filter.
 
