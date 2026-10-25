@@ -46,9 +46,9 @@
                     <span class="compare-side-no">@(index + 1)</span>
                     <select title="@CompareViewText.Compare_Connection" disabled="@Compare.Loading" value="@(profile?.Id.ToString() ?? "")" @onchange="e => SetConnection(index, e.Value as string)">
                         <option value="">@CompareViewText.Compare_ChooseConnection</option>
-                        @foreach (var p in Connections.Profiles)
+                        @foreach (var p in Compare.Choices)
                         {
-                            <option value="@p.Id">@p.Name</option>
+                            <option value="@p.Id">@Compare.ChoiceLabel(p)</option>
                         }
                     </select>
                     <input class="compare-schema mono" placeholder="@(profile?.EffectiveSchema ?? CompareViewText.Compare_SchemaPlaceholder)" title="@CompareViewText.Compare_SchemaTitle"
@@ -64,7 +64,7 @@
                         }
                         else if (state.NeedsPassword && profile is not null)
                         {
-                            <input type="password" class="compare-password" placeholder="@TextFormat.Format(CompareViewText.Compare_PasswordFor, profile.Name)" title="@CompareViewText.Compare_PasswordTitle"
+                            <input type="password" class="compare-password" placeholder="@TextFormat.Format(CompareViewText.Compare_PasswordFor, Compare.ChoiceLabel(profile))" title="@CompareViewText.Compare_PasswordTitle"
                                    value="@_passwords.GetValueOrDefault(profile.Id)" @onchange="e => _passwords[profile.Id] = e.Value as string ?? string.Empty" />
                             <button class="btn" @onclick="() => UsePassword(profile.Id)">@CompareViewText.Compare_Load</button>
                         }

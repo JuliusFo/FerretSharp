@@ -43,7 +43,7 @@
     <value>Gruppe vor dem Verbindungsnamen</value>
   </data>
   <data name="Settings_ConnectionGroupHint" xml:space="preserve">
-    <value>Zeigt die Gruppe einer Verbindung vor ihrem Namen – im Verbindungsumschalter, bei den offenen und zuletzt benutzten Verbindungen und in den Bestätigungen, z. B. {0}. Hilfreich, wenn mehrere Gruppen ein DEV, TEST oder PROD haben.</value>
+    <value>Zeigt die Gruppe einer Verbindung vor ihrem Namen – im Verbindungsumschalter, bei den offenen und zuletzt benutzten Verbindungen, im Schema-Vergleich und in den Bestätigungen, z. B. {0}. Hilfreich, wenn mehrere Gruppen ein DEV, TEST oder PROD haben.</value>
   </data>
   <data name="Settings_ExplorerViews" xml:space="preserve">
     <value>Views als eigener Bereich</value>

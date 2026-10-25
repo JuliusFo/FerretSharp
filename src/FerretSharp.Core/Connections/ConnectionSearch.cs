@@ -29,6 +29,10 @@ public static class ConnectionSearch
                 g.OrderBy(p => p.Kind).ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList()))
             .ToList();
 
+    /// <summary>All connections in the order of <see cref="Group"/>, for flat lists such as a native select.</summary>
+    public static IReadOnlyList<ConnectionProfile> InListOrder(IEnumerable<ConnectionProfile> profiles) =>
+        Group(profiles).SelectMany(g => g.Profiles).ToList();
+
     /// <summary>Distinct existing group names, for suggestions in the edit dialog.</summary>
     public static IReadOnlyList<string> GroupNames(IEnumerable<ConnectionProfile> profiles) =>
         profiles

@@ -1,6 +1,7 @@
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Settings;
 using FerretSharp.Testing;
 using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
@@ -22,19 +23,21 @@ public sealed class SchemaCompareServiceTests : IDisposable
     private readonly InMemorySecretStore _secrets = new();
     private readonly IDatabaseConnector _connector = Substitute.For<IDatabaseConnector>();
     private readonly ConnectionProfile _dev = TestApp.Profile("ERP Dev", ConnectionKind.Dev);
-    private readonly ConnectionProfile _test = TestApp.Profile("ERP Test");
+    private readonly ConnectionProfile _test = TestApp.Profile("ERP Test") with { Group = "Kunde A" };
     private ConnectionManager _connections = null!;
 
     private string StoreFile => _folder.Combine("comparisons.json");
 
-    private async Task<SchemaCompareService> ServiceAsync()
+    private async Task<SchemaCompareService> ServiceAsync(AppSettings? settings = null)
     {
         var store = Substitute.For<IConnectionStore>();
         store.LoadAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ConnectionProfile>)[_dev, _test]);
         _connections = new ConnectionManager(store, _secrets);
         await _connections.LoadAsync(Ct);
         var service = new SchemaCompareService(
-            new ComparisonStore(StoreFile), new SchemaCompareLoader(_connections, _connector), _connections, NullLogger<SchemaCompareService>.Instance);
+            new ComparisonStore(StoreFile), new SchemaCompareLoader(_connections, _connector), _connections,
+            new AppSettingsService(new SettingsStore(_folder.Combine("settings.json")), settings ?? AppSettings.Default),
+            NullLogger<SchemaCompareService>.Instance);
         await service.EnsureLoadedAsync();
         return service;
     }
@@ -248,9 +251,29 @@ public sealed class SchemaCompareServiceTests : IDisposable
     {
         var service = await ServiceAsync();
 
-        Assert.Equal("ERP Test · APP_USER", service.Label(new CompareSide(_test.Id)));
-        Assert.Equal("ERP Test · ERP", service.Label(new CompareSide(_test.Id, "erp")));
+        Assert.Equal("Kunde A › ERP Test · APP_USER", service.Label(new CompareSide(_test.Id)));
+        Assert.Equal("Kunde A › ERP Test · ERP", service.Label(new CompareSide(_test.Id, "erp")));
+        Assert.Equal("ERP Dev · APP_USER", service.Label(new CompareSide(_dev.Id)));
         Assert.Equal(CompareViewText.Compare_MissingConnection, service.Label(new CompareSide(Guid.NewGuid())));
+    }
+
+    [Fact]
+    public async Task The_connections_to_choose_from_come_by_group_with_the_group_in_front()
+    {
+        var service = await ServiceAsync();
+
+        Assert.Equal([_test.Id, _dev.Id], service.Choices.Select(p => p.Id));
+        Assert.Equal("Kunde A › ERP Test", service.ChoiceLabel(_test));
+        Assert.Equal("ERP Dev", service.ChoiceLabel(_dev));
+    }
+
+    [Fact]
+    public async Task Without_the_group_setting_a_side_shows_the_bare_name()
+    {
+        var service = await ServiceAsync(AppSettings.Default with { ShowConnectionGroup = false });
+
+        Assert.Equal("ERP Test", service.ChoiceLabel(_test));
+        Assert.Equal("ERP Test · APP_USER", service.Label(new CompareSide(_test.Id)));
     }
 
     public void Dispose() => _folder.Dispose();
