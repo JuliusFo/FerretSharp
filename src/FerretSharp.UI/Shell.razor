@@ -40,7 +40,7 @@
                 <button class="icon-btn ghost @(_state.Page == ShellPage.AppStatements ? "active" : "")" title="@AppStatementsText.AppStatements_Title"
                         @onclick="() => ToggleSidePage(ShellPage.AppStatements)">@Icons.Pulse</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="@ShellText.Shell_SchemaComparison"
-                        @onclick="() => ToggleSidePage(ShellPage.Compare)">@Icons.Compare</button>
+                        @onclick="() => ToggleSidePage(ShellPage.Compare)">@Icons.SchemaCompare</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Settings ? "active" : "")" title="@ShellText.Shell_Settings"
                         @onclick="() => ToggleSidePage(ShellPage.Settings)">@Icons.Settings</button>
                 <WorkspaceBadge Lifecycle="_lifecycle" />
