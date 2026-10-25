@@ -1,4 +1,4 @@
-# WP-61 Kontextmenüs aufräumen (Zelle und Spaltenkopf) → Release offen
+# WP-61 Kontextmenüs aufräumen (Zelle und Spaltenkopf) → Release 3.49.0
 
 Branch `wp/61-context-menus`, 2026-10-23. Wunsch des Nutzers vom selben Tag: Das Zellmenü war mit WP-37 … WP-60 auf rund 40 Zeilen gewachsen. Von drei Varianten (Untermenüs, Schnellleiste mit Export-Matrix, zwei Spalten) hat er die Schnellleiste gewählt, Zell- und Spaltenmenü als ein Paket, vor WP-55.
 
