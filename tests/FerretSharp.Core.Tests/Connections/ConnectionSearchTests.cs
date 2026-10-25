@@ -31,6 +31,13 @@ public class ConnectionSearchTests
         Assert.Equal(["ERP Dev", "ERP Test", "ERP Prod"], erp.Profiles.Select(p => p.Name));
     }
 
+    [Fact]
+    public void A_flat_list_follows_the_groups()
+    {
+        Assert.Equal(ConnectionSearch.Group(All).SelectMany(g => g.Profiles), ConnectionSearch.InListOrder(All));
+        Assert.Equal("ERP Dev", ConnectionSearch.InListOrder(All)[0].Name);
+    }
+
     [Theory]
     [InlineData("kasse", "Kasse Test")]
     [InlineData("prod-db", "ERP Prod")]

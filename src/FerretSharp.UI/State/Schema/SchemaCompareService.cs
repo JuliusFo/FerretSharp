@@ -105,7 +105,7 @@ public sealed class SchemaCompareService(
             : CompareViewText.Compare_MissingConnection;
 
     /// <summary>The connections to choose a side from, in the order of the switcher: by group (none last), kind, name.</summary>
-    public IReadOnlyList<ConnectionProfile> Choices => ConnectionSearch.Group(connections.Profiles).SelectMany(g => g.Profiles).ToList();
+    public IReadOnlyList<ConnectionProfile> Choices => ConnectionSearch.InListOrder(connections.Profiles);
 
     /// <summary>A connection in the side's list: <c>Kunde A › ERP Test</c>.</summary>
     public string ChoiceLabel(ConnectionProfile profile) => ConnectionLabel.Of(profile, settings.Current);
