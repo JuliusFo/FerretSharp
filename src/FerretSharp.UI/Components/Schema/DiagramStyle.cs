@@ -39,6 +39,19 @@ internal static class DiagramStyle
         _ => SchemaViewText.Relations_SourceConvention,
     };
 
+    /// <summary>
+    /// The class that colours the chevrons of a "+" handle: the kind of the relationships behind it if they share one,
+    /// none (neutral) if they mix kinds.
+    /// </summary>
+    public static string HandleClass(IReadOnlyList<ForeignKeyInfo> relations) =>
+        relations.Select(r => KindClass(r.Source)).Distinct().ToList() is [var kind] ? kind : "";
+
+    /// <summary>The tooltip of a "+" handle: what it does, then how many of the relationships behind it are of each kind.</summary>
+    public static string HandleTitle(string action, IReadOnlyList<ForeignKeyInfo> relations) =>
+        relations.Count == 0 ? action
+        : action + Environment.NewLine + TextFormat.Format(SchemaViewText.Relations_HandleKinds, string.Join(" · ", relations
+            .GroupBy(r => r.Source).OrderBy(g => g.Key).Select(g => TextFormat.Format("{0} {1:N0}", SourceLabel(g.Key), g.Count()))));
+
     /// <param name="label">The name of a table as the diagram shows it.</param>
     public static string EdgeTitle(ForeignKeyInfo relation, Func<TableRef, string> label) => TextFormat.Format(SchemaViewText.Relations_EdgeTitle,
         relation.Name, label(relation.From), string.Join(", ", relation.FromColumns), label(relation.To), string.Join(", ", relation.ToColumns),

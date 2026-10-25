@@ -828,6 +828,9 @@
   <data name="Relations_ShowChildrenOther" xml:space="preserve">
     <value>{0:N0} referenzierende Tabellen zeigen</value>
   </data>
+  <data name="Relations_HandleKinds" xml:space="preserve">
+    <value>Beziehungen: {0}</value>
+  </data>
   <data name="Relations_GroupOne" xml:space="preserve">
     <value>{0:N0} Tabelle</value>
   </data>
