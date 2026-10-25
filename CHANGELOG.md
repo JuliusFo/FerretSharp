@@ -14,6 +14,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
   ![The new menu of a column header: name and type, NULL allowed, the foreign key to MITARBEITER, the C# property and the comment, buttons for Pin, Select, Display and Name, chips for its values, ALTER TABLE … ADD with the other connections, and MITARBEITER to open.](docs/images/changelog/3.49.0-column-menu.png)
 
+- All icons are redrawn from [Lucide](https://lucide.dev) – the shapes are clearer at their small size and come from one set. Comparing the selected rows has its own icon (two linked points) instead of the one of the schema comparison, which is now a sheet with a diff; the link to the view is a bookmark beside the chain of the link to the rows, and the row as a form a sheet with lines. Nothing is loaded from outside: the shapes are part of the app, under Lucide's ISC license.
+
 ### Added
 - "distinct" copies the values of a column each once, one per line in the order they first come, without NULL – in the cell menu from the selected rows, in the column menu all values of the filter or the result (a table reads them with `SELECT DISTINCT`).
 - The column header menu of a table adds the column to the same table on another database, like the "Columns" view: "Copy" gives its `ALTER TABLE … ADD`, a connection opens it in a SQL tab there. With whole columns selected (Ctrl+click on the headers) it takes all of them. The menu of the "Columns" view is built the same way and gets a filter field for the connections when there are more than eight.
