@@ -1,6 +1,7 @@
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Resources;
+using FerretSharp.Core.Settings;
 using FerretSharp.UI.Resources;
 using Microsoft.Extensions.Logging;
 
@@ -28,7 +29,8 @@ public sealed class SideState(CompareSide side)
 /// its sides with their snapshots, the matrix and the saved comparisons. Snapshots stay until the sides change or the
 /// user compares again; changing the reference or the column order only recomputes the matrix.
 /// </summary>
-public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoader loader, ConnectionManager connections, ILogger<SchemaCompareService> logger)
+public sealed class SchemaCompareService(
+    ComparisonStore store, SchemaCompareLoader loader, ConnectionManager connections, AppSettingsService settings, ILogger<SchemaCompareService> logger)
 {
     private CancellationTokenSource? _cts;
     private bool _loaded;
@@ -93,11 +95,20 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
         }
     }
 
-    /// <summary>The label of a side for headers and the export: <c>ERP Test · ERP</c>.</summary>
+    /// <summary>
+    /// The label of a side for headers and the export: <c>Kunde A › ERP Test · ERP</c> – with the group, so two groups'
+    /// connections of the same name stay apart.
+    /// </summary>
     public string Label(CompareSide side) =>
         connections.Profiles.FirstOrDefault(p => p.Id == side.ConnectionId) is { } profile
-            ? $"{profile.Name} · {side.OwnerFor(profile)}"
+            ? $"{ConnectionLabel.Of(profile, settings.Current)} · {side.OwnerFor(profile)}"
             : CompareViewText.Compare_MissingConnection;
+
+    /// <summary>The connections to choose a side from, in the order of the switcher: by group (none last), kind, name.</summary>
+    public IReadOnlyList<ConnectionProfile> Choices => ConnectionSearch.Group(connections.Profiles).SelectMany(g => g.Profiles).ToList();
+
+    /// <summary>A connection in the side's list: <c>Kunde A › ERP Test</c>.</summary>
+    public string ChoiceLabel(ConnectionProfile profile) => ConnectionLabel.Of(profile, settings.Current);
 
     public void New()
     {

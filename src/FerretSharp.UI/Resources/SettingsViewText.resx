@@ -47,7 +47,7 @@
     <value>Group before the connection name</value>
   </data>
   <data name="Settings_ConnectionGroupHint" xml:space="preserve">
-    <value>Shows a connection's group in front of its name in the connection switcher, the open and recent connections and the confirmations, e.g. {0} – helpful when several groups have a DEV, TEST or PROD.</value>
+    <value>Shows a connection's group in front of its name in the connection switcher, the open and recent connections, the schema comparison and the confirmations, e.g. {0} – helpful when several groups have a DEV, TEST or PROD.</value>
     <comment>{0}: an example, "Kunde A › DEV"</comment>
   </data>
   <data name="Settings_ExplorerViews" xml:space="preserve">
