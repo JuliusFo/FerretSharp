@@ -246,6 +246,63 @@ public sealed class ColumnDesignerTests
         Assert.Empty(designer.ToDraft().Draft.DroppedConstraints);
     }
 
+    private static readonly ConstraintInfo CkBetrag = new("CK_BETRAG", ConstraintType.Check, ["BETRAG"], "BETRAG >= 0 ", null, [], null, true, true, false, false, false);
+
+    private static readonly ConstraintInfo FkLand = new("FK_KUNDE_LAND", ConstraintType.ForeignKey, ["KUERZEL"], null, Land.Table.Ref, ["CODE"], "NO ACTION", true, true, false, false, false);
+
+    [Fact]
+    public void Existing_constraints_become_edits_once_renamed_or_changed()
+    {
+        var designer = new ColumnDesigner(Kunde, [CkBetrag, FkLand]);
+        var (check, fk) = (designer.Existing[0], designer.Existing[1]);
+        Assert.Equal(("BETRAG >= 0", ""), (check.Condition, fk.DeleteRule)); // trimmed; NO ACTION is none
+        Assert.False(designer.HasChanges);
+        Assert.Empty(designer.ToDraft().Draft.ChangedConstraints);
+
+        check.Name = "ck_betrag"; // typed without quotes: the same name
+        Assert.False(check.IsChanged);
+
+        check.Name = "ck_betrag_positiv";
+        fk.DeleteRule = "CASCADE";
+        fk.RenameIndex = false;
+        Assert.True(designer.ConstraintsChanged);
+        Assert.False(designer.ColumnsChanged);
+        Assert.Equal(
+        [
+            new ConstraintEdit("CK_BETRAG", "CK_BETRAG_POSITIV", "BETRAG >= 0"),
+            new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "CASCADE", RenameIndex: false),
+        ], designer.ToDraft().Draft.ChangedConstraints);
+
+        designer.ToggleDropConstraint("CK_BETRAG"); // dropped: its edit goes
+        Assert.Equal(["FK_KUNDE_LAND"], designer.ToDraft().Draft.ChangedConstraints.Select(e => e.Original));
+    }
+
+    [Fact]
+    public void A_suggested_name_avoids_the_names_existing_constraints_get()
+    {
+        var designer = new ColumnDesigner(Kunde, [CkBetrag]);
+        designer.Existing[0].Name = "UK_KUNDE_NAME";
+
+        var unique = designer.AddConstraint(ConstraintType.Unique);
+        designer.AddColumn(unique, "NAME");
+
+        Assert.Equal("UK_KUNDE_NAME_2", unique.Name);
+    }
+
+    [Fact]
+    public void Edits_of_existing_constraints_and_the_tab_shown_survive_a_rebase()
+    {
+        var designer = new ColumnDesigner(Kunde, [CkBetrag, FkLand]) { Section = DesignerSection.Constraints };
+        designer.Existing[0].Name = "CK_POSITIV";
+        designer.Existing[1].DeleteRule = "SET NULL";
+
+        // The rename ran, the foreign key did not.
+        var rest = designer.Rebase(Kunde, [CkBetrag with { Name = "CK_POSITIV" }, FkLand]);
+
+        Assert.Equal(DesignerSection.Constraints, rest.Section);
+        Assert.Equal([new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "SET NULL")], rest.ToDraft().Draft.ChangedConstraints);
+    }
+
     // ---- the draft of a new index (R4b, out of IndexesView) ----
 
     private static readonly IndexInfo IxName = new("SHOP", "IX_KUNDE_NAME", "NORMAL", false, "VALID", [new IndexColumn("NAME", false, false)], null, false, true);

@@ -1344,4 +1344,95 @@
     <value>Filter connections …</value>
     <comment>Placeholder of the filter field in the columns view's menu with many connections</comment>
   </data>
+  <data name="Designer_Heading" xml:space="preserve">
+    <value>Edit table</value>
+  </data>
+  <data name="Designer_TabColumns" xml:space="preserve">
+    <value>Columns</value>
+    <comment>tab of the table designer</comment>
+  </data>
+  <data name="Designer_TabConstraints" xml:space="preserve">
+    <value>Constraints</value>
+    <comment>tab of the table designer</comment>
+  </data>
+  <data name="Designer_TabAudit" xml:space="preserve">
+    <value>Audit</value>
+    <comment>tab of the table designer</comment>
+  </data>
+  <data name="Designer_TabCSharp" xml:space="preserve">
+    <value>C#</value>
+    <comment>tab of the table designer</comment>
+  </data>
+  <data name="Designer_TabScript" xml:space="preserve">
+    <value>Script</value>
+    <comment>tab of the table designer: the DDL</comment>
+  </data>
+  <data name="Designer_TabChanged" xml:space="preserve">
+    <value>Changed</value>
+    <comment>title of the dot on a designer tab</comment>
+  </data>
+  <data name="Designer_TabProblem" xml:space="preserve">
+    <value>Has problems</value>
+    <comment>title of the red dot on a designer tab</comment>
+  </data>
+  <data name="Designer_StatementsOne" xml:space="preserve">
+    <value>{0} statement</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Designer_StatementsOther" xml:space="preserve">
+    <value>{0} statements</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Designer_WarningsOne" xml:space="preserve">
+    <value>{0} warning</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Designer_WarningsOther" xml:space="preserve">
+    <value>{0} warnings</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Designer_ProblemsOne" xml:space="preserve">
+    <value>{0} problem</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Designer_ProblemsOther" xml:space="preserve">
+    <value>{0} problems</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Designer_NoChanges" xml:space="preserve">
+    <value>No changes yet</value>
+  </data>
+  <data name="Designer_SummaryTitle" xml:space="preserve">
+    <value>Show the script with its problems and warnings</value>
+  </data>
+  <data name="Designer_Was" xml:space="preserve">
+    <value>was {0}</value>
+    <comment>{0}: the constraint's name in the table</comment>
+  </data>
+  <data name="Designer_RenameIndex" xml:space="preserve">
+    <value>Rename index too</value>
+  </data>
+  <data name="Designer_RenameIndexTitle" xml:space="preserve">
+    <value>The index {0} behind the key gets the new name too (ALTER INDEX … RENAME TO).</value>
+    <comment>{0}: index name</comment>
+  </data>
+  <data name="Designer_ConditionTitle" xml:space="preserve">
+    <value>A new condition is added as a new check first; the old one goes once the rows passed it.</value>
+  </data>
+  <data name="Designer_DeleteRuleTitle" xml:space="preserve">
+    <value>Another delete rule drops the foreign key and adds it again.</value>
+  </data>
+  <data name="Designer_NoScript" xml:space="preserve">
+    <value>Nothing to run yet: change a column or a constraint.</value>
+  </data>
+  <data name="Ddl_LockedBanner" xml:space="preserve">
+    <value>Workspace “{0}” is locked</value>
+    <comment>{0}: workspace name</comment>
+  </data>
+  <data name="Ddl_LockedDetail" xml:space="preserve">
+    <value>– drafting, copying and saving work; running needs it unlocked.</value>
+  </data>
+  <data name="Constraints_EditTitle" xml:space="preserve">
+    <value>Rename, change, drop or add constraints of the table</value>
+  </data>
 </root>

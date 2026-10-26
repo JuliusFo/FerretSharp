@@ -1,0 +1,25 @@
+@* The workspace of a DDL draft is locked (designer tabs): a bar across the draft with the button that unlocks it – the
+   small grey note under the actions went unseen. Nothing while it is writable. *@
+@using FerretSharp.Core.Workspaces
+
+@if (!Workspaces.IsWritable(WorkspaceId))
+{
+    <div class="locked-banner" role="status">
+        <span class="locked-banner-icon">@Icons.Locked</span>
+        <strong>@TextFormat.Format(SchemaViewText.Ddl_LockedBanner, Workspaces.Find(WorkspaceId)?.Name ?? "")</strong>
+        <span class="locked-banner-detail">@SchemaViewText.Ddl_LockedDetail</span>
+        <span class="spacer"></span>
+        <button class="btn" @onclick="() => Shell.RequestUnlock(WorkspaceId)">@SqlEditorText.Editor_UnlockWorkspace</button>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+}

@@ -231,6 +231,71 @@ public sealed class DesignConstraint
 }
 
 /// <summary>
+/// An existing constraint in the edit mode, as its fields show it: its name, a check's condition, a foreign key's delete
+/// rule – renamed or changed, it becomes a <see cref="ConstraintEdit"/>.
+/// </summary>
+public sealed class ExistingConstraint
+{
+    public ExistingConstraint(ConstraintInfo before)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        Before = before;
+        Name = before.Name;
+        Condition = before.Condition?.Trim() ?? "";
+        DeleteRule = Rule(before.DeleteRule);
+    }
+
+    /// <summary>The constraint in the table.</summary>
+    public ConstraintInfo Before { get; }
+
+    public string Name { get; set; }
+
+    /// <summary>A check's condition, as typed.</summary>
+    public string Condition { get; set; }
+
+    /// <summary>A foreign key's <c>CASCADE</c>, <c>SET NULL</c> or empty for none.</summary>
+    public string DeleteRule { get; set; }
+
+    /// <summary>A renamed key's index of the same name gets the new name too.</summary>
+    public bool RenameIndex { get; set; } = true;
+
+    public bool IsRenamed => OracleIdentifier.Normalize(Name) != Before.Name;
+
+    /// <summary>Renamed, a check with another condition, a foreign key with another delete rule.</summary>
+    public bool IsChanged => IsRenamed
+                             || (Before.Type == ConstraintType.Check && Condition.Trim() != (Before.Condition ?? "").Trim())
+                             || (Before.Type == ConstraintType.ForeignKey && DeleteRule != Rule(Before.DeleteRule));
+
+    public ConstraintEdit ToEdit() => new(
+        Before.Name, OracleIdentifier.Normalize(Name), Before.Type == ConstraintType.Check ? Condition : null,
+        Before.Type == ConstraintType.ForeignKey && DeleteRule.Length > 0 ? DeleteRule : null, RenameIndex);
+
+    /// <summary>Takes over what the user entered in <paramref name="other"/>, keeping <see cref="Before"/>.</summary>
+    public void CopyFrom(ExistingConstraint other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        (Name, Condition, DeleteRule, RenameIndex) = (other.Name, other.Condition, other.DeleteRule, other.RenameIndex);
+    }
+
+    /// <summary>The dictionary's <c>NO ACTION</c> is no rule.</summary>
+    private static string Rule(string? rule) => rule is "CASCADE" or "SET NULL" ? rule : "";
+}
+
+/// <summary>The tabs of the edit mode; the draft keeps the one shown.</summary>
+public enum DesignerSection
+{
+    Columns,
+    Constraints,
+    Audit,
+
+    /// <summary>Property lines for new columns of a table the C# model maps.</summary>
+    CSharp,
+
+    /// <summary>The DDL with its problems and warnings.</summary>
+    Script,
+}
+
+/// <summary>
 /// The edit mode of the "Columns" view (WP-23, stage 2): the table's columns and constraints as editable rows, and the
 /// <see cref="TableDraft"/> they make. Plain state – the view renders it, <see cref="TableDesign"/> writes the DDL.
 /// </summary>
@@ -242,8 +307,11 @@ public sealed class ColumnDesigner
         Table = table;
         TableName = table.Table.Name;
         Columns = table.Columns.Select(DesignColumn.Of).ToList();
-        Existing = constraints.Where(c => !c.IsColumnNotNull).ToList();
+        Existing = constraints.Where(c => !c.IsColumnNotNull).Select(c => new ExistingConstraint(c)).ToList();
     }
+
+    /// <summary>The tab shown; kept across a <see cref="Rebase"/>.</summary>
+    public DesignerSection Section { get; set; }
 
     public TableDetails Table { get; }
 
@@ -252,14 +320,19 @@ public sealed class ColumnDesigner
 
     public List<DesignColumn> Columns { get; }
 
-    /// <summary>The table's constraints shown for dropping (NOT NULL checks belong to their columns).</summary>
-    public IReadOnlyList<ConstraintInfo> Existing { get; }
+    /// <summary>The table's constraints, to rename, change or drop (NOT NULL checks belong to their columns).</summary>
+    public IReadOnlyList<ExistingConstraint> Existing { get; }
 
+    /// <summary>Names of existing constraints to drop (their names in the table).</summary>
     public HashSet<string> DroppedConstraints { get; } = new(StringComparer.Ordinal);
 
     public List<DesignConstraint> AddedConstraints { get; } = [];
 
-    public bool HasChanges => Columns.Any(c => c.IsChanged) || DroppedConstraints.Count > 0 || AddedConstraints.Count > 0;
+    public bool HasChanges => ColumnsChanged || ConstraintsChanged;
+
+    public bool ColumnsChanged => Columns.Any(c => c.IsChanged);
+
+    public bool ConstraintsChanged => DroppedConstraints.Count > 0 || AddedConstraints.Count > 0 || Existing.Any(c => c.IsChanged);
 
     /// <summary>
     /// Audit table and trigger go into the plan (WP-26): created, or brought up to date with the draft. Null until the view
@@ -312,7 +385,8 @@ public sealed class ColumnDesigner
     public void SuggestName(DesignConstraint constraint)
     {
         ArgumentNullException.ThrowIfNull(constraint);
-        var taken = Existing.Select(c => c.Name).Concat(AddedConstraints.Where(c => c != constraint).Select(c => c.Name));
+        var taken = Existing.Select(c => c.Before.Name).Concat(Existing.Select(c => OracleIdentifier.Normalize(c.Name)))
+            .Concat(AddedConstraints.Where(c => c != constraint).Select(c => c.Name));
         constraint.Suggest(TableDesign.SuggestConstraintName(TableName, constraint.Type, constraint.Columns, constraint.References?.Name, taken));
     }
 
@@ -417,7 +491,8 @@ public sealed class ColumnDesigner
     /// The same draft laid over the table as it is now – after DDL that stopped halfway (WP-23): the draft says how the table
     /// should be, so what already ran drops out by itself. A column is found by the name it should have (renamed, added),
     /// otherwise by its old name (not renamed yet); a dropped column that is gone and a constraint already added or dropped
-    /// are done.
+    /// are done. An existing constraint is found the same way; one gone meanwhile (a check replaced halfway) takes its edit
+    /// along – the new check shows as a constraint of its own then.
     /// </summary>
     public ColumnDesigner Rebase(TableDetails table, IReadOnlyList<ConstraintInfo> constraints)
     {
@@ -438,7 +513,14 @@ public sealed class ColumnDesigner
         }
 
         next.Columns.AddRange(added);
-        var existing = next.Existing.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var row in Existing)
+        {
+            var target = next.Existing.FirstOrDefault(c => c.Before.Name == OracleIdentifier.Normalize(row.Name))
+                         ?? next.Existing.FirstOrDefault(c => c.Before.Name == row.Before.Name);
+            target?.CopyFrom(row);
+        }
+
+        var existing = next.Existing.Select(c => c.Before.Name).ToHashSet(StringComparer.Ordinal);
         next.DroppedConstraints.UnionWith(DroppedConstraints.Where(existing.Contains));
         next.AddedConstraints.AddRange(AddedConstraints.Where(c => c.Name.Length == 0 || !existing.Contains(OracleIdentifier.Normalize(c.Name))));
         foreach (var (reference, details) in Referenced)
@@ -446,7 +528,7 @@ public sealed class ColumnDesigner
             next.Referenced[reference] = details;
         }
 
-        next.WithAudit = WithAudit;
+        (next.WithAudit, next.Section) = (WithAudit, Section);
         return next;
     }
 
@@ -471,6 +553,7 @@ public sealed class ColumnDesigner
         {
             DroppedConstraints = [.. DroppedConstraints],
             AddedConstraints = AddedConstraints.Select(c => c.ToDraft()).ToList(),
+            ChangedConstraints = Existing.Where(c => c.IsChanged && !DroppedConstraints.Contains(c.Before.Name)).Select(c => c.ToEdit()).ToList(),
         };
         return (draft, problems);
     }

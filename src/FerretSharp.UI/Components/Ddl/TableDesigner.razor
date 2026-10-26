@@ -1,10 +1,12 @@
-@* Edit mode of the "Columns" view (WP-23, stage 2): the columns and constraints of an existing table as editable rows. The
-   DDL below follows every change (TableDesign); what needs a look at the data – NULLs before NOT NULL, values before a
-   type change, rows before a mandatory new column – is counted in the tab's workspace. Run, open in the SQL editor or save
-   it through DdlDraftPanel; new columns of a table the C# model maps get their property line to copy. *@
+@* Edit mode of the "Columns" view (WP-23, stage 2): the columns and constraints of an existing table as editable rows –
+   in tabs (designer tabs): columns, constraints (renamed, changed, dropped, added), audit, the C# of new columns and the
+   script. The head keeps the actions and what the DDL comes to in view; what needs a look at the data – NULLs before
+   NOT NULL, values before a type change, rows before a mandatory new column – is counted in the tab's workspace. Run,
+   open in the SQL editor or save it through DdlDraftPanel. *@
 @using FerretSharp.Core.Audit
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Design
 @using FerretSharp.Core.Schema
 @using FerretSharp.Core.Workspaces
@@ -28,181 +30,106 @@ else
     var audit = AuditTemplates.For(Active.Profile);
     plan = WithAudit(designer, draft, plan, audit);
     var counting = _counting.Count > 0 || _auditCounting.Count > 0;
+    var usageNotes = UsageNotes(designer);
+    var problems = inputProblems.Concat(plan.Problems).ToList();
+    var warnings = plan.Warnings.Concat(usageNotes).ToList();
+    IReadOnlyList<DdlStep> steps = counting ? [] : plan.Steps;
+    var suggestions = PropertyLines(designer);
+    // The C# tab goes with the last new column; the view falls back to the columns.
+    var shown = designer.Section == DesignerSection.CSharp && suggestions.Count == 0 ? DesignerSection.Columns : designer.Section;
     <section class="designer">
+        <WorkspaceLockedBanner WorkspaceId="WorkspaceId" />
         @if (Tab?.Changes is { PendingCount: > 0 } or { FlushedCount: > 0 })
         {
-            <p class="hint small">@Icons.Warning @SchemaViewText.Designer_TabHasChanges</p>
+            <p class="designer-note">@Icons.Warning @SchemaViewText.Designer_TabHasChanges</p>
         }
-        <table class="columns designer-columns">
-            <thead>
-                <tr>
-                    <th class="num">#</th><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Type</th><th>@SchemaViewText.Designer_Size</th>
-                    <th>@SchemaViewText.Designer_Scale</th><th>CHAR</th><th>NOT NULL</th><th>@SchemaViewText.Head_Default</th><th>ON NULL</th>
-                    <th>@SchemaViewText.Columns_Comment</th><th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var column in designer.Columns)
-                {
-                    var c = column;
-                    var locked = c.Dropped || c.OnlyNameAndComment;
-                    <tr class="@(c.Dropped ? "dropped" : c.IsNew ? "new" : c.IsChanged ? "changed" : "")" @key="c">
-                        <td class="num">@(c.Before?.Position.ToString(CultureInfo.CurrentCulture) ?? "+")</td>
-                        <td class="name-cell"><input class="field mono" spellcheck="false" disabled="@c.Dropped" @bind="c.Name" @bind:event="oninput" aria-label="@SchemaViewText.Head_Name" /></td>
-                        <td>
-                            <select class="field" disabled="@locked" @bind="c.Type" aria-label="@SchemaViewText.Head_Type">
-                                @foreach (var type in TypesFor(c))
-                                {
-                                    <option value="@type">@type</option>
-                                }
-                            </select>
-                        </td>
-                        <td><input class="field mono narrow" disabled="@(locked || !c.HasSize)" @bind="c.Size" @bind:event="oninput" aria-label="@SchemaViewText.Designer_Size" /></td>
-                        <td><input class="field mono narrow" disabled="@(locked || !c.HasScale)" @bind="c.Scale" @bind:event="oninput" aria-label="@SchemaViewText.Designer_Scale" /></td>
-                        <td class="check-cell"><input type="checkbox" disabled="@(locked || !c.HasSemantics)" checked="@c.ShowsCharSemantics" @onchange="e => c.CharSemantics = e.Value is true" title="@SchemaViewText.Designer_CharSemantics" /></td>
-                        <td class="check-cell"><input type="checkbox" disabled="@(locked || c.Identity)" @bind="c.NotNull" title="NOT NULL" /></td>
-                        <td class="default-cell"><input class="field mono" spellcheck="false" disabled="@(locked || c.Identity)" @bind="c.Default" @bind:event="oninput" aria-label="@SchemaViewText.Head_Default" /></td>
-                        <td class="check-cell"><input type="checkbox" disabled="@(locked || c.Identity)" @bind="c.DefaultOnNull" title="@SchemaViewText.Designer_DefaultOnNull" /></td>
-                        <td class="comment-cell"><input class="field" disabled="@c.Dropped" @bind="c.Comment" @bind:event="oninput" aria-label="@SchemaViewText.Columns_Comment" /></td>
-                        <td class="row-actions"><span>
-                            @if (c.IsNew)
-                            {
-                                <label class="check" title="GENERATED BY DEFAULT AS IDENTITY"><input type="checkbox" @bind="c.Identity" /> ID</label>
-                            }
-                            <button class="icon-btn" title="@(c.Dropped ? SchemaViewText.Designer_Restore : SchemaViewText.Designer_Drop)" @onclick="() => designer.ToggleDrop(c)">@(c.Dropped ? Icons.Undo : Icons.Close)</button>
-                        </span></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        <div class="designer-add">
-            <button class="btn" @onclick="() => designer.AddColumn()"><span class="plus">+</span> @SchemaViewText.Designer_AddColumn</button>
-        </div>
-
-        <h2>@SchemaViewText.Designer_Constraints</h2>
-        @if (designer.Existing.Count > 0)
-        {
-            <ul class="designer-constraints">
-                @foreach (var constraint in designer.Existing)
-                {
-                    var name = constraint.Name;
-                    var dropped = designer.DroppedConstraints.Contains(name);
-                    <li class="@(dropped ? "dropped" : "")">
-                        <span class="fs-badge @BadgeCss(constraint.Type)">@Kind(constraint.Type)</span>
-                        <span class="mono">@name</span>
-                        <span class="muted mono">@Describe(constraint)</span>
-                        <button class="icon-btn" title="@(dropped ? SchemaViewText.Designer_Restore : SchemaViewText.Designer_Drop)"
-                                @onclick="() => designer.ToggleDropConstraint(name)">@(dropped ? Icons.Undo : Icons.Close)</button>
-                    </li>
-                }
-            </ul>
-        }
-        @foreach (var added in designer.AddedConstraints)
-        {
-            var a = added;
-            <div class="designer-constraint" @key="a">
-                <select class="field" value="@a.Type" @onchange="e => SetType(designer, a, e.Value)" aria-label="@SchemaViewText.Head_Type">
-                    <option value="@ConstraintType.PrimaryKey">PRIMARY KEY</option>
-                    <option value="@ConstraintType.Unique">UNIQUE</option>
-                    <option value="@ConstraintType.ForeignKey">FOREIGN KEY</option>
-                    <option value="@ConstraintType.Check">CHECK</option>
-                </select>
-                <input class="field mono" spellcheck="false" value="@a.Name" @oninput="e => a.Name = (string?)e.Value ?? string.Empty"
-                       @onchange="() => designer.SuggestName(a)" aria-label="@SchemaViewText.Head_Name" />
-                <span class="index-draft-columns">
-                    @for (var i = 0; i < a.Columns.Count; i++)
+        <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="steps" Problems="problems" Warnings="warnings" ConfirmNotes="usageNotes"
+                       FileName="@($"{DateTime.Now:yyyy-MM-dd}_{(NewTab?.Table.Name ?? Details.Table.Name)}.sql")" OnRan="OnRanAsync" OnFailed="OnFailedAsync" Ended="OnEnded" Earlier="_failure" OnClose="CloseAsync">
+            <Head>
+                <strong class="designer-title">@SchemaViewText.Designer_Heading</strong>
+                <button class="designer-summary" title="@SummaryTitle(problems, warnings)" @onclick="() => designer.Section = DesignerSection.Script">
+                    @if (counting)
                     {
-                        var at = i;
-                        <span class="index-draft-column">
-                            <span class="mono">@a.Columns[at]</span>
-                            <button class="icon-btn" title="@SchemaViewText.Indexes_ColumnRemove" @onclick="() => designer.RemoveColumn(a, at)">@Icons.Close</button>
-                        </span>
+                        <span class="summary-chip"><span class="spinner"></span> @SchemaViewText.Designer_Counting</span>
                     }
-                    @{ var free = designer.ColumnNames.Where(n => !a.Columns.Contains(n)).ToList(); }
-                    @if (free.Count > 0)
+                    else if (steps.Count > 0)
                     {
-                        <select class="field" @key="@($"{a.Columns.Count}-{free.Count}")" @onchange="e => designer.AddColumn(a, (string?)e.Value)" aria-label="@SchemaViewText.Indexes_ColumnAdd">
-                            <option value="" selected>@SchemaViewText.Indexes_ColumnAdd</option>
-                            @foreach (var name in free)
-                            {
-                                <option value="@name">@name</option>
-                            }
-                        </select>
+                        <span class="summary-chip">@TextFormat.Plural(steps.Count, SchemaViewText.Designer_StatementsOne, SchemaViewText.Designer_StatementsOther)</span>
                     }
-                </span>
-                @if (a.Type == ConstraintType.Check)
-                {
-                    <input class="field mono grow" spellcheck="false" placeholder="@SchemaViewText.Designer_CheckPlaceholder" @bind="a.Condition" @bind:event="oninput" aria-label="CHECK" />
-                }
-                else if (a.Type == ConstraintType.ForeignKey)
-                {
-                    <span class="designer-fk">
-                        @Icons.ArrowRight <select class="field" value="@(a.References is { } r ? $"{r.Owner}.{r.Name}" : "")" @onchange="e => ReferenceAsync(designer, a, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
-                            <option value="">@SchemaViewText.Designer_ChooseTable</option>
-                            @foreach (var table in Tables)
+                    else if (problems.Count == 0)
+                    {
+                        <span class="summary-chip none">@SchemaViewText.Designer_NoChanges</span>
+                    }
+                    @if (warnings.Count > 0)
+                    {
+                        <span class="summary-chip warn">@Icons.Warning @TextFormat.Plural(warnings.Count, SchemaViewText.Designer_WarningsOne, SchemaViewText.Designer_WarningsOther)</span>
+                    }
+                    @if (problems.Count > 0)
+                    {
+                        <span class="summary-chip bad">@Icons.Close @TextFormat.Plural(problems.Count, SchemaViewText.Designer_ProblemsOne, SchemaViewText.Designer_ProblemsOther)</span>
+                    }
+                </button>
+            </Head>
+            <Body>
+                <div class="designer-tabs" role="tablist">
+                    @TabButton(designer, shown, DesignerSection.Columns, SchemaViewText.Designer_TabColumns, designer.Columns.Count(c => !c.Dropped),
+                        designer.ColumnsChanged, inputProblems.Count > 0)
+                    @TabButton(designer, shown, DesignerSection.Constraints, SchemaViewText.Designer_TabConstraints,
+                        designer.Existing.Count + designer.AddedConstraints.Count - designer.DroppedConstraints.Count, designer.ConstraintsChanged)
+                    @TabButton(designer, shown, DesignerSection.Audit, SchemaViewText.Designer_TabAudit)
+                    @if (suggestions.Count > 0)
+                    {
+                        @TabButton(designer, shown, DesignerSection.CSharp, SchemaViewText.Designer_TabCSharp, suggestions.Count)
+                    }
+                    @TabButton(designer, shown, DesignerSection.Script, SchemaViewText.Designer_TabScript, steps.Count, problem: problems.Count > 0)
+                </div>
+                <div class="designer-body" role="tabpanel">
+                    @switch (shown)
+                    {
+                        case DesignerSection.Columns:
+                            @ColumnsTab(designer)
+                            break;
+                        case DesignerSection.Constraints:
+                            @ConstraintsTab(designer)
+                            break;
+                        case DesignerSection.Audit:
+                            @AuditTab(designer, audit)
+                            break;
+                        case DesignerSection.CSharp:
+                            <p class="muted">@TextFormat.Format(SchemaViewText.Designer_CSharpHeading, ClrModelMapping.ShortName(Models.Mapping!.EntityOf(Details.Table.Ref)!.Entity.ClrType))</p>
+                            <PropertySuggestions Suggestions="suggestions" />
+                            break;
+                        default:
+                            @if (problems.Count > 0)
                             {
-                                <option value="@($"{table.Owner}.{table.Name}")">@table.DisplayName</option>
-                            }
-                        </select>
-                        @if (a.References is { } references && designer.ColumnsOf(references) is { } targetColumns)
-                        {
-                            @for (var i = 0; i < a.Columns.Count; i++)
-                            {
-                                var at = i;
-                                <select class="field" @key="@($"{references}-{at}-{a.ReferencedColumns.ElementAtOrDefault(at)}")" value="@a.ReferencedColumns.ElementAtOrDefault(at)"
-                                        @onchange="e => a.SetReferenced(at, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
-                                    @foreach (var target in targetColumns)
+                                <ul class="ddl-problems">
+                                    @foreach (var problem in problems)
                                     {
-                                        <option value="@target">@target</option>
+                                        <li>@problem</li>
                                     }
-                                </select>
+                                </ul>
                             }
-                        }
-                        <select class="field" @bind="a.DeleteRule" aria-label="ON DELETE">
-                            <option value="">ON DELETE –</option>
-                            <option value="CASCADE">ON DELETE CASCADE</option>
-                            <option value="SET NULL">ON DELETE SET NULL</option>
-                        </select>
-                        <label class="check"><input type="checkbox" @bind="a.WithIndex" /> @SchemaViewText.Designer_WithIndex</label>
-                    </span>
-                }
-                <button class="icon-btn" title="@SchemaViewText.Designer_Drop" @onclick="() => designer.AddedConstraints.Remove(a)">@Icons.Close</button>
-            </div>
-        }
-        <div class="designer-add">
-            <button class="btn" @onclick="() => designer.AddConstraint(ConstraintType.Unique)"><span class="plus">+</span> @SchemaViewText.Designer_AddConstraint</button>
-        </div>
-
-        <div class="designer-audit">
-            <label class="check" title="@SchemaViewText.Audit_DesignerTitle">
-                <input type="checkbox" checked="@(designer.WithAudit == true)" @onchange="e => designer.WithAudit = e.Value is true" />
-                @(_audit?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
-            </label>
-            @if (audit.Template is { } template && AuditTable is { } auditTable)
-            {
-                var names = template.NamesFor(auditTable);
-                <span class="muted mono" title="@AuditTemplateLabel.Of(audit)">@names.AuditTable.Name · @names.Trigger</span>
-            }
-            else if (audit.Errors.Count > 0)
-            {
-                <span class="hint small" title="@($"{AuditTemplateLabel.Of(audit)}\n{string.Join("\n", audit.Errors)}")">@Icons.Warning @SchemaViewText.Audit_TemplateBroken</span>
-            }
-        </div>
-
-        @if (counting)
-        {
-            <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
-        }
-        @{ var usageNotes = UsageNotes(designer); }
-        <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="@(counting ? [] : plan.Steps)" Problems="@(inputProblems.Concat(plan.Problems).ToList())"
-                       Warnings="@(plan.Warnings.Concat(usageNotes).ToList())" ConfirmNotes="usageNotes"
-                       FileName="@($"{DateTime.Now:yyyy-MM-dd}_{(NewTab?.Table.Name ?? Details.Table.Name)}.sql")" OnRan="OnRanAsync" OnFailed="OnFailedAsync" Ended="OnEnded" Earlier="_failure" OnClose="CloseAsync" />
-
-        @if (PropertyLines(designer) is { Count: > 0 } suggestions)
-        {
-            <h2>@TextFormat.Format(SchemaViewText.Designer_CSharpHeading, ClrModelMapping.ShortName(Models.Mapping!.EntityOf(Details.Table.Ref)!.Entity.ClrType))</h2>
-            <PropertySuggestions Suggestions="suggestions" />
-        }
+                            @foreach (var warning in warnings)
+                            {
+                                <p class="hint small">@Icons.Warning @warning</p>
+                            }
+                            @if (counting)
+                            {
+                                <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
+                            }
+                            else if (steps.Count > 0)
+                            {
+                                <SqlCode Sql="@DdlScript.Render(steps)" Class="ddl-script" />
+                            }
+                            else if (problems.Count == 0)
+                            {
+                                <p class="muted">@SchemaViewText.Designer_NoScript</p>
+                            }
+                            break;
+                    }
+                </div>
+            </Body>
+        </DdlDraftPanel>
     </section>
 }
 
@@ -231,6 +158,11 @@ else
     /// <summary>Opened for the audit table (WP-26: "Create audit…"/"Bring audit up to date" in the columns view or explorer).</summary>
     [Parameter]
     public bool StartWithAudit { get; set; }
+
+    /// <summary>The tab to open at ("Edit" in the "Constraints" view); null keeps the draft's (the columns at first).</summary>
+    [Parameter]
+    public DesignerSection? StartAt { get; set; }
+
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
 
@@ -303,6 +235,10 @@ else
         }
 
         await LoadAsync(Tab?.Designer?.Draft);
+        if (_designer is not null && (StartAt ?? (StartWithAudit ? DesignerSection.Audit : null)) is { } section)
+        {
+            _designer.Section = section;
+        }
     }
 
     /// <summary>
@@ -594,6 +530,232 @@ else
 
         await OnRan.InvokeAsync();
     }
+
+    /// <summary>A tab of the designer: its count, a dot when something in it changed – red when its fields have problems.</summary>
+    private RenderFragment TabButton(ColumnDesigner designer, DesignerSection shown, DesignerSection section, string label, int? count = null,
+        bool changed = false, bool problem = false) => @<button class="designer-tab @(shown == section ? "active" : "")" role="tab"
+                aria-selected="@(shown == section ? "true" : "false")" @onclick="() => designer.Section = section">
+        @label
+        @if (count is { } n)
+        {
+            <span class="seg-count">@n</span>
+        }
+        @if (problem)
+        {
+            <span class="tab-dot bad" title="@SchemaViewText.Designer_TabProblem"></span>
+        }
+        else if (changed)
+        {
+            <span class="tab-dot" title="@SchemaViewText.Designer_TabChanged"></span>
+        }
+    </button>;
+
+    private static string SummaryTitle(IReadOnlyList<string> problems, IReadOnlyList<string> warnings) =>
+        string.Join("\n", [SchemaViewText.Designer_SummaryTitle, .. problems, .. warnings]);
+
+    private RenderFragment ColumnsTab(ColumnDesigner designer) => @<text>
+        <table class="columns designer-columns">
+            <thead>
+                <tr>
+                    <th class="num">#</th><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Type</th><th>@SchemaViewText.Designer_Size</th>
+                    <th>@SchemaViewText.Designer_Scale</th><th>CHAR</th><th>NOT NULL</th><th>@SchemaViewText.Head_Default</th><th>ON NULL</th>
+                    <th>@SchemaViewText.Columns_Comment</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var column in designer.Columns)
+                {
+                    var c = column;
+                    var locked = c.Dropped || c.OnlyNameAndComment;
+                    <tr class="@(c.Dropped ? "dropped" : c.IsNew ? "new" : c.IsChanged ? "changed" : "")" @key="c">
+                        <td class="num">@(c.Before?.Position.ToString(CultureInfo.CurrentCulture) ?? "+")</td>
+                        <td class="name-cell"><input class="field mono" spellcheck="false" disabled="@c.Dropped" @bind="c.Name" @bind:event="oninput" aria-label="@SchemaViewText.Head_Name" /></td>
+                        <td>
+                            <select class="field" disabled="@locked" @bind="c.Type" aria-label="@SchemaViewText.Head_Type">
+                                @foreach (var type in TypesFor(c))
+                                {
+                                    <option value="@type">@type</option>
+                                }
+                            </select>
+                        </td>
+                        <td><input class="field mono narrow" disabled="@(locked || !c.HasSize)" @bind="c.Size" @bind:event="oninput" aria-label="@SchemaViewText.Designer_Size" /></td>
+                        <td><input class="field mono narrow" disabled="@(locked || !c.HasScale)" @bind="c.Scale" @bind:event="oninput" aria-label="@SchemaViewText.Designer_Scale" /></td>
+                        <td class="check-cell"><input type="checkbox" disabled="@(locked || !c.HasSemantics)" checked="@c.ShowsCharSemantics" @onchange="e => c.CharSemantics = e.Value is true" title="@SchemaViewText.Designer_CharSemantics" /></td>
+                        <td class="check-cell"><input type="checkbox" disabled="@(locked || c.Identity)" @bind="c.NotNull" title="NOT NULL" /></td>
+                        <td class="default-cell"><input class="field mono" spellcheck="false" disabled="@(locked || c.Identity)" @bind="c.Default" @bind:event="oninput" aria-label="@SchemaViewText.Head_Default" /></td>
+                        <td class="check-cell"><input type="checkbox" disabled="@(locked || c.Identity)" @bind="c.DefaultOnNull" title="@SchemaViewText.Designer_DefaultOnNull" /></td>
+                        <td class="comment-cell"><input class="field" disabled="@c.Dropped" @bind="c.Comment" @bind:event="oninput" aria-label="@SchemaViewText.Columns_Comment" /></td>
+                        <td class="row-actions"><span>
+                            @if (c.IsNew)
+                            {
+                                <label class="check" title="GENERATED BY DEFAULT AS IDENTITY"><input type="checkbox" @bind="c.Identity" /> ID</label>
+                            }
+                            <button class="icon-btn" title="@(c.Dropped ? SchemaViewText.Designer_Restore : SchemaViewText.Designer_Drop)" @onclick="() => designer.ToggleDrop(c)">@(c.Dropped ? Icons.Undo : Icons.Close)</button>
+                        </span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div class="designer-add">
+            <button class="btn" @onclick="() => designer.AddColumn()"><span class="plus">+</span> @SchemaViewText.Designer_AddColumn</button>
+        </div>
+    </text>;
+
+    /// <summary>
+    /// The table's constraints – each renamed in place, a check's condition and a foreign key's delete rule changed, a
+    /// renamed key's index of its name along – then the new ones.
+    /// </summary>
+    private RenderFragment ConstraintsTab(ColumnDesigner designer) => @<text>
+        @if (designer.Existing.Count > 0)
+        {
+            <table class="columns designer-columns designer-existing">
+                <thead>
+                    <tr><th>@SchemaViewText.Constraints_Type</th><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Columns</th><th>@SchemaViewText.Constraints_ConditionOrTarget</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var existing in designer.Existing)
+                    {
+                        var r = existing;
+                        var c = r.Before;
+                        var dropped = designer.DroppedConstraints.Contains(c.Name);
+                        <tr class="@(dropped ? "dropped" : r.IsChanged ? "changed" : "")" @key="r">
+                            <td><span class="fs-badge @BadgeCss(c.Type)">@Kind(c.Type)</span></td>
+                            <td class="name-cell">
+                                <input class="field mono" spellcheck="false" disabled="@dropped" @bind="r.Name" @bind:event="oninput" aria-label="@SchemaViewText.Head_Name" />
+                                @if (r.IsRenamed && !dropped)
+                                {
+                                    <div class="designer-was">@TextFormat.Format(SchemaViewText.Designer_Was, c.Name)</div>
+                                }
+                            </td>
+                            <td class="mono">@string.Join(", ", c.Columns)</td>
+                            <td class="definition-cell">
+                                @switch (c.Type)
+                                {
+                                    case ConstraintType.Check:
+                                        <input class="field mono" spellcheck="false" disabled="@dropped" @bind="r.Condition" @bind:event="oninput"
+                                               title="@SchemaViewText.Designer_ConditionTitle" aria-label="CHECK" />
+                                        break;
+                                    case ConstraintType.ForeignKey:
+                                        <span class="designer-fk">
+                                            @Icons.ArrowRight <span class="mono">@c.References?.Name (@string.Join(", ", c.ReferencedColumns))</span>
+                                            <select class="field" disabled="@dropped" @bind="r.DeleteRule" title="@SchemaViewText.Designer_DeleteRuleTitle" aria-label="ON DELETE">
+                                                <option value="">ON DELETE –</option>
+                                                <option value="CASCADE">ON DELETE CASCADE</option>
+                                                <option value="SET NULL">ON DELETE SET NULL</option>
+                                            </select>
+                                        </span>
+                                        break;
+                                    default:
+                                        @if (r.IsRenamed && !dropped && _indexes.Any(i => i.Name == c.Name))
+                                        {
+                                            <label class="check" title="@TextFormat.Format(SchemaViewText.Designer_RenameIndexTitle, c.Name)">
+                                                <input type="checkbox" @bind="r.RenameIndex" /> @SchemaViewText.Designer_RenameIndex
+                                            </label>
+                                        }
+                                        break;
+                                }
+                            </td>
+                            <td class="row-actions"><span>
+                                <button class="icon-btn" title="@(dropped ? SchemaViewText.Designer_Restore : SchemaViewText.Designer_Drop)"
+                                        @onclick="() => designer.ToggleDropConstraint(c.Name)">@(dropped ? Icons.Undo : Icons.Close)</button>
+                            </span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        @foreach (var added in designer.AddedConstraints)
+        {
+            var a = added;
+            <div class="designer-constraint" @key="a">
+                <select class="field" value="@a.Type" @onchange="e => SetType(designer, a, e.Value)" aria-label="@SchemaViewText.Head_Type">
+                    <option value="@ConstraintType.PrimaryKey">PRIMARY KEY</option>
+                    <option value="@ConstraintType.Unique">UNIQUE</option>
+                    <option value="@ConstraintType.ForeignKey">FOREIGN KEY</option>
+                    <option value="@ConstraintType.Check">CHECK</option>
+                </select>
+                <input class="field mono" spellcheck="false" value="@a.Name" @oninput="e => a.Name = (string?)e.Value ?? string.Empty"
+                       @onchange="() => designer.SuggestName(a)" aria-label="@SchemaViewText.Head_Name" />
+                <span class="index-draft-columns">
+                    @for (var i = 0; i < a.Columns.Count; i++)
+                    {
+                        var at = i;
+                        <span class="index-draft-column">
+                            <span class="mono">@a.Columns[at]</span>
+                            <button class="icon-btn" title="@SchemaViewText.Indexes_ColumnRemove" @onclick="() => designer.RemoveColumn(a, at)">@Icons.Close</button>
+                        </span>
+                    }
+                    @{ var free = designer.ColumnNames.Where(n => !a.Columns.Contains(n)).ToList(); }
+                    @if (free.Count > 0)
+                    {
+                        <select class="field" @key="@($"{a.Columns.Count}-{free.Count}")" @onchange="e => designer.AddColumn(a, (string?)e.Value)" aria-label="@SchemaViewText.Indexes_ColumnAdd">
+                            <option value="" selected>@SchemaViewText.Indexes_ColumnAdd</option>
+                            @foreach (var name in free)
+                            {
+                                <option value="@name">@name</option>
+                            }
+                        </select>
+                    }
+                </span>
+                @if (a.Type == ConstraintType.Check)
+                {
+                    <input class="field mono grow" spellcheck="false" placeholder="@SchemaViewText.Designer_CheckPlaceholder" @bind="a.Condition" @bind:event="oninput" aria-label="CHECK" />
+                }
+                else if (a.Type == ConstraintType.ForeignKey)
+                {
+                    <span class="designer-fk">
+                        @Icons.ArrowRight <select class="field" value="@(a.References is { } r ? $"{r.Owner}.{r.Name}" : "")" @onchange="e => ReferenceAsync(designer, a, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
+                            <option value="">@SchemaViewText.Designer_ChooseTable</option>
+                            @foreach (var table in Tables)
+                            {
+                                <option value="@($"{table.Owner}.{table.Name}")">@table.DisplayName</option>
+                            }
+                        </select>
+                        @if (a.References is { } references && designer.ColumnsOf(references) is { } targetColumns)
+                        {
+                            @for (var i = 0; i < a.Columns.Count; i++)
+                            {
+                                var at = i;
+                                <select class="field" @key="@($"{references}-{at}-{a.ReferencedColumns.ElementAtOrDefault(at)}")" value="@a.ReferencedColumns.ElementAtOrDefault(at)"
+                                        @onchange="e => a.SetReferenced(at, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
+                                    @foreach (var target in targetColumns)
+                                    {
+                                        <option value="@target">@target</option>
+                                    }
+                                </select>
+                            }
+                        }
+                        <select class="field" @bind="a.DeleteRule" aria-label="ON DELETE">
+                            <option value="">ON DELETE –</option>
+                            <option value="CASCADE">ON DELETE CASCADE</option>
+                            <option value="SET NULL">ON DELETE SET NULL</option>
+                        </select>
+                        <label class="check"><input type="checkbox" @bind="a.WithIndex" /> @SchemaViewText.Designer_WithIndex</label>
+                    </span>
+                }
+                <button class="icon-btn" title="@SchemaViewText.Designer_Drop" @onclick="() => designer.AddedConstraints.Remove(a)">@Icons.Close</button>
+            </div>
+        }
+        <div class="designer-add">
+            <button class="btn" @onclick="() => designer.AddConstraint(ConstraintType.Unique)"><span class="plus">+</span> @SchemaViewText.Designer_AddConstraint</button>
+        </div>
+    </text>;
+
+    private RenderFragment AuditTab(ColumnDesigner designer, AuditTemplateLoad audit) => @<div class="designer-audit">
+        <label class="check" title="@SchemaViewText.Audit_DesignerTitle">
+            <input type="checkbox" checked="@(designer.WithAudit == true)" @onchange="e => designer.WithAudit = e.Value is true" />
+            @(_audit?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
+        </label>
+        @if (audit.Template is { } template && AuditTable is { } auditTable)
+        {
+            var names = template.NamesFor(auditTable);
+            <span class="muted mono" title="@AuditTemplateLabel.Of(audit)">@names.AuditTable.Name · @names.Trigger</span>
+        }
+        else if (audit.Errors.Count > 0)
+        {
+            <span class="hint small" title="@($"{AuditTemplateLabel.Of(audit)}\n{string.Join("\n", audit.Errors)}")">@Icons.Warning @SchemaViewText.Audit_TemplateBroken</span>
+        }
+    </div>;
 
     private static string Kind(ConstraintType type) => type switch
     {

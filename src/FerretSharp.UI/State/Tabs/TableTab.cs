@@ -346,6 +346,12 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     public DesignerSession? Designer { get; set; }
 
     /// <summary>
+    /// Another view asked for the edit mode at one of its tabs ("Edit" in the "Constraints" view): the "Columns" view opens
+    /// it there and clears the request.
+    /// </summary>
+    public DesignerSection? OpenDesignerAt { get; set; }
+
+    /// <summary>
     /// Short form of the active filters ("KUNDE_ID = 4711"), to tell several tabs of one table apart. With a C# model
     /// enum and bool values read as their members ("KUNDENART = Gewerbe").
     /// </summary>
