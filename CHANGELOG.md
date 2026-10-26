@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - Cancelling the loading of a grid – "Cancel", a new sort order or filter, F5, closing the tab – no longer shows an "Unexpected error" dialog nor logs an unhandled exception on the UI thread. Cancelled work started outside an event handler is now dropped quietly, as it was meant to be.
+- An update reported a while ago no longer installs a version that is outdated by then: "Download" checks once more and takes the newest release, with its notes in the dialog – or the one reported if GitHub cannot be reached. While an update is available, the checks while FerretSharp runs go on quietly, so the status bar names the newest version too. A failed "Check now" no longer drops the update reported before from the status bar.
 
 ## [3.50.1] - 2026-10-26
 
