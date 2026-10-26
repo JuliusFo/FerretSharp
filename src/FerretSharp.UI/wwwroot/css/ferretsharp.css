@@ -1616,7 +1616,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 /* Table designer (WP-23, stage 2): the edit mode of the Columns view. */
 .designer { display: flex; flex-direction: column; gap: 10px; }
 /* Head with the actions: stays in view while the columns scroll (their own sticky head would cover it, so it stays put). */
-.designer-head { position: sticky; top: calc(-1 * var(--structure-top, 0px)); z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+.designer-head { position: sticky; top: calc(-1 * var(--structure-top, 0px)); z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 0; background: var(--bg); border-bottom: 1px solid var(--border); }
 .designer-head .spacer { flex: 1; }
 .designer-title { font-size: 13.5px; font-weight: 600; }
 .designer-summary { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; cursor: pointer; }
