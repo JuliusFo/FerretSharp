@@ -1,4 +1,4 @@
-# Fixes: Update installiert die zuletzt gemeldete statt der neuesten Version → Release offen
+# Fixes: Update installiert die zuletzt gemeldete statt der neuesten Version → Release 3.50.2
 
 Frage des Nutzers (2026-10-26): Meldet die App 3.31, der Nutzer lädt erst später herunter, und inzwischen ist 3.32 erschienen – welche wird installiert? Antwort: 3.31, erst nach dem Neustart bietet die Prüfung beim Start 3.32 an. Branch `fix/update-latest`.
 

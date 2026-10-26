@@ -1,4 +1,4 @@
-# Klein: Audit-Haken im Tabellen-Designer per Einstellung → Release offen
+# Klein: Audit-Haken im Tabellen-Designer per Einstellung → Release 3.50.2
 
 Branch `feat/audit-sync-default` (von `main`), 2026-10-26.
 

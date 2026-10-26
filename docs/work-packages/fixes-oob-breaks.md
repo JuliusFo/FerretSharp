@@ -1,4 +1,4 @@
-# Fixes: Abbrechen über VPN – Breaks in-band zum Ausprobieren → noch nicht veröffentlicht
+# Fixes: Abbrechen über VPN – Breaks in-band zum Ausprobieren → Release 3.50.2
 
 Backlog-Eintrag „Abbrechen über VPN“ (gemeldet 2026-10-08, am 2026-10-26 zum zweiten Mal beobachtet): Ein Grid-Laden wurde 0,8 s nach dem Start abgebrochen, 0,2 s nach dem Break endete der Befehl mit ORA-12570 statt ORA-01013, der nächste Befehl fand die Verbindung tot. Vorgehen mit dem Nutzer abgestimmt: erst belegen, dann ein vorläufiger Schalter für die echte Strecke; die endgültige Lösung entscheidet der Nutzer nach der Auswertung. Branch `fix/oob-breaks`.
 

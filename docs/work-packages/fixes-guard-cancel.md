@@ -1,4 +1,4 @@
-# Fixes: Abbruch in `Fire` als „Unerwarteter Fehler“ → Release offen
+# Fixes: Abbruch in `Fire` als „Unerwarteter Fehler“ → Release 3.50.2
 
 Fund des Nutzers (2026-10-26): Beim Laden einer Tabelle über das Kunden-VPN kam ein Fehlerdialog, im Log `[ERR] Unhandled exception on UI thread` mit einer `TaskCanceledException` aus `FerretComponent.GuardAsync`, 0,2 s später ORA-12570 auf derselben Session. Branch `fix/guard-cancel`.
 
