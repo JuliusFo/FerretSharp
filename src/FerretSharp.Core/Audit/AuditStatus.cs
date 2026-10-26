@@ -16,8 +16,9 @@ public enum AuditHealth
 
 /// <param name="Reasons">
 /// Why it is outdated, short, for the user; empty otherwise. Missing columns and audit columns that cannot take the
-/// values stand apart (<see cref="MissingColumns"/>, <see cref="ColumnIssues"/>): an audit table not kept up for long has
-/// many of them, and the status line counts them instead of listing a sentence each.
+/// values stand apart (<see cref="MissingColumns"/>, <see cref="ColumnIssues"/>), and so does what bringing it up to date
+/// changes without touching values (<see cref="Changes"/>): an audit table not kept up for long has many of them, and the
+/// status line counts them instead of listing a sentence each.
 /// </param>
 public sealed record AuditStatus(AuditHealth Health, AuditNames Names, IReadOnlyList<string> Reasons)
 {
@@ -29,6 +30,9 @@ public sealed record AuditStatus(AuditHealth Health, AuditNames Names, IReadOnly
     /// the table fail, and "Bring up to date" cannot change that – the audit column needs a change by hand.
     /// </summary>
     public IReadOnlyList<AuditColumnIssue> ColumnIssues { get; init; } = [];
+
+    /// <summary>What "Bring up to date" changes without touching values: types that grow, NOT NULL taken away, comments.</summary>
+    public IReadOnlyList<AuditChange> Changes { get; init; } = [];
 
     /// <summary>
     /// How the table's audit objects stand against the template (the columns view shows it, WP-26): none, up to date, or
@@ -80,7 +84,8 @@ public sealed record AuditStatus(AuditHealth Health, AuditNames Names, IReadOnly
         // fit): the trigger may already make DML fail – never "up to date" (R5 review). A trigger clash is named above; the
         // column issues stand apart, the plan's sentences for them are left out here.
         var plan = AuditPlanner.Plan(template, table, columns, state, DataFacts.None);
-        var issues = AuditPlanner.ColumnIssues(template, table, columns, state).Where(i => i.IsProblem).ToList();
+        var review = AuditPlanner.Review(template, table, columns, state);
+        var issues = review.Issues.Where(i => i.IsProblem).ToList();
         if (state.Trigger is not { Table: var other } || other == table)
         {
             var said = issues.Select(i => i.Message(names.AuditTable.Name)).ToHashSet(StringComparer.Ordinal);
@@ -91,16 +96,18 @@ public sealed record AuditStatus(AuditHealth Health, AuditNames Names, IReadOnly
             issues = [];
         }
 
-        if (reasons.Count == 0 && missing.Count == 0 && issues.Count == 0 && plan.Steps.Count > 0)
+        // The changes name what the steps do; the vague reason only for steps none of them explains.
+        if (reasons.Count == 0 && missing.Count == 0 && issues.Count == 0 && review.Changes.Count == 0 && plan.Steps.Count > 0)
         {
-            reasons.Add(AuditText.StatusOtherDifferences); // types, comments, a column the table no longer has
+            reasons.Add(AuditText.StatusOtherDifferences);
         }
 
-        var upToDate = reasons.Count == 0 && missing.Count == 0 && issues.Count == 0;
+        var upToDate = reasons.Count == 0 && missing.Count == 0 && issues.Count == 0 && review.Changes.Count == 0;
         return new AuditStatus(upToDate ? AuditHealth.UpToDate : AuditHealth.Outdated, names, reasons)
         {
             MissingColumns = missing,
             ColumnIssues = issues,
+            Changes = review.Changes,
         };
     }
 

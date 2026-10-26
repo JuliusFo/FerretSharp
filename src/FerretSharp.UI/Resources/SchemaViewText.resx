@@ -968,6 +968,58 @@
     <value>Missing in the audit table (added when brought up to date): {0}</value>
     <comment>{0}: column names, comma separated</comment>
   </data>
+  <data name="Audit_ChangesTypeOne" xml:space="preserve">
+    <value>{0} audit column grows</value>
+    <comment>Part of the outdated audit line: what "Bring up to date" changes. {0}: 1</comment>
+  </data>
+  <data name="Audit_ChangesTypeOther" xml:space="preserve">
+    <value>{0} audit columns grow</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Audit_ChangesNullableOne" xml:space="preserve">
+    <value>{0} audit column becomes nullable</value>
+    <comment>{0}: 1</comment>
+  </data>
+  <data name="Audit_ChangesNullableOther" xml:space="preserve">
+    <value>{0} audit columns become nullable</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Audit_ChangesCommentOne" xml:space="preserve">
+    <value>{0} comment is taken over</value>
+    <comment>A column or table comment of the audit table follows the table or template. {0}: 1</comment>
+  </data>
+  <data name="Audit_ChangesCommentOther" xml:space="preserve">
+    <value>{0} comments are taken over</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Audit_ChangesHead" xml:space="preserve">
+    <value>“{0}” changes, every value stays:</value>
+    <comment>Above the list of changes in the details. {0}: the "Bring up to date" link text</comment>
+  </data>
+  <data name="Audit_ChangeHeadKind" xml:space="preserve">
+    <value>Change</value>
+    <comment>Header of the details table of changes</comment>
+  </data>
+  <data name="Audit_ChangeType" xml:space="preserve">
+    <value>type grows</value>
+    <comment>Row of the details table</comment>
+  </data>
+  <data name="Audit_ChangeNullable" xml:space="preserve">
+    <value>becomes nullable</value>
+    <comment>Row of the details table</comment>
+  </data>
+  <data name="Audit_ChangeComment" xml:space="preserve">
+    <value>comment</value>
+    <comment>Row of the details table; the new comment follows</comment>
+  </data>
+  <data name="Audit_ChangeTableComment" xml:space="preserve">
+    <value>table comment</value>
+    <comment>Row of the details table; the new comment follows</comment>
+  </data>
+  <data name="Audit_ChangeNoComment" xml:space="preserve">
+    <value>no comment</value>
+    <comment>Instead of a comment that is empty</comment>
+  </data>
   <data name="Tab_ViewUsage" xml:space="preserve">
     <value>Usage</value>
   </data>

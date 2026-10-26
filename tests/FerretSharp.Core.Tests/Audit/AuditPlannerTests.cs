@@ -195,7 +195,8 @@ public sealed class AuditPlannerTests
         Assert.Contains("VARCHAR2(80 CHAR)", Assert.Single(plan.Steps, s => s.Kind == DdlStepKind.ModifyType).Sql);
         Assert.Equal(AuditHealth.Outdated, status.Health);
         Assert.Empty(status.ColumnIssues);
-        Assert.Equal(["Typen oder Kommentare weichen ab"], status.Reasons);
+        Assert.Empty(status.Reasons);
+        Assert.Equal([new AuditChange("NAME", AuditChangeKind.TypeGrows, "VARCHAR2(80)", "VARCHAR2(80 CHAR)")], status.Changes);
     }
 
     /// <summary>Where no length holds both (a fixed CHAR beyond 2000), it stays too short: a problem, but not "every DML fails".</summary>
@@ -401,7 +402,31 @@ public sealed class AuditPlannerTests
         var onlyTrigger = AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns) with { AuditTable = null });
         Assert.Equal(["Audit-Tabelle AUDIT_KUNDE fehlt"], onlyTrigger.Reasons);
         var comment = AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns) with { AuditTableComment = "alt" });
-        Assert.Equal(["Typen oder Kommentare weichen ab"], comment.Reasons);
+        Assert.Equal(AuditHealth.Outdated, comment.Health);
+        Assert.Empty(comment.Reasons);
+        Assert.Equal([new AuditChange("AUDIT_KUNDE", AuditChangeKind.TableComment, "alt", "Changes to KUNDE")], comment.Changes);
+    }
+
+    /// <summary>
+    /// Found by the user: "types or comments differ" said nothing about what would change – the status names each change
+    /// that keeps the values, as the plan makes it.
+    /// </summary>
+    [Fact]
+    public void The_status_names_each_change_that_keeps_the_values()
+    {
+        List<ColumnInfo> now = [Columns[0], Columns[1] with { Length = 120, Comment = "Surname" }]; // STATUS dropped
+
+        var status = AuditStatus.Of(Template, Kunde, now, UpToDate(Columns));
+        var plan = AuditPlanner.Plan(Template, Kunde, now, UpToDate(Columns), Rows(10));
+
+        Assert.Equal(["Trigger KUNDE_AUDIT füllt nicht alle Spalten"], status.Reasons); // STATUS is gone from it
+        Assert.Equal(
+        [
+            new AuditChange("NAME", AuditChangeKind.TypeGrows, "VARCHAR2(80)", "VARCHAR2(120)"),
+            new AuditChange("NAME", AuditChangeKind.Comment, "Name of the customer", "Surname"),
+            new AuditChange("STATUS", AuditChangeKind.BecomesNullable, null, null),
+        ], status.Changes);
+        Assert.Equal([DdlStepKind.ModifyType, DdlStepKind.ModifyNull, DdlStepKind.Comment], plan.Steps.Select(s => s.Kind).Where(k => k != DdlStepKind.PlSqlObject).Order());
     }
 
     [Fact]

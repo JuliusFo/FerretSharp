@@ -38,7 +38,7 @@ public static class AuditPlanner
             return [];
         }
 
-        var draft = Draft(template, table, baseColumns, audit, DataFacts.None, renamed, [], [], []);
+        var draft = Draft(template, table, baseColumns, audit, DataFacts.None, renamed, [], [], [], []);
         return [new DataQuestion(DataQuestionKind.Rows), .. TableDesign.Questions(audit, draft)];
     }
 
@@ -67,7 +67,7 @@ public static class AuditPlanner
         }
 
         var tablePlan = state.AuditTable is { } audit
-            ? TableDesign.Plan(DesignContext.Of(audit), Draft(template, table, baseColumns, audit, facts, renamed, warnings, problems, []), facts)
+            ? TableDesign.Plan(DesignContext.Of(audit), Draft(template, table, baseColumns, audit, facts, renamed, warnings, problems, [], []), facts)
             : TableDesign.PlanNew(new NewTable(shape.Table.Owner, shape.Table.Name, shape.Comment), new TableDraft(shape.Columns.Select(c => new ColumnDraft(null, c)).ToList()),
                 new Dictionary<TableRef, TableDetails>(), taken ?? []);
         problems.AddRange(tablePlan.Problems);
@@ -116,26 +116,33 @@ public static class AuditPlanner
     }
 
     /// <summary>
-    /// The existing audit columns that do not take every value whole, in the audit table's order – the same check as
-    /// <see cref="Plan"/>, whose problems and warnings say them as sentences. Empty without an audit table.
+    /// The existing audit columns that do not take every value whole, and what bringing the audit table up to date changes
+    /// without touching its values (types that grow, NOT NULL taken away, comments), in the audit table's order – the same
+    /// draft as <see cref="Plan"/>, whose problems and warnings say the issues as sentences. None without an audit table.
     /// </summary>
-    public static IReadOnlyList<AuditColumnIssue> ColumnIssues(AuditTemplate template, TableRef table, IReadOnlyList<ColumnInfo> baseColumns, AuditState state)
+    public static AuditReview Review(AuditTemplate template, TableRef table, IReadOnlyList<ColumnInfo> baseColumns, AuditState state)
     {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(state);
         if (state.AuditTable is not { } audit)
         {
-            return [];
+            return AuditReview.None;
         }
 
         var issues = new List<AuditColumnIssue>();
-        Draft(template, table, baseColumns, audit, DataFacts.None, null, [], [], issues);
-        return issues;
+        var changes = new List<AuditChange>();
+        Draft(template, table, baseColumns, audit, DataFacts.None, null, [], [], issues, changes);
+        if (template.TableFor(table, baseColumns).Comment is { Length: > 0 } comment && state.AuditTableComment != comment)
+        {
+            changes.Add(new AuditChange(audit.Table.Name, AuditChangeKind.TableComment, state.AuditTableComment, comment)); // as Plan has it
+        }
+
+        return new AuditReview(issues, changes);
     }
 
     /// <summary>The audit table as it should be: its columns kept or widened, the template's and the table's new columns added.</summary>
     private static TableDraft Draft(AuditTemplate template, TableRef table, IReadOnlyList<ColumnInfo> baseColumns, TableDetails audit, DataFacts facts,
-        IReadOnlyDictionary<string, string>? renamed, List<string> warnings, List<string> problems, List<AuditColumnIssue> issues)
+        IReadOnlyDictionary<string, string>? renamed, List<string> warnings, List<string> problems, List<AuditColumnIssue> issues, List<AuditChange> changes)
     {
         var shape = template.TableFor(table, baseColumns);
         var wanted = shape.Columns.ToDictionary(c => c.Name, StringComparer.Ordinal);
@@ -167,12 +174,16 @@ public static class AuditPlanner
                     warnings.Add(TextFormat.Format(AuditText.PlanColumnGoneNullable, existing.Name, audit.Table.Name));
                 }
 
-                drafts.Add(new ColumnDraft(existing.Name, existing.IsIdentity ? existing : existing with { Nullable = true }));
+                var gone = existing.IsIdentity ? existing : existing with { Nullable = true };
+                Changed(existing, gone, changes);
+                drafts.Add(new ColumnDraft(existing.Name, gone));
                 continue;
             }
 
             matched.Add(name);
-            drafts.Add(new ColumnDraft(existing.Name, Kept(existing, target, own.Contains(name), audit.Table.Name, warnings, problems, issues) with { Name = name }));
+            var kept = Kept(existing, target, own.Contains(name), audit.Table.Name, warnings, problems, issues);
+            Changed(existing, kept, changes);
+            drafts.Add(new ColumnDraft(existing.Name, kept with { Name = name }));
         }
 
         // New columns go to the end (ALTER TABLE … ADD appends); the trigger names its columns, the order does not matter.
@@ -189,6 +200,25 @@ public static class AuditPlanner
         }
 
         return new TableDraft(drafts);
+    }
+
+    /// <summary>What the draft changes in an existing audit column, as the designer's writer turns it into steps.</summary>
+    private static void Changed(ColumnInfo before, ColumnInfo after, List<AuditChange> changes)
+    {
+        if (OracleTypes.DdlType(before) != OracleTypes.DdlType(after))
+        {
+            changes.Add(new AuditChange(before.Name, AuditChangeKind.TypeGrows, OracleTypes.DisplayType(before), OracleTypes.DisplayType(after)));
+        }
+
+        if (!before.Nullable && after.Nullable)
+        {
+            changes.Add(new AuditChange(before.Name, AuditChangeKind.BecomesNullable, null, null));
+        }
+
+        if (!string.Equals(before.Comment, after.Comment, StringComparison.Ordinal))
+        {
+            changes.Add(new AuditChange(before.Name, AuditChangeKind.Comment, before.Comment, after.Comment));
+        }
     }
 
     /// <summary>

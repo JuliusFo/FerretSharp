@@ -801,6 +801,45 @@
   <data name="Audit_MissingList" xml:space="preserve">
     <value>Fehlen in der Audit-Tabelle (kommen beim Abgleichen dazu): {0}</value>
   </data>
+  <data name="Audit_ChangesTypeOne" xml:space="preserve">
+    <value>{0} Audit-Spalte wird größer</value>
+  </data>
+  <data name="Audit_ChangesTypeOther" xml:space="preserve">
+    <value>{0} Audit-Spalten werden größer</value>
+  </data>
+  <data name="Audit_ChangesNullableOne" xml:space="preserve">
+    <value>{0} Audit-Spalte wird nullable</value>
+  </data>
+  <data name="Audit_ChangesNullableOther" xml:space="preserve">
+    <value>{0} Audit-Spalten werden nullable</value>
+  </data>
+  <data name="Audit_ChangesCommentOne" xml:space="preserve">
+    <value>{0} Kommentar wird übernommen</value>
+  </data>
+  <data name="Audit_ChangesCommentOther" xml:space="preserve">
+    <value>{0} Kommentare werden übernommen</value>
+  </data>
+  <data name="Audit_ChangesHead" xml:space="preserve">
+    <value>„{0}“ ändert, alle Werte bleiben:</value>
+  </data>
+  <data name="Audit_ChangeHeadKind" xml:space="preserve">
+    <value>Änderung</value>
+  </data>
+  <data name="Audit_ChangeType" xml:space="preserve">
+    <value>Typ wird größer</value>
+  </data>
+  <data name="Audit_ChangeNullable" xml:space="preserve">
+    <value>wird nullable</value>
+  </data>
+  <data name="Audit_ChangeComment" xml:space="preserve">
+    <value>Kommentar</value>
+  </data>
+  <data name="Audit_ChangeTableComment" xml:space="preserve">
+    <value>Tabellenkommentar</value>
+  </data>
+  <data name="Audit_ChangeNoComment" xml:space="preserve">
+    <value>kein Kommentar</value>
+  </data>
   <data name="Tab_ViewUsage" xml:space="preserve">
     <value>Verwendung</value>
   </data>

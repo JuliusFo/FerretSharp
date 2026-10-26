@@ -38,6 +38,27 @@ public sealed class AuditStatusSummaryTests
         Assert.StartsWith("zu kurz", AuditStatusSummary.Consequence(status.ColumnIssues[1]));
     }
 
+    /// <summary>Found by the user: "types or comments differ" said nothing – the changes are counted by kind and listed.</summary>
+    [Fact]
+    public void Changes_that_keep_the_values_are_counted_by_kind_and_listed_in_the_details()
+    {
+        var status = Outdated([]) with
+        {
+            Changes =
+            [
+                new("NAME", AuditChangeKind.TypeGrows, "VARCHAR2(30)", "VARCHAR2(30 CHAR)"),
+                new("CODE", AuditChangeKind.TypeGrows, "VARCHAR2(10)", "VARCHAR2(20)"),
+                new("NAME", AuditChangeKind.Comment, null, "Name"),
+                new("AUDIT_KUNDE", AuditChangeKind.TableComment, "old", "new"),
+                new("STATUS", AuditChangeKind.BecomesNullable, null, null),
+            ],
+        };
+
+        Assert.Equal(["2 Audit-Spalten werden größer", "1 Audit-Spalte wird nullable", "2 Kommentare werden übernommen"], AuditStatusSummary.Parts(status));
+        Assert.True(AuditStatusSummary.HasDetails(status));
+        Assert.Equal(["Typ wird größer", "Typ wird größer", "Kommentar", "Tabellenkommentar", "wird nullable"], status.Changes.Select(AuditStatusSummary.Label));
+    }
+
     [Fact]
     public void One_column_issue_is_counted_in_the_singular()
     {

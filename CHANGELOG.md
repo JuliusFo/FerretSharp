@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- An outdated audit line no longer just says "types or comments differ": it counts what "Bring up to date" changes while keeping every value – audit columns that grow, that become nullable, comments taken over – and "Details" lists each with its old and new type or its new comment.
+
 ## [3.50.0] - 2026-10-26
 
 The record diagram loads several levels at once, the schema comparison no longer freezes the window and shows the group of each connection, and the audit line of an outdated audit table is one line with details to unfold – an audit column that counts bytes now takes the values it can hold, or grows.
