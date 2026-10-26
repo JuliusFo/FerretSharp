@@ -164,7 +164,7 @@ Schleifen lassen sich nicht schachteln. Eine Schleife ohne Spalten (z. B. `compa
   - Gar nicht (andere Typfamilie): ein Problem, der Trigger ließe jede DML scheitern.
   - Jede Meldung sagt, ob der verglichene Typ aus der **Vorlage** oder aus der **Tabelle** kommt. Der Planer liefert die Fälle auch als Daten (`AuditColumnIssue`, `AuditPlanner.Review`): Die Audit-Zeile über den Spalten zählt sie und listet sie unter „Details“ mit dem Rat einmal; fehlende Spalten nennt sie bis drei, mehr zählt sie (`AuditStatus.MissingColumns`/`ColumnIssues`). Ebenso zählt und listet sie, was der Abgleich ohne Verlust ändert – Typen, die wachsen, NOT NULL, das wegfällt, Kommentare (`AuditChange`, `AuditStatus.Changes`).
 - Trigger: neu geschrieben, wenn er fehlt, ungültig ist, andere Spalten benutzt als die Vorlage, die Audit-Tabelle neue Spalten bekommt oder ausdrücklich gewünscht (Vorlage geändert). Ein gleichnamiger Trigger auf einer anderen Tabelle ist ein Problem. Ein aktueller, aber ausgeschalteter Trigger wird nur gemeldet.
-- `AuditPlanner.Combine` hängt den Plan an den des Designers: ein Skript, die Basistabelle vor der Audit-Tabelle, der Trigger zuletzt.
+- `AuditPlanner.Combine` hängt den Plan an den des Designers: ein Skript, die Basistabelle vor der Audit-Tabelle, der Trigger zuletzt. Ob der Haken dafür im Designer gesetzt startet, sagt `ColumnDesigner.AuditAtStart`: an bei vorhandener Audit-Tabelle, außer die Einstellung „Audit im Designer abgleichen“ ist aus (`AppSettings.SyncAuditInDesigner`), und immer an, wenn der Designer aus der Audit-Zeile geöffnet wurde.
 
 Texte: `AuditText.resx` (Englisch) und `AuditText.de.resx`.
 
