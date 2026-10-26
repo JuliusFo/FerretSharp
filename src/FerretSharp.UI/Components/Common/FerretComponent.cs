@@ -22,7 +22,9 @@ public abstract class FerretComponent : ComponentBase
 
     /// <summary>
     /// Runs <paramref name="work"/>; an exception goes to the error boundary instead of the caller. For
-    /// <c>[JSInvokable]</c> handlers: JS neither waits for nor shows their errors. Cancellation stays silent.
+    /// <c>[JSInvokable]</c> handlers: JS neither waits for nor shows their errors. Cancellation stays silent – thrown on, the
+    /// WPF dispatcher of the BlazorWebView rethrew it from <see cref="Fire(Func{Task})"/> as an unhandled exception ("Unexpected
+    /// error" with every cancelled grid load).
     /// </summary>
     protected async Task GuardAsync(Func<Task> work)
     {
@@ -30,7 +32,10 @@ public abstract class FerretComponent : ComponentBase
         {
             await work();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
         {
             await DispatchExceptionAsync(ex);
         }
@@ -61,14 +66,18 @@ public abstract class FerretComponent : ComponentBase
     }, false);
 
     /// <inheritdoc cref="GuardAsync(Func{Task})"/>
-    /// <param name="failed">What JS gets after an exception.</param>
+    /// <param name="failed">What JS gets after an exception or a cancellation.</param>
     protected async Task<T> GuardAsync<T>(Func<Task<T>> work, T failed)
     {
         try
         {
             return await work();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            return failed;
+        }
+        catch (Exception ex)
         {
             await DispatchExceptionAsync(ex);
             return failed;
