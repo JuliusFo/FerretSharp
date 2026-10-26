@@ -15,6 +15,17 @@ public sealed partial class OracleSession
 {
     private volatile SentBreak? _lastBreak;
 
+    /// <summary>
+    /// Sends breaks in band instead of as TCP urgent data (out of band, ODP.NET's default when the server agrees). A path that
+    /// loses urgent data delays a cancel until the server is done; one that clears the urgent flag passes the byte on as data
+    /// and the session is lost (ORA-12537/ORA-12570, backlog "Abbrechen über VPN"). In band, the server notices a break only
+    /// when it next checks the connection. Process-wide in ODP.NET and only before the first connection opens (ORA-50099).
+    /// </summary>
+    public static void SendBreaksInBand() => OracleConfiguration.DisableOOB = true;
+
+    /// <summary>Breaks go in band (<see cref="SendBreaksInBand"/>).</summary>
+    public static bool BreaksInBand => OracleConfiguration.DisableOOB;
+
     /// <summary>Milliseconds the session had been idle when the last command started.</summary>
     private long _idleBefore;
 
@@ -81,24 +92,28 @@ public sealed partial class OracleSession
         var translated = OracleErrors.Translate(ex);
         if (translated is { IsConnectionLost: true })
         {
-            translated.SessionHistory = DescribeHistory(_lastBreak, Interlocked.Read(ref _idleBefore), Environment.TickCount64);
+            translated.SessionHistory = DescribeHistory(_lastBreak, Interlocked.Read(ref _idleBefore), Environment.TickCount64, BreaksInBand);
         }
 
         return translated;
     }
 
-    /// <summary>"idle 13.2 s before this command; last break 14.0 s ago, 2 ms after its command had returned (it ended normally), 1 command since".</summary>
-    internal static string DescribeHistory(SentBreak? last, long idleBefore, long now)
+    /// <summary>
+    /// "idle 13.2 s before this command; last break 14.0 s ago, 2 ms after its command had returned (it ended normally), 1 command since";
+    /// "; breaks in band" after it with <paramref name="inBand"/> (to tell the two ways apart while trying <c>--disable-oob</c>).
+    /// </summary>
+    internal static string DescribeHistory(SentBreak? last, long idleBefore, long now, bool inBand = false)
     {
         var idle = $"idle {Seconds(idleBefore)} before this command";
+        var mode = inBand ? "; breaks in band" : "";
         if (last is null)
         {
-            return $"{idle}; no break sent since the session opened";
+            return $"{idle}; no break sent since the session opened{mode}";
         }
 
         var when = last.AfterReturn ? "after its command had returned" : $"{Seconds(last.IntoCommand)} into its command";
         var since = last.CommandsSince == 0 ? "during this command" : $"{last.CommandsSince} command(s) since, this one included";
-        return $"{idle}; last break {Seconds(now - last.SentAt)} ago, {when} (it ended {last.Ended ?? "not yet"}), {since}";
+        return $"{idle}; last break {Seconds(now - last.SentAt)} ago, {when} (it ended {last.Ended ?? "not yet"}), {since}{mode}";
     }
 
     private static string Seconds(long milliseconds) => (milliseconds / 1000d).ToString("0.0 s", CultureInfo.InvariantCulture);

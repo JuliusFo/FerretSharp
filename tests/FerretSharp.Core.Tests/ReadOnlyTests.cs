@@ -166,6 +166,7 @@ public class ReadOnlyTests
                 "OpenAsync", "DisposeAsync", "SetActionAsync", "PingAsync", "PingIfIdleAsync", "ExecuteReaderAsync",
                 "UseReadOnlySnapshotsAsync", "StopReadOnlySnapshotsAsync", "RefreshSnapshotAsync",
                 "BeginTransactionAsync", "SavepointAsync", "RollbackToSavepointAsync", "CommitAsync", "RollbackAsync",
+                "SendBreaksInBand", // process-wide driver setting before the first connection, backlog "Abbrechen über VPN"
             ]
         },
         { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadByKeysAsync", "ReadColumnAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },

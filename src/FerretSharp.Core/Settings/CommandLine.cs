@@ -28,6 +28,12 @@ public static class CommandLine
     /// </summary>
     public const string WaitFor = "--wait-for=";
 
+    /// <summary>
+    /// Breaks to the server in band instead of as TCP urgent data (<see cref="Oracle.OracleSession.SendBreaksInBand"/>), to try
+    /// whether cancelling over a VPN keeps the session (backlog "Abbrechen über VPN"). A switch without a value.
+    /// </summary>
+    public const string DisableOob = "--disable-oob";
+
     /// <summary>The options that name a path: an update starts the new version with them as full paths.</summary>
     public static readonly IReadOnlyList<string> PathOptions = [DataDir, ImportAppData, UpdateSource];
 
@@ -72,6 +78,10 @@ public static class CommandLine
         && argument.Length > prefix.Length
             ? prefix + Path.GetFullPath(argument[prefix.Length..])
             : argument;
+
+    /// <summary>Whether the switch <paramref name="option"/> was given (the case of its name ignored).</summary>
+    public static bool Has(IEnumerable<string> args, string option) =>
+        args.Any(a => string.Equals(a, option, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The value of the first <paramref name="option"/> (the case of its name ignored); null without it.</summary>
     public static string? ValueOf(IEnumerable<string> args, string option) =>

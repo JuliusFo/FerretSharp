@@ -17,6 +17,16 @@ public sealed class CommandLineTests
     }
 
     [Fact]
+    public void A_switch_counts_only_as_itself_and_stays_on_a_restart()
+    {
+        string[] args = ["--data-dir=daten", "--DISABLE-OOB"];
+
+        Assert.True(CommandLine.Has(args, CommandLine.DisableOob));
+        Assert.False(CommandLine.Has(["--disable-oob=no", "--disable-oobx"], CommandLine.DisableOob));
+        Assert.Contains("--DISABLE-OOB", CommandLine.Restart(args));
+    }
+
+    [Fact]
     public void A_restart_takes_the_paths_as_full_paths_and_waits_for_the_old_instance()
     {
         string[] args = ["--data-dir=daten", "--lang=de", "--wait-for=17"];
