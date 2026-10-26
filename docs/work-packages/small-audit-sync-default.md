@@ -5,7 +5,7 @@ Branch `feat/audit-sync-default` (von `main`), 2026-10-26.
 ## Anlass
 Frage des Nutzers: Lässt sich einstellen, ob der Haken „Audit-Tabelle und Trigger abgleichen“ im Tabellen-Designer bei Spaltenänderungen standardmäßig gesetzt ist? Bisher nicht: Der Haken war an, sobald die Tabelle eine Audit-Tabelle hat (WP-26), sonst aus. Auftrag des Nutzers: die Einstellung bauen.
 
-Ohne Rückfrage übernommen (einfachste Variante): ein Schalter für alle Verbindungen, nicht je Gruppe oder Verbindung wie die Vorlage. Er wirkt nur auf Tabellen **mit** Audit-Tabelle; bei einer Tabelle ohne Audit-Tabelle bleibt der Haken aus wie bisher. Offene Frage: Braucht es den Wert je Verbindungsgruppe?
+Entscheidung des Nutzers: ein Schalter für alle Verbindungen, nicht je Gruppe oder Verbindung wie die Vorlage. Er wirkt nur auf Tabellen **mit** Audit-Tabelle; bei einer Tabelle ohne Audit-Tabelle bleibt der Haken aus wie bisher.
 
 ## Gebaut
 - Core `AppSettings.SyncAuditInDesigner` (Standard an, also wie bisher; ältere `settings.json` ohne den Wert bleiben an).
