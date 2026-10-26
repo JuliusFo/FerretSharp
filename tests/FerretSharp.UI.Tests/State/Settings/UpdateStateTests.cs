@@ -11,6 +11,10 @@ public sealed class UpdateStateTests : IDisposable
 {
     private static readonly AppUpdate Next = AppUpdate.From(new VersionNotes("3.29.0", "### Added\n- Updates from the app"));
 
+    /// <summary>Released after <see cref="Next"/> was reported.</summary>
+    private static readonly AppUpdate Later = AppUpdate.From(new VersionNotes("3.30.0", "### Fixed\n- Updates take the newest version"),
+        [new VersionNotes("3.29.0", "### Added\n- Updates from the app")]);
+
     private readonly TestFolder _folder = new();
     private readonly FakeUpdater _updater = new();
     private readonly ExitGuard _exitGuard = new();
@@ -232,8 +236,161 @@ public sealed class UpdateStateTests : IDisposable
         _time.Advance(UpdateState.BackgroundTick);
         Assert.Equal((UpdatePhase.Available, Next, 2), (updates.Phase, updates.Update, _updater.Checks));
 
+        _time.Advance(TimeSpan.FromHours(4));
+        Assert.Equal((UpdatePhase.Available, Next, 3), (updates.Phase, updates.Update, _updater.Checks)); // silently on
+    }
+
+    [Fact]
+    public async Task While_an_update_is_available_a_silent_check_replaces_it_with_a_newer_one()
+    {
+        _updater.Found = Next;
+        using var updates = Create();
+        await updates.StartAsync();
+        var phases = new List<UpdatePhase>();
+        updates.Changed += () => phases.Add(updates.Phase);
+
+        _updater.Found = Later;
+        _time.Advance(TimeSpan.FromHours(4));
+
+        Assert.Equal((UpdatePhase.Available, Later, 2), (updates.Phase, updates.Update, _updater.Checks));
+        Assert.DoesNotContain(UpdatePhase.Checking, phases); // the status bar keeps showing the update
+    }
+
+    [Fact]
+    public async Task While_an_update_is_available_a_failed_silent_check_changes_nothing()
+    {
+        _updater.Found = Next;
+        using var updates = Create();
+        await updates.StartAsync();
+        var changes = 0;
+        updates.Changed += () => changes++;
+
+        _updater.CheckFails = new HttpRequestException("No such host is known.");
+        _time.Advance(TimeSpan.FromHours(4));
+
+        Assert.Equal((UpdatePhase.Available, Next, null, 2), (updates.Phase, updates.Update, updates.Error, _updater.Checks));
+        Assert.Equal(0, changes);
+        Assert.Equal(_time.GetLocalNow(), updates.LastChecked); // counts as a check: the next one in 4 hours
+    }
+
+    [Fact]
+    public async Task While_the_dialog_is_open_it_does_not_check()
+    {
+        _updater.Found = Next;
+        using var updates = Create();
+        await updates.StartAsync();
+        updates.ShowDetails();
+
+        _updater.Found = Later;
         _time.Advance(TimeSpan.FromDays(1));
-        Assert.Equal(2, _updater.Checks); // reported already: no more checks
+
+        Assert.Equal((Next, 1), (updates.Update, _updater.Checks)); // the notes being read stay as they are
+    }
+
+    [Fact]
+    public async Task A_failed_check_now_keeps_the_update_known_before()
+    {
+        _updater.Found = Next;
+        var updates = Create();
+        await updates.CheckAsync();
+
+        _updater.CheckFails = new HttpRequestException("No such host is known.");
+        await updates.CheckAsync();
+
+        Assert.Equal((UpdatePhase.Available, Next, null), (updates.Phase, updates.Update, updates.Error));
+    }
+
+    [Fact]
+    public async Task A_failed_check_now_after_a_failed_download_keeps_both()
+    {
+        _updater.Found = Next;
+        _updater.DownloadFails = new IOException("Disk full");
+        var updates = Create();
+        await updates.CheckAsync();
+        await updates.DownloadAsync();
+
+        _updater.CheckFails = new HttpRequestException("No such host is known.");
+        await updates.CheckAsync();
+
+        Assert.Equal((UpdatePhase.DownloadFailed, Next, "Disk full"), (updates.Phase, updates.Update, updates.Error));
+    }
+
+    [Fact]
+    public async Task Download_checks_again_and_takes_a_version_released_since_the_last_check()
+    {
+        _updater.Found = Next;
+        var updates = Create();
+        await updates.CheckAsync();
+        updates.ShowDetails();
+
+        _updater.Found = Later;
+        await updates.DownloadAsync();
+
+        Assert.Equal([Later], _updater.Downloads);
+        Assert.Equal((UpdatePhase.Ready, Later, true), (updates.Phase, updates.Update, updates.DetailsOpen));
+        Assert.Equal(2, _updater.Checks);
+    }
+
+    [Fact]
+    public async Task Download_takes_the_known_version_if_the_check_before_fails()
+    {
+        _updater.Found = Next;
+        var updates = Create();
+        await updates.CheckAsync();
+
+        _updater.CheckFails = new HttpRequestException("No such host is known.");
+        await updates.DownloadAsync();
+
+        Assert.Equal([Next], _updater.Downloads);
+        Assert.Equal((UpdatePhase.Ready, null), (updates.Phase, updates.Error));
+    }
+
+    [Fact]
+    public async Task Download_takes_the_known_version_if_the_check_before_gets_no_answer()
+    {
+        _updater.Found = Next;
+        var updates = Create();
+        await updates.CheckAsync();
+
+        _updater.CheckHangs = true;
+        var download = updates.DownloadAsync();
+        Assert.Equal(UpdatePhase.Downloading, updates.Phase);
+        _time.Advance(UpdateState.CheckTimeout);
+        await download;
+
+        Assert.Equal([Next], _updater.Downloads);
+        Assert.Equal(UpdatePhase.Ready, updates.Phase);
+    }
+
+    [Fact]
+    public async Task Download_canceled_during_the_check_before_downloads_nothing()
+    {
+        _updater.Found = Next;
+        var updates = Create();
+        await updates.CheckAsync();
+
+        _updater.CheckHangs = true;
+        var download = updates.DownloadAsync();
+        updates.CancelDownload();
+        await download;
+
+        Assert.Empty(_updater.Downloads);
+        Assert.Equal((UpdatePhase.Available, Next), (updates.Phase, updates.Update));
+    }
+
+    [Fact]
+    public async Task Download_of_a_release_taken_back_since_the_check_downloads_nothing_and_closes_the_dialog()
+    {
+        _updater.Found = Next;
+        var updates = Create();
+        await updates.CheckAsync();
+        updates.ShowDetails();
+
+        _updater.Found = null;
+        await updates.DownloadAsync();
+
+        Assert.Empty(_updater.Downloads);
+        Assert.Equal((UpdatePhase.UpToDate, null, false), (updates.Phase, updates.Update, updates.DetailsOpen));
     }
 
     [Fact]
