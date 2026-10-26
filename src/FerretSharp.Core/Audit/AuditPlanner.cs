@@ -38,7 +38,7 @@ public static class AuditPlanner
             return [];
         }
 
-        var draft = Draft(template, table, baseColumns, audit, DataFacts.None, renamed, [], []);
+        var draft = Draft(template, table, baseColumns, audit, DataFacts.None, renamed, [], [], []);
         return [new DataQuestion(DataQuestionKind.Rows), .. TableDesign.Questions(audit, draft)];
     }
 
@@ -67,7 +67,7 @@ public static class AuditPlanner
         }
 
         var tablePlan = state.AuditTable is { } audit
-            ? TableDesign.Plan(DesignContext.Of(audit), Draft(template, table, baseColumns, audit, facts, renamed, warnings, problems), facts)
+            ? TableDesign.Plan(DesignContext.Of(audit), Draft(template, table, baseColumns, audit, facts, renamed, warnings, problems, []), facts)
             : TableDesign.PlanNew(new NewTable(shape.Table.Owner, shape.Table.Name, shape.Comment), new TableDraft(shape.Columns.Select(c => new ColumnDraft(null, c)).ToList()),
                 new Dictionary<TableRef, TableDetails>(), taken ?? []);
         problems.AddRange(tablePlan.Problems);
@@ -115,9 +115,27 @@ public static class AuditPlanner
         return (columns, renamed);
     }
 
+    /// <summary>
+    /// The existing audit columns that do not take every value whole, in the audit table's order – the same check as
+    /// <see cref="Plan"/>, whose problems and warnings say them as sentences. Empty without an audit table.
+    /// </summary>
+    public static IReadOnlyList<AuditColumnIssue> ColumnIssues(AuditTemplate template, TableRef table, IReadOnlyList<ColumnInfo> baseColumns, AuditState state)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(state);
+        if (state.AuditTable is not { } audit)
+        {
+            return [];
+        }
+
+        var issues = new List<AuditColumnIssue>();
+        Draft(template, table, baseColumns, audit, DataFacts.None, null, [], [], issues);
+        return issues;
+    }
+
     /// <summary>The audit table as it should be: its columns kept or widened, the template's and the table's new columns added.</summary>
     private static TableDraft Draft(AuditTemplate template, TableRef table, IReadOnlyList<ColumnInfo> baseColumns, TableDetails audit, DataFacts facts,
-        IReadOnlyDictionary<string, string>? renamed, List<string> warnings, List<string> problems)
+        IReadOnlyDictionary<string, string>? renamed, List<string> warnings, List<string> problems, List<AuditColumnIssue> issues)
     {
         var shape = template.TableFor(table, baseColumns);
         var wanted = shape.Columns.ToDictionary(c => c.Name, StringComparer.Ordinal);
@@ -154,7 +172,7 @@ public static class AuditPlanner
             }
 
             matched.Add(name);
-            drafts.Add(new ColumnDraft(existing.Name, Kept(existing, target, own.Contains(name), audit.Table.Name, warnings, problems) with { Name = name }));
+            drafts.Add(new ColumnDraft(existing.Name, Kept(existing, target, own.Contains(name), audit.Table.Name, warnings, problems, issues) with { Name = name }));
         }
 
         // New columns go to the end (ALTER TABLE … ADD appends); the trigger names its columns, the order does not matter.
@@ -179,12 +197,17 @@ public static class AuditPlanner
     /// column has (DATE → TIMESTAMP, longer, more digits). What the trigger writes is an INSERT, not a MODIFY
     /// (<see cref="OracleTypes.FitOf"/>, WP-51): an audit column that takes the values only with a loss (TIMESTAMP into
     /// DATE) stays with a warning, one that cannot take them (another type family) is a problem – the trigger would make
-    /// every DML on the table fail (R5 review). A column of the template's own that is wider than the template's (TIMESTAMP
-    /// WITH TIME ZONE against DATE) stays with a warning: the audit table probably comes from another template. The
-    /// messages say whether the type is the template's or the table's. Identity and virtual columns stay as they are.
+    /// every DML on the table fail (R5 review). Text shorter than the values can be grows to a length that holds both
+    /// (<see cref="OracleTypes.Widened"/>, decision of the user 2026-10-26: <c>VARCHAR2(30)</c> for <c>VARCHAR2(10 CHAR)</c>
+    /// → <c>VARCHAR2(30 CHAR)</c>); only where it cannot is it a problem, a longer value would fail. A BYTE column of four
+    /// bytes per character takes a CHAR column's values whole and stays. A column of the template's own that
+    /// is wider than the template's (TIMESTAMP WITH TIME ZONE against DATE) stays with a warning: the audit table probably
+    /// comes from another template. Each case is an <see cref="AuditColumnIssue"/>; its message says whether the type is
+    /// the template's or the table's. Identity and virtual columns stay as they are.
     /// </summary>
     /// <param name="ofTemplate">The column is one of the template's own, not a copy of a column of the table.</param>
-    private static ColumnInfo Kept(ColumnInfo existing, ColumnInfo target, bool ofTemplate, string auditTable, List<string> warnings, List<string> problems)
+    private static ColumnInfo Kept(ColumnInfo existing, ColumnInfo target, bool ofTemplate, string auditTable, List<string> warnings, List<string> problems,
+        List<AuditColumnIssue> issues)
     {
         var kept = existing with { Comment = string.IsNullOrEmpty(target.Comment) ? existing.Comment : target.Comment };
         if (existing.IsIdentity || existing.IsVirtual)
@@ -208,7 +231,7 @@ public static class AuditPlanner
         {
             if (ofTemplate)
             {
-                warnings.Add(Message(AuditText.PlanWiderThanTemplate));
+                Report(AuditColumnFit.WiderThanTemplate);
             }
 
             return kept;
@@ -222,17 +245,25 @@ public static class AuditPlanner
             };
         }
 
-        if (fit == ValueFit.Lossy)
+        if (OracleTypes.Widened(existing, target) is { } widened)
         {
-            warnings.Add(Message(ofTemplate ? AuditText.PlanTypeLossyTemplate : AuditText.PlanTypeLossy));
-            return kept;
+            return kept with { Length = widened.Length, CharSemantics = widened.CharSemantics };
         }
 
-        problems.Add(Message(ofTemplate ? AuditText.PlanTypeIncompatibleTemplate : AuditText.PlanTypeIncompatible));
+        Report(fit switch
+        {
+            ValueFit.Lossy => AuditColumnFit.Lossy,
+            ValueFit.Partial => AuditColumnFit.TooShort,
+            _ => AuditColumnFit.Incompatible,
+        });
         return kept;
 
-        string Message(string format) =>
-            TextFormat.Format(format, existing.Name, auditTable, OracleTypes.DisplayType(existing), OracleTypes.DisplayType(target));
+        void Report(AuditColumnFit how)
+        {
+            var issue = new AuditColumnIssue(existing.Name, how, ofTemplate, OracleTypes.DisplayType(existing), OracleTypes.DisplayType(target));
+            issues.Add(issue);
+            (issue.IsProblem ? problems : warnings).Add(issue.Message(auditTable));
+        }
     }
 
     /// <summary>

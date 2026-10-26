@@ -908,8 +908,8 @@
     <comment>Before the audit table's name above the columns</comment>
   </data>
   <data name="Audit_Outdated" xml:space="preserve">
-    <value>outdated ({0})</value>
-    <comment>{0}: reasons, e.g. "FAX missing in the audit table; trigger KUNDE_AUDIT does not fill all columns"</comment>
+    <value>outdated:</value>
+    <comment>Before the reasons, e.g. "FAX missing in the audit table · trigger … does not fill all columns"</comment>
   </data>
   <data name="Audit_OutdatedTitle" xml:space="preserve">
     <value>Changes to this table are audited incompletely until audit table and trigger match it again.</value>
@@ -920,6 +920,53 @@
   </data>
   <data name="Audit_OpenTable" xml:space="preserve">
     <value>Open the audit table</value>
+  </data>
+  <data name="Audit_ColumnsMissingOne" xml:space="preserve">
+    <value>{1} missing in the audit table</value>
+    <comment>Part of the outdated audit line. {0}: 1 (not shown), {1}: column name</comment>
+  </data>
+  <data name="Audit_ColumnsMissingOther" xml:space="preserve">
+    <value>{1} missing in the audit table</value>
+    <comment>Part of the outdated audit line, up to three columns. {0}: count (not shown), {1}: column names, comma separated</comment>
+  </data>
+  <data name="Audit_ColumnsMissingCount" xml:space="preserve">
+    <value>{0} columns missing in the audit table</value>
+    <comment>Part of the outdated audit line, for more than three columns (fewer are named). {0}: count</comment>
+  </data>
+  <data name="Audit_ColumnIssuesOne" xml:space="preserve">
+    <value>{0} audit column cannot take every value</value>
+    <comment>Part of the outdated audit line; the details list the column. {0}: 1</comment>
+  </data>
+  <data name="Audit_ColumnIssuesOther" xml:space="preserve">
+    <value>{0} audit columns cannot take every value</value>
+    <comment>Part of the outdated audit line; the details list the columns. {0}: count</comment>
+  </data>
+  <data name="Audit_IssueAuditType" xml:space="preserve">
+    <value>In {0}</value>
+    <comment>Header of the details table: the column's type in the audit table. {0}: audit table name</comment>
+  </data>
+  <data name="Audit_IssueValueType" xml:space="preserve">
+    <value>Values</value>
+    <comment>Header of the details table: the type of the values the trigger writes (the table's column or the template's)</comment>
+  </data>
+  <data name="Audit_IssueFromTemplate" xml:space="preserve">
+    <value>template</value>
+    <comment>Behind a type in the details table: the type comes from the audit template, not the table</comment>
+  </data>
+  <data name="Audit_IssueTooShort" xml:space="preserve">
+    <value>too short – a longer value makes the DML fail</value>
+    <comment>Last cell of a row in the details table</comment>
+  </data>
+  <data name="Audit_IssueIncompatible" xml:space="preserve">
+    <value>another type – the DML fails</value>
+    <comment>Last cell of a row in the details table</comment>
+  </data>
+  <data name="Audit_IssuesAdvice" xml:space="preserve">
+    <value>With these audit columns the trigger can make DML on the table fail. Change them by hand first (e.g. a new column) – until then the audit cannot be brought up to date.</value>
+  </data>
+  <data name="Audit_MissingList" xml:space="preserve">
+    <value>Missing in the audit table (added when brought up to date): {0}</value>
+    <comment>{0}: column names, comma separated</comment>
   </data>
   <data name="Tab_ViewUsage" xml:space="preserve">
     <value>Usage</value>

@@ -157,7 +157,62 @@ public sealed class AuditPlannerTests
         Assert.False(plan.CanRun);
         Assert.Contains(plan.Problems, p => p.Contains("KUNDE_ID") && p.Contains("NUMBER(10)") && p.Contains("VARCHAR2(20"));
         Assert.Equal(AuditHealth.Outdated, status.Health);
-        Assert.Contains(status.Reasons, r => r.Contains("KUNDE_ID"));
+        var issue = Assert.Single(status.ColumnIssues);
+        Assert.Equal(("KUNDE_ID", AuditColumnFit.Incompatible, "NUMBER(10)", "VARCHAR2(20)"), (issue.Column, issue.Fit, issue.AuditType, issue.ValueType));
+        Assert.Empty(status.Reasons); // the issue stands apart, not as a sentence a second time
+    }
+
+    /// <summary>
+    /// Found by the user: an audit table sized for AL32UTF8 has VARCHAR2(80) where the table has VARCHAR2(20 CHAR) – four
+    /// bytes per character hold every value, so this is no problem and changes nothing.
+    /// </summary>
+    [Fact]
+    public void A_byte_audit_column_of_four_bytes_per_character_takes_a_char_column()
+    {
+        List<ColumnInfo> chars = [Columns[0], Columns[1] with { Length = 20, CharSemantics = true }, Columns[2]];
+
+        var plan = AuditPlanner.Plan(Template, Kunde, chars, UpToDate(Columns), Rows(10));
+
+        Assert.Empty(plan.Problems);
+        Assert.Empty(plan.Warnings);
+        Assert.Empty(plan.Steps);
+        Assert.Equal(AuditHealth.UpToDate, AuditStatus.Of(Template, Kunde, chars, UpToDate(Columns)).Health);
+    }
+
+    /// <summary>
+    /// A BYTE audit column shorter than that grows to count characters with its own length (decision of the user
+    /// 2026-10-26): it keeps its values and takes the table's – "Bring up to date" does it, no problem.
+    /// </summary>
+    [Fact]
+    public void A_byte_audit_column_shorter_than_the_char_values_can_be_grows()
+    {
+        List<ColumnInfo> chars = [Columns[0], Columns[1] with { Length = 25, CharSemantics = true }, Columns[2]];
+
+        var plan = AuditPlanner.Plan(Template, Kunde, chars, UpToDate(Columns), Rows(10));
+        var status = AuditStatus.Of(Template, Kunde, chars, UpToDate(Columns));
+
+        Assert.True(plan.CanRun, string.Join("\n", plan.Problems));
+        Assert.Contains("VARCHAR2(80 CHAR)", Assert.Single(plan.Steps, s => s.Kind == DdlStepKind.ModifyType).Sql);
+        Assert.Equal(AuditHealth.Outdated, status.Health);
+        Assert.Empty(status.ColumnIssues);
+        Assert.Equal(["Typen oder Kommentare weichen ab"], status.Reasons);
+    }
+
+    /// <summary>Where no length holds both (a fixed CHAR beyond 2000), it stays too short: a problem, but not "every DML fails".</summary>
+    [Fact]
+    public void A_text_audit_column_that_cannot_grow_enough_is_too_short()
+    {
+        List<ColumnInfo> wide = [Columns[0], Columns[1], Columns[2] with { DataType = "VARCHAR2", Length = 3000, CharSemantics = true }];
+        var state = WithAuditColumn(Template, Columns, "STATUS", c => c with { Length = 10 });
+
+        var plan = AuditPlanner.Plan(Template, Kunde, wide, state, Rows(10));
+        var status = AuditStatus.Of(Template, Kunde, wide, state);
+
+        Assert.False(plan.CanRun);
+        var problem = Assert.Single(plan.Problems);
+        Assert.Contains("STATUS in AUDIT_KUNDE (CHAR(10)) ist kürzer", problem);
+        Assert.DoesNotContain("jede DML", problem);
+        Assert.Equal(AuditColumnFit.TooShort, Assert.Single(status.ColumnIssues).Fit);
     }
 
     /// <summary>The audit table as <see cref="UpToDate"/> has it, with one of its columns changed.</summary>
@@ -338,7 +393,8 @@ public sealed class AuditPlannerTests
 
         var outdated = AuditStatus.Of(Template, Kunde, now, UpToDate(Columns));
         Assert.Equal(AuditHealth.Outdated, outdated.Health);
-        Assert.Equal(["FAX fehlt in der Audit-Tabelle", "Trigger KUNDE_AUDIT füllt nicht alle Spalten"], outdated.Reasons);
+        Assert.Equal(["FAX"], outdated.MissingColumns);
+        Assert.Equal(["Trigger KUNDE_AUDIT füllt nicht alle Spalten"], outdated.Reasons);
 
         var invalid = AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns) with { Trigger = new AuditTriggerState(Kunde, false, true, []) });
         Assert.Equal(["Trigger KUNDE_AUDIT ist ungültig"], invalid.Reasons);

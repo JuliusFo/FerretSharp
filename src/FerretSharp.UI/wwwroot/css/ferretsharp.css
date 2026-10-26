@@ -488,6 +488,13 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .audit-status .link-btn.muted { color: var(--faint); text-decoration: none; }
 .audit-status .link-btn.muted:hover { color: var(--muted); text-decoration: underline; }
 .audit-status.warn { padding: 6px 10px; border-radius: 7px; background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.audit-status .audit-head { display: inline-flex; align-items: center; gap: 4px; }
+.audit-status .link-btn .chev { margin-left: 2px; }
+.audit-details { flex-basis: 100%; margin-top: 4px; }
+.audit-details table { border-collapse: collapse; }
+.audit-details th { padding: 2px 16px 2px 0; text-align: left; font-weight: 600; color: var(--muted); }
+.audit-details td { padding: 2px 16px 2px 0; vertical-align: top; }
+.audit-details p { margin: 6px 0 0; color: var(--muted); }
 .structure-columns-head h2 { margin: 0; }
 .structure-columns-head .picked-hint { font-size: 12px; }
 .structure-filter {

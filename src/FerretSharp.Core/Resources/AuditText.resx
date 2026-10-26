@@ -157,6 +157,14 @@
     <value>{0} in {1} ({2}) cannot take the values of the template ({3}): the trigger would make every DML on the table fail. Change the audit column by hand first (e.g. a new column), or leave the audit box off.</value>
     <comment>WP-51. {0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the template</comment>
   </data>
+  <data name="PlanTypeTooShort" xml:space="preserve">
+    <value>{0} in {1} ({2}) is shorter than the values of the table ({3}) can be: a longer value would make its DML on the table fail. Widen the audit column by hand first, or leave the audit box off.</value>
+    <comment>{0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the table, e.g. VARCHAR2(30 CHAR)</comment>
+  </data>
+  <data name="PlanTypeTooShortTemplate" xml:space="preserve">
+    <value>{0} in {1} ({2}) is shorter than the values of the template ({3}) can be: a longer value would make its DML on the table fail. Widen the audit column by hand first, or leave the audit box off.</value>
+    <comment>{0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the template</comment>
+  </data>
   <data name="PlanTypeLossy" xml:space="preserve">
     <value>{0} in {1} ({2}) takes the values of the table ({3}) only with a loss (fractional seconds, time zone). The audit column stays as it is; to keep them whole, widen it by hand.</value>
     <comment>WP-51. {0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the table</comment>
@@ -195,10 +203,6 @@
   <data name="StatusTableMissing" xml:space="preserve">
     <value>audit table {0} is missing</value>
     <comment>Reason an audit is outdated, lower case (joined with "; "). {0}: table name</comment>
-  </data>
-  <data name="StatusColumnsMissing" xml:space="preserve">
-    <value>{0} missing in the audit table</value>
-    <comment>Reason an audit is outdated. {0}: column names, comma separated</comment>
   </data>
   <data name="StatusTriggerMissing" xml:space="preserve">
     <value>trigger {0} is missing</value>

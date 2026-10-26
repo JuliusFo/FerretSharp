@@ -170,13 +170,32 @@ public sealed class OracleTypesTests
     [InlineData("TIMESTAMP(6) WITH LOCAL TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", ValueFit.Lossy)]
     [InlineData("TIMESTAMP(3)", "TIMESTAMP(6)", ValueFit.Lossy)]
     [InlineData("VARCHAR2(50 BYTE)", "VARCHAR2(20 BYTE)", ValueFit.Full)]
-    [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", ValueFit.None)]
+    [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", ValueFit.Partial)] // short values go in, long ones fail
+    [InlineData("VARCHAR2(40 BYTE)", "VARCHAR2(10 CHAR)", ValueFit.Full)] // 4 bytes per character: AL32UTF8 at most
+    [InlineData("CHAR(8 BYTE)", "CHAR(2 CHAR)", ValueFit.Full)]
+    [InlineData("VARCHAR2(39 BYTE)", "VARCHAR2(10 CHAR)", ValueFit.Partial)]
+    [InlineData("VARCHAR2(30 CHAR)", "VARCHAR2(40 BYTE)", ValueFit.Partial)] // 40 single-byte characters are too many
+    [InlineData("VARCHAR2(40 BYTE)", "NVARCHAR2(10)", ValueFit.None)] // national into database characters: ? for what is missing
+    [InlineData("RAW(8)", "RAW(16)", ValueFit.Partial)]
     [InlineData("NUMBER(12)", "NUMBER(10)", ValueFit.Full)]
     [InlineData("NUMBER(10)", "NUMBER(12,2)", ValueFit.None)]
     [InlineData("VARCHAR2(30 BYTE)", "NUMBER(10)", ValueFit.None)]
     [InlineData("DATE", "VARCHAR2(30 BYTE)", ValueFit.None)]
     public void Values_fit_a_column_as_an_insert_stores_them(string column, string value, ValueFit fit) =>
         Assert.Equal(fit, OracleTypes.FitOf(Parse(column), Parse(value)));
+
+    /// <summary>Text taken only partly grows to a type that keeps its values and takes the others whole, by MODIFY with data.</summary>
+    [Theory]
+    [InlineData("VARCHAR2(30 BYTE)", "VARCHAR2(10 CHAR)", "VARCHAR2(30 CHAR)")]
+    [InlineData("VARCHAR2(30 CHAR)", "VARCHAR2(40 BYTE)", "VARCHAR2(40 CHAR)")]
+    [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", "VARCHAR2(50 BYTE)")]
+    [InlineData("CHAR(5 BYTE)", "VARCHAR2(10 BYTE)", "CHAR(10 BYTE)")]
+    [InlineData("RAW(8)", "RAW(16)", "RAW(16)")]
+    [InlineData("CHAR(10 BYTE)", "VARCHAR2(3000 CHAR)", null)] // CHAR ends at 2000
+    [InlineData("VARCHAR2(40 BYTE)", "VARCHAR2(10 CHAR)", null)] // takes them whole already
+    [InlineData("VARCHAR2(30 BYTE)", "NUMBER(10)", null)]
+    public void Text_taken_only_partly_grows_to_hold_both(string column, string value, string? widened) =>
+        Assert.Equal(widened, OracleTypes.Widened(Parse(column), Parse(value)) is { } type ? OracleTypes.DdlType(type) : null);
 
     /// <summary>A type as written in DDL reads into the facets the dictionary shows after CREATE TABLE; DDL writes it back.</summary>
     [Theory]

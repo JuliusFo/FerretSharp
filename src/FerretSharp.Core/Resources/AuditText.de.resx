@@ -126,6 +126,12 @@
   <data name="PlanTypeIncompatibleTemplate" xml:space="preserve">
     <value>{0} in {1} ({2}) kann die Werte der Vorlage ({3}) nicht aufnehmen: Der Trigger ließe jede DML auf der Tabelle scheitern. Die Audit-Spalte zuerst von Hand anpassen (z. B. eine neue Spalte) oder das Audit-Häkchen auslassen.</value>
   </data>
+  <data name="PlanTypeTooShort" xml:space="preserve">
+    <value>{0} in {1} ({2}) ist kürzer, als die Werte der Tabelle ({3}) sein können: Ein längerer Wert ließe seine DML auf der Tabelle scheitern. Die Audit-Spalte zuerst von Hand verbreitern oder das Audit-Häkchen auslassen.</value>
+  </data>
+  <data name="PlanTypeTooShortTemplate" xml:space="preserve">
+    <value>{0} in {1} ({2}) ist kürzer, als die Werte der Vorlage ({3}) sein können: Ein längerer Wert ließe seine DML auf der Tabelle scheitern. Die Audit-Spalte zuerst von Hand verbreitern oder das Audit-Häkchen auslassen.</value>
+  </data>
   <data name="PlanTypeLossy" xml:space="preserve">
     <value>{0} in {1} ({2}) nimmt die Werte der Tabelle ({3}) nur mit Verlust auf (Sekundenbruchteile, Zeitzone). Die Audit-Spalte bleibt, wie sie ist; um sie vollständig zu halten, die Spalte von Hand verbreitern.</value>
   </data>
@@ -155,9 +161,6 @@
   </data>
   <data name="StatusTableMissing" xml:space="preserve">
     <value>Audit-Tabelle {0} fehlt</value>
-  </data>
-  <data name="StatusColumnsMissing" xml:space="preserve">
-    <value>{0} fehlt in der Audit-Tabelle</value>
   </data>
   <data name="StatusTriggerMissing" xml:space="preserve">
     <value>Trigger {0} fehlt</value>
