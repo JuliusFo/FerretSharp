@@ -36,6 +36,14 @@ public sealed record ConstraintDraft(
     string? DeleteRule = null,
     bool WithIndex = true);
 
+/// <summary>An existing constraint the designer renames or changes, as it should be.</summary>
+/// <param name="Original">Its name in the table.</param>
+/// <param name="Name">The name it should have, in dictionary form.</param>
+/// <param name="Condition">A check's condition (the columns by their drafted names); null for another constraint.</param>
+/// <param name="DeleteRule">A foreign key's <c>CASCADE</c> or <c>SET NULL</c>; null for none (NO ACTION).</param>
+/// <param name="RenameIndex">A renamed key's index of the key's name is renamed with it.</param>
+public sealed record ConstraintEdit(string Original, string Name, string? Condition = null, string? DeleteRule = null, bool RenameIndex = true);
+
 /// <summary>The designer's draft of an existing table: its columns as they should be, in order, and its constraint changes.</summary>
 public sealed record TableDraft(IReadOnlyList<ColumnDraft> Columns)
 {
@@ -44,6 +52,9 @@ public sealed record TableDraft(IReadOnlyList<ColumnDraft> Columns)
 
     /// <summary>New constraints.</summary>
     public IReadOnlyList<ConstraintDraft> AddedConstraints { get; init; } = [];
+
+    /// <summary>Existing constraints renamed or changed (a check's condition, a foreign key's delete rule).</summary>
+    public IReadOnlyList<ConstraintEdit> ChangedConstraints { get; init; } = [];
 
     /// <summary>The table as it is: nothing changed yet.</summary>
     public static TableDraft Of(TableDetails table)
@@ -155,9 +166,9 @@ public static partial class TableDesign
             }
         }
 
-        if (draft.AddedConstraints.Count > 0)
+        if (draft.AddedConstraints.Count > 0 || draft.ChangedConstraints.Count > 0)
         {
-            questions.Add(new DataQuestion(DataQuestionKind.Rows)); // an empty table has no rows to break a new constraint
+            questions.Add(new DataQuestion(DataQuestionKind.Rows)); // an empty table has no rows to break a new or changed constraint
         }
 
         return questions.Distinct().ToList();
@@ -269,6 +280,7 @@ public static partial class TableDesign
 
             CheckNames(kept);
             DropConstraints(draft.DroppedConstraints);
+            EditConstraints(draft);
             if (creating is not null && Comment(creating.Comment) is { } tableComment)
             {
                 Keep(DdlStepKind.Comment, OracleDdl.CommentOnTable(Table, tableComment));

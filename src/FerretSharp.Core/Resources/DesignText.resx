@@ -219,4 +219,20 @@
   <data name="TypeChangeKeepsBlanks" xml:space="preserve">
     <value>{0}: {1} → {2} keeps the blanks every value was padded with; comparisons with the text without them (relationships, filters, EF Core) no longer match – trim them with RTRIM afterwards.</value>
   </data>
+  <data name="ConstraintNameMissing" xml:space="preserve">
+    <value>{0}: enter a name for the constraint.</value>
+    <comment>{0}: current constraint name</comment>
+  </data>
+  <data name="ConstraintRenamed" xml:space="preserve">
+    <value>{0} → {1}: code that looks for the constraint's name (handling ORA-00001, ORA-02291 …) still expects the old one.</value>
+    <comment>{0}: old constraint name; {1}: new name</comment>
+  </data>
+  <data name="CheckReplaced" xml:space="preserve">
+    <value>{0}: the new condition is added first and checks the rows; the old check goes only after it.</value>
+    <comment>{0}: check constraint name</comment>
+  </data>
+  <data name="ForeignKeyRecreated" xml:space="preserve">
+    <value>{0} is dropped and added again with the new delete rule; it checks the rows again and holds nothing in between.</value>
+    <comment>{0}: foreign key name</comment>
+  </data>
 </root>

@@ -174,4 +174,16 @@
   <data name="TypeChangeKeepsBlanks" xml:space="preserve">
     <value>{0}: {1} → {2} behält die Leerzeichen, mit denen jeder Wert aufgefüllt war; Vergleiche mit dem Text ohne sie (Beziehungen, Filter, EF Core) treffen danach nicht mehr – anschließend mit RTRIM kürzen.</value>
   </data>
+  <data name="ConstraintNameMissing" xml:space="preserve">
+    <value>{0}: Gib einen Namen für den Constraint ein.</value>
+  </data>
+  <data name="ConstraintRenamed" xml:space="preserve">
+    <value>{0} → {1}: Code, der den Namen des Constraints auswertet (Behandlung von ORA-00001, ORA-02291 …), erwartet noch den alten.</value>
+  </data>
+  <data name="CheckReplaced" xml:space="preserve">
+    <value>{0}: Die neue Bedingung wird zuerst angelegt und prüft die Zeilen; der alte Check geht erst danach.</value>
+  </data>
+  <data name="ForeignKeyRecreated" xml:space="preserve">
+    <value>{0} wird gelöscht und mit der neuen Löschregel neu angelegt; er prüft die Zeilen erneut und gilt dazwischen nicht.</value>
+  </data>
 </root>

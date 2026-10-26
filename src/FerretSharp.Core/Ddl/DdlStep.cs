@@ -15,10 +15,22 @@ public enum DdlStepKind
     DropColumn,
     DropConstraint,
 
+    /// <summary>ALTER TABLE … RENAME CONSTRAINT: the name of a constraint the designer renames.</summary>
+    RenameConstraint,
+
+    /// <summary>ALTER INDEX … RENAME TO: the index of a renamed key, which has the key's name.</summary>
+    RenameIndex,
+
     /// <summary>A primary or unique key.</summary>
     AddKey,
     AddCheck,
     AddForeignKey,
+
+    /// <summary>
+    /// Drops a check that one added just before replaces, and gives the new one the old name (an edited check): after the
+    /// adds, so the old check stays when the new one fails on the rows.
+    /// </summary>
+    ReplaceConstraint,
     CreateIndex,
     DropIndex,
 
