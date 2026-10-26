@@ -1,4 +1,4 @@
-# Fixes: Audit-Zeile gruppiert, BYTE-Spalten für CHAR-Werte
+# Fixes: Audit-Zeile gruppiert, BYTE-Spalten für CHAR-Werte → Release 3.50.0
 
 Fund des Nutzers (2026-10-26): Bei Tabellen, deren Audit-Tabelle lange nicht abgeglichen wurde, füllte die Audit-Zeile über den Spalten einen halben Bildschirm – je Spalte ein ganzer Satz mit demselben Rat. Branch `fix/audit-status-grouped`.
 

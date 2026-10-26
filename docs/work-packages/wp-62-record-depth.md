@@ -1,4 +1,4 @@
-# WP-62 Datensatz-Diagramm: mehrere Ebenen
+# WP-62 Datensatz-Diagramm: mehrere Ebenen → Release 3.50.0
 
 Branch `wp/62-record-depth`, begonnen am 2026-10-25. Nachtrag zu ADR 0034. Baut auf `RecordDiagram` und `RecordDiagramState` aus WP-60 auf; das Wahlfeld folgt dem „Ebenen“-Feld des Beziehungsdiagramms (WP-46).
 
