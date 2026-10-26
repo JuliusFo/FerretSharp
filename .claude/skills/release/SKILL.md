@@ -1,0 +1,13 @@
+---
+name: release
+description: Prepare and publish a FerretSharp release
+disable-model-invocation: true
+---
+1. Summarize unreleased commits since the last tag. Propose the version number and wait for my OK.
+2. Bump the version and update CHANGELOG.md, preserving CRLF and BOM.
+   Group the new version's entries under `### Added`, `### Changed`, `### Fixed`,
+   in exactly this order. Leave out empty sections. Run `git diff --stat` to verify.
+3. Build and run the full test suite.
+4. Create the PR using --body-file. Run `gh pr checks --watch` until green. Do NOT use --auto.
+5. Merge, pull main, tag vX.Y.Z and push the tag.
+6. Watch the release workflow until it is published, then delete merged branches and worktrees (show the list first).
