@@ -5,6 +5,7 @@ Aus der `CLAUDE.md` ausgelagert (Gesamt-Review 3.31.0, Teil C). Vor Änderungen 
 ## Versionierung
 
 - SemVer, Version in `Directory.Build.props`, `CHANGELOG.md` pflegen (Abschnitt `## [X.Y.Z] - Datum`).
+- Reihenfolge der Unterabschnitte (Entscheidung des Nutzers, 2026-10-26): `Security`, `Added`, `Changed`, `Fixed`, `Internal`. Liegt das Hauptthema eines Releases in einem anderen Abschnitt, darf dieser nach vorn (3.49.0: `Changed` vor `Added`). Kein Test, nur Regel.
 - Git-Tag `vX.Y.Z` je Release. **Der Push des Tags veröffentlicht das GitHub-Release** – erst taggen, wenn der CHANGELOG-Abschnitt steht (er wird zu den Release-Notizen und zum Text im Update-Dialog der App).
 - Nicht pushen und nicht taggen ohne Rückfrage beim Nutzer.
 
