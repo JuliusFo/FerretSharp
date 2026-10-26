@@ -13,5 +13,9 @@ Fund des Nutzers (2026-10-26): Bei Tabellen, deren Audit-Tabelle lange nicht abg
 - UI (`AuditStatusSummary`, `AuditStatusLine`): Die Zeile bleibt einzeilig – „veraltet: 7 Audit-Spalten können nicht jeden Wert aufnehmen · Trigger … füllt nicht alle Spalten · Details · Abgleichen“. Bis zu drei fehlende Spalten werden genannt (mit „fehlt“/„fehlen“), mehr gezählt. „Details“ klappt eine Tabelle auf (Name, Typ in der Audit-Tabelle, Typ der Werte mit „Vorlage“, Folge) und darunter einmal den Rat; bei mehr als drei fehlenden Spalten auch deren Liste. Der Tooltip „unvollständig protokolliert“ hängt nur noch an Kopf und Gründen, nicht an den Details.
 - Der Rat sagt jetzt auch, dass „Abgleichen“ erst nach der Änderung von Hand geht – vorher öffnete der Link einen Designer, der den Abgleich verweigerte.
 
+## E2E
+- Eigener Container `ferret-e2e-audit` (Port 1531, danach entfernt), Scratch-Datenordner, eingebaute Vorlage. Eine Tabelle mit fünf fehlenden Spalten, einer zu kurzen und einer typfremden Audit-Spalte zeigt die gruppierte Zeile und die Details; eine Audit-Tabelle mit 4 Byte je Zeichen meldet nur den fehlenden Trigger, „Abgleichen“ legt ihn an (VALID), danach „aktuell“. Ein Wert aus zehn 4-Byte-Zeichen (`LENGTHB` 40) geht über den Trigger in `VARCHAR2(40)`. Log ohne `[ERR]`.
+- „Details“ per DOM-Klick geprüft, nicht mit Windows-Eingabe (ein gewöhnlicher `@onclick`-Knopf).
+
 ## Offen
 - Könnte „Abgleichen“ eine zu kurze Text-Spalte selbst verbreitern (z. B. `VARCHAR2(30)` gegen `VARCHAR2(10 CHAR)` → `VARCHAR2(30 CHAR)`, per `MODIFY` mit Daten frei)? Wäre „Typen werden nur größer“ (Entscheidung 2026-10-12), ändert aber DDL an bestehenden Audit-Tabellen – Frage an den Nutzer.
