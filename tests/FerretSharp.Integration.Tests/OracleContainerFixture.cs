@@ -71,6 +71,31 @@ public sealed class OracleContainerFixture : IAsyncLifetime
         return (profile, builder.Password);
     }
 
+    /// <summary>
+    /// The image turns out-of-band breaks off on the server (<c>DISABLE_OOB=ON</c> in its sqlnet.ora, gvenzl/oci-oracle-xe#43:
+    /// they failed through Docker's port proxy; Docker Desktop's loses urgent data). Sessions opened until the result is
+    /// disposed negotiate them again; only for tests that run alone (<see cref="SerialTests"/>).
+    /// </summary>
+    public async Task<IAsyncDisposable> AllowOutOfBandBreaksAsync()
+    {
+        RequireConnectionString();
+        await EditSqlNetAsync("s/^DISABLE_OOB=ON/#DISABLE_OOB=ON/", "^#DISABLE_OOB=ON");
+        return new Restore(() => EditSqlNetAsync("s/^#DISABLE_OOB=ON/DISABLE_OOB=ON/", "^DISABLE_OOB=ON"));
+    }
+
+    /// <summary>The server reads its sqlnet.ora for every new session.</summary>
+    private async Task EditSqlNetAsync(string sed, string expected)
+    {
+        var file = "$ORACLE_HOME/network/admin/sqlnet.ora";
+        var result = await _container!.ExecAsync(["bash", "-c", $"sed -i '{sed}' {file} && grep -q '{expected}' {file}"]);
+        Assert.True(result.ExitCode == 0, $"sqlnet.ora of the image changed ({sed}): {result.Stderr}");
+    }
+
+    private sealed class Restore(Func<Task> restore) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync() => await restore();
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_container is not null)
