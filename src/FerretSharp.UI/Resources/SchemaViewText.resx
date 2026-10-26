@@ -1077,9 +1077,11 @@
     <value>Copies the diagram as a Mermaid flowchart for documentation and tickets – with the values shown</value>
     <comment>Tooltip</comment>
   </data>
-  <data name="Records_Reading" xml:space="preserve">
-    <value>Reading {0} – {1:N0} rows so far</value>
-    <comment>{0}: table; {1}: rows read so far</comment>
+  <data name="Records_ReadingOne" xml:space="preserve">
+    <value>Reading {1} – {0:N0} row so far</value>
+  </data>
+  <data name="Records_ReadingOther" xml:space="preserve">
+    <value>Reading {1} – {0:N0} rows so far</value>
   </data>
   <data name="Records_ReadingStart" xml:space="preserve">
     <value>Reading the start rows</value>
@@ -1188,6 +1190,15 @@
   <data name="Records_ReadingRows" xml:space="preserve">
     <value>Reading rows</value>
     <comment>Progress title before the first table is reported</comment>
+  </data>
+  <data name="Records_ReadingLevelOne" xml:space="preserve">
+    <value>Level {1} of {2}: reading {3} – {0:N0} row so far</value>
+  </data>
+  <data name="Records_ReadingLevelOther" xml:space="preserve">
+    <value>Level {1} of {2}: reading {3} – {0:N0} rows so far</value>
+  </data>
+  <data name="Records_LevelsTitle" xml:space="preserve">
+    <value>How far opening and the "+" handles go: 2 also brings the children of the children and their parents. Going up never turns down again, so no siblings come in. Each level reads once per relationship.</value>
   </data>
   <data name="Columns_PickTitle" xml:space="preserve">
     <value>Click, Ctrl+click or Shift+click picks columns; the right-click menu writes the ALTER TABLE that adds them elsewhere.</value>

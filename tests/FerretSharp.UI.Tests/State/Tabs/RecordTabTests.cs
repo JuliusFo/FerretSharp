@@ -64,6 +64,21 @@ public sealed class RecordTabTests : IAsyncDisposable
         Assert.Equal([step.Nodes], restored.Diagram.Steps.Select(s => s.Nodes));
     }
 
+    /// <summary>WP-62: the levels of the header stay with the tab.</summary>
+    [Fact]
+    public async Task Tabs_keep_their_levels()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var tab = _app.Shell.OpenRecords(TestApp.Kunden, _app.KundenDetails, [Row(4711m)])!;
+        tab.Diagram.SetDepth(3);
+
+        var state = tab.ToState(_app.Shell.Tabs);
+        var restored = RecordTab.Restore(scope.Id, TestApp.Kunden, state.Records!);
+
+        Assert.Equal(3, state.Records!.Depth);
+        Assert.Equal(3, restored.Diagram.Depth);
+    }
+
     [Fact]
     public void A_workspace_file_with_nulls_in_a_record_tab_reads_as_empty_lists()
     {

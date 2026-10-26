@@ -20,6 +20,12 @@ public sealed class RecordDiagram
 
     public const int DefaultGroupLimit = DiagramOptions.DefaultGroupLimit;
 
+    /// <summary>Levels one expansion goes at most (WP-62): each costs one read per relationship over the VPN.</summary>
+    public const int MaxDepth = 4;
+
+    /// <summary>A depth from the user or a file, held between 1 and <see cref="MaxDepth"/>.</summary>
+    public static int ClampDepth(int depth) => Math.Clamp(depth, 1, MaxDepth);
+
     private readonly RowTraversal _traversal;
     private readonly RelationGraph _relations;
     private readonly RowGraph _graph;
@@ -130,8 +136,18 @@ public sealed class RecordDiagram
     /// follows them (a tab opened before the model never got its children).
     /// </summary>
     /// <returns>The rows shown now.</returns>
+    public Task<IReadOnlyList<RecordNode>> ExpandAsync(
+        IReadOnlyList<RecordNode> nodes, DiagramSide side, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken) =>
+        ExpandAsync(nodes, side, 1, progress, cancellationToken);
+
+    /// <summary>
+    /// The same, <paramref name="depth"/> levels far (WP-62): the rows a level shows new are expanded by the next. A row
+    /// reached going down (a child) may turn up to its parents, one reached going up never turns down again – that would
+    /// bring in its siblings (the country of an address, then every address of the country).
+    /// </summary>
+    /// <param name="depth">1 to <see cref="MaxDepth"/>.</param>
     public async Task<IReadOnlyList<RecordNode>> ExpandAsync(
-        IReadOnlyList<RecordNode> nodes, DiagramSide side, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
+        IReadOnlyList<RecordNode> nodes, DiagramSide side, int depth, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
     {
         var distinct = nodes.Distinct().ToList();
         if (distinct.Count == 0)
@@ -139,8 +155,29 @@ public sealed class RecordDiagram
             return [];
         }
 
-        AddStep(new RecordStep(RecordStepKind.Expand, [.. distinct.Select(n => n.Id)], side));
-        return await ExpandSideAsync(distinct, side, progress, cancellationToken);
+        depth = ClampDepth(depth);
+        AddStep(new RecordStep(RecordStepKind.Expand, [.. distinct.Select(n => n.Id)], side, Depth: depth));
+        return await ExpandSideAsync(distinct, side, depth, Levels(0, depth), progress, cancellationToken);
+    }
+
+    /// <summary>
+    /// The start rows to the left, then to the right, <paramref name="depth"/> levels each: a new diagram. Two steps, as
+    /// two expansions would be; the progress counts the levels of both sides together (review: "Ebene 1 von 3" came twice,
+    /// and over the VPN the left side's last level read as almost done).
+    /// </summary>
+    public async Task OpenAsync(int depth, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
+    {
+        if (Start.Count == 0)
+        {
+            return;
+        }
+
+        depth = ClampDepth(depth);
+        foreach (var (side, before) in new[] { (DiagramSide.Parents, 0), (DiagramSide.Children, depth) })
+        {
+            AddStep(new RecordStep(RecordStepKind.Expand, [.. Start.Select(n => n.Id)], side, Depth: depth));
+            await ExpandSideAsync(Start, side, depth, Levels(before, 2 * depth), progress, cancellationToken);
+        }
     }
 
     /// <summary>Follows one relationship of one row in one direction (the context menu).</summary>
@@ -153,7 +190,7 @@ public sealed class RecordDiagram
         }
 
         AddStep(new RecordStep(RecordStepKind.Expand, [node.Id], side, RelationGraph.KeyOf(relation)));
-        return await FollowAsync([node], relation, Direction(side), progress, cancellationToken);
+        return await FollowAsync([node], relation, Direction(side), null, progress, cancellationToken);
     }
 
     /// <summary>Shows the rows of a group in its column; the group goes away.</summary>
@@ -178,9 +215,19 @@ public sealed class RecordDiagram
     /// </summary>
     public async Task ReplayAsync(IReadOnlyList<RecordStep> steps, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
     {
+        // The levels of all expansions of a whole side, counted together in the progress (as when they were done).
+        var sides = steps.Where(s => s.Kind == RecordStepKind.Expand && s.Relation is null).ToList();
+        var levels = sides.Sum(s => s.Depth);
+        var before = 0;
         foreach (var step in steps)
         {
             AddStep(step);
+            var levelsBefore = before;
+            if (step.Kind == RecordStepKind.Expand && step.Relation is null)
+            {
+                before += step.Depth;
+            }
+
             var nodes = step.Nodes.Select(NodeOf).OfType<RecordNode>().ToList();
             if (nodes.Count == 0)
             {
@@ -191,10 +238,10 @@ public sealed class RecordDiagram
             switch (step.Kind)
             {
                 case RecordStepKind.Expand when step.Relation is null:
-                    await ExpandSideAsync(nodes, step.Side, progress, cancellationToken);
+                    await ExpandSideAsync(nodes, step.Side, step.Depth, levels > sides.Count ? (levelsBefore, levels) : null, progress, cancellationToken);
                     break;
                 case RecordStepKind.Expand when relation is not null && Pending(nodes[0], step.Side).Contains(relation):
-                    await FollowAsync([nodes[0]], relation, Direction(step.Side), progress, cancellationToken);
+                    await FollowAsync([nodes[0]], relation, Direction(step.Side), null, progress, cancellationToken);
                     break;
                 case RecordStepKind.Open when relation is not null
                     && _groups.FirstOrDefault(g => g.Node == nodes[0] && g.Relation == relation && g.Side == step.Side) is { } group:
@@ -217,15 +264,37 @@ public sealed class RecordDiagram
         return (nodes, edges);
     }
 
-    /// <summary>Every pending relationship of <paramref name="nodes"/> on <paramref name="side"/>, one read per relationship.</summary>
+    /// <summary>
+    /// Every pending relationship of <paramref name="nodes"/> on <paramref name="side"/>, then of the rows that showed new,
+    /// <paramref name="depth"/> levels far: one read per relationship and level for all the rows of the level. Rows in a group
+    /// go no further.
+    /// </summary>
+    /// <param name="levels">For the progress: levels done before this expansion and of all; null to name none (one level).</param>
     private async Task<IReadOnlyList<RecordNode>> ExpandSideAsync(
-        IReadOnlyList<RecordNode> nodes, DiagramSide side, IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
+        IReadOnlyList<RecordNode> nodes, DiagramSide side, int depth, (int Before, int Of)? levels, IProgress<TraversalProgress>? progress,
+        CancellationToken cancellationToken)
     {
         var shown = new List<RecordNode>();
-        var pending = nodes.SelectMany(n => Pending(n, side).Select(r => (Node: n, Relation: r))).ToList();
-        foreach (var along in pending.GroupBy(p => p.Relation))
+        // Each row of a level with whether it may go down: only a row reached as a child (or a start row expanded to the right).
+        var level = nodes.Select(n => (Node: n, Down: side == DiagramSide.Children)).ToList();
+        for (var number = 1; number <= depth && level.Count > 0; number++)
         {
-            shown.AddRange(await FollowAsync([.. along.Select(p => p.Node)], along.Key, Direction(side), progress, cancellationToken));
+            var next = new List<(RecordNode Node, bool Down)>();
+            var counted = levels is var (before, of) ? new TraversalLevel(before + number, of) : null;
+            foreach (var to in (DiagramSide[])[DiagramSide.Parents, DiagramSide.Children])
+            {
+                // The first level goes to the side asked for only: a row reached as a child turns up from the second on.
+                var from = level.Where(l => number == 1 ? to == side : to == DiagramSide.Parents || l.Down).Select(l => l.Node);
+                var pending = from.SelectMany(n => Pending(n, to).Select(r => (Node: n, Relation: r))).ToList();
+                foreach (var along in pending.GroupBy(p => p.Relation))
+                {
+                    var reached = await FollowAsync([.. along.Select(p => p.Node)], along.Key, Direction(to), counted, progress, cancellationToken);
+                    shown.AddRange(reached);
+                    next.AddRange(reached.Select(n => (n, to == DiagramSide.Children)));
+                }
+            }
+
+            level = next;
         }
 
         return shown;
@@ -243,12 +312,13 @@ public sealed class RecordDiagram
         return members;
     }
 
+    /// <param name="level">The level of an expansion over several, for the progress; null for one.</param>
     private async Task<IReadOnlyList<RecordNode>> FollowAsync(
-        IReadOnlyList<RecordNode> nodes, ForeignKeyInfo relation, LinkDirection direction, IProgress<TraversalProgress>? progress,
-        CancellationToken cancellationToken)
+        IReadOnlyList<RecordNode> nodes, ForeignKeyInfo relation, LinkDirection direction, TraversalLevel? level,
+        IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
     {
         var parents = direction == LinkDirection.Parents;
-        progress?.Report(new TraversalProgress(parents ? relation.To : relation.From, _graph.RowCount));
+        progress?.Report(new TraversalProgress(parents ? relation.To : relation.From, _graph.RowCount, level));
         var rows = nodes.Select(RowOf).OfType<RowData>().ToList();
         try
         {
@@ -256,10 +326,12 @@ public sealed class RecordDiagram
         }
         catch (TooManyRowsException ex)
         {
-            // The graph is as it was (FollowAsync adds all or nothing); the relationship is not offered again.
+            // The graph is as it was (FollowAsync adds all or nothing). From one row the relationship is not offered again;
+            // read for the rows of a level together, each may still fit alone (review: one order's three positions were lost
+            // with the 2 000 of all orders of the level).
             _problems.Add(new RecordProblem(relation, direction, nodes,
                 TextFormat.Format(RelationText.RecordTooManyRows, relation.Name, ex.Limit), TooMany: true));
-            foreach (var node in nodes)
+            if (nodes is [var node])
             {
                 _followed.Add((node, relation, direction));
             }
@@ -324,6 +396,9 @@ public sealed class RecordDiagram
             (_edges, _edgeById) = (null, null);
         }
     }
+
+    /// <summary>Levels named in the progress: only for an expansion over several.</summary>
+    private static (int Before, int Of)? Levels(int before, int of) => of > 1 ? (before, of) : null;
 
     private static LinkDirection Direction(DiagramSide side) => side == DiagramSide.Parents ? LinkDirection.Parents : LinkDirection.Children;
 
@@ -393,4 +468,7 @@ public enum RecordStepKind
 /// </summary>
 /// <param name="Nodes">Ids of the rows (<see cref="RecordNode.Id"/>).</param>
 /// <param name="Relation"><see cref="RelationGraph.KeyOf"/>; null for all relationships of the side.</param>
-public sealed record RecordStep(RecordStepKind Kind, IReadOnlyList<string> Nodes, DiagramSide Side, string? Relation = null);
+/// <param name="Depth">
+/// Levels an expansion of a whole side went (WP-62); 1 for one relationship, an opened group and steps saved before.
+/// </param>
+public sealed record RecordStep(RecordStepKind Kind, IReadOnlyList<string> Nodes, DiagramSide Side, string? Relation = null, int Depth = 1);

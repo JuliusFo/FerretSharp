@@ -89,7 +89,9 @@ public sealed record TabState(
 /// (<see cref="Relations.RecordKeys"/>) and what was expanded since. The rows are read again when the tab is shown.
 /// </summary>
 /// <param name="RowIds">The keys are ROWIDs (a table without an enforced primary key).</param>
-public sealed record RecordTabState(string Owner, string Name, bool RowIds, IReadOnlyList<IReadOnlyList<string>> Keys, IReadOnlyList<Relations.RecordStep> Steps)
+/// <param name="Depth">Levels the next expansion goes (WP-62, "Ebenen" in the diagram's header); each step keeps its own.</param>
+public sealed record RecordTabState(
+    string Owner, string Name, bool RowIds, IReadOnlyList<IReadOnlyList<string>> Keys, IReadOnlyList<Relations.RecordStep> Steps, int Depth = 1)
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public TableRef Table => new(Owner, Name);
@@ -165,7 +167,9 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
             Records = tab.Records is { } records ? records with
             {
                 Keys = (records.Keys ?? []).Where(k => k is not null).Select(k => (IReadOnlyList<string>)k.OfType<string>().ToList()).ToList(),
-                Steps = (records.Steps ?? []).Where(s => s is not null).Select(s => s with { Nodes = (s.Nodes ?? []).OfType<string>().ToList() }).ToList(),
+                Steps = (records.Steps ?? []).Where(s => s is not null)
+                    .Select(s => s with { Nodes = (s.Nodes ?? []).OfType<string>().ToList(), Depth = Relations.RecordDiagram.ClampDepth(s.Depth) }).ToList(),
+                Depth = Relations.RecordDiagram.ClampDepth(records.Depth),
             } : null,
         }).ToList(),
     };

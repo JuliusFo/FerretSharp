@@ -23,12 +23,14 @@ public sealed class RecordDiagramState
     private int? _initialSteps;
 
     /// <param name="steps">Saved steps; null for a new diagram.</param>
-    public RecordDiagramState(TableRef table, bool rowIds, IReadOnlyList<IReadOnlyList<string>> keys, IReadOnlyList<RecordStep>? steps)
+    /// <param name="depth">Levels an expansion goes (WP-62).</param>
+    public RecordDiagramState(TableRef table, bool rowIds, IReadOnlyList<IReadOnlyList<string>> keys, IReadOnlyList<RecordStep>? steps, int depth = 1)
     {
         Table = table;
         RowIds = rowIds;
         Keys = keys;
         _steps = steps;
+        Depth = RecordDiagram.ClampDepth(depth);
     }
 
     /// <summary>The table of the start rows.</summary>
@@ -41,6 +43,12 @@ public sealed class RecordDiagramState
     public IReadOnlyList<IReadOnlyList<string>> Keys { get; }
 
     public RecordDiagram? Diagram { get; private set; }
+
+    /// <summary>
+    /// Levels the next expansion of a side goes ("Ebenen" in the header, WP-62): opening, "Zurücksetzen" and the "+n"
+    /// handles. One relationship from the context menu goes one level.
+    /// </summary>
+    public int Depth { get; private set; }
 
     public DiagramPlacement? Placement { get; private set; }
 
@@ -106,18 +114,20 @@ public sealed class RecordDiagramState
         // The steps of the diagram shown (a snapshot, taken now) or those saved; null for a new diagram. Kept if no start row
         // is found (review: the rows may be back after a rollback, and their steps with them).
         var steps = Diagram is { Start.Count: > 0 } shown ? shown.Steps : _steps;
+        // Only opened, at other levels than set now: opened again at these (WP-62). Not through Reset (review): the diagram
+        // shown, its placement and the marks stay until the new one is complete.
+        var reopen = steps is not null && OnlyOpened(steps) && steps.Any(s => s.Depth != Depth);
         var keys = Keys.Select(k => RecordKeys.FromText(table, RowIds, k)).OfType<RowKey>().ToList();
         var diagram = await RecordDiagram.StartAsync(traversal, relations, table, keys, cancellationToken);
         if (diagram.Start.Count > 0)
         {
-            if (steps is not null)
+            if (steps is not null && !reopen)
             {
                 await diagram.ReplayAsync(steps, progress, cancellationToken);
             }
             else
             {
-                await diagram.ExpandAsync(diagram.Start, DiagramSide.Parents, progress, cancellationToken);
-                await diagram.ExpandAsync(diagram.Start, DiagramSide.Children, progress, cancellationToken);
+                await diagram.OpenAsync(Depth, progress, cancellationToken);
                 _initialSteps = diagram.Steps.Count;
             }
         }
@@ -127,6 +137,23 @@ public sealed class RecordDiagramState
         _steps = diagram.Start.Count > 0 ? diagram.Steps : steps;
         _marked.RemoveWhere(n => !diagram.IsShown(n));
         Arrange(previous);
+    }
+
+    /// <summary>
+    /// Sets the levels. A diagram nothing was done in since it was opened is opened again with them by the next
+    /// <see cref="LoadAsync"/> (WP-62) – also one not loaded yet, or restored with other levels; true if it is shown and
+    /// should be loaded now. Otherwise they apply to the next expansions and a reset.
+    /// </summary>
+    public bool SetDepth(int depth)
+    {
+        depth = RecordDiagram.ClampDepth(depth);
+        if (depth == Depth)
+        {
+            return false;
+        }
+
+        Depth = depth;
+        return Diagram is not null && !StartGone && !Changed;
     }
 
     /// <summary>Back to the start rows expanded on both sides, laid out afresh; the next <see cref="LoadAsync"/> builds it.</summary>
@@ -149,7 +176,7 @@ public sealed class RecordDiagramState
 
         try
         {
-            await diagram.ExpandAsync([node], side, progress, cancellationToken);
+            await diagram.ExpandAsync([node], side, Depth, progress, cancellationToken);
         }
         finally
         {
@@ -190,6 +217,11 @@ public sealed class RecordDiagramState
     /// </summary>
     private int InitialSteps => _initialSteps ?? (Diagram is null ? 0 : Diagram.Steps.TakeWhile((s, i) => i < 2 && s.Kind == RecordStepKind.Expand
         && s.Relation is null && s.Nodes.SequenceEqual(Diagram.Start.Select(n => n.Id))).Count());
+
+    /// <summary>The start rows expanded to the left and to the right, nothing else: what <see cref="RecordDiagram.OpenAsync"/> does.</summary>
+    private static bool OnlyOpened(IReadOnlyList<RecordStep> steps) =>
+        steps is [{ Kind: RecordStepKind.Expand, Relation: null } left, { Kind: RecordStepKind.Expand, Relation: null } right]
+        && left.Side != right.Side && left.Nodes.SequenceEqual(right.Nodes);
 
     private void Arrange(DiagramPlacement? previous)
     {
