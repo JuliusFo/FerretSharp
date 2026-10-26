@@ -5,10 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
-### Changed
-- The table designer (Columns › Edit) is laid out in tabs – columns, constraints, audit, the C# of new columns and the script – below a head that stays in view while you scroll: what the DDL comes to (statements, warnings, problems; a click shows the script) and Run, Open in SQL editor, Save and Close. No more scrolling to the bottom to close it.
-- Another type for a new column in the table designer drops a size or scale the type cannot take: a new column starts as VARCHAR2(50), and as a NUMBER the 50 used to stay as a precision Oracle refuses. A size or scale out of range is named with its field, value and allowed range – also a text length or FLOAT precision, which only Oracle refused before.
-- A locked workspace shows as a bar across the table designer and the index draft, with "Unlock workspace …", instead of a small grey note above the buttons; Run carries a lock while it is locked.
+## [3.51.0] - 2026-10-26
+
+The table designer is laid out in tabs below a head with its actions that stays in view, and it renames constraints, gives a check a new condition and a foreign key another delete rule.
 
 ### Added
 - Existing constraints can be renamed in the table designer; a primary or unique key takes its index of the same name along (can be unticked).
@@ -18,6 +17,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - A check can get a new condition: the new check is added first and checks the rows, the old one goes only after it – rows that break the new condition leave the old check in place.
 - A foreign key can get another delete rule (dropped and added again).
 - "Edit" in the Constraints view opens the table designer at its constraints.
+
+### Changed
+- The table designer (Columns › Edit) is laid out in tabs – columns, constraints, audit, the C# of new columns and the script – below a head that stays in view while you scroll: what the DDL comes to (statements, warnings, problems; a click shows the script) and Run, Open in SQL editor, Save and Close. No more scrolling to the bottom to close it.
+- Another type for a new column in the table designer drops a size or scale the type cannot take: a new column starts as VARCHAR2(50), and as a NUMBER the 50 used to stay as a precision Oracle refuses. A size or scale out of range is named with its field, value and allowed range – also a text length or FLOAT precision, which only Oracle refused before.
+- A locked workspace shows as a bar across the table designer and the index draft, with "Unlock workspace …", instead of a small grey note above the buttons; Run carries a lock while it is locked.
 
 ## [3.50.2] - 2026-10-26
 
