@@ -124,14 +124,16 @@ developer works with an Oracle database day to day:
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/images/designer-dark.png">
-        <img src="docs/images/designer-light.png" alt="Table designer with a changed and a new column, the DDL it will run and the matching C# lines">
+        <img src="docs/images/designer-light.png" alt="Table designer in tabs: a changed and a new column, the head with the statements it will run and Run, Save and Close, and a C# tab for the new column">
       </picture>
     </td>
     <td width="50%">
       <b>Table designer</b><br><br>
-      Change the columns, keys, checks and foreign keys of a table, add indexes or create a new table. You see the DDL
-      before it runs – and the property and configuration lines for your entity – and what Oracle would refuse with
-      the data at hand is reported up front.<br><br>
+      Change the columns, keys, checks and foreign keys of a table in tabs, add indexes or create a new table. Rename
+      existing constraints (a key takes its index along), give a check a new condition – added before the old one goes –
+      or a foreign key another delete rule. You see the DDL before it runs – and the property and configuration lines
+      for your entity – and what Oracle would refuse with the data at hand is reported up front. Run, Save and Close stay
+      in view at the top, and a locked workspace shows as a bar across the designer.<br><br>
       <b>Audit tables</b> and their trigger come from a template file (your company's pattern, or a built-in one) and
       follow the table's changes; a trigger is switched on only once it compiles. Each connection group – or a single
       connection – can have its own template.

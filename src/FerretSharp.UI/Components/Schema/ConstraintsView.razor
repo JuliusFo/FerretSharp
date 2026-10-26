@@ -10,7 +10,13 @@
     var shown = all.Where(c => !c.IsColumnNotNull).ToList();
     var notNull = all.Count - shown.Count;
     <section>
-        <h2>@SchemaViewText.Constraints_Heading <span class="count">@shown.Count</span></h2>
+        <div class="structure-columns-head">
+            <h2>@SchemaViewText.Constraints_Heading <span class="count">@shown.Count</span></h2>
+            @if (Details.Table.Kind == TableKind.Table && WorkspaceId != Guid.Empty)
+            {
+                <button class="btn" title="@SchemaViewText.Constraints_EditTitle" @onclick="OnEdit">@SchemaViewText.Designer_Edit</button>
+            }
+        </div>
         @if (shown.Count == 0)
         {
             <p class="muted">@SchemaViewText.Constraints_None</p>
@@ -34,7 +40,7 @@
                                     <span class="arrow">@Icons.ArrowRight</span>
                                     <TableLink Target="target" />
                                     <span class="mono">(@string.Join(", ", c.ReferencedColumns))</span>
-                                    @if (c.DeleteRule is { } rule && rule != "NO ACTION")
+                                    @if (c.OnDelete is { } rule)
                                     {
                                         <span class="muted"> · ON DELETE @rule</span>
                                     }
@@ -105,6 +111,14 @@
 }
 
 @code {
+    /// <summary>The workspace of the tab; empty where the table cannot be edited.</summary>
+    [Parameter]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>"Edit": the edit mode of the "Columns" view, at its constraints (designer tabs).</summary>
+    [Parameter]
+    public EventCallback OnEdit { get; set; }
+
     private IReadOnlyList<ForeignKeyInfo> Incoming =>
         Active.Schema?.IncomingOf(Table.Ref).Where(f => f.Source != FkSource.ClrModel).ToList() ?? [];
 

@@ -36,6 +36,14 @@ public sealed record ConstraintDraft(
     string? DeleteRule = null,
     bool WithIndex = true);
 
+/// <summary>An existing constraint the designer renames or changes, as it should be.</summary>
+/// <param name="Original">Its name in the table.</param>
+/// <param name="Name">The name it should have, in dictionary form.</param>
+/// <param name="Condition">A check's condition (the columns by their drafted names); null for another constraint.</param>
+/// <param name="DeleteRule">A foreign key's <c>CASCADE</c> or <c>SET NULL</c>; null for none (NO ACTION).</param>
+/// <param name="RenameIndex">A renamed key's index of the key's name is renamed with it.</param>
+public sealed record ConstraintEdit(string Original, string Name, string? Condition = null, string? DeleteRule = null, bool RenameIndex = true);
+
 /// <summary>The designer's draft of an existing table: its columns as they should be, in order, and its constraint changes.</summary>
 public sealed record TableDraft(IReadOnlyList<ColumnDraft> Columns)
 {
@@ -44,6 +52,9 @@ public sealed record TableDraft(IReadOnlyList<ColumnDraft> Columns)
 
     /// <summary>New constraints.</summary>
     public IReadOnlyList<ConstraintDraft> AddedConstraints { get; init; } = [];
+
+    /// <summary>Existing constraints renamed or changed (a check's condition, a foreign key's delete rule).</summary>
+    public IReadOnlyList<ConstraintEdit> ChangedConstraints { get; init; } = [];
 
     /// <summary>The table as it is: nothing changed yet.</summary>
     public static TableDraft Of(TableDetails table)
@@ -108,6 +119,9 @@ public sealed record DesignPlan(IReadOnlyList<DdlStep> Steps, IReadOnlyList<stri
     public IReadOnlyList<string> Statements { get; } = Steps.Select(s => s.Sql).ToList();
 
     public bool CanRun => Steps.Count > 0 && Problems.Count == 0;
+
+    /// <summary>The <see cref="Problems"/> about constraints (the designer marks its constraints tab); the rest are the columns'.</summary>
+    public IReadOnlyList<string> ConstraintProblems { get; init; } = [];
 }
 
 /// <summary>
@@ -121,7 +135,11 @@ public sealed record DesignPlan(IReadOnlyList<DdlStep> Steps, IReadOnlyList<stri
 public static partial class TableDesign
 {
     /// <summary>The counts the plan needs to decide about NOT NULL, new mandatory columns and type changes.</summary>
-    public static IReadOnlyList<DataQuestion> Questions(TableDetails current, TableDraft draft)
+    /// <param name="constraints">
+    /// The table's constraints: only an edit that checks the rows again (<see cref="Rechecks"/>) needs them counted, a rename
+    /// does not. Without them every edit counts as one.
+    /// </param>
+    public static IReadOnlyList<DataQuestion> Questions(TableDetails current, TableDraft draft, IReadOnlyList<ConstraintInfo>? constraints = null)
     {
         ArgumentNullException.ThrowIfNull(current);
         ArgumentNullException.ThrowIfNull(draft);
@@ -155,9 +173,11 @@ public static partial class TableDesign
             }
         }
 
-        if (draft.AddedConstraints.Count > 0)
+        var rechecking = draft.ChangedConstraints.Any(e => !draft.DroppedConstraints.Contains(e.Original)
+            && (constraints is null || (constraints.FirstOrDefault(c => c.Name == e.Original) is { } before && Rechecks(before, e))));
+        if (draft.AddedConstraints.Count > 0 || rechecking)
         {
-            questions.Add(new DataQuestion(DataQuestionKind.Rows)); // an empty table has no rows to break a new constraint
+            questions.Add(new DataQuestion(DataQuestionKind.Rows)); // an empty table has no rows to break a new or changed constraint
         }
 
         return questions.Distinct().ToList();
@@ -247,6 +267,9 @@ public static partial class TableDesign
 
         public List<string> Problems { get; } = [];
 
+        /// <summary>The problems found while dropping, changing and adding constraints.</summary>
+        private readonly List<string> _constraintProblems = [];
+
         public List<string> Warnings { get; } = [];
 
         private TableRef Table => current.Table.Ref;
@@ -268,7 +291,10 @@ public static partial class TableDesign
             }
 
             CheckNames(kept);
+            var problems = Problems.Count;
             DropConstraints(draft.DroppedConstraints);
+            EditConstraints(draft);
+            _constraintProblems.AddRange(Problems.Skip(problems));
             if (creating is not null && Comment(creating.Comment) is { } tableComment)
             {
                 Keep(DdlStepKind.Comment, OracleDdl.CommentOnTable(Table, tableComment));
@@ -301,7 +327,9 @@ public static partial class TableDesign
                 Keep(DdlStepKind.CreateTable, OracleDdl.CreateTable(Table, _definitions));
             }
 
+            problems = Problems.Count;
             AddConstraints(draft, kept);
+            _constraintProblems.AddRange(Problems.Skip(problems));
         }
 
         /// <summary>The name of a table to create: there, without quotes, within 128 bytes, not taken by another object.</summary>
@@ -364,7 +392,7 @@ public static partial class TableDesign
                     .Select(s => TextFormat.Format(DesignText.StatementNotDdl, s.Length <= 80 ? s : s[..79] + "…")));
             }
 
-            return new DesignPlan(steps, Problems.Distinct().ToList(), Warnings.Distinct().ToList());
+            return new DesignPlan(steps, Problems.Distinct().ToList(), Warnings.Distinct().ToList()) { ConstraintProblems = _constraintProblems.Distinct().ToList() };
         }
 
         /// <summary>
@@ -397,9 +425,17 @@ public static partial class TableDesign
                 return false;
             }
 
-            if (OracleTypes.IsNumber(column.DataType) && (column.Precision is < 1 or > 38 || column.Scale is < -84 or > 127))
+            // The size as the designer's field has it: a length, a NUMBER's or FLOAT's precision.
+            var size = OracleTypes.HasLength(column.DataType) ? column.Length : column.DataType is "NUMBER" or "FLOAT" ? column.Precision : null;
+            if (size is { } s && OracleTypes.SizeRange(column.DataType) is { } range && !OracleTypes.Within(range, s))
             {
-                Problems.Add(TextFormat.Format(DesignText.ColumnNumberFacets, column.Name));
+                Problems.Add(TextFormat.Format(DesignText.ColumnSizeRange, column.Name, s, column.DataType, range.Min, range.Max));
+                return false;
+            }
+
+            if (OracleTypes.IsNumber(column.DataType) && column.Scale is { } scale && !OracleTypes.Within(OracleTypes.ScaleRange, scale))
+            {
+                Problems.Add(TextFormat.Format(DesignText.ColumnScaleRange, column.Name, scale, OracleTypes.ScaleRange.Min, OracleTypes.ScaleRange.Max));
                 return false;
             }
 

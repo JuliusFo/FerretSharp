@@ -1,0 +1,45 @@
+@* What a DDL draft comes to: its problems, its warnings and the script (copy icon of SqlCode) – below the index draft
+   (DdlDraftPanel) and in the table designer's script tab alike. *@
+@using FerretSharp.Core.Ddl
+
+@if (Problems.Count > 0)
+{
+    <ul class="ddl-problems">
+        @foreach (var problem in Problems)
+        {
+            <li>@problem</li>
+        }
+    </ul>
+}
+@foreach (var warning in Warnings)
+{
+    <p class="hint small">@Icons.Warning @warning</p>
+}
+@ChildContent
+@if (Steps.Count > 0)
+{
+    <SqlCode Sql="@DdlScript.Render(Steps)" Class="ddl-script" />
+}
+else if (Problems.Count == 0 && Empty is not null)
+{
+    <p class="muted">@Empty</p>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<DdlStep> Steps { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<string> Problems { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<string> Warnings { get; set; } = [];
+
+    /// <summary>Shown without steps and problems; null shows nothing.</summary>
+    [Parameter]
+    public string? Empty { get; set; }
+
+    /// <summary>Between the warnings and the script (the designer's counting).</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

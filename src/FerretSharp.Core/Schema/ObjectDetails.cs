@@ -57,6 +57,12 @@ public sealed record ConstraintInfo(
 
     /// <summary>The check Oracle creates for a <c>NOT NULL</c> column; shown with the columns, not as a constraint.</summary>
     public bool IsColumnNotNull => Type == ConstraintType.Check && GeneratedName && Condition is { } c && NotNullCondition.IsMatch(c);
+
+    /// <summary>A foreign key's <c>ON DELETE</c> rule (<c>CASCADE</c>, <c>SET NULL</c>); null for none.</summary>
+    public string? OnDelete => RuleOf(DeleteRule);
+
+    /// <summary>A delete rule as the dictionary or a draft has it: <c>NO ACTION</c> and an empty one are none (null).</summary>
+    public static string? RuleOf(string? rule) => string.IsNullOrEmpty(rule) || rule == "NO ACTION" ? null : rule;
 }
 
 /// <param name="Name">Column name, or the expression of a function-based index.</param>

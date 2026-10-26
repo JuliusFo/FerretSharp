@@ -75,6 +75,23 @@ public static partial class OracleTypes
     /// <summary>The types whose <see cref="ColumnInfo.Length"/> is set: character types and RAW.</summary>
     public static bool HasLength(string dataType) => IsCharacter(dataType) || dataType == "RAW";
 
+    /// <summary>
+    /// What the size of a type may be – a text's or RAW's length (up to 32767 with extended strings), a NUMBER's or FLOAT's
+    /// precision, a TIMESTAMP's fractional digits; null for a type without one (DATE, CLOB …).
+    /// </summary>
+    public static (int Min, int Max)? SizeRange(string dataType) => dataType switch
+    {
+        "CHAR" or "NCHAR" => (1, 2000),
+        _ when HasLength(dataType) => (1, 32767),
+        "NUMBER" => (1, 38),
+        "FLOAT" => (1, MaxFloatPrecision),
+        _ when IsTimestamp(dataType) => (0, 9),
+        _ => null,
+    };
+
+    /// <summary>What the scale of a NUMBER may be.</summary>
+    public static readonly (int Min, int Max) ScaleRange = (-84, 127);
+
     /// <summary>VARCHAR2 and CHAR: the length counts BYTE or CHAR, as chosen. NVARCHAR2 and NCHAR always count characters.</summary>
     public static bool HasLengthSemantics(string dataType) => dataType is "VARCHAR2" or "CHAR";
 
@@ -174,8 +191,8 @@ public static partial class OracleTypes
             var name = chars.Groups["type"].Value is "VARCHAR" ? "VARCHAR2" : chars.Groups["type"].Value;
             var unit = chars.Groups["unit"].Value;
             int? length = chars.Groups["length"].Success ? Number(chars.Groups["length"].Value) : name is "CHAR" or "NCHAR" ? 1 : null;
-            var max = name is "CHAR" or "NCHAR" ? 2000 : 32767;
-            if (length is not { } l || l < 1 || l > max || unit.Length > 0 && name is not ("VARCHAR2" or "CHAR"))
+            var (min, max) = SizeRange(name)!.Value;
+            if (length is not { } l || l < min || l > max || unit.Length > 0 && name is not ("VARCHAR2" or "CHAR"))
             {
                 return false;
             }
@@ -190,7 +207,7 @@ public static partial class OracleTypes
             var s = number.Groups["s"];
             int? precision = p.Success && p.Value != "*" ? Number(p.Value) : null;
             int? scale = s.Success ? Number(s.Value) : precision is null ? null : 0;
-            if (precision is < 1 or > 38 || scale is < -84 or > 127)
+            if (precision is { } pr && !Within(SizeRange("NUMBER")!.Value, pr) || scale is { } sc && !Within(ScaleRange, sc))
             {
                 return false;
             }
@@ -409,6 +426,9 @@ public static partial class OracleTypes
 
     /// <summary>Binary precision of a plain <c>FLOAT</c>.</summary>
     private const int MaxFloatPrecision = 126;
+
+    /// <summary><paramref name="value"/> lies in <paramref name="range"/> (<see cref="SizeRange"/>, <see cref="ScaleRange"/>).</summary>
+    public static bool Within((int Min, int Max) range, int value) => value >= range.Min && value <= range.Max;
 
     /// <summary>
     /// The most bytes a character takes in any database character set (AL32UTF8; UTF8 takes 3, single-byte sets 1): a

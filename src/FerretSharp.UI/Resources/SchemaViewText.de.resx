@@ -684,9 +684,6 @@
   <data name="Designer_AddColumn" xml:space="preserve">
     <value>Spalte hinzufügen</value>
   </data>
-  <data name="Designer_Constraints" xml:space="preserve">
-    <value>Schlüssel und Constraints</value>
-  </data>
   <data name="Designer_AddConstraint" xml:space="preserve">
     <value>Constraint hinzufügen</value>
   </data>
@@ -1097,5 +1094,80 @@
   </data>
   <data name="Columns_FilterConnections" xml:space="preserve">
     <value>Verbindungen filtern …</value>
+  </data>
+  <data name="Designer_Heading" xml:space="preserve">
+    <value>Tabelle bearbeiten</value>
+  </data>
+  <data name="Designer_TabColumns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="Designer_TabConstraints" xml:space="preserve">
+    <value>Constraints</value>
+  </data>
+  <data name="Designer_TabAudit" xml:space="preserve">
+    <value>Audit</value>
+  </data>
+  <data name="Designer_TabCSharp" xml:space="preserve">
+    <value>C#</value>
+  </data>
+  <data name="Designer_TabScript" xml:space="preserve">
+    <value>Skript</value>
+  </data>
+  <data name="Designer_TabChanged" xml:space="preserve">
+    <value>Geändert</value>
+  </data>
+  <data name="Designer_TabProblem" xml:space="preserve">
+    <value>Hat Probleme</value>
+  </data>
+  <data name="Designer_StatementsOne" xml:space="preserve">
+    <value>{0} Statement</value>
+  </data>
+  <data name="Designer_StatementsOther" xml:space="preserve">
+    <value>{0} Statements</value>
+  </data>
+  <data name="Designer_WarningsOne" xml:space="preserve">
+    <value>{0} Warnung</value>
+  </data>
+  <data name="Designer_WarningsOther" xml:space="preserve">
+    <value>{0} Warnungen</value>
+  </data>
+  <data name="Designer_ProblemsOne" xml:space="preserve">
+    <value>{0} Problem</value>
+  </data>
+  <data name="Designer_ProblemsOther" xml:space="preserve">
+    <value>{0} Probleme</value>
+  </data>
+  <data name="Designer_NoChanges" xml:space="preserve">
+    <value>Noch keine Änderungen</value>
+  </data>
+  <data name="Designer_SummaryTitle" xml:space="preserve">
+    <value>Skript mit Problemen und Warnungen zeigen</value>
+  </data>
+  <data name="Designer_Was" xml:space="preserve">
+    <value>war {0}</value>
+  </data>
+  <data name="Designer_RenameIndex" xml:space="preserve">
+    <value>Index mit umbenennen</value>
+  </data>
+  <data name="Designer_RenameIndexTitle" xml:space="preserve">
+    <value>Der Index {0} hinter dem Schlüssel bekommt den neuen Namen mit (ALTER INDEX … RENAME TO).</value>
+  </data>
+  <data name="Designer_ConditionTitle" xml:space="preserve">
+    <value>Eine neue Bedingung kommt zuerst als neuer Check dazu; der alte geht erst, wenn die Zeilen sie bestanden haben.</value>
+  </data>
+  <data name="Designer_DeleteRuleTitle" xml:space="preserve">
+    <value>Eine andere Löschregel löscht den Fremdschlüssel und legt ihn neu an.</value>
+  </data>
+  <data name="Designer_NoScript" xml:space="preserve">
+    <value>Noch nichts auszuführen: Ändere eine Spalte oder einen Constraint.</value>
+  </data>
+  <data name="Ddl_LockedBanner" xml:space="preserve">
+    <value>Workspace „{0}“ ist gesperrt</value>
+  </data>
+  <data name="Ddl_LockedDetail" xml:space="preserve">
+    <value>– Entwerfen, Kopieren und Speichern gehen; Ausführen erst nach dem Freischalten.</value>
+  </data>
+  <data name="Constraints_EditTitle" xml:space="preserve">
+    <value>Constraints der Tabelle umbenennen, ändern, löschen oder anlegen</value>
   </data>
 </root>

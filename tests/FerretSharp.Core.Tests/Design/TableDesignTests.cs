@@ -66,6 +66,18 @@ public class TableDesignTests
     // ---- new columns ----
 
     [Fact]
+    public void A_size_or_scale_out_of_range_names_the_field_value_and_range()
+    {
+        Assert.Equal(["FAX: Größe 50 passt nicht zu NUMBER – erlaubt sind 1 bis 38."],
+            Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "NUMBER") with { Precision = 50 }))).Problems);
+        Assert.Equal(["FAX: Größe 40000 passt nicht zu VARCHAR2 – erlaubt sind 1 bis 32767."],
+            Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "VARCHAR2", 40000)))).Problems);
+        Assert.Equal(["FAX: Nachkommastellen 200 passen nicht zu NUMBER – erlaubt sind -84 bis 127."],
+            Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "NUMBER") with { Scale = 200 }))).Problems);
+        Assert.Empty(Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "FLOAT") with { Precision = 126, Scale = null }))).Problems);
+    }
+
+    [Fact]
     public void A_new_column_is_added_with_its_comment_afterwards()
     {
         var plan = Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "VARCHAR2", 30, comment: "Fax-Nummer"))));
@@ -674,5 +686,170 @@ public class TableDesignTests
 
         Assert.Empty(plan.Problems);
         Assert.Contains("""ALTER TABLE "SHOP"."ORT" ADD CONSTRAINT "FK_ORT_PARENT" FOREIGN KEY ("PARENT_ID") REFERENCES "SHOP"."ORT" ("ID")""", plan.Statements);
+    }
+
+    // ---- renamed and changed constraints ----
+
+    private static readonly ConstraintInfo CkUmsatz = new("CK_UMSATZ", ConstraintType.Check, [], "UMSATZ >= 0", null, [], null, true, true, false, false, false);
+
+    private static readonly ConstraintInfo FkLand = new("FK_KUNDE_LAND", ConstraintType.ForeignKey, ["STATUS"], null, Land.Table.Ref, ["CODE"], "NO ACTION", true, true, false, false, false);
+
+    private static IndexInfo UniqueIndex(string name, string column) => new("SHOP", name, "NORMAL", true, "VALID", [new IndexColumn(column, false, false)], null, false, true);
+
+    private static DesignPlan PlanEdits(TableDraft draft, IReadOnlyList<ConstraintInfo>? constraints = null, IReadOnlyList<IndexInfo>? indexes = null, DataFacts? facts = null) =>
+        TableDesign.Plan(new DesignContext(Kunde, constraints ?? [PkKunde, CkUmsatz, FkLand], indexes ?? [UniqueIndex("PK_KUNDE", "ID")], []), draft, facts ?? DataFacts.None);
+
+    private static TableDraft Edited(params ConstraintEdit[] edits) => Draft() with { ChangedConstraints = edits };
+
+    [Fact]
+    public void A_renamed_key_takes_its_index_of_the_same_name_along()
+    {
+        var plan = PlanEdits(Edited(new ConstraintEdit("PK_KUNDE", "PK_KUNDEN")));
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} RENAME CONSTRAINT "PK_KUNDE" TO "PK_KUNDEN" """.TrimEnd(),
+            """ALTER INDEX "SHOP"."PK_KUNDE" RENAME TO "PK_KUNDEN" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.Empty(plan.Problems);
+        Assert.Contains(plan.Warnings, w => w.StartsWith("PK_KUNDE → PK_KUNDEN", StringComparison.Ordinal));
+        Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
+
+        Assert.Single(PlanEdits(Edited(new ConstraintEdit("PK_KUNDE", "PK_KUNDEN", RenameIndex: false))).Statements);
+        Assert.Single(PlanEdits(Edited(new ConstraintEdit("PK_KUNDE", "PK_KUNDEN")), indexes: [UniqueIndex("SYS_C001", "ID")]).Statements); // another name: stays
+        Assert.Equal(["Die Tabelle hat schon einen Index IX_KUNDE."],
+            PlanEdits(Edited(new ConstraintEdit("PK_KUNDE", "IX_KUNDE")), indexes: [UniqueIndex("PK_KUNDE", "ID"), UniqueIndex("IX_KUNDE", "NAME")]).Problems);
+    }
+
+    [Fact]
+    public void A_renamed_check_or_foreign_key_keeps_its_definition()
+    {
+        var plan = PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "CK_KUNDE_UMSATZ", "UMSATZ >= 0"), new ConstraintEdit("FK_KUNDE_LAND", "FK_LAND")));
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} RENAME CONSTRAINT "CK_UMSATZ" TO "CK_KUNDE_UMSATZ" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME CONSTRAINT "FK_KUNDE_LAND" TO "FK_LAND" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.Empty(PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "CK_UMSATZ", " UMSATZ >= 0 "))).Statements); // blanks are no change
+    }
+
+    [Fact]
+    public void A_new_condition_is_added_before_the_old_check_goes()
+    {
+        var plan = PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "CK_UMSATZ", "UMSATZ >= 0 AND UMSATZ < 1000000")) with
+        {
+            AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"])],
+        }, facts: Facts((Rows, 3)));
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} ADD CONSTRAINT "UK_NAME" UNIQUE ("NAME")""",
+            $"""ALTER TABLE {T} ADD CONSTRAINT "FS_CHECK_1" CHECK (UMSATZ >= 0 AND UMSATZ < 1000000)""",
+            $"""ALTER TABLE {T} DROP CONSTRAINT "CK_UMSATZ" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME CONSTRAINT "FS_CHECK_1" TO "CK_UMSATZ" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.Contains(plan.Warnings, w => w.StartsWith("CK_UMSATZ: Die neue Bedingung", StringComparison.Ordinal));
+        Assert.Contains(plan.Warnings, w => w.StartsWith("Neue Constraints prüfen", StringComparison.Ordinal));
+        Assert.Equal([Rows], TableDesign.Questions(Kunde, Edited(new ConstraintEdit("CK_UMSATZ", "CK_UMSATZ", "UMSATZ > 0"))));
+    }
+
+    [Fact]
+    public void A_check_with_a_new_condition_and_name_needs_no_name_in_between()
+    {
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} ADD CONSTRAINT "CK_POSITIV" CHECK (UMSATZ > 0)""",
+            $"""ALTER TABLE {T} DROP CONSTRAINT "CK_UMSATZ" """.TrimEnd(),
+        ], PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "CK_POSITIV", "UMSATZ > 0"))).Statements);
+
+        var generated = CkUmsatz with { Name = "SYS_C0042", GeneratedName = true };
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} ADD CHECK (UMSATZ > 0)""",
+            $"""ALTER TABLE {T} DROP CONSTRAINT "SYS_C0042" """.TrimEnd(),
+        ], PlanEdits(Edited(new ConstraintEdit("SYS_C0042", "SYS_C0042", "UMSATZ > 0")), [generated]).Statements);
+
+        Assert.Equal(["CK_UMSATZ: Ein Check braucht eine Bedingung."], PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "CK_UMSATZ", " "))).Problems);
+    }
+
+    [Fact]
+    public void A_new_delete_rule_drops_and_adds_the_foreign_key_on_the_renamed_columns()
+    {
+        var draft = Draft(Changed(Status, c => c with { Name = "LAND" })) with { ChangedConstraints = [new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "CASCADE")] };
+
+        var plan = PlanEdits(draft);
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} DROP CONSTRAINT "FK_KUNDE_LAND" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME COLUMN "STATUS" TO "LAND" """.TrimEnd(),
+            $"""ALTER TABLE {T} ADD CONSTRAINT "FK_KUNDE_LAND" FOREIGN KEY ("LAND") REFERENCES "SHOP"."LAND" ("CODE") ON DELETE CASCADE""",
+        ], plan.Statements);
+        Assert.Contains(plan.Warnings, w => w.StartsWith("FK_KUNDE_LAND wird gelöscht", StringComparison.Ordinal));
+        Assert.Empty(PlanEdits(Edited(new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND"))).Statements); // NO ACTION is none
+    }
+
+    [Fact]
+    public void A_new_constraint_name_must_be_given_and_free()
+    {
+        Assert.Equal(["Die Tabelle hat schon einen Constraint PK_KUNDE (ORA-02264)."], PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "PK_KUNDE", "UMSATZ >= 0"))).Problems);
+        Assert.Equal(["CK_UMSATZ: Gib einen Namen für den Constraint ein."], PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "", "UMSATZ >= 0"))).Problems);
+
+        // Swapped names would need one in between.
+        Assert.Equal(2, PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "FK_KUNDE_LAND", "UMSATZ >= 0"), new ConstraintEdit("FK_KUNDE_LAND", "CK_UMSATZ"))).Problems.Count);
+
+        // The name of a dropped one is free; a new constraint cannot take the name a renamed one gets.
+        Assert.Empty(PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "FK_KUNDE_LAND", "UMSATZ >= 0")) with { DroppedConstraints = ["FK_KUNDE_LAND"] }).Problems);
+        Assert.Equal(["Die Tabelle hat schon einen Constraint CK_NEU (ORA-02264)."], PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "CK_NEU", "UMSATZ >= 0")) with
+        {
+            AddedConstraints = [new ConstraintDraft("CK_NEU", ConstraintType.Check, [], "NAME IS NOT NULL")],
+        }).Problems);
+    }
+
+    [Fact]
+    public void A_changed_constraint_on_a_dropped_column_is_a_problem_a_rename_is_not()
+    {
+        var check = CkUmsatz with { Columns = ["UMSATZ"] };
+        var dropUmsatz = Draft(Changed(Umsatz, c => c) with { Dropped = true });
+
+        var changed = PlanEdits(dropUmsatz with { ChangedConstraints = [new ConstraintEdit("CK_UMSATZ", "CK_UMSATZ", "UMSATZ > 0")] }, [PkKunde, check, FkLand]);
+        Assert.Equal(["CK_UMSATZ: Die Spalte UMSATZ wird gelöscht, und Oracle löscht den Constraint mit ihr – die Änderung zurücknehmen oder den Constraint löschen."],
+            changed.Problems);
+        Assert.Equal(changed.Problems, changed.ConstraintProblems);
+
+        var fk = PlanEdits(Draft(Changed(Status, c => c) with { Dropped = true }) with { ChangedConstraints = [new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "CASCADE")] });
+        Assert.Single(fk.Problems);
+
+        var renamed = PlanEdits(dropUmsatz with { ChangedConstraints = [new ConstraintEdit("CK_UMSATZ", "CK_POSITIV", "UMSATZ >= 0")] }, [PkKunde, check, FkLand]);
+        Assert.Empty(renamed.Problems);
+    }
+
+    [Fact]
+    public void Only_edits_that_check_the_rows_again_need_them_counted()
+    {
+        IReadOnlyList<ConstraintInfo> constraints = [PkKunde, CkUmsatz, FkLand];
+
+        Assert.Empty(TableDesign.Questions(Kunde, Edited(new ConstraintEdit("PK_KUNDE", "PK_KUNDEN"), new ConstraintEdit("CK_UMSATZ", "CK_X", " UMSATZ >= 0")), constraints));
+        Assert.Equal([Rows], TableDesign.Questions(Kunde, Edited(new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "SET NULL")), constraints));
+        Assert.Empty(TableDesign.Questions(Kunde, Edited(new ConstraintEdit("CK_UMSATZ", "CK_UMSATZ", "UMSATZ > 0")) with { DroppedConstraints = ["CK_UMSATZ"] }, constraints));
+        Assert.Equal([Rows], TableDesign.Questions(Kunde, Edited(new ConstraintEdit("PK_KUNDE", "PK_KUNDEN")))); // without the constraints: counted
+    }
+
+    [Fact]
+    public void Constraint_problems_are_told_apart_from_the_columns()
+    {
+        var plan = PlanEdits(Draft(Changed(Name, c => c with { Name = "" })) with { ChangedConstraints = [new ConstraintEdit("CK_UMSATZ", "PK_KUNDE", "UMSATZ >= 0")] });
+
+        Assert.Equal(2, plan.Problems.Count);
+        Assert.Equal(["Die Tabelle hat schon einen Constraint PK_KUNDE (ORA-02264)."], plan.ConstraintProblems);
+    }
+
+    [Fact]
+    public void The_edit_of_a_dropped_constraint_is_none()
+    {
+        var plan = PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "CK_NEU", "UMSATZ > 0")) with { DroppedConstraints = ["CK_UMSATZ"] });
+
+        Assert.Equal([$"""ALTER TABLE {T} DROP CONSTRAINT "CK_UMSATZ" """.TrimEnd()], plan.Statements);
     }
 }

@@ -1,6 +1,8 @@
 @* DDL the designer wrote (WP-23), below its form: what is wrong or worth knowing, the script (copy icon of SqlCode), and what
    to do with it – run it through the schema path (confirmed like DDL in the SQL editor, statement by statement, stopping
-   at the first failure), open it in the SQL editor, or save it as a file (the last folder per connection is remembered). *@
+   at the first failure), open it in the SQL editor, or save it as a file (the last folder per connection is remembered).
+   With a Head (the table designer's tabs) it is the designer's head instead: its content beside the actions, the run
+   below, then the Body – whose script tab shows the same DdlDraftMessages; the lock banner stands above the head there. *@
 @using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Connections
@@ -9,63 +11,32 @@
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
 
-<div class="ddl-draft">
-    @if (Problems.Count > 0)
-    {
-        <ul class="ddl-problems">
-            @foreach (var problem in Problems)
-            {
-                <li>@problem</li>
-            }
-        </ul>
-    }
-    @foreach (var warning in Warnings)
-    {
-        <p class="hint small">@Icons.Warning @warning</p>
-    }
-    @if (Steps.Count > 0)
-    {
-        <SqlCode Sql="@Script" Class="ddl-script" />
-    }
-
-    @if (_running is { } running)
-    {
-        <RunProgress WorkspaceId="WorkspaceId" Title="@SqlScript.Analyze(running).FirstWord" Detail="@running" Started="_started"
-                     Hint="@SqlEditorText.Run_DdlWaiting" MayWaitForLock="true" OnCancel="Cancel" />
-    }
-    else if ((_result ?? Earlier) is { Succeeded: false } result)
-    {
-        <div class="tab-error">
-            <span>@Failure(result)</span>
-            @if (result.Error is { ErrorCode: not null } error)
-            {
-                <button class="link-btn" @onclick="() => Shell.ShowError(error, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
-            }
+@if (Head is not null)
+{
+    <div class="ddl-draft">
+        <div class="designer-head">
+            @Head
+            <span class="spacer"></span>
+            @Actions(close: true)
         </div>
-        @if (result.Lock is { } tableLock)
-        {
-            <div class="sql-lock-holders">
-                <LockHolderList Holders="tableLock.Holders" Note="@SqlEditorText.SqlView_DdlLockHoldersNote" />
-            </div>
-        }
-    }
-
-    @if (!Workspaces.IsWritable(WorkspaceId))
-    {
-        <p class="hint small">
-            @SchemaViewText.Ddl_WorkspaceLocked
-            <button class="link-btn" @onclick="() => Shell.RequestUnlock(WorkspaceId)">@SqlEditorText.Editor_UnlockWorkspace</button>
-        </p>
-    }
-
-    <div class="ddl-actions">
-        <button class="btn primary" disabled="@(!CanRun)" title="@(CanRun ? null : RunBlocked)" @onclick="() => _confirm = true">@CommonText.Run</button>
-        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@CommonText.OpenInSqlEditor</button>
-        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="SaveAsync">@SchemaViewText.Ddl_Save</button>
-        <span class="spacer"></span>
-        <button class="btn ghost" disabled="@(_running is not null)" @onclick="OnClose">@CommonText.Close</button>
+        @RunState()
+        @Body
     </div>
-</div>
+}
+else
+{
+    <div class="ddl-draft">
+        <DdlDraftMessages Steps="Steps" Problems="Problems" Warnings="Warnings" />
+        @RunState()
+        <WorkspaceLockedBanner WorkspaceId="WorkspaceId" />
+
+        <div class="ddl-actions">
+            @Actions(close: false)
+            <span class="spacer"></span>
+            <button class="btn ghost" disabled="@(_running is not null)" @onclick="OnClose">@CommonText.Close</button>
+        </div>
+    </div>
+}
 
 @if (_confirm)
 {
@@ -137,6 +108,56 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    /// <summary>Lays the panel out as the head of the table designer: this beside the actions (designer tabs).</summary>
+    [Parameter]
+    public RenderFragment? Head { get; set; }
+
+    /// <summary>Below the head and the run: the designer's tabs with their content.</summary>
+    [Parameter]
+    public RenderFragment? Body { get; set; }
+
+    /// <summary>Run, SQL editor, save – and, in the head, close (in the panel it stands apart on the right).</summary>
+    private RenderFragment Actions(bool close) => @<span class="ddl-buttons">
+        <button class="btn primary" disabled="@(!CanRun)" title="@(CanRun ? null : RunBlocked)" @onclick="() => _confirm = true">
+            @if (!Workspaces.IsWritable(WorkspaceId))
+            {
+                @Icons.Locked
+            }
+            @CommonText.Run
+        </button>
+        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@CommonText.OpenInSqlEditor</button>
+        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="SaveAsync">@SchemaViewText.Ddl_Save</button>
+        @if (close)
+        {
+            <button class="btn" disabled="@(_running is not null)" @onclick="OnClose">@CommonText.Close</button>
+        }
+    </span>;
+
+    /// <summary>The statement running, or how the last run failed.</summary>
+    private RenderFragment RunState() => @<text>
+        @if (_running is { } running)
+        {
+            <RunProgress WorkspaceId="WorkspaceId" Title="@SqlScript.Analyze(running).FirstWord" Detail="@running" Started="_started"
+                         Hint="@SqlEditorText.Run_DdlWaiting" MayWaitForLock="true" OnCancel="Cancel" />
+        }
+        else if ((_result ?? Earlier) is { Succeeded: false } result)
+        {
+            <div class="tab-error">
+                <span>@Failure(result)</span>
+                @if (result.Error is { ErrorCode: not null } error)
+                {
+                    <button class="link-btn" @onclick="() => Shell.ShowError(error, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
+                }
+            </div>
+            @if (result.Lock is { } tableLock)
+            {
+                <div class="sql-lock-holders">
+                    <LockHolderList Holders="tableLock.Holders" Note="@SqlEditorText.SqlView_DdlLockHoldersNote" />
+                </div>
+            }
+        }
+    </text>;
 
     /// <summary>The steps as a script (<see cref="DdlScript.Render"/>): each ends with a semicolon, a blank line between them.</summary>
     private string Script => DdlScript.Render(Steps);

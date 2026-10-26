@@ -233,6 +233,31 @@ public sealed class ColumnDesignerTests
         Assert.Equal(["ID", "NAME", "KUERZEL", "BETRAG"], rest.ColumnsOf(Kunde.Table.Ref));
     }
 
+    /// <summary>A new column starts as VARCHAR2(50); as a NUMBER the 50 would be a precision Oracle refuses.</summary>
+    [Fact]
+    public void Another_type_for_a_new_column_drops_a_size_it_cannot_take()
+    {
+        var designer = new ColumnDesigner(Kunde, []);
+        var column = designer.AddColumn();
+        column.Name = "BLA";
+
+        column.Type = "NUMBER";
+        Assert.Equal("", column.Size);
+        Assert.Empty(designer.ToDraft().Problems);
+
+        column.Size = "12";
+        column.Scale = "2";
+        column.Type = "VARCHAR2"; // 12 fits a length; the scale is not used and stays
+        Assert.Equal(("12", "2"), (column.Size, column.Scale));
+
+        column.Type = "TIMESTAMP"; // 12 fractional digits do not fit
+        Assert.Equal("", column.Size);
+
+        var existing = designer.Columns[1]; // VARCHAR2(50) in the table: kept, the user sees the change
+        existing.Type = "NUMBER";
+        Assert.Equal("50", existing.Size);
+    }
+
     [Fact]
     public void An_existing_constraint_is_dropped_and_kept_again()
     {
@@ -244,6 +269,101 @@ public sealed class ColumnDesignerTests
 
         designer.ToggleDropConstraint("CK_BETRAG");
         Assert.Empty(designer.ToDraft().Draft.DroppedConstraints);
+    }
+
+    private static readonly ConstraintInfo CkBetrag = new("CK_BETRAG", ConstraintType.Check, ["BETRAG"], "BETRAG >= 0 ", null, [], null, true, true, false, false, false);
+
+    private static readonly ConstraintInfo FkLand = new("FK_KUNDE_LAND", ConstraintType.ForeignKey, ["KUERZEL"], null, Land.Table.Ref, ["CODE"], "NO ACTION", true, true, false, false, false);
+
+    [Fact]
+    public void Existing_constraints_become_edits_once_renamed_or_changed()
+    {
+        var designer = new ColumnDesigner(Kunde, [CkBetrag, FkLand]);
+        var (check, fk) = (designer.Existing[0], designer.Existing[1]);
+        Assert.Equal(("BETRAG >= 0", ""), (check.Condition, fk.DeleteRule)); // trimmed; NO ACTION is none
+        Assert.False(designer.HasChanges);
+        Assert.Empty(designer.ToDraft().Draft.ChangedConstraints);
+
+        check.Name = "ck_betrag"; // typed without quotes: the same name
+        Assert.False(check.IsChanged);
+
+        check.Name = "ck_betrag_positiv";
+        fk.DeleteRule = "CASCADE";
+        fk.RenameIndex = false;
+        Assert.True(designer.ConstraintsChanged);
+        Assert.False(designer.ColumnsChanged);
+        Assert.Equal(
+        [
+            new ConstraintEdit("CK_BETRAG", "CK_BETRAG_POSITIV", "BETRAG >= 0"),
+            new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "CASCADE", RenameIndex: false),
+        ], designer.ToDraft().Draft.ChangedConstraints);
+
+        designer.ToggleDropConstraint("CK_BETRAG"); // dropped: its edit goes
+        Assert.Equal(["FK_KUNDE_LAND"], designer.ToDraft().Draft.ChangedConstraints.Select(e => e.Original));
+    }
+
+    [Fact]
+    public void A_suggested_name_avoids_the_names_existing_constraints_get()
+    {
+        var designer = new ColumnDesigner(Kunde, [CkBetrag]);
+        designer.Existing[0].Name = "UK_KUNDE_NAME";
+
+        var unique = designer.AddConstraint(ConstraintType.Unique);
+        designer.AddColumn(unique, "NAME");
+
+        Assert.Equal("UK_KUNDE_NAME_2", unique.Name);
+    }
+
+    /// <summary>A check replaced halfway: the new one is in under the name in between, the old one went or not.</summary>
+    [Fact]
+    public void A_check_replaced_halfway_goes_on_with_drop_and_rename()
+    {
+        var designer = new ColumnDesigner(Kunde, [CkBetrag]);
+        designer.Existing[0].Condition = "BETRAG > 0";
+        var replacement = CkBetrag with { Name = "FS_CHECK_1", Condition = "BETRAG > 0" };
+
+        var dropFailed = designer.Rebase(Kunde, [CkBetrag, replacement]);
+        Assert.Equal(
+        [
+            """ALTER TABLE "SHOP"."KUNDE" DROP CONSTRAINT "CK_BETRAG" """.TrimEnd(),
+            """ALTER TABLE "SHOP"."KUNDE" RENAME CONSTRAINT "FS_CHECK_1" TO "CK_BETRAG" """.TrimEnd(),
+        ], Plan(dropFailed, [CkBetrag, replacement]));
+
+        var renameFailed = designer.Rebase(Kunde, [replacement]);
+        Assert.Equal(["""ALTER TABLE "SHOP"."KUNDE" RENAME CONSTRAINT "FS_CHECK_1" TO "CK_BETRAG" """.TrimEnd()], Plan(renameFailed, [replacement]));
+    }
+
+    /// <summary>A foreign key with a new delete rule that was dropped, but not added again: it is still to add.</summary>
+    [Fact]
+    public void A_foreign_key_dropped_halfway_is_added_again()
+    {
+        var designer = new ColumnDesigner(Kunde, [FkLand]);
+        designer.Existing[0].DeleteRule = "CASCADE";
+        designer.Columns[2].Name = "LAND"; // renamed too, before the run stopped
+
+        var rest = designer.Rebase(Kunde with { Columns = [Kunde.Columns[0], Kunde.Columns[1], Kunde.Columns[2] with { Name = "LAND" }, Kunde.Columns[3]] }, []);
+
+        var fk = Assert.Single(rest.AddedConstraints);
+        Assert.Equal(("FK_KUNDE_LAND", "CASCADE", false), (fk.Name, fk.DeleteRule, fk.WithIndex));
+        Assert.Equal(["LAND"], fk.Columns);
+        Assert.Equal(["CODE"], fk.ReferencedColumns);
+    }
+
+    private static IReadOnlyList<string> Plan(ColumnDesigner designer, IReadOnlyList<ConstraintInfo> constraints) =>
+        TableDesign.Plan(new DesignContext(Kunde, constraints, [], []), designer.ToDraft().Draft, DataFacts.None).Statements;
+
+    [Fact]
+    public void Edits_of_existing_constraints_and_the_tab_shown_survive_a_rebase()
+    {
+        var designer = new ColumnDesigner(Kunde, [CkBetrag, FkLand]) { Section = DesignerSection.Constraints };
+        designer.Existing[0].Name = "CK_POSITIV";
+        designer.Existing[1].DeleteRule = "SET NULL";
+
+        // The rename ran, the foreign key did not.
+        var rest = designer.Rebase(Kunde, [CkBetrag with { Name = "CK_POSITIV" }, FkLand]);
+
+        Assert.Equal(DesignerSection.Constraints, rest.Section);
+        Assert.Equal([new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "SET NULL")], rest.ToDraft().Draft.ChangedConstraints);
     }
 
     // ---- the draft of a new index (R4b, out of IndexesView) ----

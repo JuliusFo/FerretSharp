@@ -7,27 +7,30 @@ namespace FerretSharp.Core.Ddl;
 public static class DdlScript
 {
     /// <summary>
-    /// When a step of this kind runs. Constraints go first (a column of a dropped constraint may then be dropped), then
-    /// dropped and renamed columns (their names become free), new tables, changed columns (by their new names), new columns,
-    /// keys before checks before foreign keys (one may reference a key added just before), indexes, comments (all names
-    /// exist by then), PL/SQL objects (they may use any of it), notes last. Steps of one stage keep the order they were
-    /// written in – a column's type, default and NULL steps belong together.
+    /// When a step of this kind runs. Constraints go first (a column of a dropped constraint may then be dropped), renamed
+    /// constraints and their indexes next (their old names become free), then dropped and renamed columns (their names
+    /// become free), new tables, changed columns (by their new names), new columns, keys before checks before foreign keys
+    /// (one may reference a key added just before), checks they replace, indexes, comments (all names exist by then), PL/SQL
+    /// objects (they may use any of it), notes last. Steps of one stage keep the order they were written in – a column's
+    /// type, default and NULL steps belong together.
     /// </summary>
     public static int Stage(DdlStepKind kind) => kind switch
     {
         DdlStepKind.DropConstraint => 0,
-        DdlStepKind.DropColumn => 1,
-        DdlStepKind.RenameColumn => 2,
-        DdlStepKind.CreateTable => 3,
-        DdlStepKind.ModifyType or DdlStepKind.ModifyDefault or DdlStepKind.ModifyNull => 4,
-        DdlStepKind.AddColumn => 5,
-        DdlStepKind.AddKey => 6,
-        DdlStepKind.AddCheck => 7,
-        DdlStepKind.AddForeignKey => 8,
-        DdlStepKind.DropIndex or DdlStepKind.CreateIndex => 9,
-        DdlStepKind.Comment => 10,
-        DdlStepKind.PlSqlObject => 11,
-        _ => 12,
+        DdlStepKind.RenameConstraint or DdlStepKind.RenameIndex => 1,
+        DdlStepKind.DropColumn => 2,
+        DdlStepKind.RenameColumn => 3,
+        DdlStepKind.CreateTable => 4,
+        DdlStepKind.ModifyType or DdlStepKind.ModifyDefault or DdlStepKind.ModifyNull => 5,
+        DdlStepKind.AddColumn => 6,
+        DdlStepKind.AddKey => 7,
+        DdlStepKind.AddCheck => 8,
+        DdlStepKind.AddForeignKey => 9,
+        DdlStepKind.ReplaceConstraint => 10,
+        DdlStepKind.DropIndex or DdlStepKind.CreateIndex => 11,
+        DdlStepKind.Comment => 12,
+        DdlStepKind.PlSqlObject => 13,
+        _ => 14,
     };
 
     /// <summary>The steps in the order they run: by <see cref="Stage"/>, then by object (ordinal), then as written.</summary>

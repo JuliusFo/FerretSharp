@@ -1604,10 +1604,42 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .ddl-draft .tab-error { border: 0; border-radius: 6px; }
 .ddl-actions { display: flex; align-items: center; gap: 8px; }
 .ddl-actions .spacer { flex: 1; }
+.ddl-buttons { display: inline-flex; align-items: center; gap: 8px; }
+.btn.primary > .icon:first-child { width: 13px; height: 13px; }
+
+/* A locked workspace over a DDL draft (designer tabs): a bar in the warning colour, hard to miss. */
+.locked-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--warn) 14%, transparent); font-size: 12.5px; }
+.locked-banner-icon { display: inline-flex; color: var(--warn); }
+.locked-banner-detail { color: var(--muted); }
+.locked-banner .spacer { flex: 1; }
 
 /* Table designer (WP-23, stage 2): the edit mode of the Columns view. */
 .designer { display: flex; flex-direction: column; gap: 10px; }
-.designer h2 { margin: 14px 0 0; }
+/* Head with the actions: stays in view while the columns scroll (their own sticky head would cover it, so it stays put). */
+.designer-head { position: sticky; top: calc(-1 * var(--structure-top, 0px)); z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 0; background: var(--bg); border-bottom: 1px solid var(--border); }
+.designer-head .spacer { flex: 1; }
+.designer-title { font-size: 13.5px; font-weight: 600; }
+.designer-summary { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.summary-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.summary-chip.none { color: var(--faint); }
+.summary-chip.warn { border-color: transparent; background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
+.summary-chip.bad { border-color: transparent; background: var(--danger-weak); color: var(--danger); }
+.summary-chip .icon { width: 12px; height: 12px; }
+.designer-summary:hover .summary-chip { border-color: var(--border-strong); }
+.designer-note { margin: 0; color: var(--warn); font-size: 12.5px; }
+.designer-tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--border); }
+.designer-tab { display: inline-flex; align-items: center; gap: 6px; height: 32px; margin-bottom: -1px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); }
+.designer-tab:hover { color: var(--text); }
+.designer-tab.active { border-bottom-color: var(--accent); color: var(--text); font-weight: 600; }
+.tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+.tab-dot.bad { background: var(--danger); }
+.designer-body { display: flex; flex-direction: column; gap: 10px; }
+.designer table.columns th { position: static; }
+.designer-was { margin-top: 2px; font-size: 11.5px; color: var(--faint); }
+.designer-existing td.name-cell { min-width: 220px; }
+.designer-existing td.definition-cell { width: 45%; }
+.designer-existing .definition-cell .field { width: 100%; }
+.designer-existing .designer-fk select.field { width: auto; }
 .designer-columns td { padding-top: 3px; padding-bottom: 3px; }
 .designer-columns .field { height: 26px; padding: 0 6px; font-size: 12px; width: 100%; min-width: 0; }
 .designer-columns select.field { min-width: 150px; }
@@ -1626,12 +1658,10 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-columns tr.dropped .field { text-decoration: line-through; opacity: .55; }
 .designer-columns tr.dropped > td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 .designer-add { display: flex; gap: 8px; }
-.designer-audit { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.designer-audit { display: flex; align-items: center; gap: 12px; }
 .designer-audit .mono { font-size: 12px; }
-.designer-constraints { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
-.designer-constraints li { display: flex; align-items: center; gap: 8px; }
-.designer-constraints li.dropped .mono { text-decoration: line-through; opacity: .55; }
-.designer-constraints .icon-btn, .designer-constraint > .icon-btn { width: 24px; height: 24px; }
+.designer-constraint > .icon-btn { width: 24px; height: 24px; }
+.designer-columns tr.dropped .mono, .designer-columns tr.dropped .fs-badge { text-decoration: line-through; opacity: .55; }
 .designer-constraint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 12.5px; }
 .designer-constraint > .field { width: auto; min-width: 140px; height: 28px; }
 .designer-constraint > .field.grow { flex: 1; min-width: 240px; }

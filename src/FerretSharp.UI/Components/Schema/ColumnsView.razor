@@ -67,8 +67,8 @@
     </div>
     @if (_editing)
     {
-        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" StartWithAudit="_startWithAudit" OnRan="OnDesignRanAsync"
-                       OnClose="() => (_editing, _startWithAudit) = (false, false)" />
+        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" StartWithAudit="_startWithAudit" StartAt="_startAt" OnRan="OnDesignRanAsync"
+                       OnClose="() => (_editing, _startWithAudit, _startAt) = (false, false, null)" />
     }
     else
     {
@@ -328,9 +328,12 @@
     /// <summary>The designer opens with the audit box on (WP-26).</summary>
     private bool _startWithAudit;
 
+    /// <summary>The designer opens at this tab ("Edit" in the "Constraints" view, <see cref="TableTab.OpenDesignerAt"/>).</summary>
+    private DesignerSection? _startAt;
+
     private async Task OnDesignRanAsync()
     {
-        (_editing, _startWithAudit) = (false, false);
+        (_editing, _startWithAudit, _startAt) = (false, false, null);
         await OnSchemaChanged.InvokeAsync();
     }
 
@@ -353,6 +356,18 @@
         }
 
         _wasShown = Shown;
+        if (Tab?.OpenDesignerAt is { } at)
+        {
+            Tab.OpenDesignerAt = null;
+            if (Tab.Designer is { } open)
+            {
+                open.Draft.Section = at; // already editing: switch the tab
+            }
+            else
+            {
+                (_editing, _startAt) = (true, at);
+            }
+        }
     }
 
     /// <summary>The index arrived or is out of date: mapped tables show the marker, and read it again while shown.</summary>

@@ -27,8 +27,30 @@ public sealed class DesignColumn
 
     public string Name { get; set; } = "";
 
-    /// <summary>Base type: <c>VARCHAR2</c>, <c>NUMBER</c>, <c>TIMESTAMP WITH TIME ZONE</c> ….</summary>
-    public string Type { get; set; } = "VARCHAR2";
+    private string _type = "VARCHAR2";
+
+    /// <summary>
+    /// Base type: <c>VARCHAR2</c>, <c>NUMBER</c>, <c>TIMESTAMP WITH TIME ZONE</c> …. Another type for a new column drops a size
+    /// or scale it cannot take (<see cref="OracleTypes.SizeRange"/>) – a new column starts as <c>VARCHAR2(50)</c>, and as a
+    /// NUMBER the 50 stayed as a precision Oracle refuses. An existing column keeps what it has: the user sees the change.
+    /// </summary>
+    public string Type
+    {
+        get => _type;
+        set
+        {
+            if (value == _type)
+            {
+                return;
+            }
+
+            _type = value;
+            if (IsNew)
+            {
+                DropWhatDoesNotFit();
+            }
+        }
+    }
 
     /// <summary>Length, the precision of a number, or the digits of a timestamp's fractional seconds – as typed.</summary>
     public string Size { get; set; } = "";
@@ -159,6 +181,20 @@ public sealed class DesignColumn
         a.Name == b.Name && OracleTypes.DdlType(a) == OracleTypes.DdlType(b) && a.Nullable == b.Nullable && a.DefaultOnNull == b.DefaultOnNull
         && (a.Default?.Trim() ?? "") == (b.Default?.Trim() ?? "") && (a.Comment ?? "") == (b.Comment ?? "");
 
+    /// <summary>A size or scale the type uses but cannot take goes; one the type does not use stays (it is ignored, and back again it fits).</summary>
+    private void DropWhatDoesNotFit()
+    {
+        if (HasSize && TryNumber(Size, out var size) && size is { } s && OracleTypes.SizeRange(Type) is { } range && !OracleTypes.Within(range, s))
+        {
+            Size = "";
+        }
+
+        if (HasScale && TryNumber(Scale, out var scale) && scale is { } c && !OracleTypes.Within(OracleTypes.ScaleRange, c))
+        {
+            Scale = "";
+        }
+    }
+
     private static bool TryNumber(string text, out int? value)
     {
         value = null;
@@ -231,6 +267,66 @@ public sealed class DesignConstraint
 }
 
 /// <summary>
+/// An existing constraint in the edit mode, as its fields show it: its name, a check's condition, a foreign key's delete
+/// rule – renamed or changed, it becomes a <see cref="ConstraintEdit"/>.
+/// </summary>
+public sealed class ExistingConstraint
+{
+    public ExistingConstraint(ConstraintInfo before)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        Before = before;
+        Name = before.Name;
+        Condition = before.Condition?.Trim() ?? "";
+        DeleteRule = before.OnDelete ?? "";
+    }
+
+    /// <summary>The constraint in the table.</summary>
+    public ConstraintInfo Before { get; }
+
+    public string Name { get; set; }
+
+    /// <summary>A check's condition, as typed.</summary>
+    public string Condition { get; set; }
+
+    /// <summary>A foreign key's <c>CASCADE</c>, <c>SET NULL</c> or empty for none.</summary>
+    public string DeleteRule { get; set; }
+
+    /// <summary>A renamed key's index of the same name gets the new name too.</summary>
+    public bool RenameIndex { get; set; } = true;
+
+    public bool IsRenamed => OracleIdentifier.Normalize(Name) != Before.Name;
+
+    /// <summary>Renamed, a check with another condition, a foreign key with another delete rule.</summary>
+    public bool IsChanged => IsRenamed || TableDesign.Rechecks(Before, ToEdit());
+
+    public ConstraintEdit ToEdit() => new(
+        Before.Name, OracleIdentifier.Normalize(Name), Before.Type == ConstraintType.Check ? Condition : null,
+        Before.Type == ConstraintType.ForeignKey && DeleteRule.Length > 0 ? DeleteRule : null, RenameIndex);
+
+    /// <summary>Takes over what the user entered in <paramref name="other"/>, keeping <see cref="Before"/>.</summary>
+    public void CopyFrom(ExistingConstraint other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        (Name, Condition, DeleteRule, RenameIndex) = (other.Name, other.Condition, other.DeleteRule, other.RenameIndex);
+    }
+}
+
+/// <summary>The tabs of the edit mode; the draft keeps the one shown.</summary>
+public enum DesignerSection
+{
+    Columns,
+    Constraints,
+    Audit,
+
+    /// <summary>Property lines for new columns of a table the C# model maps.</summary>
+    CSharp,
+
+    /// <summary>The DDL with its problems and warnings.</summary>
+    Script,
+}
+
+/// <summary>
 /// The edit mode of the "Columns" view (WP-23, stage 2): the table's columns and constraints as editable rows, and the
 /// <see cref="TableDraft"/> they make. Plain state – the view renders it, <see cref="TableDesign"/> writes the DDL.
 /// </summary>
@@ -242,8 +338,11 @@ public sealed class ColumnDesigner
         Table = table;
         TableName = table.Table.Name;
         Columns = table.Columns.Select(DesignColumn.Of).ToList();
-        Existing = constraints.Where(c => !c.IsColumnNotNull).ToList();
+        Existing = constraints.Where(c => !c.IsColumnNotNull).Select(c => new ExistingConstraint(c)).ToList();
     }
+
+    /// <summary>The tab shown; kept across a <see cref="Rebase"/>.</summary>
+    public DesignerSection Section { get; set; }
 
     public TableDetails Table { get; }
 
@@ -252,14 +351,19 @@ public sealed class ColumnDesigner
 
     public List<DesignColumn> Columns { get; }
 
-    /// <summary>The table's constraints shown for dropping (NOT NULL checks belong to their columns).</summary>
-    public IReadOnlyList<ConstraintInfo> Existing { get; }
+    /// <summary>The table's constraints, to rename, change or drop (NOT NULL checks belong to their columns).</summary>
+    public IReadOnlyList<ExistingConstraint> Existing { get; }
 
+    /// <summary>Names of existing constraints to drop (their names in the table).</summary>
     public HashSet<string> DroppedConstraints { get; } = new(StringComparer.Ordinal);
 
     public List<DesignConstraint> AddedConstraints { get; } = [];
 
-    public bool HasChanges => Columns.Any(c => c.IsChanged) || DroppedConstraints.Count > 0 || AddedConstraints.Count > 0;
+    public bool HasChanges => ColumnsChanged || ConstraintsChanged;
+
+    public bool ColumnsChanged => Columns.Any(c => c.IsChanged);
+
+    public bool ConstraintsChanged => DroppedConstraints.Count > 0 || AddedConstraints.Count > 0 || Existing.Any(c => c.IsChanged);
 
     /// <summary>
     /// Audit table and trigger go into the plan (WP-26): created, or brought up to date with the draft. Null until the view
@@ -312,7 +416,8 @@ public sealed class ColumnDesigner
     public void SuggestName(DesignConstraint constraint)
     {
         ArgumentNullException.ThrowIfNull(constraint);
-        var taken = Existing.Select(c => c.Name).Concat(AddedConstraints.Where(c => c != constraint).Select(c => c.Name));
+        var taken = Existing.Select(c => c.Before.Name).Concat(Existing.Select(c => OracleIdentifier.Normalize(c.Name)))
+            .Concat(AddedConstraints.Where(c => c != constraint).Select(c => c.Name));
         constraint.Suggest(TableDesign.SuggestConstraintName(TableName, constraint.Type, constraint.Columns, constraint.References?.Name, taken));
     }
 
@@ -417,7 +522,8 @@ public sealed class ColumnDesigner
     /// The same draft laid over the table as it is now – after DDL that stopped halfway (WP-23): the draft says how the table
     /// should be, so what already ran drops out by itself. A column is found by the name it should have (renamed, added),
     /// otherwise by its old name (not renamed yet); a dropped column that is gone and a constraint already added or dropped
-    /// are done.
+    /// are done. An existing constraint is found the same way; one replaced halfway goes on from where the run stopped
+    /// (<see cref="TakeOverReplacements"/>).
     /// </summary>
     public ColumnDesigner Rebase(TableDetails table, IReadOnlyList<ConstraintInfo> constraints)
     {
@@ -438,7 +544,15 @@ public sealed class ColumnDesigner
         }
 
         next.Columns.AddRange(added);
-        var existing = next.Existing.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var row in Existing)
+        {
+            var target = next.Existing.FirstOrDefault(c => c.Before.Name == OracleIdentifier.Normalize(row.Name))
+                         ?? next.Existing.FirstOrDefault(c => c.Before.Name == row.Before.Name);
+            target?.CopyFrom(row);
+        }
+
+        TakeOverReplacements(next);
+        var existing = next.Existing.Select(c => c.Before.Name).ToHashSet(StringComparer.Ordinal);
         next.DroppedConstraints.UnionWith(DroppedConstraints.Where(existing.Contains));
         next.AddedConstraints.AddRange(AddedConstraints.Where(c => c.Name.Length == 0 || !existing.Contains(OracleIdentifier.Normalize(c.Name))));
         foreach (var (reference, details) in Referenced)
@@ -446,8 +560,58 @@ public sealed class ColumnDesigner
             next.Referenced[reference] = details;
         }
 
-        next.WithAudit = WithAudit;
+        (next.WithAudit, next.Section) = (WithAudit, Section);
         return next;
+    }
+
+    /// <summary>
+    /// Changed constraints whose replacement stopped halfway (a lock, a lost session), so the rest of it is still to do:
+    /// <list type="bullet">
+    /// <item>A check whose new one is in already (a check the table did not have, with the new condition – under
+    /// <see cref="TableDesign.ReplacementPrefix"/>, its new name or one Oracle gave): the old one, if still there, is dropped
+    /// and the new one gets the name it should have.</item>
+    /// <item>A foreign key that was dropped but not added again: it is added as a new constraint, with its new rule, on the
+    /// columns' drafted names; its index is there already.</item>
+    /// </list>
+    /// </summary>
+    private void TakeOverReplacements(ColumnDesigner next)
+    {
+        var had = Existing.Select(c => c.Before.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var row in Existing.Where(r => !DroppedConstraints.Contains(r.Before.Name) && TableDesign.Rechecks(r.Before, r.ToEdit())))
+        {
+            var old = next.Existing.FirstOrDefault(c => c.Before.Name == row.Before.Name);
+            if (row.Before.Type == ConstraintType.Check)
+            {
+                if (next.Existing.FirstOrDefault(c => c.Before.Type == ConstraintType.Check && !had.Contains(c.Before.Name)
+                        && (c.Before.Condition ?? "").Trim() == row.Condition.Trim()) is not { } replacement)
+                {
+                    continue;
+                }
+
+                // An Oracle-generated name stays the one Oracle gave the new check, unless the user typed one.
+                replacement.Name = row.Before.GeneratedName && !row.IsRenamed ? replacement.Before.Name : OracleIdentifier.Normalize(row.Name);
+                if (old is not null)
+                {
+                    old.CopyFrom(new ExistingConstraint(old.Before));
+                    next.DroppedConstraints.Add(old.Before.Name);
+                }
+            }
+            else if (old is null && next.Existing.All(c => c.Before.Name != OracleIdentifier.Normalize(row.Name)))
+            {
+                string Drafted(string column) => Columns.FirstOrDefault(c => c.Before?.Name == column)?.Name.Trim() ?? column;
+                var foreignKey = new DesignConstraint
+                {
+                    Type = ConstraintType.ForeignKey,
+                    Name = row.Name,
+                    References = row.Before.References,
+                    DeleteRule = row.DeleteRule,
+                    WithIndex = false,
+                };
+                foreignKey.Columns.AddRange(row.Before.Columns.Select(Drafted));
+                foreignKey.ReferencedColumns.AddRange(row.Before.References == Table.Table.Ref ? row.Before.ReferencedColumns.Select(Drafted) : row.Before.ReferencedColumns);
+                next.AddedConstraints.Add(foreignKey);
+            }
+        }
     }
 
     /// <summary>The draft, and what is wrong with the fields before the designer can check it (numbers that are none).</summary>
@@ -471,6 +635,7 @@ public sealed class ColumnDesigner
         {
             DroppedConstraints = [.. DroppedConstraints],
             AddedConstraints = AddedConstraints.Select(c => c.ToDraft()).ToList(),
+            ChangedConstraints = Existing.Where(c => c.IsChanged && !DroppedConstraints.Contains(c.Before.Name)).Select(c => c.ToEdit()).ToList(),
         };
         return (draft, problems);
     }

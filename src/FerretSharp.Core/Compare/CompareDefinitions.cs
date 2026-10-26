@@ -99,7 +99,7 @@ internal static class CompareDefinitions
     public static string Constraint(ConstraintInfo c, string owner)
     {
         var text = new StringBuilder(ConstraintSignature(c, owner));
-        if (c.Type == ConstraintType.ForeignKey && c.DeleteRule is { } rule && rule != "NO ACTION")
+        if (c.Type == ConstraintType.ForeignKey && c.OnDelete is { } rule)
         {
             text.Append(" ON DELETE ").Append(rule);
         }

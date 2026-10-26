@@ -113,7 +113,7 @@
                                     <ColumnsView @ref="_columns" Details="_details" WorkspaceId="Tab.WorkspaceId" Tab="Tab" Shown="IsShown(TabMode.Structure)" OnSchemaChanged="() => _version++" />
                                     break;
                                 case TabMode.Constraints:
-                                    <ConstraintsView Details="_details" Version="_version" />
+                                    <ConstraintsView Details="_details" Version="_version" WorkspaceId="Tab.WorkspaceId" OnEdit="() => OpenDesigner(DesignerSection.Constraints)" />
                                     break;
                                 case TabMode.Indexes:
                                     <IndexesView Details="_details" Version="_version" WorkspaceId="Tab.WorkspaceId" OnSchemaChanged="() => _version++" />
@@ -366,6 +366,13 @@
             await _grid.JumpToColumnAsync(column);
             _form?.RevealColumn(column);
         }
+    }
+
+    /// <summary>The edit mode of the "Columns" view at one of its tabs.</summary>
+    private void OpenDesigner(DesignerSection section)
+    {
+        Tab.OpenDesignerAt = section;
+        SetMode(TabMode.Structure);
     }
 
     private void SetMode(TabMode mode)

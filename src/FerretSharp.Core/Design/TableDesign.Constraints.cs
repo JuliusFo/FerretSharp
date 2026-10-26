@@ -7,7 +7,8 @@ using FerretSharp.Core.Schema;
 namespace FerretSharp.Core.Design;
 
 // Constraints of the column designer (WP-23, stage 2): dropping existing ones, adding primary and unique keys, checks and
-// foreign keys – a foreign key with its index unless one covers it (IndexAdvice).
+// foreign keys – a foreign key with its index unless one covers it (IndexAdvice); renaming existing ones (a key with its
+// index of the same name), a check's new condition and a foreign key's new delete rule (designer tabs).
 public static partial class TableDesign
 {
     /// <summary>
@@ -28,9 +29,192 @@ public static partial class TableDesign
         return IndexDesign.PlainName(stem, taken);
     }
 
+    /// <summary>
+    /// The name a new check has in between while it replaces one that keeps its name (<c>FS_CHECK_1</c> …): renamed to the
+    /// old name once the old one is gone. One left in the table means a run stopped halfway (the designer picks it up).
+    /// </summary>
+    public const string ReplacementPrefix = "FS_CHECK_";
+
+    /// <summary>The edit changes what the constraint checks – a check's condition, a foreign key's delete rule – so the rows are checked again.</summary>
+    public static bool Rechecks(ConstraintInfo before, ConstraintEdit edit)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(edit);
+        return before.Type switch
+        {
+            ConstraintType.Check => edit.Condition?.Trim() is { } condition && condition != (before.Condition ?? "").Trim(),
+            ConstraintType.ForeignKey => ConstraintInfo.RuleOf(edit.DeleteRule) != before.OnDelete,
+            _ => false,
+        };
+    }
+
     private sealed partial class Writer
     {
         private bool PrimaryKeyDropped => context.Constraints.Any(c => c.Type == ConstraintType.PrimaryKey && _dropped.Contains(c.Name));
+
+        /// <summary>Names existing constraints get by renaming: taken for new ones, like the names they have now.</summary>
+        private readonly HashSet<string> _renamedTo = new(StringComparer.Ordinal);
+
+        /// <summary>New and changed constraints check the rows – unless the table has none.</summary>
+        private void WarnRowsChecked()
+        {
+            if (facts.Of(new DataQuestion(DataQuestionKind.Rows)) is not 0)
+            {
+                Warnings.Add(DesignText.ConstraintChecksRows);
+            }
+        }
+
+        /// <summary>
+        /// Renamed and changed constraints. A renamed one keeps its definition (RENAME CONSTRAINT, a key's index of its name
+        /// with it); a check with a new condition is added before the old one goes, so the old one stays when the rows break
+        /// the new one; a foreign key with a new delete rule is dropped and added again (Oracle refuses a second one on the
+        /// same columns, ORA-02275). The edit of a dropped constraint is none.
+        /// </summary>
+        private void EditConstraints(TableDraft draft)
+        {
+            var edits = draft.ChangedConstraints.Where(e => !_dropped.Contains(e.Original)).ToList();
+            var columnNames = draft.Columns.Where(c => c is { IsNew: false, Dropped: false })
+                .ToDictionary(c => c.Original!, c => c.Column.Name, StringComparer.Ordinal);
+            var droppedColumns = draft.Columns.Where(c => c is { IsNew: false, Dropped: true }).Select(c => c.Original!).ToHashSet(StringComparer.Ordinal);
+            foreach (var edit in edits)
+            {
+                if (context.Constraints.FirstOrDefault(c => c.Name == edit.Original) is not { } before)
+                {
+                    continue;
+                }
+
+                var renamed = edit.Name != before.Name;
+                if (renamed && !CheckRename(edit, edits))
+                {
+                    continue;
+                }
+
+                // Added again after the column went: Oracle dropped the constraint with it, the new one has no column (ORA-00904).
+                var rechecks = Rechecks(before, edit);
+                if (rechecks && before.Columns.FirstOrDefault(droppedColumns.Contains) is { } dropped)
+                {
+                    Problems.Add(TextFormat.Format(DesignText.ConstraintColumnDropped, before.Name, dropped));
+                    continue;
+                }
+
+                // An Oracle-generated name stays generated unless the user gives one.
+                var after = before with { Name = edit.Name, GeneratedName = before.GeneratedName && !renamed };
+                if (rechecks && before.Type == ConstraintType.Check)
+                {
+                    ReplaceCheck(before, after with { Condition = edit.Condition!.Trim() });
+                }
+                else if (rechecks)
+                {
+                    // The columns by the names they have when it is added again, after the renames.
+                    string Drafted(string column) => columnNames.GetValueOrDefault(column, column);
+                    var self = before.References == current.Table.Ref;
+                    Keep(DdlStepKind.DropConstraint, OracleDdl.DropConstraint(Table, before.Name));
+                    Keep(DdlStepKind.AddForeignKey, OracleDdl.AddConstraint(Table, OracleDdl.ConstraintClause(after with
+                    {
+                        Columns = before.Columns.Select(Drafted).ToList(),
+                        ReferencedColumns = self ? before.ReferencedColumns.Select(Drafted).ToList() : before.ReferencedColumns,
+                        DeleteRule = ConstraintInfo.RuleOf(edit.DeleteRule),
+                    }, table => table)));
+                    Warnings.Add(TextFormat.Format(DesignText.ForeignKeyRecreated, before.Name));
+                    WarnRowsChecked();
+                }
+                else if (renamed)
+                {
+                    Keep(DdlStepKind.RenameConstraint, OracleDdl.RenameConstraint(Table, before.Name, edit.Name));
+                    RenameIndex(before, edit);
+                }
+
+                if (renamed)
+                {
+                    Warnings.Add(TextFormat.Format(DesignText.ConstraintRenamed, before.Name, edit.Name));
+                }
+            }
+        }
+
+        /// <summary>
+        /// The new name: given, valid, not another constraint's – now or after its own rename (a swap would need a name in
+        /// between).
+        /// </summary>
+        private bool CheckRename(ConstraintEdit edit, IReadOnlyList<ConstraintEdit> edits)
+        {
+            var problems = Problems.Count;
+            if (edit.Name.Length == 0)
+            {
+                Problems.Add(TextFormat.Format(DesignText.ConstraintNameMissing, edit.Original));
+            }
+            else if (OracleIdentifier.Problem(edit.Name) is { } problem)
+            {
+                Problems.Add(problem);
+            }
+            else if (context.Constraints.Any(c => c.Name == edit.Name && !_dropped.Contains(c.Name))
+                     || edits.Any(e => e != edit && e.Name == edit.Name))
+            {
+                Problems.Add(TextFormat.Format(DesignText.ConstraintNameTaken, edit.Name)); // ORA-02264
+            }
+            else if (OracleIdentifier.NeedsQuotes(edit.Name))
+            {
+                Warnings.Add(TextFormat.Format(DesignText.NameNeedsQuotes, edit.Name));
+            }
+
+            if (Problems.Count > problems)
+            {
+                return false;
+            }
+
+            _renamedTo.Add(edit.Name);
+            return true;
+        }
+
+        /// <summary>
+        /// The new check first: it checks the rows, and the old one goes only once it is in. Keeping the old one's name, it is
+        /// added under a free name in between (<c>FS_CHECK_n</c>) and renamed at the end; an Oracle-generated name is
+        /// generated again.
+        /// </summary>
+        private void ReplaceCheck(ConstraintInfo before, ConstraintInfo after)
+        {
+            if (after.Condition!.Length == 0)
+            {
+                Problems.Add(TextFormat.Format(DesignText.CheckNeedsCondition, before.Name));
+                return;
+            }
+
+            if (!CheckExpression(before.Name, after.Condition))
+            {
+                return;
+            }
+
+            var keepsName = !after.GeneratedName && after.Name == before.Name;
+            var taken = context.Constraints.Select(c => c.Name).Concat(_renamedTo).ToHashSet(StringComparer.Ordinal);
+            var added = keepsName ? after with { Name = Enumerable.Range(1, int.MaxValue).Select(n => $"{ReplacementPrefix}{n}").First(taken.Add) } : after;
+            _renamedTo.Add(added.Name);
+            Keep(DdlStepKind.AddCheck, OracleDdl.AddConstraint(Table, OracleDdl.ConstraintClause(added, table => table)));
+            Keep(DdlStepKind.ReplaceConstraint, OracleDdl.DropConstraint(Table, before.Name));
+            if (keepsName)
+            {
+                Keep(DdlStepKind.ReplaceConstraint, OracleDdl.RenameConstraint(Table, added.Name, before.Name));
+            }
+
+            Warnings.Add(TextFormat.Format(DesignText.CheckReplaced, before.Name));
+            WarnRowsChecked();
+        }
+
+        /// <summary>A renamed primary or unique key's index of the same name – the usual case, also for <c>SYS_C…</c> – follows it.</summary>
+        private void RenameIndex(ConstraintInfo before, ConstraintEdit edit)
+        {
+            if (!edit.RenameIndex || before.Type is not (ConstraintType.PrimaryKey or ConstraintType.Unique)
+                || context.Indexes.FirstOrDefault(i => i.Name == before.Name) is not { } index)
+            {
+                return;
+            }
+
+            if (context.Indexes.Any(i => i.Name == edit.Name))
+            {
+                Problems.Add(TextFormat.Format(DesignText.IndexNameTaken, edit.Name));
+                return;
+            }
+
+            Keep(DdlStepKind.RenameIndex, OracleDdl.RenameIndex(index.Owner, index.Name, edit.Name));
+        }
 
         private void DropConstraints(IReadOnlyList<string> names)
         {
@@ -53,10 +237,9 @@ public static partial class TableDesign
         private void AddConstraints(TableDraft draft, IReadOnlyList<ColumnDraft> kept)
         {
             var columns = kept.Select(c => c.Column).Where(c => !string.IsNullOrWhiteSpace(c.Name)).ToList();
-            var taken = context.Constraints.Where(c => !_dropped.Contains(c.Name)).Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+            var taken = context.Constraints.Where(c => !_dropped.Contains(c.Name)).Select(c => c.Name).Concat(_renamedTo).ToHashSet(StringComparer.Ordinal);
             var keys = context.Constraints.Where(c => c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && !_dropped.Contains(c.Name)).ToList();
-            var indexNames = context.Indexes.Select(i => i.Name).ToList();
-            var checkedRows = false;
+            var indexNames = context.Indexes.Select(i => i.Name).Concat(_renamedTo).ToList();
 
             // Keys before foreign keys: a new foreign key may reference a new key of the same table.
             foreach (var added in draft.AddedConstraints.OrderBy(c => c.Type switch
@@ -86,11 +269,7 @@ public static partial class TableDesign
                 }
 
                 // Checked rows: the existing ones must fit the new constraint – a table without rows has nothing to break.
-                if (!checkedRows && facts.Of(new DataQuestion(DataQuestionKind.Rows)) is not 0)
-                {
-                    Warnings.Add(DesignText.ConstraintChecksRows);
-                    checkedRows = true;
-                }
+                WarnRowsChecked();
 
                 if (added.Type == ConstraintType.ForeignKey && !context.Indexes.Any(i => IndexAdvice.Covers(i, added.Columns))
                     && !keys.Any(k => k.Columns.Count >= added.Columns.Count && SameColumns(k.Columns.Take(added.Columns.Count).ToList(), added.Columns)))

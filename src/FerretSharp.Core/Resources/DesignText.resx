@@ -67,10 +67,6 @@
     <value>{0}: {1} needs a length.</value>
     <comment>{0}: column name; {1}: type, e.g. VARCHAR2</comment>
   </data>
-  <data name="ColumnNumberFacets" xml:space="preserve">
-    <value>{0}: NUMBER takes a precision of 1 to 38 and a scale of -84 to 127.</value>
-    <comment>{0}: column name</comment>
-  </data>
   <data name="AddNotNullNeedsDefault" xml:space="preserve">
     <value>{0}: the table has {1:N0} rows – a new NOT NULL column needs a default for them (ORA-01758).</value>
     <comment>{0}: column name; {1}: number of rows</comment>
@@ -218,5 +214,33 @@
   </data>
   <data name="TypeChangeKeepsBlanks" xml:space="preserve">
     <value>{0}: {1} → {2} keeps the blanks every value was padded with; comparisons with the text without them (relationships, filters, EF Core) no longer match – trim them with RTRIM afterwards.</value>
+  </data>
+  <data name="ConstraintNameMissing" xml:space="preserve">
+    <value>{0}: enter a name for the constraint.</value>
+    <comment>{0}: current constraint name</comment>
+  </data>
+  <data name="ConstraintRenamed" xml:space="preserve">
+    <value>{0} → {1}: code that looks for the constraint's name (handling ORA-00001, ORA-02291 …) still expects the old one.</value>
+    <comment>{0}: old constraint name; {1}: new name</comment>
+  </data>
+  <data name="CheckReplaced" xml:space="preserve">
+    <value>{0}: the new condition is added first and checks the rows; the old check goes only after it.</value>
+    <comment>{0}: check constraint name</comment>
+  </data>
+  <data name="ForeignKeyRecreated" xml:space="preserve">
+    <value>{0} is dropped and added again with the new delete rule; it checks the rows again and holds nothing in between.</value>
+    <comment>{0}: foreign key name</comment>
+  </data>
+  <data name="ConstraintColumnDropped" xml:space="preserve">
+    <value>{0}: its column {1} is dropped, and Oracle drops the constraint with it – undo the change or drop the constraint.</value>
+    <comment>{0}: constraint name; {1}: column name</comment>
+  </data>
+  <data name="ColumnSizeRange" xml:space="preserve">
+    <value>{0}: size {1} does not fit {2}, which takes {3} to {4}.</value>
+    <comment>{0}: column name; {1}: the size typed (length or precision); {2}: type, e.g. NUMBER; {3}, {4}: smallest and largest size</comment>
+  </data>
+  <data name="ColumnScaleRange" xml:space="preserve">
+    <value>{0}: scale {1} does not fit NUMBER, which takes {2} to {3}.</value>
+    <comment>{0}: column name; {1}: the scale typed; {2}, {3}: smallest and largest scale</comment>
   </data>
 </root>

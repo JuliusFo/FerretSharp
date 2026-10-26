@@ -1,0 +1,43 @@
+@* The workspace of a DDL draft is locked (designer tabs): a bar across the draft with the button that unlocks it – the
+   small grey note under the actions went unseen. Nothing while it is writable; it follows unlocking, locking and renaming
+   itself (its only parameter does not change, so the parent's rendering does not reach it). *@
+@using FerretSharp.Core.Workspaces
+@inherits FerretComponent
+@implements IDisposable
+
+@if (_locked)
+{
+    <div class="locked-banner" role="status">
+        <span class="locked-banner-icon">@Icons.Locked</span>
+        <strong>@TextFormat.Format(SchemaViewText.Ddl_LockedBanner, Workspaces.Find(WorkspaceId)?.Name ?? "")</strong>
+        <span class="locked-banner-detail">@SchemaViewText.Ddl_LockedDetail</span>
+        <span class="spacer"></span>
+        <button class="btn" @onclick="() => Shell.RequestUnlock(WorkspaceId)">@SqlEditorText.Editor_UnlockWorkspace</button>
+    </div>
+}
+
+@code {
+    private bool _locked;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    protected override void OnInitialized() => Workspaces.Changed += OnWorkspacesChanged;
+
+    protected override void OnParametersSet() => _locked = !Workspaces.IsWritable(WorkspaceId);
+
+    /// <summary>Unlocked, locked again or renamed.</summary>
+    private void OnWorkspacesChanged() => Fire(() =>
+    {
+        _locked = !Workspaces.IsWritable(WorkspaceId);
+        StateHasChanged();
+    });
+
+    public void Dispose() => Workspaces.Changed -= OnWorkspacesChanged;
+}
