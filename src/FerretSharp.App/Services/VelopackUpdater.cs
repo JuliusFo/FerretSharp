@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using FerretSharp.Core.Settings;
 using FerretSharp.UI.State;
@@ -17,7 +18,12 @@ internal sealed class VelopackUpdater : IAppUpdater
 
     private readonly UpdateManager _manager;
     private readonly string[] _restartArguments;
-    private UpdateInfo? _found;
+
+    /// <summary>
+    /// What the checks found, by version: the download asks for the version the UI shows, and a check given up after its
+    /// time limit may still end later and must not swap it.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, UpdateInfo> _found = new();
 
     public VelopackUpdater(string[] args)
     {
@@ -38,19 +44,24 @@ internal sealed class VelopackUpdater : IAppUpdater
 
     public async Task<AppUpdate?> CheckAsync(CancellationToken cancellationToken)
     {
-        var found = await _manager.CheckForUpdatesAsync();
-        _found = found;
+        if (await _manager.CheckForUpdatesAsync() is not { } found)
+        {
+            return null;
+        }
+
+        var target = Notes(found.TargetFullRelease);
+        _found[target.Version] = found;
         // The delta packages after the installed version up to the target each carry their version's notes (an update from
         // 3.29.0 to 3.33.0 has those of 3.30.0 to 3.33.0). None without a full package of the installed version (portable)
         // or without a delta for the target: then only the target's notes.
-        return found is null ? null : AppUpdate.From(Notes(found.TargetFullRelease), found.DeltasToTarget.Select(Notes));
+        return AppUpdate.From(target, found.DeltasToTarget.Select(Notes));
     }
 
     public Task DownloadAsync(AppUpdate update, Action<int> progress, CancellationToken cancellationToken)
     {
-        if (_found is not { } found || found.TargetFullRelease.Version.ToString() != update.Version)
+        if (!_found.TryGetValue(update.Version, out var found))
         {
-            throw new InvalidOperationException($"Update {update.Version} was not found by the last check.");
+            throw new InvalidOperationException($"Update {update.Version} was not found by a check.");
         }
 
         return _manager.DownloadUpdatesAsync(found, progress, cancellationToken);
