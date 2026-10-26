@@ -204,10 +204,6 @@
     <value>audit table {0} is missing</value>
     <comment>Reason an audit is outdated, lower case (joined with "; "). {0}: table name</comment>
   </data>
-  <data name="StatusColumnsMissing" xml:space="preserve">
-    <value>{0} missing in the audit table</value>
-    <comment>Reason an audit is outdated. {0}: column names, comma separated</comment>
-  </data>
   <data name="StatusTriggerMissing" xml:space="preserve">
     <value>trigger {0} is missing</value>
     <comment>Reason an audit is outdated. {0}: trigger name</comment>

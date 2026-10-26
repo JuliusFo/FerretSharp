@@ -162,9 +162,6 @@
   <data name="StatusTableMissing" xml:space="preserve">
     <value>Audit-Tabelle {0} fehlt</value>
   </data>
-  <data name="StatusColumnsMissing" xml:space="preserve">
-    <value>{0} fehlt in der Audit-Tabelle</value>
-  </data>
   <data name="StatusTriggerMissing" xml:space="preserve">
     <value>Trigger {0} fehlt</value>
   </data>

@@ -1,6 +1,8 @@
 @* The table's audit objects in one line above its columns (WP-26), graded so that a table without audit table – the normal
    case – does not look like a fault: none → a grey "Create audit…"; up to date → the names, neutral; outdated → a warning
-   with the reasons and "Bring up to date". Hidden for an audit table itself and while the template cannot be used. *@
+   with the reasons and "Bring up to date". Hidden for an audit table itself and while the template cannot be used. Many
+   missing columns and audit columns that cannot take every value are counted in the line and listed under "Details",
+   with the advice once (an audit table not kept up for long filled half the view with one sentence per column). *@
 @using FerretSharp.Core.Audit
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
@@ -22,10 +24,52 @@
         </div>
         break;
     case { Health: AuditHealth.Outdated } status:
-        <div class="audit-status warn" title="@($"{SchemaViewText.Audit_OutdatedTitle}\n{_templateLabel}")">
-            @Icons.Warning @SchemaViewText.Audit_Label @AuditTable(status.Names)
-            <span>@TextFormat.Format(SchemaViewText.Audit_Outdated, string.Join("; ", status.Reasons))</span>
+        var title = $"{SchemaViewText.Audit_OutdatedTitle}\n{_templateLabel}"; // not on the details: they have their own text
+        <div class="audit-status warn">
+            <span class="audit-head" title="@title">@Icons.Warning @SchemaViewText.Audit_Label</span> @AuditTable(status.Names)
+            <span title="@title">@SchemaViewText.Audit_Outdated @string.Join(" · ", AuditStatusSummary.Parts(status))</span>
+            @if (AuditStatusSummary.HasDetails(status))
+            {
+                <span>·</span>
+                <button type="button" class="link-btn" aria-expanded="@(_details ? "true" : "false")" @onclick="() => _details = !_details">
+                    @CommonText.Details<span class="chev @(_details ? "" : "closed")">@Icons.ChevronDown</span>
+                </button>
+            }
             · <button class="link-btn" @onclick="() => OnOpen.InvokeAsync()">@SchemaViewText.Audit_Sync</button>
+            @if (_details)
+            {
+                <div class="audit-details">
+                    @if (status.ColumnIssues.Count > 0)
+                    {
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>@SchemaViewText.Head_Name</th>
+                                    <th>@TextFormat.Format(SchemaViewText.Audit_IssueAuditType, status.Names.AuditTable.Name)</th>
+                                    <th>@SchemaViewText.Audit_IssueValueType</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var issue in status.ColumnIssues)
+                                {
+                                    <tr>
+                                        <td class="mono">@issue.Column</td>
+                                        <td class="mono">@issue.AuditType</td>
+                                        <td><span class="mono">@issue.ValueType</span>@if (issue.OfTemplate) { <span class="muted"> @SchemaViewText.Audit_IssueFromTemplate</span> }</td>
+                                        <td>@AuditStatusSummary.Consequence(issue)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <p>@SchemaViewText.Audit_IssuesAdvice</p>
+                    }
+                    @if (status.MissingColumns.Count > AuditStatusSummary.NamedMissing)
+                    {
+                        <p>@TextFormat.Format(SchemaViewText.Audit_MissingList, string.Join(", ", status.MissingColumns))</p>
+                    }
+                </div>
+            }
         </div>
         break;
 }
@@ -36,6 +80,7 @@
         @<button class="link-btn mono" title="@SchemaViewText.Audit_OpenTable" @onclick="() => OpenAuditTable(names)">@names.AuditTable.Name</button>;
 
     private AuditStatus? _status;
+    private bool _details; // the details of an outdated audit unfolded
     private string? _templateLabel; // which template applies and where it is set (WP-51)
     private TableDetails? _loadedFor;
     private readonly CancellationTokenSource _cts = new();

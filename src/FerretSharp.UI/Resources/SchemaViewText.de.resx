@@ -754,7 +754,7 @@
     <value>Audit:</value>
   </data>
   <data name="Audit_Outdated" xml:space="preserve">
-    <value>veraltet ({0})</value>
+    <value>veraltet:</value>
   </data>
   <data name="Audit_OutdatedTitle" xml:space="preserve">
     <value>Änderungen an dieser Tabelle werden unvollständig protokolliert, bis Audit-Tabelle und Trigger wieder zu ihr passen.</value>
@@ -764,6 +764,42 @@
   </data>
   <data name="Audit_OpenTable" xml:space="preserve">
     <value>Audit-Tabelle öffnen</value>
+  </data>
+  <data name="Audit_ColumnsMissingOne" xml:space="preserve">
+    <value>{1} fehlt in der Audit-Tabelle</value>
+  </data>
+  <data name="Audit_ColumnsMissingOther" xml:space="preserve">
+    <value>{1} fehlen in der Audit-Tabelle</value>
+  </data>
+  <data name="Audit_ColumnsMissingCount" xml:space="preserve">
+    <value>{0} Spalten fehlen in der Audit-Tabelle</value>
+  </data>
+  <data name="Audit_ColumnIssuesOne" xml:space="preserve">
+    <value>{0} Audit-Spalte kann nicht jeden Wert aufnehmen</value>
+  </data>
+  <data name="Audit_ColumnIssuesOther" xml:space="preserve">
+    <value>{0} Audit-Spalten können nicht jeden Wert aufnehmen</value>
+  </data>
+  <data name="Audit_IssueAuditType" xml:space="preserve">
+    <value>In {0}</value>
+  </data>
+  <data name="Audit_IssueValueType" xml:space="preserve">
+    <value>Werte</value>
+  </data>
+  <data name="Audit_IssueFromTemplate" xml:space="preserve">
+    <value>Vorlage</value>
+  </data>
+  <data name="Audit_IssueTooShort" xml:space="preserve">
+    <value>zu kurz – ein längerer Wert lässt die DML scheitern</value>
+  </data>
+  <data name="Audit_IssueIncompatible" xml:space="preserve">
+    <value>anderer Typ – die DML scheitert</value>
+  </data>
+  <data name="Audit_IssuesAdvice" xml:space="preserve">
+    <value>Mit diesen Audit-Spalten kann der Trigger DML auf der Tabelle scheitern lassen. Sie zuerst von Hand ändern (z. B. eine neue Spalte) – bis dahin lässt sich das Audit nicht abgleichen.</value>
+  </data>
+  <data name="Audit_MissingList" xml:space="preserve">
+    <value>Fehlen in der Audit-Tabelle (kommen beim Abgleichen dazu): {0}</value>
   </data>
   <data name="Tab_ViewUsage" xml:space="preserve">
     <value>Verwendung</value>
