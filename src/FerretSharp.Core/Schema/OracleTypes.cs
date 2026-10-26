@@ -382,6 +382,31 @@ public static partial class OracleTypes
         static int FractionOf(string type) => IsTimestamp(type) ? TimestampFraction(type) : 0;
     }
 
+    /// <summary>
+    /// Text or RAW that <paramref name="column"/> takes only partly (<see cref="ValueFit.Partial"/>): the type that keeps
+    /// every value the column has and takes every value of <paramref name="value"/> whole, reached by <c>MODIFY</c> with
+    /// any data – the longer length, in characters if either counts characters (<c>VARCHAR2(30)</c> for
+    /// <c>VARCHAR2(10 CHAR)</c> → <c>VARCHAR2(30 CHAR)</c>). An audit column too short for the table grows instead of
+    /// blocking the plan (decision of the user 2026-10-26). Null if there is none (a fixed CHAR beyond 2000).
+    /// </summary>
+    public static ColumnInfo? Widened(ColumnInfo column, ColumnInfo value)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+        ArgumentNullException.ThrowIfNull(value);
+        if (FitOf(column, value) != ValueFit.Partial || column.Length is not { } own || value.Length is not { } other)
+        {
+            return null;
+        }
+
+        var widened = column with { Length = Math.Max(own, other), CharSemantics = column.CharSemantics || value.CharSemantics };
+        if (IsFixedChar(widened.DataType) && widened.Length > 2000)
+        {
+            return null;
+        }
+
+        return ChangeOf(column, widened) == ColumnTypeChange.Free && FitOf(widened, value) == ValueFit.Full ? widened : null;
+    }
+
     /// <summary>Binary precision of a plain <c>FLOAT</c>.</summary>
     private const int MaxFloatPrecision = 126;
 

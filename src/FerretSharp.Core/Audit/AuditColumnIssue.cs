@@ -12,7 +12,10 @@ public enum AuditColumnFit
     /// <summary>The values go in with a loss (fractional seconds, time zone).</summary>
     Lossy,
 
-    /// <summary>Shorter than the values can be: a longer value makes the DML on the table fail.</summary>
+    /// <summary>
+    /// Shorter than the values can be, and no length holds both (a fixed CHAR beyond 2000): a longer value makes the DML on
+    /// the table fail. Where one does, the plan widens the column instead (<see cref="OracleTypes.Widened"/>).
+    /// </summary>
     TooShort,
 
     /// <summary>Another type: the trigger makes the DML on the table fail.</summary>

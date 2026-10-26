@@ -184,6 +184,19 @@ public sealed class OracleTypesTests
     public void Values_fit_a_column_as_an_insert_stores_them(string column, string value, ValueFit fit) =>
         Assert.Equal(fit, OracleTypes.FitOf(Parse(column), Parse(value)));
 
+    /// <summary>Text taken only partly grows to a type that keeps its values and takes the others whole, by MODIFY with data.</summary>
+    [Theory]
+    [InlineData("VARCHAR2(30 BYTE)", "VARCHAR2(10 CHAR)", "VARCHAR2(30 CHAR)")]
+    [InlineData("VARCHAR2(30 CHAR)", "VARCHAR2(40 BYTE)", "VARCHAR2(40 CHAR)")]
+    [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", "VARCHAR2(50 BYTE)")]
+    [InlineData("CHAR(5 BYTE)", "VARCHAR2(10 BYTE)", "CHAR(10 BYTE)")]
+    [InlineData("RAW(8)", "RAW(16)", "RAW(16)")]
+    [InlineData("CHAR(10 BYTE)", "VARCHAR2(3000 CHAR)", null)] // CHAR ends at 2000
+    [InlineData("VARCHAR2(40 BYTE)", "VARCHAR2(10 CHAR)", null)] // takes them whole already
+    [InlineData("VARCHAR2(30 BYTE)", "NUMBER(10)", null)]
+    public void Text_taken_only_partly_grows_to_hold_both(string column, string value, string? widened) =>
+        Assert.Equal(widened, OracleTypes.Widened(Parse(column), Parse(value)) is { } type ? OracleTypes.DdlType(type) : null);
+
     /// <summary>A type as written in DDL reads into the facets the dictionary shows after CREATE TABLE; DDL writes it back.</summary>
     [Theory]
     [InlineData("NUMBER(12)", "NUMBER", null, false, 12, 0, "NUMBER(12)")]

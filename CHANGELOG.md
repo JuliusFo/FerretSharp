@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Fixed
-- An audit column that counts bytes no longer blocks bringing the audit up to date when it has four bytes per character of the table's column – `VARCHAR2(40)` takes every value of `VARCHAR2(10 CHAR)`, as an audit table sized for AL32UTF8 has it. A text audit column shorter than that is reported as too short ("a longer value would make its DML fail") instead of "the trigger would make every DML on the table fail".
+- An audit column that counts bytes no longer blocks bringing the audit up to date when it has four bytes per character of the table's column – `VARCHAR2(40)` takes every value of `VARCHAR2(10 CHAR)`, as an audit table sized for AL32UTF8 has it. A text audit column shorter than the table's values can be now grows when the audit is brought up to date – `VARCHAR2(30)` for `VARCHAR2(10 CHAR)` becomes `VARCHAR2(30 CHAR)`, keeping its values –; only where no length holds both is it reported as too short ("a longer value would make its DML fail") instead of "the trigger would make every DML on the table fail".
 - The progress of the record diagram says "1 row so far" instead of "1 rows so far".
 - The schema comparison no longer freezes the window. Its sessions were opened and read on the UI thread, where the driver's synchronous steps (the session settings after logging in) held the window for a round trip per connection – over a slow VPN a second or more –, and the matrix was computed there too; both now run in the background. Turning on "Only differences" or a kind filter no longer computes the matrix again. A large matrix shows its first 300 objects and adds 300 more per click, with the number of the others below.
 

@@ -197,8 +197,10 @@ public static class AuditPlanner
     /// column has (DATE → TIMESTAMP, longer, more digits). What the trigger writes is an INSERT, not a MODIFY
     /// (<see cref="OracleTypes.FitOf"/>, WP-51): an audit column that takes the values only with a loss (TIMESTAMP into
     /// DATE) stays with a warning, one that cannot take them (another type family) is a problem – the trigger would make
-    /// every DML on the table fail (R5 review) –, and so is one shorter than the values can be: a longer value would fail
-    /// (a BYTE column of four bytes per character takes a CHAR column's values whole). A column of the template's own that
+    /// every DML on the table fail (R5 review). Text shorter than the values can be grows to a length that holds both
+    /// (<see cref="OracleTypes.Widened"/>, decision of the user 2026-10-26: <c>VARCHAR2(30)</c> for <c>VARCHAR2(10 CHAR)</c>
+    /// → <c>VARCHAR2(30 CHAR)</c>); only where it cannot is it a problem, a longer value would fail. A BYTE column of four
+    /// bytes per character takes a CHAR column's values whole and stays. A column of the template's own that
     /// is wider than the template's (TIMESTAMP WITH TIME ZONE against DATE) stays with a warning: the audit table probably
     /// comes from another template. Each case is an <see cref="AuditColumnIssue"/>; its message says whether the type is
     /// the template's or the table's. Identity and virtual columns stay as they are.
@@ -241,6 +243,11 @@ public static class AuditPlanner
             {
                 DataType = target.DataType, Length = target.Length, CharSemantics = target.CharSemantics, Precision = target.Precision, Scale = target.Scale,
             };
+        }
+
+        if (OracleTypes.Widened(existing, target) is { } widened)
+        {
+            return kept with { Length = widened.Length, CharSemantics = widened.CharSemantics };
         }
 
         Report(fit switch
