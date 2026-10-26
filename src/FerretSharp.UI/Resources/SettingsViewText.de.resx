@@ -192,6 +192,12 @@
   <data name="Settings_AuditTemplate" xml:space="preserve">
     <value>Vorlage</value>
   </data>
+  <data name="Settings_AuditSyncInDesigner" xml:space="preserve">
+    <value>Audit im Designer abgleichen</value>
+  </data>
+  <data name="Settings_AuditSyncInDesignerHint" xml:space="preserve">
+    <value>Hat eine Tabelle eine Audit-Tabelle, startet der Tabellen-Designer mit Haken bei „Audit-Tabelle und Trigger abgleichen“: geänderte Spalten gehen im selben Skript in Audit-Tabelle und Trigger. Aus: Der Haken startet leer. Aus der Audit-Zeile über den Spalten geöffnet, ist er in jedem Fall gesetzt.</value>
+  </data>
   <data name="Settings_AuditTemplateHint" xml:space="preserve">
     <value>Audit-Tabelle und Trigger einer Tabelle folgen dieser Vorlage – z. B. einer Datei im Repository der Firma. Sie gilt für jede Verbindung ohne Vorlage ihrer Gruppe oder eigene. Leer nimmt die eingebaute Vorlage.</value>
   </data>

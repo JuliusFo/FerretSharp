@@ -90,6 +90,17 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Audit_sync_in_the_designer_is_on_by_default_also_in_files_written_before_it_existed_and_round_trips()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+        Assert.True((await _store.LoadAsync(Ct)).SyncAuditInDesigner);
+
+        await _store.SaveAsync(new AppSettings { SyncAuditInDesigner = false }, Ct);
+
+        Assert.False((await _store.LoadAsync(Ct)).SyncAuditInDesigner);
+    }
+
+    [Fact]
     public async Task Update_check_is_on_by_default_also_in_files_written_before_it_existed_and_round_trips()
     {
         await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);

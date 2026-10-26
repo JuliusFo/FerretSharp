@@ -12,6 +12,7 @@
 @implements IDisposable
 @inject ILogger<TableDesigner> Logger
 @inject AuditTemplateSource AuditTemplates
+@inject FerretSharp.Core.Settings.AppSettingsService Settings
 
 @if (_designer is not { } designer)
 {
@@ -340,8 +341,8 @@ else
     }
 
     /// <summary>
-    /// The table's audit table and trigger by the template's names (WP-26). The box is on if there is an audit table (or
-    /// the view was opened for it); off otherwise – most tables have none, and that is no fault.
+    /// The table's audit table and trigger by the template's names (WP-26). The box starts as <see cref="ColumnDesigner.AuditAtStart"/>
+    /// says: on if there is an audit table (unless the setting says otherwise) or the view was opened for it.
     /// </summary>
     private async Task LoadAuditAsync(SchemaCache schema, CancellationToken token)
     {
@@ -361,7 +362,8 @@ else
 
         if (_designer is { } designer)
         {
-            designer.WithAudit ??= StartWithAudit || _audit?.AuditTable is not null; // a choice of the user stays (R5 review)
+            // a choice of the user stays (R5 review)
+            designer.WithAudit ??= ColumnDesigner.AuditAtStart(StartWithAudit, _audit?.AuditTable is not null, Settings.Current.SyncAuditInDesigner);
         }
     }
 

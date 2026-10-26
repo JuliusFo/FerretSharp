@@ -155,6 +155,13 @@ public sealed record AppSettings
     public SettingsMap AuditTemplateGroups { get; init; } = SettingsMap.Empty;
 
     /// <summary>
+    /// The table designer starts with its audit box on when the table has an audit table (WP-26): a changed column is
+    /// brought into the audit table and trigger in the same script. Off: the box starts off and is ticked when wanted.
+    /// Opening the designer from the audit line above the columns turns it on either way. On by default.
+    /// </summary>
+    public bool SyncAuditInDesigner { get; init; } = true;
+
+    /// <summary>
     /// Values of the display column beside foreign key values in the grid (WP-31): <c>4711 · PetersPizza</c>. On by default.
     /// </summary>
     public bool ShowDisplayNames { get; init; } = true;

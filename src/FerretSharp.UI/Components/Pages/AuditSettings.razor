@@ -10,6 +10,10 @@
 
 <section class="settings-section">
     <h2>@SettingsViewText.Settings_Audit</h2>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.AuditSyncInDesigner" Label="@SettingsViewText.Settings_AuditSyncInDesigner" Options="SettingsOptions.OnOff"
+                    Value="Settings.Current.SyncAuditInDesigner" OnChange="on => UpdateAsync(s => s with { SyncAuditInDesigner = on })">
+        <Hint>@SettingsViewText.Settings_AuditSyncInDesignerHint</Hint>
+    </SettingsChoice>
     <div class="settings-row @Filter.HideClass(SettingKey.AuditTemplate)">
         <div class="settings-label">
             <span>@SettingsViewText.Settings_AuditTemplate</span>

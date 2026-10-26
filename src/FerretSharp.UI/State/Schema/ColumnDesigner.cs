@@ -263,9 +263,17 @@ public sealed class ColumnDesigner
 
     /// <summary>
     /// Audit table and trigger go into the plan (WP-26): created, or brought up to date with the draft. Null until the view
-    /// knows whether the table has an audit table (then it is on) – off for a table without one, which is the normal case.
+    /// knows whether the table has an audit table (<see cref="AuditAtStart"/>).
     /// </summary>
     public bool? WithAudit { get; set; }
+
+    /// <summary>
+    /// Where the audit box starts: on when the designer was opened for the audit table; on for a table with an audit table
+    /// unless the setting says otherwise (<see cref="Core.Settings.AppSettings.SyncAuditInDesigner"/>); off for a table
+    /// without one, which is the normal case.
+    /// </summary>
+    public static bool AuditAtStart(bool openedForAudit, bool hasAuditTable, bool syncByDefault) =>
+        openedForAudit || (hasAuditTable && syncByDefault);
 
     /// <summary>The names of the columns as drafted (renamed, new), without dropped ones – for constraint columns.</summary>
     public IReadOnlyList<string> ColumnNames => Columns.Where(c => !c.Dropped && c.Name.Trim().Length > 0).Select(c => c.Name.Trim()).ToList();

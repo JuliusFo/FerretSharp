@@ -336,6 +336,16 @@ public sealed class ColumnDesignerTests
         Assert.Null(new ColumnDesigner(Kunde, []).Rebase(Kunde, []).WithAudit);
     }
 
+    /// <summary>The audit box at start: the setting turns it off for a table with an audit table, not when opened for the audit.</summary>
+    [Theory]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, true, true, true)]
+    [InlineData(false, true, false, false)]
+    [InlineData(true, false, false, true)]
+    [InlineData(true, true, false, true)]
+    public void The_audit_box_starts_by_audit_table_setting_and_how_the_designer_was_opened(bool openedForAudit, bool hasAuditTable, bool syncByDefault, bool expected) =>
+        Assert.Equal(expected, ColumnDesigner.AuditAtStart(openedForAudit, hasAuditTable, syncByDefault));
+
     [Fact]
     public void Not_null_check_constraints_belong_to_their_columns_and_are_not_listed()
     {
