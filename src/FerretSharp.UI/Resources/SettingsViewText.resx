@@ -230,6 +230,12 @@
     <value>Template</value>
     <comment>Settings row: the file of the audit template</comment>
   </data>
+  <data name="Settings_AuditSyncInDesigner" xml:space="preserve">
+    <value>Bring audit up to date in the designer</value>
+  </data>
+  <data name="Settings_AuditSyncInDesignerHint" xml:space="preserve">
+    <value>When a table has an audit table, the table designer starts with “Bring audit table and trigger up to date” ticked: changed columns go into the audit table and trigger in the same script. Off: the box starts unticked. Opened from the audit line above the columns, it is ticked either way.</value>
+  </data>
   <data name="Settings_AuditTemplateHint" xml:space="preserve">
     <value>Audit table and trigger of a table follow this template – e.g. a file in your company's repository. It applies to every connection without a template of its group or its own. Empty uses the built-in template.</value>
   </data>
