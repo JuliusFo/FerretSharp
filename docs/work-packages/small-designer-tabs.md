@@ -46,6 +46,9 @@ Beim Testen des Nutzers: Eine neue Spalte startet als `VARCHAR2(50)`; auf `NUMBE
 - Grenzen nur in `OracleTypes.SizeRange`/`ScaleRange` (auch `TryParse` nutzt sie): Länge 1–32767 (CHAR/NCHAR 2000), NUMBER 1–38, FLOAT 1–126, TIMESTAMP 0–9, Nachkommastellen −84–127.
 - Meldungen `ColumnSizeRange`/`ColumnScaleRange` mit Feld, Wert und Bereich („BLA: Größe 50 passt nicht zu NUMBER – erlaubt sind 1 bis 38.“), jetzt auch für zu lange Texte und FLOAT; `ColumnNumberFacets` entfällt.
 
+## Nachtrag: README und Changelog-Bild
+Auf Nachfrage des Nutzers: README-Abschnitt „Table designer“ um Reiter, Kopf, Sperrleiste und Umbenennen/Ändern von Constraints ergänzt, `designer-light/-dark.png` neu (ARTIKEL im Reiter „Columns“, eigene Instanz mit Beispiel-DB und verknüpftem `samples`-Projekt, englisch, CDP `captureScreenshot`), Changelog-Bild `3.51.0-designer-constraints.png` (dunkel, Reiter „Constraints“).
+
 ## Offen / Backlog
 - Reiter „Tabelle“ (Kommentar, Umbenennen) – vom Nutzer zurückgestellt.
 - Reiter „Indizes“ in der Maske statt der eigenen Ansicht.

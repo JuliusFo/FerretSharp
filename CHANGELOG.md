@@ -12,6 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Added
 - Existing constraints can be renamed in the table designer; a primary or unique key takes its index of the same name along (can be unticked).
+
+  ![The table designer’s Constraints tab: the primary key SYS_C008750 renamed to PK_ARTIKEL with “Rename index too” ticked, a foreign key set to ON DELETE SET NULL, and the head above with 4 statements, 2 warnings, Run, Open in SQL editor, Save and Close.](docs/images/changelog/3.51.0-designer-constraints.png)
+
 - A check can get a new condition: the new check is added first and checks the rows, the old one goes only after it – rows that break the new condition leave the old check in place.
 - A foreign key can get another delete rule (dropped and added again).
 - "Edit" in the Constraints view opens the table designer at its constraints.
