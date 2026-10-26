@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Start option `--disable-oob` to try cancelling over a VPN that loses the session on a cancel: breaks go to the server in band instead of as TCP urgent data, which some network paths drop – the cancel then waits for the server – or pass on as ordinary data, which ends the session. The log notes the option at the start, and a lost connection's history ends with "breaks in band" while it is on.
+
 ## [3.50.1] - 2026-10-26
 
 The audit line says what bringing an audit table up to date would change.

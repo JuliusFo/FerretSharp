@@ -5,6 +5,7 @@ using System.Windows;
 using FerretSharp.App.Services;
 using FerretSharp.Core;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.UI.Resources;
@@ -30,6 +31,11 @@ internal static class Program
             .Run();
 
         args = CommandLine.Effective(args); // a link's own options are ignored (WP-37, review)
+        if (CommandLine.Has(args, CommandLine.DisableOob))
+        {
+            OracleSession.SendBreaksInBand(); // before any connection opens: ODP.NET refuses it afterwards (ORA-50099)
+        }
+
         var paths = DataFolder(args);
         WaitForPreviousInstance(args);
         InstanceLock? instance = null;

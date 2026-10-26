@@ -194,6 +194,10 @@ public partial class App : Application
 
         await _host.StartAsync();
         _logger.LogInformation("FerretSharp {Version} started", FerretSharp.UI.State.AppVersion.Current);
+        if (OracleSession.BreaksInBand)
+        {
+            _logger.LogInformation("Breaks are sent in band ({Switch})", CommandLine.DisableOob);
+        }
         if (settings.StartupNotice is { } notice)
         {
             _logger.LogWarning("Settings could not be read, using defaults: {Notice}", notice);
