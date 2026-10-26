@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.50.1] - 2026-10-26
+
+The audit line says what bringing an audit table up to date would change.
+
 ### Changed
 - An outdated audit line no longer just says "types or comments differ": it counts what "Bring up to date" changes while keeping every value – audit columns that grow, that become nullable, comments taken over – and "Details" lists each with its old and new type or its new comment.
 

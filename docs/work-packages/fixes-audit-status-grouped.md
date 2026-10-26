@@ -19,7 +19,7 @@ Fund des Nutzers (2026-10-26): Bei Tabellen, deren Audit-Tabelle lange nicht abg
 - Das Verbreitern zu kurzer Spalten kam nach dem E2E-Lauf dazu und ist nur per Unit-Test geprüft (DDL des Plans; `ChangeOf` nennt BYTE → CHAR gleicher Länge frei, gemessen in WP-23).
 - „Details“ per DOM-Klick geprüft, nicht mit Windows-Eingabe (ein gewöhnlicher `@onclick`-Knopf).
 
-## Nachtrag nach 3.50.0: Änderungen beim Abgleichen
+## Nachtrag nach 3.50.0: Änderungen beim Abgleichen → Release 3.50.1
 Fund des Nutzers an derselben Tabelle nach 3.50.0: Ohne die Fehlalarme blieb „veraltet: Typen oder Kommentare weichen ab“ – ohne zu sagen, was, und ohne „Details“. Entscheidung des Nutzers: direkt auf `main`.
 - Core: `AuditPlanner.Review` (statt `ColumnIssues`) liefert neben den Problemen die Änderungen, die der Abgleich ohne Verlust macht (`AuditChange`: Spalte, `AuditChangeKind` `TypeGrows`/`BecomesNullable`/`Comment`/`TableComment`, vorher, nachher). Sie entstehen im selben Entwurf wie der Plan: Jede Audit-Spalte wird vor und nach dem Entwurf verglichen (Typ nach `DdlType`, NOT NULL, Kommentar), der Tabellenkommentar wie in `Plan`. `AuditStatus.Changes`; „Typen oder Kommentare weichen ab“ bleibt nur für Schritte, die keine Änderung erklärt.
 - UI: Die Zeile zählt je Art („2 Audit-Spalten werden größer · 1 Audit-Spalte wird nullable · 12 Kommentare werden übernommen“), „Details“ listet sie unter „„Abgleichen“ ändert, alle Werte bleiben:“ – Typ alt → neu, der neue Kommentar (der alte im Tooltip).
