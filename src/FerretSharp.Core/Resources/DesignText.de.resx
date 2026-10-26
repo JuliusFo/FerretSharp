@@ -57,9 +57,6 @@
   <data name="ColumnLengthMissing" xml:space="preserve">
     <value>{0}: {1} braucht eine Länge.</value>
   </data>
-  <data name="ColumnNumberFacets" xml:space="preserve">
-    <value>{0}: NUMBER nimmt 1 bis 38 Stellen und -84 bis 127 Nachkommastellen.</value>
-  </data>
   <data name="AddNotNullNeedsDefault" xml:space="preserve">
     <value>{0}: Die Tabelle hat {1:N0} Zeilen – eine neue NOT-NULL-Spalte braucht für sie einen Default (ORA-01758).</value>
   </data>
@@ -188,5 +185,11 @@
   </data>
   <data name="ConstraintColumnDropped" xml:space="preserve">
     <value>{0}: Die Spalte {1} wird gelöscht, und Oracle löscht den Constraint mit ihr – die Änderung zurücknehmen oder den Constraint löschen.</value>
+  </data>
+  <data name="ColumnSizeRange" xml:space="preserve">
+    <value>{0}: Größe {1} passt nicht zu {2} – erlaubt sind {3} bis {4}.</value>
+  </data>
+  <data name="ColumnScaleRange" xml:space="preserve">
+    <value>{0}: Nachkommastellen {1} passen nicht zu NUMBER – erlaubt sind {2} bis {3}.</value>
   </data>
 </root>

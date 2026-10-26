@@ -233,6 +233,31 @@ public sealed class ColumnDesignerTests
         Assert.Equal(["ID", "NAME", "KUERZEL", "BETRAG"], rest.ColumnsOf(Kunde.Table.Ref));
     }
 
+    /// <summary>A new column starts as VARCHAR2(50); as a NUMBER the 50 would be a precision Oracle refuses.</summary>
+    [Fact]
+    public void Another_type_for_a_new_column_drops_a_size_it_cannot_take()
+    {
+        var designer = new ColumnDesigner(Kunde, []);
+        var column = designer.AddColumn();
+        column.Name = "BLA";
+
+        column.Type = "NUMBER";
+        Assert.Equal("", column.Size);
+        Assert.Empty(designer.ToDraft().Problems);
+
+        column.Size = "12";
+        column.Scale = "2";
+        column.Type = "VARCHAR2"; // 12 fits a length; the scale is not used and stays
+        Assert.Equal(("12", "2"), (column.Size, column.Scale));
+
+        column.Type = "TIMESTAMP"; // 12 fractional digits do not fit
+        Assert.Equal("", column.Size);
+
+        var existing = designer.Columns[1]; // VARCHAR2(50) in the table: kept, the user sees the change
+        existing.Type = "NUMBER";
+        Assert.Equal("50", existing.Size);
+    }
+
     [Fact]
     public void An_existing_constraint_is_dropped_and_kept_again()
     {

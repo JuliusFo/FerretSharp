@@ -27,8 +27,30 @@ public sealed class DesignColumn
 
     public string Name { get; set; } = "";
 
-    /// <summary>Base type: <c>VARCHAR2</c>, <c>NUMBER</c>, <c>TIMESTAMP WITH TIME ZONE</c> ….</summary>
-    public string Type { get; set; } = "VARCHAR2";
+    private string _type = "VARCHAR2";
+
+    /// <summary>
+    /// Base type: <c>VARCHAR2</c>, <c>NUMBER</c>, <c>TIMESTAMP WITH TIME ZONE</c> …. Another type for a new column drops a size
+    /// or scale it cannot take (<see cref="OracleTypes.SizeRange"/>) – a new column starts as <c>VARCHAR2(50)</c>, and as a
+    /// NUMBER the 50 stayed as a precision Oracle refuses. An existing column keeps what it has: the user sees the change.
+    /// </summary>
+    public string Type
+    {
+        get => _type;
+        set
+        {
+            if (value == _type)
+            {
+                return;
+            }
+
+            _type = value;
+            if (IsNew)
+            {
+                DropWhatDoesNotFit();
+            }
+        }
+    }
 
     /// <summary>Length, the precision of a number, or the digits of a timestamp's fractional seconds – as typed.</summary>
     public string Size { get; set; } = "";
@@ -158,6 +180,20 @@ public sealed class DesignColumn
     private static bool Same(ColumnInfo a, ColumnInfo b) =>
         a.Name == b.Name && OracleTypes.DdlType(a) == OracleTypes.DdlType(b) && a.Nullable == b.Nullable && a.DefaultOnNull == b.DefaultOnNull
         && (a.Default?.Trim() ?? "") == (b.Default?.Trim() ?? "") && (a.Comment ?? "") == (b.Comment ?? "");
+
+    /// <summary>A size or scale the type uses but cannot take goes; one the type does not use stays (it is ignored, and back again it fits).</summary>
+    private void DropWhatDoesNotFit()
+    {
+        if (HasSize && TryNumber(Size, out var size) && size is { } s && OracleTypes.SizeRange(Type) is { } range && !OracleTypes.Within(range, s))
+        {
+            Size = "";
+        }
+
+        if (HasScale && TryNumber(Scale, out var scale) && scale is { } c && !OracleTypes.Within(OracleTypes.ScaleRange, c))
+        {
+            Scale = "";
+        }
+    }
 
     private static bool TryNumber(string text, out int? value)
     {

@@ -40,6 +40,12 @@ Eigener Container mit dem Beispielschema, Testinstanz mit `--data-dir`, Dev- und
 - Rote Punkte nach Bereich: `DesignPlan.ConstraintProblems` (Probleme beim Löschen, Ändern, Anlegen von Constraints), Audit-Probleme sind die, die `WithAudit` hinzufügt, der Rest gehört zu den Spalten.
 - `ConstraintInfo.OnDelete`/`RuleOf` statt viermal „NO ACTION ist keine Regel“; `DdlDraftMessages` zeigt Probleme, Warnungen und Skript für Index-Entwurf und Skript-Reiter; Problem-Chip ohne Schließen-Icon; die Sperrleiste folgt auch dem Umbenennen des Workspaces; `Designer_Constraints` und `.designer h2` entfernt.
 
+## Nachtrag: Größe beim Typwechsel
+Beim Testen des Nutzers: Eine neue Spalte startet als `VARCHAR2(50)`; auf `NUMBER` umgestellt blieb die 50 als Precision stehen, und die Meldung „NUMBER nimmt 1 bis 38 Stellen …“ nannte weder Feld noch Wert. Entscheidung des Nutzers: im PR entschärfen.
+- `DesignColumn.Type`: Ein anderer Typ für eine **neue** Spalte verwirft Größe bzw. Nachkommastellen, die er nutzt, aber nicht nehmen kann; was er nicht nutzt, bleibt (zurück beim alten Typ passt es wieder). Bestehende Spalten behalten ihre Werte – der Nutzer sieht die Änderung.
+- Grenzen nur in `OracleTypes.SizeRange`/`ScaleRange` (auch `TryParse` nutzt sie): Länge 1–32767 (CHAR/NCHAR 2000), NUMBER 1–38, FLOAT 1–126, TIMESTAMP 0–9, Nachkommastellen −84–127.
+- Meldungen `ColumnSizeRange`/`ColumnScaleRange` mit Feld, Wert und Bereich („BLA: Größe 50 passt nicht zu NUMBER – erlaubt sind 1 bis 38.“), jetzt auch für zu lange Texte und FLOAT; `ColumnNumberFacets` entfällt.
+
 ## Offen / Backlog
 - Reiter „Tabelle“ (Kommentar, Umbenennen) – vom Nutzer zurückgestellt.
 - Reiter „Indizes“ in der Maske statt der eigenen Ansicht.

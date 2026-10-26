@@ -425,9 +425,17 @@ public static partial class TableDesign
                 return false;
             }
 
-            if (OracleTypes.IsNumber(column.DataType) && (column.Precision is < 1 or > 38 || column.Scale is < -84 or > 127))
+            // The size as the designer's field has it: a length, a NUMBER's or FLOAT's precision.
+            var size = OracleTypes.HasLength(column.DataType) ? column.Length : column.DataType is "NUMBER" or "FLOAT" ? column.Precision : null;
+            if (size is { } s && OracleTypes.SizeRange(column.DataType) is { } range && !OracleTypes.Within(range, s))
             {
-                Problems.Add(TextFormat.Format(DesignText.ColumnNumberFacets, column.Name));
+                Problems.Add(TextFormat.Format(DesignText.ColumnSizeRange, column.Name, s, column.DataType, range.Min, range.Max));
+                return false;
+            }
+
+            if (OracleTypes.IsNumber(column.DataType) && column.Scale is { } scale && !OracleTypes.Within(OracleTypes.ScaleRange, scale))
+            {
+                Problems.Add(TextFormat.Format(DesignText.ColumnScaleRange, column.Name, scale, OracleTypes.ScaleRange.Min, OracleTypes.ScaleRange.Max));
                 return false;
             }
 

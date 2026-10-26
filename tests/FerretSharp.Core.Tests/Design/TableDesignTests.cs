@@ -66,6 +66,18 @@ public class TableDesignTests
     // ---- new columns ----
 
     [Fact]
+    public void A_size_or_scale_out_of_range_names_the_field_value_and_range()
+    {
+        Assert.Equal(["FAX: Größe 50 passt nicht zu NUMBER – erlaubt sind 1 bis 38."],
+            Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "NUMBER") with { Precision = 50 }))).Problems);
+        Assert.Equal(["FAX: Größe 40000 passt nicht zu VARCHAR2 – erlaubt sind 1 bis 32767."],
+            Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "VARCHAR2", 40000)))).Problems);
+        Assert.Equal(["FAX: Nachkommastellen 200 passen nicht zu NUMBER – erlaubt sind -84 bis 127."],
+            Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "NUMBER") with { Scale = 200 }))).Problems);
+        Assert.Empty(Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "FLOAT") with { Precision = 126, Scale = null }))).Problems);
+    }
+
+    [Fact]
     public void A_new_column_is_added_with_its_comment_afterwards()
     {
         var plan = Plan(Draft(new ColumnDraft(null, NewColumn("FAX", "VARCHAR2", 30, comment: "Fax-Nummer"))));
