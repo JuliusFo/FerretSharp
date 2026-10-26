@@ -54,7 +54,10 @@ public enum ValueFit
     /// <summary>The value goes in, but loses something: fractional seconds, its time zone.</summary>
     Lossy,
 
-    /// <summary>Not every value goes in (another family, too long, too many digits).</summary>
+    /// <summary>Short text goes in, a longer value fails (ORA-12899): the column is shorter than the values can be.</summary>
+    Partial,
+
+    /// <summary>Not every value goes in (another family, too many digits).</summary>
     None,
 }
 
@@ -348,7 +351,10 @@ public static partial class OracleTypes
     /// always – Oracle converts – and keep them whole if the column has at least the fractional digits and as much time
     /// zone (none &lt; local &lt; with time zone; DATE has neither); otherwise the value goes in with a loss. Any other type
     /// keeps every value only if <c>MODIFY</c> from <paramref name="value"/> to <paramref name="column"/> works with any data
-    /// (<see cref="ChangeOf"/>) – longer, more digits –, else not every value goes in.
+    /// (<see cref="ChangeOf"/>) – longer, more digits –, else not every value goes in. Text that MODIFY could only shorten
+    /// goes in as long as each value fits (<see cref="ValueFit.Partial"/>) – and whole into a BYTE column of at least
+    /// <see cref="MaxBytesPerCharacter"/> bytes per character of a CHAR value: <c>VARCHAR2(40)</c> takes every value of
+    /// <c>VARCHAR2(10 CHAR)</c> (an audit table sized for AL32UTF8, found by the user).
     /// </summary>
     public static ValueFit FitOf(ColumnInfo column, ColumnInfo value)
     {
@@ -362,7 +368,14 @@ public static partial class OracleTypes
         }
 
         // Text padded with blanks (VARCHAR2 → CHAR) goes in; date and time types are decided above.
-        return ChangeOf(value, column) is ColumnTypeChange.Same or ColumnTypeChange.Free or ColumnTypeChange.ChangesValues ? ValueFit.Full : ValueFit.None;
+        return ChangeOf(value, column) switch
+        {
+            ColumnTypeChange.Same or ColumnTypeChange.Free or ColumnTypeChange.ChangesValues => ValueFit.Full,
+            ColumnTypeChange.MayFailOnValues when value.CharSemantics && !column.CharSemantics && HasLengthSemantics(column.DataType)
+                                                  && column.Length >= value.Length * MaxBytesPerCharacter => ValueFit.Full,
+            ColumnTypeChange.MayFailOnValues => ValueFit.Partial,
+            _ => ValueFit.None,
+        };
 
         static int ZoneLevel(string type) => HasTimeZone(type) ? 2 : IsLocalTimeZone(type) ? 1 : 0;
 
@@ -371,6 +384,12 @@ public static partial class OracleTypes
 
     /// <summary>Binary precision of a plain <c>FLOAT</c>.</summary>
     private const int MaxFloatPrecision = 126;
+
+    /// <summary>
+    /// The most bytes a character takes in any database character set (AL32UTF8; UTF8 takes 3, single-byte sets 1): a
+    /// BYTE length of this many per character holds a CHAR value whatever the database's character set.
+    /// </summary>
+    public const int MaxBytesPerCharacter = 4;
 
     private static ColumnTypeChange NumberChange(ColumnInfo from, ColumnInfo to)
     {

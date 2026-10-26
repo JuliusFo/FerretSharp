@@ -170,7 +170,13 @@ public sealed class OracleTypesTests
     [InlineData("TIMESTAMP(6) WITH LOCAL TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", ValueFit.Lossy)]
     [InlineData("TIMESTAMP(3)", "TIMESTAMP(6)", ValueFit.Lossy)]
     [InlineData("VARCHAR2(50 BYTE)", "VARCHAR2(20 BYTE)", ValueFit.Full)]
-    [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", ValueFit.None)]
+    [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", ValueFit.Partial)] // short values go in, long ones fail
+    [InlineData("VARCHAR2(40 BYTE)", "VARCHAR2(10 CHAR)", ValueFit.Full)] // 4 bytes per character: AL32UTF8 at most
+    [InlineData("CHAR(8 BYTE)", "CHAR(2 CHAR)", ValueFit.Full)]
+    [InlineData("VARCHAR2(39 BYTE)", "VARCHAR2(10 CHAR)", ValueFit.Partial)]
+    [InlineData("VARCHAR2(30 CHAR)", "VARCHAR2(40 BYTE)", ValueFit.Partial)] // 40 single-byte characters are too many
+    [InlineData("VARCHAR2(40 BYTE)", "NVARCHAR2(10)", ValueFit.None)] // national into database characters: ? for what is missing
+    [InlineData("RAW(8)", "RAW(16)", ValueFit.Partial)]
     [InlineData("NUMBER(12)", "NUMBER(10)", ValueFit.Full)]
     [InlineData("NUMBER(10)", "NUMBER(12,2)", ValueFit.None)]
     [InlineData("VARCHAR2(30 BYTE)", "NUMBER(10)", ValueFit.None)]
