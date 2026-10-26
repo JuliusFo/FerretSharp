@@ -40,7 +40,7 @@
                                     <span class="arrow">@Icons.ArrowRight</span>
                                     <TableLink Target="target" />
                                     <span class="mono">(@string.Join(", ", c.ReferencedColumns))</span>
-                                    @if (c.DeleteRule is { } rule && rule != "NO ACTION")
+                                    @if (c.OnDelete is { } rule)
                                     {
                                         <span class="muted"> · ON DELETE @rule</span>
                                     }

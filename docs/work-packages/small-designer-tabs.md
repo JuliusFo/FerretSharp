@@ -33,7 +33,13 @@ Eigener Container mit dem Beispielschema, Testinstanz mit `--data-dir`, Dev- und
 - Geprüft gegen Oracle: PK umbenannt samt Index, FK mit neuer Löschregel, Check mit einer Bedingung, die vorhandene Zeilen brechen (ORA-02293 auf `FS_CHECK_1`, der alte Check blieb, nichts lief), danach mit gültiger Bedingung (Name bleibt); ein deaktivierter Check behält `DISABLE`. „Bearbeiten“ in der Constraints-Ansicht öffnet die Maske auf dem Reiter Constraints, der Kopf bleibt beim Scrollen durch 71 Spalten stehen.
 - Nicht geprüft: „Bearbeiten“ aus der Constraints-Ansicht, während die Maske schon offen ist (schaltet nur den Reiter um; der Weg ist eine Zeile in `ColumnsView`).
 
+## Nachtrag: Code-Review (PR 72)
+- Ein geänderter Check oder FK auf einer Spalte, die derselbe Entwurf löscht, ist jetzt ein Problem (`ConstraintColumnDropped`): Oracle löscht den Constraint mit der Spalte, das neue Anlegen scheiterte nach dem schon committeten `DROP COLUMN` mit ORA-00904. Umbenennen bleibt erlaubt (läuft vorher).
+- Halb gelaufener Ersatz: `ColumnDesigner.Rebase` übernimmt ihn (`TakeOverReplacements`). Ein Check, dessen neue Fassung schon da ist (ein Check, den die Tabelle vorher nicht hatte, mit der neuen Bedingung), wird zu „alten löschen, neuen umbenennen“; ein FK, der gelöscht, aber nicht neu angelegt wurde, kommt als neuer Constraint mit der neuen Regel zurück. Vorher blieb `FS_CHECK_n` stehen bzw. der FK fehlte, und der Entwurf zeigte nichts mehr zu tun.
+- Gezählt wird nur noch für Änderungen, die die Zeilen erneut prüfen (`TableDesign.Rechecks`, `Questions(…, constraints)`): Ein reines Umbenennen sperrte „Ausführen“ bis zum `COUNT(*)`.
+- Rote Punkte nach Bereich: `DesignPlan.ConstraintProblems` (Probleme beim Löschen, Ändern, Anlegen von Constraints), Audit-Probleme sind die, die `WithAudit` hinzufügt, der Rest gehört zu den Spalten.
+- `ConstraintInfo.OnDelete`/`RuleOf` statt viermal „NO ACTION ist keine Regel“; `DdlDraftMessages` zeigt Probleme, Warnungen und Skript für Index-Entwurf und Skript-Reiter; Problem-Chip ohne Schließen-Icon; die Sperrleiste folgt auch dem Umbenennen des Workspaces; `Designer_Constraints` und `.designer h2` entfernt.
+
 ## Offen / Backlog
 - Reiter „Tabelle“ (Kommentar, Umbenennen) – vom Nutzer zurückgestellt.
 - Reiter „Indizes“ in der Maske statt der eigenen Ansicht.
-- Probleme des Plans sind Texte ohne Bereich: Der rote Punkt steht nur dort, wo er sicher ist (Zahlenfelder der Spalten, Skript); ein fehlender Spaltenname zeigt sich am Skript.

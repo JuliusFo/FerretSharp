@@ -796,6 +796,44 @@ public class TableDesignTests
     }
 
     [Fact]
+    public void A_changed_constraint_on_a_dropped_column_is_a_problem_a_rename_is_not()
+    {
+        var check = CkUmsatz with { Columns = ["UMSATZ"] };
+        var dropUmsatz = Draft(Changed(Umsatz, c => c) with { Dropped = true });
+
+        var changed = PlanEdits(dropUmsatz with { ChangedConstraints = [new ConstraintEdit("CK_UMSATZ", "CK_UMSATZ", "UMSATZ > 0")] }, [PkKunde, check, FkLand]);
+        Assert.Equal(["CK_UMSATZ: Die Spalte UMSATZ wird gelöscht, und Oracle löscht den Constraint mit ihr – die Änderung zurücknehmen oder den Constraint löschen."],
+            changed.Problems);
+        Assert.Equal(changed.Problems, changed.ConstraintProblems);
+
+        var fk = PlanEdits(Draft(Changed(Status, c => c) with { Dropped = true }) with { ChangedConstraints = [new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "CASCADE")] });
+        Assert.Single(fk.Problems);
+
+        var renamed = PlanEdits(dropUmsatz with { ChangedConstraints = [new ConstraintEdit("CK_UMSATZ", "CK_POSITIV", "UMSATZ >= 0")] }, [PkKunde, check, FkLand]);
+        Assert.Empty(renamed.Problems);
+    }
+
+    [Fact]
+    public void Only_edits_that_check_the_rows_again_need_them_counted()
+    {
+        IReadOnlyList<ConstraintInfo> constraints = [PkKunde, CkUmsatz, FkLand];
+
+        Assert.Empty(TableDesign.Questions(Kunde, Edited(new ConstraintEdit("PK_KUNDE", "PK_KUNDEN"), new ConstraintEdit("CK_UMSATZ", "CK_X", " UMSATZ >= 0")), constraints));
+        Assert.Equal([Rows], TableDesign.Questions(Kunde, Edited(new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "SET NULL")), constraints));
+        Assert.Empty(TableDesign.Questions(Kunde, Edited(new ConstraintEdit("CK_UMSATZ", "CK_UMSATZ", "UMSATZ > 0")) with { DroppedConstraints = ["CK_UMSATZ"] }, constraints));
+        Assert.Equal([Rows], TableDesign.Questions(Kunde, Edited(new ConstraintEdit("PK_KUNDE", "PK_KUNDEN")))); // without the constraints: counted
+    }
+
+    [Fact]
+    public void Constraint_problems_are_told_apart_from_the_columns()
+    {
+        var plan = PlanEdits(Draft(Changed(Name, c => c with { Name = "" })) with { ChangedConstraints = [new ConstraintEdit("CK_UMSATZ", "PK_KUNDE", "UMSATZ >= 0")] });
+
+        Assert.Equal(2, plan.Problems.Count);
+        Assert.Equal(["Die Tabelle hat schon einen Constraint PK_KUNDE (ORA-02264)."], plan.ConstraintProblems);
+    }
+
+    [Fact]
     public void The_edit_of_a_dropped_constraint_is_none()
     {
         var plan = PlanEdits(Edited(new ConstraintEdit("CK_UMSATZ", "CK_NEU", "UMSATZ > 0")) with { DroppedConstraints = ["CK_UMSATZ"] });

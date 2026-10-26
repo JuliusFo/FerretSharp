@@ -827,10 +827,6 @@
   <data name="Designer_AddColumn" xml:space="preserve">
     <value>Add column</value>
   </data>
-  <data name="Designer_Constraints" xml:space="preserve">
-    <value>Keys and constraints</value>
-    <comment>Heading in the table designer</comment>
-  </data>
   <data name="Designer_AddConstraint" xml:space="preserve">
     <value>Add constraint</value>
   </data>

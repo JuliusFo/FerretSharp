@@ -29,6 +29,25 @@ public static partial class TableDesign
         return IndexDesign.PlainName(stem, taken);
     }
 
+    /// <summary>
+    /// The name a new check has in between while it replaces one that keeps its name (<c>FS_CHECK_1</c> …): renamed to the
+    /// old name once the old one is gone. One left in the table means a run stopped halfway (the designer picks it up).
+    /// </summary>
+    public const string ReplacementPrefix = "FS_CHECK_";
+
+    /// <summary>The edit changes what the constraint checks – a check's condition, a foreign key's delete rule – so the rows are checked again.</summary>
+    public static bool Rechecks(ConstraintInfo before, ConstraintEdit edit)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(edit);
+        return before.Type switch
+        {
+            ConstraintType.Check => edit.Condition?.Trim() is { } condition && condition != (before.Condition ?? "").Trim(),
+            ConstraintType.ForeignKey => ConstraintInfo.RuleOf(edit.DeleteRule) != before.OnDelete,
+            _ => false,
+        };
+    }
+
     private sealed partial class Writer
     {
         private bool PrimaryKeyDropped => context.Constraints.Any(c => c.Type == ConstraintType.PrimaryKey && _dropped.Contains(c.Name));
@@ -56,6 +75,7 @@ public static partial class TableDesign
             var edits = draft.ChangedConstraints.Where(e => !_dropped.Contains(e.Original)).ToList();
             var columnNames = draft.Columns.Where(c => c is { IsNew: false, Dropped: false })
                 .ToDictionary(c => c.Original!, c => c.Column.Name, StringComparer.Ordinal);
+            var droppedColumns = draft.Columns.Where(c => c is { IsNew: false, Dropped: true }).Select(c => c.Original!).ToHashSet(StringComparer.Ordinal);
             foreach (var edit in edits)
             {
                 if (context.Constraints.FirstOrDefault(c => c.Name == edit.Original) is not { } before)
@@ -69,13 +89,21 @@ public static partial class TableDesign
                     continue;
                 }
 
+                // Added again after the column went: Oracle dropped the constraint with it, the new one has no column (ORA-00904).
+                var rechecks = Rechecks(before, edit);
+                if (rechecks && before.Columns.FirstOrDefault(droppedColumns.Contains) is { } dropped)
+                {
+                    Problems.Add(TextFormat.Format(DesignText.ConstraintColumnDropped, before.Name, dropped));
+                    continue;
+                }
+
                 // An Oracle-generated name stays generated unless the user gives one.
                 var after = before with { Name = edit.Name, GeneratedName = before.GeneratedName && !renamed };
-                if (before.Type == ConstraintType.Check && edit.Condition?.Trim() is { } condition && condition != (before.Condition ?? "").Trim())
+                if (rechecks && before.Type == ConstraintType.Check)
                 {
-                    ReplaceCheck(before, after with { Condition = condition });
+                    ReplaceCheck(before, after with { Condition = edit.Condition!.Trim() });
                 }
-                else if (before.Type == ConstraintType.ForeignKey && DeleteRule(edit.DeleteRule) != DeleteRule(before.DeleteRule))
+                else if (rechecks)
                 {
                     // The columns by the names they have when it is added again, after the renames.
                     string Drafted(string column) => columnNames.GetValueOrDefault(column, column);
@@ -85,7 +113,7 @@ public static partial class TableDesign
                     {
                         Columns = before.Columns.Select(Drafted).ToList(),
                         ReferencedColumns = self ? before.ReferencedColumns.Select(Drafted).ToList() : before.ReferencedColumns,
-                        DeleteRule = DeleteRule(edit.DeleteRule),
+                        DeleteRule = ConstraintInfo.RuleOf(edit.DeleteRule),
                     }, table => table)));
                     Warnings.Add(TextFormat.Format(DesignText.ForeignKeyRecreated, before.Name));
                     WarnRowsChecked();
@@ -157,7 +185,7 @@ public static partial class TableDesign
 
             var keepsName = !after.GeneratedName && after.Name == before.Name;
             var taken = context.Constraints.Select(c => c.Name).Concat(_renamedTo).ToHashSet(StringComparer.Ordinal);
-            var added = keepsName ? after with { Name = Enumerable.Range(1, int.MaxValue).Select(n => $"FS_CHECK_{n}").First(taken.Add) } : after;
+            var added = keepsName ? after with { Name = Enumerable.Range(1, int.MaxValue).Select(n => $"{ReplacementPrefix}{n}").First(taken.Add) } : after;
             _renamedTo.Add(added.Name);
             Keep(DdlStepKind.AddCheck, OracleDdl.AddConstraint(Table, OracleDdl.ConstraintClause(added, table => table)));
             Keep(DdlStepKind.ReplaceConstraint, OracleDdl.DropConstraint(Table, before.Name));
@@ -187,9 +215,6 @@ public static partial class TableDesign
 
             Keep(DdlStepKind.RenameIndex, OracleDdl.RenameIndex(index.Owner, index.Name, edit.Name));
         }
-
-        /// <summary>The dictionary's <c>NO ACTION</c> is no rule, like none.</summary>
-        private static string? DeleteRule(string? rule) => rule is "CASCADE" or "SET NULL" ? rule : null;
 
         private void DropConstraints(IReadOnlyList<string> names)
         {

@@ -2,7 +2,7 @@
    to do with it – run it through the schema path (confirmed like DDL in the SQL editor, statement by statement, stopping
    at the first failure), open it in the SQL editor, or save it as a file (the last folder per connection is remembered).
    With a Head (the table designer's tabs) it is the designer's head instead: its content beside the actions, the run
-   below, then the Body – which shows problems, warnings and script itself. *@
+   below, then the Body – whose script tab shows the same DdlDraftMessages; the lock banner stands above the head there. *@
 @using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Connections
@@ -26,24 +26,7 @@
 else
 {
     <div class="ddl-draft">
-        @if (Problems.Count > 0)
-        {
-            <ul class="ddl-problems">
-                @foreach (var problem in Problems)
-                {
-                    <li>@problem</li>
-                }
-            </ul>
-        }
-        @foreach (var warning in Warnings)
-        {
-            <p class="hint small">@Icons.Warning @warning</p>
-        }
-        @if (Steps.Count > 0)
-        {
-            <SqlCode Sql="@Script" Class="ddl-script" />
-        }
-
+        <DdlDraftMessages Steps="Steps" Problems="Problems" Warnings="Warnings" />
         @RunState()
         <WorkspaceLockedBanner WorkspaceId="WorkspaceId" />
 

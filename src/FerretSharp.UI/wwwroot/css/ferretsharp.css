@@ -1640,7 +1640,6 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-existing td.definition-cell { width: 45%; }
 .designer-existing .definition-cell .field { width: 100%; }
 .designer-existing .designer-fk select.field { width: auto; }
-.designer h2 { margin: 14px 0 0; }
 .designer-columns td { padding-top: 3px; padding-bottom: 3px; }
 .designer-columns .field { height: 26px; padding: 0 6px; font-size: 12px; width: 100%; min-width: 0; }
 .designer-columns select.field { min-width: 150px; }

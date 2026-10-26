@@ -119,6 +119,9 @@ public sealed record DesignPlan(IReadOnlyList<DdlStep> Steps, IReadOnlyList<stri
     public IReadOnlyList<string> Statements { get; } = Steps.Select(s => s.Sql).ToList();
 
     public bool CanRun => Steps.Count > 0 && Problems.Count == 0;
+
+    /// <summary>The <see cref="Problems"/> about constraints (the designer marks its constraints tab); the rest are the columns'.</summary>
+    public IReadOnlyList<string> ConstraintProblems { get; init; } = [];
 }
 
 /// <summary>
@@ -132,7 +135,11 @@ public sealed record DesignPlan(IReadOnlyList<DdlStep> Steps, IReadOnlyList<stri
 public static partial class TableDesign
 {
     /// <summary>The counts the plan needs to decide about NOT NULL, new mandatory columns and type changes.</summary>
-    public static IReadOnlyList<DataQuestion> Questions(TableDetails current, TableDraft draft)
+    /// <param name="constraints">
+    /// The table's constraints: only an edit that checks the rows again (<see cref="Rechecks"/>) needs them counted, a rename
+    /// does not. Without them every edit counts as one.
+    /// </param>
+    public static IReadOnlyList<DataQuestion> Questions(TableDetails current, TableDraft draft, IReadOnlyList<ConstraintInfo>? constraints = null)
     {
         ArgumentNullException.ThrowIfNull(current);
         ArgumentNullException.ThrowIfNull(draft);
@@ -166,7 +173,9 @@ public static partial class TableDesign
             }
         }
 
-        if (draft.AddedConstraints.Count > 0 || draft.ChangedConstraints.Count > 0)
+        var rechecking = draft.ChangedConstraints.Any(e => !draft.DroppedConstraints.Contains(e.Original)
+            && (constraints is null || (constraints.FirstOrDefault(c => c.Name == e.Original) is { } before && Rechecks(before, e))));
+        if (draft.AddedConstraints.Count > 0 || rechecking)
         {
             questions.Add(new DataQuestion(DataQuestionKind.Rows)); // an empty table has no rows to break a new or changed constraint
         }
@@ -258,6 +267,9 @@ public static partial class TableDesign
 
         public List<string> Problems { get; } = [];
 
+        /// <summary>The problems found while dropping, changing and adding constraints.</summary>
+        private readonly List<string> _constraintProblems = [];
+
         public List<string> Warnings { get; } = [];
 
         private TableRef Table => current.Table.Ref;
@@ -279,8 +291,10 @@ public static partial class TableDesign
             }
 
             CheckNames(kept);
+            var problems = Problems.Count;
             DropConstraints(draft.DroppedConstraints);
             EditConstraints(draft);
+            _constraintProblems.AddRange(Problems.Skip(problems));
             if (creating is not null && Comment(creating.Comment) is { } tableComment)
             {
                 Keep(DdlStepKind.Comment, OracleDdl.CommentOnTable(Table, tableComment));
@@ -313,7 +327,9 @@ public static partial class TableDesign
                 Keep(DdlStepKind.CreateTable, OracleDdl.CreateTable(Table, _definitions));
             }
 
+            problems = Problems.Count;
             AddConstraints(draft, kept);
+            _constraintProblems.AddRange(Problems.Skip(problems));
         }
 
         /// <summary>The name of a table to create: there, without quotes, within 128 bytes, not taken by another object.</summary>
@@ -376,7 +392,7 @@ public static partial class TableDesign
                     .Select(s => TextFormat.Format(DesignText.StatementNotDdl, s.Length <= 80 ? s : s[..79] + "…")));
             }
 
-            return new DesignPlan(steps, Problems.Distinct().ToList(), Warnings.Distinct().ToList());
+            return new DesignPlan(steps, Problems.Distinct().ToList(), Warnings.Distinct().ToList()) { ConstraintProblems = _constraintProblems.Distinct().ToList() };
         }
 
         /// <summary>

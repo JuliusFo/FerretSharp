@@ -235,4 +235,8 @@
     <value>{0} is dropped and added again with the new delete rule; it checks the rows again and holds nothing in between.</value>
     <comment>{0}: foreign key name</comment>
   </data>
+  <data name="ConstraintColumnDropped" xml:space="preserve">
+    <value>{0}: its column {1} is dropped, and Oracle drops the constraint with it – undo the change or drop the constraint.</value>
+    <comment>{0}: constraint name; {1}: column name</comment>
+  </data>
 </root>

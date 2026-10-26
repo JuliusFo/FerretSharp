@@ -186,4 +186,7 @@
   <data name="ForeignKeyRecreated" xml:space="preserve">
     <value>{0} wird gelöscht und mit der neuen Löschregel neu angelegt; er prüft die Zeilen erneut und gilt dazwischen nicht.</value>
   </data>
+  <data name="ConstraintColumnDropped" xml:space="preserve">
+    <value>{0}: Die Spalte {1} wird gelöscht, und Oracle löscht den Constraint mit ihr – die Änderung zurücknehmen oder den Constraint löschen.</value>
+  </data>
 </root>

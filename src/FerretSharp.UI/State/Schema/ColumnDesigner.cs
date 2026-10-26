@@ -242,7 +242,7 @@ public sealed class ExistingConstraint
         Before = before;
         Name = before.Name;
         Condition = before.Condition?.Trim() ?? "";
-        DeleteRule = Rule(before.DeleteRule);
+        DeleteRule = before.OnDelete ?? "";
     }
 
     /// <summary>The constraint in the table.</summary>
@@ -262,9 +262,7 @@ public sealed class ExistingConstraint
     public bool IsRenamed => OracleIdentifier.Normalize(Name) != Before.Name;
 
     /// <summary>Renamed, a check with another condition, a foreign key with another delete rule.</summary>
-    public bool IsChanged => IsRenamed
-                             || (Before.Type == ConstraintType.Check && Condition.Trim() != (Before.Condition ?? "").Trim())
-                             || (Before.Type == ConstraintType.ForeignKey && DeleteRule != Rule(Before.DeleteRule));
+    public bool IsChanged => IsRenamed || TableDesign.Rechecks(Before, ToEdit());
 
     public ConstraintEdit ToEdit() => new(
         Before.Name, OracleIdentifier.Normalize(Name), Before.Type == ConstraintType.Check ? Condition : null,
@@ -276,9 +274,6 @@ public sealed class ExistingConstraint
         ArgumentNullException.ThrowIfNull(other);
         (Name, Condition, DeleteRule, RenameIndex) = (other.Name, other.Condition, other.DeleteRule, other.RenameIndex);
     }
-
-    /// <summary>The dictionary's <c>NO ACTION</c> is no rule.</summary>
-    private static string Rule(string? rule) => rule is "CASCADE" or "SET NULL" ? rule : "";
 }
 
 /// <summary>The tabs of the edit mode; the draft keeps the one shown.</summary>
@@ -491,8 +486,8 @@ public sealed class ColumnDesigner
     /// The same draft laid over the table as it is now – after DDL that stopped halfway (WP-23): the draft says how the table
     /// should be, so what already ran drops out by itself. A column is found by the name it should have (renamed, added),
     /// otherwise by its old name (not renamed yet); a dropped column that is gone and a constraint already added or dropped
-    /// are done. An existing constraint is found the same way; one gone meanwhile (a check replaced halfway) takes its edit
-    /// along – the new check shows as a constraint of its own then.
+    /// are done. An existing constraint is found the same way; one replaced halfway goes on from where the run stopped
+    /// (<see cref="TakeOverReplacements"/>).
     /// </summary>
     public ColumnDesigner Rebase(TableDetails table, IReadOnlyList<ConstraintInfo> constraints)
     {
@@ -520,6 +515,7 @@ public sealed class ColumnDesigner
             target?.CopyFrom(row);
         }
 
+        TakeOverReplacements(next);
         var existing = next.Existing.Select(c => c.Before.Name).ToHashSet(StringComparer.Ordinal);
         next.DroppedConstraints.UnionWith(DroppedConstraints.Where(existing.Contains));
         next.AddedConstraints.AddRange(AddedConstraints.Where(c => c.Name.Length == 0 || !existing.Contains(OracleIdentifier.Normalize(c.Name))));
@@ -530,6 +526,56 @@ public sealed class ColumnDesigner
 
         (next.WithAudit, next.Section) = (WithAudit, Section);
         return next;
+    }
+
+    /// <summary>
+    /// Changed constraints whose replacement stopped halfway (a lock, a lost session), so the rest of it is still to do:
+    /// <list type="bullet">
+    /// <item>A check whose new one is in already (a check the table did not have, with the new condition – under
+    /// <see cref="TableDesign.ReplacementPrefix"/>, its new name or one Oracle gave): the old one, if still there, is dropped
+    /// and the new one gets the name it should have.</item>
+    /// <item>A foreign key that was dropped but not added again: it is added as a new constraint, with its new rule, on the
+    /// columns' drafted names; its index is there already.</item>
+    /// </list>
+    /// </summary>
+    private void TakeOverReplacements(ColumnDesigner next)
+    {
+        var had = Existing.Select(c => c.Before.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var row in Existing.Where(r => !DroppedConstraints.Contains(r.Before.Name) && TableDesign.Rechecks(r.Before, r.ToEdit())))
+        {
+            var old = next.Existing.FirstOrDefault(c => c.Before.Name == row.Before.Name);
+            if (row.Before.Type == ConstraintType.Check)
+            {
+                if (next.Existing.FirstOrDefault(c => c.Before.Type == ConstraintType.Check && !had.Contains(c.Before.Name)
+                        && (c.Before.Condition ?? "").Trim() == row.Condition.Trim()) is not { } replacement)
+                {
+                    continue;
+                }
+
+                // An Oracle-generated name stays the one Oracle gave the new check, unless the user typed one.
+                replacement.Name = row.Before.GeneratedName && !row.IsRenamed ? replacement.Before.Name : OracleIdentifier.Normalize(row.Name);
+                if (old is not null)
+                {
+                    old.CopyFrom(new ExistingConstraint(old.Before));
+                    next.DroppedConstraints.Add(old.Before.Name);
+                }
+            }
+            else if (old is null && next.Existing.All(c => c.Before.Name != OracleIdentifier.Normalize(row.Name)))
+            {
+                string Drafted(string column) => Columns.FirstOrDefault(c => c.Before?.Name == column)?.Name.Trim() ?? column;
+                var foreignKey = new DesignConstraint
+                {
+                    Type = ConstraintType.ForeignKey,
+                    Name = row.Name,
+                    References = row.Before.References,
+                    DeleteRule = row.DeleteRule,
+                    WithIndex = false,
+                };
+                foreignKey.Columns.AddRange(row.Before.Columns.Select(Drafted));
+                foreignKey.ReferencedColumns.AddRange(row.Before.References == Table.Table.Ref ? row.Before.ReferencedColumns.Select(Drafted) : row.Before.ReferencedColumns);
+                next.AddedConstraints.Add(foreignKey);
+            }
+        }
     }
 
     /// <summary>The draft, and what is wrong with the fields before the designer can check it (numbers that are none).</summary>

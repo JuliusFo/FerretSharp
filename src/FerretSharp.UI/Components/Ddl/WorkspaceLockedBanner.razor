@@ -1,6 +1,6 @@
 @* The workspace of a DDL draft is locked (designer tabs): a bar across the draft with the button that unlocks it – the
-   small grey note under the actions went unseen. Nothing while it is writable; it follows unlocking and locking itself
-   (its only parameter does not change, so the parent's rendering does not reach it). *@
+   small grey note under the actions went unseen. Nothing while it is writable; it follows unlocking, locking and renaming
+   itself (its only parameter does not change, so the parent's rendering does not reach it). *@
 @using FerretSharp.Core.Workspaces
 @inherits FerretComponent
 @implements IDisposable
@@ -32,17 +32,12 @@
 
     protected override void OnParametersSet() => _locked = !Workspaces.IsWritable(WorkspaceId);
 
-    private void OnWorkspacesChanged()
+    /// <summary>Unlocked, locked again or renamed.</summary>
+    private void OnWorkspacesChanged() => Fire(() =>
     {
-        if (_locked != !Workspaces.IsWritable(WorkspaceId))
-        {
-            Fire(() =>
-            {
-                _locked = !Workspaces.IsWritable(WorkspaceId);
-                StateHasChanged();
-            });
-        }
-    }
+        _locked = !Workspaces.IsWritable(WorkspaceId);
+        StateHasChanged();
+    });
 
     public void Dispose() => Workspaces.Changed -= OnWorkspacesChanged;
 }

@@ -28,7 +28,12 @@ else
         ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames)
         : TableDesign.Plan(context, draft, new DataFacts(_facts));
     var audit = AuditTemplates.For(Active.Profile);
+    var tablePlan = plan;
     plan = WithAudit(designer, draft, plan, audit);
+    // Where the problems are, for the dots on the tabs: constraints, audit (what WithAudit added), columns (the rest).
+    var constraintProblems = tablePlan.ConstraintProblems.Count > 0;
+    var auditProblems = plan.Problems.Except(tablePlan.Problems).Any();
+    var columnProblems = inputProblems.Count > 0 || tablePlan.Problems.Except(tablePlan.ConstraintProblems).Any();
     var counting = _counting.Count > 0 || _auditCounting.Count > 0;
     var usageNotes = UsageNotes(designer);
     var problems = inputProblems.Concat(plan.Problems).ToList();
@@ -66,17 +71,17 @@ else
                     }
                     @if (problems.Count > 0)
                     {
-                        <span class="summary-chip bad">@Icons.Close @TextFormat.Plural(problems.Count, SchemaViewText.Designer_ProblemsOne, SchemaViewText.Designer_ProblemsOther)</span>
+                        <span class="summary-chip bad">@TextFormat.Plural(problems.Count, SchemaViewText.Designer_ProblemsOne, SchemaViewText.Designer_ProblemsOther)</span>
                     }
                 </button>
             </Head>
             <Body>
                 <div class="designer-tabs" role="tablist">
                     @TabButton(designer, shown, DesignerSection.Columns, SchemaViewText.Designer_TabColumns, designer.Columns.Count(c => !c.Dropped),
-                        designer.ColumnsChanged, inputProblems.Count > 0)
+                        designer.ColumnsChanged, columnProblems)
                     @TabButton(designer, shown, DesignerSection.Constraints, SchemaViewText.Designer_TabConstraints,
-                        designer.Existing.Count + designer.AddedConstraints.Count - designer.DroppedConstraints.Count, designer.ConstraintsChanged)
-                    @TabButton(designer, shown, DesignerSection.Audit, SchemaViewText.Designer_TabAudit)
+                        designer.Existing.Count + designer.AddedConstraints.Count - designer.DroppedConstraints.Count, designer.ConstraintsChanged, constraintProblems)
+                    @TabButton(designer, shown, DesignerSection.Audit, SchemaViewText.Designer_TabAudit, problem: auditProblems)
                     @if (suggestions.Count > 0)
                     {
                         @TabButton(designer, shown, DesignerSection.CSharp, SchemaViewText.Designer_TabCSharp, suggestions.Count)
@@ -100,31 +105,12 @@ else
                             <PropertySuggestions Suggestions="suggestions" />
                             break;
                         default:
-                            @if (problems.Count > 0)
-                            {
-                                <ul class="ddl-problems">
-                                    @foreach (var problem in problems)
-                                    {
-                                        <li>@problem</li>
-                                    }
-                                </ul>
-                            }
-                            @foreach (var warning in warnings)
-                            {
-                                <p class="hint small">@Icons.Warning @warning</p>
-                            }
-                            @if (counting)
-                            {
-                                <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
-                            }
-                            else if (steps.Count > 0)
-                            {
-                                <SqlCode Sql="@DdlScript.Render(steps)" Class="ddl-script" />
-                            }
-                            else if (problems.Count == 0)
-                            {
-                                <p class="muted">@SchemaViewText.Designer_NoScript</p>
-                            }
+                            <DdlDraftMessages Steps="steps" Problems="problems" Warnings="warnings" Empty="@(counting ? null : SchemaViewText.Designer_NoScript)">
+                                @if (counting)
+                                {
+                                    <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
+                                }
+                            </DdlDraftMessages>
                             break;
                     }
                 </div>
@@ -416,7 +402,7 @@ else
         }
 
         var draft = _designer.ToDraft().Draft;
-        var missing = TableDesign.Questions(_designer.Table, draft)
+        var missing = TableDesign.Questions(_designer.Table, draft, _constraints)
             .Where(q => !_facts.ContainsKey(q) && !_counting.Contains(q) && !_failed.Contains(q)).ToList();
         if (missing.Count > 0)
         {

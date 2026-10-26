@@ -684,9 +684,6 @@
   <data name="Designer_AddColumn" xml:space="preserve">
     <value>Spalte hinzufügen</value>
   </data>
-  <data name="Designer_Constraints" xml:space="preserve">
-    <value>Schlüssel und Constraints</value>
-  </data>
   <data name="Designer_AddConstraint" xml:space="preserve">
     <value>Constraint hinzufügen</value>
   </data>
