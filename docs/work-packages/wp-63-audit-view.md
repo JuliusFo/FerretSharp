@@ -32,6 +32,17 @@ Branch `wp/63-audit-view`, begonnen am 2026-10-27. ADR 0036. Baut auf WP-26 (Vor
   - Einstellung unter Audit-Tabellen (`SettingKey.AuditHighlightChanges`).
 - **Tests:** Core `AuditTemplateTests` (Anweisungen, Fehler mit Zeile, Aktion eines Werts), `SchemaCacheAuditTests` (ausgehend mit Basisdatensatz, Selbstbezug, nichts eingehend, ohne Vorlage, ohne PK, Audit einer Audit-Tabelle, Views, geteilter Name, Vorlagenwechsel), `TablePresentationTests` (Namen und Enums der Basis-Entity, keine Entity), `QueryBuilderTests.Audit` (SQL genau, PK als Zeilenschlüssel, Grenzen, `AuditView.Of`); UI `GridAuditChangesTests` (Block, Aktion sofort, eine Abfrage zur Zeit, verspätete Antwort, Fehler, ohne Versionsspalte, Dispose, Zeilenmarker); Integration `AuditTests.Audit_rows_tell_what_changed_against_the_version_before` (Oracle 23: NUMBER, DATE, NULL, BOOLEAN, LOB nicht verglichen, Delete, nur spätere Zeilen gefragt, Beziehungen).
 
+## E2E (2026-10-27)
+Eigener Container mit der Beispiel-DB (`ferret-e2e63`, Port 1563, danach entfernt), Testinstanz mit `--data-dir`, Deutsch dunkel, eine Verbindung DEV ohne C#-Modell, Passwort nicht gespeichert.
+- **Geprüft (CDP):**
+  - AUFTRAG › Spalten › „Audit anlegen…“ → Designer → Ausführen (9 Statements, Rückfrage bestätigt): Audit-Zeile zeigt `AUDIT_AUFTRAG · AUFTRAG_AUDIT`. Per SQL*Plus: drei Updates von Auftrag 1 (eines ohne Änderung schreibt keine Zeile), ein Insert, ein Delete → 5 Audit-Zeilen.
+  - AUDIT_AUFTRAG über den Link der Audit-Zeile: erste Version (U, ohne Vorgänger in der Tabelle) ohne Markierung; Zeile 2 KUNDE_ID getönt (NOTIZ ist ein CLOB, nicht verglichen); Zeile 3 KUNDE_ID und STATUS; Insert-Zeile grün, Delete-Zeile rot. Nach Sortierung STATUS absteigend dieselben Markierungen je Zeile. Hell (Emulation) und dunkel als Screenshot.
+  - Kopf KUNDE_ID mit FK-Badge im Grid, in der Spaltenansicht der Audit-Tabelle kein FK.
+  - Zellmenü: „Verweist auf“ KUNDEN 2 (`FK_AUFTRAG_KUNDE: AUDIT_AUFTRAG(KUNDE_ID) → KUNDEN`) und „AUFTRAG Hauptdatensatz 1“; kein „Referenziert von“. Der Sprung öffnet AUFTRAG mit `AUFTRAG_ID = 1`.
+  - KUNDEN › Zellmenü › Referenziert von: ADRESSE, AUFTRAG, RECHNUNG, VERTRAG – keine Audit-Tabelle.
+  - Log ohne `[ERR]`/`[WRN]`.
+- **Nicht geprüft:** Einstellung „Änderungen in Audit-Tabellen hervorheben“ aus (der Knopf der Einstellungen reagierte nicht auf ein DOM-Klick-Ereignis; der Weg ist eine Abfrage beim Planen, `FerretGrid.PlanAuditChanges`); Enum-Namen und C#-Namen mit verknüpftem Projekt (Unit-Test `TablePresentationTests`); Filter, der die Vorversion auslässt (Integrationstest). Nicht mit echter Windows-Eingabe (keine neuen Mausinteraktionen).
+
 ## Offen / Fragen an den Nutzer
 - Sprung von einer Zeile der Haupttabelle in ihren Verlauf (gefilterte Audit-Tabelle): bewusst nicht gebaut (Wunsch 1: nichts auf die Audit-Tabelle), im Backlog.
 - LOB-Spalten werden nicht hervorgehoben (kein `LAG` auf LOBs; `DBMS_LOB.COMPARE` wäre je Zeile teuer).
