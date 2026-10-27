@@ -587,7 +587,7 @@
             ? string.Join(" · ", details.PrimaryKey.Select(details.IndexOf).Where(i => i >= 0).Select(i => presentation.Present(i, row.Values[i]).Text))
             : "ROWID";
         // The display columns joined as in the grid (WP-65), without those that are the key already.
-        var name = DisplayNames.Compose(DisplayColumns.Shown.IndexesIn(details)
+        var name = DisplayNames.Compose(DisplayColumns.Shown.PartsIn(details)
             .Where(i => !details.PrimaryKey.Contains(details.Columns[i].Name))
             .Select(i => presentation.Present(i, row.Values[i]).Text));
         return name is null ? key : $"{key} · {name}";
