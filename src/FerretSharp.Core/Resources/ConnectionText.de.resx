@@ -31,7 +31,7 @@
     <value>TNS-Alias fehlt.</value>
   </data>
   <data name="ClrProjectNotCsproj" xml:space="preserve">
-    <value>Bitte die .csproj des Projekts mit dem DbContext angeben.</value>
+    <value>Bitte die .csproj des Projekts mit dem DbContext oder eine Modelldatei (.json) angeben.</value>
   </data>
   <data name="NoPasswordSaved" xml:space="preserve">
     <value>Für diese Verbindung ist kein Passwort gespeichert. Bitte unter „Bearbeiten“ eingeben.</value>

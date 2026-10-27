@@ -63,6 +63,10 @@ public sealed record TnsAliasAddress(string Alias, string? TnsAdminPath) : Oracl
 /// The solution the code usage index reads (WP-40) when several contain <paramref name="ClrProject"/>; null = the first
 /// found. Beside the link, not in it: the model and the LINQ console do not depend on it.
 /// </param>
+/// <param name="ClrModelFile">
+/// A model file exported by someone who can build the project (WP-64), instead of <paramref name="ClrProject"/>: names,
+/// enums and relationships without a build; no LINQ console, no code usage. Null = none; never both.
+/// </param>
 public sealed record ConnectionProfile(
     Guid Id,
     string Name,
@@ -76,7 +80,8 @@ public sealed record ConnectionProfile(
     string? ScriptFolder = null,
     string? AppEnvironment = null,
     string? AuditTemplatePath = null,
-    string? CodeSolution = null)
+    string? CodeSolution = null,
+    string? ClrModelFile = null)
 {
     /// <summary>
     /// The schema whose objects are shown, in data dictionary form: <see cref="DefaultSchema"/> if set, otherwise the user.
@@ -95,13 +100,14 @@ public sealed record ConnectionProfile(
     public bool MasksValues => Kind == ConnectionKind.Prod;
 
     /// <summary>
-    /// The paths that only make sense on one computer: linked C# project, script folder, TNS_ADMIN folder, audit template.
+    /// The paths that only make sense on one computer: linked C# project or model file, script folder, TNS_ADMIN folder,
+    /// audit template.
     /// An export leaves them out unless asked, an import takes them only when asked (WP-35; review 3.31.0, A4: a project
     /// path of another computer loads – and runs – that project's DLLs, a TNS_ADMIN folder on a share decides where the
     /// login goes).
     /// </summary>
     public IReadOnlyList<string> LocalPaths() =>
-        new[] { ClrProject?.ProjectFile, CodeSolution, ScriptFolder, (Address as TnsAliasAddress)?.TnsAdminPath, AuditTemplatePath }
+        new[] { ClrProject?.ProjectFile, ClrModelFile, CodeSolution, ScriptFolder, (Address as TnsAliasAddress)?.TnsAdminPath, AuditTemplatePath }
             .OfType<string>()
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .ToList();
@@ -123,9 +129,10 @@ public sealed record ConnectionProfile(
     public ConnectionProfile WithoutLocalPaths() => this with
     {
         ClrProject = null,
+        ClrModelFile = null,
         CodeSolution = null,
         ScriptFolder = null,
         AuditTemplatePath = null,
-        Address =Address is TnsAliasAddress tns ? tns with { TnsAdminPath = null } : Address,
+        Address = Address is TnsAliasAddress tns ? tns with { TnsAdminPath = null } : Address,
     };
 }

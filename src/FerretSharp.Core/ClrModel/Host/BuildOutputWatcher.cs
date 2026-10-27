@@ -3,7 +3,8 @@ namespace FerretSharp.Core.ClrModel;
 /// <summary>
 /// Watches a linked project's build output (ADR 0016) and reports once the build has finished writing: a build writes many
 /// files, so the callback comes only after <c>quiet</c> without a further change. Without an output yet (not built), it
-/// watches the project folder for the first deps.json instead.
+/// watches the project folder for the first deps.json instead. A linked model file (WP-64) is watched the same way: a
+/// colleague's new export is copied over it.
 /// </summary>
 public sealed class BuildOutputWatcher : IDisposable
 {
@@ -22,8 +23,14 @@ public sealed class BuildOutputWatcher : IDisposable
     /// <param name="changed">Called on a thread-pool thread.</param>
     /// <param name="time">The clock of the quiet period (tests); the system's if null. Changes stay real file events.</param>
     public BuildOutputWatcher(string directory, bool depsOnly, TimeSpan quiet, Action changed, TimeProvider? time = null)
+        : this(directory, depsOnly, null, quiet, changed, time)
+    {
+    }
+
+    private BuildOutputWatcher(string directory, bool depsOnly, string? file, TimeSpan quiet, Action changed, TimeProvider? time)
     {
         Directory = directory;
+        File = file;
         _quiet = quiet;
         _depsOnly = depsOnly;
         _timer = (time ?? TimeProvider.System).CreateTimer(_ =>
@@ -34,9 +41,9 @@ public sealed class BuildOutputWatcher : IDisposable
                 changed();
             }
         }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _watcher = new FileSystemWatcher(directory)
+        _watcher = new FileSystemWatcher(directory, file ?? "*")
         {
-            IncludeSubdirectories = true,
+            IncludeSubdirectories = file is null,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
             InternalBufferSize = 64 * 1024,
         };
@@ -53,7 +60,18 @@ public sealed class BuildOutputWatcher : IDisposable
         _watcher.EnableRaisingEvents = true;
     }
 
+    /// <summary>Watches one file (WP-64: a linked model file); it need not exist yet. Its folder must.</summary>
+    /// <param name="changed">Called on a thread-pool thread.</param>
+    public static BuildOutputWatcher ForFile(string path, TimeSpan quiet, Action changed, TimeProvider? time = null)
+    {
+        var full = Path.GetFullPath(path);
+        return new BuildOutputWatcher(Path.GetDirectoryName(full)!, false, Path.GetFileName(full), quiet, changed, time);
+    }
+
     public string Directory { get; }
+
+    /// <summary>The one file watched in <see cref="Directory"/>; null for a build output.</summary>
+    public string? File { get; }
 
     public bool DepsOnly => _depsOnly;
 

@@ -56,4 +56,18 @@ public class ConnectionProfileValidatorTests
         Assert.Equal("APP_USER", TestProfiles.HostPort().EffectiveSchema);
         Assert.Equal("ERP", TestProfiles.Tns().EffectiveSchema);
     }
+
+    /// <summary>One field in the dialog for project and model file (WP-64): a .csproj or a .json, never both.</summary>
+    [Fact]
+    public void The_C_sharp_model_is_a_csproj_or_a_model_file_but_not_both()
+    {
+        var project = new FerretSharp.Core.ClrModel.ClrProjectLink(@"C:\src\Shop.Data\Shop.Data.csproj");
+        static bool Invalid(ConnectionProfile p) => ConnectionProfileValidator.Validate(p).ContainsKey(ConnectionField.ClrProject);
+
+        Assert.False(Invalid(TestProfiles.HostPort() with { ClrProject = project }));
+        Assert.False(Invalid(TestProfiles.HostPort() with { ClrModelFile = @"C:\Modelle\Shop.Data.ferretmodel.json" }));
+        Assert.True(Invalid(TestProfiles.HostPort() with { ClrProject = project with { ProjectFile = @"C:\src\Shop.sln" } }));
+        Assert.True(Invalid(TestProfiles.HostPort() with { ClrModelFile = @"C:\Modelle\Shop.Data.dll" }));
+        Assert.True(Invalid(TestProfiles.HostPort() with { ClrProject = project, ClrModelFile = @"C:\Modelle\Shop.Data.ferretmodel.json" }));
+    }
 }

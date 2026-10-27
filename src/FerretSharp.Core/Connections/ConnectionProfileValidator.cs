@@ -74,7 +74,10 @@ public static class ConnectionProfileValidator
                 break;
         }
 
-        if (profile.ClrProject is { } project && !project.ProjectFile.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+        // One field in the dialog for both (WP-64): the error goes there.
+        if (profile.ClrProject is { } project && !project.ProjectFile.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
+            || profile.ClrModelFile is { } file && !ClrModel.ModelFile.IsModelFile(file)
+            || profile is { ClrProject: not null, ClrModelFile: not null })
         {
             errors[ConnectionField.ClrProject] = ConnectionText.ClrProjectNotCsproj;
         }
