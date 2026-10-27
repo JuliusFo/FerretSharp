@@ -208,8 +208,11 @@
         }
 
         var touched = _presentationWatch.Touches(Details.Table.Ref);
-        // A display column of a target may read differently now (enum members): its names are looked up again.
-        var targets = Names.Links.Any(l => _presentationWatch.Touches(l.Target.Table.Ref));
+        // A display column of a target – one level deeper too (WP-65) – may read differently now (enum members): its names
+        // are looked up again.
+        var targets = Names.Links
+            .SelectMany(l => l.Parts.Where(p => p.Via is not null).Select(p => p.Via!.Target).Prepend(l.Target))
+            .Any(t => _presentationWatch.Touches(t.Table.Ref));
         _presentationWatch.Seen();
         _presentation = Presentations.For(Details); // the same reading, but no longer holding the previous model
         if (touched || targets)
