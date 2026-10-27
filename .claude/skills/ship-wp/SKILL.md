@@ -7,5 +7,5 @@ disable-model-invocation: true
 2. Implement core, UI, tests and docs.
 3. Run E2E in a scratch instance via CDP.
 4. Push, open the PR and enable auto-fix.
-5. Spawn a separate review agent and fix all findings.
+5. Run `/branch-code-review` (separate agent, findings by severity, wait for approval, fix, second pass).
 6. Push and watch CI to green.

@@ -11,3 +11,4 @@ disable-model-invocation: true
 4. Create the PR using --body-file. Run `gh pr checks --watch` until green. Do NOT use --auto.
 5. Merge, pull main, tag vX.Y.Z and push the tag.
 6. Watch the release workflow until it is published, then delete merged branches and worktrees (show the list first).
+7. Count the work packages in `docs/work-packages/README.md` released since the last `docs/review-*.md` and name those whose protocol has no code review. Five or more packages, or two or more without a review: suggest `/complete-code-review` in the final message.
