@@ -44,6 +44,15 @@ Wunsch eines Kollegen des Nutzers: Bei manchen Tabellen sagt eine Spalte allein 
   - Texte Englisch/Deutsch (`GridText`).
 - **Tests:** Core (`DisplayColumnSourceTests` Datei mit beiden Feldern und Versionen, `DisplayLinksTests` Teile und zweite Ebene, `DisplayNamesTests` Zusammensetzen, Kürzen, zweite Ebene samt Fehler, Abbruch, Kopie und Export, `QueryBuilderTests` mehrere Spalten), UI (`GridDisplayNamesTests` Folge-Lookups und Fehler eine Ebene tiefer, `DisplayBadgeTests`), Integration `DisplayLookupTests` (mehrere Spalten in einem Lookup, zweite Ebene gegen Oracle 23).
 
+## E2E (2026-10-27)
+Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--lang=de`, dunkel), eigener Container `ferret-wp65` auf Port 1565 (danach entfernt), Datei mit `KUNDEN → NAME` vorgelegt; Passwort ohne Credential Manager.
+- Rechtsklick auf den Kopf von `KUERZEL` und Klick auf „Zum Namen hinzufügen: NAME - KUERZEL“ mit **echter Windows-Eingabe** (`SendInput`): Datei Version 2 mit `displayNames`, `displayColumns` behält `NAME`; Badges „Name 1“/„Name 2“; Hinweis „KUERZEL gehört jetzt zum Namen von KUNDEN: NAME - KUERZEL“.
+- `AUFTRAG`: `8 · Kunde 8 - 008` (CHAR-Kürzel ohne Padding).
+- Stufe 2: in `AUFTRAG` `KUNDE_ID` als Anzeigespalte, `STATUS` dazu; `AUFTRAG_POSITION` (Zeilen im eigenen Container angelegt) zeigt `1.150 · Kunde 8051 - STORNIERT` – der Kundenname über die zweite Ebene, das leere Kürzel fällt weg.
+- „Aus dem Namen entfernen“ an `KUNDEN.NAME`: Datei behält nur noch `AUFTRAG` in `displayNames`, `KUNDEN → KUERZEL`; die offenen Grids folgen ohne Neuladen.
+- Hell (Emulation) und dunkel aufgenommen, Log ohne `[ERR]`/`[WRN]`, kein Eintrag im Credential Manager.
+- Nicht im E2E: Export (Speichern-Dialog, Core-Tests decken die Überschrift und das Nachschlagen ab), Datensatz-Diagramm.
+
 ## Offen
 - Datensatz-Diagramm: keine zweite Ebene (bräuchte eigene Lookups).
 - Vorlage für den Trenner (`{NACHNAME}, {VORNAME}`) nur bei Bedarf (Entscheidung des Nutzers).
