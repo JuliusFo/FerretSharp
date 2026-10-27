@@ -28,6 +28,9 @@ public sealed class DisplayLinksTests
         ],
         ["ID"], [], false);
 
+    private static readonly TableDetails Position = new(new TableSummary(Owner, "POSITION", TableKind.Table),
+        [Col("ID", "NUMBER"), Col("AUFTRAG_ID", "NUMBER")], ["ID"], [], false);
+
     private static ForeignKeyInfo Fk(string name, TableDetails from, string[] fromColumns, TableDetails to, string[] toColumns, FkSource source = FkSource.Declared) =>
         new(name, from.Table.Ref, fromColumns, to.Table.Ref, toColumns, source);
 
@@ -43,19 +46,23 @@ public sealed class DisplayLinksTests
         Fk("FK_AUFTRAG_KUNDE_NAME", Auftrag, ["KUNDE_NAME", "KUNDE_ORT"], Kunde, ["NAME", "ORT"]), // composite
         Fk("Auftrag.KundeSonst", Auftrag, ["KUNDE_ID"], Land, ["ID"], FkSource.ClrModel), // a second one on KUNDE_ID: the first wins
         Fk("FK_KUNDE_PARENT", Kunde, ["PARENT_ID"], Kunde, ["ID"]),
+        Fk("FK_POSITION_AUFTRAG", Position, ["AUFTRAG_ID"], Auftrag, ["ID"]),
     ];
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static async Task<SchemaCache> SchemaAsync()
+    /// <param name="unreadable">A table whose details cannot be read (a missing grant); null for none.</param>
+    private static async Task<SchemaCache> SchemaAsync(TableDetails? unreadable = null)
     {
-        var tables = new[] { Kunde, Land, KundeView, Auftrag };
+        var tables = new[] { Kunde, Land, KundeView, Auftrag, Position };
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Select(t => t.Table).ToList());
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns(ForeignKeys.Where(f => f.Source == FkSource.Declared).ToList());
         reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>())
-            .Returns(ci => tables.Single(t => t.Table == ci.Arg<TableSummary>()));
+            .Returns(ci => ci.Arg<TableSummary>() == unreadable?.Table
+                ? throw new Core.Connections.DatabaseException("ORA-01031: insufficient privileges", "ORA-01031")
+                : tables.Single(t => t.Table == ci.Arg<TableSummary>()));
         var schema = new SchemaCache(reader, Owner);
         await schema.LoadAsync(Ct);
         schema.SetForeignKeys(FkSource.ClrModel, ForeignKeys.Where(f => f.Source == FkSource.ClrModel).ToList());
@@ -163,5 +170,33 @@ public sealed class DisplayLinksTests
         Assert.All(first.Zip(second), p => Assert.True(p.First.SameAs(p.Second)));
         Assert.False(first[0].SameAs(flat[0]));
         Assert.False(first[0].SameAs(DisplayLinks.Nest(first[0] with { Parts = [.. first[0].Parts.Select(p => p with { Via = null })] }, new Dictionary<int, DisplayLink>())));
+    }
+
+    /// <summary>Review WP-65: other display columns one level deeper are another plan – the grid plans its names anew.</summary>
+    [Fact]
+    public async Task A_change_only_one_level_deeper_makes_another_plan()
+    {
+        var schema = await SchemaAsync();
+        var auftrag = DisplayColumns.Empty.With("AUFTRAG", ["KUNDE_ID"]);
+
+        var byName = Assert.Single(await DisplayLinks.PlanAsync(Position, schema, auftrag.With("KUNDE", ["NAME"]), Ct));
+        var byPlace = Assert.Single(await DisplayLinks.PlanAsync(Position, schema, auftrag.With("KUNDE", ["ORT"]), Ct));
+
+        Assert.Equal(byName.Label, byPlace.Label); // the same first level
+        Assert.False(byName.SameAs(byPlace));
+        Assert.True(byName.SameAs(Assert.Single(await DisplayLinks.PlanAsync(Position, schema, auftrag.With("KUNDE", ["NAME"]), Ct))));
+    }
+
+    /// <summary>Review WP-65: details one level deeper that cannot be read cost that level only, not the names of the first.</summary>
+    [Fact]
+    public async Task Details_one_level_deeper_that_cannot_be_read_leave_the_first_level()
+    {
+        var columns = DisplayColumns.Empty.With("AUFTRAG", ["KUNDE_ID"]).With("KUNDE", ["NAME"]);
+
+        var link = Assert.Single(await DisplayLinks.PlanAsync(Position, await SchemaAsync(unreadable: Kunde), columns, Ct));
+
+        Assert.Equal(("AUFTRAG", "KUNDE_ID"), (link.Target.Table.Name, link.Label));
+        Assert.Null(Assert.Single(link.Parts).Via);
+        Assert.NotNull(Assert.Single(Assert.Single(await DisplayLinks.PlanAsync(Position, await SchemaAsync(), columns, Ct)).Parts).Via);
     }
 }

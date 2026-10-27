@@ -49,7 +49,8 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
     /// </summary>
     public static string? DisplayBadgeOf(TableDetails details, DisplayColumns columns, int column)
     {
-        IReadOnlyList<int> indexes = details.Table.Kind == TableKind.View ? [] : columns.IndexesIn(details);
+        // The columns the name is made of: one the database lacks or that does not read as text gets no badge.
+        IReadOnlyList<int> indexes = details.Table.Kind == TableKind.View ? [] : columns.PartsIn(details);
         var position = indexes.ToList().IndexOf(column);
         return position < 0 ? null
             : indexes.Count == 1 ? GridText.Grid_DisplayBadge

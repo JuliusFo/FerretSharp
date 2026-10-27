@@ -1,3 +1,4 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Display;
@@ -43,7 +44,8 @@ public static class DisplayLinks
     /// The links of <paramref name="table"/>: per column the first single-column foreign key (declared ones come first)
     /// whose target has display columns, as far as it can be looked up (<see cref="Resolve"/>). A display column of the
     /// target that is itself such a foreign key shows the name of its own target (WP-65, one level). Target details come
-    /// from the schema cache (loaded once per table).
+    /// from the schema cache (loaded once per table). If the details one level deeper cannot be read, the link shows the
+    /// values there – the names of the first level stay (review WP-65); a lost connection still ends the plan.
     /// </summary>
     public static async Task<IReadOnlyList<DisplayLink>> PlanAsync(
         TableDetails table, SchemaCache schema, DisplayColumns columns, CancellationToken cancellationToken)
@@ -54,11 +56,27 @@ public static class DisplayLinks
             return links;
         }
 
+        // One level deeper per target once: several foreign keys to one table have the same display columns there.
+        var deeper = new Dictionary<TableRef, IReadOnlyDictionary<int, DisplayLink>>();
         foreach (var link in await ResolveAllAsync(table, schema, columns, null, cancellationToken))
         {
-            // Only the display columns are looked at in the target: details of other tables are not loaded for nothing.
-            var nested = await ResolveAllAsync(link.Target, schema, columns, [.. link.DisplayColumns], cancellationToken);
-            links.Add(Nest(link, nested.ToDictionary(l => l.Column)));
+            if (!deeper.TryGetValue(link.Target.Table.Ref, out var nested))
+            {
+                try
+                {
+                    // Only the display columns are looked at in the target: details of other tables are not loaded for nothing.
+                    var found = await ResolveAllAsync(link.Target, schema, columns, [.. link.DisplayColumns], cancellationToken);
+                    nested = found.ToDictionary(l => l.Column);
+                }
+                catch (DatabaseException ex) when (!ex.IsConnectionLost)
+                {
+                    nested = new Dictionary<int, DisplayLink>();
+                }
+
+                deeper[link.Target.Table.Ref] = nested;
+            }
+
+            links.Add(Nest(link, nested));
         }
 
         return links;
@@ -140,7 +158,7 @@ public static class DisplayLinks
             return null;
         }
 
-        var parts = columns.IndexesIn(target).Where(i => DisplayColumns.NotDisplayableReason(target.Columns[i]) is null).ToList();
+        var parts = columns.PartsIn(target);
         var key = target.IndexOf(fk.ToColumns[0]);
         if (parts.Count == 0 || key < 0 || !IsUnique(target, fk.ToColumns[0]))
         {

@@ -22,6 +22,16 @@ public sealed class DisplayBadgeTests
         Assert.Equal([null, "Name 2", "Name 1"], Enumerable.Range(0, 3).Select(i => GridColumn.DisplayBadgeOf(Mitarbeiter, two, i)));
     }
 
+    /// <summary>Review WP-65: a column the name leaves out (no text) gets no badge, and the others are numbered without it.</summary>
+    [Fact]
+    public void A_column_that_does_not_read_as_text_gets_no_badge()
+    {
+        var withPhoto = Mitarbeiter with { Columns = [.. Mitarbeiter.Columns, new ColumnInfo("FOTO", "BLOB", null, false, null, null, true, false, null, 1)] };
+        var columns = DisplayColumns.Empty.With("MITARBEITER", ["NACHNAME", "FOTO"]);
+
+        Assert.Equal([null, null, "Name", null], Enumerable.Range(0, 4).Select(i => GridColumn.DisplayBadgeOf(withPhoto, columns, i)));
+    }
+
     [Fact]
     public void A_view_has_no_display_column()
     {

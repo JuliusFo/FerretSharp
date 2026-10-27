@@ -36,6 +36,13 @@ public sealed class DisplayColumns
     public IReadOnlyList<int> IndexesIn(TableDetails table) =>
         [.. ColumnsOf(table.Table.Name).Select(table.IndexOf).Where(i => i >= 0)];
 
+    /// <summary>
+    /// The display columns that make a name in <paramref name="table"/>, in order: those it has that read as text (WP-65) –
+    /// what the lookup reads and what the header badges number.
+    /// </summary>
+    public IReadOnlyList<int> PartsIn(TableDetails table) =>
+        [.. IndexesIn(table).Where(i => NotDisplayableReason(table.Columns[i]) is null)];
+
     /// <summary>A copy with the table's display columns set, or removed with no <paramref name="columns"/>.</summary>
     public DisplayColumns With(string table, IReadOnlyList<string> columns)
     {
