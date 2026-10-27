@@ -1,6 +1,6 @@
 # Roadmap – geplante Pakete und offene Fragen
 
-Was als Nächstes kommt, mit den Entscheidungen des Nutzers. Beim Start eines Pakets den Abschnitt lesen und den Plan mit dem Nutzer abstimmen. Ist das Paket released, wandert sein Abschnitt als „Planung“ in die Paketdatei unter `docs/work-packages/` (dort auch alle abgeschlossenen Pakete). Nicht eingeplante Ideen: `docs/backlog.md`.
+Geplante Pakete mit den Entscheidungen des Nutzers. Eine Reihenfolge gibt es nicht: Welches Paket als Nächstes kommt, entscheidet der Nutzer jeweils selbst (Entscheidung des Nutzers, 2026-10-27); festgehalten werden nur Abhängigkeiten („braucht WP-NN“). Beim Start eines Pakets den Abschnitt lesen und den Plan mit dem Nutzer abstimmen. Ist das Paket released, wandert sein Abschnitt als „Planung“ in die Paketdatei unter `docs/work-packages/` (dort auch alle abgeschlossenen Pakete). Nicht eingeplante Ideen: `docs/backlog.md`.
 
 ## GitHub-Issues und Labels
 
@@ -14,13 +14,13 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 ## Geplant
 
-Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Der Release-Stand steht im Kopf der `CLAUDE.md`, die Historie im `CHANGELOG.md`.
+Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil es keine feste Reihenfolge gibt und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Der Release-Stand steht im Kopf der `CLAUDE.md`, die Historie im `CHANGELOG.md`.
 
 ### Pakete nach WP-36 (WP-37 … WP-47)
-Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Am 2026-10-22 hat der Nutzer das Beziehungsdiagramm (WP-46) direkt hinter WP-42 gezogen, vor WP-43, und um ein Diagramm konkreter Datensätze erweitert (WP-60, danach). Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
+Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Abhängigkeiten: WP-41 baut auf dem Code-Index (WP-40), WP-43 auf dem Beziehungsgraphen (WP-42) – beide released; WP-45 braucht WP-44. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
 
 ### WP-55 Spaltenprofil
-(„gut“; aus WP-38 herausgelöst, 2026-10-19 – gleicher Platz in der Reihenfolge. WP-38 ist umgesetzt: `docs/work-packages/wp-38-palette-quick-open.md`.) Branch `wp/55-column-profile`.
+(„gut“; aus WP-38 herausgelöst, 2026-10-19. WP-38 ist umgesetzt: `docs/work-packages/wp-38-palette-quick-open.md`.) Branch `wp/55-column-profile`.
 - **Spaltenprofil:** im Header-Menü (`ColumnMenu`; seit WP-61 als fünfte Aktion der Leiste, `QuickAction` mit Beschriftung) „Werte zählen“: häufigste Werte mit Anzahl (Top N), NULL-Anteil, Anzahl verschiedener Werte, Min/Max – unter dem aktiven Filter, in einer Abfrage aus dem `QueryBuilder` (`GROUP BY … ORDER BY COUNT(*) DESC FETCH FIRST n`), auf dem Leseweg der Workspace-Session (abbrechbar, Laufzeit sichtbar – große Tabellen über VPN). Werte über die Präsentationsschicht (Enum-Namen, Anzeigespalten). Klick auf einen Wert fügt eine Filterzeile `=` hinzu. Nicht für LOB/LONG.
 - Offen: Top N (Vorschlag 20) und ob „Weitere laden“; Profil auch im Ergebnis von SQL-Editor/LINQ-Konsole (Vorschlag: nein, dort fehlt das Filtermodell); Klick auf einen Wert mit Shift „als ODER zur letzten Gruppe“ (Filtergruppen seit WP-50).
 
@@ -67,11 +67,11 @@ Branch `wp/47-since-last-visit`.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
 ### WP-65 Zusammengesetzte Anzeigenamen
-(Wunsch eines Kollegen, geplant mit dem Nutzer am 2026-10-27; Fortsetzung von WP-31, ADR 0022.) Branch `wp/65-composite-display-names`. Ein Name aus mehreren Spalten der Zieltabelle (`NACHNAME VORNAME`, `NUMMER BEZEICHNUNG`), in Stufe 2 auch über einen weiteren FK hinweg.
+(Wunsch eines Kollegen, geplant mit dem Nutzer am 2026-10-27; Fortsetzung von WP-31, ADR 0022.) Branch `wp/65-composite-display-names`. Ein Name aus mehreren Spalten der Zieltabelle (`NACHNAME - VORNAME`, `NUMMER - BEZEICHNUNG`), in Stufe 2 auch über einen weiteren FK hinweg.
 - **Stufe 1 – Spaltenliste je Tabelle:**
   - Modell (`Core/Display`): `DisplayColumns` hält je Tabelle eine geordnete Liste statt einer Spalte (`ColumnsOf`, `IndexesIn` – Einträge für Spalten, die die DB nicht hat, fallen weg; jede Spalte einzeln gegen `NotDisplayableReason`). `DisplayLink.DisplayColumn` wird zur Liste, `LookupRow.Display` zu den Werten je Spalte.
   - Abfrage: `QueryBuilder.BuildLookup` holt alle Spalten in einer Abfrage (`SELECT key, col1, col2 … WHERE key IN (…)`) – kein zusätzlicher Roundtrip; IN-Größen, Timeout, Cache je Tab und Workspace-Session bleiben wie in ADR 0022. Spaltennamen gegen das Schema geprüft und gequotet, nie freie SQL-Ausdrücke aus der geteilten Datei (sie kommt per `git pull` von anderen).
-  - Zusammensetzen in C#, nicht in SQL (kein `||`): jeder Teil über die Präsentationsschicht (Datum, Zahl, Enum-Name wie im Grid), NULL- und leere Teile fallen weg, Trenner eine Leerstelle, gekürzt wird das Ganze (60 Zeichen, `DisplayNames.MaxTextLength`). Alle Namen holen sich ihren Text über `DisplayNames` – Grid, Formular, Export (WP-54, `RowExport`/`PresentedExport`) –, das Beschriften im Datensatz-Diagramm (`RecordDiagramView`, liest heute selbst `IndexIn`) zieht nach.
+  - Zusammensetzen in C#, nicht in SQL (kein `||`): jeder Teil über die Präsentationsschicht (Datum, Zahl, Enum-Name wie im Grid), NULL- und leere Teile fallen weg, Trenner ` - `, gekürzt wird das Ganze (60 Zeichen, `DisplayNames.MaxTextLength`). Alle Namen holen sich ihren Text über `DisplayNames` – Grid, Formular, Export (WP-54, `RowExport`/`PresentedExport`) –, das Beschriften im Datensatz-Diagramm (`RecordDiagramView`, liest heute selbst `IndexIn`) zieht nach.
   - Datei (`DisplayColumnSource`): neues Feld `displayNames` (Tabelle → Liste), nur für Tabellen mit mehr als einer Spalte; `displayColumns` behält für diese Tabellen die erste Spalte, damit ältere Versionen wenigstens den ersten Teil zeigen. Gibt es beide, gilt `displayNames`. Die Datei bekommt Version 2, sobald sie `displayNames` enthält – ältere Versionen lesen sie dann nur und können nichts markieren, was der Liste widerspräche (bestehende Regel: neuere Version → nur lesen). Ohne `displayNames` bleibt Version 1.
   - UI: Kontextmenü des Spaltenkopfs (`ColumnMenu`) – „Als Anzeigespalte verwenden“ ersetzt wie heute die Liste durch diese eine Spalte, neu „Zum Namen hinzufügen“ hängt an (nur, wenn die Tabelle schon einen Namen hat) und „Aus dem Namen entfernen“ nimmt eine Spalte heraus. Badge mit Position („Name 1“, „Name 2“) im Grid-Kopf und in der Spaltenansicht (`ColumnsView`); ohne zweite Spalte bleibt es „Name“. Einstellungen › Anzeigespalten zählt Tabellen wie bisher.
 - **Stufe 2 – Name über einen weiteren FK (höchstens eine Ebene):**
@@ -80,12 +80,11 @@ Branch `wp/47-since-last-visit`.
   - Nicht gefunden auf der zweiten Ebene: der Rohwert statt des Namens.
 - Tests: Core (`DisplayColumnsTests`/`DisplayColumnSourceTests` für Datei, Versionen und beide Felder, `DisplayLinksTests`, `DisplayNamesTests` für Zusammensetzen, NULL-Teile, Kürzen und zweite Ebene, `QueryBuilderTests` für den Lookup mit mehreren Spalten, `ReadOnlyTests`), Integration `DisplayLookupTests` (mehrere Spalten, zweite Ebene), E2E in eigener Instanz und eigenem Container wie WP-31.
 - Doku: Nachtrag zu ADR 0022 (Dateiformat Version 2, Zusammensetzen in C#, zweite Ebene) statt eines neuen ADR; `docs/architecture.md` (Anzeigespalten), Texte Englisch/Deutsch.
-- Offen (Vorschläge in Klammern):
-  - Trenner: Leerstelle, `, ` oder ` – ` (Leerstelle; ` · ` trennt schon Wert und Name); fest oder je Tabelle (fest – eine Vorlage `{NACHNAME}, {VORNAME}` erst bei Bedarf).
-  - Reihenfolge ändern: nur über Entfernen und neu Hinzufügen (ja, wie die einfachste Variante) oder kleiner Dialog in der Spaltenansicht.
-  - Stufe 2 im selben Paket oder als eigenes (selbes Paket, aber als zweiter Schritt: Stufe 1 ist für sich releasefähig).
-  - Zweite Ebene: nur der Name des Ziels (`PetersPizza`) oder Wert und Name (`13 PetersPizza`) (nur der Name).
-  - Platz in der Reihenfolge („Als Nächstes“ in der `CLAUDE.md`).
+- Entschieden mit dem Nutzer (2026-10-27):
+  - Trenner ` - ` (Bindestrich mit Leerstellen; ` · ` trennt schon Wert und Name), fest für alle Tabellen – eine Vorlage wie `{NACHNAME}, {VORNAME}` erst bei Bedarf.
+  - Reihenfolge ändern nur über Entfernen und neu Hinzufügen, kein eigener Dialog.
+  - Stufe 2 im selben Paket, als zweiter Schritt: Stufe 1 ist für sich releasefähig.
+  - Zweite Ebene zeigt nur den Namen des Ziels (`PetersPizza`), nicht Wert und Name.
 
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?

@@ -95,7 +95,7 @@ Regeln:
 
 ## 6. Arbeitsweise
 
-- **Pakete:** eigener Branch `wp/NN-kurzname` (kleinere Themen `feat/…`, `fix/…`, `docs/…`); neue Arbeit immer von `main` abzweigen. Vor dem Start den Plan nennen, dann umsetzen. Ein Paket zu Ende bringen, bevor andere Themen angefasst werden; Ideen unterwegs nach `docs/backlog.md`. Bei Unsicherheit über UX-Details die einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in `docs/roadmap.md` notieren, nicht blockieren.
+- **Pakete:** eigener Branch `wp/NN-kurzname` (kleinere Themen `feat/…`, `fix/…`; reine Doku-Commits direkt auf `main`, ohne Branch und PR); neue Arbeit immer von `main` abzweigen. Welches Paket als Nächstes kommt, entscheidet der Nutzer jeweils selbst – keine Reihenfolge planen, nur Abhängigkeiten festhalten („braucht WP-NN“). Vor dem Start den Plan nennen, dann umsetzen. Ein Paket zu Ende bringen, bevor andere Themen angefasst werden; Ideen unterwegs nach `docs/backlog.md`. Bei Unsicherheit über UX-Details die einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in `docs/roadmap.md` notieren, nicht blockieren.
 - **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch, ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages/` (eigene Datei, Zeile im Index), Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
 - **Commits** klein und thematisch, Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
 - **Core zuerst mit Tests, dann UI.** Unit-Tests laufen ohne DB (Mocks). Alles, was eine echte DB braucht, gehört in `FerretSharp.Integration.Tests` und muss sich ohne Docker sauber überspringen.
@@ -110,7 +110,3 @@ Regeln:
 
 - DB über Kunden-VPN (Roundtrips teuer, Verbindungen werden still), im Alltag 12+ Verbindungen.
 - Eigenes .NET-Projekt mit EF Core 8, DB-first von Hand, Beziehungen ohne FK-Constraint häufig, 425 Entities – Details: `.claude/rules/clr-model.md`.
-
-## 8. Als Nächstes
-
-WP-55, WP-39, WP-41, WP-43 … WP-45 und WP-47 (`docs/roadmap.md`).
