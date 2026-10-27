@@ -108,7 +108,7 @@
 
     protected override void OnInitialized()
     {
-        _foreignKeys = ColumnFacts.ForeignKeysOf(Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [], Column.Name);
+        _foreignKeys = ColumnFacts.ForeignKeysOf(Active.Schema?.LinksOf(Details.Table.Ref) ?? [], Column.Name);
         _property = Presentations.For(Details).PropertyOf(Request.Column);
     }
 

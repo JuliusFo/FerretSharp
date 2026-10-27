@@ -461,6 +461,68 @@ public sealed class AuditTemplateTests
         Assert.Contains(new AuditTemplateError(line, message), error.Errors);
     }
 
+    private const string WithColumns = "-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @columns\nA_ID NUMBER NOT NULL\nA_TRANS CHAR(1)\nA_NOTE CLOB\n-- @base-columns nullable\n";
+
+    [Fact]
+    public void Version_order_and_action_name_own_columns()
+    {
+        var template = AuditTemplates.Parse(WithColumns + "-- @version-order a_id\n-- @action \"A_TRANS\" insert=I delete=D\n-- @trigger-source\nX");
+
+        Assert.Equal("A_ID", template.VersionOrder);
+        Assert.Equal(new AuditAction("A_TRANS", "I", null, "D"), template.Action);
+        Assert.True(template.IsOwnColumn("A_TRANS"));
+        Assert.False(template.IsOwnColumn("KUNDE_ID"));
+    }
+
+    [Fact]
+    public void Without_the_directives_neither_is_set()
+    {
+        var template = AuditTemplates.Parse(CompanyTemplate);
+
+        Assert.Null(template.VersionOrder);
+        Assert.Null(template.Action);
+    }
+
+    [Fact]
+    public void The_default_template_orders_by_its_id_and_tells_the_action()
+    {
+        Assert.Equal("AUDIT_ID", AuditTemplates.Default.VersionOrder);
+        Assert.Equal(new AuditAction("AUDIT_TRANS", "I", "U", "D"), AuditTemplates.Default.Action);
+    }
+
+    [Theory]
+    [InlineData("I ", AuditActionKind.Insert)] // CHAR(2) pads
+    [InlineData("U", AuditActionKind.Update)]
+    [InlineData("D", AuditActionKind.Delete)]
+    [InlineData("X", null)]
+    [InlineData(null, null)]
+    public void The_action_of_a_value(string? value, AuditActionKind? kind) =>
+        Assert.Equal(kind, new AuditAction("A", "I", "U", "D").KindOf(value));
+
+    [Fact]
+    public void Numbers_as_actions_compare_invariant() =>
+        Assert.Equal(AuditActionKind.Delete, new AuditAction("A", "1", "2", "3").KindOf(3m));
+
+    [Theory]
+    [InlineData(WithColumns + "-- @version-order WANN\n-- @trigger-source\nX", 8, "@version-order nennt WANN, das ist keine eigene Spalte der Vorlage (nach @columns).")]
+    [InlineData(WithColumns + "-- @version-order A_NOTE\n-- @trigger-source\nX", 8, "@version-order: Nach A_NOTE lassen sich die Versionen nicht ordnen (Typ CLOB).")]
+    [InlineData(WithColumns + "-- @version-order A_TRANS\n-- @trigger-source\nX", 8, "@version-order: A_TRANS muss NOT NULL sein (oder eine Identity) – eine Version ohne Wert lässt sich nicht einordnen.")]
+    [InlineData(WithColumns + "-- @version-order A_ID DESC\n-- @trigger-source\nX", 8, "@version-order nimmt eine Spalte der Vorlage, nicht „A_ID DESC“.")]
+    [InlineData(WithColumns + "-- @version-order\n-- @trigger-source\nX", 8, "@version-order braucht einen Wert.")]
+    [InlineData(WithColumns + "-- @version-order A_ID\n-- @version-order A_ID\n-- @trigger-source\nX", 9, "@version-order steht mehr als einmal in der Vorlage.")]
+    [InlineData(WithColumns + "-- @action A_TRANS\n-- @trigger-source\nX", 8, "@action braucht nach der Spalte mindestens eines von insert=…, update=…, delete=….")]
+    [InlineData(WithColumns + "-- @action A_TRANS insert=I remove=D\n-- @trigger-source\nX", 8, "@action nimmt die Spalte und dann insert=…, update=…, delete=… – „remove=D“ ist nichts davon.")]
+    [InlineData(WithColumns + "-- @action A_TRANS insert=\n-- @trigger-source\nX", 8, "@action nimmt die Spalte und dann insert=…, update=…, delete=… – „insert=“ ist nichts davon.")]
+    [InlineData(WithColumns + "-- @action A_TRANS insert=I INSERT=N\n-- @trigger-source\nX", 8, "@action: insert= steht mehr als einmal da.")]
+    [InlineData(WithColumns + "-- @action WAS insert=I\n-- @trigger-source\nX", 8, "@action nennt WAS, das ist keine eigene Spalte der Vorlage (nach @columns).")]
+    [InlineData(WithColumns + "-- @action\n-- @trigger-source\nX", 8, "@action braucht einen Wert.")]
+    public void Version_order_and_action_errors_name_their_line(string text, int line, string message)
+    {
+        var error = Assert.Throws<AuditTemplateException>(() => AuditTemplates.Parse(text));
+
+        Assert.Contains(new AuditTemplateError(line, message), error.Errors);
+    }
+
     [Fact]
     public void The_exception_lists_all_errors_with_lines()
     {

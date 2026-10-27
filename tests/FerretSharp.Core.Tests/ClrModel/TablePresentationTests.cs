@@ -89,6 +89,41 @@ public sealed class TablePresentationTests
         Assert.Equal($"KUNDENART {OperatorLabels.Label(FilterOperator.IsNull)}", FilterText.Row(new FilterCondition("KUNDENART", FilterOperator.IsNull, [])));
     }
 
+    /// <summary>WP-63: an audit table's copies of the base columns read like the base table; it is no entity itself.</summary>
+    [Fact]
+    public async Task An_audit_table_names_its_copies_by_the_base_entity()
+    {
+        var audit = new TableDetails(new TableSummary(Owner, "AUDIT_KUNDEN", TableKind.Table),
+            [
+                new("AUDIT_ID", "NUMBER", null, false, null, null, false, true, null, 1),
+                new("KUNDE_ID", "NUMBER", null, false, 10, 0, true, false, null, 2),
+                new("KUNDENART", "NUMBER", null, false, 2, 0, true, false, null, 3),
+            ],
+            [], [], false);
+
+        var presentation = TablePresentation.Create(audit, await MappingAsync(), ClrNameDisplay.Beside, Kunden.Table.Ref);
+
+        Assert.Null(presentation.Entity); // no LINQ, no code for the base entity on the audit table
+        Assert.Null(presentation.EntityName);
+        Assert.True(presentation.ShowsClrNames);
+        Assert.Equal(new ColumnLabel("AUDIT_ID", null, null), presentation.LabelOf(0));
+        Assert.Equal(new ColumnLabel("KUNDE_ID", "KundeId", "int"), presentation.LabelOf(1));
+        Assert.Equal("Gewerbe (2)", presentation.Present(2, 2m).Text);
+        Assert.False(presentation.IsEntityProperty(1));
+    }
+
+    [Fact]
+    public async Task An_audit_table_of_a_table_without_entity_is_the_database_view()
+    {
+        var audit = new TableDetails(new TableSummary(Owner, "AUDIT_X", TableKind.Table),
+            [new("KUNDENART", "NUMBER", null, false, 2, 0, true, false, null, 1)], [], [], false);
+
+        var presentation = TablePresentation.Create(audit, await MappingAsync(), ClrNameDisplay.Beside, new TableRef(Owner, "X"));
+
+        Assert.False(presentation.ShowsClrNames);
+        Assert.Null(presentation.ValuesOf(0));
+    }
+
     [Fact]
     public void Without_a_model_everything_is_the_database_view()
     {

@@ -112,13 +112,38 @@ public sealed record AuditStatus(AuditHealth Health, AuditNames Names, IReadOnly
     }
 
     /// <summary>
-    /// The table is the audit table of another table of <paramref name="tables"/> (by the template's names): it gets no
-    /// audit table of its own offered.
+    /// The table is the audit table of another table of <paramref name="tables"/> (<see cref="Pairs"/>): it gets no audit
+    /// table of its own offered.
     /// </summary>
-    public static bool IsAuditTable(AuditTemplate template, TableRef table, IEnumerable<TableRef> tables)
+    public static bool IsAuditTable(AuditTemplate template, TableRef table, IEnumerable<TableRef> tables) =>
+        Pairs(template, tables).ContainsKey(table);
+
+    /// <summary>
+    /// Audit table → base table by the template's names, both among <paramref name="tables"/> (the caller's own tables: no
+    /// views, no synonyms). The one rule for the audit line and the grid (WP-63): a table that is itself an audit table has
+    /// none, and an audit table two tables would share (a template without <c>{table}</c>) belongs to neither.
+    /// </summary>
+    public static IReadOnlyDictionary<TableRef, TableRef> Pairs(AuditTemplate template, IEnumerable<TableRef> tables)
     {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(tables);
-        return tables.Any(other => other != table && template.NamesFor(other).AuditTable == table);
+        var own = tables.ToHashSet();
+        var pairs = new Dictionary<TableRef, TableRef>();
+        var shared = new HashSet<TableRef>();
+        foreach (var table in own)
+        {
+            var names = template.NamesFor(table);
+            if (names.Problems.Count > 0 || names.AuditTable == table || !own.Contains(names.AuditTable))
+            {
+                continue;
+            }
+
+            if (!pairs.TryAdd(names.AuditTable, table))
+            {
+                shared.Add(names.AuditTable);
+            }
+        }
+
+        return pairs.Where(p => !shared.Contains(p.Key) && !pairs.ContainsKey(p.Value)).ToDictionary(p => p.Key, p => p.Value);
     }
 }

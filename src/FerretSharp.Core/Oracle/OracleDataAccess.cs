@@ -335,6 +335,48 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         return rows;
     }
 
+    public async Task<IReadOnlyList<Audit.AuditRowChange>> ReadAuditChangesAsync(
+        TableDetails table, Audit.AuditVersions versions, IReadOnlyList<RowData> rows, CancellationToken cancellationToken)
+    {
+        // A row without its base key (NULL in a copy of it) has no versions to compare; a new row has no key yet.
+        var usable = rows.Where(r => r.Key is RowKey.PrimaryKey or RowKey.RowId && versions.KeyColumns.All(i => r.Values[i] is not null)).ToList();
+        var byPrimaryKey = QueryBuilder.RowKeyOf(table) == RowKeyKind.PrimaryKey;
+        var keyColumns = table.PrimaryKey.Select(table.IndexOf).ToList();
+        var changes = new List<Audit.AuditRowChange>();
+        foreach (var chunk in usable.Chunk(QueryBuilder.MaxLookupKeys))
+        {
+            IReadOnlyList<IReadOnlyList<object>> baseKeys =
+                [.. chunk.Select(r => new RowKey.PrimaryKey([.. versions.KeyColumns.Select(i => r.Values[i])])).Distinct().Select(k => k.Values.Select(v => v!).ToList())];
+            IReadOnlyList<IReadOnlyList<object>> rowKeys = [.. chunk.Select(r => r.Key switch
+            {
+                RowKey.PrimaryKey key => (IReadOnlyList<object>)[.. key.Values.Select(v => v!)],
+                RowKey.RowId rowId => [rowId.Value],
+                _ => throw new InvalidOperationException("Rows without a key were left out."),
+            })];
+            var query = QueryBuilder.BuildAuditChanges(table, versions, baseKeys, rowKeys);
+            changes.AddRange(await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+            {
+                var oracle = (OracleDataReader)reader;
+                var found = new List<Audit.AuditRowChange>();
+                while (await reader.ReadAsync(ct))
+                {
+                    RowKey key = byPrimaryKey
+                        ? new RowKey.PrimaryKey([.. keyColumns.Select((c, i) => reader.IsDBNull(i) ? null : ReadValue(oracle, i, table.Columns[c]))])
+                        : new RowKey.RowId(Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture)!);
+                    var at = byPrimaryKey ? keyColumns.Count : 1;
+                    var first = Convert.ToInt64(reader.GetValue(at), CultureInfo.InvariantCulture) == 1;
+                    var flags = first || reader.IsDBNull(at + 1) ? "" : reader.GetString(at + 1);
+                    found.Add(new Audit.AuditRowChange(key, first, Enumerable.Range(0, Math.Min(flags.Length, versions.Compared.Count))
+                        .Where(j => flags[j] == '1').Select(j => versions.Compared[j]).ToHashSet()));
+                }
+
+                return found;
+            }, cancellationToken));
+        }
+
+        return changes;
+    }
+
     public async Task<IReadOnlyList<LookupRow>> LookupAsync(
         TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken)
     {

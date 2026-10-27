@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Audit tables read like their base table: the grid of an audit table has the base table's foreign keys – jumps, badges and the names beside the values – and shows its enum members and C# names; nothing points into the audit table. A jump "main row" leads from an audit row to the row of the base table.
+- The grid of an audit table tints the values that changed against the version before of the same row, and tints the rows of an insert green and of a delete red. The version before counts even when the filter leaves it out, whatever the sort order. It needs two new lines in the audit template, which the built-in template has: `-- @version-order AUDIT_ID` and `-- @action AUDIT_TRANS insert=I update=U delete=D`. Settings › Audit tables › "Highlight changes in audit tables" switches it off (one query more per 500 rows).
+
 ## [3.51.0] - 2026-10-26
 
 The table designer is laid out in tabs below a head with its actions that stays in view, and it renames constraints, gives a check a new condition and a foreign key another delete rule.

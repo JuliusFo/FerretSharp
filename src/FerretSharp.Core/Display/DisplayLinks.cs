@@ -34,7 +34,7 @@ public static class DisplayLinks
             return links;
         }
 
-        foreach (var (column, fk) in Candidates(table, schema.OutgoingOf(table.Table.Ref), columns))
+        foreach (var (column, fk) in Candidates(table, schema.LinksOf(table.Table.Ref), columns))
         {
             if (schema.Find(fk.To) is not { } summary || summary.Kind == TableKind.View)
             {

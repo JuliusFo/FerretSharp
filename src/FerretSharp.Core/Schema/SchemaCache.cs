@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using FerretSharp.Core.Audit;
 using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Schema;
@@ -19,6 +20,9 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     private ILookup<TableRef, ForeignKeyInfo> _outgoing = Array.Empty<ForeignKeyInfo>().ToLookup(f => f.From);
     private ILookup<TableRef, ForeignKeyInfo> _incoming = Array.Empty<ForeignKeyInfo>().ToLookup(f => f.To);
     private Dictionary<TableRef, IReadOnlyList<string>> _primaryKeys = [];
+    private Func<AuditTemplate?>? _auditTemplate;
+    private AuditTemplate? _template;
+    private AuditTables? _auditTables;
 
     public string Owner { get; } = owner;
 
@@ -87,6 +91,7 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
         }
 
         _details = new ConcurrentDictionary<TableRef, Lazy<Task<TableDetails>>>();
+        RefreshAuditTemplate();
         LoadedAt = DateTimeOffset.Now;
     }
 
@@ -236,8 +241,85 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<Query.CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken) =>
         reader.GetCursorAsync(sql, cancellationToken);
 
-    /// <summary>Relationships where <paramref name="table"/> references other tables.</summary>
+    /// <summary>Relationships where <paramref name="table"/> references other tables, as the database and the C# model have them.</summary>
     public IEnumerable<ForeignKeyInfo> OutgoingOf(TableRef table) => _outgoing[table];
+
+    /// <summary>
+    /// The relationships to follow from rows of <paramref name="table"/> (grid, form, menus, names beside foreign keys):
+    /// <see cref="OutgoingOf"/>, and for an audit table (WP-63, ADR 0036) its base table's too, copied onto its columns
+    /// (<see cref="AuditRelation.Copied"/>; one of the base table to itself still points to the base table), and one to its
+    /// base row (<see cref="AuditRelation.BaseRow"/>). Nothing else sees these: <see cref="OutgoingOf"/>,
+    /// <see cref="IncomingOf"/>, <see cref="ForeignKeys"/> and the diagrams stay the database's – nothing leads into an
+    /// audit table, and nothing takes a copy for a constraint.
+    /// </summary>
+    public IEnumerable<ForeignKeyInfo> LinksOf(TableRef table) =>
+        AuditTablesNow() is { } audit && audit.BaseOf.ContainsKey(table) ? audit.Outgoing(table) : _outgoing[table];
+
+    /// <summary>
+    /// Where the audit template of the connection comes from (WP-63): which table is the audit table of which follows its
+    /// naming rule. Asked when the schema loads and on <see cref="RefreshAuditTemplate"/> – never per lookup: the file may
+    /// sit on a share over the VPN, and lookups run while the grid renders.
+    /// </summary>
+    public void UseAuditTemplate(Func<AuditTemplate?> template) => _auditTemplate = template;
+
+    /// <summary>Asks for the audit template again (a table tab loads: an edited template counts from then on, as in the audit line).</summary>
+    public void RefreshAuditTemplate() => _template = _auditTemplate?.Invoke();
+
+    /// <summary>The audit template as last asked (<see cref="RefreshAuditTemplate"/>); null without one or if it cannot be used.</summary>
+    public AuditTemplate? AuditTemplate => _template;
+
+    /// <summary>The base table of an audit table by the template's names (WP-63); null for any other table or without a template.</summary>
+    public TableRef? AuditBaseOf(TableRef table) => AuditTablesNow()?.BaseOf.GetValueOrDefault(table);
+
+    /// <summary>The audit tables of the current template, table list and relationships; built again when one of them changed.</summary>
+    private AuditTables? AuditTablesNow()
+    {
+        if (_template is not { } template)
+        {
+            return null;
+        }
+
+        var current = _auditTables;
+        var foreignKeys = ForeignKeys;
+        if (current is not null && ReferenceEquals(current.Template, template) && ReferenceEquals(current.Tables, Tables)
+            && ReferenceEquals(current.ForeignKeys, foreignKeys))
+        {
+            return current;
+        }
+
+        var own = Tables.Where(t => t.Kind == TableKind.Table && t.Synonym is null).Select(t => t.Ref);
+        current = new AuditTables(template, Tables, foreignKeys, AuditStatus.Pairs(template, own), _outgoing, PrimaryKeyOf);
+        _auditTables = current;
+        return current;
+    }
+
+    /// <summary>Audit table → base table, and the relationships each audit table gets from its base table (built on first look).</summary>
+    private sealed class AuditTables(
+        AuditTemplate template, IReadOnlyList<TableSummary> tables, IReadOnlyList<ForeignKeyInfo> foreignKeys,
+        IReadOnlyDictionary<TableRef, TableRef> baseOf, ILookup<TableRef, ForeignKeyInfo> outgoing, Func<TableRef, IReadOnlyList<string>> primaryKeyOf)
+    {
+        private readonly ConcurrentDictionary<TableRef, IReadOnlyList<ForeignKeyInfo>> _outgoing = new();
+
+        public AuditTemplate Template => template;
+
+        public IReadOnlyList<TableSummary> Tables => tables;
+
+        public IReadOnlyList<ForeignKeyInfo> ForeignKeys => foreignKeys;
+
+        public IReadOnlyDictionary<TableRef, TableRef> BaseOf => baseOf;
+
+        public IReadOnlyList<ForeignKeyInfo> Outgoing(TableRef audit) => _outgoing.GetOrAdd(audit, _ =>
+        {
+            var baseTable = baseOf[audit];
+            var own = outgoing[audit].ToList(); // declared on the audit table itself (rare): kept
+            var copied = outgoing[baseTable].Select(fk => fk with { From = audit, Audit = AuditRelation.Copied });
+            var key = primaryKeyOf(baseTable);
+            IEnumerable<ForeignKeyInfo> baseRow = key.Count == 0
+                ? []
+                : [new ForeignKeyInfo(baseTable.Name, audit, key, baseTable, key, FkSource.Convention) { Audit = AuditRelation.BaseRow }];
+            return [.. own, .. baseRow, .. copied];
+        });
+    }
 
     /// <summary>Relationships where other tables reference <paramref name="table"/>.</summary>
     public IEnumerable<ForeignKeyInfo> IncomingOf(TableRef table) => _incoming[table];

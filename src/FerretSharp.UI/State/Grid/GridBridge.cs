@@ -131,6 +131,9 @@ public sealed record GridTexts
 
     /// <summary>Tooltip line for <see cref="NotFound"/>.</summary>
     public string NotFoundTitle { get; init; } = GridText.Grid_DisplayNotFoundTitle;
+
+    /// <summary>Tooltip line of an audit row's cell that differs from the version before (WP-63).</summary>
+    public string AuditChangedTitle { get; init; } = GridText.Grid_AuditChangedTitle;
 }
 
 /// <summary>A sorted column as AG Grid reports it ("asc"/"desc").</summary>

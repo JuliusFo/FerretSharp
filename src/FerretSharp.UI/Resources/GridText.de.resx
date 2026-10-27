@@ -1257,4 +1257,13 @@
   <data name="ColumnFact_PropertyTitle" xml:space="preserve">
     <value>Property und CLR-Typ im verknüpften C#-Modell</value>
   </data>
+  <data name="FkJump_BaseRow" xml:space="preserve">
+    <value>Hauptdatensatz</value>
+  </data>
+  <data name="Grid_AuditChangesOff" xml:space="preserve">
+    <value>Änderungen gegenüber der Vorversion werden in diesem Tab nicht mehr hervorgehoben: {0}</value>
+  </data>
+  <data name="Grid_AuditChangedTitle" xml:space="preserve">
+    <value>Geändert gegenüber der Vorversion</value>
+  </data>
 </root>

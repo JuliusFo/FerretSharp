@@ -294,7 +294,12 @@ public static class QueryBuilder
     /// <c>t."C" IN (:k0, …)</c>, <c>(t."A", t."B") IN ((:k0_0, :k0_1), …)</c> or <c>t.ROWID IN (…)</c> for
     /// <see cref="BuildRowsByKeys"/>; values bound with the column's type, filled up to the next of <see cref="LookupSizes"/>.
     /// </summary>
-    internal static string KeyIn(TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, List<QueryParameter> parameters)
+    /// <param name="prefix">Starts the bind names, so two lists can share a statement.</param>
+    /// <param name="alias">The table or inline view the columns belong to.</param>
+    /// <param name="rowId">How <paramref name="alias"/> names the ROWID (an inline view selects it under a name of its own).</param>
+    internal static string KeyIn(
+        TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, List<QueryParameter> parameters,
+        string prefix = "k", string alias = Alias, string rowId = "ROWID")
     {
         var size = LookupSizes.First(s => s >= keys.Count);
         var invariant = System.Globalization.CultureInfo.InvariantCulture;
@@ -302,11 +307,11 @@ public static class QueryBuilder
         {
             var rowIds = Enumerable.Range(0, size).Select(i =>
             {
-                var name = "k" + i.ToString(invariant);
+                var name = prefix + i.ToString(invariant);
                 parameters.Add(new QueryParameter(name, keys[Math.Min(i, keys.Count - 1)][0], OracleTypeHint.Varchar2));
                 return ":" + name;
             });
-            return $"{Alias}.ROWID IN ({string.Join(", ", rowIds)})";
+            return $"{alias}.{rowId} IN ({string.Join(", ", rowIds)})";
         }
 
         var columns = keyColumns.Select(c => table.Columns[c]).ToList();
@@ -316,16 +321,64 @@ public static class QueryBuilder
             var key = keys[Math.Min(i, keys.Count - 1)];
             var binds = columns.Select((_, c) =>
             {
-                var name = columns.Count == 1 ? "k" + i.ToString(invariant) : $"k{i.ToString(invariant)}_{c.ToString(invariant)}";
+                var name = columns.Count == 1 ? prefix + i.ToString(invariant) : $"{prefix}{i.ToString(invariant)}_{c.ToString(invariant)}";
                 parameters.Add(new QueryParameter(name, key[c], types[c]));
                 return ":" + name;
             });
             return columns.Count == 1 ? binds.Single() : $"({string.Join(", ", binds)})";
         }).ToList();
-        var refs = columns.Select(c => $"{Alias}.{OracleIdentifier.Quote(c.Name)}").ToList();
+        var refs = columns.Select(c => $"{alias}.{OracleIdentifier.Quote(c.Name)}").ToList();
         return columns.Count == 1
             ? $"{refs[0]} IN ({string.Join(", ", tuples)})"
             : $"({string.Join(", ", refs)}) IN ({string.Join(", ", tuples)})";
+    }
+
+    /// <summary>The audit table's own row key as the inner view of <see cref="BuildAuditChanges"/> selects a ROWID.</summary>
+    internal const string AuditRowId = "FS_RID";
+
+    /// <summary>
+    /// The rows of an audit table (WP-63) with their audit row keys <paramref name="rowKeys"/> against the version before each:
+    /// the row key (primary key columns, or the ROWID as <see cref="AuditRowId"/>), the number of the version among those of
+    /// its base row (1 = the first) and one character per compared column, <c>1</c> where it differs from the version before
+    /// (<c>DECODE</c> holds two NULLs equal). The versions are numbered inside all rows of the base keys
+    /// <paramref name="baseKeys"/> – before the audit rows are picked, so the version before counts even if the grid's filter
+    /// leaves it out. The order is the template's column, then the ROWID (two rows of one instant stay apart).
+    /// </summary>
+    /// <exception cref="ArgumentException">No keys or more than <see cref="MaxLookupKeys"/> of either; nothing to compare; a view.</exception>
+    public static QuerySpec BuildAuditChanges(
+        TableDetails table, Audit.AuditVersions versions, IReadOnlyList<IReadOnlyList<object>> baseKeys, IReadOnlyList<IReadOnlyList<object>> rowKeys)
+    {
+        ArgumentNullException.ThrowIfNull(versions);
+        if (baseKeys.Count == 0 || baseKeys.Count > MaxLookupKeys || rowKeys.Count == 0 || rowKeys.Count > MaxLookupKeys
+            || versions.Compared.Count == 0 || table.Table.Kind == TableKind.View)
+        {
+            throw new ArgumentException($"Versions of a table are compared for 1 to {MaxLookupKeys} keys, over at least one column.", nameof(versions));
+        }
+
+        var builder = new Builder(table);
+        var byPrimaryKey = RowKeyOf(table) == RowKeyKind.PrimaryKey;
+        var partition = string.Join(", ", versions.KeyColumns.Select(i => builder.Ref(table.Columns[i])));
+        var window = $"OVER (PARTITION BY {partition} ORDER BY {builder.Ref(table.Columns[versions.OrderColumn])}, {Alias}.ROWID)";
+        var rowKey = byPrimaryKey
+            ? table.PrimaryKey.Select(name => OracleIdentifier.Quote(name)).ToList()
+            : [AuditRowId];
+        var changed = string.Join("\n                 || ", versions.Compared.Select(i =>
+        {
+            var c = builder.Ref(table.Columns[i]);
+            return $"DECODE({c}, LAG({c}) {window}, '0', '1')";
+        }));
+
+        var sql = new StringBuilder()
+            .Append("SELECT ").AppendJoin(", ", rowKey.Select(c => "v." + c)).Append(", v.FS_N, v.FS_CHANGED")
+            .Append("\n  FROM (SELECT ").AppendJoin(", ", byPrimaryKey ? rowKey.Select(c => $"{Alias}.{c}") : [$"{Alias}.ROWID AS {AuditRowId}"])
+            .Append(",\n               ROW_NUMBER() ").Append(window).Append(" AS FS_N")
+            .Append(",\n               ").Append(changed).Append(" AS FS_CHANGED")
+            .Append("\n          FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append("\n         WHERE ").Append(KeyIn(table, versions.KeyColumns, baseKeys, builder.Parameters)).Append(") v")
+            .Append("\n WHERE ").Append(KeyIn(table, byPrimaryKey ? [.. table.PrimaryKey.Select(table.IndexOf)] : null, rowKeys, builder.Parameters,
+                prefix: "r", alias: "v", rowId: AuditRowId))
+            .ToString();
+        return new QuerySpec(sql, builder.Parameters);
     }
 
     private static List<string> SelectList(Builder builder, IReadOnlyList<ResultColumn> columns, bool hasRowId)

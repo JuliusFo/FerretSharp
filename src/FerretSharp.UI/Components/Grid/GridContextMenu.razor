@@ -319,7 +319,7 @@
 
         var row = Details.Table.Ref;
         _jumps = FkJumpLists.Of(
-            FkNavigation.JumpsFor(Details, Request.JumpRows, schema.OutgoingOf(row), schema.IncomingOf(row), schema.InheritedIncomingOf(row)), InvolvesColumn);
+            FkNavigation.JumpsFor(Details, Request.JumpRows, schema.LinksOf(row), schema.IncomingOf(row), schema.InheritedIncomingOf(row)), InvolvesColumn);
     }
 
     private bool InvolvesColumn(FkJump jump) => jump.RowColumns.Contains(Column.Name);

@@ -1599,4 +1599,16 @@
     <value>Property and CLR type in the linked C# model</value>
     <comment>Tooltip of the C# fact in the column menu's head</comment>
   </data>
+  <data name="FkJump_BaseRow" xml:space="preserve">
+    <value>main row</value>
+    <comment>The FK jump leads from an audit row to the row of its base table (WP-63)</comment>
+  </data>
+  <data name="Grid_AuditChangesOff" xml:space="preserve">
+    <value>Changes against the version before are no longer highlighted in this tab: {0}</value>
+    <comment>{0}: why (error message)</comment>
+  </data>
+  <data name="Grid_AuditChangedTitle" xml:space="preserve">
+    <value>Changed against the version before</value>
+    <comment>Tooltip line of a highlighted cell in an audit table (WP-63)</comment>
+  </data>
 </root>

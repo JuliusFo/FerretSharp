@@ -10,7 +10,8 @@ namespace FerretSharp.Core.Audit;
 
 /// <summary>
 /// Reads audit templates (WP-26): an SQL file steered by directive lines (<c>-- @audit-table</c>, <c>-- @trigger</c>,
-/// <c>-- @table-comment</c>, <c>-- @columns</c>, <c>-- @base-columns</c>, <c>-- @trigger-source</c>). Syntax and rules:
+/// <c>-- @table-comment</c>, <c>-- @columns</c>, <c>-- @base-columns</c>, <c>-- @version-order</c> and <c>-- @action</c>
+/// (WP-63), <c>-- @trigger-source</c>). Syntax and rules:
 /// <c>docs/audit-templates.md</c>.
 /// </summary>
 public static partial class AuditTemplates
@@ -50,6 +51,8 @@ public static partial class AuditTemplates
         var seen = new HashSet<string>(StringComparer.Ordinal);
         IReadOnlyList<PatternPart>? auditTable = null, trigger = null, tableComment = null, source = null;
         AuditBaseColumns? baseColumns = null;
+        (string Column, int Line)? versionOrder = null;
+        (AuditAction Action, int Line)? action = null;
         var before = new List<ColumnInfo>();
         var after = new List<ColumnInfo>();
         var inColumns = false;
@@ -62,7 +65,8 @@ public static partial class AuditTemplates
             {
                 var name = directive.Groups["name"].Value;
                 var value = directive.Groups["value"].Value.Trim();
-                if (name is "audit-table" or "trigger" or "table-comment" or "columns" or "base-columns" or "trigger-source" && !seen.Add(name))
+                if (name is "audit-table" or "trigger" or "table-comment" or "columns" or "base-columns" or "version-order" or "action" or "trigger-source"
+                    && !seen.Add(name))
                 {
                     errors.Add(new(number, TextFormat.Format(AuditText.DirectiveRepeated, name)));
                 }
@@ -97,6 +101,26 @@ public static partial class AuditTemplates
                         }
 
                         inColumns = true;
+                        break;
+                    case "version-order":
+                        if (ColumnName(value) is { Tail.Length: 0, Name: { } orderName })
+                        {
+                            versionOrder = (orderName, number);
+                        }
+                        else
+                        {
+                            errors.Add(new(number, value.Length == 0
+                                ? TextFormat.Format(AuditText.DirectiveNeedsValue, name)
+                                : TextFormat.Format(AuditText.VersionOrderValue, value)));
+                        }
+
+                        break;
+                    case "action":
+                        if (ParseAction(value, number, errors) is { } parsed)
+                        {
+                            action = (parsed, number);
+                        }
+
                         break;
                     case "trigger-source":
                         NoValue();
@@ -161,12 +185,47 @@ public static partial class AuditTemplates
             }
         }
 
+        var own = before.Concat(after).ToList();
+        if (versionOrder is { } order && OwnColumn(order.Column, order.Line, "version-order") is { } orderColumn)
+        {
+            if (!OracleTypes.IsComparable(orderColumn.DataType))
+            {
+                errors.Add(new(order.Line, TextFormat.Format(AuditText.VersionOrderNotSortable, orderColumn.Name, OracleTypes.DdlType(orderColumn))));
+            }
+            else if (orderColumn.Nullable)
+            {
+                // A row without a value would sort as the newest version and be compared with the wrong one (review of WP-63).
+                errors.Add(new(order.Line, TextFormat.Format(AuditText.VersionOrderNullable, orderColumn.Name)));
+            }
+        }
+
+        if (action is { } act)
+        {
+            OwnColumn(act.Action.Column, act.Line, "action");
+        }
+
         if (errors.Count > 0)
         {
             throw new AuditTemplateException(errors);
         }
 
-        return new AuditTemplate(text, auditTable!, trigger!, tableComment, before, baseColumns!.Value, after, source!);
+        return new AuditTemplate(text, auditTable!, trigger!, tableComment, before, baseColumns!.Value, after, source!)
+        {
+            VersionOrder = versionOrder?.Column,
+            Action = action?.Action,
+        };
+
+        // A directive naming a column: it must be one of the template's own columns (the base columns differ per table).
+        ColumnInfo? OwnColumn(string column, int line, string directive)
+        {
+            var found = own.FirstOrDefault(c => c.Name == column);
+            if (found is null)
+            {
+                errors.Add(new(line, TextFormat.Format(AuditText.DirectiveColumnUnknown, directive, column)));
+            }
+
+            return found;
+        }
     }
 
     /// <summary>The rest of the file from <paramref name="start"/> on, without blank lines around it and a final <c>/</c> line.</summary>
@@ -201,6 +260,56 @@ public static partial class AuditTemplates
 
         var text = string.Join("\n", lines[start..end].Select(l => l.TrimEnd()));
         return [.. AuditPattern.Parse(text, start + 1, null, AllNames, errors)];
+    }
+
+    /// <summary>A column name as SQL reads it at the start of <paramref name="text"/>: unquoted upper-cased, in <c>"…"</c> exactly; and what follows.</summary>
+    private static (string? Name, string Tail) ColumnName(string text)
+    {
+        var tokens = SqlTokenizer.Tokenize(text).Where(t => t.Kind != SqlTokenKind.Space).ToList();
+        if (tokens is not [{ Kind: SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier } first, ..])
+        {
+            return (null, text.Trim());
+        }
+
+        var name = first.Kind == SqlTokenKind.Word ? first.Value.ToUpperInvariant() : first.Value;
+        return (name.Length == 0 ? null : name, text[first.End..].Trim());
+    }
+
+    /// <summary><c>COLUMN insert=I update=U delete=D</c>, each value optional but one at least (WP-63).</summary>
+    private static AuditAction? ParseAction(string value, int number, List<AuditTemplateError> errors)
+    {
+        var (column, rest) = ColumnName(value);
+        if (column is null)
+        {
+            errors.Add(new(number, TextFormat.Format(AuditText.DirectiveNeedsValue, "action")));
+            return null;
+        }
+
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        var ok = true;
+        foreach (var part in rest.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var equals = part.IndexOf('=', StringComparison.Ordinal);
+            var key = equals < 0 ? part : part[..equals].ToLowerInvariant();
+            if (equals <= 0 || equals == part.Length - 1 || key is not ("insert" or "update" or "delete"))
+            {
+                errors.Add(new(number, TextFormat.Format(AuditText.ActionPartInvalid, part)));
+                ok = false;
+            }
+            else if (!values.TryAdd(key, part[(equals + 1)..]))
+            {
+                errors.Add(new(number, TextFormat.Format(AuditText.ActionPartRepeated, key)));
+                ok = false;
+            }
+        }
+
+        if (ok && values.Count == 0)
+        {
+            errors.Add(new(number, AuditText.ActionNeedsValues));
+            ok = false;
+        }
+
+        return ok ? new AuditAction(column, values.GetValueOrDefault("insert"), values.GetValueOrDefault("update"), values.GetValueOrDefault("delete")) : null;
     }
 
     /// <summary>

@@ -162,6 +162,12 @@ public sealed record AppSettings
     public bool SyncAuditInDesigner { get; init; } = true;
 
     /// <summary>
+    /// The grid of an audit table tints the cells that differ from the version before and marks inserts and deletes (WP-63):
+    /// one query more per block of rows, on the audit table by its base key. On by default.
+    /// </summary>
+    public bool HighlightAuditChanges { get; init; } = true;
+
+    /// <summary>
     /// Values of the display column beside foreign key values in the grid (WP-31): <c>4711 · PetersPizza</c>. On by default.
     /// </summary>
     public bool ShowDisplayNames { get; init; } = true;

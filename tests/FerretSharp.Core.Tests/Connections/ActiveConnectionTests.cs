@@ -52,6 +52,23 @@ public sealed class ActiveConnectionTests : IDisposable
         Assert.True(_recent.LastUsed.ContainsKey(_profile.Id));
     }
 
+    /// <summary>WP-63 (review): the schema knows the audit tables by the template of the connection (built-in here).</summary>
+    [Fact]
+    public async Task The_schema_pairs_audit_tables_by_the_connections_template()
+    {
+        var reader = FakeDatabase.Reader(new TableSummary("APP_USER", "KUNDEN", TableKind.Table), new TableSummary("APP_USER", "AUDIT_KUNDEN", TableKind.Table));
+        var connector = FakeDatabase.Connector(FakeDatabase.Connection(reader));
+        var settings = new Core.Settings.AppSettingsService(new Core.Settings.SettingsStore(_folder.Combine("settings.json")), Core.Settings.AppSettings.Default);
+        var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
+        await using var active = new ActiveConnection(connections, connector, _recent, new WorkspaceManager(_workspaceStore, connections, connector),
+            auditTemplates: new Core.Audit.AuditTemplateSource(settings));
+
+        await active.ConnectAsync(_profile, Ct);
+
+        Assert.Same(Core.Audit.AuditTemplates.Default, active.Schema!.AuditTemplate);
+        Assert.Equal(new TableRef("APP_USER", "KUNDEN"), active.Schema.AuditBaseOf(new TableRef("APP_USER", "AUDIT_KUNDEN")));
+    }
+
     /// <summary>A colleague's connect seemed to hang (2026-10-14): each step is shown while it runs and kept with its duration.</summary>
     [Fact]
     public async Task Connect_reports_each_step_and_keeps_them_with_their_durations()
