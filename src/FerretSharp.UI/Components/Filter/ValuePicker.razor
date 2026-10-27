@@ -137,7 +137,9 @@
 
             // Keep the members' order, values without a member last.
             values = [.. Values.Options.Select(o => o.Value).Where(values.Contains), .. values.Where(v => Values.Options.All(o => o.Value != v))];
-            Type("");
+            // The list as it will be with the new values: a typed value stays highlighted where it now stands.
+            _typed = "";
+            _items = ValuePickerItems.Of(Values, values, _typed);
             _highlight = Math.Max(0, _items.ToList().FindIndex(i => i.Value == item.Value));
         }
         else
