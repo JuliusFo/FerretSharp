@@ -63,7 +63,8 @@ developer works with an Oracle database day to day:
   address Teams and tickets make clickable, never SQL. A click opens the table in FerretSharp after asking, on the
   connection that fits or one you choose.
 - Names beside foreign keys: mark a display column per table (`KUNDEN.NAME`) and every reference to it reads
-  `4711 · PetersPizza`; a value without a referenced row says "not found". The display columns live in one file you
+  `4711 · PetersPizza`; a name can join several columns (`Müller - Hans`) and follow one more foreign key; a value
+  without a referenced row says "not found". The display columns live in one file you
   can share with your team through your repository.
 - Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies, DDL.
 - PL/SQL to look at: packages, procedures, functions and triggers with their source (read-only, coloured, compile
