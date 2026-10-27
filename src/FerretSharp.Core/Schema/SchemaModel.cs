@@ -114,6 +114,16 @@ public enum FkSource
     ClrModel,
 }
 
+/// <summary>How an audit table got a relationship (WP-63, <see cref="SchemaCache.OutgoingOf"/>).</summary>
+public enum AuditRelation
+{
+    /// <summary>One of its base table's: the audit table holds copies of the base table's columns.</summary>
+    Copied,
+
+    /// <summary>To its base row: the base table's primary key, the same columns in both tables.</summary>
+    BaseRow,
+}
+
 /// <summary>A (possibly composite) relationship; columns are listed in matching order.</summary>
 public sealed record ForeignKeyInfo(
     string Name,
@@ -121,7 +131,14 @@ public sealed record ForeignKeyInfo(
     IReadOnlyList<string> FromColumns,
     TableRef To,
     IReadOnlyList<string> ToColumns,
-    FkSource Source);
+    FkSource Source)
+{
+    /// <summary>
+    /// Set on the relationships an audit table gets from its base table (WP-63): they exist for reading – no constraint, no
+    /// index advice, no code –, and only from the audit table, never into it.
+    /// </summary>
+    public AuditRelation? Audit { get; init; }
+}
 
 /// <summary>The primary key of a table (enabled or not): its columns in key order.</summary>
 public sealed record PrimaryKeyInfo(TableRef Table, IReadOnlyList<string> Columns);

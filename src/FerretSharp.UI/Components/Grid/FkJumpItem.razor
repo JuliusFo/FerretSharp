@@ -14,10 +14,7 @@
     {
         <span class="ctx-table">
             @FkTargets.Label(Active, Jump.Table)
-            @if (Jump.ForeignKey.Source == FkSource.ClrModel)
-            {
-                <span class="ctx-source">@GridText.FkJump_FromModel</span>
-            }
+            @Source
         </span>
         @if (Jump.Direction == JumpDirection.Outgoing || !Jump.IsAvailable)
         {
@@ -29,10 +26,7 @@
         <span class="ctx-target">
             <span class="ctx-table">
                 @FkTargets.Label(Active, Jump.Table)
-                @if (Jump.ForeignKey.Source == FkSource.ClrModel)
-                {
-                    <span class="ctx-source">@GridText.FkJump_FromModel</span>
-                }
+                @Source
             </span>
             <span class="ctx-meta @(Jump.IsAvailable ? "" : "wrap")">@(Jump.Unavailable ?? Jump.Condition)</span>
         </span>
@@ -55,6 +49,12 @@
 </button>
 
 @code {
+    /// <summary>Where the jump comes from, if not the database: the C# model, or an audit row's base row (WP-63).</summary>
+    private RenderFragment? Source =>
+        Jump.ForeignKey.Audit == AuditRelation.BaseRow ? @<span class="ctx-source">@GridText.FkJump_BaseRow</span>
+        : Jump.ForeignKey.Source == FkSource.ClrModel ? @<span class="ctx-source">@GridText.FkJump_FromModel</span>
+        : null;
+
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
 

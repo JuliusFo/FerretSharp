@@ -14,21 +14,24 @@ public sealed record ColumnLabel(string Name, string? AlternateName, string? Clr
 /// How a table, its columns and its values are presented (CLAUDE.md section 2: the exchangeable presentation layer).
 /// Without a C# model it is the plain database view; with one (WP-12) it adds entity and property names according to
 /// the setting, and shows enum and converted bool values by their C# names. SQL, filters and edits keep database
-/// names and values – only what the user sees changes.
+/// names and values – only what the user sees changes. An audit table (WP-63) shows its copies of the base table's columns
+/// like the base table: property names and enum members of the base entity – without being that entity (no LINQ, no code).
 /// </summary>
 public sealed class TablePresentation : IColumnPresentation
 {
     private readonly PropertyExport?[] _properties;
     private readonly ValueTable?[] _values;
 
-    private TablePresentation(TableDetails details, ClrModelMapping? mapping, ClrNameDisplay names)
+    private TablePresentation(TableDetails details, ClrModelMapping? mapping, ClrNameDisplay names, TableRef? columnsOf)
     {
         Details = details;
-        Entity = mapping?.EntityOf(details.Table.Ref);
-        Names = Entity is null ? ClrNameDisplay.Off : names;
+        Entity = columnsOf is null ? mapping?.EntityOf(details.Table.Ref) : null;
+        var modelTable = columnsOf ?? details.Table.Ref;
+        var mapped = mapping?.EntityOf(modelTable) is not null;
         // Owned types and table splitting: several entities share the table, each with its own properties.
-        _properties = details.Columns.Select(c => Entity is null ? null : mapping!.PropertyOf(details.Table.Ref, c.Name)).ToArray();
+        _properties = details.Columns.Select(c => mapped ? mapping!.PropertyOf(modelTable, c.Name) : null).ToArray();
         _values = details.Columns.Select((c, i) => ValueTable.For(_properties[i], c)).ToArray();
+        Names = mapped && (Entity is not null || _properties.Any(p => p is not null)) ? names : ClrNameDisplay.Off;
     }
 
     public TableDetails Details { get; }
@@ -38,7 +41,7 @@ public sealed class TablePresentation : IColumnPresentation
     /// <summary>The entity mapped to the table; null without a model or if none maps it.</summary>
     public EntityMapping? Entity { get; }
 
-    /// <summary>Where C# names appear; <see cref="ClrNameDisplay.Off"/> if the table has no entity.</summary>
+    /// <summary>Where C# names appear; <see cref="ClrNameDisplay.Off"/> if no column has a property.</summary>
     public ClrNameDisplay Names { get; }
 
     /// <summary>The entity's short name (<c>Kunde</c>); null without one.</summary>
@@ -48,10 +51,13 @@ public sealed class TablePresentation : IColumnPresentation
     public bool ShowsClrNames => Names != ClrNameDisplay.Off;
 
     /// <summary>The plain database view of a table.</summary>
-    public static TablePresentation Plain(TableDetails details) => new(details, null, ClrNameDisplay.Off);
+    public static TablePresentation Plain(TableDetails details) => new(details, null, ClrNameDisplay.Off, null);
 
-    public static TablePresentation Create(TableDetails details, ClrModelMapping? mapping, ClrNameDisplay names) =>
-        new(details, mapping, names);
+    /// <param name="columnsOf">
+    /// The table whose entity names the columns instead: an audit table's base table (WP-63); null for the table itself.
+    /// </param>
+    public static TablePresentation Create(TableDetails details, ClrModelMapping? mapping, ClrNameDisplay names, TableRef? columnsOf = null) =>
+        new(details, mapping, names, columnsOf);
 
     public PropertyExport? PropertyOf(int column) => _properties[column];
 
@@ -61,7 +67,8 @@ public sealed class TablePresentation : IColumnPresentation
     /// </summary>
     public bool IsEntityProperty(int column) =>
         _properties[column] is { } property
-        && Entity!.Properties.TryGetValue(Details.Columns[column].Name, out var own)
+        && Entity is not null // an audit table's columns have the base entity's properties, not its own (WP-63)
+        && Entity.Properties.TryGetValue(Details.Columns[column].Name, out var own)
         && ReferenceEquals(own, property);
 
     /// <summary>Members of an enum or converted bool column; null for other columns.</summary>

@@ -35,8 +35,10 @@ public sealed record SessionOpenOutcome(TimeSpan Took, bool Synchronous, string?
 /// workspaces (each with its own data session, see <see cref="WorkspaceManager"/>) and records usage.
 /// </summary>
 /// <param name="time">The clock of the open timeout (tests); the system's if null.</param>
+/// <param name="auditTemplates">The audit template of the connection, for the schema's audit tables (WP-63); none in tests that do not need it.</param>
 public sealed class ActiveConnection(
-    ConnectionManager connections, IDatabaseConnector connector, RecentConnections recent, WorkspaceManager workspaces, TimeProvider? time = null)
+    ConnectionManager connections, IDatabaseConnector connector, RecentConnections recent, WorkspaceManager workspaces, TimeProvider? time = null,
+    Audit.AuditTemplateSource? auditTemplates = null)
     : IAsyncDisposable
 {
     public const string ExplorerAction = "Explorer";
@@ -153,6 +155,11 @@ public sealed class ActiveConnection(
             _connection = await OpenAsync(profile, password, openTimeout, cts.Token);
             connections.PasswordWorked(profile.Id); // a password entered with "save" is saved only now (A11)
             var schema = new SchemaCache(_connection.Schema, profile.EffectiveSchema);
+            if (auditTemplates is not null)
+            {
+                schema.UseAuditTemplate(() => auditTemplates.For(Profile).Template); // the profile as it is now: edited, it applies at once
+            }
+
             await schema.LoadAsync(new SyncProgress<string>(StartStep), cts.Token);
             StartStep(ConnectionText.Step_RestoringWorkspaces);
             await workspaces.AttachAsync(profile, cts.Token);

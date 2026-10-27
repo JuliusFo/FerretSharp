@@ -1599,4 +1599,8 @@
     <value>Property and CLR type in the linked C# model</value>
     <comment>Tooltip of the C# fact in the column menu's head</comment>
   </data>
+  <data name="FkJump_BaseRow" xml:space="preserve">
+    <value>main row</value>
+    <comment>The FK jump leads from an audit row to the row of its base table (WP-63)</comment>
+  </data>
 </root>

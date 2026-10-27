@@ -1,4 +1,5 @@
 using FerretSharp.Core.ClrModel;
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
 
@@ -18,6 +19,7 @@ public sealed class PresentationService : IDisposable
 
     private readonly ClrModelManager _models;
     private readonly AppSettingsService _settings;
+    private readonly ActiveConnection? _active;
     private readonly Lock _lock = new();
     private readonly List<(int Version, IReadOnlySet<TableRef>? Tables, bool Names)> _changes = [];
     private ClrModelMapping? _mapping;
@@ -25,10 +27,12 @@ public sealed class PresentationService : IDisposable
     private ColumnHeaderLines _header;
     private ModelTableSignatures _signatures;
 
-    public PresentationService(ClrModelManager models, AppSettingsService settings)
+    /// <param name="active">The connection, for its audit tables (WP-63); none in tests that do not need them.</param>
+    public PresentationService(ClrModelManager models, AppSettingsService settings, ActiveConnection? active = null)
     {
         _models = models;
         _settings = settings;
+        _active = active;
         _mapping = models.Mapping;
         _names = settings.Current.ClrNames;
         _header = ColumnHeaderLines.Of(settings.Current);
@@ -62,7 +66,9 @@ public sealed class PresentationService : IDisposable
     /// <summary>Changes whenever <see cref="Changed"/> fires: lets a component tell whether its presentation is stale.</summary>
     public int Version { get; private set; }
 
-    public TablePresentation For(TableDetails details) => TablePresentation.Create(details, _mapping, _names);
+    /// <summary>The table's presentation; an audit table's columns named by its base table's entity (WP-63).</summary>
+    public TablePresentation For(TableDetails details) =>
+        TablePresentation.Create(details, _mapping, _names, _active?.Schema?.AuditBaseOf(details.Table.Ref));
 
     /// <summary>The entity of a table by its short name (<c>Kunde</c>); null without one.</summary>
     public string? EntityNameOf(TableRef table) =>
@@ -72,7 +78,12 @@ public sealed class PresentationService : IDisposable
     public string? ShownEntityNameOf(TableRef table) => _names == ClrNameDisplay.Off ? null : EntityNameOf(table);
 
     /// <summary>Whether the presentation of <paramref name="table"/> changed after <paramref name="version"/>.</summary>
-    public bool ChangedSince(int version, TableRef table) => ChangedSince(version, c => c.Tables is null || c.Tables.Contains(table));
+    /// <remarks>An audit table changes with its base table: its columns are named by the base entity (WP-63).</remarks>
+    public bool ChangedSince(int version, TableRef table)
+    {
+        var baseTable = _active?.Schema?.AuditBaseOf(table);
+        return ChangedSince(version, c => c.Tables is null || c.Tables.Contains(table) || (baseTable is not null && c.Tables.Contains(baseTable)));
+    }
 
     /// <summary>Whether the entity names shown for tables (or the setting) changed after <paramref name="version"/>.</summary>
     public bool NamesChangedSince(int version) => ChangedSince(version, c => c.Names);
