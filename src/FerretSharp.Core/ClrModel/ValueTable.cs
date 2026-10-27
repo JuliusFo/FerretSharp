@@ -99,6 +99,25 @@ public sealed class ValueTable
         return key is null || !_byValue.TryGetValue(key, out var mapping) ? null : _byMember.GetValueOrDefault(mapping.Name);
     }
 
+    /// <summary>
+    /// A typed filter value as the column holds it, member or not (<c>2,0</c> → <c>2</c>, <c> X </c> → <c>X</c>): to filter
+    /// for a value the C# model does not know. Null for an empty text or one a number column cannot hold.
+    /// </summary>
+    public string? TypedValue(string text)
+    {
+        if (text.Trim() is not { Length: > 0 } trimmed)
+        {
+            return null;
+        }
+
+        if (_category != ColumnCategory.Number)
+        {
+            return trimmed;
+        }
+
+        return ValueInput.TryParseNumber(trimmed, out var number) ? number.ToString("G29", CultureInfo.InvariantCulture) : null;
+    }
+
     /// <summary>The option of a raw database value (to preselect it in the cell editor); null without a member.</summary>
     public ValueOption? OptionOf(object? value) => Find(value) is { } mapping ? _byMember.GetValueOrDefault(mapping.Name) : null;
 

@@ -606,6 +606,12 @@
   <data name="ValuePicker_ChooseValues" xml:space="preserve">
     <value>Werte wählen …</value>
   </data>
+  <data name="ValuePicker_Search" xml:space="preserve">
+    <value>Suchen oder Wert eingeben</value>
+  </data>
+  <data name="ValuePicker_SearchTitle" xml:space="preserve">
+    <value>Sucht in Name, C#-Member und Wert. Ein Wert ohne Member (z. B. 1) lässt sich wählen, wie er getippt ist.</value>
+  </data>
   <data name="ValuePicker_NoMember" xml:space="preserve">
     <value>kein Member</value>
   </data>
