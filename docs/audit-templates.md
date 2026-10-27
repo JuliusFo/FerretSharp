@@ -81,6 +81,8 @@ Eine Vorlage ist eine Textdatei (UTF-8). **Anweisungen** sind Kommentarzeilen de
 | `-- @table-comment TEXT` | nein | Kommentar der Audit-Tabelle; Platzhalter `{table}`, `{owner}`, `{audit_table}`, `{trigger}`. Ohne die Anweisung bekommt die Tabelle keinen Kommentar. |
 | `-- @columns` | nein | Beginn der eigenen Spalten der Audit-Tabelle (eine je Zeile, bis zur nächsten Anweisung) |
 | `-- @base-columns as-base` bzw. `nullable` | ja | Stelle der Basisspalten zwischen den eigenen Spalten: Spalten davor stehen vor, Spalten danach hinter ihnen. `as-base` übernimmt NOT NULL der Basisspalte, `nullable` macht alle Basisspalten nullable. Nach der Anweisung können weitere Spaltenzeilen folgen. |
+| `-- @version-order SPALTE` | nein | Eigene Spalte, nach der die Versionen eines Datensatzes laufen, älteste zuerst (z. B. die laufende Nummer `AUDIT_ID`); vergleichbarer Typ, kein LOB. Ohne die Anweisung hebt das Grid keine Änderungen hervor (WP-63, unten). |
+| `-- @action SPALTE insert=I update=U delete=D` | nein | Eigene Spalte, die sagt, was eine Audit-Zeile aufgezeichnet hat, und ihre Werte (mindestens einer; Text ohne Leerzeichen, verglichen ohne die Füllzeichen von `CHAR`). Das Grid markiert Insert- und Delete-Zeilen (WP-63). |
 | `-- @trigger-source` | ja | Der Rest der Datei ist der Trigger: `CREATE [OR REPLACE] TRIGGER …` bis `END;`. Leerzeilen am Anfang und Ende und eine abschließende `/`-Zeile fallen weg. Muss deshalb der letzte Abschnitt sein. |
 
 Jede Anweisung darf nur einmal vorkommen.
@@ -167,6 +169,15 @@ Schleifen lassen sich nicht schachteln. Eine Schleife ohne Spalten (z. B. `compa
 - `AuditPlanner.Combine` hängt den Plan an den des Designers: ein Skript, die Basistabelle vor der Audit-Tabelle, der Trigger zuletzt. Ob der Haken dafür im Designer gesetzt startet, sagt `ColumnDesigner.AuditAtStart`: an bei vorhandener Audit-Tabelle, außer die Einstellung „Audit im Designer abgleichen“ ist aus (`AppSettings.SyncAuditInDesigner`), und immer an, wenn der Designer aus der Audit-Zeile geöffnet wurde.
 
 Texte: `AuditText.resx` (Englisch) und `AuditText.de.resx`.
+
+## Die Audit-Tabelle im Grid (WP-63, ADR 0036)
+
+Welche Tabelle die Audit-Tabelle welcher ist, sagt die Namensregel der Vorlage der Verbindung (`SchemaCache.AuditBaseOf`, über `UseAuditTemplate`): nur Tabellen (keine Views, keine Synonyme); eine Audit-Tabelle einer Audit-Tabelle und ein Name, den zwei Tabellen teilen würden (Vorlage ohne `{table}`), zählen nicht.
+
+- **Beziehungen nur ausgehend:** `OutgoingOf(audit)` gibt die ausgehenden Beziehungen der Basistabelle auf den Kopien ihrer Spalten (`ForeignKeyInfo.Audit = Copied`; eine Beziehung der Basistabelle auf sich selbst zeigt weiter auf die Basistabelle) und eine zum **Hauptdatensatz** über den Primärschlüssel der Basistabelle (`Audit = BaseRow`, im Sprungmenü „Hauptdatensatz“). FK-Sprünge, Badges und Namen neben FK-Werten folgen daraus. Eingehend nichts: `IncomingOf`, `ForeignKeys`, die Diagramme und das Kopieren kennen sie nicht; Spalten-, Constraint- und Index-Ansicht und der Entity-Code zeigen nur, was die Datenbank hat.
+- **C#-Namen und Enums** der Basis-Entity für gleichnamige Spalten (`TablePresentation.Create(…, columnsOf)`); die Audit-Tabelle ist selbst keine Entity: kein LINQ-Filter, kein HasData, keine Objekte.
+- **Hervorhebung** (Einstellung „Änderungen in Audit-Tabellen hervorheben“, Standard an): Mit `@version-order` fragt das Grid nach jedem Block (`IDataAccess.ReadAuditChangesAsync`, `QueryBuilder.BuildAuditChanges`), welche Werte sich gegenüber der Vorversion desselben Basisschlüssels geändert haben, und tönt diese Zellen. Die Vorversion wird vor dem Filter des Grids bestimmt, die Sortierung des Grids spielt keine Rolle. Verglichen werden die Kopien der Basisspalten mit vergleichbarem Typ (wie `{each comparable}`), nicht LOBs, nicht der Schlüssel, NULL gegen NULL gilt als gleich. Die erste Version eines Datensatzes hat nichts zu vergleichen. Mit `@action` tönt das Grid Insert-Zeilen grün und Delete-Zeilen rot – ein Delete schreibt `:old`, seine Werte gleichen meist der Vorversion.
+- Ohne Primärschlüssel der Basistabelle: kein Hauptdatensatz, keine Hervorhebung (die Beziehungen der Basistabelle kommen trotzdem). Ohne Index auf den Schlüsselspalten in der Audit-Tabelle liest jede Abfrage die ganze Audit-Tabelle – bei sehr großen dann die Einstellung ausschalten. Eine gescheiterte Abfrage schaltet die Hervorhebung im Tab ab (mit Meldung).
 
 ## Standardvorlage
 

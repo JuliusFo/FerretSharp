@@ -732,6 +732,8 @@ export function create(elementId, dotnet, columns, options) {
       'fs-unknown': p => !!p.data?.__u?.includes(meta.id),
       'fs-pending': p => p.data?.__s?.[meta.id] === 'p',
       'fs-flushed': p => p.data?.__s?.[meta.id] === 'f',
+      // An audit row's cell that differs from the version before (WP-63).
+      'fs-audit-changed': p => !!p.data?.__c?.includes(meta.id),
       'fs-range': p => !!markAt(p, meta.id),
       'fs-range-top': p => !!markAt(p, meta.id)?.top,
       'fs-range-bottom': p => !!markAt(p, meta.id)?.bottom,
@@ -743,7 +745,8 @@ export function create(elementId, dotnet, columns, options) {
     suppressKeyboardEvent: p => p.editing && (p.event.key === 'Enter' || (!!meta.options && listKeys.has(p.event.key))),
     tooltip: p => (p.value === null || p.value === undefined ? null
       : [p.value, p.data?.__n?.[meta.id], p.data?.__nm?.includes(meta.id) ? texts.notFoundTitle : null, p.data?.__t?.[meta.id],
-        p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
+        p.data?.__u?.includes(meta.id) ? meta.unknownText : null,
+        p.data?.__c?.includes(meta.id) ? texts.auditChangedTitle : null].filter(Boolean).join('\n')),
     headerComponent: FerretHeader,
     // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
     headerComponentParams: {
@@ -1316,6 +1319,9 @@ export function create(elementId, dotnet, columns, options) {
     rowClassRules: {
       'fs-row-deleted': p => !!p.data?.__d,
       'fs-row-new': p => p.node.rowPinned === 'top',
+      // What an audit row records (WP-63): an insert or a delete of its base row.
+      'fs-audit-insert': p => p.data?.__a === 'i',
+      'fs-audit-delete': p => p.data?.__a === 'd',
     },
     onCellEditRequest: e => {
       const colId = e.column.getColId();

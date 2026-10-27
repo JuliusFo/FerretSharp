@@ -468,4 +468,10 @@
     <value>Connects a lost connection again by itself and restores its workspaces where you are – also one in the background. While the network or the database is away, it tries again for up to {0} min. If a workspace of the connection had uncommitted changes, the banner shows the loss as before. Workspaces unlocked for writing are read-only again.</value>
     <comment>{0} = minutes</comment>
   </data>
+  <data name="Settings_AuditHighlightChanges" xml:space="preserve">
+    <value>Highlight changes in audit tables</value>
+  </data>
+  <data name="Settings_AuditHighlightChangesHint" xml:space="preserve">
+    <value>The grid of an audit table tints the values that differ from the version before and marks inserts and deletes – as the template says with @version-order and @action. Costs one query more per 500 rows, on the audit table by the base table's key: off for very large audit tables without an index on it.</value>
+  </data>
 </root>

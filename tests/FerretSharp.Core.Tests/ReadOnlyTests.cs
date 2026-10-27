@@ -169,7 +169,7 @@ public class ReadOnlyTests
                 "SendBreaksInBand", // process-wide driver setting before the first connection, backlog "Abbrechen über VPN"
             ]
         },
-        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadByKeysAsync", "ReadColumnAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
+        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadAuditChangesAsync", "ReadByKeysAsync", "ReadColumnAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
         { typeof(IRowLookup), ["LookupAsync"] },
         {
             typeof(ISchemaReader), [

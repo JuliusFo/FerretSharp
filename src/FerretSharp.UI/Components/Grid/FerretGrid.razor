@@ -1,4 +1,5 @@
 @using System.Diagnostics
+@using FerretSharp.Core.Audit
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -11,6 +12,7 @@
 @implements IAsyncDisposable
 @implements IFormGrid
 @implements IDisplayNamesGrid
+@implements IAuditChangesGrid
 @implements IEditableGrid
 @implements ISelectionGrid
 @inject IJSRuntime JS
@@ -18,6 +20,8 @@
 @inject ShortcutService Shortcuts
 @inject DisplayColumnSource DisplayColumns
 @inject IClipboardService Clipboard
+@inject Core.Settings.AppSettingsService Settings
+@inject AuditTemplateSource AuditTemplates
 
 <div id="@Tab.Id" class="ag-host"></div>
 @if (_loads.Shown is { } load)
@@ -326,6 +330,65 @@
         };
     }
 
+    // ---------- audit tables: changes against the version before, inserts and deletes (WP-63) ----------
+
+    private GridAuditChanges? _auditChanges;
+    private bool _auditPlanned;
+
+    /// <summary>
+    /// The highlighting of an audit table, planned with the first block: the connection's template names the table as the
+    /// audit table of another and says how versions are ordered or what a row did. Null for other tables, with the setting
+    /// off, or without a template.
+    /// </summary>
+    private GridAuditChanges? AuditChangesOf
+    {
+        get
+        {
+            if (!_auditPlanned)
+            {
+                _auditPlanned = true;
+                _auditChanges = PlanAuditChanges();
+            }
+
+            return _auditChanges;
+        }
+    }
+
+    private GridAuditChanges? PlanAuditChanges()
+    {
+        if (!Settings.Current.HighlightAuditChanges || Active.Schema is not { } schema || schema.AuditBaseOf(Details.Table.Ref) is not { } baseTable
+            || AuditTemplates.For(Active.Profile).Template is not { } template
+            || AuditView.Of(Details, baseTable, schema.PrimaryKeyOf(baseTable), template) is not { } view)
+        {
+            return null;
+        }
+
+        var details = Details;
+        return new GridAuditChanges(this, view, (versions, rows, token) => Shell.RunDbAsync(Logger, Active, async () =>
+        {
+            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+            return await data.ReadAuditChangesAsync(details, versions, rows, token);
+        }, token));
+    }
+
+    bool IAuditChangesGrid.IsAlive => _grid.IsCreated;
+
+    async Task IAuditChangesGrid.RedrawAsync(IReadOnlySet<RowKey> keys)
+    {
+        var updates = _blocks.All()
+            .Where(r => keys.Contains(r.Row.Key))
+            .Select(r => new GridRowUpdate(r.Index, GridRow(r.Row)))
+            .ToList();
+        if (updates.Count > 0)
+        {
+            await _grid.CallAsync("updateRows", updates);
+        }
+    }
+
+    void IAuditChangesGrid.Fire(Func<Task> work) => Fire(work);
+
+    void IAuditChangesGrid.Notify(string text) => Shell.Notify(text);
+
     bool IDisplayNamesGrid.IsAlive => _grid.IsCreated;
 
     IEnumerable<IReadOnlyList<object?>> IDisplayNamesGrid.HeldRows() => _blocks.All().Select(r => ValuesOf(r.Row)).Concat(NewRowValues());
@@ -582,9 +645,10 @@
     /// their enum (WP-12), <c>__t</c> extra tooltip per column (the C# member behind a display text), <c>__new</c> id
     /// of a new row.
     /// </summary>
-    private Dictionary<string, object?> GridRow(RowData row) => GridRow(Tab.Changes?.Find(row.Key), row.Values);
+    private Dictionary<string, object?> GridRow(RowData row) => GridRow(Tab.Changes?.Find(row.Key), row.Values, row.Key);
 
-    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values) => GridRows.Build(Presentation, change, values, Names);
+    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values, RowKey? key = null) =>
+        GridRows.Build(Presentation, change, values, Names, _auditChanges?.MarksOf(key ?? change?.Key, values));
 
     private RowChange? NewRow(string? newId) => GridRows.NewRow(Tab.Changes, newId);
 
@@ -994,6 +1058,7 @@
             Tab.AllRowsLoaded = false;
             _blocks.Clear(); // new query: blocks from an older filter or sort order are stale
             DisplayNamesOf.Clear(); // names too: after writing, commit, rollback or F5 they may read differently
+            AuditChangesOf?.Clear(); // and an audit table's versions (WP-63)
             Shell.MarkDirty(); // sort order may have changed
         }
 
@@ -1040,6 +1105,7 @@
         await OnPageLoaded.InvokeAsync();
         RowsChanged?.Invoke();
         DisplayNamesOf.Queue(page.Rows.Select(ValuesOf)); // names come after the block, the rows are redrawn then
+        AuditChangesOf?.Queue(page.Rows); // so do an audit table's changes against the version before (WP-63)
 
         return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
@@ -1226,6 +1292,11 @@
         if (_displayNames is not null)
         {
             await _displayNames.DisposeAsync(); // a running lookup stops; queued ones are not run
+        }
+
+        if (_auditChanges is not null)
+        {
+            await _auditChanges.DisposeAsync();
         }
 
         await _grid.DisposeAsync();

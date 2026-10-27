@@ -393,4 +393,10 @@
   <data name="Settings_AutoReconnectHint" xml:space="preserve">
     <value>Verbindet eine verlorene Verbindung von selbst neu und stellt ihre Workspaces dort wieder her, wo du gerade bist – auch eine im Hintergrund. Solange Netz oder Datenbank weg sind, versucht es das bis {0} min lang weiter. Hatte ein Workspace der Verbindung nicht committete Änderungen, zeigt das Banner den Verlust wie bisher. Zum Schreiben freigeschaltete Workspaces sind danach wieder schreibgeschützt.</value>
   </data>
+  <data name="Settings_AuditHighlightChanges" xml:space="preserve">
+    <value>Änderungen in Audit-Tabellen hervorheben</value>
+  </data>
+  <data name="Settings_AuditHighlightChangesHint" xml:space="preserve">
+    <value>Das Grid einer Audit-Tabelle tönt die Werte, die sich gegenüber der Vorversion unterscheiden, und markiert Inserts und Deletes – so, wie die Vorlage es mit @version-order und @action sagt. Kostet je 500 Zeilen eine Abfrage mehr, auf der Audit-Tabelle nach dem Schlüssel der Basistabelle: bei sehr großen Audit-Tabellen ohne Index darauf ausschalten.</value>
+  </data>
 </root>
