@@ -32,7 +32,7 @@ internal static class ModelReader
             .Select(e => ReadEntity(e) with { DbSet = e.HasSharedClrType ? null : dbSets.GetValueOrDefault(e.ClrType) })
             .ToList();
         return new ModelExport(ModelExport.CurrentFormatVersion, efVersion, contextType.FullName ?? contextType.Name, createdBy,
-            model.GetDefaultSchema(), entities);
+            model.GetDefaultSchema(), entities, CultureInfo.CurrentUICulture.Name);
     }
 
     private static EntityExport ReadEntity(IEntityType entity)

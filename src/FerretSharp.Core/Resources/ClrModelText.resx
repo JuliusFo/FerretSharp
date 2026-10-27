@@ -426,4 +426,24 @@
     <value>{0} group ({1}) – {2}</value>
     <comment>{0} = kind of group (OR, NOT); {1} = its filters; {2} = filters without a C# form and why. Goes into “Not included: …”</comment>
   </data>
+  <data name="StepReadModelFile" xml:space="preserve">
+    <value>Reading the model file</value>
+    <comment>Progress step while the C# model loads from a model file (WP-64)</comment>
+  </data>
+  <data name="ModelFileMissing" xml:space="preserve">
+    <value>Model file not found: {0}</value>
+    <comment>{0} = path of the linked model file</comment>
+  </data>
+  <data name="ModelFileNewer" xml:space="preserve">
+    <value>The model file was written by a newer FerretSharp (format {0}). Update FerretSharp to read it.</value>
+    <comment>{0} = format version in the file</comment>
+  </data>
+  <data name="ModelFileUnreadable" xml:space="preserve">
+    <value>The model file could not be read: {0}</value>
+    <comment>{0} = system message</comment>
+  </data>
+  <data name="ModelFileNotAModel" xml:space="preserve">
+    <value>{0} is not a model file exported by FerretSharp.</value>
+    <comment>{0} = file name</comment>
+  </data>
 </root>

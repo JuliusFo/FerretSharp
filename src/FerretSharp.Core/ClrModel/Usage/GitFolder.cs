@@ -50,6 +50,57 @@ public static class GitFolder
         }
     }
 
+    /// <summary>
+    /// The first seven characters of the commit checked out in the working copy at <paramref name="root"/> (WP-64: the origin
+    /// of a model file); null if it cannot be read. Only files: the branch's ref, else <c>packed-refs</c>, both also in the
+    /// common folder of a worktree.
+    /// </summary>
+    public static string? Commit(string root)
+    {
+        try
+        {
+            if (GitDirectory(root) is not { } git || !File.Exists(Path.Combine(git, "HEAD")))
+            {
+                return null;
+            }
+
+            var head = File.ReadAllText(Path.Combine(git, "HEAD")).Trim();
+            const string reference = "ref: ";
+            if (!head.StartsWith(reference, StringComparison.Ordinal))
+            {
+                return Short(head);
+            }
+
+            var name = head[reference.Length..];
+            var common = File.Exists(Path.Combine(git, "commondir"))
+                ? Path.GetFullPath(Path.Combine(git, File.ReadAllText(Path.Combine(git, "commondir")).Trim()))
+                : git;
+            foreach (var folder in new[] { git, common }.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var file = Path.Combine(folder, name.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(file))
+                {
+                    return Short(File.ReadAllText(file).Trim());
+                }
+
+                var packed = Path.Combine(folder, "packed-refs");
+                if (File.Exists(packed)
+                    && File.ReadLines(packed).Select(l => l.Split(' ')).FirstOrDefault(p => p.Length == 2 && p[1] == name) is { } line)
+                {
+                    return Short(line[0]);
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        static string? Short(string hash) => hash.Length >= 7 && hash.All(Uri.IsHexDigit) ? hash[..7] : null;
+    }
+
     /// <summary>The <c>.git</c> folder, or for a worktree (or submodule) the folder its <c>.git</c> file names.</summary>
     private static string? GitDirectory(string root)
     {
