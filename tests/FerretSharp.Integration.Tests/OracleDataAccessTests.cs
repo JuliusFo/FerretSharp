@@ -226,14 +226,15 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
 
         await _data.ReadAllAsync(_grid, [], [], async (rows, lookup, ct) =>
         {
-            found.AddRange(await lookup.LookupAsync(_grid, Index("ID"), Index("GRUPPE"), [rows[0].Values[Index("ID")]!], ct));
+            found.AddRange(await lookup.LookupAsync(_grid, Index("ID"), [Index("GRUPPE")], [rows[0].Values[Index("ID")]!], ct));
             failed ??= await Assert.ThrowsAsync<Core.Connections.DatabaseException>(() =>
-                lookup.LookupAsync(missingTable, Index("ID"), Index("GRUPPE"), [1m], ct));
+                lookup.LookupAsync(missingTable, Index("ID"), [Index("GRUPPE")], [1m], ct));
             return true; // the read goes on after a failed lookup
         }, Ct);
 
         Assert.Equal(3, found.Count); // one per block
-        Assert.Equal(new LookupRow(1m, 1m), found[0]);
+        Assert.Equal(1m, found[0].Key);
+        Assert.Equal([1m], found[0].Values);
         Assert.Equal("ORA-00942", failed!.ErrorCode);
     }
 

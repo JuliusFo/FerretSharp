@@ -57,7 +57,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
             }
             """.ReplaceLineEndings(),
             (await File.ReadAllTextAsync(path, Ct)).ReplaceLineEndings());
-        Assert.Equal("NAME", source.Current().Columns.ColumnOf("KUNDE"));
+        Assert.Equal(["NAME"], source.Current().Columns.ColumnsOf("KUNDE"));
         Assert.NotEqual(DefaultPath, source.Current().Path);
     }
 
@@ -97,6 +97,77 @@ public sealed class DisplayColumnSourceTests : IDisposable
         Assert.Equal(["SDLAND"], source.Current().Columns.All.Keys);
     }
 
+    /// <summary>
+    /// WP-65: several columns go into their own field, the first stays in the old one for older versions, and the version
+    /// rises only then – older versions read such a file but do not write it.
+    /// </summary>
+    [Fact]
+    public async Task Several_display_columns_are_written_beside_the_first_with_version_two()
+    {
+        var path = _folder.Combine("display-columns.json");
+        var (source, _) = Source(path);
+        await source.SetAsync("SDLAND", "BEZEICHNUNG", Ct);
+        await source.SetAsync("MITARBEITER", "NACHNAME", Ct);
+
+        await source.AddAsync("MITARBEITER", "VORNAME", Ct);
+        await source.AddAsync("MITARBEITER", "VORNAME", Ct); // once only
+
+        Assert.Equal(
+            """
+            {
+              "version": 2,
+              "displayColumns": {
+                "MITARBEITER": "NACHNAME",
+                "SDLAND": "BEZEICHNUNG"
+              },
+              "displayNames": {
+                "MITARBEITER": [
+                  "NACHNAME",
+                  "VORNAME"
+                ]
+              }
+            }
+            """.ReplaceLineEndings(),
+            (await File.ReadAllTextAsync(path, Ct)).ReplaceLineEndings());
+        Assert.Equal(["NACHNAME", "VORNAME"], source.Current().Columns.ColumnsOf("MITARBEITER"));
+
+        await source.RemoveAsync("MITARBEITER", "NACHNAME", Ct);
+
+        Assert.Equal(
+            """
+            {
+              "version": 1,
+              "displayColumns": {
+                "MITARBEITER": "VORNAME",
+                "SDLAND": "BEZEICHNUNG"
+              }
+            }
+            """.ReplaceLineEndings(),
+            (await File.ReadAllTextAsync(path, Ct)).ReplaceLineEndings());
+    }
+
+    [Fact]
+    public async Task The_list_wins_over_the_single_column_and_marking_one_column_replaces_it()
+    {
+        var path = _folder.Combine("display-columns.json");
+        await File.WriteAllTextAsync(path, """
+            {
+              "version": 2,
+              "displayColumns": { "MITARBEITER": "NACHNAME", "KUNDE": "NAME" },
+              "displayNames": { "MITARBEITER": [ "NACHNAME", " ", "VORNAME", "NACHNAME" ] }
+            }
+            """, Ct);
+        var (source, _) = Source(path);
+
+        Assert.Equal(["NACHNAME", "VORNAME"], source.Current().Columns.ColumnsOf("MITARBEITER")); // blank and repeated left out
+        Assert.Equal(["NAME"], source.Current().Columns.ColumnsOf("KUNDE"));
+
+        await source.SetAsync("MITARBEITER", "PERSONALNR", Ct);
+
+        Assert.Equal(["PERSONALNR"], source.Current().Columns.ColumnsOf("MITARBEITER"));
+        Assert.DoesNotContain("displayNames", await File.ReadAllTextAsync(path, Ct));
+    }
+
     [Fact]
     public async Task A_broken_file_says_why_and_is_never_overwritten()
     {
@@ -117,13 +188,13 @@ public sealed class DisplayColumnSourceTests : IDisposable
     public async Task A_file_of_a_newer_version_is_read_but_not_changed()
     {
         var path = _folder.Combine("display-columns.json");
-        await File.WriteAllTextAsync(path, """{ "version": 2, "displayColumns": { "KUNDE": "NAME" } }""", Ct);
+        await File.WriteAllTextAsync(path, """{ "version": 3, "displayColumns": { "KUNDE": "NAME" } }""", Ct);
         var (source, _) = Source(path);
 
         var load = source.Current();
         var refused = await Assert.ThrowsAsync<RefusedException>(() => source.SetAsync("SDLAND", "BEZEICHNUNG", Ct));
 
-        Assert.Equal("NAME", load.Columns.ColumnOf("KUNDE"));
+        Assert.Equal(["NAME"], load.Columns.ColumnsOf("KUNDE"));
         Assert.Contains("neueren FerretSharp", load.ReadOnly);
         Assert.Equal(load.ReadOnly, refused.Message);
     }
@@ -139,13 +210,13 @@ public sealed class DisplayColumnSourceTests : IDisposable
 
         await File.WriteAllTextAsync(path, """{ "version": 1, "displayColumns": { "KUNDE": "KURZNAME" } }""", Ct);
         File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(1));
-        Assert.Equal("NAME", source.Load(path).Columns.ColumnOf("KUNDE"));
+        Assert.Equal(["NAME"], source.Load(path).Columns.ColumnsOf("KUNDE"));
         _clock.Advance(DisplayColumnSource.Fresh);
 
-        Assert.Equal("KURZNAME", source.Load(path).Columns.ColumnOf("KUNDE"));
-        Assert.Equal("NAME", source.Current().Columns.ColumnOf("KUNDE")); // views keep the last report until it is reported
+        Assert.Equal(["KURZNAME"], source.Load(path).Columns.ColumnsOf("KUNDE"));
+        Assert.Equal(["NAME"], source.Current().Columns.ColumnsOf("KUNDE")); // views keep the last report until it is reported
         source.Reload();
-        Assert.Equal("KURZNAME", source.Current().Columns.ColumnOf("KUNDE"));
+        Assert.Equal(["KURZNAME"], source.Current().Columns.ColumnsOf("KUNDE"));
     }
 
     [Fact]

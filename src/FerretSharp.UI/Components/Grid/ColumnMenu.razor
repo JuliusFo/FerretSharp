@@ -1,6 +1,7 @@
 @* Right-click menu of a column header, built from the cell menu's blocks (WP-61): the column with its facts as head – NULL,
    primary key, foreign keys, C# property and CLR type, comment –, a quick bar with captions to pin the column or release it,
-   select it as a whole (WP-58), mark it as the table's display column (WP-31) and copy its name; chips that copy all its
+   select it as a whole (WP-58), mark it as the table's display column (WP-31) – or add it to the name or take it out of it
+   (WP-65) – and copy its name; chips that copy all its
    values under the tab's filter (WP-57); its ALTER TABLE … ADD for the same table elsewhere – with every column marked with
    it –, and the tables its foreign keys point to. *@
 @using FerretSharp.Core.ClrModel
@@ -17,7 +18,9 @@
     @{
         var primary = Details.PrimaryKey.Contains(Column.Name);
         var display = DisplaySource.Current();
-        var isDisplay = display.Columns.ColumnOf(Details.Table.Name) == Column.Name;
+        var parts = display.Columns.ColumnsOf(Details.Table.Name);
+        var isDisplay = parts.Contains(Column.Name);
+        var several = isDisplay && parts.Count > 1;
         var notPossible = display.Error ?? display.ReadOnly
                           ?? (isDisplay ? null : Details.Table.Kind == TableKind.View ? GridText.ColumnMenu_DisplayView : DisplayColumns.NotDisplayableReason(Column));
     }
@@ -25,11 +28,18 @@
         <QuickAction Icon="Icons.Pin" Caption="@GridText.Caption_Pin" Label="@(primary ? GridText.ColumnMenu_PkPinned : Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)"
                      Active="@(Pinned || primary)" Unavailable="@(primary ? GridText.ColumnMenu_PkPinnedTitle : null)" OnClick="ToggleAsync" />
         <QuickAction Icon="Icons.SelectColumn" Caption="@GridText.Caption_Select" Label="@GridText.ColumnMenu_MarkColumn" Title="@GridText.ColumnMenu_MarkColumnTitle" OnClick="MarkAsync" />
-        <QuickAction Icon="Icons.Star" Caption="@GridText.Caption_Display" Label="@(isDisplay ? GridText.ColumnMenu_RemoveDisplay : GridText.ColumnMenu_UseAsDisplay)" Active="isDisplay"
+        <QuickAction Icon="Icons.Star" Caption="@GridText.Caption_Display"
+                     Label="@(several ? GridText.ColumnMenu_RemoveFromName : isDisplay ? GridText.ColumnMenu_RemoveDisplay : GridText.ColumnMenu_UseAsDisplay)" Active="isDisplay"
                      Unavailable="@notPossible" Title="@(isDisplay ? null : TextFormat.Format(GridText.ColumnMenu_UseAsDisplayTitle, Details.Table.DisplayName, display.Path))"
-                     OnClick="() => SetDisplayAsync(isDisplay ? null : Column.Name)" />
+                     OnClick="() => several ? RemoveFromNameAsync() : SetDisplayAsync(isDisplay ? null : Column.Name)" />
         <QuickAction Icon="Icons.Copy" Caption="@GridText.Caption_Name" Label="@GridText.ColumnMenu_CopyName" Title="@Column.Name" OnClick="CopyNameAsync" />
     </QuickBar>
+    @if (!isDisplay && parts.Count > 0 && notPossible is null)
+    {
+        @* A second column for the name (WP-65): a line, the quick bar keeps its place for the column profile (WP-55). *@
+        <MenuEntry Label="@TextFormat.Format(GridText.ColumnMenu_AddToName, string.Join(DisplayNames.Separator, [.. parts, Column.Name]))"
+                   Title="@TextFormat.Format(GridText.ColumnMenu_AddToNameTitle, Details.Table.DisplayName, display.Path)" OnClick="AddToNameAsync" />
+    }
     <AllValueChips Column="Column" Presented="@PresentedExport.Column(Presentations.For(Details), Request.Column, Column.Name, Request.Column)"
                    All="@ColumnValueCopies.ForTable(Tab, Details, [Request.Column], Workspaces.GetDataAsync)" OnClose="OnClose"
                    Pending="@(Tab.Changes?.PendingIn([Request.Column]) ?? 0)" />
@@ -154,6 +164,31 @@
             Shell.Notify(column is null
                 ? TextFormat.Format(GridText.Grid_DisplayColumnRemoved, Details.Table.DisplayName)
                 : TextFormat.Format(GridText.Grid_DisplayColumnSaved, column, Details.Table.DisplayName));
+        }
+        catch (RefusedException ex)
+        {
+            Shell.Notify(ex.Message);
+        }
+    }
+
+    /// <summary>Appends the column to the table's display columns (WP-65): names beside foreign keys join it after the others.</summary>
+    private Task AddToNameAsync() => ChangeNameAsync(
+        (table, ct) => DisplaySource.AddAsync(table, Column.Name, ct), GridText.Grid_DisplayColumnAdded);
+
+    /// <summary>Takes the column out of a name of several display columns (WP-65); the others stay.</summary>
+    private Task RemoveFromNameAsync() => ChangeNameAsync(
+        (table, ct) => DisplaySource.RemoveAsync(table, Column.Name, ct), GridText.Grid_DisplayColumnTakenOut);
+
+    /// <summary>Changes the name in the shared file and tells what it is now (<c>{0}</c> column, <c>{1}</c> table, <c>{2}</c> the name's columns).</summary>
+    private async Task ChangeNameAsync(Func<string, CancellationToken, Task> change, string done)
+    {
+        var table = Details.Table.Name;
+        await OnClose.InvokeAsync();
+        try
+        {
+            await change(table, CancellationToken.None);
+            Shell.Notify(TextFormat.Format(done, Column.Name, Details.Table.DisplayName,
+                string.Join(DisplayNames.Separator, DisplaySource.Current().Columns.ColumnsOf(table))));
         }
         catch (RefusedException ex)
         {

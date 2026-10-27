@@ -1,5 +1,8 @@
 using System.Globalization;
 using FerretSharp.Core.ClrModel;
+using FerretSharp.Core.Display;
+using FerretSharp.Core.Resources;
+using FerretSharp.Core.Schema;
 using FerretSharp.UI.Resources;
 using Microsoft.JSInterop;
 
@@ -34,8 +37,25 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 
     public bool FkModel { get; init; }
 
-    /// <summary>The table's display column (WP-31): its values stand beside foreign keys to the table.</summary>
-    public bool DisplayColumn { get; init; }
+    /// <summary>
+    /// Badge of one of the table's display columns (WP-31; <see cref="DisplayBadgeOf"/>): their values stand beside foreign
+    /// keys to the table. Null for other columns.
+    /// </summary>
+    public string? DisplayBadge { get; init; }
+
+    /// <summary>
+    /// The badge of a column among the display columns of its table: <c>Name</c> for the only one, <c>Name 1</c>,
+    /// <c>Name 2</c> … in the order the name joins them (WP-65); null for any other column and for views.
+    /// </summary>
+    public static string? DisplayBadgeOf(TableDetails details, DisplayColumns columns, int column)
+    {
+        // The columns the name is made of: one the database lacks or that does not read as text gets no badge.
+        IReadOnlyList<int> indexes = details.Table.Kind == TableKind.View ? [] : columns.PartsIn(details);
+        var position = indexes.ToList().IndexOf(column);
+        return position < 0 ? null
+            : indexes.Count == 1 ? GridText.Grid_DisplayBadge
+            : TextFormat.Format(GridText.Grid_DisplayBadgePart, position + 1);
+    }
 
     /// <summary>A foreign key column with names beside its values (WP-31): left-aligned and wider, like text.</summary>
     public bool Named { get; init; }
@@ -121,9 +141,7 @@ public sealed record GridTexts
     /// <summary>Summary of the flags editor when no flag is ticked.</summary>
     public string NoFlag { get; init; } = GridText.Grid_NoFlag;
 
-    /// <summary>Badge of the display column in its header (WP-31) and its tooltip.</summary>
-    public string DisplayBadge { get; init; } = GridText.Grid_DisplayBadge;
-
+    /// <summary>Tooltip of a display column's badge in its header (WP-31).</summary>
     public string DisplayBadgeTitle { get; init; } = GridText.Grid_DisplayBadgeTitle;
 
     /// <summary>Beside a foreign key value without a row in its target.</summary>

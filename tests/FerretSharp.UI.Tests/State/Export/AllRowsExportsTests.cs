@@ -22,7 +22,7 @@ public sealed class AllRowsExportsTests
         new TableSummary("APP", "MANDANT", TableKind.Table), [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2")], ["ID"], [], false);
 
     private static readonly DisplayLink Link = new(2,
-        new ForeignKeyInfo("FK_MANDANT", Kunden.Table.Ref, ["MANDANT_ID"], Mandant.Table.Ref, ["ID"], FkSource.Declared), Mandant, 0, 1);
+        new ForeignKeyInfo("FK_MANDANT", Kunden.Table.Ref, ["MANDANT_ID"], Mandant.Table.Ref, ["ID"], FkSource.Declared), Mandant, 0, [new DisplayPart(1)]);
 
     private readonly IDataAccess _data = Substitute.For<IDataAccess>();
     private readonly List<Guid> _workspaces = [];
@@ -71,7 +71,7 @@ public sealed class AllRowsExportsTests
     [Fact]
     public void The_excel_columns_look_up_names_of_their_own_with_every_link_of_the_grid()
     {
-        var gridNames = new DisplayNames([Link], (_, value) => value as string);
+        var gridNames = new DisplayNames([Link], (_, _, value) => value as string);
         var lookup = Assert.Single(gridNames.Missing([[1m, "A", 7m]]));
         gridNames.Failed(lookup, "ORA-00942"); // switched off in the grid
         var tab = new TableTab(Guid.NewGuid(), Kunden.Table);

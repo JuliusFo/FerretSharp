@@ -924,6 +924,10 @@
     <value>Display column: its values stand beside foreign keys to this table</value>
     <comment>Tooltip of the display column badge</comment>
   </data>
+  <data name="Grid_DisplayBadgePart" xml:space="preserve">
+    <value>Name {0}</value>
+    <comment>Badge of one of several display columns (WP-65); {0}: its position in the name (1, 2 …). Keep it short</comment>
+  </data>
   <data name="Grid_DisplayNotFound" xml:space="preserve">
     <value>not found</value>
     <comment>Beside a foreign key value that no row of the referenced table has</comment>
@@ -935,6 +939,10 @@
   <data name="Grid_DisplayLinkOff" xml:space="preserve">
     <value>Names beside {0} are switched off in this tab: {1}</value>
     <comment>{0}: foreign key column; {1}: why (error message or Grid_DisplayLookupTimeout)</comment>
+  </data>
+  <data name="Grid_DisplayPartOff" xml:space="preserve">
+    <value>Names from {1} beside {0} are switched off in this tab, the value stands there instead: {2}</value>
+    <comment>One level deeper (WP-65). {0}: foreign key column, {1}: table the names came from, {2}: why (error message or Grid_DisplayLookupTimeout)</comment>
   </data>
   <data name="Grid_DisplayLookupTimeout" xml:space="preserve">
     <value>Looking them up in {0} took longer than {1} s.</value>
@@ -959,6 +967,26 @@
   <data name="ColumnMenu_RemoveDisplay" xml:space="preserve">
     <value>No longer use as display column</value>
     <comment>Menu item of the column header that is the display column</comment>
+  </data>
+  <data name="ColumnMenu_RemoveFromName" xml:space="preserve">
+    <value>Take out of the name</value>
+    <comment>Menu item of a column header that is one of several display columns (WP-65)</comment>
+  </data>
+  <data name="ColumnMenu_AddToName" xml:space="preserve">
+    <value>Add to the name: {0}</value>
+    <comment>Menu line of a column header when the table has display columns (WP-65). {0}: the name's columns afterwards, joined with ' - '</comment>
+  </data>
+  <data name="ColumnMenu_AddToNameTitle" xml:space="preserve">
+    <value>Names beside foreign keys to {0} put this column after the others. Saved in {1}</value>
+    <comment>Tooltip of ColumnMenu_AddToName. {0}: table, {1}: path of the display columns file</comment>
+  </data>
+  <data name="Grid_DisplayColumnAdded" xml:space="preserve">
+    <value>{0} is now part of the name of {1}: {2}</value>
+    <comment>{0}: column, {1}: table, {2}: the name's columns joined with ' - '</comment>
+  </data>
+  <data name="Grid_DisplayColumnTakenOut" xml:space="preserve">
+    <value>{0} is no longer part of the name of {1}: {2}</value>
+    <comment>{0}: column, {1}: table, {2}: the name's remaining columns joined with ' - '</comment>
   </data>
   <data name="ColumnMenu_DisplayView" xml:space="preserve">
     <value>A view has no unique key: its values cannot be looked up for foreign keys.</value>

@@ -9,7 +9,7 @@ namespace FerretSharp.Integration.Tests;
 
 /// <summary>
 /// Display columns against Oracle (WP-31): the links found in the dictionary, looking names up with filled-up IN lists,
-/// CHAR keys with their padding, values without a row.
+/// CHAR keys with their padding, values without a row; names of several columns and one level deeper (WP-65).
 /// </summary>
 public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLifetime
 {
@@ -18,11 +18,13 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
 
     private static readonly string[] Setup =
     [
+        "CREATE TABLE DSP_STAAT (CODE VARCHAR2(3) PRIMARY KEY, NAME VARCHAR2(50))",
         """
         CREATE TABLE DSP_KUNDE (
-            ID   NUMBER(10) PRIMARY KEY,
-            NAME VARCHAR2(100),
-            KZ   CHAR(5) CONSTRAINT UK_DSP_KUNDE_KZ UNIQUE)
+            ID    NUMBER(10) PRIMARY KEY,
+            NAME  VARCHAR2(100),
+            KZ    CHAR(5) CONSTRAINT UK_DSP_KUNDE_KZ UNIQUE,
+            STAAT VARCHAR2(3) CONSTRAINT FK_DSP_KUNDE_STAAT REFERENCES DSP_STAAT (CODE))
         """,
         """
         CREATE TABLE DSP_AUFTRAG (
@@ -31,9 +33,10 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
             KUNDE_KZ     CHAR(5) CONSTRAINT FK_DSP_AUFTRAG_KZ REFERENCES DSP_KUNDE (KZ),
             VERTRETER_ID NUMBER(10))
         """,
-        "INSERT INTO DSP_KUNDE VALUES (1, 'PetersPizza', 'PP')",
-        "INSERT INTO DSP_KUNDE VALUES (2, 'Müller & Söhne', 'MS')",
-        "INSERT INTO DSP_KUNDE VALUES (3, NULL, NULL)",
+        "INSERT INTO DSP_STAAT VALUES ('DE', 'Deutschland')",
+        "INSERT INTO DSP_KUNDE VALUES (1, 'PetersPizza', 'PP', 'DE')",
+        "INSERT INTO DSP_KUNDE VALUES (2, 'Müller & Söhne', 'MS', NULL)",
+        "INSERT INTO DSP_KUNDE VALUES (3, NULL, NULL, NULL)",
         "INSERT INTO DSP_AUFTRAG VALUES (10, 1, 'PP', 2)",
         "INSERT INTO DSP_AUFTRAG VALUES (11, 2, 'MS', 999)",
         "INSERT INTO DSP_AUFTRAG VALUES (12, 3, NULL, NULL)",
@@ -52,7 +55,7 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static readonly DisplayColumns Columns = DisplayColumns.Empty.With("DSP_KUNDE", "NAME");
+    private static readonly DisplayColumns Columns = DisplayColumns.Empty.With("DSP_KUNDE", ["NAME"]);
 
     public async ValueTask InitializeAsync()
     {
@@ -98,15 +101,20 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
         await _schema.GetDetailsAsync(_schema.Find(new TableRef(_schema.Owner, table))!, Ct);
 
     /// <summary>Reads the orders and looks up every name they need, as the grid does after a block.</summary>
-    private async Task<(DisplayNames Names, IReadOnlyList<RowData> Rows, TableDetails Auftrag)> LookUpAsync(IReadOnlyList<DisplayLink>? links = null)
+    private async Task<(DisplayNames Names, IReadOnlyList<RowData> Rows, TableDetails Auftrag)> LookUpAsync(
+        IReadOnlyList<DisplayLink>? links = null, DisplayColumns? columns = null)
     {
         var auftrag = await DetailsAsync("DSP_AUFTRAG");
-        links ??= await DisplayLinks.PlanAsync(auftrag, _schema, Columns, Ct);
-        var names = new DisplayNames(links, (link, value) => CellFormatter.Format(link.Display, value));
+        links ??= await DisplayLinks.PlanAsync(auftrag, _schema, columns ?? Columns, Ct);
+        var names = new DisplayNames(links, (target, column, value) => CellFormatter.Format(target.Columns[column], value));
         var rows = (await _data.ReadPageAsync(auftrag, [], [], new PageSpec(0, 100), Ct)).Rows;
-        foreach (var lookup in names.Missing(rows.Select(r => r.Values)))
+        // As the grid does: after the rows' lookups those one level deeper (WP-65), until nothing is missing.
+        for (var missing = names.Missing(rows.Select(r => r.Values)); missing.Count > 0; missing = names.Missing([]))
         {
-            names.Found(lookup, (await DisplayNames.LookupAsync(_data, lookup, DisplayNames.LookupTimeout, Ct))!);
+            foreach (var lookup in missing)
+            {
+                names.Found(lookup, (await DisplayNames.LookupAsync(_data, lookup, DisplayNames.LookupTimeout, Ct))!);
+            }
         }
 
         return (names, rows, auftrag);
@@ -151,9 +159,9 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
     public async Task A_foreign_key_to_an_nchar_key_gets_names()
     {
         var stadt = await DetailsAsync("DSP_STADT");
-        var links = await DisplayLinks.PlanAsync(stadt, _schema, DisplayColumns.Empty.With("DSP_LAND", "NAME"), Ct);
+        var links = await DisplayLinks.PlanAsync(stadt, _schema, DisplayColumns.Empty.With("DSP_LAND", ["NAME"]), Ct);
         var link = Assert.Single(links);
-        var names = new DisplayNames(links, (l, value) => CellFormatter.Format(l.Display, value));
+        var names = new DisplayNames(links, (target, column, value) => CellFormatter.Format(target.Columns[column], value));
         var rows = (await _data.ReadPageAsync(stadt, [], [], new PageSpec(0, 100), Ct)).Rows;
         foreach (var lookup in names.Missing(rows.Select(r => r.Values)))
         {
@@ -172,9 +180,30 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
     {
         var kunde = await DetailsAsync("DSP_KUNDE");
 
-        var rows = await _data.LookupAsync(kunde, 0, 1, Enumerable.Range(1, keys).Select(i => (object)(decimal)i).ToList(), Ct);
+        var rows = await _data.LookupAsync(kunde, 0, [1], Enumerable.Range(1, keys).Select(i => (object)(decimal)i).ToList(), Ct);
 
         Assert.Equal(Math.Min(keys, 3), rows.Count);
         Assert.Equal(rows.Count, rows.Select(r => r.Key).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task A_name_of_several_columns_is_read_in_one_lookup()
+    {
+        var (names, rows, auftrag) = await LookUpAsync(columns: DisplayColumns.Empty.With("DSP_KUNDE", ["NAME", "KZ"]));
+
+        var kundeId = auftrag.IndexOf("KUNDE_ID");
+        Assert.Equal(["PetersPizza - PP", "Müller & Söhne - MS", null], rows.Select(r => names.NameOf(kundeId, r.Values[kundeId])?.Text));
+    }
+
+    [Fact]
+    public async Task A_display_column_that_is_a_foreign_key_shows_the_name_one_level_deeper()
+    {
+        var columns = DisplayColumns.Empty.With("DSP_KUNDE", ["STAAT", "NAME"]).With("DSP_STAAT", ["NAME"]);
+
+        var (names, rows, auftrag) = await LookUpAsync(columns: columns);
+
+        var kundeId = auftrag.IndexOf("KUNDE_ID");
+        Assert.NotNull(names.Links.Single(l => l.Column == kundeId).Parts[0].Via);
+        Assert.Equal(["Deutschland - PetersPizza", "Müller & Söhne", null], rows.Select(r => names.NameOf(kundeId, r.Values[kundeId])?.Text));
     }
 }

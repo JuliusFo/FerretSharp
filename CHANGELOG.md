@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- Names beside foreign keys can be made of several columns: in the header menu of a column, "Add to the name" puts it after the table's display column (`4711 · Müller - Hans`), "Take out of the name" removes it again; the headers number the parts ("Name 1", "Name 2"). A display column that is a foreign key itself shows the name of the row it points to (`4711 · Deutschland - PetersPizza`), one level deep. The shared file keeps working for colleagues on older versions: they see the first column and cannot change a file with names of several columns.
 - The C# model can be passed on as a file, for colleagues who cannot build the project (packages from a private feed, for example): the model page of a connection with a project saves the loaded model with "Export as file …" (`<Project>.ferretmodel.json`, with the Git branch and commit it came from). In the connection dialog the project field also takes such a model file: names, enums and relationships work as with the project, without a build and without running the project's code. The LINQ console, code usage and building need the project itself. A new export copied over the file loads by itself; the model page and the status bar say when it was exported and from where. Enum display names are in the exporter's language.
 
 ### Changed

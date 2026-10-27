@@ -179,7 +179,7 @@
             Pk = Details.PrimaryKey.Contains(c.Name),
             Fk = fk,
             FkModel = fkModel,
-            DisplayColumn = Details.Table.Kind != TableKind.View && DisplayColumns.Current().Columns.IndexIn(Details) == i,
+            DisplayBadge = GridColumn.DisplayBadgeOf(Details, DisplayColumns.Current().Columns, i),
             Numeric = category == ColumnCategory.Number && values is null && !named,
             Named = named,
             Sortable = ColumnCategories.IsSortable(category),
@@ -208,8 +208,11 @@
         }
 
         var touched = _presentationWatch.Touches(Details.Table.Ref);
-        // A display column of a target may read differently now (enum members): its names are looked up again.
-        var targets = Names.Links.Any(l => _presentationWatch.Touches(l.Target.Table.Ref));
+        // A display column of a target – one level deeper too (WP-65) – may read differently now (enum members): its names
+        // are looked up again.
+        var targets = Names.Links
+            .SelectMany(l => l.Parts.Where(p => p.Via is not null).Select(p => p.Via!.Target).Prepend(l.Target))
+            .Any(t => _presentationWatch.Touches(t.Table.Ref));
         _presentationWatch.Seen();
         _presentation = Presentations.For(Details); // the same reading, but no longer holding the previous model
         if (touched || targets)
@@ -300,19 +303,22 @@
         }
 
         var details = Details;
-        var planned = await Shell.RunDbAsync(Logger, Active, () => DisplayLinks.PlanAsync(details, schema, shown, CancellationToken.None));
+        // A level deeper that cannot be planned shows the values there: the log says why (review WP-65).
+        var connection = Active;
+        var planned = await Shell.RunDbAsync(Logger, Active, () => DisplayLinks.PlanAsync(details, schema, shown, CancellationToken.None,
+            ex => QueryErrorLog.Log(Logger, ex, connection.Profile)));
         return planned.Value ?? [];
     }
 
     /// <summary>
-    /// The display value of a target as text, with the targets' presentation as it is when a name is formatted (a model may
+    /// A value of a target's column as text, with the targets' presentation as it is when a name is formatted (a model may
     /// load meanwhile), reused per version.
     /// </summary>
-    private Func<DisplayLink, object?, string?> NameFormatter()
+    private Func<TableDetails, int, object?, string?> NameFormatter()
     {
         var presentations = new Dictionary<TableRef, TablePresentation>();
         var version = Presentations.Version;
-        return (link, value) =>
+        return (details, column, value) =>
         {
             if (Presentations.Version != version)
             {
@@ -320,12 +326,12 @@
                 presentations.Clear();
             }
 
-            if (!presentations.TryGetValue(link.Target.Table.Ref, out var target))
+            if (!presentations.TryGetValue(details.Table.Ref, out var target))
             {
-                presentations[link.Target.Table.Ref] = target = Presentations.For(link.Target);
+                presentations[details.Table.Ref] = target = Presentations.For(details);
             }
 
-            return target.Present(link.DisplayColumn, value).Text;
+            return target.Present(column, value).Text;
         };
     }
 

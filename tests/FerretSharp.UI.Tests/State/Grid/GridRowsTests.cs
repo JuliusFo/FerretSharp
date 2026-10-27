@@ -79,10 +79,10 @@ public sealed class GridRowsTests
     {
         // KUNDEN.GROSS stands in for a foreign key column here: its values are looked up in a table "GROSSKUNDE".
         var target = new TableDetails(new TableSummary("APP", "GROSSKUNDE", TableKind.Table), Kunden.Columns, ["ID"], [], false);
-        var link = new DisplayLink(2, new ForeignKeyInfo("FK", Kunden.Table.Ref, ["GROSS"], target.Table.Ref, ["ID"], FkSource.Declared), target, 0, 1);
-        var names = new DisplayNames([link], (_, value) => value as string);
+        var link = new DisplayLink(2, new ForeignKeyInfo("FK", Kunden.Table.Ref, ["GROSS"], target.Table.Ref, ["ID"], FkSource.Declared), target, 0, [new DisplayPart(1)]);
+        var names = new DisplayNames([link], (_, _, value) => value as string);
         var lookup = Assert.Single(names.Missing([Row(1m, "a", 10m).Values, Row(2m, "b", 20m).Values]));
-        names.Found(lookup, [new LookupRow(10m, "PetersPizza")]);
+        names.Found(lookup, [new LookupRow(10m, ["PetersPizza"])]);
 
         var found = GridRows.Build(Plain, null, Row(1m, "a", 10m).Values, names);
         var missing = GridRows.Build(Plain, null, Row(2m, "b", 20m).Values, names);

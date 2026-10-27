@@ -24,7 +24,7 @@ public class RowExportTests
         new TableSummary("APP", "MANDANT", TableKind.Table), [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2")], ["ID"], [], false);
 
     private static readonly DisplayLink MandantLink = new(2,
-        new ForeignKeyInfo("FK_MANDANT", Kunden.Table.Ref, ["MANDANT_ID"], Mandant.Table.Ref, ["ID"], FkSource.Declared), Mandant, 0, 1);
+        new ForeignKeyInfo("FK_MANDANT", Kunden.Table.Ref, ["MANDANT_ID"], Mandant.Table.Ref, ["ID"], FkSource.Declared), Mandant, 0, [new DisplayPart(1)]);
 
     private static RowData Row(params object?[] values) => new(RowKey.None.Instance, values);
 
@@ -137,8 +137,8 @@ public class RowExportTests
     [Fact]
     public async Task Names_are_looked_up_per_block_before_it_is_written()
     {
-        var lookup = new FakeLookup(keys => [.. keys.Select(k => new LookupRow(k, $"Mandant {k}"))]);
-        var names = new DisplayNames([MandantLink], (_, value) => value as string).Fresh((_, value) => value as string);
+        var lookup = new FakeLookup(keys => [.. keys.Select(k => new LookupRow(k, [$"Mandant {k}"]))]);
+        var names = new DisplayNames([MandantLink], (_, _, value) => value as string).Fresh((_, _, value) => value as string);
         var columns = PresentedExport.Columns(TablePresentation.Plain(Kunden), names);
         using var stream = new MemoryStream();
 
@@ -156,7 +156,7 @@ public class RowExportTests
     public async Task A_failing_lookup_leaves_its_names_out_with_a_warning()
     {
         var lookup = new FakeLookup(_ => throw new DatabaseException("Tabelle oder View nicht vorhanden", "ORA-00942"));
-        var names = new DisplayNames([MandantLink], (_, value) => value as string).Fresh((_, value) => value as string);
+        var names = new DisplayNames([MandantLink], (_, _, value) => value as string).Fresh((_, _, value) => value as string);
         var columns = PresentedExport.Columns(TablePresentation.Plain(Kunden), names);
         using var stream = new MemoryStream();
 
@@ -173,13 +173,13 @@ public class RowExportTests
     [Fact]
     public void A_copy_of_the_names_keeps_what_was_looked_up_and_a_fresh_one_starts_over()
     {
-        var names = new DisplayNames([MandantLink], (_, value) => value as string);
+        var names = new DisplayNames([MandantLink], (_, _, value) => value as string);
         var lookups = names.Missing([[1m, "A", 7m], [2m, "B", 8m]]);
-        names.Found(lookups[0], [new LookupRow(7m, "Hauptmandant")]);
+        names.Found(lookups[0], [new LookupRow(7m, ["Hauptmandant"])]);
 
         var copy = names.Copy();
         names.Clear();
-        var fresh = copy.Fresh((_, _) => null);
+        var fresh = copy.Fresh((_, _, _) => null);
 
         Assert.Equal(new LookedUpName("Hauptmandant", false), copy.NameOf(2, 7m));
         Assert.Equal(new LookedUpName(null, true), copy.NameOf(2, 8m));
@@ -206,7 +206,7 @@ public class RowExportTests
     {
         public static readonly NoLookup Instance = new();
 
-        public Task<IReadOnlyList<LookupRow>> LookupAsync(TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<LookupRow>> LookupAsync(TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("no lookup expected");
     }
 
@@ -214,7 +214,7 @@ public class RowExportTests
     {
         public List<IReadOnlyList<object>> Asked { get; } = [];
 
-        public Task<IReadOnlyList<LookupRow>> LookupAsync(TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<LookupRow>> LookupAsync(TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, CancellationToken cancellationToken)
         {
             Asked.Add([.. keys]);
             return Task.FromResult(answer(keys));

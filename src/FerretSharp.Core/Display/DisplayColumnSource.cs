@@ -110,11 +110,26 @@ public sealed class DisplayColumnSource : IDisposable
     public DisplayColumnLoad Load(string? path) => _file.Get(Resolve(path));
 
     /// <summary>
-    /// Sets the display column of a table (by name, without owner), or removes it with <paramref name="column"/> null.
-    /// Reads the file again first, so entries others changed meanwhile are kept.
+    /// Makes <paramref name="column"/> the only display column of a table (by name, without owner), or removes the table's
+    /// display columns with <paramref name="column"/> null. Reads the file again first, so entries others changed meanwhile
+    /// are kept.
     /// </summary>
     /// <exception cref="RefusedException">The file cannot be read, is no valid JSON, comes from a newer FerretSharp or cannot be written.</exception>
-    public async Task SetAsync(string table, string? column, CancellationToken cancellationToken)
+    public Task SetAsync(string table, string? column, CancellationToken cancellationToken) =>
+        ChangeAsync(columns => columns.With(table, column is null ? [] : [column]), cancellationToken);
+
+    /// <summary>Appends <paramref name="column"/> to the display columns of a table (WP-65); as <see cref="SetAsync"/>.</summary>
+    /// <exception cref="RefusedException">As for <see cref="SetAsync"/>.</exception>
+    public Task AddAsync(string table, string column, CancellationToken cancellationToken) =>
+        ChangeAsync(columns => columns.Adding(table, column), cancellationToken);
+
+    /// <summary>Removes <paramref name="column"/> from the display columns of a table (WP-65); as <see cref="SetAsync"/>.</summary>
+    /// <exception cref="RefusedException">As for <see cref="SetAsync"/>.</exception>
+    public Task RemoveAsync(string table, string column, CancellationToken cancellationToken) =>
+        ChangeAsync(columns => columns.Removing(table, column), cancellationToken);
+
+    /// <summary>Changes the columns as read from the file just now and writes them back.</summary>
+    private async Task ChangeAsync(Func<DisplayColumns, DisplayColumns> change, CancellationToken cancellationToken)
     {
         await _writing.WaitAsync(cancellationToken);
         try
@@ -140,9 +155,7 @@ public sealed class DisplayColumnSource : IDisposable
                 throw new RefusedException(readOnly);
             }
 
-            var columns = DisplayColumns.From(document.DisplayColumns).With(table, column);
-            document.Version = DisplayColumnDocument.CurrentVersion;
-            document.DisplayColumns = new SortedDictionary<string, string>(columns.All.ToDictionary(), StringComparer.Ordinal);
+            document.Set(change(document.Columns()));
             try
             {
                 await AtomicJsonFile.WriteAsync(path, document, DisplayColumnDocument.Options, cancellationToken);
@@ -242,7 +255,7 @@ public sealed class DisplayColumnSource : IDisposable
         try
         {
             var document = ReadDocument(path) ?? new DisplayColumnDocument();
-            return new(new DisplayColumnLoad(DisplayColumns.From(document.DisplayColumns), path, null, NewerVersion(path, document)) { Exists = true });
+            return new(new DisplayColumnLoad(document.Columns(), path, null, NewerVersion(path, document)) { Exists = true });
         }
         catch (JsonException ex)
         {

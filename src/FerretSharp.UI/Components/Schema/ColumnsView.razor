@@ -17,8 +17,8 @@
         .SelectMany(f => f.FromColumns.Select(c => (Column: c, Fk: f)))
         .ToLookup(x => x.Column, x => x.Fk);
     var uniqueColumns = Details.UniqueKeys.SelectMany(k => k).ToHashSet();
-    // The table's display column (WP-31): its values stand beside foreign keys to the table.
-    var displayColumn = Details.Table.Kind == TableKind.View ? null : DisplaySource.Current().Columns.ColumnOf(Details.Table.Name);
+    // The table's display columns (WP-31, several since WP-65): their values stand beside foreign keys to the table.
+    var displayColumns = DisplaySource.Current().Columns;
     // Filtering keeps the schema order (or the one a header sorts by): this is a table of the columns, not a list of search hits.
     var filtered = ColumnSearch.Find(Details.Columns, _columnQuery).Order().Select(i => Details.Columns[i]).ToList();
     var filtering = !string.IsNullOrWhiteSpace(_columnQuery);
@@ -124,9 +124,9 @@
                                 <span class="fs-badge fk" title="@fk.Name → @fk.To">FK</span>
                             }
                         }
-                        @if (column.Name == displayColumn)
+                        @if (GridColumn.DisplayBadgeOf(Details, displayColumns, Details.IndexOf(column.Name)) is { } displayBadge)
                         {
-                            <span class="fs-badge display" title="@GridText.Grid_DisplayBadgeTitle">@GridText.Grid_DisplayBadge</span>
+                            <span class="fs-badge display" title="@GridText.Grid_DisplayBadgeTitle">@displayBadge</span>
                         }
                     </td>
                     <td class="mono">@column.DisplayType</td>
