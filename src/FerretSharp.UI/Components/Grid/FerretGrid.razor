@@ -303,7 +303,10 @@
         }
 
         var details = Details;
-        var planned = await Shell.RunDbAsync(Logger, Active, () => DisplayLinks.PlanAsync(details, schema, shown, CancellationToken.None));
+        // A level deeper that cannot be planned shows the values there: the log says why (review WP-65).
+        var connection = Active;
+        var planned = await Shell.RunDbAsync(Logger, Active, () => DisplayLinks.PlanAsync(details, schema, shown, CancellationToken.None,
+            ex => QueryErrorLog.Log(Logger, ex, connection.Profile)));
         return planned.Value ?? [];
     }
 

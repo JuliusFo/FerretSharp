@@ -193,8 +193,11 @@ public sealed class DisplayLinksTests
     {
         var columns = DisplayColumns.Empty.With("AUFTRAG", ["KUNDE_ID"]).With("KUNDE", ["NAME"]);
 
-        var link = Assert.Single(await DisplayLinks.PlanAsync(Position, await SchemaAsync(unreadable: Kunde), columns, Ct));
+        var failed = new List<Core.Connections.DatabaseException>();
 
+        var link = Assert.Single(await DisplayLinks.PlanAsync(Position, await SchemaAsync(unreadable: Kunde), columns, Ct, failed.Add));
+
+        Assert.Equal("ORA-01031", Assert.Single(failed).ErrorCode); // for the log: why the part shows its values
         Assert.Equal(("AUFTRAG", "KUNDE_ID"), (link.Target.Table.Name, link.Label));
         Assert.Null(Assert.Single(link.Parts).Via);
         Assert.NotNull(Assert.Single(Assert.Single(await DisplayLinks.PlanAsync(Position, await SchemaAsync(), columns, Ct)).Parts).Via);

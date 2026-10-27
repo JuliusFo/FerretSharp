@@ -47,8 +47,10 @@ public static class DisplayLinks
     /// from the schema cache (loaded once per table). If the details one level deeper cannot be read, the link shows the
     /// values there – the names of the first level stay (review WP-65); a lost connection still ends the plan.
     /// </summary>
+    /// <param name="deeperFailed">Told why a level deeper could not be planned (for the log); null to ignore it.</param>
     public static async Task<IReadOnlyList<DisplayLink>> PlanAsync(
-        TableDetails table, SchemaCache schema, DisplayColumns columns, CancellationToken cancellationToken)
+        TableDetails table, SchemaCache schema, DisplayColumns columns, CancellationToken cancellationToken,
+        Action<DatabaseException>? deeperFailed = null)
     {
         var links = new List<DisplayLink>();
         if (columns.Count == 0)
@@ -70,6 +72,7 @@ public static class DisplayLinks
                 }
                 catch (DatabaseException ex) when (!ex.IsConnectionLost)
                 {
+                    deeperFailed?.Invoke(ex);
                     nested = new Dictionary<int, DisplayLink>();
                 }
 
