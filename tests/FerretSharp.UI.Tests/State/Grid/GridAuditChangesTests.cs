@@ -124,6 +124,54 @@ public sealed class GridAuditChangesTests
         Assert.Empty(_grid.Redrawn);
     }
 
+    /// <summary>Review of WP-63: a row read again without changes (written over, rolled back) loses its marks.</summary>
+    [Fact]
+    public async Task An_answer_takes_marks_away_and_redraws_only_what_changed()
+    {
+        var audit = Create();
+        IReadOnlyList<RowData> block = [Row("A", "U", 1m), Row("B", "U", 1m)];
+        audit.Queue(block);
+        await AnswerAsync(Changes(Changed("A", 3), Changed("B", 3)));
+
+        audit.Clear(); // reload in place after a rollback
+        audit.Queue(block);
+        await AnswerAsync(Changes(Changed("A", 3)));
+        audit.Queue(block);
+        await AnswerAsync(Changes(Changed("A", 3)));
+
+        Assert.Null(audit.MarksOf(new RowKey.RowId("B"), null));
+        Assert.Equal([3], audit.MarksOf(new RowKey.RowId("A"), null)!.Changed);
+        Assert.Equal(2, _grid.Redrawn.Count); // the third answer changed nothing
+    }
+
+    [Fact]
+    public async Task A_cancelled_query_is_asked_once_more()
+    {
+        var audit = Create();
+        audit.Queue([Row("A", "U", 1m)]);
+
+        await AnswerAsync(new(null, null, true)); // the session was reset
+        await AnswerAsync(new(null, null, true));
+
+        Assert.Equal(2, _asked.Count);
+        Assert.Empty(_answers);
+        Assert.True(audit.Compares);
+    }
+
+    [Fact]
+    public async Task Marks_of_rows_the_grid_no_longer_holds_go_beyond_its_limit()
+    {
+        var audit = Create();
+        var rows = Enumerable.Range(0, GridAuditChanges.MaxKept + 1).Select(i => Row("R" + i, "U", i)).ToList();
+        _grid.Held = [new RowKey.RowId("R0")];
+
+        audit.Queue(rows);
+        await AnswerAsync(Changes([.. rows.Select(r => Changed(((RowKey.RowId)r.Key).Value, 3))]));
+
+        Assert.NotNull(audit.MarksOf(new RowKey.RowId("R0"), null));
+        Assert.Null(audit.MarksOf(new RowKey.RowId("R1"), null));
+    }
+
     [Fact]
     public void Grid_rows_carry_the_changed_cells_and_the_action()
     {
@@ -151,11 +199,15 @@ public sealed class GridAuditChangesTests
 
         public List<string> Notices { get; } = [];
 
+        public List<RowKey> Held { get; set; } = [];
+
         public Task RedrawAsync(IReadOnlySet<RowKey> keys)
         {
             Redrawn.Add(keys);
             return Task.CompletedTask;
         }
+
+        public IEnumerable<RowKey> HeldKeys() => Held;
 
         public void Fire(Func<Task> work) => _work.Add(work());
 

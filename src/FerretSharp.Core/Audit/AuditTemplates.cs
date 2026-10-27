@@ -186,10 +186,17 @@ public static partial class AuditTemplates
         }
 
         var own = before.Concat(after).ToList();
-        if (versionOrder is { } order && OwnColumn(order.Column, order.Line, "version-order") is { } orderColumn
-            && !OracleTypes.IsComparable(orderColumn.DataType))
+        if (versionOrder is { } order && OwnColumn(order.Column, order.Line, "version-order") is { } orderColumn)
         {
-            errors.Add(new(order.Line, TextFormat.Format(AuditText.VersionOrderNotSortable, orderColumn.Name, OracleTypes.DdlType(orderColumn))));
+            if (!OracleTypes.IsComparable(orderColumn.DataType))
+            {
+                errors.Add(new(order.Line, TextFormat.Format(AuditText.VersionOrderNotSortable, orderColumn.Name, OracleTypes.DdlType(orderColumn))));
+            }
+            else if (orderColumn.Nullable)
+            {
+                // A row without a value would sort as the newest version and be compared with the wrong one (review of WP-63).
+                errors.Add(new(order.Line, TextFormat.Format(AuditText.VersionOrderNullable, orderColumn.Name)));
+            }
         }
 
         if (action is { } act)

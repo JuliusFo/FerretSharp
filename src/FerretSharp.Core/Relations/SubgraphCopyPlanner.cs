@@ -126,7 +126,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
         }
 
         var pairs = relation.FromColumns.Zip(relation.ToColumns).Order().ToList();
-        var declared = target.OutgoingOf(TargetOf(relation.From)).Any(fk => fk.Source == FkSource.Declared && fk.Audit is null && fk.To == parentSummary.Ref
+        var declared = target.OutgoingOf(TargetOf(relation.From)).Any(fk => fk.Source == FkSource.Declared && fk.To == parentSummary.Ref
                                                                            && fk.FromColumns.Zip(fk.ToColumns).Order().SequenceEqual(pairs));
         issues.Add(new CopyIssue(declared ? CopySeverity.Error : CopySeverity.Warning, relation.From, TextFormat.Plural(wanted.Count,
             declared ? RelationText.CopyParentMissingOne : RelationText.CopyParentMissingUncheckedOne,

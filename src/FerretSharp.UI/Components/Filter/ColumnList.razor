@@ -73,7 +73,7 @@
 
     protected override void OnInitialized()
     {
-        _foreignKeyColumns = Active.Schema?.OutgoingOf(Details.Table.Ref).SelectMany(f => f.FromColumns).ToHashSet() ?? [];
+        _foreignKeyColumns = Active.Schema?.LinksOf(Details.Table.Ref).SelectMany(f => f.FromColumns).ToHashSet() ?? [];
         _presentation = Presentations.For(Details);
     }
 

@@ -18,7 +18,7 @@
     var presentation = Presentations.For(Details);
     IReadOnlyList<FormField> fields = row is null || Grid is null
         ? []
-        : RowForm.Fields(Details, presentation, row, Writable, Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [], Models.Mapping, Tab.PinnedColumns, Grid?.Names);
+        : RowForm.Fields(Details, presentation, row, Writable, Active.Schema?.LinksOf(Details.Table.Ref) ?? [], Models.Mapping, Tab.PinnedColumns, Grid?.Names);
 }
 
 <FormPanelFrame @ref="_frame" Tab="Tab" Position="@(Grid is not null && Cell is { } cell ? PositionText(cell) : null)" Lost="@_cursor?.Lost" RowLoaded="row is not null"

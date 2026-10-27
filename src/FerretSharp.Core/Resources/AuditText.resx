@@ -263,4 +263,8 @@
   <data name="ActionNeedsValues" xml:space="preserve">
     <value>@action needs at least one of insert=…, update=…, delete=… after the column.</value>
   </data>
+  <data name="VersionOrderNullable" xml:space="preserve">
+    <value>@version-order: {0} must be NOT NULL (or an identity) – a version without a value cannot be placed.</value>
+    <comment>{0}: column name</comment>
+  </data>
 </root>

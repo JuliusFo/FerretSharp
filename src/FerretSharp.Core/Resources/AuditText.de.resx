@@ -207,4 +207,7 @@
   <data name="ActionNeedsValues" xml:space="preserve">
     <value>@action braucht nach der Spalte mindestens eines von insert=…, update=…, delete=….</value>
   </data>
+  <data name="VersionOrderNullable" xml:space="preserve">
+    <value>@version-order: {0} muss NOT NULL sein (oder eine Identity) – eine Version ohne Wert lässt sich nicht einordnen.</value>
+  </data>
 </root>

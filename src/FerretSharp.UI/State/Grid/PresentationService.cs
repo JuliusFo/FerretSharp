@@ -67,8 +67,14 @@ public sealed class PresentationService : IDisposable
     public int Version { get; private set; }
 
     /// <summary>The table's presentation; an audit table's columns named by its base table's entity (WP-63).</summary>
-    public TablePresentation For(TableDetails details) =>
-        TablePresentation.Create(details, _mapping, _names, _active?.Schema?.AuditBaseOf(details.Table.Ref));
+    public TablePresentation For(TableDetails details)
+    {
+        var model = ModelTableOf(details.Table.Ref);
+        return TablePresentation.Create(details, _mapping, _names, model == details.Table.Ref ? null : model);
+    }
+
+    /// <summary>The table whose entity names the columns of <paramref name="table"/>: an audit table's base table (WP-63), else itself.</summary>
+    public TableRef ModelTableOf(TableRef table) => _active?.Schema?.AuditBaseOf(table) ?? table;
 
     /// <summary>The entity of a table by its short name (<c>Kunde</c>); null without one.</summary>
     public string? EntityNameOf(TableRef table) =>
@@ -81,8 +87,8 @@ public sealed class PresentationService : IDisposable
     /// <remarks>An audit table changes with its base table: its columns are named by the base entity (WP-63).</remarks>
     public bool ChangedSince(int version, TableRef table)
     {
-        var baseTable = _active?.Schema?.AuditBaseOf(table);
-        return ChangedSince(version, c => c.Tables is null || c.Tables.Contains(table) || (baseTable is not null && c.Tables.Contains(baseTable)));
+        var model = ModelTableOf(table);
+        return ChangedSince(version, c => c.Tables is null || c.Tables.Contains(table) || c.Tables.Contains(model));
     }
 
     /// <summary>Whether the entity names shown for tables (or the setting) changed after <paramref name="version"/>.</summary>

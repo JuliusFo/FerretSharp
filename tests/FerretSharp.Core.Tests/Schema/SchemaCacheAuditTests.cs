@@ -60,7 +60,7 @@ public sealed class SchemaCacheAuditTests
             "FK_AUFTRAG_KUNDE APP.AUDIT_AUFTRAG(KUNDE_ID) → APP.KUNDEN(KUNDE_ID) Declared Copied",
             // The base table's relationship to itself still leads to the base table, not to another audit row.
             "FK_AUFTRAG_VORG APP.AUDIT_AUFTRAG(VORG_ID) → APP.AUFTRAG(AUFTRAG_ID) Declared Copied",
-        ], cache.OutgoingOf(AuditAuftrag).Select(Text));
+        ], cache.LinksOf(AuditAuftrag).Select(Text));
     }
 
     [Fact]
@@ -72,6 +72,7 @@ public sealed class SchemaCacheAuditTests
         Assert.Equal([AuftragVorgaenger, PositionAuftrag], cache.IncomingOf(Auftrag));
         Assert.Equal([AuftragKunde], cache.IncomingOf(Kunden));
         Assert.Empty(cache.IncomingOf(AuditAuftrag));
+        Assert.Empty(cache.OutgoingOf(AuditAuftrag)); // the database's view: the copies are no constraints
         Assert.DoesNotContain(cache.ForeignKeys, f => f.From == AuditAuftrag || f.To == AuditAuftrag);
     }
 
@@ -81,11 +82,11 @@ public sealed class SchemaCacheAuditTests
         var with = await LoadAsync(AuditTemplates.Default);
         var without = await LoadAsync(null);
 
-        Assert.Equal([AuftragKunde, AuftragVorgaenger], with.OutgoingOf(Auftrag));
+        Assert.Equal([AuftragKunde, AuftragVorgaenger], with.LinksOf(Auftrag));
         Assert.Null(with.AuditBaseOf(Auftrag));
         Assert.Null(with.AuditBaseOf(AuditKunden)); // not in the schema
         Assert.Null(without.AuditBaseOf(AuditAuftrag));
-        Assert.Empty(without.OutgoingOf(AuditAuftrag));
+        Assert.Empty(without.LinksOf(AuditAuftrag));
     }
 
     [Fact]
@@ -95,7 +96,7 @@ public sealed class SchemaCacheAuditTests
         var cache = await LoadAsync(AuditTemplates.Default);
         var auditPosition = new TableRef(Owner, "AUDIT_POSITION");
 
-        Assert.Equal([PositionAuftrag with { From = auditPosition, Audit = AuditRelation.Copied }], cache.OutgoingOf(auditPosition));
+        Assert.Equal([PositionAuftrag with { From = auditPosition, Audit = AuditRelation.Copied }], cache.LinksOf(auditPosition));
     }
 
     [Fact]
@@ -138,8 +139,35 @@ public sealed class SchemaCacheAuditTests
         Assert.Equal(Auftrag, cache.AuditBaseOf(AuditAuftrag));
 
         template = AuditTemplates.Parse("-- @audit-table {table}_H\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nX");
+        Assert.Equal(Auftrag, cache.AuditBaseOf(AuditAuftrag)); // asked again only when told
+        cache.RefreshAuditTemplate();
 
+        Assert.Same(template, cache.AuditTemplate);
         Assert.Null(cache.AuditBaseOf(AuditAuftrag));
         Assert.Equal(Auftrag, cache.AuditBaseOf(new TableRef(Owner, "AUFTRAG_H")));
+    }
+
+    /// <summary>Review of WP-63: the template may sit on a share over the VPN – lookups while the grid renders never ask for it.</summary>
+    [Fact]
+    public async Task Lookups_do_not_ask_for_the_template()
+    {
+        var asked = 0;
+        var cache = new SchemaCache(_reader, Owner);
+        cache.UseAuditTemplate(() =>
+        {
+            asked++;
+            return AuditTemplates.Default;
+        });
+        await cache.LoadAsync(Ct);
+
+        for (var i = 0; i < 10; i++)
+        {
+            _ = cache.LinksOf(AuditAuftrag).ToList();
+            _ = cache.AuditBaseOf(Auftrag);
+        }
+
+        Assert.Equal(1, asked);
+        await cache.RefreshAsync(Ct);
+        Assert.Equal(2, asked);
     }
 }

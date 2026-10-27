@@ -461,7 +461,7 @@ public sealed class AuditTemplateTests
         Assert.Contains(new AuditTemplateError(line, message), error.Errors);
     }
 
-    private const string WithColumns = "-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @columns\nA_ID NUMBER\nA_TRANS CHAR(1)\nA_NOTE CLOB\n-- @base-columns nullable\n";
+    private const string WithColumns = "-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @columns\nA_ID NUMBER NOT NULL\nA_TRANS CHAR(1)\nA_NOTE CLOB\n-- @base-columns nullable\n";
 
     [Fact]
     public void Version_order_and_action_name_own_columns()
@@ -506,6 +506,7 @@ public sealed class AuditTemplateTests
     [Theory]
     [InlineData(WithColumns + "-- @version-order WANN\n-- @trigger-source\nX", 8, "@version-order nennt WANN, das ist keine eigene Spalte der Vorlage (nach @columns).")]
     [InlineData(WithColumns + "-- @version-order A_NOTE\n-- @trigger-source\nX", 8, "@version-order: Nach A_NOTE lassen sich die Versionen nicht ordnen (Typ CLOB).")]
+    [InlineData(WithColumns + "-- @version-order A_TRANS\n-- @trigger-source\nX", 8, "@version-order: A_TRANS muss NOT NULL sein (oder eine Identity) – eine Version ohne Wert lässt sich nicht einordnen.")]
     [InlineData(WithColumns + "-- @version-order A_ID DESC\n-- @trigger-source\nX", 8, "@version-order nimmt eine Spalte der Vorlage, nicht „A_ID DESC“.")]
     [InlineData(WithColumns + "-- @version-order\n-- @trigger-source\nX", 8, "@version-order braucht einen Wert.")]
     [InlineData(WithColumns + "-- @version-order A_ID\n-- @version-order A_ID\n-- @trigger-source\nX", 9, "@version-order steht mehr als einmal in der Vorlage.")]

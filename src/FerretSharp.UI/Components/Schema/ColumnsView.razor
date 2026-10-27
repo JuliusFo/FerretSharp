@@ -13,8 +13,7 @@
 @inject ConnectionManager Connections
 
 @{
-    // The database's relationships only: an audit table's copies of its base table's (WP-63) belong to the grid.
-    var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? []).Where(f => f.Audit is null)
+    var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
         .SelectMany(f => f.FromColumns.Select(c => (Column: c, Fk: f)))
         .ToLookup(x => x.Column, x => x.Fk);
     var uniqueColumns = Details.UniqueKeys.SelectMany(k => k).ToHashSet();
@@ -187,7 +186,7 @@
     }
     @if (_entityName is not null && mapping is not null && entity is null)
     {
-        var entityCode = EntityCode.Write(mapping, Details, (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? []).Where(f => f.Audit is null).ToList(),
+        var entityCode = EntityCode.Write(mapping, Details, (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? []).ToList(),
             _entityName.Trim().Length > 0 ? _entityName : Details.Table.Name);
         <section class="entity-code">
             <div class="index-draft-form">

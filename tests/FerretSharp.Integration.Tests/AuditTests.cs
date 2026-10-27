@@ -230,7 +230,7 @@ public sealed class AuditTests(OracleContainerFixture oracle) : IAsyncLifetime
         var auditRef = new TableRef(schema.Owner, "AUDIT_AUD_ARTIKEL");
         Assert.Equal(baseTable, schema.AuditBaseOf(auditRef));
         Assert.Equal([(AuditRelation.Copied, "AUD_LIEFERANT"), (AuditRelation.BaseRow, "AUD_ARTIKEL")],
-            schema.OutgoingOf(auditRef).Select(f => (f.Audit!.Value, f.To.Name)).OrderBy(f => f.Value));
+            schema.LinksOf(auditRef).Select(f => (f.Audit!.Value, f.To.Name)).OrderBy(f => f.Value));
         Assert.DoesNotContain(schema.IncomingOf(new TableRef(schema.Owner, "AUD_LIEFERANT")), f => f.From == auditRef);
 
         var audit = await schema.GetDetailsAsync(schema.Find(auditRef)!, Ct);

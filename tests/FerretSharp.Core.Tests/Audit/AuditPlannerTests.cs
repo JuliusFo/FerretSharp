@@ -438,4 +438,16 @@ public sealed class AuditPlannerTests
         Assert.False(AuditStatus.IsAuditTable(Template, Kunde, tables));
         Assert.False(AuditStatus.IsAuditTable(Template, new TableRef("APP", "AUDIT_LIEFERANT"), tables[..2]));
     }
+
+    /// <summary>Review of WP-63: the audit line and the grid follow one rule (<see cref="AuditStatus.Pairs"/>).</summary>
+    [Fact]
+    public void A_name_two_tables_would_share_and_an_audit_table_of_an_audit_table_pair_nothing()
+    {
+        var shared = AuditTemplates.Parse("-- @audit-table HISTORY\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nX");
+        TableRef[] tables = [Kunde, new("APP", "LIEFERANT"), new("APP", "HISTORY"), new("APP", "AUDIT_KUNDE"), new("APP", "AUDIT_AUDIT_KUNDE")];
+
+        Assert.Empty(AuditStatus.Pairs(shared, tables));
+        Assert.False(AuditStatus.IsAuditTable(shared, new TableRef("APP", "HISTORY"), tables));
+        Assert.Equal(new Dictionary<TableRef, TableRef> { [new("APP", "AUDIT_KUNDE")] = Kunde }, AuditStatus.Pairs(Template, tables));
+    }
 }

@@ -45,6 +45,7 @@ internal sealed class TestApp : IAsyncDisposable
         services.AddSingleton<IWorkspaceStore>(WorkspaceStore);
         services.AddSingleton(Substitute.For<IModelHostRunner>());
         services.AddSingleton(new AppSettingsService(new SettingsStore(_folder.Combine("settings.json")), new AppSettings()));
+        services.AddSingleton<FerretSharp.Core.Audit.AuditTemplateSource>(); // as the app: the schema pairs audit tables (WP-63)
         services.AddScoped<WorkspaceManager>();
         services.AddScoped<ActiveConnection>();
         services.AddScoped<ClrModelManager>();
@@ -62,6 +63,9 @@ internal sealed class TestApp : IAsyncDisposable
             Shell, Hub, _services.GetRequiredService<ConnectionManager>(), History = new SqlHistoryStore(_folder.Combine("history")),
             Editing, NullLogger<WorkspaceLifecycle>.Instance);
     }
+
+    /// <summary>The tables of the fake schema; KUNDEN unless a test adds some before connecting.</summary>
+    public IReadOnlyList<TableSummary> Tables { get; set; } = [Kunden];
 
     /// <summary>The clock of the editing (stuck writes and statements, review 3.44.0, C2).</summary>
     public FakeTimeProvider Time { get; } = new();
@@ -198,6 +202,7 @@ internal sealed class TestApp : IAsyncDisposable
     private IDatabaseConnection NewConnection()
     {
         var reader = FakeDatabase.Reader(Kunden);
+        reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => Tables);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
         reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(_ => KundenDetails);
         reader.GetLockHoldersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(_ => LockHolders);

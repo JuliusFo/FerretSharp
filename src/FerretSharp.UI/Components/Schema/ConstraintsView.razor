@@ -123,7 +123,7 @@
         Active.Schema?.IncomingOf(Table.Ref).Where(f => f.Source != FkSource.ClrModel).ToList() ?? [];
 
     private IReadOnlyList<ForeignKeyInfo> ModelOutgoing =>
-        Active.Schema?.OutgoingOf(Table.Ref).Where(f => f.Source == FkSource.ClrModel && f.Audit is null).ToList() ?? [];
+        Active.Schema?.OutgoingOf(Table.Ref).Where(f => f.Source == FkSource.ClrModel).ToList() ?? [];
 
     private IReadOnlyList<ForeignKeyInfo> ModelIncoming =>
         Active.Schema?.IncomingOf(Table.Ref).Where(f => f.Source == FkSource.ClrModel).ToList() ?? [];
