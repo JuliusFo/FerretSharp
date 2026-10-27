@@ -15,7 +15,7 @@
                 break;
             case ConcurrencyConflictException conflict:
                 <p>@GridText.Problem_ChangedMeanwhileText</p>
-                <table class="columns">
+                <table class="columns conflict-values">
                     <thead><tr><th>@GridText.Grid_Column</th><th>@GridText.Problem_WhenLoaded</th><th>@GridText.Problem_NowInDatabase</th><th>@GridText.Problem_YourChange</th></tr></thead>
                     <tbody>
                         @foreach (var difference in conflict.Differences)
