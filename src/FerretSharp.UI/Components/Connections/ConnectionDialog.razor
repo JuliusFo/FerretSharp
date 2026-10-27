@@ -135,10 +135,10 @@
                 <button class="btn" title="@ConnectionViewText.ConnectionDialog_PickProject" @onclick="PickProjectAsync">…</button>
             </div>
             <FieldError Errors="errors" Field="@ConnectionField.ClrProject" />
-            <div class="hint small">@ConnectionViewText.ConnectionDialog_ProjectHint</div>
+            <div class="hint small">@(Form.IsModelFile ? ConnectionViewText.ConnectionDialog_ModelFileHint : ConnectionViewText.ConnectionDialog_ProjectHint)</div>
         </div>
 
-        @if (!string.IsNullOrWhiteSpace(Form.ClrProjectFile))
+        @if (!string.IsNullOrWhiteSpace(Form.ClrProjectFile) && !Form.IsModelFile)
         {
             <label for="cn-clr-config">Build</label>
             <select id="cn-clr-config" class="field narrow" @bind="Form.ClrConfiguration">
@@ -352,7 +352,7 @@
 
     private async Task PickProjectAsync()
     {
-        if (await Files.PickAsync(ConnectionViewText.ConnectionDialog_ProjectFilter, ["csproj"], Form.ClrProjectFile) is { } path)
+        if (await Files.PickAsync(ConnectionViewText.ConnectionDialog_ProjectFilter, ["csproj", "json"], Form.ClrProjectFile) is { } path)
         {
             Form.ClrProjectFile = path;
         }

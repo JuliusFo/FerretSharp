@@ -31,7 +31,7 @@
     <comment>Heading</comment>
   </data>
   <data name="Model_NoProjectHint" xml:space="preserve">
-    <value>In the connection dialog, enter the {0} of the project with the DbContext under “C# model”. FerretSharp then reads the EF Core model (EF Core 8 or later) from the existing build: entity and property names, C# types, converters and navigations – without the application’s startup code and without a database connection.</value>
+    <value>In the connection dialog, enter the {0} of the project with the DbContext under “C# model”. FerretSharp then reads the EF Core model (EF Core 8 or later) from the existing build: entity and property names, C# types, converters and navigations – without the application’s startup code and without a database connection. Without access to the project’s packages, a model file (.json) exported by a colleague on this page works too.</value>
     <comment>{0} = .csproj (code). “C# model” is the section of the connection dialog</comment>
   </data>
   <data name="Model_Project" xml:space="preserve">
@@ -496,5 +496,45 @@
   </data>
   <data name="Usage_Shadow" xml:space="preserve">
     <value>Shadow</value>
+  </data>
+  <data name="Model_Export" xml:space="preserve">
+    <value>Export as file …</value>
+    <comment>Model page: saves the loaded model as a model file (WP-64)</comment>
+  </data>
+  <data name="Model_ExportTitle" xml:space="preserve">
+    <value>Saves the model as a file for colleagues who cannot build the project – they link it instead of the .csproj</value>
+  </data>
+  <data name="Model_ExportFilter" xml:space="preserve">
+    <value>FerretSharp model</value>
+    <comment>Save dialog filter label</comment>
+  </data>
+  <data name="Model_ExportDone" xml:space="preserve">
+    <value>Model saved as {0}.</value>
+    <comment>{0} = file name</comment>
+  </data>
+  <data name="Model_ModelFile" xml:space="preserve">
+    <value>Model file</value>
+    <comment>Heading on the model page when a model file is linked</comment>
+  </data>
+  <data name="Model_File" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="Model_Exported" xml:space="preserve">
+    <value>Exported</value>
+  </data>
+  <data name="Model_ExportedInfo" xml:space="preserve">
+    <value>{0} with FerretSharp {1}</value>
+    <comment>{0} = date and time, {1} = version</comment>
+  </data>
+  <data name="Model_FileSource" xml:space="preserve">
+    <value>from {0} ({1})</value>
+    <comment>{0} = project name, {1} = configuration and DbContext</comment>
+  </data>
+  <data name="Model_DisplayLanguage" xml:space="preserve">
+    <value>Display names</value>
+    <comment>Language the enum display names were exported in</comment>
+  </data>
+  <data name="Model_FileLimits" xml:space="preserve">
+    <value>Read from the file: names, enums and relationships work as with the project. The LINQ console, code usage and building need the project itself. A new export copied over the file loads automatically.</value>
   </data>
 </root>

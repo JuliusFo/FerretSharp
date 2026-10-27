@@ -969,4 +969,10 @@
   <data name="TabBar_RecordsTitleOther" xml:space="preserve">
     <value>Datensatz-Diagramm von {1} – {0:N0} Startzeilen, gelesen in der Session dieses Workspaces</value>
   </data>
+  <data name="Status_ModelFile" xml:space="preserve">
+    <value>Datei</value>
+  </data>
+  <data name="Status_ModelFileTitle" xml:space="preserve">
+    <value>Modell aus einer Datei, exportiert {0}.</value>
+  </data>
 </root>

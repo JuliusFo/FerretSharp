@@ -28,7 +28,7 @@
     <value>Kein Projekt verknüpft</value>
   </data>
   <data name="Model_NoProjectHint" xml:space="preserve">
-    <value>Im Verbindungsdialog unter „C#-Modell“ die {0} des Projekts mit dem DbContext eintragen. FerretSharp liest das EF-Core-Modell (ab EF Core 8) dann aus dem vorhandenen Build: Entity- und Property-Namen, C#-Typen, Converter und Navigations – ohne den Startcode der Anwendung und ohne Datenbankverbindung.</value>
+    <value>Im Verbindungsdialog unter „C#-Modell“ die {0} des Projekts mit dem DbContext eintragen. FerretSharp liest das EF-Core-Modell (ab EF Core 8) dann aus dem vorhandenen Build: Entity- und Property-Namen, C#-Typen, Converter und Navigations – ohne den Startcode der Anwendung und ohne Datenbankverbindung. Ohne Zugriff auf die Pakete des Projekts geht auch eine Modelldatei (.json), die ein Kollege auf dieser Seite exportiert hat.</value>
   </data>
   <data name="Model_Project" xml:space="preserve">
     <value>Projekt</value>
@@ -449,5 +449,38 @@
   </data>
   <data name="Usage_Shadow" xml:space="preserve">
     <value>Shadow</value>
+  </data>
+  <data name="Model_Export" xml:space="preserve">
+    <value>Als Datei exportieren …</value>
+  </data>
+  <data name="Model_ExportTitle" xml:space="preserve">
+    <value>Speichert das Modell als Datei für Kollegen, die das Projekt nicht bauen können – sie verknüpfen sie statt der .csproj</value>
+  </data>
+  <data name="Model_ExportFilter" xml:space="preserve">
+    <value>FerretSharp-Modell</value>
+  </data>
+  <data name="Model_ExportDone" xml:space="preserve">
+    <value>Modell gespeichert als {0}.</value>
+  </data>
+  <data name="Model_ModelFile" xml:space="preserve">
+    <value>Modelldatei</value>
+  </data>
+  <data name="Model_File" xml:space="preserve">
+    <value>Datei</value>
+  </data>
+  <data name="Model_Exported" xml:space="preserve">
+    <value>Exportiert</value>
+  </data>
+  <data name="Model_ExportedInfo" xml:space="preserve">
+    <value>{0} mit FerretSharp {1}</value>
+  </data>
+  <data name="Model_FileSource" xml:space="preserve">
+    <value>aus {0} ({1})</value>
+  </data>
+  <data name="Model_DisplayLanguage" xml:space="preserve">
+    <value>Anzeigenamen</value>
+  </data>
+  <data name="Model_FileLimits" xml:space="preserve">
+    <value>Aus der Datei gelesen: Namen, Enums und Beziehungen wirken wie mit dem Projekt. LINQ-Konsole, Verwendung im Code und Bauen brauchen das Projekt selbst. Ein neuer Export, über die Datei kopiert, lädt automatisch.</value>
   </data>
 </root>

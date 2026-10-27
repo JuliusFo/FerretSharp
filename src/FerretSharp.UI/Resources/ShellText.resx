@@ -1196,4 +1196,12 @@
     <value>Record diagram of {1} – {0:N0} start rows, read in this workspace’s session</value>
     <comment>{0}: start rows; {1}: OWNER.TABLE</comment>
   </data>
+  <data name="Status_ModelFile" xml:space="preserve">
+    <value>file</value>
+    <comment>Status bar segment: the C# model comes from a model file (WP-64)</comment>
+  </data>
+  <data name="Status_ModelFileTitle" xml:space="preserve">
+    <value>Model from a file, exported {0}.</value>
+    <comment>{0} = date and Git branch</comment>
+  </data>
 </root>
