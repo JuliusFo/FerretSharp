@@ -280,7 +280,7 @@ public static partial class AuditTemplates
 
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         var ok = true;
-        foreach (var part in rest.Split([' ', '	'], StringSplitOptions.RemoveEmptyEntries))
+        foreach (var part in rest.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries))
         {
             var equals = part.IndexOf('=', StringComparison.Ordinal);
             var key = equals < 0 ? part : part[..equals].ToLowerInvariant();

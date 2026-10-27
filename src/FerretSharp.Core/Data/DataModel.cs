@@ -201,6 +201,15 @@ public interface IDataAccess : IRowLookup
         int? maxRows,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The rows of an audit table against the version before each (WP-63, <see cref="QueryBuilder.BuildAuditChanges"/>): one
+    /// entry per row that has a base key, in statements of at most <see cref="QueryBuilder.MaxLookupKeys"/> rows. In the
+    /// workspace's session like a lookup: it does not start a new read-only snapshot.
+    /// </summary>
+    /// <param name="rows">Rows of the audit table as the grid read them.</param>
+    Task<IReadOnlyList<Audit.AuditRowChange>> ReadAuditChangesAsync(
+        TableDetails table, Audit.AuditVersions versions, IReadOnlyList<RowData> rows, CancellationToken cancellationToken);
+
     /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>
     public const int ActualPlanPageSize = 500;
 
