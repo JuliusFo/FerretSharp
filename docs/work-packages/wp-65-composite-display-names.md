@@ -52,6 +52,7 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--l
 - „Aus dem Namen entfernen“ an `KUNDEN.NAME`: Datei behält nur noch `AUFTRAG` in `displayNames`, `KUNDEN → KUERZEL`; die offenen Grids folgen ohne Neuladen.
 - Hell (Emulation) und dunkel aufgenommen, Log ohne `[ERR]`/`[WRN]`, kein Eintrag im Credential Manager.
 - Nicht im E2E: Export (Speichern-Dialog, Core-Tests decken die Überschrift und das Nachschlagen ab), Datensatz-Diagramm.
+- Nach den Korrekturen des Code-Reviews (Build von `dfe47e54`, neuer Container `ferret-wp65`, danach entfernt): `AUFTRAG_POSITION` zeigt weiter `579 · Kunde 4054 - ABGESCHLOSSEN` (zweite Ebene, leeres Kürzel fällt weg). Vier Zeilen markiert, Rechtsklick und „Excel · 4 Zeilen“ mit echter Eingabe: Der Dialog bietet `AUFTRAG_POSITION.xlsx` als Excel-Arbeitsmappe an (nur gelesen, mit `WM_CLOSE` geschlossen, danach weder Hinweis noch Export in der Statusleiste). Die Datei selbst bleibt ungeprüft (Speichern-Dialog), die Kopie der Namen deckt `A_copy_never_formats_and_a_name_is_formatted_once` ab. Datensatz-Diagramm: `AUFTRAG 579 · 4.054 - ABGESCHLOSSEN`, dieselben Anzeigespalten wie das Grid, ohne zweite Ebene (siehe Offen). Log ohne `[ERR]`/`[WRN]`, kein Eintrag im Credential Manager.
 
 ## Offen
 - Datensatz-Diagramm: keine zweite Ebene (bräuchte eigene Lookups).
