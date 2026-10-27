@@ -134,12 +134,18 @@ public sealed class ClrModelManager : IDisposable
     /// commit). Only with a project's model loaded – a model file is passed on as it is.
     /// </summary>
     /// <param name="appVersion">The FerretSharp writing it.</param>
-    /// <exception cref="InvalidOperationException">No project's model is loaded.</exception>
+    /// <exception cref="InvalidOperationException">No project's model is loaded, or it holds a name a model file may not (the message says which).</exception>
     public async Task ExportAsync(string path, string appVersion, CancellationToken cancellationToken)
     {
         if (State is not { Link: { } link, Mapping: { } mapping })
         {
             throw new InvalidOperationException("No project's model loaded.");
+        }
+
+        // The recipient would refuse it: better said now, to whom can still look at the project.
+        if (ModelFile.Problem(mapping.Model) is { } problem)
+        {
+            throw new InvalidOperationException(problem);
         }
 
         var origin = await Task.Run(() => ModelFile.OriginOf(link, _time.GetLocalNow(), appVersion), cancellationToken);

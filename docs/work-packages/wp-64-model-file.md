@@ -43,6 +43,18 @@ Eigener Container mit der Beispiel-DB (`ferret-wp64`, Port 1564, danach entfernt
   - Log der Testinstanz ohne `[ERR]`/`[WRN]`.
 - **Nicht geprüft:** Klicks mit echter Windows-Eingabe (nur gewöhnliche Knöpfe, keine eigene Maus-Logik); das Schreiben über den Speichern-Dialog selbst (native Dialoge nicht bedienen – der Weg dahinter ist `ClrModelManager.ExportAsync`, getestet in `ModelFileLoadingTests`).
 
+## Review (2026-10-27, Schwerpunkt: fremde Datei als Einfallstor)
+Was eine Modelldatei erreicht, Stelle für Stelle:
+- **Lesen:** nur `System.Text.Json` in Records, keine Polymorphie, keine Typnamen, die aufgelöst würden, kein Prozess, kein Laden von Assemblies – beim Empfänger läuft nichts. LINQ-Konsole, Code-Index und Bauen hängen an `ClrModelState.Link` und bleiben mit Datei aus.
+- **Oberfläche:** Blazor maskiert; `MarkupString` nur bei festen Icons; `grid.js` setzt Namen, Typen und Kommentare als `textContent`/`title`, Zellen als Elemente, `tooltip.js` als `textContent`.
+- **SQL:** Tabellen und Spalten des Modells werden nur gegen das Schema aufgelöst (`ClrModelMapping`), Spalten liest es nur für Besitzer gefundener Tabellen; Filterwerte (auch Enum-Werte) sind Binds, Spalten prüft und quotet der `QueryBuilder`.
+- **Gefunden und behoben:**
+  1. **Namen in erzeugtem C#** (`CSharpCode.Identifier(property.Name)`, `// `-Kommentare, `DbSet`, Converter- und Typnamen in LINQ-Filtern und Objekt-Code): Aus dem ModelHost waren es kompilierte Namen, aus einer Datei beliebiger Text – `X = Process.Start(…)` oder ein Zeilenumbruch hinter `//` hätte Code in den kopierten Text gebracht. `ModelFileCheck`: Property-, Navigations-, Schlüssel- und Enum-Namen müssen C#-Bezeichner sein, Typnamen nur Bezeichner mit den Zeichen eines Typs (`.+<>,[]?`, Leerzeichen, Backtick), kein Text darf ein Steuerzeichen enthalten; Pflichtfelder müssen da sein (statt NullReference). Lesen lehnt ab, der Export prüft vorher dasselbe.
+  2. **Größe:** Dateien über 64 MB werden nicht gelesen (`ModelFile.MaxBytes`; das Modell beim Nutzer hat etwa 3 MB).
+  3. **`GitFolder.Commit`** (Export): Der Ref-Name aus `HEAD` ging ungeprüft in `Path.Combine` – `ref: refs/../../../x` las eine andere Datei, ein UNC-Pfad hätte eine Anmeldung an einem fremden Host ausgelöst; `commondir` folgte einer Freigabe ohne die Regel aus A31. Jetzt nur `refs/…` ohne `..`, Backslash und Doppelpunkt, `commondir` wie `gitdir`.
+- **Bleibt bewusst:** Der Pfad der Modelldatei kommt vom Nutzer oder aus einem Verbindungs-Import nur mit „lokale Pfade übernehmen“ (wie das Projekt, A4); eine Datei auf einer Freigabe ist ein gewollter Weg, dorthin meldet sich Windows wie bei jedem Dateizugriff an.
+- **Tests:** `ModelFileTests` (sechs Namen, die aus dem Code ausbrechen würden – Lesen und Export; Namen, wie der ModelHost sie schreibt; unvollständig; zu groß; Ref außerhalb von `.git`, Ref und `commondir` auf einer Freigabe – der Ref-Test schlägt ohne den Fix fehl).
+
 ## Offen
 - Export per Kommandozeile und beide Sprachen: Backlog.
 - Die Meldung „vom Absender neu exportieren lassen“ gibt es erst mit Dateiversion 2; heute meldet eine fremde oder unvollständige Datei „keine Modelldatei“.

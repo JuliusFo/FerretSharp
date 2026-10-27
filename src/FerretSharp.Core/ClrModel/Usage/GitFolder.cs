@@ -72,9 +72,18 @@ public static class GitFolder
             }
 
             var name = head[reference.Length..];
+            if (!name.StartsWith("refs/", StringComparison.Ordinal) || name.Contains("..", StringComparison.Ordinal) || name.Contains('\\') || name.Contains(':'))
+            {
+                return null; // only a ref below the git folder: no other file, no share
+            }
             var common = File.Exists(Path.Combine(git, "commondir"))
                 ? Path.GetFullPath(Path.Combine(git, File.ReadAllText(Path.Combine(git, "commondir")).Trim()))
                 : git;
+            if (!Followed(common, root))
+            {
+                common = git; // as for gitdir (A31): no sign-in to a foreign share
+            }
+
             foreach (var folder in new[] { git, common }.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var file = Path.Combine(folder, name.Replace('/', Path.DirectorySeparatorChar));
@@ -128,10 +137,12 @@ public static class GitFolder
         // A share the working copy is not on (review 3.44.0, A31): a folder unpacked from an archive would make FerretSharp
         // sign in to a foreign host every few seconds (the branch is read by a timer). A clone on a share may keep its
         // worktree data there.
-        return IsShare(full) && !string.Equals(Path.GetPathRoot(full), Path.GetPathRoot(Path.GetFullPath(root)), StringComparison.OrdinalIgnoreCase)
-            ? null
-            : full;
+        return Followed(full, root) ? full : null;
     }
+
+    /// <summary>A folder a working copy's files point to is read only if it is no share, or on the share the working copy is on.</summary>
+    private static bool Followed(string folder, string root) =>
+        !IsShare(folder) || string.Equals(Path.GetPathRoot(folder), Path.GetPathRoot(Path.GetFullPath(root)), StringComparison.OrdinalIgnoreCase);
 
     private static bool IsShare(string path) => path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
 }

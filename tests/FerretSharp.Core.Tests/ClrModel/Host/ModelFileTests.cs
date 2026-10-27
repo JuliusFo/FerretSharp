@@ -140,4 +140,84 @@ public sealed class ModelFileTests : IDisposable
         Assert.True(ModelFile.IsModelFile(@"C:\Modelle\Shop.Data.ferretmodel.JSON"));
         Assert.False(ModelFile.IsModelFile(@"C:\src\Shop.Data\Shop.Data.csproj"));
     }
+
+    /// <summary>
+    /// Review of WP-64: a model file comes from someone else, and its names end up in generated C# the user copies into a
+    /// project. Writing one with a name that would leave an identifier or a comment, or reading one, is refused.
+    /// </summary>
+    [Theory]
+    [InlineData("name", "X = System.Diagnostics.Process.Start(\"calc\")")]
+    [InlineData("name", "Id\r\nSystem.IO.File.Delete(\"x\");//")]
+    [InlineData("type", "int; Evil()")]
+    [InlineData("converter", "JaNein(\"x\")")]
+    [InlineData("display", "Aktiv\n}; Evil(); //")]
+    [InlineData("dbset", "Kunden.Where(x => Evil())")]
+    public async Task A_name_that_would_leave_the_generated_code_is_refused(string where, string value)
+    {
+        var property = Model.Entities[0].Properties[1];
+        var bad = where switch
+        {
+            "name" => property with { Name = value },
+            "type" => property with { ClrType = value },
+            "converter" => property with { Converter = value },
+            "display" => property with { Values = [new ValueMapping("Aktiv", "1", "A", value)] },
+            _ => property,
+        };
+        var entity = Model.Entities[0] with { Properties = [Model.Entities[0].Properties[0], bad], DbSet = where == "dbset" ? value : "Kunden" };
+        var model = Model with { Entities = [entity] };
+        var path = _folder.Combine("fremd.json");
+        await ModelFile.WriteAsync(path, model, Origin, Ct); // as someone could write it by hand
+
+        var read = await ModelFile.ReadAsync(path, Ct);
+
+        Assert.Null(read.Model);
+        Assert.Contains("nicht enthalten darf", read.Error);
+        Assert.DoesNotContain('\n', read.Error!);
+        Assert.Equal(read.Error, ModelFile.Problem(model)); // the export says the same before writing
+    }
+
+    [Fact]
+    public void Names_as_the_model_host_writes_them_pass()
+    {
+        var property = Model.Entities[0].Properties[1] with { Converter = "ValueConverter<bool, string>", ClrType = "Outer+Inner" };
+        var entity = Model.Entities[0] with
+        {
+            Name = "Shop.Auftrag.Lieferadresse#Adresse", ClrType = "Dictionary<string, object>",
+            Properties = [Model.Entities[0].Properties[0] with { ClrType = "byte[]" }, property, property with { Name = "@class" }],
+        };
+
+        Assert.Null(ModelFile.Problem(Model with { Entities = [entity] }));
+    }
+
+    [Fact]
+    public async Task A_file_without_required_entries_or_too_large_says_why()
+    {
+        var missing = Write("ohne.json", """
+            { "version": 1, "origin": { "project": "P", "configuration": "Debug", "appVersion": "1" },
+              "model": { "efVersion": "8", "contextType": "C", "createdBy": "options", "entities": [ { "name": "E", "clrType": "E" } ] } }
+            """);
+        var large = _folder.Combine("gross.json");
+        await using (var stream = File.Create(large))
+        {
+            stream.SetLength(ModelFile.MaxBytes + 1);
+        }
+
+        Assert.Contains("unvollständig", (await ModelFile.ReadAsync(missing, Ct)).Error);
+        Assert.Contains("größer als 64 MB", (await ModelFile.ReadAsync(large, Ct)).Error);
+    }
+
+    /// <summary>Review of WP-64: HEAD and commondir of a working copy decide which files are read – never another file or a share.</summary>
+    [Fact]
+    public void The_commit_reads_only_refs_below_the_git_folder()
+    {
+        Write("secret.txt", "0123456789abcdef0123456789abcdef01234567");
+        Write("up/.git/HEAD", "ref: refs/../../../secret.txt\n"); // .git/refs/../../../ is the folder of secret.txt
+        Write("unc/.git/HEAD", @"ref: \\fremd.invalid\share\x" + "\n");
+        Write("wt/.git/HEAD", "ref: refs/heads/main\n");
+        Write("wt/.git/commondir", @"\\fremd.invalid\share\meta" + "\n");
+
+        Assert.Null(GitFolder.Commit(_folder.Combine("up")));
+        Assert.Null(GitFolder.Commit(_folder.Combine("unc")));
+        Assert.Null(GitFolder.Commit(_folder.Combine("wt")));
+    }
 }

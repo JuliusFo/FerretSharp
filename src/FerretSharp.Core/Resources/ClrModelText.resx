@@ -446,4 +446,15 @@
     <value>{0} is not a model file exported by FerretSharp.</value>
     <comment>{0} = file name</comment>
   </data>
+  <data name="ModelFileIncomplete" xml:space="preserve">
+    <value>The model file is incomplete: a required entry is missing. Ask for a new export.</value>
+  </data>
+  <data name="ModelFileInvalidName" xml:space="preserve">
+    <value>The model holds a name that a model file may not: “{0}” ({1}). Names end up in generated C#, so they must be C# names without control characters.</value>
+    <comment>{0} = the name (control characters shown as ·), {1} = where (entity or entity.property)</comment>
+  </data>
+  <data name="ModelFileTooLarge" xml:space="preserve">
+    <value>The model file is larger than {0} MB and is not read.</value>
+    <comment>{0} = limit in MB</comment>
+  </data>
 </root>
