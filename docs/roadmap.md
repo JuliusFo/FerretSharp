@@ -66,5 +66,26 @@ Branch `wp/47-since-last-visit`.
 - **Startseite nach dem Verbinden:** Unterschiede zum letzten Stand über den Schema-Vergleich (WP-20, zwei Snapshots derselben Verbindung) – neue/entfernte Tabellen und Spalten, geänderte Typen, neu ungültige Objekte –, neue Abweichungen zum C#-Modell (WP-27), offene Transaktionen anderer Workspaces, zuletzt benutzte Workspaces. Der Release-Check (Backlog, „später“) käme dort als weiterer Block dazu.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
+### WP-65 Zusammengesetzte Anzeigenamen
+(Wunsch eines Kollegen, geplant mit dem Nutzer am 2026-10-27; Fortsetzung von WP-31, ADR 0022.) Branch `wp/65-composite-display-names`. Ein Name aus mehreren Spalten der Zieltabelle (`NACHNAME VORNAME`, `NUMMER BEZEICHNUNG`), in Stufe 2 auch über einen weiteren FK hinweg.
+- **Stufe 1 – Spaltenliste je Tabelle:**
+  - Modell (`Core/Display`): `DisplayColumns` hält je Tabelle eine geordnete Liste statt einer Spalte (`ColumnsOf`, `IndexesIn` – Einträge für Spalten, die die DB nicht hat, fallen weg; jede Spalte einzeln gegen `NotDisplayableReason`). `DisplayLink.DisplayColumn` wird zur Liste, `LookupRow.Display` zu den Werten je Spalte.
+  - Abfrage: `QueryBuilder.BuildLookup` holt alle Spalten in einer Abfrage (`SELECT key, col1, col2 … WHERE key IN (…)`) – kein zusätzlicher Roundtrip; IN-Größen, Timeout, Cache je Tab und Workspace-Session bleiben wie in ADR 0022. Spaltennamen gegen das Schema geprüft und gequotet, nie freie SQL-Ausdrücke aus der geteilten Datei (sie kommt per `git pull` von anderen).
+  - Zusammensetzen in C#, nicht in SQL (kein `||`): jeder Teil über die Präsentationsschicht (Datum, Zahl, Enum-Name wie im Grid), NULL- und leere Teile fallen weg, Trenner eine Leerstelle, gekürzt wird das Ganze (60 Zeichen, `DisplayNames.MaxTextLength`). Alle Namen holen sich ihren Text über `DisplayNames` – Grid, Formular, Export (WP-54, `RowExport`/`PresentedExport`) –, das Beschriften im Datensatz-Diagramm (`RecordDiagramView`, liest heute selbst `IndexIn`) zieht nach.
+  - Datei (`DisplayColumnSource`): neues Feld `displayNames` (Tabelle → Liste), nur für Tabellen mit mehr als einer Spalte; `displayColumns` behält für diese Tabellen die erste Spalte, damit ältere Versionen wenigstens den ersten Teil zeigen. Gibt es beide, gilt `displayNames`. Die Datei bekommt Version 2, sobald sie `displayNames` enthält – ältere Versionen lesen sie dann nur und können nichts markieren, was der Liste widerspräche (bestehende Regel: neuere Version → nur lesen). Ohne `displayNames` bleibt Version 1.
+  - UI: Kontextmenü des Spaltenkopfs (`ColumnMenu`) – „Als Anzeigespalte verwenden“ ersetzt wie heute die Liste durch diese eine Spalte, neu „Zum Namen hinzufügen“ hängt an (nur, wenn die Tabelle schon einen Namen hat) und „Aus dem Namen entfernen“ nimmt eine Spalte heraus. Badge mit Position („Name 1“, „Name 2“) im Grid-Kopf und in der Spaltenansicht (`ColumnsView`); ohne zweite Spalte bleibt es „Name“. Einstellungen › Anzeigespalten zählt Tabellen wie bisher.
+- **Stufe 2 – Name über einen weiteren FK (höchstens eine Ebene):**
+  - Ist eine Spalte des Namens selbst ein FK mit Anzeigename (geplant über `DisplayLinks` auf der Zieltabelle), steht an ihrer Stelle der Name ihres Ziels: Position → Auftrag `4711 · PetersPizza`, wenn der Name des Auftrags `KUNDE_ID` ist und der des Kunden `NAME`.
+  - Kosten: ein zweiter Lookup je Block für die Werte der zweiten Ebene (gleiche Warteschlange, gleiches Timeout, eigener Cache-Eintrag); kein JOIN, damit ein fehlendes Recht auf die zweite Tabelle nur deren Teil abschaltet. Keine Rekursion über eine Ebene hinaus, also kein Zyklusproblem (auch nicht bei Selbstverweisen wie `PARENT_ID`).
+  - Nicht gefunden auf der zweiten Ebene: der Rohwert statt des Namens.
+- Tests: Core (`DisplayColumnsTests`/`DisplayColumnSourceTests` für Datei, Versionen und beide Felder, `DisplayLinksTests`, `DisplayNamesTests` für Zusammensetzen, NULL-Teile, Kürzen und zweite Ebene, `QueryBuilderTests` für den Lookup mit mehreren Spalten, `ReadOnlyTests`), Integration `DisplayLookupTests` (mehrere Spalten, zweite Ebene), E2E in eigener Instanz und eigenem Container wie WP-31.
+- Doku: Nachtrag zu ADR 0022 (Dateiformat Version 2, Zusammensetzen in C#, zweite Ebene) statt eines neuen ADR; `docs/architecture.md` (Anzeigespalten), Texte Englisch/Deutsch.
+- Offen (Vorschläge in Klammern):
+  - Trenner: Leerstelle, `, ` oder ` – ` (Leerstelle; ` · ` trennt schon Wert und Name); fest oder je Tabelle (fest – eine Vorlage `{NACHNAME}, {VORNAME}` erst bei Bedarf).
+  - Reihenfolge ändern: nur über Entfernen und neu Hinzufügen (ja, wie die einfachste Variante) oder kleiner Dialog in der Spaltenansicht.
+  - Stufe 2 im selben Paket oder als eigenes (selbes Paket, aber als zweiter Schritt: Stufe 1 ist für sich releasefähig).
+  - Zweite Ebene: nur der Name des Ziels (`PetersPizza`) oder Wert und Name (`13 PetersPizza`) (nur der Name).
+  - Platz in der Reihenfolge („Als Nächstes“ in der `CLAUDE.md`).
+
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
