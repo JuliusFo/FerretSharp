@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- The tables on the model page ("Types, NULL and lengths", the entities, unused columns) wrap long entity, property, column and converter names instead of pushing the table out of its section; the effect of a mismatch keeps room to read.
+- Long values wrap in the dialog of a concurrency conflict and in the bind values of the error dialog and the SQL preview instead of scrolling the dialog sideways.
+
 ## [3.52.0] - 2026-10-27
 
 Audit tables read like their base table and show what each version changed.
