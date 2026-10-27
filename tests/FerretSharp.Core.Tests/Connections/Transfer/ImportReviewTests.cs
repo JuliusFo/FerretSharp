@@ -333,4 +333,27 @@ etworkadmin") };
 
         return buffer.ToArray();
     }
+
+    /// <summary>
+    /// WP-64: the C# model is one setting – a project or a model file. An own one stays as a whole (never project and file
+    /// at once); without one, the imported model file comes along like a project path.
+    /// </summary>
+    [Fact]
+    public void An_own_C_sharp_model_stays_as_a_whole_and_an_imported_model_file_fills_in()
+    {
+        var colleague = SavedProd with { Id = Guid.NewGuid(), ClrProject = null, ClrModelFile = @"\\server\modelle\Erp.Data.ferretmodel.json" };
+        var file = Utf8(FerretSharpConnections.Export([colleague], includeLocalPaths: true));
+
+        var kept = new ConnectionImportPlan(ConnectionImportReader.Read(file, Ct), [SavedProd]) { TakeLocalPaths = true };
+        Assert.Single(kept.Rows).Selected = true;
+        var own = Assert.Single(kept.Build());
+        Assert.Equal((SavedProd.ClrProject, null), (own.ClrProject, own.ClrModelFile));
+
+        var without = new ConnectionImportPlan(ConnectionImportReader.Read(file, Ct), [SavedProd with { ClrProject = null }]) { TakeLocalPaths = true };
+        Assert.Single(without.Rows).Selected = true;
+        var filled = Assert.Single(without.Build());
+        Assert.Equal((null, colleague.ClrModelFile), (filled.ClrProject, filled.ClrModelFile));
+        Assert.Contains(colleague.ClrModelFile, colleague.LocalPaths());
+        Assert.Null(colleague.WithoutLocalPaths().ClrModelFile);
+    }
 }

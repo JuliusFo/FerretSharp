@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- The C# model can be passed on as a file, for colleagues who cannot build the project (packages from a private feed, for example): the model page of a connection with a project saves the loaded model with "Export as file …" (`<Project>.ferretmodel.json`, with the Git branch and commit it came from). In the connection dialog the project field also takes such a model file: names, enums and relationships work as with the project, without a build and without running the project's code. The LINQ console, code usage and building need the project itself. A new export copied over the file loads by itself; the model page and the status bar say when it was exported and from where. Enum display names are in the exporter's language.
+
+### Changed
+- The cached C# models are read again once from their projects (the model now records the language of its enum display names).
+
 ### Fixed
 - The tables on the model page ("Types, NULL and lengths", the entities, unused columns) wrap long entity, property, column and converter names instead of pushing the table out of its section; the effect of a mismatch keeps room to read.
 - Long values wrap in the dialog of a concurrency conflict and in the bind values of the error dialog and the SQL preview instead of scrolling the dialog sideways.

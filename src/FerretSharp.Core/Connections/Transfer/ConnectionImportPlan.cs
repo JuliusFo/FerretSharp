@@ -142,8 +142,10 @@ public sealed class ImportRow
                     : profile.Address,
                 DefaultSchema = imported.DefaultSchema ?? existing.DefaultSchema,
                 Group = imported.Group ?? existing.Group ?? fallbackGroup,
-                ClrProject = existing.ClrProject ?? imported.ClrProject,
-                CodeSolution = existing.ClrProject is null ? imported.CodeSolution : existing.CodeSolution,
+                // A model of its own (project or file) wins as a whole: never both.
+                ClrProject = OwnModel(existing) ? existing.ClrProject : imported.ClrProject,
+                ClrModelFile = OwnModel(existing) ? existing.ClrModelFile : imported.ClrModelFile,
+                CodeSolution = OwnModel(existing) ? existing.CodeSolution : imported.CodeSolution,
                 ScriptFolder = existing.ScriptFolder ?? imported.ScriptFolder,
                 AppEnvironment = existing.AppEnvironment ?? imported.AppEnvironment,
                 AuditTemplatePath = existing.AuditTemplatePath ?? imported.AuditTemplatePath,
@@ -152,6 +154,8 @@ public sealed class ImportRow
 
         return profile with { Group = imported.Group ?? fallbackGroup };
     }
+
+    private static bool OwnModel(ConnectionProfile existing) => existing.ClrProject is not null || existing.ClrModelFile is not null;
 }
 
 /// <summary>

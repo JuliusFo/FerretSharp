@@ -1,10 +1,12 @@
-@* The C# model of the active connection's linked project (WP-11): where it comes from, reload/rebuild, and how it
-   matches the database – entities without table, properties without column, columns without property. *@
+@* The C# model of the active connection's linked project (WP-11) or model file (WP-64): where it comes from,
+   reload/rebuild, export as a file, and how it matches the database – entities without table, properties without column,
+   columns without property. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
 @implements IDisposable
 @inject ConnectionManager Connections
+@inject IFileSaveService SaveFiles
 
 <div class="settings-page model-page">
     <div class="page-head">
@@ -13,10 +15,27 @@
         {
             <span class="hint mono ellipsis" title="@headLink.ProjectFile">@headLink.ProjectName</span>
         }
+        else if (State.ModelFile is { } headFile)
+        {
+            <span class="hint mono ellipsis" title="@headFile">@Path.GetFileName(headFile)</span>
+        }
         <span class="grow"></span>
-        @if (State.Link is not null)
+        @if (State.IsLinked)
         {
             <button class="btn" disabled="@(Busy)" @onclick="Models.LoadAsync">@CommonText.Reload</button>
+        }
+        @if (State is { Link: not null, Mapping: not null })
+        {
+            <button class="btn" disabled="@(Busy || _exporting)" title="@ModelViewText.Model_ExportTitle" @onclick="ExportAsync">
+                @if (_exporting)
+                {
+                    <span class="spinner small"></span>
+                }
+                @ModelViewText.Model_Export
+            </button>
+        }
+        @if (State.Link is not null)
+        {
             <button class="btn" disabled="@(Busy)" title="@ModelViewText.Model_BuildTitle" @onclick="BuildAsync">
                 @if (Models.IsBuilding)
                 {
@@ -32,7 +51,7 @@
         <button class="btn ghost" @onclick="Shell.ShowExplorer">@CommonText.Back</button>
     </div>
 
-    @if (State.Link is not { } link)
+    @if (!State.IsLinked)
     {
         <section class="settings-section">
             <h2>@ModelViewText.Model_NoProject</h2>
@@ -43,12 +62,34 @@
     }
     else
     {
+        var link = State.Link;
         <section class="settings-section">
-            <h2>@ModelViewText.Model_Project</h2>
+            <h2>@(link is null ? ModelViewText.Model_ModelFile : ModelViewText.Model_Project)</h2>
             <dl class="model-facts">
-                <dt>@ModelViewText.Model_Project</dt>
-                <dd class="mono">@link.ProjectFile</dd>
-                @if (State.Output is { } output)
+                @if (link is null)
+                {
+                    <dt>@ModelViewText.Model_File</dt>
+                    <dd class="mono">@State.ModelFile</dd>
+                    @if (State.Origin is { } origin)
+                    {
+                        <dt>@ModelViewText.Model_Exported</dt>
+                        <dd>
+                            @TextFormat.Format(ModelViewText.Model_ExportedInfo, origin.ExportedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture), origin.AppVersion)
+                            <div class="hint">@ModelFileText.Source(origin)</div>
+                        </dd>
+                    }
+                    @if (State.Mapping?.Model.Culture is { Length: > 0 } culture)
+                    {
+                        <dt>@ModelViewText.Model_DisplayLanguage</dt>
+                        <dd>@CultureName(culture)</dd>
+                    }
+                }
+                else
+                {
+                    <dt>@ModelViewText.Model_Project</dt>
+                    <dd class="mono">@link.ProjectFile</dd>
+                }
+                @if (link is not null && State.Output is { } output)
                 {
                     <dt>@ModelViewText.Model_BuildLabel</dt>
                     <dd>
@@ -80,7 +121,12 @@
                 }
             </dl>
 
-            @if (State.Output is { IsStale: true } stale)
+            @if (link is null)
+            {
+                <div class="settings-note">@ModelViewText.Model_FileLimits</div>
+            }
+
+            @if (link is not null && State.Output is { IsStale: true } stale)
             {
                 <div class="settings-note warn">
                     <Fmt Text="@ModelViewText.Model_Stale"><Arg0><span class="mono">@Path.GetFileName(stale.NewerSource)</span></Arg0></Fmt>
@@ -213,6 +259,7 @@
     public ActiveConnection Active { get; set; } = null!;
 
     private bool _showDetail;
+    private bool _exporting;
 
     // A property, not a static field: the texts follow the UI language.
     private static (MappingIssueKind Kind, string Title, string Hint)[] IssueGroups =>
@@ -257,6 +304,44 @@
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
     private Task BuildAsync() => Models.BuildAsync();
+
+    /// <summary>The loaded model as a file to pass on (WP-64): asked where first, written in the background.</summary>
+    private async Task ExportAsync()
+    {
+        if (State.Link is not { } link
+            || await SaveFiles.AskPathAsync(ModelFile.SuggestedName(link), ModelViewText.Model_ExportFilter) is not { Length: > 0 } path)
+        {
+            return;
+        }
+
+        _exporting = true;
+        try
+        {
+            await Models.ExportAsync(path, AppVersion.Current, CancellationToken.None);
+            Shell.Notify(TextFormat.Format(ModelViewText.Model_ExportDone, Path.GetFileName(path)));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            Shell.Notify(TextFormat.Format(CommonText.SaveFailed, ex.Message));
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+
+    /// <summary>"Deutsch (Deutschland)" for <c>de-DE</c>; the name itself if this Windows does not know it.</summary>
+    private static string CultureName(string name)
+    {
+        try
+        {
+            return CultureInfo.GetCultureInfo(name).DisplayName;
+        }
+        catch (CultureNotFoundException)
+        {
+            return name;
+        }
+    }
 
     private void Open(TableSummary table)
     {

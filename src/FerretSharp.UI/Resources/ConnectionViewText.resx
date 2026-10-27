@@ -161,17 +161,17 @@
     <comment>Field label: the linked C# project</comment>
   </data>
   <data name="ConnectionDialog_ProjectPlaceholder" xml:space="preserve">
-    <value>…\Data\Data.csproj – the project with the DbContext</value>
+    <value>…\Data\Data.csproj – the project with the DbContext – or a model file</value>
   </data>
   <data name="ConnectionDialog_PickProject" xml:space="preserve">
-    <value>Choose project file</value>
+    <value>Choose project file or model file</value>
   </data>
   <data name="ConnectionDialog_ProjectFilter" xml:space="preserve">
-    <value>C# project</value>
+    <value>C# project or model file</value>
     <comment>File dialog filter label</comment>
   </data>
   <data name="ConnectionDialog_ProjectHint" xml:space="preserve">
-    <value>FerretSharp reads the model from the existing build (EF Core 8 or later) – without the application’s startup code and without a database connection.</value>
+    <value>FerretSharp reads the model from the existing build (EF Core 8 or later) – without the application’s startup code and without a database connection. If you cannot build the project, use a model file (.json) exported on a colleague’s model page.</value>
   </data>
   <data name="ConnectionDialog_ContextPlaceholder" xml:space="preserve">
     <value>empty = the only DbContext in the project</value>
@@ -510,5 +510,8 @@
   </data>
   <data name="Switcher_ReconnectingTitle" xml:space="preserve">
     <value>Lost – connecting again by itself</value>
+  </data>
+  <data name="ConnectionDialog_ModelFileHint" xml:space="preserve">
+    <value>A model file exported on the model page: names, enums and relationships without a build. The LINQ console and code usage need the project.</value>
   </data>
 </root>

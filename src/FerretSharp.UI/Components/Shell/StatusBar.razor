@@ -97,7 +97,8 @@
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
-
+
+
     [CascadingParameter]
     public ConnectionScope Scope { get; set; } = null!;
 
@@ -177,11 +178,11 @@
 
     private static string Age(TimeSpan age) => age.TotalMinutes < 1 ? "< 1 min" : $"{(int)age.TotalMinutes} min";
 
-    /// <summary>The C# model of the linked project (WP-11); opens the model page.</summary>
+    /// <summary>The C# model of the linked project (WP-11) or model file (WP-64); opens the model page.</summary>
     private RenderFragment ModelStatus()
     {
         var state = Models.State;
-        if (state.Link is null)
+        if (!state.IsLinked)
         {
             return @<text></text>;
         }
@@ -212,6 +213,11 @@
         var differences = mapping.Issues.Count + mapping.ColumnMismatches.Count(m => m.Severity != MismatchSeverity.Hint);
         // Segments of a list, joined with " · ".
         List<string> segments = ["C#", TextFormat.Format(ShellText.Status_ModelEntities, mapping.MappedEntityCount)];
+        if (state is { Link: null, Origin: not null })
+        {
+            segments.Insert(1, ShellText.Status_ModelFile);
+        }
+
         if (differences > 0)
         {
             segments.Add(TextFormat.Format(ShellText.Status_ModelMismatches, differences));
@@ -225,6 +231,11 @@
         var text = string.Join(" · ", segments);
         var mismatches = TextFormat.Plural(differences, ShellText.Status_ModelMismatchesTitleOne, ShellText.Status_ModelMismatchesTitleOther);
         var title = stale ? ShellText.Status_ModelSourceNewer + " " + mismatches : mismatches;
+        if (state is { Link: null, Origin: { } fileOrigin })
+        {
+            title = TextFormat.Format(ShellText.Status_ModelFileTitle, ModelFileText.Short(fileOrigin)) + " " + title;
+        }
+
         return @<button class="item status-link shrink @(stale ? "warn" : "")" title="@title" @onclick="Shell.ShowModel">@text</button>;
     }
 

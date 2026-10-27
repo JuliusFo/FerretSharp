@@ -20,6 +20,8 @@ public enum ClrModelPhase
 /// <param name="Steps">The steps of the last load with their durations (also of a failed one).</param>
 /// <param name="CachedAt">The model came from the cache (WP-16): when the model host exported it; null if it ran now.</param>
 /// <param name="BuildChanged">While loading: the load was started because the build output changed (ADR 0016).</param>
+/// <param name="ModelFile">The linked model file (WP-64) instead of a project (<paramref name="Link"/> is then null).</param>
+/// <param name="Origin">Where the loaded model file comes from; null until one is read.</param>
 public sealed record ClrModelState(
     ClrModelPhase Phase,
     ClrProjectLink? Link,
@@ -32,9 +34,14 @@ public sealed record ClrModelState(
     DateTimeOffset? LoadStartedAt = null,
     IReadOnlyList<LoadStep>? Steps = null,
     DateTimeOffset? CachedAt = null,
-    bool BuildChanged = false)
+    bool BuildChanged = false,
+    string? ModelFile = null,
+    ModelFileOrigin? Origin = null)
 {
     public static readonly ClrModelState None = new(ClrModelPhase.None, null, null, null, null, null);
+
+    /// <summary>A model is linked: a project or a model file. LINQ console, code usage and builds need <see cref="Link"/>.</summary>
+    public bool IsLinked => Link is not null || ModelFile is not null;
 }
 
 /// <summary>One step of loading the model and how long it took (shown on the model page).</summary>
@@ -43,8 +50,9 @@ public sealed record LoadStep(string Name, TimeSpan Duration);
 /// <summary>
 /// The C# model of the active connection's linked project (WP-11): loaded in the background after connecting, again on
 /// request ("Neu laden", after "Neu bauen"), when the link changes and when a build changed the output (ADR 0016: a
-/// watcher on the output folder; the previous model stays usable meanwhile). Nothing of it touches the database except
-/// reading column lists through the schema cache.
+/// watcher on the output folder; the previous model stays usable meanwhile). Instead of a project a model file can be
+/// linked (WP-64): read without build, cache or model host, again when the file changes. Nothing of it touches the
+/// database except reading column lists through the schema cache.
 /// </summary>
 public sealed class ClrModelManager : IDisposable
 {
@@ -113,8 +121,36 @@ public sealed class ClrModelManager : IDisposable
     public ClrModelMapping? Mapping => State.Mapping;
 
     /// <summary>The link of the active connection as currently saved (the dialog may have changed it).</summary>
-    private ClrProjectLink? CurrentLink =>
-        _active.Profile is { } profile ? (_connections.Profiles.FirstOrDefault(p => p.Id == profile.Id) ?? profile).ClrProject : null;
+    private ClrProjectLink? CurrentLink => CurrentProfile?.ClrProject;
+
+    /// <summary>The model file of the active connection as currently saved; only without a project (never both).</summary>
+    private string? CurrentModelFile => CurrentProfile is { ClrProject: null, ClrModelFile: { } file } ? file : null;
+
+    private ConnectionProfile? CurrentProfile =>
+        _active.Profile is { } profile ? _connections.Profiles.FirstOrDefault(p => p.Id == profile.Id) ?? profile : null;
+
+    /// <summary>
+    /// Writes the loaded model of the linked project as a model file (WP-64), with its origin (project, Git branch and
+    /// commit). Only with a project's model loaded – a model file is passed on as it is.
+    /// </summary>
+    /// <param name="appVersion">The FerretSharp writing it.</param>
+    /// <exception cref="InvalidOperationException">No project's model is loaded, or it holds a name a model file may not (the message says which).</exception>
+    public async Task ExportAsync(string path, string appVersion, CancellationToken cancellationToken)
+    {
+        if (State is not { Link: { } link, Mapping: { } mapping })
+        {
+            throw new InvalidOperationException("No project's model loaded.");
+        }
+
+        // The recipient would refuse it: better said now, to whom can still look at the project.
+        if (ModelFile.Problem(mapping.Model) is { } problem)
+        {
+            throw new InvalidOperationException(problem);
+        }
+
+        var origin = await Task.Run(() => ModelFile.OriginOf(link, _time.GetLocalNow(), appVersion), cancellationToken);
+        await ModelFile.WriteAsync(path, mapping.Model, origin, cancellationToken);
+    }
 
     /// <summary>Reads the model again from the project ("Neu laden"), not from the cache; a load still running is cancelled.</summary>
     public Task LoadAsync() => LoadAsync(useCache: false, buildChanged: false);
@@ -181,8 +217,9 @@ public sealed class ClrModelManager : IDisposable
     private async Task LoadAsync(bool useCache, bool buildChanged, CancellationTokenSource cts)
     {
         var link = CurrentLink;
+        var modelFile = CurrentModelFile;
         var schema = _active.Schema;
-        if (link is null || schema is null || !_active.IsConnected)
+        if (link is null && modelFile is null || schema is null || !_active.IsConnected)
         {
             schema?.SetForeignKeys(FkSource.ClrModel, []); // unlinked: the model's relationships go too
             Watch(null, null, cts);
@@ -190,26 +227,44 @@ public sealed class ClrModelManager : IDisposable
             return;
         }
 
-        var previous = State.Link == link ? State.Mapping : null;
+        var previous = State.Link == link && State.ModelFile == modelFile ? State.Mapping : null;
         var loadedAt = State.LoadedAt;
         var steps = new StepRecorder(_time.GetLocalNow());
         BuildOutput? output = null;
+        var origin = modelFile is not null && State.ModelFile == modelFile ? State.Origin : null;
 
         // Progress: the step (also those the model host reports from its process) with its start, for the model page.
         void Report(string step)
         {
             steps.Start(step);
-            Set(new ClrModelState(ClrModelPhase.Loading, link, output ?? State.Output, previous, null, loadedAt,
-                step, _time.GetLocalNow(), steps.StartedAt, BuildChanged: buildChanged), cts);
+            Set(new ClrModelState(ClrModelPhase.Loading, link, link is null ? null : output ?? State.Output, previous, null, loadedAt,
+                step, _time.GetLocalNow(), steps.StartedAt, BuildChanged: buildChanged, ModelFile: modelFile, Origin: origin), cts);
         }
 
         DateTimeOffset? cachedAt = null;
 
         void Finish(ClrModelPhase phase, ClrModelMapping? mapping, ModelHostError? error, DateTimeOffset? at) =>
-            Set(new ClrModelState(phase, link, output, mapping, error, at, Steps: steps.Finish(), CachedAt: cachedAt), cts);
+            Set(new ClrModelState(phase, link, output, mapping, error, at, Steps: steps.Finish(), CachedAt: cachedAt, ModelFile: modelFile,
+                Origin: origin), cts);
 
         try
         {
+            if (link is null)
+            {
+                Report(ClrModelText.StepReadModelFile);
+                WatchFile(modelFile!, cts); // also while it is missing: a file copied there later loads
+                var read = await ModelFile.ReadAsync(modelFile!, cts.Token);
+                if (read is not { Model: { } fromFile, Origin: { } fileOrigin })
+                {
+                    Finish(ClrModelPhase.Failed, previous, new ModelHostError(ClrModelErrorKind.ModelFile, read.Error ?? ClrModelText.NoModelReturned), loadedAt);
+                    return;
+                }
+
+                origin = fileOrigin;
+                await MapAsync(fromFile);
+                return;
+            }
+
             Report(ClrModelText.StepFindBuild);
             try
             {
@@ -252,10 +307,7 @@ public sealed class ClrModelManager : IDisposable
                 }
             }
 
-            var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new SyncProgress<string>(Report));
-            cts.Token.ThrowIfCancellationRequested();
-            schema.SetForeignKeys(FkSource.ClrModel, mapping.ForeignKeys);
-            Finish(ClrModelPhase.Loaded, mapping, null, _time.GetLocalNow());
+            await MapAsync(model);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -274,6 +326,14 @@ public sealed class ClrModelManager : IDisposable
             // Runs in the background (nobody awaits it): anything unexpected – a deps.json rewritten by a build running right
             // now, a truncated result file – must end in "Failed", never leave the state at "Loading".
             Finish(ClrModelPhase.Failed, previous, new ModelHostError(ClrModelErrorKind.HostFailed, TextFormat.Format(ClrModelText.ModelNotLoaded, ex.Message)), loadedAt);
+        }
+
+        async Task MapAsync(ModelExport model)
+        {
+            var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new SyncProgress<string>(Report));
+            cts.Token.ThrowIfCancellationRequested();
+            schema.SetForeignKeys(FkSource.ClrModel, mapping.ForeignKeys);
+            Finish(ClrModelPhase.Loaded, mapping, null, _time.GetLocalNow());
         }
     }
 
@@ -421,7 +481,7 @@ public sealed class ClrModelManager : IDisposable
             }
 
             _loadedFiles = files;
-            if (_watcher is { } current && current.Directory == directory && current.DepsOnly == depsOnly)
+            if (_watcher is { File: null } current && current.Directory == directory && current.DepsOnly == depsOnly)
             {
                 return;
             }
@@ -442,6 +502,54 @@ public sealed class ClrModelManager : IDisposable
         }
 
         old?.Dispose();
+    }
+
+    /// <summary>
+    /// Watches a linked model file (WP-64): a new export copied over it reloads the model. Its folder must exist; without
+    /// one, "Neu laden" reads the file again.
+    /// </summary>
+    private void WatchFile(string path, CancellationTokenSource owner)
+    {
+        var full = Path.GetFullPath(path);
+        BuildOutputWatcher? old = null;
+        lock (_lock)
+        {
+            if (!ReferenceEquals(_loading, owner))
+            {
+                return;
+            }
+
+            _loadedFiles = null;
+            if (_watcher is { File: not null } current && string.Equals(Path.Combine(current.Directory, current.File), full, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            old = _watcher;
+            _watcher = null;
+            if (Directory.Exists(Path.GetDirectoryName(full)))
+            {
+                try
+                {
+                    _watcher = BuildOutputWatcher.ForFile(full, _buildQuiet, () => OnModelFileChanged(path), _time);
+                }
+                catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException)
+                {
+                    // no watcher: "Neu laden" reads the file again
+                }
+            }
+        }
+
+        old?.Dispose();
+    }
+
+    /// <summary>The linked model file was replaced or changed: read it again.</summary>
+    private void OnModelFileChanged(string path)
+    {
+        if (_active.IsConnected && CurrentLink is null && CurrentModelFile == path)
+        {
+            _ = LoadAsync(useCache: false, buildChanged: false);
+        }
     }
 
     /// <summary>The watcher saw a finished build: reload the model (from the cache if the output is the same after all).</summary>
@@ -483,7 +591,8 @@ public sealed class ClrModelManager : IDisposable
     {
         var connected = _active.IsConnected ? _active.Profile?.Id : null;
         var link = connected is null ? null : CurrentLink;
-        if (connected != _profileId || link != State.Link)
+        var modelFile = connected is null ? null : CurrentModelFile;
+        if (connected != _profileId || link != State.Link || modelFile != State.ModelFile)
         {
             _profileId = connected;
             _ = LoadAsync(useCache: true, buildChanged: false);

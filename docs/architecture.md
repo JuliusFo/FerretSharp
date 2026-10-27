@@ -167,6 +167,7 @@ Geschrieben wird atomar (`AtomicJsonFile`) mit `JsonFiles.Options`, gelesen übe
 | `comparisons.json` | Fehler auf der Seite (leer = keine), Speichern verweigert (Gesamt-Review 3.40.0, ST-8) | Fehler, beim nächsten Besuch oder Speichern erneut gelesen; Speichern erst danach | Fehler, Speichern verweigert |
 | `filter-presets.json` (WP-37) | Fehler im Menü „Vorlagen“, nie überschrieben | Fehler im Menü, Speichern verweigert, bis ein erneuter Versuch (Menü öffnen) gelingt | Fehler, nie überschrieben |
 | `work-clones.json` (WP-40) | kein Arbeits-Klon gewählt | wie kaputt | keiner gewählt, Datei bleibt (Wahl nur im Speicher) |
+| Modelldatei (WP-64, ADR 0037; Pfad aus der Verbindung, nur gelesen) | Modell „fehlgeschlagen“: keine Modelldatei | fehlgeschlagen mit Systemmeldung | fehlgeschlagen: FerretSharp aktualisieren |
 
 Eigene Regeln, nicht über den Leser: die Anzeigespalten (liest auch eine neuere Datei, dann nur lesend, und hält unbekannte Felder; synchron im `CachedFileRead`), der Modell-Cache und der Cache der Code-Verwendung (`code-usage`, eine Datei je Assembly, MVID und Menge der Solution-Assemblies, ohne Einrückung, WP-40; jede Abweichung ist ein Cache-Fehlschlag, der nächste Aufbau entfernt 30 Tage unbenutzte Dateien und behält je Assembly die drei zuletzt benutzten Builds). Beide Caches liegen seit 3.45 unter `%LOCALAPPDATA%\FerretSharp\cache` (mit `--data-dir` darunter), nicht im Roaming-Profil; der alte Ordner `cache` im Datenordner wird beim Start entfernt (Review 3.44.0, A11).
 

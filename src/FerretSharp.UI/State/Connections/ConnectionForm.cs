@@ -63,8 +63,11 @@ public sealed class ConnectionForm
 
     public bool ReadOnly { get; private set; }
 
-    /// <summary>The .csproj with the DbContext (C# model, WP-11); empty = none.</summary>
+    /// <summary>The .csproj with the DbContext (C# model, WP-11), or a model file (.json, WP-64); empty = none.</summary>
     public string ClrProjectFile { get; set; } = "";
+
+    /// <summary>The C# model field names a model file: configuration and DbContext do not apply.</summary>
+    public bool IsModelFile => PathInput.Normalize(ClrProjectFile) is { } path && ModelFile.IsModelFile(path);
 
     public string ClrConfiguration { get; set; } = "Debug";
 
@@ -116,7 +119,7 @@ public sealed class ConnectionForm
             User = profile.User,
             DefaultSchema = profile.DefaultSchema ?? "",
             ReadOnlyTouched = true,
-            ClrProjectFile = profile.ClrProject?.ProjectFile ?? "",
+            ClrProjectFile = profile.ClrProject?.ProjectFile ?? profile.ClrModelFile ?? "",
             ClrConfiguration = profile.ClrProject?.Configuration ?? "Debug",
             ClrContextType = profile.ClrProject?.ContextType ?? "",
             ScriptFolder = profile.ScriptFolder,
@@ -170,11 +173,12 @@ public sealed class ConnectionForm
             address = new TnsAliasAddress(Alias.Trim(), PathInput.Normalize(TnsAdminPath));
         }
 
-        var clrProject = PathInput.Normalize(ClrProjectFile) is { } projectFile
-            ? new ClrProjectLink(projectFile, NullIfBlank(ClrConfiguration) ?? "Debug", NullIfBlank(ClrContextType))
+        var clrPath = PathInput.Normalize(ClrProjectFile);
+        var clrProject = clrPath is not null && !IsModelFile
+            ? new ClrProjectLink(clrPath, NullIfBlank(ClrConfiguration) ?? "Debug", NullIfBlank(ClrContextType))
             : null;
         var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject, PathInput.Normalize(ScriptFolder), NullIfBlank(AppEnvironment),
-            PathInput.Normalize(AuditTemplatePath));
+            PathInput.Normalize(AuditTemplatePath), ClrModelFile: IsModelFile ? clrPath : null);
         foreach (var (field, message) in ConnectionProfileValidator.Validate(profile))
         {
             errors[field] = message;

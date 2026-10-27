@@ -61,4 +61,23 @@ public sealed class ShellTextTests
             Assert.Equal("ERP (copy)", ConnectionForm.Duplicate(original).Name);
         }
     }
+
+    /// <summary>WP-64: the project field also takes a model file; configuration and DbContext then do not apply.</summary>
+    [Fact]
+    public void The_project_field_takes_a_model_file()
+    {
+        var form = ConnectionForm.FromProfile(TestApp.Profile("ERP"));
+        form.ClrProjectFile = @" C:\Modelle\Erp.Data.ferretmodel.json ";
+        form.ClrContextType = "ErpContext";
+
+        var (profile, errors) = form.ToProfile();
+
+        Assert.True(form.IsModelFile);
+        Assert.Empty(errors);
+        Assert.Equal((null, @"C:\Modelle\Erp.Data.ferretmodel.json"), (profile.ClrProject, profile.ClrModelFile));
+        Assert.Equal(profile.ClrModelFile, ConnectionForm.FromProfile(profile).ClrProjectFile);
+
+        form.ClrProjectFile = @"C:\src\Erp.Data\Erp.Data.csproj";
+        Assert.Equal((false, "ErpContext", null), (form.IsModelFile, form.ToProfile().Profile.ClrProject?.ContextType, form.ToProfile().Profile.ClrModelFile));
+    }
 }

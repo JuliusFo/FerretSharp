@@ -336,4 +336,28 @@
   <data name="FilterGroupSkipped" xml:space="preserve">
     <value>{0}-Gruppe ({1}) – {2}</value>
   </data>
+  <data name="StepReadModelFile" xml:space="preserve">
+    <value>Lese die Modelldatei</value>
+  </data>
+  <data name="ModelFileMissing" xml:space="preserve">
+    <value>Modelldatei nicht gefunden: {0}</value>
+  </data>
+  <data name="ModelFileNewer" xml:space="preserve">
+    <value>Die Modelldatei stammt aus einem neueren FerretSharp (Format {0}). Zum Lesen FerretSharp aktualisieren.</value>
+  </data>
+  <data name="ModelFileUnreadable" xml:space="preserve">
+    <value>Die Modelldatei ließ sich nicht lesen: {0}</value>
+  </data>
+  <data name="ModelFileNotAModel" xml:space="preserve">
+    <value>{0} ist keine von FerretSharp exportierte Modelldatei.</value>
+  </data>
+  <data name="ModelFileIncomplete" xml:space="preserve">
+    <value>Die Modelldatei ist unvollständig: Ein nötiger Eintrag fehlt. Bitte neu exportieren lassen.</value>
+  </data>
+  <data name="ModelFileInvalidName" xml:space="preserve">
+    <value>Das Modell enthält einen Namen, den eine Modelldatei nicht enthalten darf: „{0}“ ({1}). Namen landen in erzeugtem C#, deshalb müssen es C#-Namen ohne Steuerzeichen sein.</value>
+  </data>
+  <data name="ModelFileTooLarge" xml:space="preserve">
+    <value>Die Modelldatei ist größer als {0} MB und wird nicht gelesen.</value>
+  </data>
 </root>

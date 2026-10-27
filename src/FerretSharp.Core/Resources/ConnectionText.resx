@@ -31,7 +31,7 @@
     <value>TNS alias is missing.</value>
   </data>
   <data name="ClrProjectNotCsproj" xml:space="preserve">
-    <value>Select the .csproj of the project with the DbContext.</value>
+    <value>Select the .csproj of the project with the DbContext, or a model file (.json).</value>
   </data>
   <data name="NoPasswordSaved" xml:space="preserve">
     <value>No password is saved for this connection. Enter it under “Edit”.</value>

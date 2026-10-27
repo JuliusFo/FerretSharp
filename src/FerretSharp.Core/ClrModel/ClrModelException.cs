@@ -20,4 +20,7 @@ public static class ClrModelErrorKind
     public const string DotNetMissing = "DotNetMissing";
     public const string HostFailed = "HostFailed";
     public const string Timeout = "Timeout";
+
+    /// <summary>The linked model file (WP-64) is missing, unreadable, newer or no model file.</summary>
+    public const string ModelFile = "ModelFile";
 }

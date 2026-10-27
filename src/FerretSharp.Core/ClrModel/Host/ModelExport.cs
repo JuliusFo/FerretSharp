@@ -39,16 +39,21 @@ public static class ModelHostErrorKind
 /// <param name="EfVersion">Informational version of Microsoft.EntityFrameworkCore as loaded, e.g. <c>8.0.11</c>.</param>
 /// <param name="CreatedBy">How the context was created: <c>factory</c>, <c>options</c> or <c>parameterless</c>.</param>
 /// <param name="DefaultSchema">The model's default schema (<c>HasDefaultSchema</c>); null = the connection's schema.</param>
+/// <param name="Culture">
+/// The UI culture the enum display names were resolved in (<c>de-DE</c>); null if unknown. A model file (WP-64) keeps it:
+/// the recipient sees the exporter's language.
+/// </param>
 public sealed record ModelExport(
     int FormatVersion,
     string EfVersion,
     string ContextType,
     string CreatedBy,
     string? DefaultSchema,
-    IReadOnlyList<EntityExport> Entities)
+    IReadOnlyList<EntityExport> Entities,
+    string? Culture = null)
 {
     /// <summary>2: column facets of properties (3.10) – a cached model of version 1 is read again from the project.</summary>
-    public const int CurrentFormatVersion = 3; // 3: without ClrTypeFull (review 3.44.0, B6)
+    public const int CurrentFormatVersion = 4; // 3: without ClrTypeFull (review 3.44.0, B6); 4: Culture (WP-64)
 }
 
 /// <param name="Name">Entity name as EF knows it (for shared-type entities not the CLR name).</param>
