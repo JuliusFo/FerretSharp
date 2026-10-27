@@ -878,6 +878,10 @@
     <value>Entity</value>
     <comment>Label of the entity name field</comment>
   </data>
+  <data name="Audit_DesignerCreateOff" xml:space="preserve">
+    <value>Creating audit tables is switched off (Settings › Audit tables).</value>
+    <comment>Tooltip of the disabled audit box in the table designer</comment>
+  </data>
   <data name="Audit_DesignerCreate" xml:space="preserve">
     <value>Create audit table and trigger</value>
     <comment>Checkbox in the table designer (WP-26)</comment>

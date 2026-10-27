@@ -729,6 +729,9 @@
   <data name="Entity_Name" xml:space="preserve">
     <value>Entity</value>
   </data>
+  <data name="Audit_DesignerCreateOff" xml:space="preserve">
+    <value>Audit-Tabellen anlegen ist ausgeschaltet (Einstellungen › Audit-Tabellen).</value>
+  </data>
   <data name="Audit_DesignerCreate" xml:space="preserve">
     <value>Audit-Tabelle und Trigger anlegen</value>
   </data>

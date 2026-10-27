@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Settings › Audit tables › "Create audit tables" (on by default): switched off, FerretSharp keeps showing existing audit tables and bringing them up to date in the table designer, but never creates new ones – "Create audit…" above the columns disappears, and the audit box in the designer of a table without audit table or of a new table is locked.
+
 ## [3.53.0] - 2026-10-27
 
 Names beside foreign keys combine several columns, and the C# model travels as a file.

@@ -264,7 +264,8 @@ else
 
     /// <summary>
     /// The table's audit table and trigger by the template's names (WP-26). The box starts as <see cref="ColumnDesigner.AuditAtStart"/>
-    /// says: on if there is an audit table (unless the setting says otherwise) or the view was opened for it.
+    /// says: on if there is an audit table (unless the setting says otherwise) or the view was opened for it – never when
+    /// that would create an audit table that may not be created.
     /// </summary>
     private async Task LoadAuditAsync(SchemaCache schema, CancellationToken token)
     {
@@ -285,7 +286,8 @@ else
         if (_designer is { } designer)
         {
             // a choice of the user stays (R5 review)
-            designer.WithAudit ??= ColumnDesigner.AuditAtStart(StartWithAudit, _audit?.AuditTable is not null, Settings.Current.SyncAuditInDesigner);
+            designer.WithAudit ??= ColumnDesigner.AuditAtStart(StartWithAudit, _audit?.AuditTable is not null, Settings.Current.SyncAuditInDesigner,
+                Settings.Current.CreateAuditTables);
         }
     }
 
@@ -294,10 +296,16 @@ else
         ? created.Table.Name.Trim().Length > 0 ? created.Table.Ref : null
         : Details.Table.Ref;
 
+    /// <summary>
+    /// Whether the audit box takes part: always for a table with an audit table, for one without (or a new table) only when
+    /// audit tables may be created – a box ticked before the setting was turned off creates nothing.
+    /// </summary>
+    private bool CanAudit => ColumnDesigner.CanAudit(NewTab is null && _audit?.AuditTable is not null, Settings.Current.CreateAuditTables);
+
     /// <summary>The designer's plan with the audit table and trigger, if the box is on (WP-26): one script, checked as one.</summary>
     private DesignPlan WithAudit(ColumnDesigner designer, TableDraft draft, DesignPlan plan, AuditTemplateLoad audit)
     {
-        if (designer.WithAudit != true || AuditTable is not { } table)
+        if (designer.WithAudit != true || !CanAudit || AuditTable is not { } table)
         {
             return plan;
         }
@@ -728,8 +736,8 @@ else
     </text>;
 
     private RenderFragment AuditTab(ColumnDesigner designer, AuditTemplateLoad audit) => @<div class="designer-audit">
-        <label class="check" title="@SchemaViewText.Audit_DesignerTitle">
-            <input type="checkbox" checked="@(designer.WithAudit == true)" @onchange="e => designer.WithAudit = e.Value is true" />
+        <label class="check" title="@(CanAudit ? SchemaViewText.Audit_DesignerTitle : SchemaViewText.Audit_DesignerCreateOff)">
+            <input type="checkbox" checked="@(designer.WithAudit == true && CanAudit)" disabled="@(!CanAudit)" @onchange="e => designer.WithAudit = e.Value is true" />
             @(_audit?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
         </label>
         @if (audit.Template is { } template && AuditTable is { } auditTable)

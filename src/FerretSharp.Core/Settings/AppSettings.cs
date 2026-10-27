@@ -162,6 +162,13 @@ public sealed record AppSettings
     public bool SyncAuditInDesigner { get; init; } = true;
 
     /// <summary>
+    /// FerretSharp offers to create audit tables (WP-26): "Create audit…" in the audit line, the audit box in the designer
+    /// of a table without one and of a new table. Off: existing audit tables are still shown and brought up to date, new
+    /// ones are never created. On by default.
+    /// </summary>
+    public bool CreateAuditTables { get; init; } = true;
+
+    /// <summary>
     /// The grid of an audit table tints the cells that differ from the version before and marks inserts and deletes (WP-63):
     /// one query more per block of rows, on the audit table by its base key. On by default.
     /// </summary>
