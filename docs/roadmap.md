@@ -47,11 +47,13 @@ Branch `wp/43-relationship-check`.
 - Offen: Ergebnis speichern, um Läufe zu vergleichen; Platz in der Oberfläche (Seite oben rechts wie der Schema-Vergleich oder Ansicht je Verbindung).
 
 ### WP-44 Daten-Diff
-Branch `wp/44-data-diff`. Zwei Stufen, die dritte kommt mit WP-45.
-- **Stufe 1, Snapshot:** den Filter eines Tabs festhalten (Rohwerte, Grenze z. B. 50 000 Zeilen), später „Vergleichen“: neue, gelöschte und geänderte Zeilen über den Schlüssel, geänderte Zellen markiert (`RowComparison`). Funktioniert überall, sieht nur, was im Filter liegt.
-- **Stufe 2, Flashback (ganze Tabellen, ohne Snapshot vorher):** Startpunkt per `SELECT TIMESTAMP_TO_SCN(SYSTIMESTAMP) FROM dual` merken, später `tabelle AS OF SCN :start` gegen den aktuellen Stand über den Schlüssel vergleichen – reine Abfragen auf dem Leseweg (`AS OF` entsteht im `QueryBuilder`). Verglichen wird der committete Stand auf einer Session ohne eigene Änderungen. Grenzen: Recht `FLASHBACK` auf die Tabelle (oder Owner), Undo muss reichen (ORA-01555/ORA-08180 verständlich melden), DDL dazwischen bricht den Vergleich, LOBs nur über Länge.
-- Snapshot und Ergebnis nur im Speicher (Werte, auch von Prod).
-- Offen: Grenze für Stufe 1; Auswahl der Tabellen für Stufe 2 bis WP-45 (Vorschlag: Liste von Hand); Darstellung (Grid mit Status-Spalte wie die Änderungsübersicht?).
+Branch `wp/44-data-diff`. Ein Weg über Flashback, die Erweiterung auf die Tabellen eines Mitschnitts kommt mit WP-45. Entscheidung des Nutzers (2026-10-28): direkt Flashback mit `MINUS`, der Snapshot im Speicher wandert in den Backlog (Ausweichweg ohne Recht oder für längere Zeiträume).
+- **Startpunkt:** „Vergleich starten“ merkt die SCN per `SELECT TIMESTAMP_TO_SCN(SYSTIMESTAMP) FROM dual` (braucht kein V$-Recht). Später „Vergleichen“: der committete Stand jetzt gegen `tabelle AS OF SCN :start`, für den gefilterten Tab oder ganze Tabellen.
+- **Diff in der Datenbank:** `… WHERE <Filter> MINUS … AS OF SCN :start WHERE <Filter>` und umgekehrt (eine Abfrage mit `UNION ALL` und Markierung). Über das VPN kommen nur die geänderten Zeilen; Schlüssel nur auf einer Seite = neu bzw. gelöscht, auf beiden = geändert, die Zellen vergleicht dann .NET (`RowComparison`). Reine Abfragen auf dem Leseweg, `AS OF` und `MINUS` entstehen im `QueryBuilder`. Mit Filter erscheinen Zeilen, die in den Filter hinein- oder herausgewandert sind, als neu bzw. gelöscht.
+- **Eigene Lese-Session:** Die Workspace-Session sieht nach einem Flush ihre eigenen Änderungen; verglichen wird der committete Stand. Dieselbe Lese-Session braucht WP-43.
+- **Grenzen:** `MINUS` vergleicht keine LOB/LONG/XMLTYPE – LOBs über `DBMS_LOB.GETLENGTH`, der Rest wird mit Hinweis ausgelassen. Schlüssel ist der PK, ohne PK die ROWID (nur stabil ohne Row Movement). Recht `FLASHBACK` nur für Tabellen anderer Owner nötig (ORA-01031 verständlich melden). Undo reicht je nach Tabelle unterschiedlich weit, beim Nutzer auf großen Tabellen etwa 4 h (ORA-01555/ORA-08180 mit diesem Hinweis melden); DDL dazwischen bricht den Vergleich (ORA-01466).
+- Ergebnis nur im Speicher (Werte, auch von Prod).
+- Offen: Obergrenze für geänderte Zeilen (abschneiden mit Hinweis); Auswahl der Tabellen bis WP-45 (Vorschlag: aktueller Tab plus Liste von Hand); Startpunkt je Tab oder je Workspace und ob er einen Neustart überlebt (nur die SCN, keine Werte); Darstellung (Grid mit Status-Spalte wie die Änderungsübersicht?).
 
 ### WP-45 Mitschnitt mit Quellzeile und Datenänderungen
 (braucht WP-40 und WP-44.) Branch `wp/45-recording-source-data`. Fortsetzung von WP-33 (ADR 0023).
