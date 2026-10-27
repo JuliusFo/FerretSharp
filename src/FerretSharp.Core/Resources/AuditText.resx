@@ -240,4 +240,27 @@
     <value>The trigger source cannot run: {0}</value>
     <comment>{0}: why the schema path refuses it</comment>
   </data>
+  <data name="VersionOrderValue" xml:space="preserve">
+    <value>@version-order takes one column of the template, not “{0}”.</value>
+    <comment>{0}: the value as written</comment>
+  </data>
+  <data name="VersionOrderNotSortable" xml:space="preserve">
+    <value>@version-order: the versions cannot be ordered by {0} (type {1}).</value>
+    <comment>{0}: column name; {1}: its type as in DDL</comment>
+  </data>
+  <data name="DirectiveColumnUnknown" xml:space="preserve">
+    <value>@{0} names {1}, which is not one of the template's own columns (after @columns).</value>
+    <comment>{0}: directive name; {1}: column name</comment>
+  </data>
+  <data name="ActionPartInvalid" xml:space="preserve">
+    <value>@action takes the column and then insert=…, update=…, delete=… – “{0}” is none of them.</value>
+    <comment>{0}: the part as written</comment>
+  </data>
+  <data name="ActionPartRepeated" xml:space="preserve">
+    <value>@action: {0}= appears more than once.</value>
+    <comment>{0}: insert, update or delete</comment>
+  </data>
+  <data name="ActionNeedsValues" xml:space="preserve">
+    <value>@action needs at least one of insert=…, update=…, delete=… after the column.</value>
+  </data>
 </root>

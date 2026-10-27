@@ -189,4 +189,22 @@
   <data name="TriggerSourceRefused" xml:space="preserve">
     <value>Die Trigger-Quelle lässt sich nicht ausführen: {0}</value>
   </data>
+  <data name="VersionOrderValue" xml:space="preserve">
+    <value>@version-order nimmt eine Spalte der Vorlage, nicht „{0}“.</value>
+  </data>
+  <data name="VersionOrderNotSortable" xml:space="preserve">
+    <value>@version-order: Nach {0} lassen sich die Versionen nicht ordnen (Typ {1}).</value>
+  </data>
+  <data name="DirectiveColumnUnknown" xml:space="preserve">
+    <value>@{0} nennt {1}, das ist keine eigene Spalte der Vorlage (nach @columns).</value>
+  </data>
+  <data name="ActionPartInvalid" xml:space="preserve">
+    <value>@action nimmt die Spalte und dann insert=…, update=…, delete=… – „{0}“ ist nichts davon.</value>
+  </data>
+  <data name="ActionPartRepeated" xml:space="preserve">
+    <value>@action: {0}= steht mehr als einmal da.</value>
+  </data>
+  <data name="ActionNeedsValues" xml:space="preserve">
+    <value>@action braucht nach der Spalte mindestens eines von insert=…, update=…, delete=….</value>
+  </data>
 </root>

@@ -45,6 +45,35 @@ public sealed record AuditTrigger(string Owner, string Name, string Sql, IReadOn
     public IReadOnlyList<string> Problems { get; init; } = [];
 }
 
+/// <summary>
+/// The template's column telling what wrote an audit row (<c>-- @action</c>, WP-63) and the values standing for insert,
+/// update and delete; a value the template does not give is null.
+/// </summary>
+public sealed record AuditAction(string Column, string? Insert, string? Update, string? Delete)
+{
+    /// <summary>What a value of <see cref="Column"/> stands for: compared as text without trailing blanks (CHAR); null for another value.</summary>
+    public AuditActionKind? KindOf(object? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        var text = Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)?.TrimEnd();
+        return text == Insert ? AuditActionKind.Insert
+            : text == Update ? AuditActionKind.Update
+            : text == Delete ? AuditActionKind.Delete
+            : null;
+    }
+}
+
+public enum AuditActionKind
+{
+    Insert,
+    Update,
+    Delete,
+}
+
 /// <param name="Line">Line in the template (1-based); 0 for the template as a whole (a directive is missing).</param>
 public sealed record AuditTemplateError(int Line, string Message)
 {
@@ -96,6 +125,19 @@ public sealed record AuditTemplate
 
     /// <summary>The template's own columns after the base columns.</summary>
     public IReadOnlyList<ColumnInfo> ColumnsAfter { get; }
+
+    /// <summary>
+    /// The template's own column ordering the versions of a row, oldest first (<c>-- @version-order</c>, WP-63); null without
+    /// the directive – changed values are then not highlighted.
+    /// </summary>
+    public string? VersionOrder { get; init; }
+
+    /// <summary>The column telling insert, update and delete apart (<c>-- @action</c>, WP-63); null without the directive.</summary>
+    public AuditAction? Action { get; init; }
+
+    /// <summary>Whether <paramref name="column"/> is one of the template's own columns, not a copy of a base column.</summary>
+    public bool IsOwnColumn(string column) =>
+        ColumnsBefore.Any(c => c.Name == column) || ColumnsAfter.Any(c => c.Name == column);
 
     internal IReadOnlyList<PatternPart> AuditTablePattern { get; }
 
