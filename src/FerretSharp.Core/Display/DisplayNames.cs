@@ -35,6 +35,11 @@ public sealed record NameLookupFailure(string Warning, DatabaseException Error);
 /// found its values (<see cref="Missing"/> then returns those lookups too); until then, if it is not found or its lookup
 /// failed, the value itself.
 /// </para>
+/// <para>
+/// A name is put together when its row is found, as before WP-65 – only the text is kept (review WP-65: a copy formatted
+/// off the UI thread, and the values of every display column took far more memory than a short name). A link with a part
+/// one level deeper keeps the values of its rows and puts the name together on the UI thread when it is asked for.
+/// </para>
 /// </summary>
 public sealed class DisplayNames
 {
@@ -139,20 +144,34 @@ public sealed class DisplayNames
         }
 
         keys.Timeouts = 0;
+        var source = lookup.Source;
         foreach (var row in rows)
         {
-            if (keys.KeyOf(row.Key) is { } key)
+            if (keys.KeyOf(row.Key) is not { } key)
+            {
+                continue;
+            }
+
+            if (lookup.Part is not null)
+            {
+                // One level deeper: the name of the part's target, shortened with the whole name later.
+                keys.Found[key] = [];
+                keys.Texts[key] = Compose(source.Parts.Select((p, i) => Format(source.Target, p.Column, row.Values[i])));
+            }
+            else if (!state.HasDeeper)
+            {
+                keys.Found[key] = [];
+                keys.Texts[key] = Shorten(Compose(source.Parts.Select((p, i) => Format(source.Target, p.Column, row.Values[i]))));
+            }
+            else
             {
                 keys.Found[key] = row.Values;
-                if (lookup.Part is null)
+                keys.Texts.Remove(key);
+                foreach (var (part, deeper) in state.Deeper())
                 {
-                    state.Texts.Remove(key);
-                    foreach (var (part, deeper) in state.Deeper())
+                    if (deeper.Ask(row.Values[part]) is { } bind)
                     {
-                        if (deeper.Ask(row.Values[part]) is { } bind)
-                        {
-                            deeper.Wanted.Add(bind);
-                        }
+                        deeper.Wanted.Add(bind);
                     }
                 }
             }
@@ -161,7 +180,7 @@ public sealed class DisplayNames
         keys.Answered(lookup.Keys);
         if (lookup.Part is not null)
         {
-            state.Texts.Clear(); // names that showed the value now show the name found for it
+            state.Keys.Texts.Clear(); // names that showed the value now show the name found for it
         }
     }
 
@@ -202,7 +221,10 @@ public sealed class DisplayNames
             keys.Disabled ??= reason;
             keys.Pending.Clear();
             keys.Wanted.Clear();
-            state.Texts.Clear();
+            if (lookup.Part is not null)
+            {
+                state.Keys.Texts.Clear(); // the part shows its value now
+            }
         }
     }
 
@@ -260,13 +282,22 @@ public sealed class DisplayNames
 
     /// <summary>
     /// What was looked up so far, as a copy: the export of the selected rows (A13) writes in the background while the grid
-    /// goes on looking up names.
+    /// goes on looking up names. The names are put together here, on the caller's (UI) thread: the copy never formats –
+    /// the grid's formatter is not for other threads (review WP-65).
     /// </summary>
     public DisplayNames Copy()
     {
-        var copy = new DisplayNames(Links, _format);
+        var copy = new DisplayNames(Links, (_, _, _) => null);
         foreach (var (column, state) in _byColumn)
         {
+            if (state.Keys.Disabled is null)
+            {
+                foreach (var key in state.Keys.Found.Keys)
+                {
+                    TextOf(state, key);
+                }
+            }
+
             state.CopyTo(copy._byColumn[column]);
         }
 
@@ -338,10 +369,13 @@ public sealed class DisplayNames
         return lookup.Part is { } part ? state.DeeperOf(part) : state.Keys;
     }
 
-    /// <summary>The name of a found key: the parts formatted (one level deeper: the name found there), joined, shortened; cached.</summary>
+    /// <summary>
+    /// The name of a found key: put together when it was found, or – for a link with a part one level deeper – now from the
+    /// values of its row: the parts formatted (one level deeper: the name found there), joined, shortened; cached.
+    /// </summary>
     private string? TextOf(LinkState state, object key)
     {
-        if (state.Texts.TryGetValue(key, out var cached))
+        if (state.Keys.Texts.TryGetValue(key, out var cached))
         {
             return cached;
         }
@@ -352,15 +386,17 @@ public sealed class DisplayNames
         for (var i = 0; i < parts.Length; i++)
         {
             var value = values[i];
-            parts[i] = state.DeeperOf(i) is { Disabled: null } deeper && deeper.KeyOf(value) is { } deeperKey && deeper.Found.TryGetValue(deeperKey, out var found)
-                ? Compose(deeper.Link.Parts.Select((p, j) => _format(deeper.Link.Target, p.Column, found[j])))
-                : value is null ? null : _format(link.Target, link.Parts[i].Column, value);
+            parts[i] = state.DeeperOf(i) is { Disabled: null } deeper && deeper.KeyOf(value) is { } deeperKey && deeper.Texts.TryGetValue(deeperKey, out var name)
+                ? name
+                : Format(link.Target, link.Parts[i].Column, value);
         }
 
         var text = Shorten(Compose(parts));
-        state.Texts[key] = text;
+        state.Keys.Texts[key] = text;
         return text;
     }
+
+    private string? Format(TableDetails target, int column, object? value) => value is null ? null : _format(target, column, value);
 
     private static string? Shorten(string? text)
     {
@@ -390,8 +426,8 @@ public sealed class DisplayNames
 
         public KeyedValues Keys { get; }
 
-        /// <summary>Composed names by key; dropped when what they are made of changes.</summary>
-        public Dictionary<object, string?> Texts { get; } = [];
+        /// <summary>A part is looked up one level deeper: the values of found rows are kept to put the name together.</summary>
+        public bool HasDeeper => _deeper.Any(d => d is not null);
 
         public KeyedValues? DeeperOf(int part) => part >= 0 && part < _deeper.Length ? _deeper[part] : null;
 
@@ -414,8 +450,6 @@ public sealed class DisplayNames
             {
                 deeper?.Clear();
             }
-
-            Texts.Clear();
         }
 
         public void CopyTo(LinkState target)
@@ -436,8 +470,14 @@ public sealed class DisplayNames
 
         public DisplayLink Link { get; } = link;
 
-        /// <summary>Key → the display columns' values of its row.</summary>
+        /// <summary>
+        /// Found keys → the display columns' values of their row; kept only where the name is put together later (a link
+        /// with a part one level deeper), otherwise empty.
+        /// </summary>
         public Dictionary<object, IReadOnlyList<object?>> Found { get; } = [];
+
+        /// <summary>Found keys → their name (one level deeper: not shortened yet); dropped when what it is made of changes.</summary>
+        public Dictionary<object, string?> Texts { get; } = [];
 
         public HashSet<object> NotFound { get; } = [];
 
@@ -505,6 +545,7 @@ public sealed class DisplayNames
             NotFound.Clear();
             Pending.Clear();
             Wanted.Clear();
+            Texts.Clear();
         }
 
         public void CopyTo(KeyedValues target)
@@ -513,6 +554,11 @@ public sealed class DisplayNames
             foreach (var (key, values) in Found)
             {
                 target.Found[key] = values;
+            }
+
+            foreach (var (key, text) in Texts)
+            {
+                target.Texts[key] = text;
             }
 
             target.NotFound.UnionWith(NotFound);

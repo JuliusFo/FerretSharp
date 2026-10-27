@@ -342,4 +342,48 @@ public sealed class DisplayNamesTests
         Assert.Empty(failures);
         Assert.Equal("Deutschland - D - Peter", names.NameOf(1, 1m)?.Text);
     }
+
+    /// <summary>
+    /// Review WP-65: a name is put together once, when it is found – a copy for the export in the background never calls
+    /// the grid's formatter (it is not for other threads), also for a link one level deeper.
+    /// </summary>
+    [Fact]
+    public void A_copy_never_formats_and_a_name_is_formatted_once()
+    {
+        var calls = 0;
+        var names = new DisplayNames([KundeLink with { Parts = [new DisplayPart(1), new DisplayPart(2)] }, DeepLink with { Column = 2 }], (_, _, value) =>
+        {
+            calls++;
+            return value as string;
+        });
+        var lookups = names.Missing([Row(1m, 7m)]);
+        names.Found(lookups[0], [new LookupRow(1m, ["Peter", "PP"])]);
+        names.Found(lookups[1], [new LookupRow(7m, ["DE", "Paul"])]);
+        names.Found(Assert.Single(names.Missing([])), [new LookupRow("DE", ["Deutschland", null])]);
+        var copy = names.Copy();
+        var formatted = calls;
+
+        Assert.Equal("Peter - PP", names.NameOf(1, 1m)?.Text);
+        Assert.Equal("Peter - PP", copy.NameOf(1, 1m)?.Text);
+        Assert.Equal("Deutschland - Paul", copy.NameOf(2, 7m)?.Text);
+        Assert.Equal("Deutschland - Paul", names.NameOf(2, 7m)?.Text);
+        Assert.Equal(formatted, calls);
+    }
+
+    [Fact]
+    public void Timeouts_in_a_row_one_level_deeper_switch_only_that_part_off()
+    {
+        var names = Names(DeepLink);
+        names.Found(Assert.Single(names.Missing([Row(1m)])), [new LookupRow(1m, ["DE", "Peter"])]);
+        var deeper = Assert.Single(names.Missing([]));
+
+        Assert.False(names.TimedOut(deeper, "zu langsam"));
+        Assert.False(names.TimedOut(deeper, "zu langsam"));
+        Assert.True(names.Wants(deeper)); // still asked for: the lookup runs again
+        Assert.True(names.TimedOut(deeper, "zu langsam"));
+
+        Assert.False(names.Wants(deeper));
+        Assert.True(names.Shows(1));
+        Assert.Equal("DE - Peter", names.NameOf(1, 1m)?.Text);
+    }
 }
