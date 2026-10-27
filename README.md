@@ -207,6 +207,8 @@ changes, and a new build is picked up automatically:
 - **Usage in the code**: per column, the methods of your solution that read or write its property or query the table,
   read from the compiled code – a click opens the line in Visual Studio. Properties no code uses are marked, and the
   designer warns before dropping a column the code still uses. Uses open in your *work clone* of the connection group.
+- **Model file**: can't build the project (packages from a private feed)? A colleague exports the model as a file, and
+  you link that instead – names, enums and relationships without a build and without running the project's code.
 
 ## Getting started
 
