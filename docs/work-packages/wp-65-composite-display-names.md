@@ -56,3 +56,15 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--l
 ## Offen
 - Datensatz-Diagramm: keine zweite Ebene (bräuchte eigene Lookups).
 - Vorlage für den Trenner (`{NACHNAME}, {VORNAME}`) nur bei Bedarf (Entscheidung des Nutzers).
+
+## Nachtrag: Code-Review (2026-10-27)
+Unabhängiger Agent über den ganzen Branch (`/branch-code-review`), zwei Nachprüfungen der Korrekturen. Entscheidung des Nutzers: „Behebe alle sechs Befunde wie vorgeschlagen, bei 4 nur das Badge, das Menü bleibt an der Datei.“ – danach „Ja, behebe B und C.“
+1. M – Die Kopie der Namen für den Export markierter Zeilen formatierte im Hintergrund mit dem Formatierer des Grids (nicht threadsicher): **behoben**, Namen werden beim Fund zusammengesetzt, `Copy()` bereitet alle vor, die Kopie formatiert nie (Test `A_copy_never_formats_and_a_name_is_formatted_once`, scheitert ohne die Korrektur).
+2. K – Eine geänderte Darstellung eines Ziels eine Ebene tiefer plante nicht neu: **behoben**, `FerretGrid` prüft auch die `Via`-Ziele (ohne eigenen Test, Komponente).
+3. K – Ein Fehler beim Planen der zweiten Ebene kostete alle Namen des Grids: **behoben**, je Ziel einmal aufgelöst, bei Fehler ohne `Via` (Test `Details_one_level_deeper_that_cannot_be_read_leave_the_first_level`, scheitert ohne die Korrektur).
+4. K – Badges zählten Spalten, die nicht in den Namen eingehen: **behoben** (`DisplayColumns.PartsIn`). Das Menü (`Aus dem Namen entfernen`/`Nicht mehr als Anzeigespalte verwenden`) richtet sich bewusst nach der Datei: Sonst löschte es Spalten der geteilten Datei, die eine andere Datenbank braucht.
+5. K – Speicher: je Schlüssel alle Rohwerte statt eines kurzen Namens: **behoben** mit 1, Rohwerte nur bei Links mit zweiter Ebene.
+6. K – Fehlende Tests: **ergänzt** (`DisplayColumnsTests`, `SameAs` eine Ebene tiefer, Timeouts eine Ebene tiefer, Badge einer BLOB-Spalte).
+- B (zweiter Durchgang), K – Ein gescheitertes Planen der zweiten Ebene stand nirgends im Log: **behoben**, `PlanAsync(…, deeperFailed)`, `FerretGrid` loggt über `QueryErrorLog` (maskiert auf Prod).
+- C (zweiter Durchgang), K – Das Datensatz-Diagramm nahm noch alle Spalten der Datei: **behoben**, `PartsIn`.
+- Vorher schon da (nicht übernommen): Ein abgebrochener Lookup wird erst mit dem nächsten Block oder Fund wieder angefragt – gilt seit WP-65 auch eine Ebene tiefer.
