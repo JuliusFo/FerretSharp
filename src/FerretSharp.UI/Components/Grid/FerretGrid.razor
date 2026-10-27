@@ -179,7 +179,7 @@
             Pk = Details.PrimaryKey.Contains(c.Name),
             Fk = fk,
             FkModel = fkModel,
-            DisplayColumn = Details.Table.Kind != TableKind.View && DisplayColumns.Current().Columns.IndexIn(Details) == i,
+            DisplayBadge = GridColumn.DisplayBadgeOf(Details, DisplayColumns.Current().Columns, i),
             Numeric = category == ColumnCategory.Number && values is null && !named,
             Named = named,
             Sortable = ColumnCategories.IsSortable(category),
@@ -305,14 +305,14 @@
     }
 
     /// <summary>
-    /// The display value of a target as text, with the targets' presentation as it is when a name is formatted (a model may
+    /// A value of a target's column as text, with the targets' presentation as it is when a name is formatted (a model may
     /// load meanwhile), reused per version.
     /// </summary>
-    private Func<DisplayLink, object?, string?> NameFormatter()
+    private Func<TableDetails, int, object?, string?> NameFormatter()
     {
         var presentations = new Dictionary<TableRef, TablePresentation>();
         var version = Presentations.Version;
-        return (link, value) =>
+        return (details, column, value) =>
         {
             if (Presentations.Version != version)
             {
@@ -320,12 +320,12 @@
                 presentations.Clear();
             }
 
-            if (!presentations.TryGetValue(link.Target.Table.Ref, out var target))
+            if (!presentations.TryGetValue(details.Table.Ref, out var target))
             {
-                presentations[link.Target.Table.Ref] = target = Presentations.For(link.Target);
+                presentations[details.Table.Ref] = target = Presentations.For(details);
             }
 
-            return target.Present(link.DisplayColumn, value).Text;
+            return target.Present(column, value).Text;
         };
     }
 

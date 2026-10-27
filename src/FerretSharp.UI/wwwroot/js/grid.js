@@ -142,12 +142,12 @@ class FerretHeader {
       badge.textContent = 'FK';
       badges.appendChild(badge);
     }
-    if (meta.displayColumn) {
-      // The table's display column (WP-31); texts from .NET, set as properties.
+    if (meta.displayBadge) {
+      // One of the table's display columns (WP-31; numbered when there are several, WP-65); texts from .NET, set as properties.
       const badge = document.createElement('span');
       badge.className = 'fs-badge display';
       badge.title = texts.displayBadgeTitle;
-      badge.textContent = texts.displayBadge;
+      badge.textContent = meta.displayBadge;
       badges.appendChild(badge);
     }
     this.sortEl = this.eGui.querySelector('.fs-h-sort');

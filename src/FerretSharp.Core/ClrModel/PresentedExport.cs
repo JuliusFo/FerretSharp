@@ -22,7 +22,10 @@ public static class PresentedExport
             if (names.Shows(i) && names.Links.FirstOrDefault(l => l.Column == i) is { } link)
             {
                 var source = i;
-                columns.Add(new ExportColumn($"{column.Header} · {link.Display.Name}", i, link.Display) { Present = value => names.NameOf(source, value)?.Text });
+                columns.Add(new ExportColumn($"{column.Header} · {link.Label}", i, link.Target.Columns[link.Parts[0].Column])
+                {
+                    Present = value => names.NameOf(source, value)?.Text,
+                });
             }
         }
 

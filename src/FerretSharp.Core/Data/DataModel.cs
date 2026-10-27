@@ -90,12 +90,13 @@ public sealed record RowPage(IReadOnlyList<RowData> Rows, bool IsLastPage, TimeS
 public interface IRowLookup
 {
     /// <summary>
-    /// Key and display value of the rows of <paramref name="target"/> whose key column holds one of <paramref name="keys"/>
-    /// (display columns, WP-31; <see cref="QueryBuilder.BuildLookup"/>). In the workspace's session, so it sees the
-    /// workspace's own uncommitted rows; it does not start a new read-only snapshot. Keys without a row are not returned.
+    /// Key and display values of the rows of <paramref name="target"/> whose key column holds one of <paramref name="keys"/>
+    /// (display columns, WP-31, several since WP-65; <see cref="QueryBuilder.BuildLookup"/>). In the workspace's session, so
+    /// it sees the workspace's own uncommitted rows; it does not start a new read-only snapshot. Keys without a row are not
+    /// returned.
     /// </summary>
     Task<IReadOnlyList<LookupRow>> LookupAsync(
-        TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken);
+        TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -236,8 +237,8 @@ public sealed record SqlColumnOrigin(string? Owner, string? Table, string Column
 public sealed record SqlPage(
     IReadOnlyList<SqlColumn> Columns, IReadOnlyList<IReadOnlyList<object?>> Rows, bool IsLastPage, TimeSpan Elapsed, DateTimeOffset? DataAsOf = null);
 
-/// <summary>A row found by <see cref="IRowLookup.LookupAsync"/>: its key and display value as read (like grid values).</summary>
-public sealed record LookupRow(object Key, object? Display);
+/// <summary>A row found by <see cref="IRowLookup.LookupAsync"/>: its key and the display columns' values in their order, as read (like grid values).</summary>
+public sealed record LookupRow(object Key, IReadOnlyList<object?> Values);
 
 /// <summary>Result of <see cref="IDataAccess.ReadLobAsync"/>; <see cref="Found"/> is false if the row is gone.</summary>
 public sealed record LobRead(bool Found, object? Value);

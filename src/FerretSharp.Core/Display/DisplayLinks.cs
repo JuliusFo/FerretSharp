@@ -3,18 +3,37 @@ using FerretSharp.Core.Schema;
 namespace FerretSharp.Core.Display;
 
 /// <summary>
-/// A foreign key column whose target table has a display column (WP-31): its values are looked up there, by the
-/// target's key column, and shown beside the column's own values.
+/// One part of a name (WP-65): a display column of the target, or – if that column is itself a foreign key to a table with
+/// display columns – the name found there (<paramref name="Via"/>, one level deep, never further).
+/// </summary>
+/// <param name="Column">Index of the display column in the link's target.</param>
+/// <param name="Via">The link that looks up this column's value in its own target; null to show the value itself.</param>
+public sealed record DisplayPart(int Column, DisplayLink? Via = null);
+
+/// <summary>
+/// A foreign key column whose target table has display columns (WP-31): its values are looked up there, by the target's
+/// key column, and shown beside the column's own values – the display columns' values joined in their order (WP-65).
 /// </summary>
 /// <param name="Column">Index of the foreign key column in the table that shows the names.</param>
 /// <param name="KeyColumn">Index of the referenced column in <paramref name="Target"/> – its primary key or a unique key.</param>
-/// <param name="DisplayColumn">Index of the display column in <paramref name="Target"/>.</param>
+/// <param name="Parts">The display columns of <paramref name="Target"/>, in order; at least one.</param>
 /// <param name="SourcePadded">The foreign key column is a CHAR/NCHAR column (its values carry blank padding).</param>
-public sealed record DisplayLink(int Column, ForeignKeyInfo ForeignKey, TableDetails Target, int KeyColumn, int DisplayColumn, bool SourcePadded = false)
+public sealed record DisplayLink(int Column, ForeignKeyInfo ForeignKey, TableDetails Target, int KeyColumn, IReadOnlyList<DisplayPart> Parts, bool SourcePadded = false)
 {
     public ColumnInfo Key => Target.Columns[KeyColumn];
 
-    public ColumnInfo Display => Target.Columns[DisplayColumn];
+    /// <summary>The display columns as indexes into <see cref="Target"/>'s columns, in order (what a lookup reads).</summary>
+    public IReadOnlyList<int> DisplayColumns => [.. Parts.Select(p => p.Column)];
+
+    /// <summary>The display columns by name, as the name joins them (<c>NACHNAME - VORNAME</c>): for headers and notices.</summary>
+    public string Label => string.Join(DisplayNames.Separator, Parts.Select(p => Target.Columns[p.Column].Name));
+
+    /// <summary>The same column over the same key to the same parts (also one level deeper) – a plan that changed nothing.</summary>
+    public bool SameAs(DisplayLink other) =>
+        Column == other.Column && ForeignKey == other.ForeignKey && Target.Table.Ref == other.Target.Table.Ref && KeyColumn == other.KeyColumn
+        && Parts.Count == other.Parts.Count
+        && Parts.Zip(other.Parts).All(p => p.First.Column == p.Second.Column
+                                           && (p.First.Via is null ? p.Second.Via is null : p.Second.Via is { } via && p.First.Via.SameAs(via)));
 }
 
 /// <summary>Which foreign key columns of a table get names (WP-31).</summary>
@@ -22,7 +41,8 @@ public static class DisplayLinks
 {
     /// <summary>
     /// The links of <paramref name="table"/>: per column the first single-column foreign key (declared ones come first)
-    /// whose target has a display column, as far as it can be looked up (<see cref="Resolve"/>). Target details come
+    /// whose target has display columns, as far as it can be looked up (<see cref="Resolve"/>). A display column of the
+    /// target that is itself such a foreign key shows the name of its own target (WP-65, one level). Target details come
     /// from the schema cache (loaded once per table).
     /// </summary>
     public static async Task<IReadOnlyList<DisplayLink>> PlanAsync(
@@ -34,9 +54,24 @@ public static class DisplayLinks
             return links;
         }
 
+        foreach (var link in await ResolveAllAsync(table, schema, columns, null, cancellationToken))
+        {
+            // Only the display columns are looked at in the target: details of other tables are not loaded for nothing.
+            var nested = await ResolveAllAsync(link.Target, schema, columns, [.. link.DisplayColumns], cancellationToken);
+            links.Add(Nest(link, nested.ToDictionary(l => l.Column)));
+        }
+
+        return links;
+    }
+
+    /// <summary>The links of <paramref name="table"/> without a second level; only over <paramref name="only"/> if given.</summary>
+    private static async Task<IReadOnlyList<DisplayLink>> ResolveAllAsync(
+        TableDetails table, SchemaCache schema, DisplayColumns columns, HashSet<int>? only, CancellationToken cancellationToken)
+    {
+        var links = new List<DisplayLink>();
         foreach (var (column, fk) in Candidates(table, schema.LinksOf(table.Table.Ref), columns))
         {
-            if (schema.Find(fk.To) is not { } summary || summary.Kind == TableKind.View)
+            if (only is not null && !only.Contains(column) || schema.Find(fk.To) is not { } summary || summary.Kind == TableKind.View)
             {
                 continue;
             }
@@ -51,7 +86,24 @@ public static class DisplayLinks
         return links;
     }
 
-    /// <summary>Single-column foreign keys to a table with a display column, one per column (the first wins).</summary>
+    /// <summary>
+    /// <paramref name="link"/> with each part that is a foreign key of the target in <paramref name="nested"/> (the target's
+    /// own links, by column) looked up through it – one level: the nested links keep their plain parts.
+    /// </summary>
+    public static DisplayLink Nest(DisplayLink link, IReadOnlyDictionary<int, DisplayLink> nested)
+    {
+        if (!link.Parts.Any(p => nested.ContainsKey(p.Column)))
+        {
+            return link;
+        }
+
+        return link with { Parts = [.. link.Parts.Select(p => nested.TryGetValue(p.Column, out var via) ? p with { Via = Flat(via) } : p)] };
+    }
+
+    private static DisplayLink Flat(DisplayLink link) =>
+        link.Parts.Any(p => p.Via is not null) ? link with { Parts = [.. link.Parts.Select(p => p with { Via = null })] } : link;
+
+    /// <summary>Single-column foreign keys to a table with display columns, one per column (the first wins).</summary>
     public static IReadOnlyList<(int Column, ForeignKeyInfo ForeignKey)> Candidates(
         TableDetails table, IEnumerable<ForeignKeyInfo> outgoing, DisplayColumns columns)
     {
@@ -59,7 +111,7 @@ public static class DisplayLinks
         var taken = new HashSet<int>();
         foreach (var fk in outgoing)
         {
-            if (fk.FromColumns.Count != 1 || columns.ColumnOf(fk.To.Name) is null)
+            if (fk.FromColumns.Count != 1 || columns.ColumnsOf(fk.To.Name).Count == 0)
             {
                 continue;
             }
@@ -75,21 +127,22 @@ public static class DisplayLinks
     }
 
     /// <summary>
-    /// The link of one foreign key, or null if its values cannot be looked up: the target lacks the display column (an
-    /// entry for another database), the referenced column is neither the target's primary key nor a unique key (no
-    /// index for sure – a full scan per block; views have neither), the display column does not read as text, the
-    /// two key columns are of different type families (the value would not bind), or the key is NCHAR (bound without
-    /// padding).
+    /// The link of one foreign key, or null if its values cannot be looked up: the target has none of the display columns
+    /// (an entry for another database) or none that reads as text, the referenced column is neither the target's primary
+    /// key nor a unique key (no index for sure – a full scan per block; views have neither), the two key columns are of
+    /// different type families (the value would not bind), or the key is NCHAR (bound without padding). Display columns
+    /// the target lacks or that do not read as text are left out of the name (WP-65).
     /// </summary>
     public static DisplayLink? Resolve(TableDetails table, int column, ForeignKeyInfo fk, TableDetails target, DisplayColumns columns)
     {
-        if (fk.ToColumns.Count != 1 || target.Table.Kind == TableKind.View || columns.IndexIn(target) is not { } display)
+        if (fk.ToColumns.Count != 1 || target.Table.Kind == TableKind.View)
         {
             return null;
         }
 
+        var parts = columns.IndexesIn(target).Where(i => DisplayColumns.NotDisplayableReason(target.Columns[i]) is null).ToList();
         var key = target.IndexOf(fk.ToColumns[0]);
-        if (key < 0 || !IsUnique(target, fk.ToColumns[0]) || DisplayColumns.NotDisplayableReason(target.Columns[display]) is not null)
+        if (parts.Count == 0 || key < 0 || !IsUnique(target, fk.ToColumns[0]))
         {
             return null;
         }
@@ -101,7 +154,7 @@ public static class DisplayLinks
             return null;
         }
 
-        return new DisplayLink(column, fk, target, key, display, OracleTypes.IsFixedChar(table.Columns[column].DataType));
+        return new DisplayLink(column, fk, target, key, [.. parts.Select(p => new DisplayPart(p))], OracleTypes.IsFixedChar(table.Columns[column].DataType));
     }
 
     private static bool IsUnique(TableDetails target, string column) =>

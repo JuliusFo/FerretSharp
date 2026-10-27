@@ -63,7 +63,7 @@ public sealed class DisplayLinksTests
     }
 
     private static readonly DisplayColumns Columns = DisplayColumns.Empty
-        .With("KUNDE", "NAME").With("SDLAND", "BEZEICHNUNG").With("V_KUNDE", "NAME").With("ARTIKEL", "BEZ");
+        .With("KUNDE", ["NAME"]).With("SDLAND", ["BEZEICHNUNG"]).With("V_KUNDE", ["NAME"]).With("ARTIKEL", ["BEZ"]);
 
     [Fact]
     public async Task Single_column_foreign_keys_to_a_unique_key_of_a_table_with_a_display_column_get_names()
@@ -72,7 +72,7 @@ public sealed class DisplayLinksTests
 
         Assert.Equal(
             [("KUNDE_ID", "KUNDE", "ID", "NAME", false), ("KUNDE_KZ", "KUNDE", "KUERZEL", "NAME", true), ("SDLAND_ID", "SDLAND", "ID", "BEZEICHNUNG", false)],
-            links.Select(l => (Auftrag.Columns[l.Column].Name, l.Target.Table.Name, l.Key.Name, l.Display.Name, l.SourcePadded)));
+            links.Select(l => (Auftrag.Columns[l.Column].Name, l.Target.Table.Name, l.Key.Name, l.Label, l.SourcePadded)));
         Assert.Same(AuftragKunde, links[0].ForeignKey);
     }
 
@@ -81,7 +81,7 @@ public sealed class DisplayLinksTests
     {
         var link = Assert.Single(await DisplayLinks.PlanAsync(Kunde, await SchemaAsync(), Columns, Ct));
 
-        Assert.Equal(("PARENT_ID", "NAME"), (Kunde.Columns[link.Column].Name, link.Display.Name));
+        Assert.Equal(("PARENT_ID", "NAME"), (Kunde.Columns[link.Column].Name, link.Label));
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class DisplayLinksTests
     [InlineData("GIBT_ES_NICHT")] // an entry for another database
     public void A_display_column_that_cannot_be_shown_gives_no_link(string column)
     {
-        Assert.Null(DisplayLinks.Resolve(Auftrag, 1, AuftragKunde, Kunde, DisplayColumns.Empty.With("KUNDE", column)));
+        Assert.Null(DisplayLinks.Resolve(Auftrag, 1, AuftragKunde, Kunde, DisplayColumns.Empty.With("KUNDE", [column])));
     }
 
     /// <summary>R5b: an NCHAR key binds blank-padded since A18 – WP-31 left it out while it bound as NVARCHAR2.</summary>
@@ -115,5 +115,53 @@ public sealed class DisplayLinksTests
         var fk = Fk("Auftrag.Ort", Auftrag, ["KUNDE_ORT"], Kunde, ["ORT"], FkSource.ClrModel);
 
         Assert.Null(DisplayLinks.Resolve(Auftrag, 7, fk, Kunde, Columns));
+    }
+
+    /// <summary>WP-65: several display columns in their order; those the target lacks or that do not read as text are left out.</summary>
+    [Fact]
+    public void A_name_takes_the_display_columns_in_order_that_the_target_has_and_can_show()
+    {
+        var columns = DisplayColumns.Empty.With("KUNDE", ["ORT", "BILD", "GIBT_ES_NICHT", "NAME"]);
+
+        var link = DisplayLinks.Resolve(Auftrag, 1, AuftragKunde, Kunde, columns)!;
+
+        Assert.Equal([5, 1], link.DisplayColumns);
+        Assert.Equal("ORT - NAME", link.Label);
+        Assert.Null(DisplayLinks.Resolve(Auftrag, 1, AuftragKunde, Kunde, DisplayColumns.Empty.With("KUNDE", ["BILD", "GIBT_ES_NICHT"])));
+    }
+
+    /// <summary>
+    /// WP-65, stage 2: a display column that is a foreign key itself shows its target's name – one level deep, the nested
+    /// link looks up nothing further even where it could (here KUNDE.PARENT_ID points back to KUNDE).
+    /// </summary>
+    [Fact]
+    public async Task A_display_column_that_is_a_foreign_key_is_looked_up_one_level_deeper()
+    {
+        var columns = Columns.With("KUNDE", ["PARENT_ID", "NAME"]);
+
+        var links = await DisplayLinks.PlanAsync(Auftrag, await SchemaAsync(), columns, Ct);
+
+        var kunde = links.Single(l => l.Column == 1);
+        Assert.Equal("PARENT_ID - NAME", kunde.Label);
+        var via = kunde.Parts[0].Via!;
+        Assert.Equal(("KUNDE", "ID", "PARENT_ID - NAME"), (via.Target.Table.Name, via.Key.Name, via.Label));
+        Assert.All(via.Parts, p => Assert.Null(p.Via));
+        Assert.Null(kunde.Parts[1].Via);
+        Assert.All(links.Single(l => l.Column == 2).Parts, p => Assert.Null(p.Via)); // SDLAND: a plain name
+    }
+
+    [Fact]
+    public async Task Plans_of_the_same_links_are_the_same_also_one_level_deeper()
+    {
+        var schema = await SchemaAsync();
+        var columns = Columns.With("KUNDE", ["PARENT_ID", "NAME"]);
+
+        var first = await DisplayLinks.PlanAsync(Auftrag, schema, columns, Ct);
+        var second = await DisplayLinks.PlanAsync(Auftrag, schema, columns, Ct);
+        var flat = await DisplayLinks.PlanAsync(Auftrag, schema, Columns.With("KUNDE", ["NAME", "PARENT_ID"]), Ct);
+
+        Assert.All(first.Zip(second), p => Assert.True(p.First.SameAs(p.Second)));
+        Assert.False(first[0].SameAs(flat[0]));
+        Assert.False(first[0].SameAs(DisplayLinks.Nest(first[0] with { Parts = [.. first[0].Parts.Select(p => p with { Via = null })] }, new Dictionary<int, DisplayLink>())));
     }
 }

@@ -86,7 +86,7 @@ public static class RowExport
         public static readonly NoLookup Instance = new();
 
         public Task<IReadOnlyList<LookupRow>> LookupAsync(
-            Schema.TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken) =>
+            Schema.TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Rows in memory are exported with the names the grid looked up.");
     }
 }

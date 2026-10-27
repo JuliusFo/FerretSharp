@@ -574,7 +574,7 @@
     /// <summary>The entity's name, if C# names are shown; otherwise the table's.</summary>
     private string NameOf(TableRef table) => Presentations.ShownEntityNameOf(table) ?? Label(table);
 
-    /// <summary>The key as the grid shows it (enum names included), then the display column's value if the table has one.</summary>
+    /// <summary>The key as the grid shows it (enum names included), then the name its display columns make, if the table has one.</summary>
     private string RowText(RecordDiagram diagram, RecordNode node)
     {
         if (diagram.DetailsOf(node.Table) is not { } details || diagram.RowOf(node) is not { } row)
@@ -586,10 +586,11 @@
         var key = node.Key is RowKey.PrimaryKey
             ? string.Join(" · ", details.PrimaryKey.Select(details.IndexOf).Where(i => i >= 0).Select(i => presentation.Present(i, row.Values[i]).Text))
             : "ROWID";
-        return DisplayColumns.Shown.IndexIn(details) is { } display && !details.PrimaryKey.Contains(details.Columns[display].Name)
-               && presentation.Present(display, row.Values[display]).Text is { Length: > 0 } text
-            ? $"{key} · {text}"
-            : key;
+        // The display columns joined as in the grid (WP-65), without those that are the key already.
+        var name = DisplayNames.Compose(DisplayColumns.Shown.IndexesIn(details)
+            .Where(i => !details.PrimaryKey.Contains(details.Columns[i].Name))
+            .Select(i => presentation.Present(i, row.Values[i]).Text));
+        return name is null ? key : $"{key} · {name}";
     }
 
     /// <summary>

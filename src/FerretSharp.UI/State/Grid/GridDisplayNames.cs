@@ -1,6 +1,7 @@
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Display;
 using FerretSharp.Core.Resources;
+using FerretSharp.Core.Schema;
 using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
@@ -37,13 +38,13 @@ public interface IDisplayNamesGrid
 /// </summary>
 /// <param name="plan">The links of the table's columns (DisplayLinks.PlanAsync); none if that failed.</param>
 /// <param name="lookup">One lookup on the workspace's session, with its time limit (DisplayNames.LookupAsync).</param>
-/// <param name="format">A new formatter for the names of a plan: the target's display value as text.</param>
+/// <param name="format">A new formatter for the names of a plan: a value of a target's column as text.</param>
 /// <param name="columnName">The name of a column of the grid's table, for the notice that it shows no names any more.</param>
 public sealed class GridDisplayNames(
     IDisplayNamesGrid grid,
     Func<Task<IReadOnlyList<DisplayLink>>> plan,
     Func<DisplayLookup, CancellationToken, Task<DbResult<IReadOnlyList<LookupRow>?>>> lookup,
-    Func<Func<DisplayLink, object?, string?>> format,
+    Func<Func<TableDetails, int, object?, string?>> format,
     Func<int, string> columnName) : IAsyncDisposable
 {
     private readonly Queue<(DisplayLookup Lookup, DisplayNames Names, int Generation)> _lookups = new();
@@ -127,7 +128,7 @@ public sealed class GridDisplayNames(
             while (!_disposed && grid.IsAlive && _lookups.TryDequeue(out var queued))
             {
                 var (asked, names, generation) = queued;
-                if (!ReferenceEquals(names, Names) || generation != Generation || !names.Shows(asked.Link.Column))
+                if (!ReferenceEquals(names, Names) || generation != Generation || !names.Wants(asked))
                 {
                     continue;
                 }
@@ -154,7 +155,7 @@ public sealed class GridDisplayNames(
                 else if (result.Value is not { } rows)
                 {
                     var reason = TextFormat.Format(GridText.Grid_DisplayLookupTimeout,
-                        asked.Link.Target.Table.DisplayName, (int)DisplayNames.LookupTimeout.TotalSeconds);
+                        asked.Source.Target.Table.DisplayName, (int)DisplayNames.LookupTimeout.TotalSeconds);
                     if (names.TimedOut(asked, reason))
                     {
                         await SwitchOffAsync(asked, reason);
@@ -168,6 +169,7 @@ public sealed class GridDisplayNames(
                 {
                     names.Found(asked, rows);
                     await grid.RedrawAsync(values => names.Touches(asked, values));
+                    Queue([]); // names one level deeper (WP-65): the values just found are looked up there
                 }
             }
         }
@@ -181,20 +183,29 @@ public sealed class GridDisplayNames(
         }
     }
 
-    /// <summary>The column shows no names in this tab any more: told once, names that were shown go.</summary>
+    /// <summary>
+    /// The column shows no names in this tab any more – or, one level deeper (WP-65), its names show the value of that part
+    /// instead of the name found for it: told once, the rows are redrawn.
+    /// </summary>
     private async Task SwitchOffAsync(DisplayLookup failed, string reason)
     {
         Names.Failed(failed, reason);
-        grid.Notify(TextFormat.Format(GridText.Grid_DisplayLinkOff, columnName(failed.Link.Column), reason));
-        await grid.RelabelAsync();
+        if (failed.Part is null)
+        {
+            grid.Notify(TextFormat.Format(GridText.Grid_DisplayLinkOff, columnName(failed.Link.Column), reason));
+            await grid.RelabelAsync();
+        }
+        else
+        {
+            grid.Notify(TextFormat.Format(GridText.Grid_DisplayPartOff, columnName(failed.Link.Column), failed.Source.Target.Table.DisplayName, reason));
+        }
+
         await grid.RedrawAllAsync();
     }
 
-    /// <summary>The same columns over the same keys to the same display columns.</summary>
+    /// <summary>The same columns over the same keys to the same display columns (one level deeper too).</summary>
     private static bool SameLinks(IReadOnlyList<DisplayLink> a, IReadOnlyList<DisplayLink> b) =>
-        a.Count == b.Count && a.Zip(b).All(p => p.First.Column == p.Second.Column && p.First.ForeignKey == p.Second.ForeignKey
-                                                && p.First.Target.Table.Ref == p.Second.Target.Table.Ref
-                                                && p.First.KeyColumn == p.Second.KeyColumn && p.First.DisplayColumn == p.Second.DisplayColumn);
+        a.Count == b.Count && a.Zip(b).All(p => p.First.SameAs(p.Second));
 
     /// <summary>A running lookup stops, queued ones are not run; the token source goes once the last lookup ended.</summary>
     public async ValueTask DisposeAsync()

@@ -229,16 +229,21 @@ public static class QueryBuilder
     public static int MaxLookupKeys => LookupSizes[^1];
 
     /// <summary>
-    /// Key and display value of the rows of <paramref name="target"/> whose key column holds one of
-    /// <paramref name="keys"/> (display columns, WP-31). The keys are bound with the key column's type; the IN list is
-    /// filled up to the next of <see cref="LookupSizes"/>.
+    /// Key and display values of the rows of <paramref name="target"/> whose key column holds one of
+    /// <paramref name="keys"/> (display columns, WP-31; several in their order since WP-65). The keys are bound with the key
+    /// column's type; the IN list is filled up to the next of <see cref="LookupSizes"/>.
     /// </summary>
-    /// <exception cref="ArgumentException">No keys, more than <see cref="MaxLookupKeys"/>, or a NULL among them.</exception>
-    public static QuerySpec BuildLookup(TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys)
+    /// <exception cref="ArgumentException">No display column, no keys, more than <see cref="MaxLookupKeys"/>, or a NULL among them.</exception>
+    public static QuerySpec BuildLookup(TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys)
     {
         if (keys.Count == 0 || keys.Count > MaxLookupKeys || keys.Any(k => k is null))
         {
             throw new ArgumentException($"A lookup takes 1 to {MaxLookupKeys} keys, none of them NULL.", nameof(keys));
+        }
+
+        if (displayColumns.Count == 0)
+        {
+            throw new ArgumentException("A lookup reads at least one display column.", nameof(displayColumns));
         }
 
         var key = target.Columns[keyColumn];
@@ -248,7 +253,8 @@ public static class QueryBuilder
             .Select(i => new QueryParameter("k" + i.ToString(System.Globalization.CultureInfo.InvariantCulture), keys[Math.Min(i, keys.Count - 1)], type))
             .ToList();
         var keyRef = $"{Alias}.{OracleIdentifier.Quote(key.Name)}";
-        var sql = $"SELECT {keyRef}, {Alias}.{OracleIdentifier.Quote(target.Columns[displayColumn].Name)}"
+        var display = string.Join(", ", displayColumns.Select(c => $"{Alias}.{OracleIdentifier.Quote(target.Columns[c].Name)}"));
+        var sql = $"SELECT {keyRef}, {display}"
                   + $"\n  FROM {OracleIdentifier.Qualify(target.Table.Owner, target.Table.Name)} {Alias}"
                   + $"\n WHERE {keyRef} IN ({string.Join(", ", parameters.Select(p => ":" + p.Name))})";
         return new QuerySpec(sql, parameters);

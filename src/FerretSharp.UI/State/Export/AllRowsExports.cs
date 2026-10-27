@@ -52,9 +52,12 @@ public static class AllRowsExports
                     return new AllRowsExcel(PresentedExport.Columns(presentation, DisplayNames.None), null);
                 }
 
-                // The export formats off the UI thread: the targets' presentations are taken now, not looked up from there.
-                var targets = gridNames.Links.Select(l => l.Target).DistinctBy(t => t.Table.Ref).ToDictionary(t => t.Table.Ref, presentationOf);
-                var names = gridNames.Fresh((link, value) => targets[link.Target.Table.Ref].Present(link.DisplayColumn, value).Text);
+                // The export formats off the UI thread: the targets' presentations (one level deeper too, WP-65) are taken
+                // now, not looked up from there.
+                var targets = gridNames.Links
+                    .SelectMany(l => l.Parts.Where(p => p.Via is not null).Select(p => p.Via!.Target).Prepend(l.Target))
+                    .DistinctBy(t => t.Table.Ref).ToDictionary(t => t.Table.Ref, presentationOf);
+                var names = gridNames.Fresh((target, column, value) => targets[target.Table.Ref].Present(column, value).Text);
                 return new AllRowsExcel(PresentedExport.Columns(presentation, names), names);
             },
             workspaceId);

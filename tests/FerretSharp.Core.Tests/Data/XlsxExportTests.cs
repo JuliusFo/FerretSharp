@@ -206,10 +206,10 @@ public class XlsxExportTests
         var kunden = CodeGenerationModel.Kunden;
         var mandant = new TableDetails(new TableSummary("APP", "MANDANT", TableKind.Table), [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2")], ["ID"], [], false);
         var link = new DisplayLink(CodeGenerationModel.Index("MANDANT_ID"),
-            new ForeignKeyInfo("FK_MANDANT", kunden.Table.Ref, ["MANDANT_ID"], mandant.Table.Ref, ["ID"], FkSource.Declared), mandant, 0, 1);
-        var names = new DisplayNames([link], (_, value) => value as string);
+            new ForeignKeyInfo("FK_MANDANT", kunden.Table.Ref, ["MANDANT_ID"], mandant.Table.Ref, ["ID"], FkSource.Declared), mandant, 0, [new DisplayPart(1)]);
+        var names = new DisplayNames([link], (_, _, value) => value as string);
         var lookup = Assert.Single(names.Missing([[1m, null, null, null, null, null, null, null, 7m, null, null, null]]));
-        names.Found(lookup, [new LookupRow(7m, "Hauptmandant")]);
+        names.Found(lookup, [new LookupRow(7m, ["Hauptmandant"])]);
 
         var columns = PresentedExport.Columns(presentation, names);
         var row = Row(1m, "Peter", new DateTime(2026, 1, 2), 10.5m, "J", 2m, "AKTIV", null, 7m, null, "X", null);

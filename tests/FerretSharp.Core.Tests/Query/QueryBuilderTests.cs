@@ -408,7 +408,7 @@ public partial class QueryBuilderTests
     [Fact]
     public void Lookup_fills_the_in_list_up_to_a_fixed_size_with_the_last_key()
     {
-        var query = QueryBuilder.BuildLookup(Kunden, keyColumn: 0, displayColumn: 1, [4711m, 4712m, 4713m]);
+        var query = QueryBuilder.BuildLookup(Kunden, keyColumn: 0, displayColumns: [1], [4711m, 4712m, 4713m]);
 
         AssertBindsMatch(query.Sql, query.Parameters);
         Assert.Equal(
@@ -428,7 +428,7 @@ public partial class QueryBuilderTests
     [InlineData(500, 500)]
     public void Lookup_uses_only_a_few_statement_shapes(int keys, int binds)
     {
-        var query = QueryBuilder.BuildLookup(Kunden, 0, 1, Enumerable.Range(1, keys).Select(i => (object)(decimal)i).ToList());
+        var query = QueryBuilder.BuildLookup(Kunden, 0, [1], Enumerable.Range(1, keys).Select(i => (object)(decimal)i).ToList());
 
         Assert.Equal(binds, query.Parameters.Count);
     }
@@ -436,7 +436,7 @@ public partial class QueryBuilderTests
     [Fact]
     public void Lookup_binds_with_the_key_columns_type_and_quotes_names()
     {
-        var query = QueryBuilder.BuildLookup(Kunden, keyColumn: 2, displayColumn: 8, ["AB"]);
+        var query = QueryBuilder.BuildLookup(Kunden, keyColumn: 2, displayColumns: [8], ["AB"]);
 
         Assert.Equal("SELECT t.\"KUERZEL\", t.\"Mixed Case\"\n  FROM \"APP\".\"KUNDEN\" t\n WHERE t.\"KUERZEL\" IN (:k0)", query.Sql);
         Assert.Equal(OracleTypeHint.Char, Assert.Single(query.Parameters).Type);
@@ -445,8 +445,19 @@ public partial class QueryBuilderTests
     [Fact]
     public void Lookup_refuses_no_keys_too_many_keys_and_null()
     {
-        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, 1, []));
-        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, 1, Enumerable.Range(0, 501).Select(i => (object)(decimal)i).ToList()));
-        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, 1, [1m, null!]));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, [1], []));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, [1], Enumerable.Range(0, 501).Select(i => (object)(decimal)i).ToList()));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, [1], [1m, null!]));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, [], [1m]));
+    }
+
+    /// <summary>WP-65: several display columns in one lookup, in the order the name joins them.</summary>
+    [Fact]
+    public void Lookup_reads_several_display_columns_in_their_order()
+    {
+        var query = QueryBuilder.BuildLookup(Kunden, keyColumn: 0, displayColumns: [8, 1], [4711m]);
+
+        AssertBindsMatch(query.Sql, query.Parameters);
+        Assert.Equal("SELECT t.\"KUNDE_ID\", t.\"Mixed Case\", t.\"NAME\"\n  FROM \"APP\".\"KUNDEN\" t\n WHERE t.\"KUNDE_ID\" IN (:k0)", query.Sql);
     }
 }

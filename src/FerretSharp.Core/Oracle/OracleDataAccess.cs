@@ -378,23 +378,30 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     }
 
     public async Task<IReadOnlyList<LookupRow>> LookupAsync(
-        TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken)
+        TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, CancellationToken cancellationToken)
     {
-        var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumn, keys);
-        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, LookupReader(target, keyColumn, displayColumn), cancellationToken);
+        var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumns, keys);
+        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, LookupReader(target, keyColumn, displayColumns), cancellationToken);
     }
 
-    private static Func<DbDataReader, CancellationToken, Task<IReadOnlyList<LookupRow>>> LookupReader(TableDetails target, int keyColumn, int displayColumn)
+    private static Func<DbDataReader, CancellationToken, Task<IReadOnlyList<LookupRow>>> LookupReader(
+        TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns)
     {
         var key = target.Columns[keyColumn];
-        var display = target.Columns[displayColumn];
+        var display = displayColumns.Select(c => target.Columns[c]).ToList();
         return async (reader, ct) =>
         {
             var oracle = (OracleDataReader)reader;
             var rows = new List<LookupRow>();
             while (await reader.ReadAsync(ct))
             {
-                rows.Add(new LookupRow(ReadValue(oracle, 0, key)!, reader.IsDBNull(1) ? null : ReadValue(oracle, 1, display)));
+                var values = new object?[display.Count];
+                for (var i = 0; i < display.Count; i++)
+                {
+                    values[i] = reader.IsDBNull(i + 1) ? null : ReadValue(oracle, i + 1, display[i]);
+                }
+
+                rows.Add(new LookupRow(ReadValue(oracle, 0, key)!, values));
             }
 
             return rows;
@@ -405,10 +412,10 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     private sealed class NestedLookup(OracleSession.NestedReader nested) : IRowLookup
     {
         public Task<IReadOnlyList<LookupRow>> LookupAsync(
-            TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken)
+            TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, CancellationToken cancellationToken)
         {
-            var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumn, keys);
-            return nested.ReadAsync(query.Sql, query.Parameters, LookupReader(target, keyColumn, displayColumn), cancellationToken);
+            var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumns, keys);
+            return nested.ReadAsync(query.Sql, query.Parameters, LookupReader(target, keyColumn, displayColumns), cancellationToken);
         }
     }
 

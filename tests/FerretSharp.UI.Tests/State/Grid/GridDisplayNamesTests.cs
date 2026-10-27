@@ -18,9 +18,9 @@ public sealed class GridDisplayNamesTests
         [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2")], ["ID"], [], false);
 
     private static readonly DisplayLink KundeLink =
-        new(1, new ForeignKeyInfo("FK_KUNDE", new("APP", "AUFTRAG"), ["KUNDE_ID"], Kunde.Table.Ref, ["ID"], FkSource.Declared), Kunde, 0, 1);
+        new(1, new ForeignKeyInfo("FK_KUNDE", new("APP", "AUFTRAG"), ["KUNDE_ID"], Kunde.Table.Ref, ["ID"], FkSource.Declared), Kunde, 0, [new DisplayPart(1)]);
 
-    private static readonly DisplayLink OtherLink = KundeLink with { DisplayColumn = 0 };
+    private static readonly DisplayLink OtherLink = KundeLink with { Parts = [new DisplayPart(0)] };
 
     /// <summary>AUFTRAG rows: ID, KUNDE_ID.</summary>
     private static object?[] Row(decimal kunde) => [1m, kunde];
@@ -44,10 +44,10 @@ public sealed class GridDisplayNamesTests
             _answers.Enqueue(answer);
             return answer.Task;
         },
-        () => (_, value) => value as string,
+        () => (_, _, value) => value as string,
         i => "COLUMN_" + i);
 
-    private static DbResult<IReadOnlyList<LookupRow>?> Found(params (decimal Key, string Name)[] rows) => new(rows.Select(r => new LookupRow(r.Key, r.Name)).ToList(), null, false);
+    private static DbResult<IReadOnlyList<LookupRow>?> Found(params (decimal Key, string Name)[] rows) => new(rows.Select(r => new LookupRow(r.Key, [r.Name])).ToList(), null, false);
 
     private async Task AnswerAsync(DbResult<IReadOnlyList<LookupRow>?> result)
     {
@@ -196,6 +196,60 @@ public sealed class GridDisplayNamesTests
         await Create().PlanAsync();
 
         Assert.Equal(0, _plans);
+    }
+
+    // ---------- one level deeper (WP-65) ----------
+
+    private static readonly TableDetails Staat = new(new TableSummary("APP", "STAAT", TableKind.Table),
+        [Col("CODE", "VARCHAR2"), Col("NAME", "VARCHAR2")], ["CODE"], [], false);
+
+    private static readonly TableDetails KundeMitStaat = new(new TableSummary("APP", "KUNDE", TableKind.Table),
+        [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2"), Col("STAAT", "VARCHAR2")], ["ID"], [], false);
+
+    private static readonly DisplayLink DeepLink = new(1,
+        new ForeignKeyInfo("FK_KUNDE", new("APP", "AUFTRAG"), ["KUNDE_ID"], KundeMitStaat.Table.Ref, ["ID"], FkSource.Declared), KundeMitStaat, 0,
+        [new DisplayPart(1), new DisplayPart(2, new DisplayLink(2,
+            new ForeignKeyInfo("FK_STAAT", KundeMitStaat.Table.Ref, ["STAAT"], Staat.Table.Ref, ["CODE"], FkSource.Declared), Staat, 0, [new DisplayPart(1)]))]);
+
+    private static DbResult<IReadOnlyList<LookupRow>?> FoundRows(params LookupRow[] rows) => new(rows, null, false);
+
+    [Fact]
+    public async Task Names_one_level_deeper_are_looked_up_after_the_first_lookup_and_redrawn()
+    {
+        _plan = () => Task.FromResult<IReadOnlyList<DisplayLink>>([DeepLink]);
+        _grid.Rows = [Row(4711m)];
+        var names = Create();
+        await names.PlanAsync();
+        await _grid.SettledAsync();
+
+        await AnswerAsync(FoundRows(new LookupRow(4711m, ["Peter", "DE"])));
+        Assert.Equal("Peter - DE", names.Names.NameOf(1, 4711m)?.Text);
+        await AnswerAsync(FoundRows(new LookupRow("DE", ["Deutschland"])));
+
+        Assert.Equal([null, 1], _asked.Select(l => l.Part));
+        Assert.Equal(["DE"], _asked[1].Keys);
+        Assert.Equal("Peter - Deutschland", names.Names.NameOf(1, 4711m)?.Text);
+        Assert.Equal(2, _grid.Redraws);
+        Assert.Empty(_answers);
+    }
+
+    [Fact]
+    public async Task A_failing_lookup_one_level_deeper_keeps_the_column_and_says_so()
+    {
+        _plan = () => Task.FromResult<IReadOnlyList<DisplayLink>>([DeepLink]);
+        _grid.Rows = [Row(4711m)];
+        var names = Create();
+        await names.PlanAsync();
+        await _grid.SettledAsync();
+        await AnswerAsync(FoundRows(new LookupRow(4711m, ["Peter", "DE"])));
+        var relabels = _grid.Relabels;
+
+        await AnswerAsync(new(null, new DatabaseException("ORA-00942: Tabelle oder View nicht vorhanden", "ORA-00942"), false));
+
+        Assert.True(names.Names.Shows(1));
+        Assert.Equal("Peter - DE", names.Names.NameOf(1, 4711m)?.Text);
+        Assert.Contains("STAAT", Assert.Single(_grid.Notices));
+        Assert.Equal(relabels, _grid.Relabels);
     }
 
     private sealed class FakeGrid : IDisplayNamesGrid
