@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- "Usage" warns about columns the code filters by without an index: a condition of `Where`, `Any`, `First`, `Single`, `Count` … (also `FirstOrDefaultAsync` and the other async operators) is now told apart from other LINQ and shown as "filters". If application code filters by a column and no index starts with it, a note above the columns names it and its row is marked "no index": its queries may read the whole table (full table scan). The marks come from the code alone; only the execution plan tells for sure.
+
+### Changed
+- The code usage index is read again once from the solution's assemblies.
+
 ## [3.53.0] - 2026-10-27
 
 Names beside foreign keys combine several columns, and the C# model travels as a file.
