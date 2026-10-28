@@ -246,10 +246,11 @@ public static class IlUsageScanner
                         {
                             Flush(pending, IsFilter(taker) ? CodeUseKind.Filter : CodeUseKind.Expression);
                         }
-                        else if (afterTree && (signature.ParameterTypes.Length > 0 || signature.Header.IsInstance))
+                        else if (afterTree && (signature.ParameterTypes.Length > 0 || (signature.Header.IsInstance && opCode != OpCodes.Newobj)))
                         {
-                            // The call right after the lambda takes the tree as its last argument, but not as an
-                            // Expression<T>: a dictionary of sort keys, List.Add. CancellationToken.None takes nothing.
+                            // The call right after the lambda takes the tree as its last argument (or as this), but not as
+                            // an Expression<T>: a dictionary of sort keys, List.Add. CancellationToken.None and a
+                            // constructor without arguments (FirstOrDefault(…, new Ticket())) do not take it.
                             Flush(pending, CodeUseKind.Expression);
                         }
                     }

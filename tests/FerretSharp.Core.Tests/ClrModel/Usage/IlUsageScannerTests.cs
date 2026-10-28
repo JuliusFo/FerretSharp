@@ -124,6 +124,8 @@ public sealed class IlUsageScannerTests
         Single("Ticket", "Title", CodeUseKind.Expression, "SortedByMap");
         Single("Ticket", "Due", CodeUseKind.Expression, "SortedByMap");
         Assert.DoesNotContain(Uses.Uses, u => u is { Kind: CodeUseKind.Filter, CallerMethod: "SortedByMap" } && u.Member != "Status");
+        // A constructor right after the lambda creates an argument of its own, it does not take the tree.
+        Assert.Equal(LineOf("filter-default"), Single("Ticket", "Status", CodeUseKind.Filter, "OrDefault").Line);
     }
 
     [Fact]

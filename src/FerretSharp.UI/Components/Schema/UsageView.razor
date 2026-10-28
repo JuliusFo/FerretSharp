@@ -139,7 +139,8 @@ else
         }
         else if (result is not null)
         {
-            <DetailStatus Error="_indexesError" Hint="@ModelViewText.Usage_IndexesFailed" />
+            @* Only while the code filters: after a build without filters, a failed read has nothing left to explain. *@
+            <DetailStatus Error="@(rows.Any(r => r.Filtered) ? _indexesError : null)" Hint="@ModelViewText.Usage_IndexesFailed" />
             @if (unindexed.Count > 0)
             {
                 <div class="advice" role="note">
@@ -401,24 +402,8 @@ else
     private async Task LoadIndexesAsync()
     {
         if (_indexesVersion == Version || Details.Table.Kind == TableKind.View || Models.Mapping is not { } mapping
-            || Usage.State.Result is not { } usage)
-        {
-            return;
-        }
-
-        if (!CodeUsageRows.Columns(mapping, usage.Index, Details).Any(r => r.Filtered))
-        {
-            // A build took the last filter away: an old failure has nothing left to explain.
-            if (_indexesError is not null)
-            {
-                _indexesError = null;
-                StateHasChanged();
-            }
-
-            return;
-        }
-
-        if (Active.Schema is not { } schema)
+            || Usage.State.Result is not { } usage || !CodeUsageRows.Columns(mapping, usage.Index, Details).Any(r => r.Filtered)
+            || Active.Schema is not { } schema)
         {
             return;
         }

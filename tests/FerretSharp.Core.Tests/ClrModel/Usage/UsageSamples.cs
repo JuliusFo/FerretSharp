@@ -168,6 +168,8 @@ namespace FerretSharp.Core.Tests.ClrModel.UsageSamples
         public IQueryable<Ticket> Reversed(IQueryable<Ticket> tickets) =>
             tickets.Where(t => "open" == t.Status && null == t.Title && t.Due < TicketClock.Current.Due); // marker: filter-reversed
 
+        public Ticket OrDefault(IQueryable<Ticket> tickets) => tickets.FirstOrDefault(t => t.Status == "open", new Ticket()); // marker: filter-default
+
         public IQueryable<Ticket> SortedByMap(IQueryable<Ticket> tickets, string sort)
         {
             var keys = new Dictionary<string, Expression<Func<Ticket, object?>>> { ["title"] = t => t.Title, ["due"] = t => t.Due };
