@@ -1,3 +1,4 @@
+using FerretSharp.Core.Audit;
 using FerretSharp.Core.Design;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
@@ -508,6 +509,16 @@ public sealed class ColumnDesignerTests
         Assert.False(ticked.AuditTakesPart(null, createAllowed: true));
         Assert.Null(ColumnDesigner.AuditAtStart(openedForAudit: true, null, syncByDefault: true, createAllowed: true));
         Assert.True(ColumnDesigner.AuditAtStart(openedForAudit: true, false, syncByDefault: true, createAllowed: true));
+    }
+
+    /// <summary>Code review: while the audit objects were read again, the box was free as for a table without audit table.</summary>
+    [Fact]
+    public void Whether_there_is_an_audit_table_is_unknown_until_read()
+    {
+        Assert.Null(ColumnDesigner.HasAuditTable(newTable: false, read: null));
+        Assert.False(ColumnDesigner.HasAuditTable(newTable: false, AuditState.None));
+        Assert.True(ColumnDesigner.HasAuditTable(newTable: false, new AuditState(Kunde, null)));
+        Assert.False(ColumnDesigner.HasAuditTable(newTable: true, read: null));
     }
 
     [Fact]

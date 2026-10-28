@@ -1,4 +1,5 @@
 using System.Globalization;
+using FerretSharp.Core.Audit;
 using FerretSharp.Core.Design;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Resources;
@@ -389,6 +390,14 @@ public sealed class ColumnDesigner
     /// </summary>
     /// <param name="hasAuditTable">Null: unknown, reading the audit objects failed.</param>
     public static bool CanAudit(bool? hasAuditTable, bool createAllowed) => hasAuditTable is { } has && (has || createAllowed);
+
+    /// <summary>
+    /// Whether the table has an audit table, for the rules above: never for a new table; unknown (null) while its audit
+    /// objects are read and after reading them failed – taken as "none" while reading, a box ticked then became the
+    /// user's choice (code review 2026-10-28).
+    /// </summary>
+    /// <param name="read">What was read of the audit objects; null while reading or after reading failed.</param>
+    public static bool? HasAuditTable(bool newTable, AuditState? read) => newTable ? false : read is null ? null : read.AuditTable is not null;
 
     /// <summary>
     /// Whether the audit objects go into the plan: the box ticked and able to take part (<see cref="CanAudit"/>) – a box
