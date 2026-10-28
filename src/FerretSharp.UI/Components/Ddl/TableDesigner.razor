@@ -742,7 +742,7 @@ else
     </text>;
 
     private RenderFragment AuditTab(ColumnDesigner designer, AuditTemplateLoad audit) => @<div class="designer-audit">
-        <label class="check" title="@(CanAudit ? SchemaViewText.Audit_DesignerTitle : SchemaViewText.Audit_DesignerCreateOff)">
+        <label class="check" title="@(CanAudit ? SchemaViewText.Audit_DesignerTitle : AuditStatusSummary.CreateOffHint)">
             <input type="checkbox" checked="@AuditTakesPart(designer)" disabled="@(!CanAudit)" @onchange="e => designer.WithAudit = e.Value is true" />
             @(_audit?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
         </label>

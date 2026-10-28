@@ -401,6 +401,8 @@ public sealed class AuditPlannerTests
         Assert.Equal(["Trigger KUNDE_AUDIT ist ungültig"], invalid.Reasons);
         var onlyTrigger = AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns) with { AuditTable = null });
         Assert.Equal(["Audit-Tabelle AUDIT_KUNDE fehlt"], onlyTrigger.Reasons);
+        Assert.True(onlyTrigger.TableMissing);
+        Assert.False(outdated.TableMissing);
         var comment = AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns) with { AuditTableComment = "alt" });
         Assert.Equal(AuditHealth.Outdated, comment.Health);
         Assert.Empty(comment.Reasons);

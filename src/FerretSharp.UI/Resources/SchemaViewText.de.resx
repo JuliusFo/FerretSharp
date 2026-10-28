@@ -730,7 +730,7 @@
     <value>Entity</value>
   </data>
   <data name="Audit_DesignerCreateOff" xml:space="preserve">
-    <value>Audit-Tabellen anlegen ist ausgeschaltet (Einstellungen › Audit-Tabellen).</value>
+    <value>Audit-Tabellen anlegen ist ausgeschaltet ({0} › {1}).</value>
   </data>
   <data name="Audit_DesignerCreate" xml:space="preserve">
     <value>Audit-Tabelle und Trigger anlegen</value>
@@ -761,6 +761,9 @@
   </data>
   <data name="Audit_Sync" xml:space="preserve">
     <value>Abgleichen</value>
+  </data>
+  <data name="Audit_SyncCreateOff" xml:space="preserve">
+    <value>Anlegen ausgeschaltet</value>
   </data>
   <data name="Audit_OpenTable" xml:space="preserve">
     <value>Audit-Tabelle öffnen</value>
