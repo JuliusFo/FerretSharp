@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
-- The value picker of an enum column in the filter bar has a search field: it finds members by name, C# member and value, and a typed value that is no member of the C# enum (`1`, where the grid shows it red) can be picked as it is, to filter for rows the model does not know. With "in" Enter picks and keeps the list open, Esc closes it.
+- The value picker of an enum column in the filter bar has a search field: it finds members by name, C# member and value, and a typed value that is no member of the C# enum (`1`, where the grid shows it red) can be picked as it is, to filter for rows the model does not know. With "in" Enter picks and keeps the list open; Esc clears the search, then closes the list.
 
 ## [3.53.0] - 2026-10-27
 
