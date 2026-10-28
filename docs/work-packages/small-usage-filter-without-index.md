@@ -39,6 +39,10 @@ Zweiter Durchgang des Reviewers über die Fixes: alle fünf gedeckt, vier Restpu
 - A. K – Wert über Aufruf, Indexer oder `??` zählt weiter als Filter: nicht behoben, als Grenze oben und im Backlog notiert.
 - B. K – Baum in eine Sammlung (lokales Dictionary, `List.Add`) ging an das nächste `Where`: behoben, der Aufruf direkt nach `Expression.Lambda`, der den Baum ohne `Expression<T>`-Parameter nimmt, schließt ihn als „LINQ“ ab.
 - C. K – kein Test für eine Konstante vor dem Getter des Parameters (`"open" == t.Status`) und einen statischen Wert: Test ergänzt (sichert bestehendes Verhalten, schlug deshalb vorher nicht fehl).
-- D. K – alter Lesefehler blieb stehen, wenn ein Build die letzte gefilterte Spalte entfernte: behoben.
+- D. K – alter Lesefehler blieb stehen, wenn ein Build die letzte gefilterte Spalte entfernte: behoben, der Hinweis erscheint nur, solange der Code filtert (beim Rendern abgeleitet; der erste Versuch löschte ihn im Laden und griff erst nach F5).
+
+Dritter Durchgang über B–D: B und C in Ordnung; zwei Fehler der eigenen Fixes, als Teil der freigegebenen Punkte behoben:
+- D'. K – der erste Fix für D griff nur nach F5 (Versionsprüfung davor): s. o.
+- E. K – B beendete den Baum auch bei einem Konstruktor ohne Argumente direkt nach dem Lambda (`FirstOrDefault(…, new Ticket())` verlor den Filter): `newobj` ausgenommen, Test.
 
 Geprüft gegen echtes EF Core 8 (Release, auch in async-Methoden) und das Probe-Projekt des Reviewers (Debug und Release gleich). Fehleranzeige und spätes Laden der Indizes nicht in der App geprüft (kein Docker).
