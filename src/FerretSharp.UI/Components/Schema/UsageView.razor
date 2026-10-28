@@ -1,6 +1,7 @@
 @* "Usage" view (WP-40, ADR 0030): where the linked solution's compiled code uses the table's columns and queries the
    table, with file and line; a click opens the use in the editor. The index is built when the view is first shown. Two
-   sub-tabs (decision of the user, 2026-10-20): the columns first, the queries beside, each with its counter. *@
+   sub-tabs (decision of the user, 2026-10-20): the columns first, the queries beside, each with its counter. Columns the
+   code filters by without an index are marked: their queries may read the whole table. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
@@ -8,6 +9,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject CodeUsageOpener Opener
+@inject ILogger<UsageView> Logger
 
 @{
     var mapping = Models.Mapping;
@@ -72,6 +74,7 @@ else
             var rows = result is null ? [] : CodeUsageRows.Columns(mapping, result.Index, Details);
             var unused = CodeUsageRows.UnusedCount(rows);
             var unusedTitle = result is null ? "" : CodeUsageRows.UnusedTitle(result); // once, not per row
+            var unindexed = CodeUsageRows.FilteredWithoutIndex(rows, _indexes);
         }
         <div class="usage-bar">
             <div class="segmented small usage-tabs" role="tablist">
@@ -136,6 +139,17 @@ else
         }
         else if (result is not null)
         {
+            @if (unindexed.Count > 0)
+            {
+                <div class="advice" role="note">
+                    <strong>@TextFormat.Plural(unindexed.Count, ModelViewText.Usage_NoIndexOne, ModelViewText.Usage_NoIndexOther)</strong>
+                    @foreach (var row in unindexed)
+                    {
+                        <span class="mono">@row.Column</span>
+                    }
+                    <span class="muted">@ModelViewText.Usage_NoIndexHint</span>
+                </div>
+            }
             var shown = _order.Apply(CodeUsageRows.Filter(rows, _access), ValueOf);
             @if (shown.Count == 0)
             {
@@ -164,6 +178,10 @@ else
                                 <td class="num" title="@ModelViewText.Usage_ReadsTitle">@AccessCount(row, UsageAccess.Read)</td>
                                 <td class="num" title="@ModelViewText.Usage_WritesTitle">@AccessCount(row, UsageAccess.Write)</td>
                                 <td>
+                                    @if (unindexed.Contains(row))
+                                    {
+                                        <span class="fs-badge no-index" title="@ModelViewText.Usage_NoIndexTitle">@ModelViewText.Usage_NoIndex</span>
+                                    }
                                     @if (row.Unused)
                                     {
                                         <span class="fs-badge unused" title="@unusedTitle">@ModelViewText.Usage_Unused</span>
@@ -215,7 +233,17 @@ else
     [Parameter]
     public bool Shown { get; set; }
 
+    /// <summary>Incremented by the tab to reload (F5, after DDL): the table's indexes are read again.</summary>
+    [Parameter]
+    public int Version { get; set; }
+
     private bool _wasShown;
+
+    /// <summary>The table's indexes, for the columns filtered without one; null until read (never for a view).</summary>
+    private IReadOnlyList<IndexInfo>? _indexes;
+
+    /// <summary>The <see cref="Version"/> the indexes were (or are being) read for.</summary>
+    private int? _indexesVersion;
 
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
 
@@ -332,12 +360,22 @@ else
             Fire(EnsureAsync);
         }
 
+        if (Shown)
+        {
+            Fire(LoadIndexesAsync);
+        }
+
         _wasShown = Shown;
     }
 
     private void OnChanged() => Fire(async () =>
     {
         StateHasChanged();
+        if (Shown)
+        {
+            await LoadIndexesAsync();
+        }
+
         // A new model or build: bring the index up to date while the view is shown (cheap when nothing changed).
         if (Shown && Usage.State.Phase == CodeUsagePhase.NotBuilt)
         {
@@ -349,6 +387,30 @@ else
     {
         await Usage.EnsureAsync(_lifetime.Token);
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Reads the table's indexes once per <see cref="Version"/>, as soon as the table has an entity (one round trip; a view
+    /// has none to read). A failure is reported like any other read; the marks then stay away.
+    /// </summary>
+    private async Task LoadIndexesAsync()
+    {
+        if (_indexesVersion == Version || Details.Table.Kind == TableKind.View || Models.Mapping?.EntityOf(Details.Table.Ref) is null
+            || Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        var version = Version;
+        _indexesVersion = version;
+        var table = Details.Table.Ref;
+        var token = _lifetime.Token;
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetIndexesAsync(table, token), token);
+        if (result.Succeeded && _indexesVersion == version)
+        {
+            _indexes = result.Value;
+            StateHasChanged();
+        }
     }
 
     private async Task RefreshAsync()
