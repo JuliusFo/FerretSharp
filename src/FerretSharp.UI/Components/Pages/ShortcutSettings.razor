@@ -1,6 +1,7 @@
 @* Settings › Shortcuts (WP-25): every shortcut in one list – the changeable ones with "Change" (press the keys) and
    "Reset", the fixed ones greyed out. Doubles as the overview of which key does what. Changes apply at once. *@
 @implements IAsyncDisposable
+@inject ConnectionGroups ConnectionGroups
 @inject ShortcutService Shortcuts
 @inject IJSRuntime JS
 @inject ILogger<ShortcutSettings> Logger
@@ -107,7 +108,7 @@
 @* WP-66: the keys of connections, set in the connection's dialog; here to see them all and remove one. *@
 @if (Filter.ShowsGroup(SettingsViewText.Shortcuts_ConnectionsGroup))
 {
-    var keys = SettingsCatalog.ConnectionKeys(Map, Connections.Profiles);
+    var keys = SettingsCatalog.ConnectionKeys(Map, Connections.Profiles, ConnectionGroups.Order);
     <section class="settings-section">
         <h2>@(Filter.IsActive ? TextFormat.Format(SettingsViewText.Settings_ShortcutGroupInSearch, SettingsViewText.Shortcuts_ConnectionsGroup) : SettingsViewText.Shortcuts_ConnectionsGroup)</h2>
         @if (!Filter.IsActive)

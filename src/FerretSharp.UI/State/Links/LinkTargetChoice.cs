@@ -24,7 +24,7 @@ public sealed class LinkTargetChoice
         _request = request;
         _profiles = profiles;
         _order = order;
-        _suggestions = request.Link is { } link ? LinkConnectionMatch.Suggestions(profiles, link) : [];
+        _suggestions = request.Link is { } link ? LinkConnectionMatch.Suggestions(profiles, link, order) : [];
         Choosing = request.Link is not null && request.Match.Profile is null && request.Match.Candidates.Count == 0 && profiles.Count > 0;
     }
 

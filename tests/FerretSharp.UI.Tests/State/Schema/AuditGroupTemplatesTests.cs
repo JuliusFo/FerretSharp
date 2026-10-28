@@ -24,6 +24,18 @@ public sealed class AuditGroupTemplatesTests
             rows);
     }
 
+    /// <summary>Review of WP-66: the groups follow the user's order like the connection list; entries without a group after them.</summary>
+    [Fact]
+    public void Groups_follow_the_users_order_and_orphans_come_last()
+    {
+        var profiles = new[] { Profile("DEV", "ERP"), Profile("DEV", "Kasse"), Profile("DEV", "Zoll") };
+        var entries = SettingsMap.From([new("Alt", @"C:\alt.sql")]);
+
+        var rows = AuditGroupTemplates.Of(profiles, entries, ["Zoll"]);
+
+        Assert.Equal(["Zoll", "ERP", "Kasse", "Alt"], rows.Select(r => r.Group));
+    }
+
     [Fact]
     public void Setting_a_template_keeps_one_entry_per_group_and_empty_removes_it()
     {
