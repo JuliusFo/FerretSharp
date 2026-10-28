@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -10,7 +11,7 @@ namespace FerretSharp.Core.ClrModel;
 /// <summary>
 /// Reads an assembly's IL without loading it (WP-40, ADR 0030): which getters and setters of types of the solution its
 /// methods call, which getters its expression trees name (<c>ldtoken</c>; the property an <c>ExecuteUpdate</c> sets counts as
-/// written), where it calls <c>DbContext.Set&lt;T&gt;()</c> –
+/// written, a condition of <c>Where</c>, <c>Any</c>, <c>First</c> … as a filter), where it calls <c>DbContext.Set&lt;T&gt;()</c> –
 /// with file and line from the portable PDB. Other calls (framework, packages) are not kept.
 /// </summary>
 public static class IlUsageScanner
@@ -19,6 +20,33 @@ public static class IlUsageScanner
 
     /// <summary>EF Core 7–9: <c>ExecuteUpdate(s =&gt; s.SetProperty(x =&gt; x.Email, …))</c> writes <c>Email</c>.</summary>
     private const string SetPropertyCallsType = "Microsoft.EntityFrameworkCore.Query.SetPropertyCalls`1";
+
+    private const string TreeType = "System.Linq.Expressions.Expression";
+
+    private const string ExpressionType = "System.Linq.Expressions.Expression`1";
+
+    private static readonly FrozenSet<short> Loads = new[]
+    {
+        OpCodes.Ldloc, OpCodes.Ldloc_S, OpCodes.Ldloc_0, OpCodes.Ldloc_1, OpCodes.Ldloc_2, OpCodes.Ldloc_3,
+        OpCodes.Ldarg, OpCodes.Ldarg_S, OpCodes.Ldarg_0, OpCodes.Ldarg_1, OpCodes.Ldarg_2, OpCodes.Ldarg_3,
+    }.Select(o => o.Value).ToFrozenSet();
+
+    private static readonly FrozenSet<short> Stores = new[]
+    {
+        OpCodes.Stloc, OpCodes.Stloc_S, OpCodes.Stloc_0, OpCodes.Stloc_1, OpCodes.Stloc_2, OpCodes.Stloc_3,
+        OpCodes.Starg, OpCodes.Starg_S, OpCodes.Stfld, OpCodes.Stsfld, OpCodes.Stind_Ref, OpCodes.Ret,
+    }.Select(o => o.Value).ToFrozenSet();
+
+    /// <summary>EF's async operators: <c>FirstOrDefaultAsync</c>, <c>AnyAsync</c> …</summary>
+    private const string EfQueryableType = "Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions";
+
+    /// <summary>
+    /// Operators whose lambda is a condition on the rows (also with the suffix <c>Async</c>). Not <c>OrderBy</c>, <c>Join</c>
+    /// or <c>GroupBy</c>: a missing index costs a sort or a hash join there, not a scan for a few rows. Not <c>All</c>: it
+    /// becomes <c>NOT EXISTS (… WHERE NOT …)</c>, an index on the column seldom helps.
+    /// </summary>
+    private static readonly FrozenSet<string> FilterOperators = FrozenSet.Create(StringComparer.Ordinal,
+        "Where", "Any", "Count", "LongCount", "First", "FirstOrDefault", "Single", "SingleOrDefault", "Last", "LastOrDefault");
 
     /// <param name="solutionAssemblies">
     /// Names of the solution's assemblies: a use counts only if its type is defined in one of them (the assembly itself
@@ -133,6 +161,15 @@ public static class IlUsageScanner
             // ExecuteUpdate(s => s.SetProperty(x => x.Email, …)) is an expression tree: the compiler names SetProperty
             // (ldtoken) before it builds the arguments, so the next getter named is the property written.
             var selectorNext = false;
+            // Getters an expression tree names wait for the call that takes the tree: Where(c => c.Email == x) filters by
+            // Email, Select(c => c.Email) does not. The tree is built before the call, its nested lambdas name their
+            // methods by ldtoken, so the first real call taking an Expression<T> is the one.
+            var pending = new List<CodeUse>();
+            // The tree built so far ends in a value, not in the lambda's parameter: in c => c.No == customer.No the compiler
+            // emits Expression.Field(Expression.Constant(closure), customer) before get_No, while c.No starts with ldloc of
+            // the parameter. A value's getters (customer.No, this.current.Id, request.Customer.Name) are not filtered by.
+            var onValue = false;
+            var treeBuilt = false;
             var offset = 0;
             while (offset < il.Length)
             {
@@ -147,6 +184,24 @@ public static class IlUsageScanner
                 {
                     opCode = IlOpCodes.OneByte[il[offset]];
                     offset += 1;
+                }
+
+                // A tree kept in a variable, a field or returned: Where(c => c.Status == s).OrderBy(key) must not take the
+                // getters of key built before. A nested lambda goes into an array (stelem), it stays with the outer tree.
+                if (treeBuilt && IsStore(opCode))
+                {
+                    Flush(pending, CodeUseKind.Expression);
+                }
+
+                var afterTree = treeBuilt;
+                treeBuilt = false;
+                if (IsLoad(opCode))
+                {
+                    onValue = false;
+                }
+                else if (opCode == OpCodes.Ldnull)
+                {
+                    onValue = true;
                 }
 
                 if (opCode.OperandType is OperandType.InlineMethod or OperandType.InlineTok)
@@ -166,13 +221,102 @@ public static class IlUsageScanner
                         caller ??= Callers.Of(reader, typeHandle, methodHandle, _names);
                         points ??= SequencePoints(methodHandle);
                         var (document, line) = Locate(points.Value, start);
-                        Uses.Add(new CodeUse(found.Type, found.Member, isSelector ? CodeUseKind.Write : found.Kind, caller.Type, caller.Method, document, line));
+                        var use = new CodeUse(found.Type, found.Member, isSelector ? CodeUseKind.Write : found.Kind, caller.Type, caller.Method, document, line);
+                        if (use.Kind == CodeUseKind.Expression && !onValue)
+                        {
+                            pending.Add(use);
+                        }
+                        else
+                        {
+                            Uses.Add(use);
+                        }
+                    }
+
+                    if (opCode.FlowControl == FlowControl.Call && method is { Declaring.Name: TreeType } building)
+                    {
+                        // A member or a conversion keeps what its operand was: request.Customer.Name stays on the value,
+                        // c.Customer.Name on the parameter. Anything else (a call, a comparison) starts anew.
+                        onValue = building.Name == "Constant" || (onValue && building.Name is "Property" or "Field" or "Convert" or "ConvertChecked" or "TypeAs");
+                        treeBuilt = building.Name == "Lambda";
+                    }
+                    else if (pending.Count > 0 && opCode.FlowControl == FlowControl.Call && method is { } taker && !BuildsTrees(taker)
+                        && Signature(MetadataTokens.EntityHandle(token)) is { } signature)
+                    {
+                        if (TakesTree(signature))
+                        {
+                            Flush(pending, IsFilter(taker) ? CodeUseKind.Filter : CodeUseKind.Expression);
+                        }
+                        else if (afterTree && (signature.ParameterTypes.Length > 0 || (signature.Header.IsInstance && opCode != OpCodes.Newobj)))
+                        {
+                            // The call right after the lambda takes the tree as its last argument (or as this), but not as
+                            // an Expression<T>: a dictionary of sort keys, List.Add. CancellationToken.None and a
+                            // constructor without arguments (FirstOrDefault(…, new Ticket())) do not take it.
+                            Flush(pending, CodeUseKind.Expression);
+                        }
                     }
                 }
 
                 offset += IlOpCodes.OperandSize(opCode.OperandType, il, offset);
             }
+
+            // No call took the tree (kept in a way not seen above): who uses it is not known here.
+            Flush(pending, CodeUseKind.Expression);
         }
+
+        private void Flush(List<CodeUse> pending, CodeUseKind kind)
+        {
+            foreach (var use in pending)
+            {
+                Uses.Add(use with { Kind = kind });
+            }
+
+            pending.Clear();
+        }
+
+        /// <summary>Building the tree itself: <c>Expression.Property</c>, <c>MethodBase.GetMethodFromHandle</c>, <c>Array.Empty</c> …</summary>
+        private static bool BuildsTrees(MethodName method) =>
+            method.Declaring.Name is TreeType or "System.Reflection.MethodBase" or "System.Reflection.FieldInfo" or "System.Type" or "System.Array";
+
+        /// <summary>A local or an argument: in a tree, the lambda's parameter (or the closure a value comes from).</summary>
+        private static bool IsLoad(OpCode opCode) => Loads.Contains(opCode.Value);
+
+        /// <summary>The value just built goes into a local, an argument, a field, through a reference or is returned.</summary>
+        private static bool IsStore(OpCode opCode) => Stores.Contains(opCode.Value);
+
+        /// <summary>LINQ's and EF's operators whose lambda is a condition on the rows: <c>Where</c>, <c>Any</c>, <c>FirstOrDefaultAsync</c> …</summary>
+        private static bool IsFilter(MethodName method)
+        {
+            if (method.Declaring.Name is not ("System.Linq.Queryable" or EfQueryableType))
+            {
+                return false;
+            }
+
+            var name = method.Name.EndsWith("Async", StringComparison.Ordinal) ? method.Name[..^5] : method.Name;
+            return FilterOperators.Contains(name);
+        }
+
+        /// <summary>The called method's signature (a generic one by its definition); null for anything else.</summary>
+        private MethodSignature<TypeName>? Signature(EntityHandle handle)
+        {
+            if (handle.Kind == HandleKind.MethodSpecification)
+            {
+                handle = reader.GetMethodSpecification((MethodSpecificationHandle)handle).Method;
+            }
+
+            return handle.Kind switch
+            {
+                HandleKind.MethodDefinition => reader.GetMethodDefinition((MethodDefinitionHandle)handle).DecodeSignature(_names, null),
+                HandleKind.MemberReference => reader.GetMemberReference((MemberReferenceHandle)handle).DecodeMethodSignature(_names, null),
+                _ => null,
+            };
+        }
+
+        /// <summary>
+        /// A parameter of the called method is an <c>Expression&lt;T&gt;</c>: the call takes the tree just built. Also
+        /// <c>params Expression&lt;T&gt;[]</c>: Include-like helpers of the solution taking several trees.
+        /// </summary>
+        private static bool TakesTree(MethodSignature<TypeName> signature) =>
+            signature.ParameterTypes.Any(p => p.Name is ExpressionType or ExpressionType + "[]");
 
         /// <summary>The method behind a token with its declaring type (a generic one by its definition); null for anything else.</summary>
         private MethodName? Method(EntityHandle handle)

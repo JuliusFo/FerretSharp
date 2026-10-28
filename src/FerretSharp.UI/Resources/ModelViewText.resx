@@ -260,6 +260,31 @@
   <data name="Usage_KindQuery" xml:space="preserve">
     <value>query</value>
   </data>
+  <data name="Usage_KindFilter" xml:space="preserve">
+    <value>filters</value>
+    <comment>Kind of a use: a LINQ condition (Where, Any, First …) on the property</comment>
+  </data>
+  <data name="Usage_NoIndex" xml:space="preserve">
+    <value>no index</value>
+    <comment>Mark of a column the code filters by without an index</comment>
+  </data>
+  <data name="Usage_NoIndexTitle" xml:space="preserve">
+    <value>Code filters by this column (Where, Any, First …), but no visible, usable index starts with it: Oracle may read the whole table (full table scan). Only the execution plan tells for sure.</value>
+  </data>
+  <data name="Usage_NoIndexOne" xml:space="preserve">
+    <value>{0} column the code filters by has no index:</value>
+    <comment>Followed by the columns. {0} = number of columns</comment>
+  </data>
+  <data name="Usage_NoIndexOther" xml:space="preserve">
+    <value>{0} columns the code filters by have no index:</value>
+    <comment>Followed by the columns. {0} = number of columns</comment>
+  </data>
+  <data name="Usage_NoIndexHint" xml:space="preserve">
+    <value>A query filtering by such a column may read the whole table (full table scan). Read from the code, without data volumes or statistics – only the execution plan tells for sure.</value>
+  </data>
+  <data name="Usage_IndexesFailed" xml:space="preserve">
+    <value>Without the indexes, columns filtered without one are not marked.</value>
+  </data>
   <data name="Usage_Projects" xml:space="preserve">
     <value>{0} projects</value>
   </data>

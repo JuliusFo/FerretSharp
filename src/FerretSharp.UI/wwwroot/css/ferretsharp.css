@@ -539,6 +539,8 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 /* Code usage (WP-40): unused columns, uses in tests and mapping code. */
 .fs-badge.unused { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
 .fs-badge.test, .fs-badge.mapping { background: var(--surface-2); color: var(--faint); font-weight: 600; }
+/* A frame tells it from "unused" in the same column (decision of the user); inset, so the row keeps its height. */
+.fs-badge.no-index { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
 .usage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 4px 0 12px; }
 .usage-tabs .seg-count { margin-left: 6px; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .usage-tabs .seg-count.unused { color: var(--key); }

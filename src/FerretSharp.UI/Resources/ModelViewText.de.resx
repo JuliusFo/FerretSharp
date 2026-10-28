@@ -216,6 +216,27 @@
   <data name="Usage_KindQuery" xml:space="preserve">
     <value>Abfrage</value>
   </data>
+  <data name="Usage_KindFilter" xml:space="preserve">
+    <value>filtert</value>
+  </data>
+  <data name="Usage_NoIndex" xml:space="preserve">
+    <value>kein Index</value>
+  </data>
+  <data name="Usage_NoIndexTitle" xml:space="preserve">
+    <value>Code filtert nach dieser Spalte (Where, Any, First …), aber kein sichtbarer, nutzbarer Index beginnt mit ihr: Oracle liest dann womöglich die ganze Tabelle (Full Table Scan). Sicher sagt es erst der Ausführungsplan.</value>
+  </data>
+  <data name="Usage_NoIndexOne" xml:space="preserve">
+    <value>{0} Spalte, nach der der Code filtert, hat keinen Index:</value>
+  </data>
+  <data name="Usage_NoIndexOther" xml:space="preserve">
+    <value>{0} Spalten, nach denen der Code filtert, haben keinen Index:</value>
+  </data>
+  <data name="Usage_NoIndexHint" xml:space="preserve">
+    <value>Abfragen, die danach filtern, lesen womöglich die ganze Tabelle (Full Table Scan). Aus dem Code gelesen, ohne Datenmengen und Statistiken – sicher sagt es erst der Ausführungsplan.</value>
+  </data>
+  <data name="Usage_IndexesFailed" xml:space="preserve">
+    <value>Ohne die Indizes sind Spalten, nach denen ohne Index gefiltert wird, nicht markiert.</value>
+  </data>
   <data name="Usage_Projects" xml:space="preserve">
     <value>{0} Projekte</value>
   </data>

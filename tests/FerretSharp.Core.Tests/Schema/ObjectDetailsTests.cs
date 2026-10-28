@@ -63,4 +63,22 @@ public class ObjectDetailsTests
         Assert.Single(IndexAdvice.UnindexedForeignKeys([fk], [Index("IX_MANDANT", Col("MANDANT"))]));
         Assert.Single(IndexAdvice.UnindexedForeignKeys([fk], [Index("IX_MANDANT_X", Col("MANDANT"), Col("X"), Col("AUFTRAG_NR"))]));
     }
+
+    [Fact]
+    public void A_column_has_an_index_only_if_a_visible_usable_index_starts_with_it()
+    {
+        var indexes = new[]
+        {
+            Index("IX_KUNDE_DATUM", Col("KUNDE_ID"), Col("DATUM")),
+            Index("IX_STATUS", Col("STATUS")) with { Visible = false },
+            Index("IX_LAND", Col("LAND")) with { Status = "UNUSABLE" },
+            Index("IX_UPPER_NAME", new IndexColumn("UPPER(\"NAME\")", true, false)),
+        };
+
+        Assert.True(IndexAdvice.HasIndexFor("KUNDE_ID", indexes));
+        Assert.False(IndexAdvice.HasIndexFor("DATUM", indexes));
+        Assert.False(IndexAdvice.HasIndexFor("STATUS", indexes));
+        Assert.False(IndexAdvice.HasIndexFor("LAND", indexes));
+        Assert.False(IndexAdvice.HasIndexFor("NAME", indexes));
+    }
 }
