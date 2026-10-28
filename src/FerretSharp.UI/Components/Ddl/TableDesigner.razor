@@ -300,12 +300,18 @@ else
     /// Whether the audit box takes part: always for a table with an audit table, for one without (or a new table) only when
     /// audit tables may be created – a box ticked before the setting was turned off creates nothing.
     /// </summary>
-    private bool CanAudit => ColumnDesigner.CanAudit(NewTab is null && _audit?.AuditTable is not null, Settings.Current.CreateAuditTables);
+    private bool CanAudit => ColumnDesigner.CanAudit(HasAuditTable, Settings.Current.CreateAuditTables);
+
+    /// <summary>The audit box is ticked and takes part (<see cref="ColumnDesigner.AuditTakesPart"/>).</summary>
+    private bool AuditTakesPart(ColumnDesigner designer) => designer.AuditTakesPart(HasAuditTable, Settings.Current.CreateAuditTables);
+
+    /// <summary>An existing table whose audit table is there; a new table has none yet.</summary>
+    private bool HasAuditTable => NewTab is null && _audit?.AuditTable is not null;
 
     /// <summary>The designer's plan with the audit table and trigger, if the box is on (WP-26): one script, checked as one.</summary>
     private DesignPlan WithAudit(ColumnDesigner designer, TableDraft draft, DesignPlan plan, AuditTemplateLoad audit)
     {
-        if (designer.WithAudit != true || !CanAudit || AuditTable is not { } table)
+        if (!AuditTakesPart(designer) || AuditTable is not { } table)
         {
             return plan;
         }
@@ -737,7 +743,7 @@ else
 
     private RenderFragment AuditTab(ColumnDesigner designer, AuditTemplateLoad audit) => @<div class="designer-audit">
         <label class="check" title="@(CanAudit ? SchemaViewText.Audit_DesignerTitle : SchemaViewText.Audit_DesignerCreateOff)">
-            <input type="checkbox" checked="@(designer.WithAudit == true && CanAudit)" disabled="@(!CanAudit)" @onchange="e => designer.WithAudit = e.Value is true" />
+            <input type="checkbox" checked="@AuditTakesPart(designer)" disabled="@(!CanAudit)" @onchange="e => designer.WithAudit = e.Value is true" />
             @(_audit?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
         </label>
         @if (audit.Template is { } template && AuditTable is { } auditTable)

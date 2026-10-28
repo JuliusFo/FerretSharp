@@ -482,6 +482,19 @@ public sealed class ColumnDesignerTests
     public void The_audit_box_takes_part_unless_it_would_create_an_audit_table_that_may_not_be_created(bool hasAuditTable, bool createAllowed, bool expected) =>
         Assert.Equal(expected, ColumnDesigner.CanAudit(hasAuditTable, createAllowed));
 
+    /// <summary>Code review: a box ticked before creating was switched off survives a rebase but puts no audit into the plan.</summary>
+    [Fact]
+    public void A_ticked_audit_box_takes_part_only_where_the_audit_may_be_planned()
+    {
+        var designer = new ColumnDesigner(Kunde, []) { WithAudit = true }.Rebase(Kunde, []);
+
+        Assert.False(designer.AuditTakesPart(hasAuditTable: false, createAllowed: false));
+        Assert.True(designer.AuditTakesPart(hasAuditTable: false, createAllowed: true));
+        Assert.True(designer.AuditTakesPart(hasAuditTable: true, createAllowed: false));
+        Assert.False(new ColumnDesigner(Kunde, []) { WithAudit = false }.AuditTakesPart(hasAuditTable: true, createAllowed: true));
+        Assert.False(new ColumnDesigner(Kunde, []).AuditTakesPart(hasAuditTable: true, createAllowed: true));
+    }
+
     [Fact]
     public void Not_null_check_constraints_belong_to_their_columns_and_are_not_listed()
     {

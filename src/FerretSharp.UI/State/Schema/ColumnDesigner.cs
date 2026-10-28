@@ -385,6 +385,12 @@ public sealed class ColumnDesigner
     /// </summary>
     public static bool CanAudit(bool hasAuditTable, bool createAllowed) => hasAuditTable || createAllowed;
 
+    /// <summary>
+    /// Whether the audit objects go into the plan: the box ticked and able to take part (<see cref="CanAudit"/>) – a box
+    /// ticked before creating was switched off, kept over a rebase, creates nothing.
+    /// </summary>
+    public bool AuditTakesPart(bool hasAuditTable, bool createAllowed) => WithAudit == true && CanAudit(hasAuditTable, createAllowed);
+
     /// <summary>The names of the columns as drafted (renamed, new), without dropped ones – for constraint columns.</summary>
     public IReadOnlyList<string> ColumnNames => Columns.Where(c => !c.Dropped && c.Name.Trim().Length > 0).Select(c => c.Name.Trim()).ToList();
 
