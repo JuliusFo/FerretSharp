@@ -3,6 +3,7 @@
    the user open it on another connection of their own (LinkTargetChoice, ADR 0026 addendum). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Links
+@inject ConnectionGroups Groups
 @inject ConnectionHub Hub
 @inject ConnectionManager Connections
 @inject AppSettingsService Settings
@@ -144,7 +145,7 @@
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
     /// <summary>The choice of the connection, for this request (a new link brings a new one).</summary>
-    private LinkTargetChoice Choice => _choice ??= new(Request, Connections.Profiles);
+    private LinkTargetChoice Choice => _choice ??= new(Request, Connections.Profiles, Groups.Order);
 
     /// <summary>The connection the link opens on: the one found, or the one the user picked.</summary>
     private ConnectionProfile? Target => Choice.Target;

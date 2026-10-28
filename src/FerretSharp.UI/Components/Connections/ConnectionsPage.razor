@@ -1,15 +1,19 @@
 @using FerretSharp.Core.Connections
-@implements IDisposable
+@implements IAsyncDisposable
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
 @inject RecentConnections Recent
+@inject ConnectionGroups Groups
+@inject ShortcutService Shortcuts
+@inject IJSRuntime JS
+@inject ILogger<ConnectionsPage> Logger
 
 <div class="connections-page @(Connections.Profiles.Count == 0 ? "is-empty" : "")">
     <div class="page-head">
         <h1>@ConnectionViewText.Connections_Title <span class="count">@Connections.Profiles.Count</span></h1>
         <SearchBox @bind-Value="_query" Class="search grow" Placeholder="@ConnectionViewText.Connections_Search" />
         <button class="btn" @onclick="Shell.OpenImport">@ConnectionViewText.Import_Button</button>
-        <button class="btn primary" @onclick="Shell.NewConnection"><span class="plus">+</span> @ConnectionViewText.Connection_New</button>
+        <button class="btn primary" @onclick="() => Shell.NewConnection()"><span class="plus">+</span> @ConnectionViewText.Connection_New</button>
         <MoreMenu Class="page-more" Items="PageMenu" />
     </div>
 
@@ -19,7 +23,7 @@
         <div class="connections-empty">
             <EmptyState Title="@ConnectionViewText.Connections_Welcome" Text="@ConnectionViewText.Connections_WelcomeText">
                 <div class="empty-buttons">
-                    <button class="btn primary" @onclick="Shell.NewConnection">@ConnectionViewText.Connections_Add</button>
+                    <button class="btn primary" @onclick="() => Shell.NewConnection()">@ConnectionViewText.Connections_Add</button>
                     <button class="btn" @onclick="Shell.OpenImport">@ConnectionViewText.Import_Button</button>
                 </div>
             </EmptyState>
@@ -27,21 +31,33 @@
     }
     else
     {
-        var groups = ConnectionSearch.Group(Connections.Profiles, _query);
+        var groups = Groups.All(_query);
+        var searching = !string.IsNullOrWhiteSpace(_query);
         @if (groups.Count == 0)
         {
             <div class="page-hint">@TextFormat.Format(ConnectionViewText.Connection_NoMatch, _query)</div>
         }
 
-        <div class="conn-table">
-            @foreach (var group in groups)
+        @* Connections are dragged into a group, group heads before or after another (WP-66, dom.js dragAfter). *@
+        <div class="conn-table" @ref="_table">
+            @for (var i = 0; i < groups.Count; i++)
             {
-                var key = group.Name ?? "";
-                var collapsed = string.IsNullOrWhiteSpace(_query) && _collapsed.Contains(key);
-                <section class="conn-group">
+                var group = groups[i];
+                var index = i;
+                var collapsed = !searching && Groups.IsCollapsed(group.Name);
+                <section class="conn-group @DragClass(index)" data-drop="@index">
                     @* Before the head: the line styles rely on the head being directly followed by the first line. *@
-                    <MoreMenu Class="group-more" Items="GroupMenu(group.Name)" />
-                    <button class="group-head-btn" @onclick="() => ToggleGroup(key)">
+                    <MenuButton Class="icon-btn ghost more group-more" Title="@ConnectionViewText.GroupMenu_Title" Label="Dots" StopPropagation="true"
+                                Width="GroupMenuWidth" EstimatedHeight="200" KeyNavigation="true">
+                        <ChildContent Context="menu">
+                            <ConnectionGroupMenuBody Group="group" OnClose="menu.Close" />
+                        </ChildContent>
+                    </MenuButton>
+                    <button class="group-head-btn @(group.Name is not null && !searching ? "draggable" : "")"
+                            title="@(group.Name is not null && !searching ? ConnectionViewText.Connections_DragGroupTitle : null)"
+                            @onclick="() => ToggleAsync(group.Name)"
+                            @oncontextmenu="e => _groupMenu!.OpenAsync(e, group)" @oncontextmenu:preventDefault="true"
+                            @onpointerdown="e => DragGroupAsync(index, group, e)">
                         <span class="chev @(collapsed ? "closed" : "")">@Icons.ChevronDown</span>
                         <span>@(group.Name ?? ConnectionViewText.Connection_NoGroup)</span>
                         <span class="count">@group.Profiles.Count</span>
@@ -53,7 +69,9 @@
                         {
                             var p = profile;
                             <div class="conn-line @ConnectionKindInfo.CssClass(p.Kind)" title="@ConnectionViewText.Connections_DoubleClickToConnect"
-                                 @onclick="e => ConnectOnDoubleClick(e, p)">
+                                 @onclick="e => ConnectOnDoubleClick(e, p)"
+                                 @oncontextmenu="e => _rowMenu!.OpenAsync(e, p)" @oncontextmenu:preventDefault="true"
+                                 @onpointerdown="e => DragConnectionAsync(p, e)">
                                 <span class="dot"></span>
                                 <span class="name">
                                     @p.Name
@@ -61,11 +79,15 @@
                                     {
                                         <span class="connected-tag">@(scope == Hub.Current ? ConnectionViewText.Connection_TagShown : ConnectionViewText.Connection_TagConnected)</span>
                                     }
+                                    @if (Shortcuts.ConnectionKey(p.Id) is { } key)
+                                    {
+                                        <kbd class="conn-key" title="@ConnectionViewText.ConnectionMenu_KeyTitle">@key</kbd>
+                                    }
                                 </span>
                                 <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
                                 <span class="addr">@p.Address.Display@(p.Address is TnsAliasAddress ? " (TNS)" : "")</span>
                                 <span class="user">@p.User@(p.DefaultSchema is { } schema ? $" → {schema}" : "")</span>
-                                <span class="last-used">@LastUsedText(p)</span>
+                                <span class="last-used">@ConnectionLastUsed.Text(Recent.LastUsed.TryGetValue(p.Id, out var used) ? used : null, DateTime.Today)</span>
                                 <ConnectionActionsMenu Profile="p" />
                             </div>
                         }
@@ -73,6 +95,13 @@
                 </section>
             }
         </div>
+
+        <ContextMenuHost @ref="_rowMenu" TItem="ConnectionProfile" Width="ConnectionActionsMenu.MenuWidth" EstimatedHeight="260">
+            <ConnectionMenuBody Profile="context" OnClose="() => _rowMenu!.Close()" />
+        </ContextMenuHost>
+        <ContextMenuHost @ref="_groupMenu" TItem="ConnectionGroup" Width="GroupMenuWidth" EstimatedHeight="200">
+            <ConnectionGroupMenuBody Group="context" OnClose="() => _groupMenu!.Close()" />
+        </ContextMenuHost>
     }
 </div>
 
@@ -80,14 +109,25 @@
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
 
-    private readonly HashSet<string> _collapsed = [];
+    /// <summary>The width of a group's menu, also on a right-click.</summary>
+    private const double GroupMenuWidth = 360;
+
+    private static readonly RenderFragment Dots = @<text>@Icons.More</text>;
+
     private string _query = "";
+    private ElementReference _table;
+    private ContextMenuHost<ConnectionProfile>? _rowMenu;
+    private ContextMenuHost<ConnectionGroup>? _groupMenu;
+    private DomModule? _dom;
+    private bool _disposed;
+
+    /// <summary>The index of the group head being dragged: the others show on which side it would go.</summary>
+    private int? _draggedGroup;
+
+    private DomModule Dom => _dom ??= new(JS);
 
     private IReadOnlyList<MoreMenuItem> PageMenu =>
         [new(ConnectionViewText.Export_Button, () => Shell.OpenExport(new ConnectionExportRequest()), Connections.Profiles.Count > 0)];
-
-    private IReadOnlyList<MoreMenuItem> GroupMenu(string? group) =>
-        [new(ConnectionViewText.Export_GroupButton, () => Shell.OpenExport(new ConnectionExportRequest(OnlyGroup: true, group)))];
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -106,40 +146,94 @@
         Connections.Changed += OnConnectionsChanged;
         Active.Changed += OnConnectionsChanged;
         Hub.Changed += OnConnectionsChanged;
+        Groups.Changed += OnConnectionsChanged;
+        Shortcuts.Changed += OnConnectionsChanged;
     }
 
-    private string LastUsedText(ConnectionProfile profile)
+    private async Task ToggleAsync(string? group)
     {
-        if (!Recent.LastUsed.TryGetValue(profile.Id, out var lastUsed))
+        if (!await Groups.ToggleAsync(group))
         {
-            return "";
+            Shell.Notify(ConnectionViewText.Group_StateNotSaved);
+        }
+    }
+
+    /// <summary>Where a dragged group head would go relative to this group: the line above or below it.</summary>
+    private string DragClass(int index) =>
+        _draggedGroup is not { } dragged || dragged == index ? "" : index < dragged ? "drop-before" : "drop-after";
+
+    /// <summary>Drags a connection onto a group – its head or its connections –, also "without group" (WP-66).</summary>
+    private async Task DragConnectionAsync(ConnectionProfile profile, PointerEventArgs e)
+    {
+        if (e.Button != 0)
+        {
+            return;
         }
 
-        var local = lastUsed.ToLocalTime();
-        var days = (DateTime.Today - local.Date).Days;
-        return days switch
+        var drop = await Dom.InvokeAsync<string?>("dragAfter", _table, e.PointerId, e.ClientX, e.ClientY, ".conn-group[data-drop]", "drop-into");
+        var groups = Groups.All(_query);
+        if (_disposed || !int.TryParse(drop, CultureInfo.InvariantCulture, out var index) || index < 0 || index >= groups.Count)
         {
-            0 => TextFormat.Format(ConnectionViewText.Connections_TodayAt, local),
-            1 => TextFormat.Format(ConnectionViewText.Connections_YesterdayAt, local),
-            < 7 => TextFormat.Format(ConnectionViewText.Connections_DaysAgo, days),
-            _ => local.ToString("dd.MM.yyyy", CultureInfo.CurrentCulture),
-        };
+            return;
+        }
+
+        try
+        {
+            await Groups.MoveConnectionAsync(profile, groups[index].Name);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Logger.LogWarning(ex, "Moving connection {Name} to another group failed", profile.Name);
+            Shell.Notify(TextFormat.Format(CommonText.SaveFailed, ex.Message));
+        }
     }
 
-    private void ToggleGroup(string key)
+    /// <summary>Drags a group head before or after another group; not while searching, nor "without group" (always last).</summary>
+    private async Task DragGroupAsync(int from, ConnectionGroup group, PointerEventArgs e)
     {
-        if (!_collapsed.Remove(key))
+        if (e.Button != 0 || group.Name is not { } name || !string.IsNullOrWhiteSpace(_query))
         {
-            _collapsed.Add(key);
+            return;
+        }
+
+        _draggedGroup = from;
+        string? drop;
+        try
+        {
+            drop = await Dom.InvokeAsync<string?>("dragAfter", _table, e.PointerId, e.ClientX, e.ClientY, ".conn-group[data-drop]", "drop-line");
+        }
+        finally
+        {
+            _draggedGroup = null;
+        }
+
+        var names = Groups.Names;
+        if (_disposed || !int.TryParse(drop, CultureInfo.InvariantCulture, out var to) || to == from)
+        {
+            return;
+        }
+
+        // Past the named groups ("without group") is the end; down goes after the target, up before it.
+        var before = to >= names.Count ? null : to < from ? names[to] : to + 1 < names.Count ? names[to + 1] : null;
+        if (!await Groups.MoveAsync(name, before))
+        {
+            Shell.Notify(ConnectionViewText.Group_StateNotSaved);
         }
     }
 
     private void OnConnectionsChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         Connections.Changed -= OnConnectionsChanged;
         Active.Changed -= OnConnectionsChanged;
         Hub.Changed -= OnConnectionsChanged;
+        Groups.Changed -= OnConnectionsChanged;
+        Shortcuts.Changed -= OnConnectionsChanged;
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
     }
 }

@@ -216,7 +216,7 @@
     <comment>A shortcut that cannot be changed</comment>
   </data>
   <data name="Shortcuts_ResetAllQuestion" xml:space="preserve">
-    <value>Reset all shortcuts to the defaults?</value>
+    <value>Reset all shortcuts to the defaults? A connection that has a default key loses it.</value>
   </data>
   <data name="Shortcuts_ResetAll" xml:space="preserve">
     <value>Reset all</value>
@@ -480,5 +480,11 @@
   </data>
   <data name="Settings_AuditHighlightChangesHint" xml:space="preserve">
     <value>The grid of an audit table tints the values that differ from the version before and marks inserts and deletes – as the template says with @version-order and @action. Costs one query more per 500 rows, on the audit table by the base table's key: off for very large audit tables without an index on it.</value>
+  </data>
+  <data name="Shortcuts_ConnectionsGroup" xml:space="preserve">
+    <value>Connections</value>
+  </data>
+  <data name="Shortcuts_ConnectionsHint" xml:space="preserve">
+    <value>A connection gets its shortcut in its dialog (Edit). The key shows the connection from anywhere in FerretSharp, connecting it first if needed.</value>
   </data>
 </root>

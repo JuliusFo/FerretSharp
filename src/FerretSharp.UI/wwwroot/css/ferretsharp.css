@@ -425,6 +425,18 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .conn-line .addr, .conn-line .user { font: 12px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .conn-line .last-used { font-size: 12px; color: var(--faint); text-align: right; white-space: nowrap; }
+/* WP-66: a connection dragged into a group (the group lights up), a group head before or after another (a line). */
+.conn-table.dragging, .conn-table.dragging * { cursor: grabbing !important; user-select: none; }
+.conn-group.drop-into > .group-head-btn { color: var(--accent); }
+.conn-group.drop-into .conn-line { background: var(--accent-weak); }
+.conn-group.drop-line.drop-before { box-shadow: 0 -3px 0 -1px var(--accent); }
+.conn-group.drop-line.drop-after { box-shadow: 0 3px 0 -1px var(--accent); }
+/* The key of a connection (WP-66) after its name. */
+.conn-key { margin-left: 8px; vertical-align: 1px; font-weight: 500; }
+.ctx-conn-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.ctx-head .kind-badge, .ctx-key { flex: none; }
+/* A group's menu has up to five actions: one row. */
+.group-menu-bar .quick-bar.with-captions { grid-template-columns: repeat(5, 1fr); }
 .connected-tag { margin-left: 8px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: color-mix(in srgb, var(--test) 15%, transparent); color: var(--test); vertical-align: 1px; }
 .switcher-name { font-weight: 500; }
 /* The group in front of the name (ConnectionLabel): subdued, cut with "…" so a long group does not push the badge away. */

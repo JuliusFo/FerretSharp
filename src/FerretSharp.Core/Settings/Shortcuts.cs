@@ -65,19 +65,22 @@ public sealed record ShortcutDefinition(ShortcutAction Action, string Group, str
 /// <summary>A shortcut that cannot be changed – listed so the settings page is the one overview of all keys.</summary>
 public sealed record FixedShortcut(string Group, string Label, string Keys, string? Hint = null);
 
-/// <summary>Why a key combination cannot be used for an action, or what it would take from somewhere else.</summary>
+/// <summary>Why a key combination cannot be used for an action or a connection, or what it would take from somewhere else.</summary>
 /// <param name="Error">Not usable at all (taken by Windows, would block typing).</param>
 /// <param name="Conflict">Another action has it; taking it over leaves that one without a shortcut.</param>
 /// <param name="Warning">Usable, but something else loses the key (the editors' or the grid's own keys).</param>
-public sealed record ShortcutCheck(string? Error, ShortcutAction? Conflict, string? Warning)
+/// <param name="ConflictConnection">A connection has it (WP-66); taking it over leaves that one without a shortcut.</param>
+public sealed record ShortcutCheck(string? Error, ShortcutAction? Conflict, string? Warning, Guid? ConflictConnection = null)
 {
-    public bool IsFine => Error is null && Conflict is null && Warning is null;
+    public bool IsFine => Error is null && Conflict is null && Warning is null && ConflictConnection is null;
 }
 
 /// <summary>
 /// The shortcuts in effect: the defaults plus the user's changes from <see cref="AppSettings.Shortcuts"/> (WP-25). Only
 /// differences are stored, keyed by the action's name; an empty value means "no shortcut". Entries this version does
-/// not know (from a newer one) or cannot parse stay in the dictionary untouched and are otherwise ignored.
+/// not know (from a newer one) or cannot parse stay in the dictionary untouched and are otherwise ignored. The keys of
+/// connections (<see cref="AppSettings.ConnectionShortcuts"/>, WP-66) are caught everywhere like global actions and
+/// share their rules; an action with the same key wins.
 /// </summary>
 public sealed class ShortcutMap
 {
@@ -195,17 +198,19 @@ public sealed class ShortcutMap
 
     private readonly IReadOnlyList<ShortcutDefinition> _definitions;
     private readonly Dictionary<ShortcutAction, KeyChord?> _chords = [];
+    private readonly Dictionary<Guid, KeyChord> _connections = [];
 
-    public ShortcutMap(SettingsMap? overrides = null)
-        : this(Definitions, overrides)
+    public ShortcutMap(SettingsMap? overrides = null, SettingsMap? connections = null)
+        : this(Definitions, overrides, connections)
     {
     }
 
     /// <summary>A map over other definitions than <see cref="Definitions"/> (tests).</summary>
-    internal ShortcutMap(IReadOnlyList<ShortcutDefinition> definitions, SettingsMap? overrides = null)
+    internal ShortcutMap(IReadOnlyList<ShortcutDefinition> definitions, SettingsMap? overrides = null, SettingsMap? connections = null)
     {
         _definitions = definitions;
         Overrides = overrides ?? SettingsMap.Empty;
+        ConnectionOverrides = connections ?? SettingsMap.Empty;
         foreach (var definition in _definitions)
         {
             _chords[definition.Action] = definition.DefaultChord;
@@ -221,10 +226,26 @@ public sealed class ShortcutMap
                 }
             }
         }
+
+        // A key an action has, or one a connection before has (edited by hand), does nothing for the connection.
+        foreach (var (id, stored) in ConnectionOverrides)
+        {
+            if (Guid.TryParse(id, out var profileId)
+                && KeyChord.Parse(stored) is { } chord
+                && Rules(chord, ShortcutScope.Global).Error is null
+                && !_chords.ContainsValue(chord)
+                && !_connections.ContainsValue(chord))
+            {
+                _connections[profileId] = chord;
+            }
+        }
     }
 
     /// <summary>The stored differences, as given (including entries this version ignores).</summary>
     public SettingsMap Overrides { get; }
+
+    /// <summary>The stored keys of connections, as given (including entries this version ignores).</summary>
+    public SettingsMap ConnectionOverrides { get; }
 
     public static ShortcutDefinition Definition(ShortcutAction action) => Definitions.First(d => d.Action == action);
 
@@ -237,9 +258,21 @@ public sealed class ShortcutMap
 
     public bool HasChanges => _definitions.Any(d => !IsDefault(d.Action));
 
-    /// <summary>The text forms <c>shortcuts.js</c> catches everywhere.</summary>
+    /// <summary>The text forms <c>shortcuts.js</c> catches everywhere: global actions and connections.</summary>
     public IReadOnlyList<string> GlobalCombos =>
-        [.. _definitions.Where(d => d.Scope == ShortcutScope.Global).Select(d => _chords[d.Action]?.Text).OfType<string>()];
+    [
+        .. _definitions.Where(d => d.Scope == ShortcutScope.Global).Select(d => _chords[d.Action]?.Text).OfType<string>(),
+        .. _connections.Values.Select(c => c.Text),
+    ];
+
+    /// <summary>The key of a connection (WP-66); null if it has none.</summary>
+    public KeyChord? ConnectionChord(Guid profileId) => _connections.GetValueOrDefault(profileId);
+
+    /// <summary>The connection a key combination shows; null if it is no connection's (an action's key wins).</summary>
+    public Guid? ConnectionFor(KeyChord? chord) =>
+        chord is null ? null : _connections.Where(c => c.Value == chord).Select(c => (Guid?)c.Key).FirstOrDefault();
+
+    public Guid? ConnectionFor(string combo) => ConnectionFor(KeyChord.Parse(combo));
 
     /// <summary>The action a key combination triggers where it was caught; with stored duplicates the first one wins.</summary>
     public ShortcutAction? ActionFor(KeyChord? chord, params ShortcutScope[] scopes) =>
@@ -253,6 +286,36 @@ public sealed class ShortcutMap
     public ShortcutCheck Check(ShortcutAction action, KeyChord chord) => Check(action, chord, ignoreConflicts: false);
 
     private ShortcutCheck Check(ShortcutAction action, KeyChord chord, bool ignoreConflicts)
+    {
+        var rules = Rules(chord, Own(action).Scope);
+        if (rules.Error is not null || ignoreConflicts)
+        {
+            return rules;
+        }
+
+        var conflict = _definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord)?.Action;
+        return rules with { Conflict = conflict, ConflictConnection = ConnectionFor(chord) };
+    }
+
+    /// <summary>
+    /// Whether <paramref name="chord"/> may become the key of a connection (WP-66): the rules of a global action, and
+    /// whether an action or another connection has it.
+    /// </summary>
+    public ShortcutCheck CheckConnection(Guid profileId, KeyChord chord)
+    {
+        var rules = Rules(chord, ShortcutScope.Global);
+        if (rules.Error is not null)
+        {
+            return rules;
+        }
+
+        var conflict = _definitions.FirstOrDefault(d => _chords[d.Action] == chord)?.Action;
+        var other = ConnectionFor(chord) is { } id && id != profileId ? id : (Guid?)null;
+        return rules with { Conflict = conflict, ConflictConnection = other };
+    }
+
+    /// <summary>What Windows, typing, the editors and the grid say about a key in a scope, without the conflicts.</summary>
+    private static ShortcutCheck Rules(KeyChord chord, ShortcutScope scope)
     {
         if (Reserved(chord.Text) is { } reserved)
         {
@@ -269,14 +332,12 @@ public sealed class ShortcutMap
             return new ShortcutCheck(SettingsText.NeedsCtrlOrAlt, null, null);
         }
 
-        var scope = Own(action).Scope;
         var inGrid = scope is ShortcutScope.Grid or ShortcutScope.GridAndForm;
         if (inGrid && chord.Text == "ctrl+c")
         {
             return new ShortcutCheck(SettingsText.GridCopiesFirst, null, null);
         }
 
-        var conflict = ignoreConflicts ? null : _definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord)?.Action;
         var warning = scope == ShortcutScope.Global && TakenFromEditors(chord.Text) is { } taken
             ? TextFormat.Format(SettingsText.TakenFromEditor, chord.Label, taken)
             : inGrid && TakenFromGrid(chord.Text) is { } fromGrid
@@ -284,7 +345,7 @@ public sealed class ShortcutMap
                 : chord.Shift && chord.Alt && !chord.Ctrl
                     ? SettingsText.AltShiftSwitchesLanguage
                     : null;
-        return new ShortcutCheck(null, conflict, warning);
+        return new ShortcutCheck(null, null, warning);
     }
 
     /// <summary>
@@ -312,6 +373,39 @@ public sealed class ShortcutMap
     /// <summary>All defaults again; unknown entries (of a newer version) stay.</summary>
     public SettingsMap Reset() =>
         SettingsMap.From(Overrides.Where(e => !Enum.GetNames<ShortcutAction>().Contains(e.Key)));
+
+    /// <summary>
+    /// The stored keys of connections after giving <paramref name="profileId"/> the chord (null: none, also when the
+    /// connection was deleted). Another connection with it loses it; an action with it is the caller's (<see cref="With"/>).
+    /// Unknown entries stay.
+    /// </summary>
+    public SettingsMap WithConnection(Guid profileId, KeyChord? chord)
+    {
+        var result = ConnectionsWithout([chord])
+            .Where(e => !(Guid.TryParse(e.Key, out var id) && id == profileId))
+            .ToDictionary();
+        if (chord is not null)
+        {
+            result[profileId.ToString()] = chord.Text;
+        }
+
+        return SettingsMap.From(result);
+    }
+
+    /// <summary>
+    /// The stored keys of connections without those that have one of <paramref name="chords"/>, for an action taking them
+    /// (<see cref="With"/>, <see cref="Without"/>, <see cref="Reset"/>): with the same key the action wins, and the
+    /// connection's key silently did nothing (as R4a for two actions).
+    /// </summary>
+    public SettingsMap ConnectionsWithout(IEnumerable<KeyChord?> chords)
+    {
+        var taken = chords.OfType<KeyChord>().ToHashSet();
+        return SettingsMap.From(ConnectionOverrides.Where(e =>
+            !(Guid.TryParse(e.Key, out var id) && ConnectionChord(id) is { } chord && taken.Contains(chord))));
+    }
+
+    /// <summary>The default keys of all actions: the connections that lose theirs on <see cref="Reset"/>.</summary>
+    public IEnumerable<KeyChord?> Defaults => _definitions.Select(d => d.DefaultChord);
 
     private void Store(Dictionary<string, string> overrides, ShortcutAction action, KeyChord? chord)
     {

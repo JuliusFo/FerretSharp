@@ -167,7 +167,7 @@ public sealed class ActiveConnection(
             Schema = schema;
             ServerVersion = _connection.ServerVersion;
             FinishSteps();
-            Set(ConnectionStatus.Connected, profile);
+            Set(ConnectionStatus.Connected, Saved(profile));
         }
         catch (OperationCanceledException)
         {
@@ -185,7 +185,7 @@ public sealed class ActiveConnection(
 
             FinishSteps();
             await CloseAsync();
-            Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, ex.ErrorCode) { TimedOut = ex is SessionOpenTimeoutException });
+            Set(ConnectionStatus.Failed, Saved(profile), new ConnectionError(ex.Message, ex.ErrorCode) { TimedOut = ex is SessionOpenTimeoutException });
             return;
         }
         catch (Exception ex)
@@ -193,7 +193,7 @@ public sealed class ActiveConnection(
             // Never leave the UI stuck in "Connecting".
             FinishSteps();
             await CloseAsync();
-            Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, null));
+            Set(ConnectionStatus.Failed, Saved(profile), new ConnectionError(ex.Message, null));
             return;
         }
         finally
@@ -386,6 +386,28 @@ public sealed class ActiveConnection(
             _steps.Add(new LoadStep(step, Stopwatch.GetElapsedTime(_stepTimestamp)));
         }
     }
+
+    /// <summary>
+    /// The connection's profile was saved again (review of WP-66): name, group and paths apply at once – the group's audit
+    /// template and work clone are looked up by the group's name –, changes the session works with only after a new
+    /// connection (<see cref="ConnectionProfile.SessionDiffers"/>, the dialog offers it).
+    /// </summary>
+    public void UseSaved(ConnectionProfile saved)
+    {
+        ArgumentNullException.ThrowIfNull(saved);
+        if (Profile is { } current && current.Id == saved.Id && current != saved && !current.SessionDiffers(saved))
+        {
+            Profile = saved;
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// The profile to keep at the end of connecting: one saved meanwhile (<see cref="UseSaved"/>, review of WP-66) if the
+    /// session it opened is the same, else the one it started with.
+    /// </summary>
+    private ConnectionProfile Saved(ConnectionProfile started) =>
+        Profile is { } now && now.Id == started.Id && !started.SessionDiffers(now) ? now : started;
 
     private void Set(ConnectionStatus status, ConnectionProfile? profile, ConnectionError? error = null)
     {

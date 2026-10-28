@@ -6,6 +6,7 @@
 @inject IJSRuntime JS
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
+@inject ConnectionGroups Groups
 
 <div class="switcher">
     <button class="switcher-btn @(Shell.SwitcherOpen ? "open" : "") @(Active.Profile is { } ap ? ConnectionKindInfo.CssClass(ap.Kind) : "")"
@@ -75,9 +76,9 @@
 
                 @foreach (var group in _groups)
                 {
-                    var key = group.Name ?? "";
-                    var collapsed = !Searching && _collapsed.Contains(key);
-                    <button class="group-head-btn" @onclick="() => ToggleGroup(key)">
+                    var collapsed = !Searching && Groups.IsCollapsed(group.Name);
+                    <button class="group-head-btn" @onclick="() => ToggleGroupAsync(group.Name)"
+                            @oncontextmenu="e => _groupMenu!.OpenAsync(e, group)" @oncontextmenu:preventDefault="true">
                         <span class="chev @(collapsed ? "closed" : "")">@Icons.ChevronDown</span>
                         <span>@(group.Name ?? ConnectionViewText.Connection_NoGroup)</span>
                         <span class="count">@group.Profiles.Count</span>
@@ -93,6 +94,13 @@
                 }
             </div>
 
+            <ContextMenuHost @ref="_rowMenu" TItem="ConnectionProfile" Width="ConnectionActionsMenu.MenuWidth" EstimatedHeight="260">
+                <ConnectionMenuBody Profile="context" OnClose="CloseMenusAndSwitcher" />
+            </ContextMenuHost>
+            <ContextMenuHost @ref="_groupMenu" TItem="ConnectionGroup" Width="360" EstimatedHeight="200">
+                <ConnectionGroupMenuBody Group="context" OnClose="CloseMenusAndSwitcher" />
+            </ContextMenuHost>
+
             <div class="popover-footer">
                 <button class="menu-item" @onclick="NewConnection"><span class="plus">+</span> @ConnectionViewText.Connection_New</button>
                 <button class="menu-item" @onclick="Shell.ShowConnections">@ConnectionViewText.Switcher_ManageAll</button>
@@ -107,8 +115,9 @@
 
     private const int RecentCount = 3;
 
-    private readonly HashSet<string> _collapsed = [];
     private SearchBox? _search;
+    private ContextMenuHost<ConnectionProfile>? _rowMenu;
+    private ContextMenuHost<ConnectionGroup>? _groupMenu;
     private DomModule? _dom;
 
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
@@ -136,7 +145,8 @@
     /// <param name="withGroup">The row is not under its group's heading (open, recent): the group goes in front of the name.</param>
     private RenderFragment Row(ConnectionProfile p, int rowIndex, bool withGroup = false) =>
         @<div id="conn-row-@rowIndex" class="conn-row @ConnectionKindInfo.CssClass(p.Kind) @(rowIndex == _highlight ? "highlight" : "")"
-              @onclick="() => Activate(p)" @onmouseenter="() => _highlight = rowIndex">
+              @onclick="() => Activate(p)" @onmouseenter="() => _highlight = rowIndex"
+              @oncontextmenu="e => _rowMenu!.OpenAsync(e, p)" @oncontextmenu:preventDefault="true">
             <span class="dot"></span>
             <span class="name @(withGroup ? "with-group" : "")">
                 @if (withGroup && ConnectionLabel.GroupOf(p, Settings.Current) is { } group)
@@ -164,6 +174,10 @@
                         <span class="connected-tag tx" title="@ConnectionViewText.Switcher_UncommittedTitle">@TextFormat.Plural(actions, ConnectionViewText.Switcher_ActionsOpenOne, ConnectionViewText.Switcher_ActionsOpenOther)</span>
                     }
                 }
+                @if (Shortcuts.ConnectionKey(p.Id) is { } key)
+                {
+                    <kbd class="conn-key" title="@ConnectionViewText.ConnectionMenu_KeyTitle">@key</kbd>
+                }
             </span>
             <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
             <span class="addr">@p.Address.Display</span>
@@ -186,6 +200,7 @@
         Active.Changed += OnStateChanged;
         Hub.Changed += OnStateChanged;
         Settings.Changed += OnStateChanged;
+        Groups.Changed += OnStateChanged;
     }
 
     /// <summary>Recent, groups and the flat list of visible rows (for keyboard navigation), rebuilt on every render.</summary>
@@ -193,10 +208,10 @@
     {
         _open = Searching ? [] : Hub.Open.Select(s => s.Profile).OfType<ConnectionProfile>().ToList();
         _recent = Searching ? [] : Recent.MostRecent(Connections.Profiles.Where(p => !Hub.IsOpen(p.Id)), RecentCount);
-        _groups = ConnectionSearch.Group(Connections.Profiles, _query);
+        _groups = Groups.All(_query);
         _visible = _open
             .Concat(_recent)
-            .Concat(_groups.Where(g => Searching || !_collapsed.Contains(g.Name ?? "")).SelectMany(g => g.Profiles))
+            .Concat(_groups.Where(g => Searching || !Groups.IsCollapsed(g.Name)).SelectMany(g => g.Profiles))
             .ToList();
         _highlight = Math.Clamp(_highlight, 0, Math.Max(0, _visible.Count - 1));
     }
@@ -244,12 +259,21 @@
         StateHasChanged();
     });
 
-    private void ToggleGroup(string key)
+    /// <summary>Collapsed or not in the switcher and on the connections page alike (WP-66), kept over a restart.</summary>
+    private async Task ToggleGroupAsync(string? group)
     {
-        if (!_collapsed.Remove(key))
+        if (!await Groups.ToggleAsync(group))
         {
-            _collapsed.Add(key);
+            Shell.Notify(ConnectionViewText.Group_StateNotSaved);
         }
+    }
+
+    /// <summary>A right-click menu acted: it closes, and the switcher with it, as after "⋯".</summary>
+    private void CloseMenusAndSwitcher()
+    {
+        _rowMenu?.Close();
+        _groupMenu?.Close();
+        Shell.CloseSwitcher();
     }
 
     private void Activate(ConnectionProfile profile) => Shell.Connect(profile);
@@ -294,6 +318,7 @@
         Active.Changed -= OnStateChanged;
         Hub.Changed -= OnStateChanged;
         Settings.Changed -= OnStateChanged;
+        Groups.Changed -= OnStateChanged;
         await Dom.DisposeAsync();
     }
 }

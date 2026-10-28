@@ -4,6 +4,7 @@
 @using FerretSharp.Core.Compare
 @using FerretSharp.Core.Connections
 @implements IAsyncDisposable
+@inject ConnectionGroups Groups
 @inject SchemaCompareService Compare
 @inject ConnectionManager Connections
 @inject IJSRuntime JS
@@ -46,7 +47,7 @@
                     <span class="compare-side-no">@(index + 1)</span>
                     <select title="@CompareViewText.Compare_Connection" disabled="@Compare.Loading" value="@(profile?.Id.ToString() ?? "")" @onchange="e => SetConnection(index, e.Value as string)">
                         <option value="">@CompareViewText.Compare_ChooseConnection</option>
-                        @foreach (var p in Compare.Choices)
+                        @foreach (var p in Compare.ChoicesIn(Groups.Order))
                         {
                             <option value="@p.Id">@Compare.ChoiceLabel(p)</option>
                         }

@@ -16,18 +16,21 @@ public static class AuditGroupTemplates
 {
     /// <summary>
     /// Every group the connections have, with its template if it has one, and the entries of groups no connection has any
-    /// more – ordered by name as the connection list orders groups.
+    /// more – the groups in the order of the connection list (<paramref name="order"/>, WP-66), the entries without a group after
+    /// them by name.
     /// </summary>
-    public static IReadOnlyList<AuditGroupTemplate> Of(IEnumerable<ConnectionProfile> profiles, IReadOnlyDictionary<string, string> entries)
+    public static IReadOnlyList<AuditGroupTemplate> Of(
+        IEnumerable<ConnectionProfile> profiles, IReadOnlyDictionary<string, string> entries, IReadOnlyList<string>? order = null)
     {
         ArgumentNullException.ThrowIfNull(profiles);
         ArgumentNullException.ThrowIfNull(entries);
-        var groups = ConnectionSearch.GroupNames(profiles);
+        var groups = ConnectionSearch.Group(profiles, order: order).Select(g => g.Name).OfType<string>().ToList();
         var rows = groups.Select(g => new AuditGroupTemplate(g, AuditTemplateSource.GroupEntry(entries, g)?.Value, Orphaned: false)).ToList();
         rows.AddRange(entries
             .Where(e => !string.IsNullOrWhiteSpace(e.Value) && !groups.Any(g => ConnectionSearch.SameGroup(g, e.Key)))
-            .Select(e => new AuditGroupTemplate(e.Key, e.Value, Orphaned: true)));
-        return rows.OrderBy(r => r.Group, StringComparer.CurrentCultureIgnoreCase).ToList();
+            .Select(e => new AuditGroupTemplate(e.Key, e.Value, Orphaned: true))
+            .OrderBy(r => r.Group, StringComparer.CurrentCultureIgnoreCase));
+        return rows;
     }
 
     /// <summary>

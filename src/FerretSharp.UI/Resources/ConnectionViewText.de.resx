@@ -426,4 +426,151 @@
   <data name="ConnectionDialog_ModelFileHint" xml:space="preserve">
     <value>Eine auf der Modell-Seite exportierte Modelldatei: Namen, Enums und Beziehungen ohne Build. LINQ-Konsole und Verwendung im Code brauchen das Projekt.</value>
   </data>
+  <data name="Group_WorkCloneNotSaved" xml:space="preserve">
+    <value>Der Arbeits-Klon der Gruppe ließ sich nicht speichern; er gilt bis zum Beenden.</value>
+  </data>
+  <data name="Group_StateNotSaved" xml:space="preserve">
+    <value>Reihenfolge und eingeklappte Gruppen ließen sich nicht speichern; sie gelten bis zum Beenden.</value>
+  </data>
+  <data name="ConnectionDialog_Shortcut" xml:space="preserve">
+    <value>Tastenkürzel</value>
+  </data>
+  <data name="ConnectionDialog_ShortcutHint" xml:space="preserve">
+    <value>Zeigt diese Verbindung von überall in FerretSharp und verbindet vorher, wenn nötig.</value>
+  </data>
+  <data name="ConnectionDialog_ShortcutRemove" xml:space="preserve">
+    <value>Entfernen</value>
+  </data>
+  <data name="ConnectionMenu_KeyTitle" xml:space="preserve">
+    <value>Tastenkürzel dieser Verbindung</value>
+  </data>
+  <data name="ConnectionMenu_AddressTitle" xml:space="preserve">
+    <value>Adresse</value>
+  </data>
+  <data name="ConnectionMenu_ReadOnly" xml:space="preserve">
+    <value>schreibgeschützt</value>
+  </data>
+  <data name="ConnectionMenu_LastUsedTitle" xml:space="preserve">
+    <value>Zuletzt benutzt</value>
+  </data>
+  <data name="ConnectionMenu_Show" xml:space="preserve">
+    <value>Anzeigen</value>
+  </data>
+  <data name="ConnectionMenu_ConnectKey" xml:space="preserve">
+    <value>Tastenkürzel: {0}</value>
+  </data>
+  <data name="ConnectionMenu_CopyAddress" xml:space="preserve">
+    <value>Adresse kopieren</value>
+  </data>
+  <data name="ConnectionMenu_Export" xml:space="preserve">
+    <value>Verbindung exportieren…</value>
+  </data>
+  <data name="ConnectionMenu_MoveToGroup" xml:space="preserve">
+    <value>In Gruppe verschieben</value>
+  </data>
+  <data name="ConnectionMenu_MoveToTitle" xml:space="preserve">
+    <value>Nach „{0}“ verschieben</value>
+  </data>
+  <data name="ConnectionMenu_NewGroup" xml:space="preserve">
+    <value>Neue Gruppe…</value>
+  </data>
+  <data name="GroupMenu_Title" xml:space="preserve">
+    <value>Aktionen der Gruppe</value>
+  </data>
+  <data name="GroupMenu_ConnectionsOne" xml:space="preserve">
+    <value>{0} Verbindung</value>
+  </data>
+  <data name="GroupMenu_ConnectionsOther" xml:space="preserve">
+    <value>{0} Verbindungen</value>
+  </data>
+  <data name="GroupMenu_Connected" xml:space="preserve">
+    <value>{0} verbunden</value>
+  </data>
+  <data name="GroupMenu_AuditTemplate" xml:space="preserve">
+    <value>Audit: {0}</value>
+  </data>
+  <data name="GroupMenu_WorkClone" xml:space="preserve">
+    <value>Arbeits-Klon: {0}</value>
+  </data>
+  <data name="GroupMenu_Rename" xml:space="preserve">
+    <value>Gruppe umbenennen…</value>
+  </data>
+  <data name="GroupMenu_RenameCaption" xml:space="preserve">
+    <value>Umbenennen</value>
+  </data>
+  <data name="GroupMenu_NewConnection" xml:space="preserve">
+    <value>Neue Verbindung in dieser Gruppe</value>
+  </data>
+  <data name="GroupMenu_NewConnectionCaption" xml:space="preserve">
+    <value>Neu</value>
+  </data>
+  <data name="GroupMenu_ExportCaption" xml:space="preserve">
+    <value>Exportieren</value>
+  </data>
+  <data name="GroupMenu_MoveUp" xml:space="preserve">
+    <value>Gruppe nach oben</value>
+  </data>
+  <data name="GroupMenu_MoveUpCaption" xml:space="preserve">
+    <value>Nach oben</value>
+  </data>
+  <data name="GroupMenu_MoveDown" xml:space="preserve">
+    <value>Gruppe nach unten</value>
+  </data>
+  <data name="GroupMenu_MoveDownCaption" xml:space="preserve">
+    <value>Nach unten</value>
+  </data>
+  <data name="GroupMenu_IsFirst" xml:space="preserve">
+    <value>Die Gruppe steht schon oben.</value>
+  </data>
+  <data name="GroupMenu_IsLast" xml:space="preserve">
+    <value>Die Gruppe steht schon unten („Ohne Gruppe“ steht immer am Ende).</value>
+  </data>
+  <data name="GroupMenu_AuditTemplateSettings" xml:space="preserve">
+    <value>Audit-Vorlage der Gruppe…</value>
+  </data>
+  <data name="GroupMenu_AuditTemplateSettingsTitle" xml:space="preserve">
+    <value>Öffnet die Einstellungen, dort kann jede Gruppe ihre eigene Audit-Vorlage haben.</value>
+  </data>
+  <data name="GroupMenu_DisconnectAll" xml:space="preserve">
+    <value>Alle trennen</value>
+  </data>
+  <data name="GroupMenu_DisconnectAllTitle" xml:space="preserve">
+    <value>Trennt die offenen Verbindungen der Gruppe; fragt vorher nach nicht committeten Änderungen.</value>
+  </data>
+  <data name="GroupMenu_DisconnectAllWhat" xml:space="preserve">
+    <value>Gruppe {0} trennen</value>
+  </data>
+  <data name="GroupName_NewFor" xml:space="preserve">
+    <value>Eine neue Gruppe für {0}:</value>
+  </data>
+  <data name="GroupName_Merges" xml:space="preserve">
+    <value>Die Gruppe „{0}“ gibt es schon. Zusammenlegen verschiebt die Verbindungen ({1}) dorthin.</value>
+  </data>
+  <data name="GroupName_TemplateDropped" xml:space="preserve">
+    <value>Ihre Audit-Vorlage {0} entfällt; „{1}“ behält die eigene.</value>
+  </data>
+  <data name="GroupName_Exists" xml:space="preserve">
+    <value>Die Gruppe „{0}“ gibt es schon: Die Verbindung kommt dazu.</value>
+  </data>
+  <data name="GroupName_Merge" xml:space="preserve">
+    <value>Zusammenlegen</value>
+  </data>
+  <data name="GroupName_Rename" xml:space="preserve">
+    <value>Umbenennen</value>
+  </data>
+  <data name="GroupName_RenameTitle" xml:space="preserve">
+    <value>Gruppe „{0}“ umbenennen</value>
+  </data>
+  <data name="GroupName_NewTitle" xml:space="preserve">
+    <value>Neue Gruppe</value>
+  </data>
+  <data name="GroupName_PartlyNotSaved" xml:space="preserve">
+    <value>Die Gruppe ist umbenannt, aber nicht alles ließ sich speichern:</value>
+  </data>
+  <data name="Connections_DragGroupTitle" xml:space="preserve">
+    <value>Klicken klappt die Gruppe ein oder aus; Ziehen verschiebt sie</value>
+  </data>
+  <data name="GroupName_WorkCloneDropped" xml:space="preserve">
+    <value>Ihr Arbeits-Klon {0} entfällt; „{1}“ behält den eigenen (der Ordner bleibt unter den zuletzt gewählten).</value>
+  </data>
 </root>

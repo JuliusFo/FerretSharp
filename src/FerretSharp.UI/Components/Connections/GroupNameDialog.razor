@@ -1,0 +1,144 @@
+@* A group name to type (WP-66): renaming a group – a name another group has merges both after saying so, with the audit
+   template that is lost –, or a new group for one connection (one that exists just takes it in). *@
+@using FerretSharp.Core.Connections
+@inject ConnectionGroups Groups
+@inject ILogger<GroupNameDialog> Logger
+
+@{
+    var rename = Request.Group is { } from ? Groups.PlanRename(from, _name) : null;
+    var existing = Request.Group is null ? Groups.Names.FirstOrDefault(n => ConnectionSearch.SameGroup(n, _name)) : null;
+    var canSave = ConnectionSearch.NormalizeGroup(_name) is not null && rename?.IsUnchanged != true && !_saving;
+}
+<ModalFrame Label="@Title" Class="confirm" OnCancel="CloseAsync">
+    <header>
+        <span>@Title</span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="CloseAsync">@Icons.Close</button>
+    </header>
+    <div class="dialog-body">
+        @if (Request.Profile is { } profile)
+        {
+            <p class="hint">@TextFormat.Format(ConnectionViewText.GroupName_NewFor, profile.Name)</p>
+        }
+        <input @ref="_input" class="field" @bind="_name" @bind:event="oninput" @onkeydown="OnKeyDown" autocomplete="off"
+               placeholder="@ConnectionViewText.ConnectionDialog_GroupPlaceholder" aria-label="@ConnectionViewText.ConnectionDialog_Group" />
+        @if (rename is not null && (rename.Merges || rename.DroppedAuditTemplate is not null || Groups.DroppedWorkClone(rename) is not null))
+        {
+            @* What a merge, or a name with leftovers of an earlier group, drops (review of WP-66: the work clone went without a word). *@
+            <div class="settings-note warn" role="alert">
+                @if (rename.Merges)
+                {
+                    <div>@TextFormat.Format(ConnectionViewText.GroupName_Merges, rename.To, rename.Profiles.Count)</div>
+                }
+                @if (rename.DroppedAuditTemplate is { } dropped)
+                {
+                    <div>@TextFormat.Format(ConnectionViewText.GroupName_TemplateDropped, Path.GetFileName(dropped), rename.To)</div>
+                }
+                @if (Groups.DroppedWorkClone(rename) is { } clone)
+                {
+                    <div title="@clone">@TextFormat.Format(ConnectionViewText.GroupName_WorkCloneDropped, Path.GetFileName(clone), rename.To)</div>
+                }
+            </div>
+        }
+        else if (existing is not null)
+
+        {
+            <div class="hint small">@TextFormat.Format(ConnectionViewText.GroupName_Exists, existing)</div>
+        }
+        @if (_error is not null)
+        {
+            <div class="settings-note error" role="alert">@_error</div>
+        }
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="CloseAsync">@CommonText.Cancel</button>
+        <button class="btn primary" disabled="@(!canSave)" @onclick="SaveAsync">
+            @(rename is { Merges: true } ? ConnectionViewText.GroupName_Merge : Request.Group is null ? CommonText.Save : ConnectionViewText.GroupName_Rename)
+        </button>
+    </footer>
+</ModalFrame>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public GroupNameRequest Request { get; set; } = null!;
+
+    private ElementReference _input;
+    private string _name = "";
+    private string? _error;
+    private bool _saving;
+
+    private string Title => Request.Group is { } group
+        ? TextFormat.Format(ConnectionViewText.GroupName_RenameTitle, group)
+        : ConnectionViewText.GroupName_NewTitle;
+
+    protected override void OnInitialized() => _name = Request.Group ?? "";
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _input.FocusAsync();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveAsync();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving || ConnectionSearch.NormalizeGroup(_name) is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            if (Request.Group is { } from)
+            {
+                if (Groups.PlanRename(from, _name) is not { IsUnchanged: false } rename)
+                {
+                    return;
+                }
+
+                var notSaved = await Groups.RenameAsync(rename);
+                await CloseAsync();
+                if (notSaved.Count > 0)
+                {
+                    Shell.Notify(ConnectionViewText.GroupName_PartlyNotSaved, notSaved);
+                }
+            }
+            else if (Request.Profile is { } profile)
+            {
+                var name = Groups.Names.FirstOrDefault(n => ConnectionSearch.SameGroup(n, _name)) ?? _name;
+                await Groups.MoveConnectionAsync(profile, name);
+                await CloseAsync();
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Logger.LogWarning(ex, "Saving the connection group failed");
+            _error = TextFormat.Format(CommonText.SaveFailed, ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private Task CloseAsync()
+    {
+        Shell.CloseGroupName();
+        return Task.CompletedTask;
+    }
+}

@@ -15,14 +15,15 @@ public static class ConnectionSearch
         new TextSearch(query).Matches(profile.Name, profile.Group, profile.Address.Display, profile.User, profile.Kind.ToString());
 
     /// <summary>
-    /// Groups alphabetically (ungrouped last); within a group by kind (Dev, Test, Prod, Other), then name.
-    /// Groups that differ only in case are merged.
+    /// Groups in the order the user gave them (<paramref name="order"/>, WP-66), the others alphabetically after them,
+    /// ungrouped last; within a group by kind (Dev, Test, Prod, Other), then name. Groups that differ only in case are merged.
     /// </summary>
-    public static IReadOnlyList<ConnectionGroup> Group(IEnumerable<ConnectionProfile> profiles, string? query = null) =>
+    public static IReadOnlyList<ConnectionGroup> Group(IEnumerable<ConnectionProfile> profiles, string? query = null, IReadOnlyList<string>? order = null) =>
         profiles
             .Where(p => Matches(p, query))
             .GroupBy(p => NormalizeGroup(p.Group), GroupComparer!)
             .OrderBy(g => g.Key is null)
+            .ThenBy(g => Position(order, g.Key))
             .ThenBy(g => g.Key, GroupComparer)
             .Select(g => new ConnectionGroup(
                 g.Key,
@@ -30,8 +31,25 @@ public static class ConnectionSearch
             .ToList();
 
     /// <summary>All connections in the order of <see cref="Group"/>, for flat lists such as a native select.</summary>
-    public static IReadOnlyList<ConnectionProfile> InListOrder(IEnumerable<ConnectionProfile> profiles) =>
-        Group(profiles).SelectMany(g => g.Profiles).ToList();
+    public static IReadOnlyList<ConnectionProfile> InListOrder(IEnumerable<ConnectionProfile> profiles, IReadOnlyList<string>? order = null) =>
+        Group(profiles, order: order).SelectMany(g => g.Profiles).ToList();
+
+    /// <summary>Where the group stands in the user's order; after all of them if it has no place there.</summary>
+    private static int Position(IReadOnlyList<string>? order, string? group)
+    {
+        if (order is not null && group is not null)
+        {
+            for (var i = 0; i < order.Count; i++)
+            {
+                if (SameGroup(order[i], group))
+                {
+                    return i;
+                }
+            }
+        }
+
+        return int.MaxValue;
+    }
 
     /// <summary>Distinct existing group names, for suggestions in the edit dialog.</summary>
     public static IReadOnlyList<string> GroupNames(IEnumerable<ConnectionProfile> profiles) =>

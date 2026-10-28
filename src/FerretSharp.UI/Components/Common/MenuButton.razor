@@ -9,7 +9,7 @@
 @if (_at is { } at)
 {
     <PopoverMenu X="at.X" Y="at.Y" ViewportWidth="at.ViewportWidth" ViewportHeight="at.ViewportHeight" Width="Width"
-                 EstimatedHeight="EstimatedHeight" OnClose="Close">
+                 EstimatedHeight="EstimatedHeight" KeyNavigation="KeyNavigation" OnClose="Close">
         @ChildContent?.Invoke(this)
     </PopoverMenu>
 }
@@ -53,6 +53,10 @@
     /// <summary>How far below the mouse the menu starts.</summary>
     [Parameter]
     public double ShiftY { get; set; } = 10;
+
+    /// <summary>↑ ↓ and Enter move through the entries (<see cref="PopoverMenu.KeyNavigation"/>, WP-66).</summary>
+    [Parameter]
+    public bool KeyNavigation { get; set; }
 
     /// <summary>Runs before the menu shows (e.g. reading a file again after an error).</summary>
     [Parameter]

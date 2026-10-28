@@ -1,0 +1,103 @@
+@* The menu of a connection group (WP-66): name, connections and what is kept per group in the head; rename, new connection
+   in the group, export, up and down as a bar with captions; the group's audit template and "Disconnect all" as lines
+   where they apply. Behind "⋯" of the group and on a right-click of its head (connections page and switcher). *@
+@using FerretSharp.Core.Audit
+@using FerretSharp.Core.Connections
+@inject ConnectionHub Hub
+@inject ConnectionGroups Groups
+@inject AppSettingsService Settings
+@inject FerretSharp.Core.ClrModel.WorkClones Clones
+
+@{
+    var open = Group.Profiles.Select(p => Hub.Find(p.Id)).OfType<ConnectionScope>().ToList();
+}
+<div class="ctx-head-block">
+    <div class="ctx-head">
+        <span class="ctx-conn-name">@(Group.Name ?? ConnectionViewText.Connection_NoGroup)</span>
+    </div>
+    <div class="ctx-facts">
+        <span class="ctx-fact">@TextFormat.Plural(Group.Profiles.Count, ConnectionViewText.GroupMenu_ConnectionsOne, ConnectionViewText.GroupMenu_ConnectionsOther)</span>
+        @if (open.Count > 0)
+        {
+            <span class="ctx-fact fk">@TextFormat.Format(ConnectionViewText.GroupMenu_Connected, open.Count)</span>
+        }
+        @if (Group.Name is not null && AuditTemplateSource.GroupEntry(Settings.Current.AuditTemplateGroups, Group.Name) is { } template)
+        {
+            <span class="ctx-fact" title="@template.Value">@TextFormat.Format(ConnectionViewText.GroupMenu_AuditTemplate, Path.GetFileName(template.Value))</span>
+        }
+        @if (Clones.ActiveFor(Group.Name) is { } clone)
+        {
+            <span class="ctx-fact clr" title="@clone">@TextFormat.Format(ConnectionViewText.GroupMenu_WorkClone, Path.GetFileName(clone))</span>
+        }
+    </div>
+</div>
+
+<div class="group-menu-bar">
+<QuickBar Captions="true">
+    @if (Group.Name is { } name)
+    {
+        <QuickAction Icon="Icons.Rename" Label="@ConnectionViewText.GroupMenu_Rename" Caption="@ConnectionViewText.GroupMenu_RenameCaption"
+                     OnClick="() => RunAsync(() => Shell.RenameGroup(name))" />
+    }
+    <QuickAction Icon="Icons.Plus" Label="@ConnectionViewText.GroupMenu_NewConnection" Caption="@ConnectionViewText.GroupMenu_NewConnectionCaption"
+                 OnClick="() => RunAsync(() => Shell.NewConnection(Group.Name))" />
+    <QuickAction Icon="Icons.Download" Label="@ConnectionViewText.Export_GroupButton" Caption="@ConnectionViewText.GroupMenu_ExportCaption"
+                 OnClick="() => RunAsync(() => Shell.OpenExport(new ConnectionExportRequest(OnlyGroup: true, Group.Name)))" />
+    @if (Group.Name is { } movable)
+    {
+        <QuickAction Icon="Icons.ArrowUp" Label="@ConnectionViewText.GroupMenu_MoveUp" Caption="@ConnectionViewText.GroupMenu_MoveUpCaption"
+                     Unavailable="@(Groups.Previous(movable) is null ? ConnectionViewText.GroupMenu_IsFirst : null)"
+                     OnClick="() => MoveAsync(() => Groups.MoveUpAsync(movable))" />
+        <QuickAction Icon="Icons.ArrowDown" Label="@ConnectionViewText.GroupMenu_MoveDown" Caption="@ConnectionViewText.GroupMenu_MoveDownCaption"
+                     Unavailable="@(Groups.HasNext(movable) ? null : ConnectionViewText.GroupMenu_IsLast)"
+                     OnClick="() => MoveAsync(() => Groups.MoveDownAsync(movable))" />
+    }
+</QuickBar>
+</div>
+
+@if (Group.Name is not null)
+{
+    <MenuEntry Label="@ConnectionViewText.GroupMenu_AuditTemplateSettings" Title="@ConnectionViewText.GroupMenu_AuditTemplateSettingsTitle"
+               OnClick="() => RunAsync(() => Shell.ShowSettings(SettingsPart.Audit))" />
+}
+@if (open.Count > 0)
+{
+    <MenuEntry Label="@ConnectionViewText.GroupMenu_DisconnectAll" Title="@ConnectionViewText.GroupMenu_DisconnectAllTitle"
+               OnClick="() => DisconnectAllAsync(open)" />
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ConnectionGroup Group { get; set; } = null!;
+
+    /// <summary>Closes the menu (and what it sits in) before an entry acts.</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private async Task RunAsync(Action action)
+    {
+        await OnClose.InvokeAsync();
+        action();
+    }
+
+    private async Task MoveAsync(Func<Task<bool>> move)
+    {
+        await OnClose.InvokeAsync();
+        if (!await move())
+        {
+            Shell.Notify(ConnectionViewText.Group_StateNotSaved);
+        }
+    }
+
+    private async Task DisconnectAllAsync(IReadOnlyList<ConnectionScope> open)
+    {
+        await OnClose.InvokeAsync();
+        await Lifecycle.DisconnectAllAsync(open, TextFormat.Format(ConnectionViewText.GroupMenu_DisconnectAllWhat, Group.Name ?? ConnectionViewText.Connection_NoGroup));
+    }
+}

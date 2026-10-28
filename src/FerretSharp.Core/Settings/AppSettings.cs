@@ -134,6 +134,13 @@ public sealed record AppSettings
     /// </summary>
     public SettingsMap Shortcuts { get; init; } = SettingsMap.Empty;
 
+    /// <summary>
+    /// Shortcuts of connections (WP-66): connection id → key combination; the key shows the connection, connecting it
+    /// first. In the settings, not in the profile: <see cref="ShortcutMap"/> checks them against the actions, and an
+    /// imported connection brings no keys of someone else. Read through <see cref="ShortcutMap"/>.
+    /// </summary>
+    public SettingsMap ConnectionShortcuts { get; init; } = SettingsMap.Empty;
+
     /// <summary>The change overview (WP-30) is open beside the tabs – it opens again after a restart.</summary>
     public bool ChangesPanelOpen { get; init; }
 

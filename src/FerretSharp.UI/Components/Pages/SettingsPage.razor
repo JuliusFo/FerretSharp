@@ -1,9 +1,11 @@
 @* App settings: appearance (language, light/dark), the data view (column headers, SQL of a filter), C# names of a linked project, the connection behaviour, audit template and display columns; the shortcuts
    as a section of their own (WP-25). R6b (review 3.40.0, B9): each larger section is a component of its own. *@
 @using FerretSharp.Core.Settings
+@inject ConnectionGroups Groups
 @inject AppSettingsService Settings
 @inject UpdateState Updates
 @inject ShortcutService Shortcuts
+@inject FerretSharp.Core.Connections.ConnectionManager Connections
 @implements IDisposable
 
 <div class="settings-page">
@@ -134,7 +136,7 @@
             if (_filter is null)
             {
                 _filterWithUpdates = Updates.Phase != UpdatePhase.NotInstalled;
-                _filter = new(new SettingsSearch(_query), SettingsCatalog.Entries(Shortcuts.Map, _filterWithUpdates));
+                _filter = new(new SettingsSearch(_query), SettingsCatalog.Entries(Shortcuts.Map, _filterWithUpdates, Connections.Profiles, Groups.Order));
             }
 
             return _filter;
@@ -162,9 +164,35 @@
 
     protected override void OnInitialized()
     {
+        TakeRequestedPart();
         Updates.Changed += OnUpdatesChanged;
         Shortcuts.Changed += OnCatalogChanged;
+        Connections.Changed += OnCatalogChanged; // names and groups of connections with a key (WP-66)
+        Shell.Changed += OnShellChanged;
     }
+
+    /// <summary>
+    /// Opened for one section (WP-66: a group's audit template) – also while the page is shown already (review of WP-66:
+    /// from the switcher the request stayed unread until the next visit).
+    /// </summary>
+    private bool TakeRequestedPart()
+    {
+        if (Shell.TakeSettingsPart() is not { } requested)
+        {
+            return false;
+        }
+
+        Select(requested);
+        return true;
+    }
+
+    private void OnShellChanged() => InvokeAsync(() =>
+    {
+        if (TakeRequestedPart())
+        {
+            StateHasChanged();
+        }
+    });
 
     /// <summary>A shortcut changed: part of what the search finds.</summary>
     private void OnCatalogChanged() => InvokeAsync(() =>
@@ -188,5 +216,7 @@
     {
         Updates.Changed -= OnUpdatesChanged;
         Shortcuts.Changed -= OnCatalogChanged;
+        Connections.Changed -= OnCatalogChanged;
+        Shell.Changed -= OnShellChanged;
     }
 }

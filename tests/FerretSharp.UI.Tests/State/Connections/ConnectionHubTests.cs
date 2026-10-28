@@ -38,5 +38,28 @@ public sealed class ConnectionHubTests : IAsyncDisposable
         Assert.Same(scope, _app.Hub.Show(scope.Profile!));
     }
 
+    /// <summary>
+    /// Review of WP-66: a renamed group was looked up under its old name by an open connection (audit template, work clone)
+    /// until connecting again. Name, group and paths apply at once; what the session works with needs a new connection.
+    /// </summary>
+    [Fact]
+    public async Task An_open_connection_takes_its_saved_profile_unless_the_session_differs()
+    {
+        var profile = TestApp.Profile("Test") with { Group = "Kasse" };
+        var scope = await _app.OpenAsync(profile);
+        var changed = 0;
+        scope.Active.Changed += () => changed++;
+
+        _app.Hub.UseSaved([profile with { Group = "Kasse-Neu", Name = "Test 2" }]);
+
+        Assert.Equal("Kasse-Neu", scope.Profile!.Group);
+        Assert.Equal("Test 2", scope.Active.Profile!.Name);
+        Assert.Equal(1, changed);
+
+        _app.Hub.UseSaved([profile with { Group = "Lager", User = "other" }]);
+
+        Assert.Equal("Kasse-Neu", scope.Profile!.Group); // a new user needs a new connection, the dialog offers it
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }

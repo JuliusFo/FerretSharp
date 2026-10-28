@@ -181,7 +181,7 @@
     <value>fest</value>
   </data>
   <data name="Shortcuts_ResetAllQuestion" xml:space="preserve">
-    <value>Alle Kürzel auf die Standardbelegung zurücksetzen?</value>
+    <value>Alle Kürzel auf die Standardbelegung zurücksetzen? Eine Verbindung mit einer Standardtaste verliert sie.</value>
   </data>
   <data name="Shortcuts_ResetAll" xml:space="preserve">
     <value>Alle zurücksetzen</value>
@@ -404,5 +404,11 @@
   </data>
   <data name="Settings_AuditHighlightChangesHint" xml:space="preserve">
     <value>Das Grid einer Audit-Tabelle tönt die Werte, die sich gegenüber der Vorversion unterscheiden, und markiert Inserts und Deletes – so, wie die Vorlage es mit @version-order und @action sagt. Kostet je 500 Zeilen eine Abfrage mehr, auf der Audit-Tabelle nach dem Schlüssel der Basistabelle: bei sehr großen Audit-Tabellen ohne Index darauf ausschalten.</value>
+  </data>
+  <data name="Shortcuts_ConnectionsGroup" xml:space="preserve">
+    <value>Verbindungen</value>
+  </data>
+  <data name="Shortcuts_ConnectionsHint" xml:space="preserve">
+    <value>Eine Verbindung bekommt ihr Tastenkürzel in ihrem Dialog (Bearbeiten). Die Taste zeigt die Verbindung von überall in FerretSharp und verbindet vorher, wenn nötig.</value>
   </data>
 </root>

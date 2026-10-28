@@ -167,4 +167,14 @@ public sealed class ConnectionTransferTests : IAsyncDisposable
     }
 
     public ValueTask DisposeAsync() => _app.DisposeAsync();
+
+    /// <summary>WP-66: "Export connection…" from a connection's menu starts with that one; the groups follow the user's order.</summary>
+    [Fact]
+    public void Export_of_one_connection_selects_only_it_in_the_users_group_order()
+    {
+        var one = new ConnectionExportSelection([ErpDev, ErpTest, Kasse, Loose], new ConnectionExportRequest(OnlyGroup: true, "ERP", Kasse.Id), ["Kasse"]);
+
+        Assert.Equal(["Kasse"], one.Selected.Select(p => p.Name));
+        Assert.Equal(["Kasse", "ERP", null], one.Groups.Select(g => g.Name));
+    }
 }

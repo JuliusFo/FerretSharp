@@ -433,4 +433,25 @@ public sealed class ActiveConnectionTests : IDisposable
     {
         _folder.Dispose();
     }
+
+    /// <summary>
+    /// Review of WP-66: the profile saved while connecting (a renamed group) was replaced again with the one the connect
+    /// started with once it was done. What the session works with still comes from the start.
+    /// </summary>
+    [Fact]
+    public async Task A_profile_saved_while_connecting_stays_once_connected()
+    {
+        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(opening.Task);
+        var connecting = _active.ConnectAsync(_profile, Ct);
+        await Eventually(() => _active.Step == ConnectionText.Step_OpeningSession);
+
+        _active.UseSaved(_profile with { Group = "Kasse-Neu" });
+        opening.SetResult(_connection);
+        await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        Assert.Equal(ConnectionStatus.Connected, _active.Status);
+        Assert.Equal("Kasse-Neu", _active.Profile!.Group);
+    }
 }

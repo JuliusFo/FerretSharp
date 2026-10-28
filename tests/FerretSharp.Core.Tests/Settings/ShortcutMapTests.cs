@@ -231,4 +231,85 @@ public sealed class ShortcutMapTests
 
         Assert.Empty((await store.LoadAsync(TestContext.Current.CancellationToken)).Shortcuts);
     }
+
+    private static readonly Guid Erp = Guid.Parse("6f1e1b6e-0000-0000-0000-000000000001");
+    private static readonly Guid Kasse = Guid.Parse("6f1e1b6e-0000-0000-0000-000000000002");
+
+    private static SettingsMap Connections(params (Guid Id, string Combo)[] keys) =>
+        SettingsMap.From(keys.Select(k => new KeyValuePair<string, string>(k.Id.ToString(), k.Combo)));
+
+    /// <summary>WP-66: a connection's key is caught everywhere like a global action and leads to the connection.</summary>
+    [Fact]
+    public void A_connection_key_is_global_and_finds_its_connection()
+    {
+        var map = new ShortcutMap(connections: Connections((Erp, "alt+1")));
+
+        Assert.Contains("alt+1", map.GlobalCombos);
+        Assert.Equal(Chord("alt+1"), map.ConnectionChord(Erp));
+        Assert.Equal(Erp, map.ConnectionFor("alt+1"));
+        Assert.Null(map.ConnectionFor("alt+2"));
+        Assert.Null(map.ConnectionChord(Kasse));
+        Assert.Null(map.ActionFor("alt+1", ShortcutScope.Global));
+    }
+
+    /// <summary>Stored by hand or before an action got the key: unusable keys do nothing, an action's key stays the action's.</summary>
+    [Fact]
+    public void Unusable_or_taken_connection_keys_do_nothing_but_stay_stored()
+    {
+        var stored = SettingsMap.From(
+        [
+            new(Erp.ToString(), "alt+o"), // the previous connection's
+            new(Kasse.ToString(), "ctrl+alt+k"), // AltGr
+            new("not-a-guid", "alt+3"),
+        ]);
+
+        var map = new ShortcutMap(connections: stored);
+
+        Assert.Null(map.ConnectionChord(Erp));
+        Assert.Null(map.ConnectionChord(Kasse));
+        Assert.Equal(ShortcutAction.PreviousConnection, map.ActionFor("alt+o", ShortcutScope.Global));
+        Assert.DoesNotContain("alt+3", map.GlobalCombos);
+        Assert.Equal(stored, map.ConnectionOverrides);
+        Assert.Equal("alt+3", map.WithConnection(Erp, Chord("alt+1"))["not-a-guid"]);
+    }
+
+    [Fact]
+    public void Checking_a_connection_key_names_the_action_or_connection_that_has_it()
+    {
+        var map = new ShortcutMap(connections: Connections((Erp, "alt+1")));
+
+        Assert.True(map.CheckConnection(Kasse, Chord("alt+2")).IsFine);
+        Assert.True(map.CheckConnection(Erp, Chord("alt+1")).IsFine); // its own
+        Assert.Equal(Erp, map.CheckConnection(Kasse, Chord("alt+1")).ConflictConnection);
+        Assert.Equal(ShortcutAction.PreviousConnection, map.CheckConnection(Kasse, Chord("alt+o")).Conflict);
+        Assert.NotNull(map.CheckConnection(Kasse, Chord("ctrl+alt+1")).Error);
+        Assert.NotNull(map.CheckConnection(Kasse, Chord("k")).Error);
+        Assert.NotNull(map.CheckConnection(Kasse, Chord("ctrl+c")).Warning); // the editors' copy
+        Assert.Equal(Erp, map.Check(ShortcutAction.CloseTab, Chord("alt+1")).ConflictConnection);
+    }
+
+    [Fact]
+    public void Giving_a_key_takes_it_from_the_connection_that_had_it()
+    {
+        var map = new ShortcutMap(connections: Connections((Erp, "alt+1")));
+
+        Assert.Equal(Connections((Kasse, "alt+1")), map.WithConnection(Kasse, Chord("alt+1")));
+        Assert.Equal(SettingsMap.Empty, map.WithConnection(Erp, null));
+        Assert.Equal(SettingsMap.Empty, map.ConnectionsWithout([Chord("alt+1")]));
+        Assert.Equal(map.ConnectionOverrides, map.ConnectionsWithout([Chord("alt+2"), null]));
+    }
+
+    [Fact]
+    public async Task Connection_keys_round_trip_through_the_settings_file()
+    {
+        using var folder = new TestFolder();
+        var store = new SettingsStore(folder.Combine("settings.json"));
+        var keys = Connections((Erp, "alt+1"));
+
+        await store.SaveAsync(new AppSettings { ConnectionShortcuts = keys }, TestContext.Current.CancellationToken);
+        Assert.Equal(keys, (await store.LoadAsync(TestContext.Current.CancellationToken)).ConnectionShortcuts);
+
+        await File.WriteAllTextAsync(store.FilePath, """{ "version": 1, "settings": { "connectionShortcuts": null } }""", TestContext.Current.CancellationToken);
+        Assert.Same(SettingsMap.Empty, (await store.LoadAsync(TestContext.Current.CancellationToken)).ConnectionShortcuts);
+    }
 }

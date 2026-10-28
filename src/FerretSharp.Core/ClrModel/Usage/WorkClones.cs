@@ -92,19 +92,7 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
                     .Take(MaxRecent)
                     .ToList();
 
-            saved = true;
-            if (!_keepFile)
-            {
-                try
-                {
-                    await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, active, recent), JsonFiles.Options, cancellationToken);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    saved = false;
-                }
-            }
-
+            saved = await WriteAsync(active, recent, cancellationToken);
             _active = active;
             _recent = recent;
         }
@@ -115,6 +103,61 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
 
         Changed?.Invoke();
         return saved;
+    }
+
+    /// <summary>
+    /// A connection group was renamed (WP-66, <see cref="ConnectionGroupRename"/>): its work clone goes with it. If the
+    /// target has one already (a merge), the target's stays.
+    /// </summary>
+    /// <returns>False if the file could not be written; as <see cref="SetActiveAsync"/>.</returns>
+    public async Task<bool> RenameGroupAsync(string from, string to, CancellationToken cancellationToken)
+    {
+        bool saved;
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var source = _active.FirstOrDefault(a => ConnectionSearch.SameGroup(a.Group, from));
+            if (source is null)
+            {
+                return true;
+            }
+
+            var target = ConnectionSearch.NormalizeGroup(to);
+            var keepTarget = !ConnectionSearch.SameGroup(from, to) && _active.Any(a => ConnectionSearch.SameGroup(a.Group, target));
+            var active = _active.Where(a => a != source).ToList();
+            if (!keepTarget)
+            {
+                active.Add(source with { Group = target });
+            }
+
+            saved = await WriteAsync(active, _recent, cancellationToken);
+            _active = active;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        Changed?.Invoke();
+        return saved;
+    }
+
+    private async Task<bool> WriteAsync(IReadOnlyList<Active> active, IReadOnlyList<RecentFolder> recent, CancellationToken cancellationToken)
+    {
+        if (_keepFile)
+        {
+            return true;
+        }
+
+        try
+        {
+            await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, active, recent), JsonFiles.Options, cancellationToken);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <param name="Group">The connection group as the lists show it (trimmed); null for connections without one.</param>

@@ -56,6 +56,9 @@ public sealed class AppPaths
     /// <summary>The active work clone of each connection group and the recently chosen folders (WP-40).</summary>
     public string WorkClonesFile => Path.Combine(Root, "work-clones.json");
 
+    /// <summary>The order of the connection groups and which are collapsed (WP-66).</summary>
+    public string ConnectionGroupsFile => Path.Combine(Root, "connection-groups.json");
+
     /// <summary>The SQL editor's history, one file per connection (WP-17).</summary>
     public string SqlHistoryDirectory => Path.Combine(Root, "history");
 

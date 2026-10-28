@@ -23,4 +23,16 @@ public static class ConnectionLabel
     /// <summary>The name as one text, for dialogs and lists: <c>Kunde A › DEV</c>, or just <c>DEV</c>.</summary>
     public static string Of(ConnectionProfile profile, AppSettings settings) =>
         GroupOf(profile, settings) is { } group ? group + Separator + profile.Name : profile.Name;
+
+    /// <summary>
+    /// Workspaces named in one list (the leave dialog): with their connection in front (<c>Kunde A › DEV › Workspace 1</c>)
+    /// once the list spans several connections – each has its own "Workspace 1" ("Disconnect all" of a group, quitting;
+    /// E2E of WP-66). A list of one connection keeps the bare names.
+    /// </summary>
+    public static IReadOnlyList<string> WorkspaceNames(IReadOnlyList<(ConnectionProfile? Connection, string Workspace)> workspaces, AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(workspaces);
+        var several = workspaces.Select(w => w.Connection?.Id).Distinct().Count() > 1;
+        return workspaces.Select(w => several && w.Connection is { } connection ? Of(connection, settings) + Separator + w.Workspace : w.Workspace).ToList();
+    }
 }

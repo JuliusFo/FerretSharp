@@ -17,7 +17,7 @@ public sealed class ShortcutService : IDisposable
     public ShortcutService(AppSettingsService settings)
     {
         _settings = settings;
-        _map = new ShortcutMap(settings.Current.Shortcuts);
+        _map = new ShortcutMap(settings.Current.Shortcuts, settings.Current.ConnectionShortcuts);
         settings.Changed += OnSettingsChanged;
     }
 
@@ -45,27 +45,59 @@ public sealed class ShortcutService : IDisposable
         ["copyColumn"] = _map.Chord(ShortcutAction.CopyColumnValues)?.Text,
     };
 
+    /// <summary>The key of a connection for tooltips and lists (WP-66); null if it has none.</summary>
+    public string? ConnectionKey(Guid profileId) => _map.ConnectionChord(profileId)?.Label;
+
+    /// <summary>A connection with this key loses it: the action wins with the same key.</summary>
     /// <exception cref="IOException">Not saved; the change stays in effect for this session.</exception>
-    public Task SetAsync(ShortcutAction action, KeyChord? chord) => UpdateAsync(map => map.With(action, chord));
+    public Task SetAsync(ShortcutAction action, KeyChord? chord) =>
+        UpdateAsync(map => (map.With(action, chord), map.ConnectionsWithout([chord])));
 
     /// <exception cref="IOException">Not saved; the change stays in effect for this session.</exception>
-    public Task ResetAsync(ShortcutAction action) => UpdateAsync(map => map.Without(action));
+    public Task ResetAsync(ShortcutAction action) =>
+        UpdateAsync(map => (map.Without(action), map.ConnectionsWithout([ShortcutMap.Definition(action).DefaultChord])));
 
     /// <exception cref="IOException">Not saved; the change stays in effect for this session.</exception>
-    public Task ResetAllAsync() => UpdateAsync(map => map.Reset());
+    public Task ResetAllAsync() => UpdateAsync(map => (map.Reset(), map.ConnectionsWithout(map.Defaults)));
 
-    private Task UpdateAsync(Func<ShortcutMap, SettingsMap> change) =>
-        _settings.UpdateAsync(s => s with { Shortcuts = change(new ShortcutMap(s.Shortcuts)) }, CancellationToken.None);
+    /// <summary>
+    /// Gives the connection the key (WP-66; null: none). An action or another connection with it loses it – the caller
+    /// asked first (<see cref="ShortcutMap.CheckConnection"/>).
+    /// </summary>
+    /// <exception cref="IOException">Not saved; the change stays in effect for this session.</exception>
+    public Task SetConnectionAsync(Guid profileId, KeyChord? chord) =>
+        UpdateAsync(map => (
+            chord is not null && map.ActionFor(chord, Enum.GetValues<ShortcutScope>()) is { } action ? map.With(action, null) : map.Overrides,
+            map.WithConnection(profileId, chord)));
+
+    /// <summary>Drops the keys of connections that no longer exist (deleted); nothing is written if there are none.</summary>
+    /// <exception cref="IOException">Not saved; the change stays in effect for this session.</exception>
+    public Task ForgetConnectionsExceptAsync(IReadOnlySet<Guid> existing)
+    {
+        bool Gone(string key) => Guid.TryParse(key, out var id) && !existing.Contains(id);
+        return _map.ConnectionOverrides.Keys.Any(Gone)
+            ? UpdateAsync(map => (map.Overrides, SettingsMap.From(map.ConnectionOverrides.Where(e => !Gone(e.Key)))))
+            : Task.CompletedTask;
+    }
+
+    private Task UpdateAsync(Func<ShortcutMap, (SettingsMap Shortcuts, SettingsMap Connections)> change) =>
+        _settings.UpdateAsync(
+            s =>
+            {
+                var (shortcuts, connections) = change(new ShortcutMap(s.Shortcuts, s.ConnectionShortcuts));
+                return s with { Shortcuts = shortcuts, ConnectionShortcuts = connections };
+            },
+            CancellationToken.None);
 
     private void OnSettingsChanged()
     {
-        var overrides = _settings.Current.Shortcuts;
-        if (overrides.Equals(_map.Overrides))
+        var current = _settings.Current;
+        if (current.Shortcuts.Equals(_map.Overrides) && current.ConnectionShortcuts.Equals(_map.ConnectionOverrides))
         {
             return;
         }
 
-        _map = new ShortcutMap(overrides);
+        _map = new ShortcutMap(current.Shortcuts, current.ConnectionShortcuts);
         Changed?.Invoke();
     }
 

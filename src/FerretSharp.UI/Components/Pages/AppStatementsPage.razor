@@ -7,6 +7,7 @@
 @using FerretSharp.Core.Query
 @inherits FerretComponent
 @implements IDisposable
+@inject ConnectionGroups Groups
 @inject AppTraceService Trace
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
@@ -86,7 +87,7 @@
                     @* value, not selected=: the browser ignores the attribute once the user picked (.claude/rules/ui.md). *@
                     <select value="" @onchange="ChooseConnection" title="@AppStatementsText.AppStatements_ChooseConnectionTitle">
                         <option value="">@AppStatementsText.AppStatements_ChooseConnection</option>
-                        @foreach (var p in match.Candidates.Concat(ConnectionSearch.InListOrder(Connections.Profiles.Except(match.Candidates))))
+                        @foreach (var p in match.Candidates.Concat(ConnectionSearch.InListOrder(Connections.Profiles.Except(match.Candidates), Groups.Order)))
                         {
                             <option value="@p.Id">@ConnectionLabel.Of(p, Settings.Current)</option>
                         }

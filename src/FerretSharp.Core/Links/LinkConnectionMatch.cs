@@ -43,20 +43,21 @@ public sealed record LinkConnectionMatch(ConnectionProfile? Profile, IReadOnlyLi
     /// <summary>
     /// The connections to offer first when the user chooses the connection (no match, or another than the one found): those
     /// that fit (<see cref="Find"/>), then those reading the link's schema – often the same application in another
-    /// environment. In the order of the connection list (<see cref="ConnectionSearch.Group"/>), the fitting ones first.
+    /// environment. In the order of the connection list (<see cref="ConnectionSearch.Group"/>, <paramref name="order"/> the
+    /// user's order of the groups, WP-66), the fitting ones first.
     /// </summary>
-    public static IReadOnlyList<ConnectionProfile> Suggestions(IReadOnlyList<ConnectionProfile> profiles, TableLink link)
+    public static IReadOnlyList<ConnectionProfile> Suggestions(IReadOnlyList<ConnectionProfile> profiles, TableLink link, IReadOnlyList<string>? order = null)
     {
         ArgumentNullException.ThrowIfNull(profiles);
         ArgumentNullException.ThrowIfNull(link);
         var match = Find(profiles, link);
         var fitting = match.Profile is { } profile ? [profile] : match.Candidates;
         var sameSchema = profiles.Where(p => p.EffectiveSchema == link.Owner && !fitting.Contains(p));
-        return [.. ListOrder(fitting), .. ListOrder(sameSchema)];
+        return [.. ListOrder(fitting, order), .. ListOrder(sameSchema, order)];
     }
 
-    private static IEnumerable<ConnectionProfile> ListOrder(IEnumerable<ConnectionProfile> profiles) =>
-        ConnectionSearch.Group(profiles).SelectMany(g => g.Profiles);
+    private static IEnumerable<ConnectionProfile> ListOrder(IEnumerable<ConnectionProfile> profiles, IReadOnlyList<string>? order) =>
+        ConnectionSearch.Group(profiles, order: order).SelectMany(g => g.Profiles);
 
     private static LinkConnectionMatch Of(List<ConnectionProfile> fitting) => fitting.Count == 1 ? new(fitting[0], []) : new(null, fitting);
 }

@@ -68,4 +68,17 @@ public class ConnectionSearchTests
         Assert.Equal(sameKey, ConnectionSearch.SameGroupKey(a, b));
         Assert.Equal(sameGroup, ConnectionSearch.SameGroup(a, b));
     }
+
+    /// <summary>WP-66: the user's order first, groups without a place alphabetically after them, ungrouped last.</summary>
+    [Fact]
+    public void Groups_follow_the_users_order_then_the_alphabet()
+    {
+        var other = Make("Zoll Test", ConnectionKind.Test, "Zoll");
+        ConnectionProfile[] all = [.. All, other];
+
+        var groups = ConnectionSearch.Group(all, order: ["kasse", "Gone", "Zoll"]);
+
+        Assert.Equal(["Kasse", "Zoll", "ERP", null], groups.Select(g => g.Name));
+        Assert.Equal("Kasse Test", ConnectionSearch.InListOrder(all, ["Kasse"])[0].Name);
+    }
 }

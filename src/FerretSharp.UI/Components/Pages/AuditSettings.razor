@@ -2,6 +2,7 @@
    (WP-26, WP-51; R6b: a section of its own). *@
 @using FerretSharp.Core.Settings
 @implements IAsyncDisposable
+@inject ConnectionGroups Groups
 @inject AppSettingsService Settings
 @inject FerretSharp.Core.Audit.AuditTemplateSource AuditTemplates
 @inject FerretSharp.Core.Connections.ConnectionManager Connections
@@ -53,7 +54,7 @@
             <span class="hint">@SettingsViewText.Settings_AuditTemplateGroupsHint</span>
         </div>
     </div>
-    @{ var groups = AuditGroupTemplates.Of(Connections.Profiles, Settings.Current.AuditTemplateGroups); }
+    @{ var groups = AuditGroupTemplates.Of(Connections.Profiles, Settings.Current.AuditTemplateGroups, Groups.Order); }
     @if (groups.Count == 0)
     {
         <div class="settings-note @Filter.HideClass(SettingKey.AuditTemplateGroups)">@SettingsViewText.Settings_AuditTemplateNoGroups</div>
