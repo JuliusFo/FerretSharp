@@ -13,7 +13,7 @@ Jede Gruppe von Systemen hat ihre eigene Vorlage. `AuditTemplateSource.For(profi
 3. die Vorlage der Einstellungen (`AppSettings.AuditTemplatePath`),
 4. die eingebaute.
 
-Eine gesetzte Datei, die fehlt oder Fehler hat, wird gemeldet, nicht übersprungen: Die nächste Vorlage gehört womöglich zu einem anderen System. Ein Eintrag einer Gruppe, die keine Verbindung mehr hat (umbenannt), bleibt stehen und ist in den Einstellungen als solcher markiert, bis er entfernt wird. Designer, Audit-Zeile und `AuditStatus.IsAuditTable` fragen mit der Verbindung des Tabs; der Tooltip der Audit-Zeile nennt die Vorlage und woher sie kommt.
+Eine gesetzte Datei, die fehlt oder Fehler hat, wird gemeldet, nicht übersprungen: Die nächste Vorlage gehört womöglich zu einem anderen System. Ein Eintrag einer Gruppe, die keine Verbindung mehr hat (von Hand umbenannt), bleibt stehen und ist in den Einstellungen als solcher markiert, bis er entfernt wird. „Umbenennen…“ im Menü der Gruppe (WP-66) nimmt den Eintrag mit; beim Zusammenlegen mit einer Gruppe, die selbst eine Vorlage hat, behält das Ziel seine, und der Dialog nennt die entfallende. Designer, Audit-Zeile und `AuditStatus.IsAuditTable` fragen mit der Verbindung des Tabs; der Tooltip der Audit-Zeile nennt die Vorlage und woher sie kommt.
 
 ## Beispiel
 

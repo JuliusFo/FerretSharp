@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Connection groups can be renamed in one step: "Rename group…" in the menu of a group changes every connection in it, and the group keeps its audit template, its work clone, its place and whether it is collapsed. A name another group has merges both after saying so; the target keeps its spelling and its audit template.
+- Collapsed groups and their order are kept over a restart, the same in the connection switcher and on the connections page. On the connections page, drag a group head before or after another group, or drag a connection into another group (also "No group"); "Up" and "Down" in the menu of a group do the same by keyboard. Groups without a place follow alphabetically, "No group" stays last.
+- The "⋯" menus of a connection and of a group are built like the cell menus: what the connection is at the top (kind, address, user, read-only, group, last used, connected), its actions as icons (connect or show, edit, duplicate, copy address, export, disconnect), the groups to move it to as chips (also a new group) and "Delete…". The group's menu renames it, adds a connection to it, exports it, moves it up or down, opens its audit template in the settings and disconnects all its open connections at once. A right-click on a connection or a group head opens the same menu, on the connections page and in the switcher. ↑ ↓ and Enter work in all "⋯" menus.
+- A connection can have a shortcut: set it in the connection's dialog under "Shortcut". The key shows the connection from anywhere in FerretSharp, connecting it first if needed. It follows the rules of the other shortcuts and is listed under Settings › Shortcuts › Connections; a key an action or another connection has is taken from it after asking. The key of a deleted connection is dropped. There is no default key.
+
 ## [3.53.0] - 2026-10-27
 
 Names beside foreign keys combine several columns, and the C# model travels as a file.

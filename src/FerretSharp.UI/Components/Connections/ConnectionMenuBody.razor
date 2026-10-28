@@ -21,6 +21,10 @@
     <div class="ctx-facts">
         <span class="ctx-fact" title="@ConnectionViewText.ConnectionMenu_AddressTitle">@Profile.Address.Display@(Profile.Address is TnsAliasAddress ? " (TNS)" : "")</span>
         <span class="ctx-fact">@Profile.User@(Profile.DefaultSchema is { } schema ? $" → {schema}" : "")</span>
+        @if (ConnectionSearch.NormalizeGroup(Profile.Group) is { } group)
+        {
+            <span class="ctx-fact" title="@ConnectionViewText.ConnectionDialog_Group">@group</span>
+        }
         @if (Profile.ReadOnly)
         {
             <span class="ctx-fact">@ConnectionViewText.ConnectionMenu_ReadOnly</span>
