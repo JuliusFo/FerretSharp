@@ -21,10 +21,14 @@
         }
         <input @ref="_input" class="field" @bind="_name" @bind:event="oninput" @onkeydown="OnKeyDown" autocomplete="off"
                placeholder="@ConnectionViewText.ConnectionDialog_GroupPlaceholder" aria-label="@ConnectionViewText.ConnectionDialog_Group" />
-        @if (rename is { Merges: true })
+        @if (rename is not null && (rename.Merges || rename.DroppedAuditTemplate is not null || Groups.DroppedWorkClone(rename) is not null))
         {
+            @* What a merge, or a name with leftovers of an earlier group, drops (review of WP-66: the work clone went without a word). *@
             <div class="settings-note warn" role="alert">
-                @TextFormat.Format(ConnectionViewText.GroupName_Merges, rename.To, rename.Profiles.Count)
+                @if (rename.Merges)
+                {
+                    <div>@TextFormat.Format(ConnectionViewText.GroupName_Merges, rename.To, rename.Profiles.Count)</div>
+                }
                 @if (rename.DroppedAuditTemplate is { } dropped)
                 {
                     <div>@TextFormat.Format(ConnectionViewText.GroupName_TemplateDropped, Path.GetFileName(dropped), rename.To)</div>
@@ -35,11 +39,8 @@
                 }
             </div>
         }
-        else if (rename?.DroppedAuditTemplate is { } dropped)
-        {
-            <div class="settings-note warn" role="alert">@TextFormat.Format(ConnectionViewText.GroupName_TemplateDropped, Path.GetFileName(dropped), rename.To)</div>
-        }
         else if (existing is not null)
+
         {
             <div class="hint small">@TextFormat.Format(ConnectionViewText.GroupName_Exists, existing)</div>
         }

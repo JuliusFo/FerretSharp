@@ -92,11 +92,12 @@ public sealed class ConnectionGroups : IDisposable
             : ConnectionGroupRename.Plan(_connections.Profiles, from, to, _settings.Current.AuditTemplateGroups);
 
     /// <summary>
-    /// The work clone of the group merged away when the target has its own (review of WP-66: it was dropped without a word,
-    /// unlike the audit template); null if none is lost. The folder stays among the recent ones.
+    /// The work clone of the renamed group when the target name has its own – a group merged into, or one left by an earlier
+    /// group of that name, which <see cref="WorkClones.RenameGroupAsync"/> keeps like the audit template (review of WP-66: it
+    /// was dropped without a word); null if none is lost. The folder stays among the recent ones.
     /// </summary>
     public string? DroppedWorkClone(ConnectionGroupRename rename) =>
-        rename.Merges && _clones.ActiveFor(rename.From) is { } source && _clones.ActiveFor(rename.To) is { } target
+        !rename.IsUnchanged && !ConnectionSearch.SameGroup(rename.From, rename.To) && _clones.ActiveFor(rename.From) is { } source && _clones.ActiveFor(rename.To) is { } target
                       && !string.Equals(source, target, StringComparison.OrdinalIgnoreCase)
             ? source
             : null;

@@ -201,4 +201,23 @@ public sealed class ConnectionGroupsTests : IAsyncDisposable
         Assert.False(Groups.IsCollapsed("Zoll"));
         Assert.Equal(["ERP", "Kasse", "ZOLL"], Groups.Names);
     }
+
+    /// <summary>Review of WP-66: a name an earlier group left a work clone under keeps it, also without a merge – the dialog says so.</summary>
+    [Fact]
+    public async Task Renaming_onto_a_name_with_a_left_work_clone_names_the_one_it_drops()
+    {
+        await SaveAllAsync();
+        var lager = Directory.CreateDirectory(_folder.Combine("lager-work")).FullName;
+        var zoll = Directory.CreateDirectory(_folder.Combine("zoll-work")).FullName;
+        await _app.WorkClones.SetActiveAsync("Lager", lager, Ct); // no connection has the group
+        await _app.WorkClones.SetActiveAsync("Zoll", zoll, Ct);
+
+        var rename = Groups.PlanRename("Zoll", "Lager")!;
+
+        Assert.False(rename.Merges);
+        Assert.Equal(zoll, Groups.DroppedWorkClone(rename));
+        Assert.Null(Groups.DroppedWorkClone(Groups.PlanRename("Zoll", "zoll")!)); // a new spelling keeps its own
+        await Groups.RenameAsync(rename);
+        Assert.Equal(lager, _app.WorkClones.ActiveFor("Lager"));
+    }
 }
