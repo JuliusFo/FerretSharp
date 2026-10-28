@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 
-namespace FerretSharp.UI.Tests;
+namespace FerretSharp.Testing;
 
 /// <summary>
 /// A fake clock that counts the timers created on it, i.e. the delays started. A check that "nothing happens yet" waits
@@ -10,6 +10,15 @@ namespace FerretSharp.UI.Tests;
 internal sealed class CountingTimeProvider : FakeTimeProvider
 {
     private int _timers;
+
+    public CountingTimeProvider()
+    {
+    }
+
+    public CountingTimeProvider(DateTimeOffset start)
+        : base(start)
+    {
+    }
 
     public int Timers => Volatile.Read(ref _timers);
 
