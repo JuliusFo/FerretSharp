@@ -10,9 +10,9 @@ public sealed record ValuePickerItem(string Name, string Value, string? Detail, 
 /// The entries of the value picker of an enum or converted bool column in the filter bar (WP-12): the members, then the
 /// selected values without a member (typed before the model was loaded, from an FK jump). Typed text filters them like a
 /// menu (<see cref="MenuFilter"/>: each word in the name, the C# member or the value). The entry the text stands for comes
-/// first, also when written another way. Otherwise a typed value the column can hold becomes an entry of its own, so a value
-/// the C# model does not know can be filtered for: first in a number column, after the members found in a text column (there
-/// the text is mostly a search, and Enter takes the first entry).
+/// first, also when written another way. A typed value the column can hold that is no entry becomes an entry of its own, so a
+/// value the C# model does not know can be filtered for: first in a number column, after the members found in a text column
+/// (there the text is mostly a search, and Enter takes the first entry).
 /// </summary>
 public static class ValuePickerItems
 {
@@ -30,16 +30,30 @@ public static class ValuePickerItems
             return all;
         }
 
+        var text = typed.Trim();
         var shown = all.Where(i => filter.Matches(i.Name, i.Unknown ? i.Value : i.Detail)).ToList();
-        if (Meant(values, all, typed.Trim()) is { } meant)
+        var meant = Meant(values, all, text);
+        if (meant is not null)
         {
             shown.Remove(meant);
             shown.Insert(0, meant);
         }
-        else if (values.TypedValue(typed) is { } value && !value.Contains(FilterRow.ListSeparator))
+
+        // A value of its own: in no entry, no member's name (offen means Offen), without the separator (an "in" list would
+        // split it). A text only differing in case from a member's value stays pickable after the member ("j" beside J).
+        if (values.TypedValue(typed) is not { } value || value.Contains(FilterRow.ListSeparator) || all.Any(i => i.Value == value)
+            || values.Options.Any(o => Names(o, text)))
         {
-            // A value with the separator would become several in an "in" list.
-            shown.Insert(values.HoldsNumbers ? 0 : shown.Count, Unknown(value));
+            return shown;
+        }
+
+        if (!values.HoldsNumbers)
+        {
+            shown.Add(Unknown(value));
+        }
+        else if (meant is null)
+        {
+            shown.Insert(0, Unknown(value));
         }
 
         return shown;

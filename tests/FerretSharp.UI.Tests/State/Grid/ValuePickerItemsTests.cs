@@ -87,10 +87,15 @@ public class ValuePickerItemsTests
     }
 
     [Fact]
-    public void A_members_value_in_another_case_means_the_member()
+    public void A_members_value_in_another_case_comes_first_the_typed_value_stays_pickable_after_it()
     {
-        Assert.Equal(["VERSANDT"], Values(ValuePickerItems.Of(AuftragStatus, [], "versandt")));
-        Assert.Equal(["J"], Values(ValuePickerItems.Of(Gesperrt, [], "j")));
+        // Review N1: "j" in a J/N column is a value of its own (red in the grid) and must stay filterable.
+        var items = ValuePickerItems.Of(Gesperrt, [], "j");
+
+        Assert.Equal(["J", "j"], Values(items));
+        Assert.True(items[1].Unknown);
+        Assert.Equal(["J"], Values(ValuePickerItems.Of(Gesperrt, [], "J")));
+        Assert.Equal(["VERSANDT"], Values(ValuePickerItems.Of(AuftragStatus, [], "versandt"))); // a member's name
     }
 
     [Fact]
