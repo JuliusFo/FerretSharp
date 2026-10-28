@@ -66,6 +66,17 @@ Unabhängiger Reviewer über den Branch, zwei Prüfdurchgänge über die Fixes. 
 13. **K (dritte Runde) – Folge von Punkt 7/12:** Seit `MoveConnectionAsync` auf das Aufräumen wartet, hätte eine schreibgeschützte `settings.json` (`UnauthorizedAccessException`) ein gelungenes Verschieben als gescheitert gemeldet. Behoben im selben Zug (das Aufräumen fängt beide Fehler), ohne eigenen Test: eine schreibgeschützte Datei verhält sich unter Linux in der CI anders.
 - Vorher schon da, nicht geändert: Menüs zeigen „verbunden“ auch bei einem laufenden oder fehlgeschlagenen Verbinden, die Verbindungsseite nicht.
 
+## Nachtrag: E2E mit Datenbank (2026-10-29)
+Vor dem Merge, Stand mit `main` (alle anderen offenen Branches gemerged, auch das Öffnen in Versuchen aus `fix/session-open-retry`): eigener Container `ferret-e2e-enum` (Port 1547), Beta über einen TCP-Proxy im Scratchpad (Port 1548), der einzelne Verbindungsaufbauten hängen lassen kann. Drei erfundene Verbindungen (Alpha und Beta in „Team“, Gamma in „Ops“), eigene Instanz mit `--data-dir`, eigenem WebView2-Ordner, Debug-Port, `--lang=en`, Passwörter ohne Speichern. Bedienung per CDP (Stufe 2):
+- **„Show“** im Menü einer verbundenen Verbindung, über „⋯“ und über Rechtsklick: zeigt sie, Menü und Seite schließen.
+- **„Disconnect all“** der Gruppe Team mit je einem nicht committeten UPDATE in Alpha und Beta: genau eine Frage („Disconnect the group Team“) mit beiden Transaktionen; „Discard“ trennt beide, Gamma bleibt verbunden. In der DB danach nur noch Gammas Session, die Updates verworfen.
+- **Taste einer Verbindung:** im Dialog aufgenommen; Ctrl+Alt+B abgelehnt (AltGr), Ctrl+Shift+B angenommen, in `settings.json` unter der Id, in der Zeile sichtbar. Mit dem Fokus in einem SQL-Editor (Monaco) einer anderen Verbindung zeigt die Taste Beta und verbindet sie (Passwort aus der Sitzung), im Editor kommt kein Zeichen an.
+- **Mit dem Öffnen in Versuchen:** Beta über die Taste mit hängendem ersten Versuch → „attempt 2 of 5“, verbunden nach 5,1 s. Gruppe Team in „Team Neu“ umbenannt, während Beta im zweiten Versuch hing: Die Statusleiste zeigte sofort „Team Neu › Beta“, nach dem Verbinden (dritter Versuch) bleibt Beta in „Team Neu“ (Seite, Umschalter, `connections.json`) – `UseSaved` und `Saved(profile)` greifen auch über das längere Öffnen.
+- **„Export connection…“** im Menü bis zum Dialog: nur Beta vorgewählt („Export 1 connection…“), abgebrochen.
+- Log ohne `[ERR]`/`[WRN]`.
+- **Aufgefallen (Frage):** Die gemeinsame Frage von „Disconnect all“ listet beide Einträge als „Workspace 1 – open transaction“, ohne die Verbindung zu nennen – bei mehreren Verbindungen ist nicht zu sehen, welche Transaktion zu welcher gehört.
+- **Weiter nicht mit echter Eingabe geprüft:** Ziehen (Gruppenkopf, Verbindung), Doppelklick und Rechtsklick mit echter Maus – bitte von Hand.
+
 ## Offen
 - Tastenkürzel systemweit (Backlog).
 - Die Taste einer Verbindung in einem „@“-Modus der Schnellsuche (Backlog, Fortsetzung von WP-38).
