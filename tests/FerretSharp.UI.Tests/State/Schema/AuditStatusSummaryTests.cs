@@ -59,6 +59,23 @@ public sealed class AuditStatusSummaryTests
         Assert.Equal(["Typ wird größer", "Typ wird größer", "Kommentar", "Tabellenkommentar", "wird nullable"], status.Changes.Select(AuditStatusSummary.Label));
     }
 
+    /// <summary>Code review: with creating switched off, "Bring up to date" for a missing audit table led to a locked box.</summary>
+    [Fact]
+    public void Bringing_up_to_date_a_missing_audit_table_needs_creating_allowed()
+    {
+        var missing = Outdated(["Audit-Tabelle AUDIT_KUNDE fehlt"]) with { TableMissing = true };
+        var present = Outdated(["Trigger KUNDE_AUDIT ist ungültig"]);
+
+        Assert.False(AuditStatusSummary.CanSync(missing, createAllowed: false));
+        Assert.True(AuditStatusSummary.CanSync(missing, createAllowed: true));
+        Assert.True(AuditStatusSummary.CanSync(present, createAllowed: false));
+        Assert.Equal("Audit-Tabellen anlegen ist ausgeschaltet (Einstellungen › Audit-Tabellen).", AuditStatusSummary.CreateOffHint);
+        using (UiCulture.Use("en"))
+        {
+            Assert.Equal("Creating audit tables is switched off (Settings › Audit tables).", AuditStatusSummary.CreateOffHint);
+        }
+    }
+
     [Fact]
     public void One_column_issue_is_counted_in_the_singular()
     {

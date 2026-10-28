@@ -16,6 +16,12 @@ public sealed record ColumnUsageRow(string Column, PropertyExport? Property, IRe
 
     /// <summary>The columns "R" and "W": reads or writes in application code, or (<paramref name="tests"/>) in tests.</summary>
     public int Count(UsageAccess access, bool tests) => Uses.Count(u => u.IsTest == tests && CodeUsageRows.Matches(u, access));
+
+    /// <summary>
+    /// Application code filters by the column itself (<c>Where(k =&gt; k.Email == x)</c>): its queries look for rows by it.
+    /// Not through a navigation – that is a join over the key – and not in tests.
+    /// </summary>
+    public bool Filtered => Uses.Any(u => u is { Use.Kind: CodeUseKind.Filter, IsTest: false, IsMapping: false, Navigation: null });
 }
 
 /// <summary>The filter of the "Columns" sub-tab: all uses, only reads (LINQ included) or only writes.</summary>
@@ -53,7 +59,7 @@ public static class CodeUsageRows
     /// </summary>
     public static bool Matches(CodeUsage use, UsageAccess access) => access switch
     {
-        UsageAccess.Read => !use.IsMapping && use.Use.Kind is CodeUseKind.Read or CodeUseKind.Expression,
+        UsageAccess.Read => !use.IsMapping && use.Use.Kind is CodeUseKind.Read or CodeUseKind.Expression or CodeUseKind.Filter,
         UsageAccess.Write => !use.IsMapping && use.Use.Kind == CodeUseKind.Write,
         _ => true,
     };
@@ -111,6 +117,13 @@ public static class CodeUsageRows
         return string.Join(", ", callers.Take(3)) + (callers.Count > 3 ? ", …" : "");
     }
 
+    /// <summary>
+    /// Columns application code filters by without an index starting with them: its queries may read the whole table. Empty
+    /// while the indexes are not known (not loaded yet, a view).
+    /// </summary>
+    public static IReadOnlyList<ColumnUsageRow> FilteredWithoutIndex(IReadOnlyList<ColumnUsageRow> rows, IReadOnlyList<IndexInfo>? indexes) =>
+        indexes is null ? [] : rows.Where(r => r.Filtered && !IndexAdvice.HasIndexFor(r.Column, indexes)).ToList();
+
     /// <summary>The counter of the "Columns" sub-tab: mapped columns no code uses.</summary>
     public static int UnusedCount(IReadOnlyList<ColumnUsageRow> rows) => rows.Count(r => r.Unused);
 
@@ -125,6 +138,7 @@ public static class CodeUsageRows
         CodeUseKind.Read => ModelViewText.Usage_KindRead,
         CodeUseKind.Write => ModelViewText.Usage_KindWrite,
         CodeUseKind.Expression => ModelViewText.Usage_KindExpression,
+        CodeUseKind.Filter => ModelViewText.Usage_KindFilter,
         _ => ModelViewText.Usage_KindQuery,
     };
 

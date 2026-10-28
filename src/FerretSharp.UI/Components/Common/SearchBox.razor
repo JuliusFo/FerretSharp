@@ -7,7 +7,7 @@
 
 <label class="@Class">
     @Icons.Search
-    <input @ref="_input" placeholder="@Placeholder" spellcheck="false" autocomplete="off" disabled="@Disabled"
+    <input @ref="_input" placeholder="@Placeholder" title="@Title" spellcheck="false" autocomplete="off" disabled="@Disabled"
            value="@Value" @oninput="OnInputAsync" />
     @if (Value.Length > 0 && !Disabled)
     {
@@ -34,6 +34,10 @@
 
     [Parameter]
     public string? Placeholder { get; set; }
+
+    /// <summary>Tooltip of the field, e.g. what the search looks at.</summary>
+    [Parameter]
+    public string? Title { get; set; }
 
     [Parameter]
     public string Class { get; set; } = "search";
