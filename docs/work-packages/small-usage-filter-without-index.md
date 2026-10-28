@@ -46,3 +46,13 @@ Dritter Durchgang über B–D: B und C in Ordnung; zwei Fehler der eigenen Fixes
 - E. K – B beendete den Baum auch bei einem Konstruktor ohne Argumente direkt nach dem Lambda (`FirstOrDefault(…, new Ticket())` verlor den Filter): `newobj` ausgenommen, Test.
 
 Geprüft gegen echtes EF Core 8 (Release, auch in async-Methoden) und das Probe-Projekt des Reviewers (Debug und Release gleich). Fehleranzeige und spätes Laden der Indizes nicht in der App geprüft (kein Docker).
+
+## Nachtrag: E2E (2026-10-28)
+Vor dem Merge, Stand mit `main` (3.53.0 + Audit-Fixes + Werteauswahl): eigener Container `ferret-e2e-enum` (Port 1547, Beispielschema), Build in den Scratchpad, eigene Instanz mit `--data-dir`, eigenem WebView2-Ordner, Debug-Port, `--lang=en`, Passwort ohne Speichern. Als Anwendungscode eine Kopie der Beispielmodelle im Scratchpad mit eigener `.slnx` und einem Projekt `SampleApp`: `Where(k => k.Name == name)`, `FirstOrDefaultAsync(k => k.Email == email, ct)`, `FirstOrDefault(k => k.KundeId == id)`, `OrderBy(k => k.Umsatz).Select(k => k.Name)`. Bedienung per CDP (Stufe 2):
+- KUNDEN › Verwendung: Hinweis „1 column the code filters by has no index: NAME“, NAME mit „no index“; KUNDE_ID (PK) und UMSATZ (nur `OrderBy`) ohne. `Email` hat keine Spalte in KUNDEN (Drift des Beispielmodells), also keine Markierung. NAME aufgeklappt: `ByName` als „filters“, `ByTurnover` (`Select`) als „LINQ“.
+- Hell und dunkel (Screenshot): Hinweis und Markierung gut lesbar.
+- „Index anlegen“ in der Index-Ansicht (`IX_KUNDEN_NAME`, nach Bestätigung): Zurück in „Verwendung“ sind Hinweis und Markierung weg, ohne F5.
+- Index außerhalb der App gelöscht (sqlplus), dann F5 in „Verwendung“: Hinweis und Markierung wieder da.
+- Sessions der Instanz im Container beendet (`KILL SESSION`), dann F5: über den Spalten „The connection to the database was lost. Without the indexes, columns filtered without one are not marked.“ mit „Details“, keine Markierung, kein Hinweis. Nach „Reconnect“: Hinweis und Markierung wieder da.
+- Log: nur die `[WRN]` „Query failed: ORA-12537“ des absichtlichen Abbruchs.
+- Aufgefallen, nicht geändert (Fragen): „no index“ hat fast dieselbe Farbe wie „unused“ (`--warn` gegenüber `--yellow`), beide stehen in derselben Spalte. Der englische Hinweis sagt bei einer Spalte „Queries filtering by them“ (deutsch „danach“ passt für beide Fälle).
