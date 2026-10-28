@@ -501,6 +501,8 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .audit-status .link-btn { padding: 0; }
 .audit-status .link-btn.muted { color: var(--faint); text-decoration: none; }
 .audit-status .link-btn.muted:hover { color: var(--muted); text-decoration: underline; }
+/* "Creating is switched off" instead of "Bring up to date": --muted alone has 4.2:1 on the light warn tint */
+.audit-status span.muted { color: color-mix(in srgb, var(--muted) 85%, var(--text)); }
 .audit-status.warn { padding: 6px 10px; border-radius: 7px; background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .audit-status .audit-head { display: inline-flex; align-items: center; gap: 4px; }
 .audit-status .link-btn .chev { margin-left: 2px; }
@@ -549,6 +551,8 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 /* Code usage (WP-40): unused columns, uses in tests and mapping code. */
 .fs-badge.unused { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
 .fs-badge.test, .fs-badge.mapping { background: var(--surface-2); color: var(--faint); font-weight: 600; }
+/* A frame tells it from "unused" in the same column (decision of the user); inset, so the row keeps its height. */
+.fs-badge.no-index { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
 .usage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 4px 0 12px; }
 .usage-tabs .seg-count { margin-left: 6px; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .usage-tabs .seg-count.unused { color: var(--key); }
@@ -1233,7 +1237,9 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .valpick-unset .valpick-text { color: var(--faint); }
 .valpick-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .valpick-caret { flex: none; color: var(--muted); font-size: 11px; }
-.valpick-pop { min-width: 100%; width: max-content; max-width: 420px; max-height: 320px; overflow-y: auto; padding: 4px; }
+.valpick-pop { min-width: 100%; width: max-content; max-width: 420px; max-height: 320px; display: flex; flex-direction: column; gap: 4px; padding: 4px; }
+.valpick-search { flex: none; margin: -4px -4px 0; }
+.valpick-list { min-height: 0; overflow-y: auto; }
 .valpick-item { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: 6px; cursor: pointer; }
 .valpick-item.highlight { background: var(--accent-weak); }
 .valpick-item.selected .valpick-name { color: var(--accent); font-weight: 600; }
@@ -1660,6 +1666,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-tab.active { border-bottom-color: var(--accent); color: var(--text); font-weight: 600; }
 .tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
 .tab-dot.bad { background: var(--danger); }
+.tab-dot.warn { background: var(--warn); }
 .designer-body { display: flex; flex-direction: column; gap: 10px; }
 .designer table.columns th { position: static; }
 .designer-was { margin-top: 2px; font-size: 11.5px; color: var(--faint); }

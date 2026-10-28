@@ -35,12 +35,13 @@ public sealed class ConnectActivityLog : IDisposable
         var blocking = outcome.Synchronous ? " (blocking the calling thread)" : "";
         if (outcome.Error is null)
         {
-            _logger.LogInformation("{Connection}: session open after {Milliseconds} ms{Blocking}", _connection, (long)outcome.Took.TotalMilliseconds, blocking);
+            _logger.LogInformation("{Connection}: session open after {Milliseconds} ms (attempt {Attempt}){Blocking}",
+                _connection, (long)outcome.Took.TotalMilliseconds, outcome.Attempt, blocking);
         }
         else
         {
-            _logger.LogInformation("{Connection}: opening the session ended without one after {Milliseconds} ms{Blocking}: {Error}",
-                _connection, (long)outcome.Took.TotalMilliseconds, blocking, outcome.Error);
+            _logger.LogInformation("{Connection}: opening the session ended without one after {Milliseconds} ms (attempt {Attempt}){Blocking}: {Error}",
+                _connection, (long)outcome.Took.TotalMilliseconds, outcome.Attempt, blocking, outcome.Error);
         }
     }
 

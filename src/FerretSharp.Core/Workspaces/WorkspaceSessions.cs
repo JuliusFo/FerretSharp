@@ -10,7 +10,8 @@ namespace FerretSharp.Core.Workspaces;
 /// Thread-safe; the manager calls the synchronous members while it holds its own lock (always in that order), so opening
 /// a session and closing its workspace cannot cross.
 /// </summary>
-internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabaseConnector connector)
+/// <param name="time">The clock of the limits on opening a session (<see cref="SessionOpening"/>).</param>
+internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabaseConnector connector, TimeProvider time)
 {
     private readonly Lock _lock = new();
     private readonly Dictionary<Guid, Task<IDatabaseConnection>> _sessions = [];
@@ -229,7 +230,8 @@ internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabase
     {
         var password = connections.GetPassword(profile.Id)
             ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
-        var connection = await connector.OpenAsync(profile, password, action, cancellationToken);
+        var connection = await SessionOpening.OpenAsync(
+            (_, token) => connector.OpenAsync(profile, password, action, token), time, retrying: null, cancellationToken);
         if (!profile.ReadOnly || IsUnlocked(workspaceId))
         {
             return connection;

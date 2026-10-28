@@ -113,6 +113,90 @@ namespace FerretSharp.Core.Tests.ClrModel.UsageSamples
         public int Raise(IQueryable<Invoice> invoices) =>
             invoices.ExecuteUpdate(s => s.SetProperty(i => i.Amount, i => i.Amount * 2)); // marker: execute-update-amount
     }
+
+    /// <summary>Only for filters (Where, Any, First …): an entity of its own, so the index tests stay as they are.</summary>
+    public class Ticket
+    {
+        public int Number { get; set; }
+
+        public string Status { get; set; } = "";
+
+        public string? Title { get; set; }
+
+        public DateTime Due { get; set; }
+
+        public string? Owner { get; set; }
+
+        public List<TicketNote> Notes { get; set; } = [];
+    }
+
+    public class TicketNote
+    {
+        public string Text { get; set; } = "";
+
+        public Ticket? Ticket { get; set; }
+    }
+
+    public static class TicketClock
+    {
+        public static Ticket Current { get; } = new();
+    }
+
+    public sealed class TicketRepository
+    {
+        public IQueryable<Ticket> Load(params Expression<Func<Ticket, object?>>[] includes) => Enumerable.Empty<Ticket>().AsQueryable();
+    }
+
+    public sealed class TicketService
+    {
+        private readonly Ticket _template = new();
+
+        public IQueryable<Ticket> Follow(IQueryable<Ticket> tickets, Ticket parent, TicketNote note) =>
+            tickets.Where(t => t.Number == parent.Number && t.Due == _template.Due && t.Title == note.Ticket!.Title); // marker: filter-values
+
+        public IQueryable<Ticket> Sorted(IQueryable<Ticket> tickets, string sort)
+        {
+            Expression<Func<Ticket, object?>> key = sort switch
+            {
+                "title" => t => t.Title,
+                _ => t => t.Due,
+            };
+            Expression<Func<Ticket, int>> number = t => t.Number;
+            return tickets.Where(t => t.Status != "closed").OrderBy(key).ThenBy(number); // marker: filter-stored
+        }
+
+        public IQueryable<Ticket> Reversed(IQueryable<Ticket> tickets) =>
+            tickets.Where(t => "open" == t.Status && null == t.Title && t.Due < TicketClock.Current.Due); // marker: filter-reversed
+
+        public Ticket OrDefault(IQueryable<Ticket> tickets) => tickets.FirstOrDefault(t => t.Status == "open", new Ticket()); // marker: filter-default
+
+        public IQueryable<Ticket> SortedByMap(IQueryable<Ticket> tickets, string sort)
+        {
+            var keys = new Dictionary<string, Expression<Func<Ticket, object?>>> { ["title"] = t => t.Title, ["due"] = t => t.Due };
+            return tickets.Where(t => t.Status != "closed").OrderBy(keys[sort]); // marker: filter-map
+        }
+
+        public IQueryable<Ticket> Loaded(TicketRepository repository) =>
+            repository.Load(t => t.Notes, t => t.Title).Where(t => t.Status == "open"); // marker: filter-params
+
+        public bool AllClosed(IQueryable<Ticket> tickets) => tickets.All(t => t.Status == "closed");
+
+        public IQueryable<string?> OpenTitles(IQueryable<Ticket> tickets) =>
+            tickets.Where(t => t.Status == "open").OrderBy(t => t.Due).Select(t => t.Title); // marker: filter-where
+
+        public Task<Ticket?> ByNumberAsync(IQueryable<Ticket> tickets, int number) =>
+            tickets.FirstOrDefaultAsync(t => t.Number == number, CancellationToken.None); // marker: filter-async
+
+        public bool WithNote(IQueryable<Ticket> tickets, string text) =>
+            tickets.Any(t => t.Notes.Any(n => n.Text == text)); // marker: filter-nested
+
+        public Expression<Func<Ticket, bool>> Mine(string owner) => t => t.Owner == owner; // marker: filter-returned
+
+        public IQueryable<Ticket> Unowned(IQueryable<Ticket> tickets) =>
+            Apply(tickets, t => t.Owner == null); // marker: filter-own-method
+
+        private static IQueryable<Ticket> Apply(IQueryable<Ticket> tickets, Expression<Func<Ticket, bool>> condition) => tickets.Where(condition);
+    }
 }
 
 // Stand-ins for EF Core's types, so the scanner sees the names it looks for without a package (net10.0 test project, EF 8
@@ -143,6 +227,14 @@ namespace Microsoft.EntityFrameworkCore
     public interface IEntityTypeConfiguration<T> where T : class
     {
         void Configure(EntityTypeBuilder<T> builder);
+    }
+
+    public static class EntityFrameworkQueryableExtensions
+    {
+        public static Task<TSource?> FirstOrDefaultAsync<TSource>(
+            this IQueryable<TSource> source,
+            Expression<Func<TSource, bool>> predicate,
+            CancellationToken cancellationToken = default) => Task.FromResult(default(TSource));
     }
 
     public static class RelationalQueryableExtensions

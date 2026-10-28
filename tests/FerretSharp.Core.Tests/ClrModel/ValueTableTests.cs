@@ -57,6 +57,27 @@ public sealed class ValueTableTests
     public void Filter_texts_find_their_member(string text, string? expected) =>
         Assert.Equal(expected, ValueTable.For(Kundenart, Number2)!.FindOption(text)?.Name);
 
+    [Theory]
+    [InlineData("1", "1")]
+    [InlineData(" 7 ", "7")]
+    [InlineData("2,0", "2")]
+    [InlineData("2.50", "2.5")]
+    [InlineData("-3", "-3")]
+    [InlineData("x", null)]
+    [InlineData("1.000", "1")]
+    [InlineData("  ", null)]
+    [InlineData("0.0000001", "0.0000001")] // no exponent: the filter takes no "1E-07"
+    [InlineData("0,0000001", "0.0000001")]
+    public void Typed_values_of_a_number_column_are_normalized_member_or_not(string text, string? expected) =>
+        Assert.Equal(expected, ValueTable.For(Kundenart, Number2)!.TypedValue(text));
+
+    [Theory]
+    [InlineData("STORNIERT", "STORNIERT")]
+    [InlineData(" offen ", "offen")]
+    [InlineData("", null)]
+    public void Typed_values_of_a_text_column_keep_their_text_without_surrounding_blanks(string text, string? expected) =>
+        Assert.Equal(expected, ValueTable.For(AuftragStatus, Status)!.TypedValue(text));
+
     [Fact]
     public void Converted_bools_show_true_and_false_char_padding_is_ignored()
     {

@@ -121,6 +121,40 @@ public sealed class CodeUsageRowsTests : IDisposable
         Assert.Same(rows, CodeUsageRows.Filter(rows, UsageAccess.All));
     }
 
+    private static IndexInfo Index(string column) =>
+        new(Owner, "IX_" + column, "NORMAL", false, "VALID", [new IndexColumn(column, false, false)], null, false, true);
+
+    [Fact]
+    public async Task Columns_application_code_filters_by_without_an_index_are_found_once_the_indexes_are_known()
+    {
+        var mapping = await MappingAsync(Model, Kunden);
+        var index = CodeUsageIndex.Build(Model,
+        [
+            Assembly("Shop", false, Use("Name", "Suche", 5, CodeUseKind.Filter), Use("KundeId", "Suche", 6, CodeUseKind.Filter),
+                Use("Email", "Export", 9, CodeUseKind.Expression)),
+            Assembly("Shop.Tests", true, Use("Email", "KundenTests", 30, CodeUseKind.Filter)),
+        ]);
+        var rows = CodeUsageRows.Columns(mapping, index, Kunden);
+
+        // KUNDE_ID has its index, EMAIL is filtered only in tests; a filter reads.
+        Assert.Equal(["NAME"], CodeUsageRows.FilteredWithoutIndex(rows, [Index("KUNDE_ID")]).Select(r => r.Column));
+        Assert.Empty(CodeUsageRows.FilteredWithoutIndex(rows, [Index("KUNDE_ID"), Index("NAME")]));
+        Assert.Empty(CodeUsageRows.FilteredWithoutIndex(rows, null));
+        Assert.Equal(1, rows[1].Count(UsageAccess.Read, tests: false));
+        Assert.Equal(ModelViewText.Usage_KindFilter, CodeUsageRows.Kind(CodeUseKind.Filter));
+    }
+
+    [Fact]
+    public async Task A_filter_through_a_navigation_is_a_join_not_a_filter_by_the_foreign_key()
+    {
+        var mapping = await MappingAsync(WithOrders, Kunden, Auftraege);
+        var index = CodeUsageIndex.Build(WithOrders, [Assembly("Shop", false, Use("Kunde", "Report", 3, CodeUseKind.Filter, "Shop.Auftrag"))]);
+        var row = CodeUsageRows.Column(mapping, index, Auftraege.Table.Ref, "KUNDE_ID")!;
+
+        Assert.Single(row.Uses);
+        Assert.False(row.Filtered);
+    }
+
     [Fact]
     public void Mapping_code_is_neither_read_nor_write()
     {

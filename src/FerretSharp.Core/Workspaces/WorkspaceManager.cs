@@ -34,7 +34,7 @@ public sealed class WorkspaceManager : IAsyncDisposable
     {
         _store = store;
         _time = timeProvider ?? TimeProvider.System;
-        _sessions = new WorkspaceSessions(connections, connector);
+        _sessions = new WorkspaceSessions(connections, connector, _time);
         _saver = new WorkspaceSaver(store, _time, Current, RaiseChanged);
     }
 
