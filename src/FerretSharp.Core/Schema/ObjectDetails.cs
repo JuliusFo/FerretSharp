@@ -113,6 +113,13 @@ public static class IndexAdvice
     public static IReadOnlyList<ForeignKeyInfo> UnindexedForeignKeys(IEnumerable<ForeignKeyInfo> foreignKeys, IReadOnlyList<IndexInfo> indexes) =>
         foreignKeys.Where(fk => !indexes.Any(index => Covers(index, fk.FromColumns))).ToList();
 
+    /// <summary>
+    /// An index Oracle can use to find rows by the column: one that starts with it, visible and usable. Code that filters by
+    /// a column without one (WP-40) may read the whole table; whether it does, only the plan tells.
+    /// </summary>
+    public static bool HasIndexFor(string column, IReadOnlyList<IndexInfo> indexes) =>
+        indexes.Any(index => index.Visible && !index.IsUnusable && Covers(index, [column]));
+
     /// <summary>The index starts with <paramref name="columns"/> (in any order), so lookups by them can use it.</summary>
     public static bool Covers(IndexInfo index, IReadOnlyList<string> columns)
     {

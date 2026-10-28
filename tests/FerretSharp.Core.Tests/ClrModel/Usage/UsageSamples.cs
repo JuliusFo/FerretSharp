@@ -113,6 +113,46 @@ namespace FerretSharp.Core.Tests.ClrModel.UsageSamples
         public int Raise(IQueryable<Invoice> invoices) =>
             invoices.ExecuteUpdate(s => s.SetProperty(i => i.Amount, i => i.Amount * 2)); // marker: execute-update-amount
     }
+
+    /// <summary>Only for filters (Where, Any, First …): an entity of its own, so the index tests stay as they are.</summary>
+    public class Ticket
+    {
+        public int Number { get; set; }
+
+        public string Status { get; set; } = "";
+
+        public string? Title { get; set; }
+
+        public DateTime Due { get; set; }
+
+        public string? Owner { get; set; }
+
+        public List<TicketNote> Notes { get; set; } = [];
+    }
+
+    public class TicketNote
+    {
+        public string Text { get; set; } = "";
+    }
+
+    public sealed class TicketService
+    {
+        public IQueryable<string?> OpenTitles(IQueryable<Ticket> tickets) =>
+            tickets.Where(t => t.Status == "open").OrderBy(t => t.Due).Select(t => t.Title); // marker: filter-where
+
+        public Task<Ticket?> ByNumberAsync(IQueryable<Ticket> tickets, int number) =>
+            tickets.FirstOrDefaultAsync(t => t.Number == number, CancellationToken.None); // marker: filter-async
+
+        public bool WithNote(IQueryable<Ticket> tickets, string text) =>
+            tickets.Any(t => t.Notes.Any(n => n.Text == text)); // marker: filter-nested
+
+        public Expression<Func<Ticket, bool>> Mine(string owner) => t => t.Owner == owner; // marker: filter-returned
+
+        public IQueryable<Ticket> Unowned(IQueryable<Ticket> tickets) =>
+            Apply(tickets, t => t.Owner == null); // marker: filter-own-method
+
+        private static IQueryable<Ticket> Apply(IQueryable<Ticket> tickets, Expression<Func<Ticket, bool>> condition) => tickets.Where(condition);
+    }
 }
 
 // Stand-ins for EF Core's types, so the scanner sees the names it looks for without a package (net10.0 test project, EF 8
@@ -143,6 +183,14 @@ namespace Microsoft.EntityFrameworkCore
     public interface IEntityTypeConfiguration<T> where T : class
     {
         void Configure(EntityTypeBuilder<T> builder);
+    }
+
+    public static class EntityFrameworkQueryableExtensions
+    {
+        public static Task<TSource?> FirstOrDefaultAsync<TSource>(
+            this IQueryable<TSource> source,
+            Expression<Func<TSource, bool>> predicate,
+            CancellationToken cancellationToken = default) => Task.FromResult(default(TSource));
     }
 
     public static class RelationalQueryableExtensions

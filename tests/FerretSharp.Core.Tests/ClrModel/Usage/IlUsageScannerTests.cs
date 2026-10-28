@@ -45,7 +45,7 @@ public sealed class IlUsageScannerTests
     [Fact]
     public void An_expression_tree_names_the_getter_and_counts_for_the_method_it_is_written_in()
     {
-        var use = Single("Customer", "Email", CodeUseKind.Expression, "WithEmail");
+        var use = Single("Customer", "Email", CodeUseKind.Filter, "WithEmail");
 
         Assert.Equal(Samples + "CustomerService", use.CallerType);
         Assert.Equal(LineOf("linq-email"), use.Line);
@@ -63,6 +63,29 @@ public sealed class IlUsageScannerTests
         Assert.Equal(line, Single("Invoice", "Note", CodeUseKind.Expression, "Rename").Line);
         Assert.Equal(LineOf("execute-update-amount"), Single("Invoice", "Amount", CodeUseKind.Write, "Raise").Line);
         Assert.Equal(LineOf("execute-update-amount"), Single("Invoice", "Amount", CodeUseKind.Expression, "Raise").Line);
+    }
+
+    [Fact]
+    public void The_condition_of_where_any_and_first_is_a_filter_other_lambdas_are_not()
+    {
+        var line = LineOf("filter-where");
+
+        Assert.Equal(line, Single("Ticket", "Status", CodeUseKind.Filter, "OpenTitles").Line);
+        Assert.Equal(line, Single("Ticket", "Due", CodeUseKind.Expression, "OpenTitles").Line);
+        Assert.Equal(line, Single("Ticket", "Title", CodeUseKind.Expression, "OpenTitles").Line);
+        // EF's async operator, with a call for the token between the tree and the operator.
+        Assert.Equal(LineOf("filter-async"), Single("Ticket", "Number", CodeUseKind.Filter, "ByNumberAsync").Line);
+        // A nested lambda belongs to the condition of the outer operator.
+        Single("Ticket", "Notes", CodeUseKind.Filter, "WithNote");
+        Single("TicketNote", "Text", CodeUseKind.Filter, "WithNote");
+    }
+
+    [Fact]
+    public void A_tree_returned_or_passed_to_own_code_is_no_filter_its_use_is_not_known()
+    {
+        Assert.Equal(LineOf("filter-returned"), Single("Ticket", "Owner", CodeUseKind.Expression, "Mine").Line);
+        Assert.Equal(LineOf("filter-own-method"), Single("Ticket", "Owner", CodeUseKind.Expression, "Unowned").Line);
+        Assert.DoesNotContain(Uses.Uses, u => u.Type == Samples + "Ticket" && u.Kind == CodeUseKind.Filter && u.Member == "Owner");
     }
 
     [Fact]

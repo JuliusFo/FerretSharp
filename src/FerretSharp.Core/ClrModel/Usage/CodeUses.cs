@@ -17,6 +17,12 @@ public enum CodeUseKind
 
     /// <summary><c>context.Set&lt;Kunde&gt;()</c>; the member is empty.</summary>
     Query,
+
+    /// <summary>
+    /// A getter in the condition of a query: <c>Where(k =&gt; k.Email == x)</c>, <c>Any</c>, <c>FirstOrDefaultAsync</c> … – an
+    /// <see cref="Expression"/> the query filters by. Without an index on the column, Oracle may read the whole table.
+    /// </summary>
+    Filter,
 }
 
 /// <summary>One place in compiled code that touches a member of a type of the solution (WP-40, ADR 0030).</summary>
@@ -45,6 +51,9 @@ public sealed record AssemblyUses(
     IReadOnlyList<TypeLink> Types,
     IReadOnlyList<CodeUse> Uses)
 {
-    /// <summary>2: the property an <c>ExecuteUpdate</c> sets is a write, no longer an expression.</summary>
-    public const int CurrentFormatVersion = 2;
+    /// <summary>
+    /// 2: the property an <c>ExecuteUpdate</c> sets is a write, no longer an expression. 3: conditions of <c>Where</c>,
+    /// <c>Any</c>, <c>First</c> … are filters.
+    /// </summary>
+    public const int CurrentFormatVersion = 3;
 }
