@@ -570,4 +570,7 @@
   <data name="Connections_DragGroupTitle" xml:space="preserve">
     <value>Klicken klappt die Gruppe ein oder aus; Ziehen verschiebt sie</value>
   </data>
+  <data name="GroupName_WorkCloneDropped" xml:space="preserve">
+    <value>Ihr Arbeits-Klon {0} entfällt; „{1}“ behält den eigenen (der Ordner bleibt unter den zuletzt gewählten).</value>
+  </data>
 </root>

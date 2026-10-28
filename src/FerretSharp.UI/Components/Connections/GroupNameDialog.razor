@@ -29,6 +29,10 @@
                 {
                     <div>@TextFormat.Format(ConnectionViewText.GroupName_TemplateDropped, Path.GetFileName(dropped), rename.To)</div>
                 }
+                @if (Groups.DroppedWorkClone(rename) is { } clone)
+                {
+                    <div title="@clone">@TextFormat.Format(ConnectionViewText.GroupName_WorkCloneDropped, Path.GetFileName(clone), rename.To)</div>
+                }
             </div>
         }
         else if (rename?.DroppedAuditTemplate is { } dropped)
@@ -70,6 +74,7 @@
         : ConnectionViewText.GroupName_NewTitle;
 
     protected override void OnInitialized() => _name = Request.Group ?? "";
+
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

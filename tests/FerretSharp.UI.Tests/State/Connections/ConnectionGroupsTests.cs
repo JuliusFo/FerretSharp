@@ -178,4 +178,21 @@ public sealed class ConnectionGroupsTests : IAsyncDisposable
         await Task.Delay(50, Ct);
         Assert.True(_app.Settings.Current.ConnectionShortcuts.ContainsKey(Kasse.Id.ToString()));
     }
+
+    /// <summary>Review of WP-66: merging drops the source's work clone when the target has one – the dialog says so.</summary>
+    [Fact]
+    public async Task Merging_names_the_work_clone_it_drops()
+    {
+        await SaveAllAsync();
+        var zoll = Directory.CreateDirectory(_folder.Combine("zoll-work")).FullName;
+        var kasse = Directory.CreateDirectory(_folder.Combine("kasse-work")).FullName;
+        await _app.WorkClones.SetActiveAsync("Zoll", zoll, Ct);
+
+        Assert.Null(Groups.DroppedWorkClone(Groups.PlanRename("Zoll", "Kasse")!)); // the target has none: it moves
+
+        await _app.WorkClones.SetActiveAsync("Kasse", kasse, Ct);
+
+        Assert.Equal(zoll, Groups.DroppedWorkClone(Groups.PlanRename("Zoll", "Kasse")!));
+        Assert.Null(Groups.DroppedWorkClone(Groups.PlanRename("Zoll", "Lager")!)); // no merge
+    }
 }

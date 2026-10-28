@@ -92,6 +92,16 @@ public sealed class ConnectionGroups : IDisposable
             : ConnectionGroupRename.Plan(_connections.Profiles, from, to, _settings.Current.AuditTemplateGroups);
 
     /// <summary>
+    /// The work clone of the group merged away when the target has its own (review of WP-66: it was dropped without a word,
+    /// unlike the audit template); null if none is lost. The folder stays among the recent ones.
+    /// </summary>
+    public string? DroppedWorkClone(ConnectionGroupRename rename) =>
+        rename.Merges && _clones.ActiveFor(rename.From) is { } source && _clones.ActiveFor(rename.To) is { } target
+                      && !string.Equals(source, target, StringComparison.OrdinalIgnoreCase)
+            ? source
+            : null;
+
+    /// <summary>
     /// Renames (or merges) the group: the connections in one write first – that is the rename –, then what is kept per group
     /// by name. Those that could not be saved apply until quitting and are named in the result.
     /// </summary>

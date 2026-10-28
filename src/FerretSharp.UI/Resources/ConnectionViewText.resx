@@ -658,4 +658,7 @@
   <data name="Connections_DragGroupTitle" xml:space="preserve">
     <value>Click to collapse or expand; drag to move the group</value>
   </data>
+  <data name="GroupName_WorkCloneDropped" xml:space="preserve">
+    <value>Its work clone {0} is dropped; “{1}” keeps its own (the folder stays among the recent ones).</value>
+  </data>
 </root>
