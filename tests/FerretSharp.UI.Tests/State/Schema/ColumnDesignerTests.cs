@@ -456,15 +456,44 @@ public sealed class ColumnDesignerTests
         Assert.Null(new ColumnDesigner(Kunde, []).Rebase(Kunde, []).WithAudit);
     }
 
-    /// <summary>The audit box at start: the setting turns it off for a table with an audit table, not when opened for the audit.</summary>
+    /// <summary>
+    /// The audit box at start: the setting turns it off for a table with an audit table, not when opened for the audit;
+    /// without creating audit tables it stays off for a table without one, also when opened for the audit.
+    /// </summary>
     [Theory]
-    [InlineData(false, false, true, false)]
-    [InlineData(false, true, true, true)]
-    [InlineData(false, true, false, false)]
-    [InlineData(true, false, false, true)]
-    [InlineData(true, true, false, true)]
-    public void The_audit_box_starts_by_audit_table_setting_and_how_the_designer_was_opened(bool openedForAudit, bool hasAuditTable, bool syncByDefault, bool expected) =>
-        Assert.Equal(expected, ColumnDesigner.AuditAtStart(openedForAudit, hasAuditTable, syncByDefault));
+    [InlineData(false, false, true, true, false)]
+    [InlineData(false, true, true, true, true)]
+    [InlineData(false, true, false, true, false)]
+    [InlineData(true, false, false, true, true)]
+    [InlineData(true, true, false, true, true)]
+    [InlineData(true, false, true, false, false)]
+    [InlineData(false, true, true, false, true)]
+    [InlineData(true, true, false, false, true)]
+    public void The_audit_box_starts_by_audit_table_settings_and_how_the_designer_was_opened(bool openedForAudit, bool hasAuditTable, bool syncByDefault,
+        bool createAllowed, bool expected) =>
+        Assert.Equal(expected, ColumnDesigner.AuditAtStart(openedForAudit, hasAuditTable, syncByDefault, createAllowed));
+
+    /// <summary>Without creating audit tables the box is only there for a table that has one.</summary>
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, false, false)]
+    public void The_audit_box_takes_part_unless_it_would_create_an_audit_table_that_may_not_be_created(bool hasAuditTable, bool createAllowed, bool expected) =>
+        Assert.Equal(expected, ColumnDesigner.CanAudit(hasAuditTable, createAllowed));
+
+    /// <summary>Code review: a box ticked before creating was switched off survives a rebase but puts no audit into the plan.</summary>
+    [Fact]
+    public void A_ticked_audit_box_takes_part_only_where_the_audit_may_be_planned()
+    {
+        var designer = new ColumnDesigner(Kunde, []) { WithAudit = true }.Rebase(Kunde, []);
+
+        Assert.False(designer.AuditTakesPart(hasAuditTable: false, createAllowed: false));
+        Assert.True(designer.AuditTakesPart(hasAuditTable: false, createAllowed: true));
+        Assert.True(designer.AuditTakesPart(hasAuditTable: true, createAllowed: false));
+        Assert.False(new ColumnDesigner(Kunde, []) { WithAudit = false }.AuditTakesPart(hasAuditTable: true, createAllowed: true));
+        Assert.False(new ColumnDesigner(Kunde, []).AuditTakesPart(hasAuditTable: true, createAllowed: true));
+    }
 
     [Fact]
     public void Not_null_check_constraints_belong_to_their_columns_and_are_not_listed()

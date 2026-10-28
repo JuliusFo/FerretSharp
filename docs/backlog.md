@@ -114,7 +114,7 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
   - LOBs vergleichen (heute nicht hervorgehoben; `DBMS_LOB.COMPARE` je Zeile).
   - Historientabellen ohne FerretSharp-Vorlage (eigene Namen `_HIST`/`_JN`): Zuordnung je Tabelle von Hand, mit Vorschlag aus typischen Namen.
   - Später: Verlauf ohne Historientabelle über Flashback (`VERSIONS BETWEEN`; braucht Rechte, reicht nur so weit wie das Undo).
-  - Kontextmenü für Tabellen im Explorer (es gibt noch keins), darin „Audit anlegen/abgleichen…“ (WP-26 bietet es über die Zeile über den Spalten an). Die Audit-Zeile liest eine geänderte Vorlage erst beim nächsten Laden des Tabs – seit WP-51 auch nach einer geänderten Gruppe der Verbindung.
+  - Kontextmenü für Tabellen im Explorer (es gibt noch keins), darin „Audit anlegen/abgleichen…“ (WP-26 bietet es über die Zeile über den Spalten an; „Anlegen“ nur, wenn die Einstellung `CreateAuditTables` es erlaubt, wie Zeile und Designer). Die Audit-Zeile liest eine geänderte Vorlage erst beim nächsten Laden des Tabs – seit WP-51 auch nach einer geänderten Gruppe der Verbindung.
   - Mehrere Tabellen auf einmal abgleichen (z. B. nach einem Wechsel der Vorlage oder vielen Spaltenänderungen): Liste der veralteten Audit-Tabellen eines Schemas mit einem Skript.
 
 ## C#-Modell, LINQ-Konsole, ModelHost

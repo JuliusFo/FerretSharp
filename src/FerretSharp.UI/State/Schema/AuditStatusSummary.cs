@@ -61,6 +61,19 @@ public static class AuditStatusSummary
         return status.ColumnIssues.Count > 0 || status.Changes.Count > 0 || status.MissingColumns.Count > NamedMissing;
     }
 
+    /// <summary>
+    /// Whether "Bring up to date" can do something: not when it would create the missing audit table and audit tables may
+    /// not be created – the designer's audit box is locked then (<see cref="ColumnDesigner.CanAudit"/>).
+    /// </summary>
+    public static bool CanSync(AuditStatus status, bool createAllowed)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+        return ColumnDesigner.CanAudit(!status.TableMissing, createAllowed);
+    }
+
+    /// <summary>Where creating audit tables is switched off, named by the settings page's own texts (code review).</summary>
+    public static string CreateOffHint => TextFormat.Format(SchemaViewText.Audit_DesignerCreateOff, SettingsViewText.Settings_Title, SettingsViewText.Settings_Audit);
+
     /// <summary>What a change does, short, for its row in the details.</summary>
     public static string Label(AuditChange change)
     {

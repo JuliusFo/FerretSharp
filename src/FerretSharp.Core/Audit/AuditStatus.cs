@@ -34,6 +34,9 @@ public sealed record AuditStatus(AuditHealth Health, AuditNames Names, IReadOnly
     /// <summary>What "Bring up to date" changes without touching values: types that grow, NOT NULL taken away, comments.</summary>
     public IReadOnlyList<AuditChange> Changes { get; init; } = [];
 
+    /// <summary>The trigger is there but the audit table is not: "Bring up to date" would create it.</summary>
+    public bool TableMissing { get; init; }
+
     /// <summary>
     /// How the table's audit objects stand against the template (the columns view shows it, WP-26): none, up to date, or
     /// outdated with the reasons – the same comparison as the plan (<see cref="AuditPlanner.Plan"/>).
@@ -108,6 +111,7 @@ public sealed record AuditStatus(AuditHealth Health, AuditNames Names, IReadOnly
             MissingColumns = missing,
             ColumnIssues = issues,
             Changes = review.Changes,
+            TableMissing = state.AuditTable is null,
         };
     }
 

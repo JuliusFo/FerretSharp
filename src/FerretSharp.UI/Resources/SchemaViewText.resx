@@ -878,6 +878,10 @@
     <value>Entity</value>
     <comment>Label of the entity name field</comment>
   </data>
+  <data name="Audit_DesignerCreateOff" xml:space="preserve">
+    <value>Creating audit tables is switched off ({0} › {1}).</value>
+    <comment>Tooltip of the disabled audit box in the table designer and of "Creating is switched off" in the audit line; {0}: the settings page (Settings), {1}: its section (Audit tables)</comment>
+  </data>
   <data name="Audit_DesignerCreate" xml:space="preserve">
     <value>Create audit table and trigger</value>
     <comment>Checkbox in the table designer (WP-26)</comment>
@@ -913,6 +917,10 @@
   <data name="Audit_Sync" xml:space="preserve">
     <value>Bring up to date</value>
     <comment>Link: opens the designer with the audit box on</comment>
+  </data>
+  <data name="Audit_SyncCreateOff" xml:space="preserve">
+    <value>Creating is switched off</value>
+    <comment>In the audit line instead of "Bring up to date" when the audit table is missing and may not be created</comment>
   </data>
   <data name="Audit_OpenTable" xml:space="preserve">
     <value>Open the audit table</value>
