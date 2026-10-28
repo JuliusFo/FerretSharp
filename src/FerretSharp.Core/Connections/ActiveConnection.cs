@@ -167,7 +167,7 @@ public sealed class ActiveConnection(
             Schema = schema;
             ServerVersion = _connection.ServerVersion;
             FinishSteps();
-            Set(ConnectionStatus.Connected, profile);
+            Set(ConnectionStatus.Connected, Saved(profile));
         }
         catch (OperationCanceledException)
         {
@@ -185,7 +185,7 @@ public sealed class ActiveConnection(
 
             FinishSteps();
             await CloseAsync();
-            Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, ex.ErrorCode) { TimedOut = ex is SessionOpenTimeoutException });
+            Set(ConnectionStatus.Failed, Saved(profile), new ConnectionError(ex.Message, ex.ErrorCode) { TimedOut = ex is SessionOpenTimeoutException });
             return;
         }
         catch (Exception ex)
@@ -193,7 +193,7 @@ public sealed class ActiveConnection(
             // Never leave the UI stuck in "Connecting".
             FinishSteps();
             await CloseAsync();
-            Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, null));
+            Set(ConnectionStatus.Failed, Saved(profile), new ConnectionError(ex.Message, null));
             return;
         }
         finally
@@ -440,6 +440,13 @@ public sealed class ActiveConnection(
             Changed?.Invoke();
         }
     }
+
+    /// <summary>
+    /// The profile to keep at the end of connecting: one saved meanwhile (<see cref="UseSaved"/>, review of WP-66) if the
+    /// session it opened is the same, else the one it started with.
+    /// </summary>
+    private ConnectionProfile Saved(ConnectionProfile started) =>
+        Profile is { } now && now.Id == started.Id && !started.SessionDiffers(now) ? now : started;
 
     private void Set(ConnectionStatus status, ConnectionProfile? profile, ConnectionError? error = null)
     {
