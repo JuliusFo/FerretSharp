@@ -13,9 +13,10 @@
     @if (_open)
     {
         <div class="popover-backdrop" @onclick="Close"></div>
-        <div class="popover valpick-pop">
-            <input class="field valpick-search" spellcheck="false" placeholder="@GridText.ValuePicker_Search" title="@GridText.ValuePicker_SearchTitle"
-                   value="@_typed" @ref="_search" @oninput="OnTyped" @onkeydown="OnKeyDown" />
+        @* Escape with text clears the search (SearchBox) and goes no further; in the empty field it closes the list. *@
+        <div class="popover valpick-pop" @onkeydown="OnKeyDown">
+            <SearchBox @ref="_search" Class="popover-search ctx-filter valpick-search" Value="@_typed" ValueChanged="OnTyped"
+                       Placeholder="@GridText.ValuePicker_Search" Title="@GridText.ValuePicker_SearchTitle" />
             <div class="valpick-list" role="listbox" aria-multiselectable="@(Multiple ? "true" : "false")">
                 @for (var i = 0; i < _items.Count; i++)
                 {
@@ -44,7 +45,7 @@
     private int _highlight;
     private string _typed = "";
     private ElementReference _button;
-    private ElementReference _search;
+    private SearchBox? _search;
     private bool _focusSearch;
     private bool _focusButton;
 
@@ -76,7 +77,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_focusSearch)
+        if (_focusSearch && _search is not null)
         {
             _focusSearch = false;
             await _search.FocusAsync();
@@ -112,9 +113,9 @@
         _focusButton = true;
     }
 
-    private void OnTyped(ChangeEventArgs e)
+    private void OnTyped(string text)
     {
-        Type(e.Value as string ?? "");
+        Type(text);
         _highlight = 0;
     }
 
