@@ -42,8 +42,12 @@ Branch `wp/66-connection-groups`, 2026-10-28. Wünsche eines Kollegen, vom Nutze
 - **UI:** `ConnectionMenuBody`, `ConnectionGroupMenuBody`, `ConnectionActionsMenu`, `ContextMenuHost`, `GroupNameDialog`, `ConnectionShortcutField`; umgebaut `ConnectionsPage`, `ConnectionSwitcher`, `ConnectionDialog`, `ShortcutSettings`, `SettingsPage`, `PopoverMenu`, `MenuButton`/`MoreMenu` (`KeyNavigation`), `Shell` (Taste), `dom.js` (`dragAfter`), CSS (`.drop-into`, `.drop-line`, `.conn-key`, `.ctx-conn-name`).
 - **Tests:** Core `ConnectionGroupStateTests`, `ConnectionGroupRenameTests`, `ConnectionSearchTests`, `WorkCloneTests`, `ShortcutMapTests`; UI `ConnectionGroupsTests`, `ShortcutServiceTests`, `SettingsCatalogTests`, `ConnectionTransferTests`.
 
-## E2E
-Folgt.
+## E2E (2026-10-28)
+Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--lang=en`, dunkel), fünf erfundene Verbindungen in vier Gruppen auf einen leeren Port, keine Datenbank nötig: Die Taste einer Verbindung ohne Passwort öffnet die Passwortabfrage (abgebrochen, kein Eintrag im Credential Manager). Klicks, Rechtsklicks, Ziehen und Tasten per CDP (Stufe 2), Zustand über DOM und Dateien.
+- **Gefunden und behoben:** Nach einem Neustart waren alle Gruppen aufgeklappt und alphabetisch, obwohl `connection-groups.json` stimmte – die Listen rendern mit den Verbindungen, bevor der Zustand gelesen ist, und `LoadAsync` meldete nichts. Jetzt meldet es `Changed` (Test).
+- **Gefunden und behoben (Layout):** Die Leiste des Gruppenmenüs brach bei fünf Aktionen um („Nach unten“ allein in Zeile 2); jetzt fünf Spalten.
+- **Nicht mit echter Eingabe geprüft:** Per `SendInput` kam wie bei WP-61 kein `pointerdown` an – laut Anleitung nicht weitergeklickt. Ziehen (Gruppenkopf, Verbindung), Doppelklick zum Verbinden auf der Seite und Rechtsklick bitte von Hand prüfen.
+- **Nicht geprüft:** „Exportieren“ bis zum Dialog (unveränderter Weg), „Alle trennen“ und „Anzeigen“ mit offenen Verbindungen (brauchen eine DB), die Taste über einem offenen SQL-Editor (Monaco).
 
 ## Offen
 - Tastenkürzel systemweit (Backlog).

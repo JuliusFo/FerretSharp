@@ -40,8 +40,12 @@ public sealed class ConnectionGroupStateTests : IDisposable
         await state.SetCollapsedAsync(null, true, Ct);
         await state.SetOrderAsync(["Kasse", "ERP", "kasse", " "], Ct);
 
-        var loaded = await LoadedAsync();
+        var loaded = new ConnectionGroupState(FilePath);
+        var changed = 0;
+        loaded.Changed += () => changed++;
+        await loaded.LoadAsync(Ct);
 
+        Assert.Equal(1, changed); // the lists rendered before the file was read
         Assert.True(loaded.IsCollapsed("ERP"));
         Assert.True(loaded.IsCollapsed(null)); // connections without a group
         Assert.False(loaded.IsCollapsed("Kasse"));

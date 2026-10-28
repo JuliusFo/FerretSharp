@@ -32,6 +32,7 @@
     </div>
 </div>
 
+<div class="group-menu-bar">
 <QuickBar Captions="true">
     @if (Group.Name is { } name)
     {
@@ -52,6 +53,7 @@
                      OnClick="() => MoveAsync(() => Groups.MoveDownAsync(movable))" />
     }
 </QuickBar>
+</div>
 
 @if (Group.Name is not null)
 {

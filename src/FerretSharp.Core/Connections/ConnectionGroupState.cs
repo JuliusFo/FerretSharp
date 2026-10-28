@@ -46,6 +46,10 @@ public sealed class ConnectionGroupState(string filePath)
         {
             _gate.Release();
         }
+
+        // The lists rendered with the connections before this was read (E2E of WP-66: after a restart all groups were
+        // open and alphabetical until something else rendered them again).
+        Changed?.Invoke();
     }
 
     /// <returns>False if the file could not be written: the change applies all the same, until quitting (as work clones).</returns>
