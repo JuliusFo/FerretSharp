@@ -192,6 +192,12 @@
   <data name="Settings_AuditTemplate" xml:space="preserve">
     <value>Vorlage</value>
   </data>
+  <data name="Settings_AuditCreateTables" xml:space="preserve">
+    <value>Audit-Tabellen anlegen</value>
+  </data>
+  <data name="Settings_AuditCreateTablesHint" xml:space="preserve">
+    <value>Bietet „Audit anlegen…“ über den Spalten einer Tabelle ohne Audit-Tabelle an und den Audit-Haken im Tabellen-Designer einer solchen und einer neuen Tabelle. Aus: Vorhandene Audit-Tabellen werden weiter angezeigt und abgeglichen, neue nie angelegt.</value>
+  </data>
   <data name="Settings_AuditSyncInDesigner" xml:space="preserve">
     <value>Audit im Designer abgleichen</value>
   </data>

@@ -776,6 +776,13 @@
   <data name="ValuePicker_ChooseValues" xml:space="preserve">
     <value>Choose values …</value>
   </data>
+  <data name="ValuePicker_Search" xml:space="preserve">
+    <value>Search or type a value</value>
+    <comment>Placeholder of the search field in the value picker of an enum filter</comment>
+  </data>
+  <data name="ValuePicker_SearchTitle" xml:space="preserve">
+    <value>Searches name, C# member and value. A value without a member (e.g. 1) can be picked as typed.</value>
+  </data>
   <data name="ValuePicker_NoMember" xml:space="preserve">
     <value>no member</value>
     <comment>A value that is no member of the C# enum</comment>

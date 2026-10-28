@@ -1,10 +1,11 @@
 @* Filter value of an enum or converted bool column (WP-12): pick members by their C# name; the filter gets their
    database values, so the SQL stays as before. "in" picks several (checkboxes), "=" and "≠" one. Values that are no
-   member (typed before the model was loaded, from an FK jump) stay and can be removed. *@
+   member (typed before the model was loaded, from an FK jump) stay and can be removed. The field on top searches the
+   list and takes a value the C# model does not know (ValuePickerItems). *@
 @using FerretSharp.Core.ClrModel
 
 <div class="valpick">
-    <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "valpick-unset" : "")" title="@Summary"
+    <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "valpick-unset" : "")" title="@Summary" @ref="_button"
             @onclick="Toggle" @onkeydown="OnKeyDown" @onkeydown:preventDefault="_open">
         <span class="valpick-text">@(Selected.Count == 0 ? (Multiple ? GridText.ValuePicker_ChooseValues : GridText.ValuePicker_ChooseValue) : Summary)</span>
         <span class="valpick-caret">@Icons.ChevronDown</span>
@@ -12,33 +13,41 @@
     @if (_open)
     {
         <div class="popover-backdrop" @onclick="Close"></div>
-        <div class="popover valpick-pop" role="listbox" aria-multiselectable="@(Multiple ? "true" : "false")">
-            @for (var i = 0; i < _items.Count; i++)
-            {
-                var item = _items[i];
-                var position = i;
-                var selected = Selected.Contains(item.Value);
-                <div class="valpick-item @(position == _highlight ? "highlight" : "") @(selected ? "selected" : "") @(item.Unknown ? "unknown" : "")"
-                     role="option" aria-selected="@(selected ? "true" : "false")"
-                     @onmousedown="() => PickAsync(item)" @onmousedown:preventDefault="true" @onmouseenter="() => _highlight = position">
-                    @if (Multiple)
-                    {
-                        <input type="checkbox" tabindex="-1" checked="@selected" />
-                    }
-                    <span class="valpick-name">@item.Name</span>
-                    <span class="valpick-db">@item.Detail</span>
-                </div>
-            }
+        @* Escape with text clears the search (SearchBox) and goes no further; in the empty field it closes the list. *@
+        <div class="popover valpick-pop" @onkeydown="OnKeyDown">
+            <SearchBox @ref="_search" Class="popover-search ctx-filter valpick-search" Value="@_typed" ValueChanged="OnTyped"
+                       Placeholder="@GridText.ValuePicker_Search" Title="@GridText.ValuePicker_SearchTitle" />
+            <div class="valpick-list" role="listbox" aria-multiselectable="@(Multiple ? "true" : "false")">
+                @for (var i = 0; i < _items.Count; i++)
+                {
+                    var item = _items[i];
+                    var position = i;
+                    var selected = Selected.Contains(item.Value);
+                    <div class="valpick-item @(position == _highlight ? "highlight" : "") @(selected ? "selected" : "") @(item.Unknown ? "unknown" : "")"
+                         role="option" aria-selected="@(selected ? "true" : "false")"
+                         @onmousedown="() => PickAsync(item)" @onmousedown:preventDefault="true" @onmouseenter="() => _highlight = position">
+                        @if (Multiple)
+                        {
+                            <input type="checkbox" tabindex="-1" checked="@selected" />
+                        }
+                        <span class="valpick-name">@item.Name</span>
+                        <span class="valpick-db">@item.Detail</span>
+                    </div>
+                }
+            </div>
         </div>
     }
 </div>
 
 @code {
-    private sealed record Item(string Name, string Value, string? Detail, bool Unknown);
-
-    private List<Item> _items = [];
+    private IReadOnlyList<ValuePickerItem> _items = [];
     private bool _open;
     private int _highlight;
+    private string _typed = "";
+    private ElementReference _button;
+    private SearchBox? _search;
+    private bool _focusSearch;
+    private bool _focusButton;
 
     [Parameter, EditorRequired]
     public ValueTable Values { get; set; } = null!;
@@ -64,12 +73,20 @@
 
     private string Summary => string.Join(", ", Selected.Select(v => Values.Options.FirstOrDefault(o => o.Value == v)?.Name ?? v));
 
-    protected override void OnParametersSet()
+    protected override void OnParametersSet() => _items = ValuePickerItems.Of(Values, Selected, _typed);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var unknown = Selected.Where(v => Values.Options.All(o => o.Value != v)).Select(v => new Item(v, v, GridText.ValuePicker_NoMember, true));
-        // A display text shows its C# member beside the stored value, so it can be found in the code.
-        _items = Values.Options.Select(o => new Item(o.Name, o.Value, o.Member is { } member ? $"{member} · {o.Value}" : o.Value, false))
-            .Concat(unknown).ToList();
+        if (_focusSearch && _search is not null)
+        {
+            _focusSearch = false;
+            await _search.FocusAsync();
+        }
+        else if (_focusButton)
+        {
+            _focusButton = false;
+            await _button.FocusAsync();
+        }
     }
 
     private void Toggle()
@@ -81,13 +98,34 @@
         }
 
         _open = true;
+        _focusSearch = true;
+        Type("");
         var first = Selected.FirstOrDefault();
-        _highlight = Math.Max(0, _items.FindIndex(i => i.Value == first));
+        _highlight = Math.Max(0, _items.ToList().FindIndex(i => i.Value == first));
     }
 
     private void Close() => _open = false;
 
-    private async Task PickAsync(Item item)
+    /// <summary>Closed from the keyboard: the button gets the focus back, the search field it was in is gone.</summary>
+    private void CloseToButton()
+    {
+        Close();
+        _focusButton = true;
+    }
+
+    private void OnTyped(string text)
+    {
+        Type(text);
+        _highlight = 0;
+    }
+
+    private void Type(string text)
+    {
+        _typed = text;
+        _items = ValuePickerItems.Of(Values, Selected, _typed);
+    }
+
+    private async Task PickAsync(ValuePickerItem item)
     {
         List<string> values;
         if (Multiple)
@@ -98,13 +136,17 @@
                 values.Add(item.Value);
             }
 
-            // Keep the members' order, unknown values last.
-            values = _items.Select(i => i.Value).Where(values.Contains).ToList();
+            // Keep the members' order, values without a member last.
+            values = [.. Values.Options.Select(o => o.Value).Where(values.Contains), .. values.Where(v => Values.Options.All(o => o.Value != v))];
+            // The list as it will be with the new values: a typed value stays highlighted where it now stands.
+            _typed = "";
+            _items = ValuePickerItems.Of(Values, values, _typed);
+            _highlight = Math.Max(0, _items.ToList().FindIndex(i => i.Value == item.Value));
         }
         else
         {
             values = [item.Value];
-            Close();
+            CloseToButton();
         }
 
         await OnChange.InvokeAsync(string.Join(FilterRow.ListSeparator + " ", values));
@@ -131,15 +173,14 @@
             case "ArrowUp":
                 _highlight = Math.Max(_highlight - 1, 0);
                 break;
-            case "Enter" or " " when _items.Count > 0:
-                await PickAsync(_items[_highlight]);
-                if (e.Key == "Enter" && Multiple)
-                {
-                    Close();
-                }
-
+            case "Enter" when _items.Count > 0:
+                // "in" stays open to pick more; Esc closes.
+                await PickAsync(_items[Math.Min(_highlight, _items.Count - 1)]);
                 break;
-            case "Escape" or "Tab":
+            case "Escape":
+                CloseToButton();
+                break;
+            case "Tab":
                 Close();
                 break;
         }

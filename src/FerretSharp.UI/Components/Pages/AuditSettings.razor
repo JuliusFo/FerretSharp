@@ -14,6 +14,10 @@
                     Value="Settings.Current.SyncAuditInDesigner" OnChange="on => UpdateAsync(s => s with { SyncAuditInDesigner = on })">
         <Hint>@SettingsViewText.Settings_AuditSyncInDesignerHint</Hint>
     </SettingsChoice>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.AuditCreateTables" Label="@SettingsViewText.Settings_AuditCreateTables" Options="SettingsOptions.OnOff"
+                    Value="Settings.Current.CreateAuditTables" OnChange="on => UpdateAsync(s => s with { CreateAuditTables = on })">
+        <Hint>@SettingsViewText.Settings_AuditCreateTablesHint</Hint>
+    </SettingsChoice>
     <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.AuditHighlightChanges" Label="@SettingsViewText.Settings_AuditHighlightChanges" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.HighlightAuditChanges" OnChange="on => UpdateAsync(s => s with { HighlightAuditChanges = on })">
         <Hint>@SettingsViewText.Settings_AuditHighlightChangesHint</Hint>

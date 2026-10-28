@@ -6,10 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- Settings › Audit tables › "Create audit tables" (on by default): switched off, FerretSharp keeps showing existing audit tables and bringing them up to date in the table designer, but never creates new ones – "Create audit…" above the columns disappears, and the audit box in the designer of a table without audit table or of a new table is locked. Where only the trigger is left and its audit table is missing, the line says creating is switched off instead of offering "Bring up to date".
+- The value picker of an enum column in the filter bar has a search field: it finds members by name, C# member and value, and a typed value that is no member of the C# enum (`1`, where the grid shows it red) can be picked as it is, to filter for rows the model does not know. With "in" Enter picks and keeps the list open; Esc clears the search, then closes the list.
 - "Usage" warns about columns the code filters by without an index: a condition of `Where`, `Any`, `First`, `Single`, `Count` … (also `FirstOrDefaultAsync` and the other async operators) is now told apart from other LINQ and shown as "filters". If application code filters by a column and no index starts with it, a note above the columns names it and its row is marked "no index": its queries may read the whole table (full table scan). The marks come from the code alone; only the execution plan tells for sure.
 
 ### Changed
 - The code usage index is read again once from the solution's assemblies.
+
+### Fixed
+- Table designer: when reading the table's audit table and trigger failed (connection lost), the designer took it as "no audit table" – opened from the audit line, its script tried to create the existing audit table and failed with ORA-00955 after the table's own steps had run. The audit box is now locked with a hint and "Reload", the audit tab has a yellow dot and the designer warns that the script does not bring the audit up to date; while the audit is read there is no script yet. The same holds for a template that becomes readable while the designer is open.
 
 ## [3.53.0] - 2026-10-27
 

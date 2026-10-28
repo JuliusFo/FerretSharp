@@ -1,6 +1,6 @@
 @* The table's audit objects in one line above its columns (WP-26), graded so that a table without audit table – the normal
-   case – does not look like a fault: none → a grey "Create audit…"; up to date → the names, neutral; outdated → a warning
-   with the reasons and "Bring up to date". Hidden for an audit table itself and while the template cannot be used. Many
+   case – does not look like a fault: none → a grey "Create audit…" (nothing when audit tables may not be created); up to date → the names, neutral; outdated → a warning
+   with the reasons and "Bring up to date" (not for a missing audit table that may not be created). Hidden for an audit table itself and while the template cannot be used. Many
    missing columns and audit columns that cannot take every value are counted in the line and listed under "Details",
    with the advice once (an audit table not kept up for long filled half the view with one sentence per column), and so
    are the changes "Bring up to date" makes without touching values (types, NOT NULL, comments). *@
@@ -10,11 +10,12 @@
 @inherits FerretComponent
 @implements IDisposable
 @inject AuditTemplateSource AuditTemplates
+@inject AppSettingsService Settings
 @inject ILogger<AuditStatusLine> Logger
 
 @switch (_status)
 {
-    case { Health: AuditHealth.None }:
+    case { Health: AuditHealth.None } when Settings.Current.CreateAuditTables:
         <div class="audit-status">
             <button class="link-btn muted" title="@($"{SchemaViewText.Audit_CreateTitle}\n{_templateLabel}")" @onclick="() => OnOpen.InvokeAsync()">@SchemaViewText.Audit_Create</button>
         </div>
@@ -36,7 +37,14 @@
                     @CommonText.Details<span class="chev @(_details ? "" : "closed")">@Icons.ChevronDown</span>
                 </button>
             }
-            · <button class="link-btn" @onclick="() => OnOpen.InvokeAsync()">@SchemaViewText.Audit_Sync</button>
+            @if (AuditStatusSummary.CanSync(status, Settings.Current.CreateAuditTables))
+            {
+                <span>·</span> <button class="link-btn" @onclick="() => OnOpen.InvokeAsync()">@SchemaViewText.Audit_Sync</button>
+            }
+            else
+            {
+                <span>·</span> <span class="muted" title="@AuditStatusSummary.CreateOffHint">@SchemaViewText.Audit_SyncCreateOff</span>
+            }
             @if (_details)
             {
                 <div class="audit-details">
