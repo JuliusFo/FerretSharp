@@ -99,6 +99,15 @@ public class ValuePickerItemsTests
     }
 
     [Fact]
+    public void A_short_code_in_another_case_means_its_member_and_stays_pickable()
+    {
+        var kurz = ValueTable.For(Enum("Versandart", new("Versandt", "1", "VS"), new("Abgeholt", "2", "AB"))
+            with { Converter = "KuerzelConverter" }, Status)!;
+
+        Assert.Equal(["VS", "vs"], Values(ValuePickerItems.Of(kurz, [], "vs")));
+    }
+
+    [Fact]
     public void A_value_written_another_way_finds_its_entry()
     {
         Assert.Equal(["2"], Values(ValuePickerItems.Of(TaskTyp, [], "2,0")));
