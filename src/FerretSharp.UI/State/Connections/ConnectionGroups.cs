@@ -201,7 +201,7 @@ public sealed class ConnectionGroups : IDisposable
         {
             await _shortcuts.ForgetConnectionsExceptAsync(existing);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) // a moved connection is saved: awaited, it must not fail
         {
             // In effect for this session; tried again with the next change of the list.
         }

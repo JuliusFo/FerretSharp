@@ -63,6 +63,7 @@ Unabhängiger Reviewer über den Branch, zwei Prüfdurchgänge über die Fixes. 
 10. **K – Eine fehlende `connections.json` löschte alle Verbindungstasten:** behoben (bei leerer Liste kein Aufräumen).
 11. **K (zweite Runde) – Ein Speichern während des Verbindens ging verloren:** erst nachgestellt (Test schlug fehl), dann behoben (`ActiveConnection.Saved`).
 12. **K (zweite Runde) – Ein Test wartete fest 50 ms:** behoben, `ConnectionGroups.Cleanup` ist abwartbar. Die Einstellungsseite selbst (Punkte 2 und 6) hat keinen Komponententest (kein bUnit): von Hand prüfen.
+13. **K (dritte Runde) – Folge von Punkt 7/12:** Seit `MoveConnectionAsync` auf das Aufräumen wartet, hätte eine schreibgeschützte `settings.json` (`UnauthorizedAccessException`) ein gelungenes Verschieben als gescheitert gemeldet. Behoben im selben Zug (das Aufräumen fängt beide Fehler), ohne eigenen Test: eine schreibgeschützte Datei verhält sich unter Linux in der CI anders.
 - Vorher schon da, nicht geändert: Menüs zeigen „verbunden“ auch bei einem laufenden oder fehlgeschlagenen Verbinden, die Verbindungsseite nicht.
 
 ## Offen
