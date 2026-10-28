@@ -34,3 +34,13 @@ Review mit eigenem Agenten (`/branch-code-review`), Stand 3f2cf177. Entscheidung
 - Vorher schon da, nicht geändert: ↑ ↓ scrollt die Markierung nicht in den sichtbaren Bereich; Kombinationswerte eines Flags-Enums heißen im Picker „kein Member“.
 
 Die Fixes sind nicht im E2E geprüft: Die Review-Session fand kein Docker (weder im PATH noch installiert, kein WSL), also keine Test-DB. Offen zu prüfen: Esc mit Text leert, zweites Esc schließt mit Fokus auf dem Knopf; ✕ leert die Suche, die Liste bleibt offen; Aussehen der Suchleiste im Popover; in KUNDEN.GESPERRT `j` tippen → `true` vorn, `j · kein Member` dahinter, ↓ + Enter wählt `j`; in AUFTRAG.STATUS `vers` → Versandt vorn.
+
+## Nachtrag: E2E der Review-Fixes (2026-10-28)
+Vor dem Merge, Stand mit `main` (3.53.0 + Audit-Fixes): eigener Container `ferret-e2e-enum` (Port 1547, Beispielschema), Build in den Scratchpad, eigene Instanz mit `--data-dir`, eigenem WebView2-Ordner, Debug-Port, `--lang=en`, Verbindung mit verknüpftem Beispielmodell, Passwort ohne Speichern. Tasten und Klicks per CDP (Stufe 2):
+- KUNDEN.GESPERRT `=`: `j` → `true · J` vorn, `j · no member` dahinter; ↓ + Enter wählt `j`, Liste zu, Fokus auf dem Knopf. Anwenden → 0 Zeilen ohne Fehler (der Check-Constraint lässt nur `J`/`N` zu).
+- Esc: `tr` getippt, erstes Esc leert die Suche (Liste offen, Fokus im Feld), zweites schließt, Fokus auf dem Knopf. ✕ leert die Suche, Liste bleibt offen, Fokus im Feld.
+- Suchleiste im Popover hell und dunkel (Screenshot): Lupe, Feld und ✕ in einer Zeile, Treffer und „no member“ (rot) darunter, nichts abgeschnitten.
+- AUFTRAG.STATUS `=`: `vers` → Versendet (`Versandt · VERSANDT`) vorn, `vers · no member` dahinter; Enter wählt Versendet. Anwenden → ≥ 500 Zeilen.
+- KUNDENART `in`: `2,0` → nur Gewerbe, Enter wählt ihn, Liste bleibt offen; `0.0000001` → eigener Eintrag, im Feld „Gewerbe, 0.0000001“ (kein `1E-07`). Esc im leeren Feld schließt; Anwenden → ≥ 500 Zeilen ohne Fehler.
+- Log ohne `[ERR]`/`[WRN]`.
+- Aufgefallen, nicht geändert: Nach Esc oder ✕ steht die Markierung auf dem ersten Eintrag, nicht auf dem gewählten Wert (wie nach jedem Tippen).
