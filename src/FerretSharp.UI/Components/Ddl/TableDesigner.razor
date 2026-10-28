@@ -137,7 +137,7 @@ else
     private readonly HashSet<DataQuestion> _counting = [];
     private readonly HashSet<DataQuestion> _failed = [];
 
-    /// <summary>What the schema has of the table's audit objects (WP-26); null while loading or for a new table.</summary>
+    /// <summary>The read of the table's audit objects (WP-26, <see cref="AuditRead"/>); never read for a new table.</summary>
     private readonly AuditRead _auditRead = new();
 
     // Counts about the existing audit table (its rows: may a new column be NOT NULL?), apart from the table's own.
@@ -326,7 +326,10 @@ else
     /// <summary>An existing table whose audit table is there; a new table has none yet; null while not known (<see cref="ColumnDesigner.HasAuditTable"/>).</summary>
     private bool? HasAuditTable(AuditTemplateLoad audit) => ColumnDesigner.HasAuditTable(NewTab is not null, audit.Template is null, _auditRead.State);
 
-    /// <summary>The audit objects of an existing table could not be read, or not by the template there is now.</summary>
+    /// <summary>
+    /// The audit objects of an existing table could not be read, or there was no template when they were read. A template
+    /// changed to other names while the designer is open is not noticed (backlog).
+    /// </summary>
     private bool AuditUnread(AuditTemplateLoad audit) => NewTab is null && audit.Template is not null && _auditRead.Unread;
 
     /// <summary>The designer's plan with the audit table and trigger, if the box is on (WP-26): one script, checked as one.</summary>

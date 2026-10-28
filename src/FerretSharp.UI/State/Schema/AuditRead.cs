@@ -4,14 +4,14 @@ namespace FerretSharp.UI.State;
 
 /// <summary>
 /// What the table designer read of its table's audit objects (WP-26): the state, whether a read is running, whether the
-/// last one failed. Reads can overlap – "Reload" and the reload after a run that stopped halfway – and only the latest
+/// last one told nothing (failed, or there was no template). Reads can overlap – "Reload" and the reload after a run that stopped halfway – and only the latest
 /// counts: an earlier one finishing last left the state from before the run, and its end freed "Reload" while the
 /// latest still read (code review 2026-10-28).
 /// </summary>
 public sealed class AuditRead
 {
     private int _generation;
-    private bool _failed;
+    private bool _unknown; // the last read failed or there was no template: stays while reading again
 
     /// <summary>What the schema has; null while reading, after a failed read and when there was no template to read by.</summary>
     public AuditState? State { get; private set; }
@@ -20,10 +20,11 @@ public sealed class AuditRead
     public bool Reading { get; private set; }
 
     /// <summary>
-    /// Whether there is an audit table is not known though there could be: the read failed (also while reading again) or
-    /// there was no template to read by. The designer says so and offers "Reload".
+    /// Whether there is an audit table is not known though there could be: the read failed or there was no template to
+    /// read by – also while reading again (code review 2026-10-28: after a missing template, the hint went away meanwhile).
+    /// The designer says so and offers "Reload".
     /// </summary>
-    public bool Unread => _generation > 0 && State is null && (_failed || !Reading);
+    public bool Unread => _generation > 0 && State is null && (_unknown || !Reading);
 
     /// <summary>A read starts; the number is passed to <see cref="End"/>.</summary>
     public int Begin()
@@ -45,7 +46,7 @@ public sealed class AuditRead
         }
 
         Reading = false;
-        _failed = !succeeded;
+        _unknown = !succeeded;
         State = succeeded ? read ?? AuditState.None : null;
         return true;
     }
@@ -54,6 +55,6 @@ public sealed class AuditRead
     public void WithoutTemplate()
     {
         _generation++;
-        (State, Reading, _failed) = (null, false, false);
+        (State, Reading, _unknown) = (null, false, true);
     }
 }

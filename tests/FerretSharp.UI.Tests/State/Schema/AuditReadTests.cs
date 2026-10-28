@@ -69,5 +69,10 @@ public sealed class AuditReadTests
         Assert.False(read.Reading);
         Assert.False(read.End(running, succeeded: true, WithAuditTable));
         Assert.Null(read.State);
+
+        var once = read.Begin(); // the template turned up: still unknown while reading by it
+        Assert.True(read.Unread);
+        read.End(once, succeeded: true, WithAuditTable);
+        Assert.False(read.Unread);
     }
 }
