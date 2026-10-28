@@ -251,12 +251,13 @@
     /// The workspaces the leave dialog lists – of any open connection (exiting, disconnecting one in the background), not
     /// only the shown one's.
     /// </summary>
-    private IReadOnlyList<(string Name, EditSummary Summary)> LeaveItems(LeaveRequest leave) =>
-        leave.WorkspaceIds
-            .Select(Shell.FindWorkspace)
-            .OfType<WorkspaceTabs>()
-            .Select(w => (Lifecycle.WorkspaceName(w.WorkspaceId), Editing.SummaryOf(w)))
-            .ToList();
+    private IReadOnlyList<(string Name, EditSummary Summary)> LeaveItems(LeaveRequest leave)
+    {
+        var workspaces = leave.WorkspaceIds.Select(Shell.FindWorkspace).OfType<WorkspaceTabs>().ToList();
+        var names = ConnectionLabel.WorkspaceNames(
+            workspaces.Select(w => (Hub.ScopeOf(w).Profile, Lifecycle.WorkspaceName(w.WorkspaceId))).ToList(), Settings.Current);
+        return workspaces.Select((w, i) => (names[i], Editing.SummaryOf(w))).ToList();
+    }
 
     /// <summary>How a tab is named in the dialogs.</summary>
     private static string TabName(WorkspaceTab tab) => tab.Caption;

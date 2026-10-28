@@ -74,7 +74,7 @@ Vor dem Merge, Stand mit `main` (alle anderen offenen Branches gemerged, auch da
 - **Mit dem Öffnen in Versuchen:** Beta über die Taste mit hängendem ersten Versuch → „attempt 2 of 5“, verbunden nach 5,1 s. Gruppe Team in „Team Neu“ umbenannt, während Beta im zweiten Versuch hing: Die Statusleiste zeigte sofort „Team Neu › Beta“, nach dem Verbinden (dritter Versuch) bleibt Beta in „Team Neu“ (Seite, Umschalter, `connections.json`) – `UseSaved` und `Saved(profile)` greifen auch über das längere Öffnen.
 - **„Export connection…“** im Menü bis zum Dialog: nur Beta vorgewählt („Export 1 connection…“), abgebrochen.
 - Log ohne `[ERR]`/`[WRN]`.
-- **Aufgefallen (Frage):** Die gemeinsame Frage von „Disconnect all“ listet beide Einträge als „Workspace 1 – open transaction“, ohne die Verbindung zu nennen – bei mehreren Verbindungen ist nicht zu sehen, welche Transaktion zu welcher gehört.
+- **Aufgefallen:** Die gemeinsame Frage von „Disconnect all“ listete beide Einträge als „Workspace 1 – open transaction“, ohne die Verbindung zu nennen. Entscheidung des Nutzers: „Ja, ergänzen“ – `ConnectionLabel.WorkspaceNames` stellt die Verbindung (mit Gruppe wie `ConnectionLabel.Of`) voran, sobald die Liste mehrere Verbindungen umfasst; mit einer Verbindung bleiben die Namen kurz. Gilt für jede Frage des `LeaveDialog`, also auch beim Beenden. Tests in `ConnectionLabelTests`; in der App nachgeprüft: „Team Neu › Alpha › Workspace 1“, „Team Neu › Beta › Workspace 1“.
 - **Weiter nicht mit echter Eingabe geprüft:** Ziehen (Gruppenkopf, Verbindung), Doppelklick und Rechtsklick mit echter Maus – bitte von Hand.
 
 ## Offen
