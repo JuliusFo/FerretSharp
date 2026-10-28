@@ -280,7 +280,7 @@
     <comment>Followed by the columns. {0} = number of columns</comment>
   </data>
   <data name="Usage_NoIndexHint" xml:space="preserve">
-    <value>Queries filtering by them may read the whole table (full table scan). Read from the code, without data volumes or statistics – only the execution plan tells for sure.</value>
+    <value>A query filtering by such a column may read the whole table (full table scan). Read from the code, without data volumes or statistics – only the execution plan tells for sure.</value>
   </data>
   <data name="Usage_IndexesFailed" xml:space="preserve">
     <value>Without the indexes, columns filtered without one are not marked.</value>
