@@ -401,8 +401,24 @@ else
     private async Task LoadIndexesAsync()
     {
         if (_indexesVersion == Version || Details.Table.Kind == TableKind.View || Models.Mapping is not { } mapping
-            || Usage.State.Result is not { } usage || !CodeUsageRows.Columns(mapping, usage.Index, Details).Any(r => r.Filtered)
-            || Active.Schema is not { } schema)
+            || Usage.State.Result is not { } usage)
+        {
+            return;
+        }
+
+        if (!CodeUsageRows.Columns(mapping, usage.Index, Details).Any(r => r.Filtered))
+        {
+            // A build took the last filter away: an old failure has nothing left to explain.
+            if (_indexesError is not null)
+            {
+                _indexesError = null;
+                StateHasChanged();
+            }
+
+            return;
+        }
+
+        if (Active.Schema is not { } schema)
         {
             return;
         }
