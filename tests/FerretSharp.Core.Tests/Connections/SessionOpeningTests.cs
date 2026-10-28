@@ -101,16 +101,81 @@ public sealed class SessionOpeningTests
             [TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(15)],
             SessionOpening.AttemptLimits);
 
-        // An attempt is given up only when its own limit has run, not the first one's.
+        // Each attempt waits with its own limit, not the first one's (second review: a check by timing passed either way).
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
         await RunPastLimitAsync(2);
         await Eventually(() => Attempts == 3 && _time.Timers == 3);
-        _time.Advance(SessionOpening.AttemptLimits[0]);
-        AttemptNo(3).SetResult(FakeDatabase.Connection());
 
+        Assert.Equal(SessionOpening.AttemptLimits.Take(3), _time.DueTimes);
+        AttemptNo(3).SetResult(FakeDatabase.Connection());
         await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct);
-        Assert.Equal(3, Attempts);
+    }
+
+    /// <summary>
+    /// Second review (B): the latest attempt failing on the network while an earlier one still runs does not end the open – the
+    /// slow earlier one may still open. Once none runs any more, the latest attempt's error ends it.
+    /// </summary>
+    [Fact]
+    public async Task A_network_error_of_the_latest_attempt_waits_for_the_earlier_ones()
+    {
+        var opening = OpenAsync(Ct);
+        await RunPastLimitAsync(1);
+        await Eventually(() => Attempts == 2);
+
+        AttemptNo(2).SetException(new DatabaseException("no listener", "ORA-12541"));
+        Assert.False(opening.IsCompleted);
+        var slow = FakeDatabase.Connection();
+        AttemptNo(1).SetResult(slow);
+
+        Assert.Same(slow, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
+    }
+
+    [Fact]
+    public async Task A_network_error_of_the_latest_attempt_ends_the_open_once_none_runs_any_more()
+    {
+        var opening = OpenAsync(Ct);
+        await RunPastLimitAsync(1);
+        await Eventually(() => Attempts == 2);
+
+        AttemptNo(2).SetException(new DatabaseException("no listener", "ORA-12541"));
+        AttemptNo(1).SetException(new DatabaseException("packet", "ORA-12570"));
+
+        var error = await Assert.ThrowsAsync<DatabaseException>(() => opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
+        Assert.Equal("ORA-12541", error.ErrorCode);
+        Assert.Equal(2, Attempts);
+    }
+
+    /// <summary>
+    /// Second review (A): a session that won just as the open ended without taking it (the limit ran or it was cancelled in
+    /// the same moment) was left open – with <c>Pooling=false</c> a real Oracle session until the app ends.
+    /// </summary>
+    [Fact]
+    public void A_session_winning_as_the_open_ends_without_it_is_closed()
+    {
+        var race = new SessionOpening.Race();
+        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        race.Start(1, opening.Task);
+        var session = FakeDatabase.Connection();
+        opening.SetResult(session);
+
+        race.End(taken: false);
+
+        Assert.True(Disposed(session));
+    }
+
+    [Fact]
+    public void A_session_the_open_returned_is_not_closed_at_its_end()
+    {
+        var race = new SessionOpening.Race();
+        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        race.Start(1, opening.Task);
+        var session = FakeDatabase.Connection();
+        opening.SetResult(session);
+
+        race.End(taken: true);
+
+        Assert.False(Disposed(session));
     }
 
     [Fact]
@@ -218,23 +283,30 @@ public sealed class SessionOpeningTests
     public async Task An_attempt_blocking_its_thread_does_not_hold_up_the_limit()
     {
         using var release = new ManualResetEventSlim();
-        var session = FakeDatabase.Connection();
-        var opening = SessionOpening.OpenAsync((number, _) =>
+        try
         {
-            if (number == 1)
+            var session = FakeDatabase.Connection();
+            // On the thread pool, so that a regression fails the test instead of blocking it (second review).
+            var opening = Task.Run(() => SessionOpening.OpenAsync((number, _) =>
             {
-                release.Wait(Ct); // like a synchronous connect inside OpenAsync
-                return Task.FromResult(FakeDatabase.Connection());
-            }
+                if (number == 1)
+                {
+                    release.Wait(TimeSpan.FromSeconds(10)); // like a synchronous connect inside OpenAsync
+                    return Task.FromResult(FakeDatabase.Connection());
+                }
 
-            return Task.FromResult(session);
-        }, _time, null, Ct);
+                return Task.FromResult(session);
+            }, _time, null, Ct), Ct);
 
-        await Eventually(() => _time.Timers == 1);
-        _time.Advance(SessionOpening.AttemptLimits[0]);
+            await Eventually(() => _time.Timers == 1);
+            _time.Advance(SessionOpening.AttemptLimits[0]);
 
-        Assert.Same(session, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
-        release.Set();
+            Assert.Same(session, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
+        }
+        finally
+        {
+            release.Set();
+        }
     }
 
     private static bool Disposed(IDatabaseConnection connection) =>

@@ -22,9 +22,28 @@ internal sealed class CountingTimeProvider : FakeTimeProvider
 
     public int Timers => Volatile.Read(ref _timers);
 
+    /// <summary>The due times of the timers created, in order (e.g. the limits a caller waits with).</summary>
+    public IReadOnlyList<TimeSpan> DueTimes
+    {
+        get
+        {
+            lock (_dueTimes)
+            {
+                return [.. _dueTimes];
+            }
+        }
+    }
+
+    private readonly List<TimeSpan> _dueTimes = [];
+
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
         var timer = base.CreateTimer(callback, state, dueTime, period);
+        lock (_dueTimes)
+        {
+            _dueTimes.Add(dueTime);
+        }
+
         Interlocked.Increment(ref _timers);
         return timer;
     }
