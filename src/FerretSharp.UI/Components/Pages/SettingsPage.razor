@@ -4,6 +4,7 @@
 @inject AppSettingsService Settings
 @inject UpdateState Updates
 @inject ShortcutService Shortcuts
+@inject FerretSharp.Core.Connections.ConnectionManager Connections
 @implements IDisposable
 
 <div class="settings-page">
@@ -134,7 +135,7 @@
             if (_filter is null)
             {
                 _filterWithUpdates = Updates.Phase != UpdatePhase.NotInstalled;
-                _filter = new(new SettingsSearch(_query), SettingsCatalog.Entries(Shortcuts.Map, _filterWithUpdates));
+                _filter = new(new SettingsSearch(_query), SettingsCatalog.Entries(Shortcuts.Map, _filterWithUpdates, Connections.Profiles));
             }
 
             return _filter;
@@ -162,6 +163,11 @@
 
     protected override void OnInitialized()
     {
+        if (Shell.TakeSettingsPart() is { } requested)
+        {
+            _part = s_part = requested; // opened for one section (WP-66: a group's audit template)
+        }
+
         Updates.Changed += OnUpdatesChanged;
         Shortcuts.Changed += OnCatalogChanged;
     }

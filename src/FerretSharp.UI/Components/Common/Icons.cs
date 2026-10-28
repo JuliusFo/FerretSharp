@@ -248,6 +248,22 @@ internal static class Icons
     public static readonly MarkupString Trigger = Svg(
         """<path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/>""");
 
+    /// <summary>Lucide <c>plug</c>: connect to a database (WP-66, connection menu).</summary>
+    public static readonly MarkupString Connect = Svg(
+        """<path d="M12 22v-5"/><path d="M15 8V2"/><path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z"/><path d="M9 8V2"/>""");
+
+    /// <summary>Lucide <c>unplug</c>: disconnect an open connection (WP-66).</summary>
+    public static readonly MarkupString Disconnect = Svg(
+        """<path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="M7.5 13.5 10 11"/><path d="M10.5 16.5 13 14"/><path d="m12 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"/>""");
+
+    /// <summary>Lucide <c>square-pen</c>: edit something in its dialog (WP-66, a connection).</summary>
+    public static readonly MarkupString Edit = Svg(
+        """<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>""");
+
+    /// <summary>Lucide <c>copy-plus</c>: duplicate (WP-66, a connection).</summary>
+    public static readonly MarkupString Duplicate = Svg(
+        """<line x1="15" x2="15" y1="12" y2="18"/><line x1="12" x2="18" y1="15" y2="15"/><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>""");
+
     public static MarkupString For(PlSqlKind kind) => kind switch
     {
         PlSqlKind.Package => Package,

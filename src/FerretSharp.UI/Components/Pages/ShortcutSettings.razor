@@ -4,6 +4,8 @@
 @inject ShortcutService Shortcuts
 @inject IJSRuntime JS
 @inject ILogger<ShortcutSettings> Logger
+@inject FerretSharp.Core.Connections.ConnectionManager Connections
+@inject AppSettingsService Settings
 
 @if (!Filter.IsActive)
 {
@@ -71,6 +73,10 @@
                             {
                                 <span>@(TextFormat.Format(SettingsViewText.Shortcuts_Conflict, proposal.Chord.Label, ShortcutMap.Definition(other).Label) + " ")</span>
                             }
+                            @if (proposal.Check.ConflictConnection is { } id && Connections.Profiles.FirstOrDefault(p => p.Id == id) is { } owner)
+                            {
+                                <span>@(TextFormat.Format(SettingsViewText.Shortcuts_Conflict, proposal.Chord.Label, owner.Name) + " ")</span>
+                            }
                             @proposal.Check.Warning
                         </span>
                         <button class="btn primary" @onclick="AcceptAsync">@CommonText.Apply</button>
@@ -92,6 +98,33 @@
                 <div class="shortcut-keys">
                     <kbd>@fixedKey.Keys</kbd>
                     <span class="shortcut-fixed">@SettingsViewText.Shortcuts_Fixed</span>
+                </div>
+            </div>
+        }
+    </section>
+}
+
+@* WP-66: the keys of connections, set in the connection's dialog; here to see them all and remove one. *@
+@if (Filter.ShowsGroup(SettingsViewText.Shortcuts_ConnectionsGroup))
+{
+    var keys = SettingsCatalog.ConnectionKeys(Map, Connections.Profiles);
+    <section class="settings-section">
+        <h2>@(Filter.IsActive ? TextFormat.Format(SettingsViewText.Settings_ShortcutGroupInSearch, SettingsViewText.Shortcuts_ConnectionsGroup) : SettingsViewText.Shortcuts_ConnectionsGroup)</h2>
+        @if (!Filter.IsActive)
+        {
+            <div class="settings-note">@SettingsViewText.Shortcuts_ConnectionsHint</div>
+        }
+        @foreach (var (profile, key) in keys.Where(k => Filter.Shows(SettingsCatalog.IdOf(k.Profile.Id))))
+        {
+            var connection = profile;
+            <div class="settings-row shortcut-row">
+                <div class="settings-label">
+                    <span>@ConnectionLabel.Of(connection, Settings.Current)</span>
+                </div>
+                <div class="shortcut-keys">
+                    <kbd>@key.KbdLabel</kbd>
+                    <button class="btn ghost" @onclick="() => Shell.EditConnection(connection)">@ConnectionViewText.Connection_Edit</button>
+                    <button class="btn ghost" @onclick="() => SaveAsync(() => Shortcuts.SetConnectionAsync(connection.Id, null))">@ConnectionViewText.ConnectionDialog_ShortcutRemove</button>
                 </div>
             </div>
         }

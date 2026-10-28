@@ -1,12 +1,18 @@
-@* "⋯" of a connection: connect, edit, duplicate, delete – a MoreMenu (Escape, focus, kept inside the window: near the
-   bottom of the switcher "Delete…" was cut off, review 3.31.0 A22). *@
+@* "⋯" of a connection: its menu (ConnectionMenuBody, WP-66) below the button – Escape, focus, ↑ ↓, kept inside the
+   window (near the bottom of the switcher "Delete…" was cut off, review 3.31.0 A22). *@
 @using FerretSharp.Core.Connections
 
-<MoreMenu Items="Items" Width="200" OnAction="OnAction" />
+<MenuButton Title="@ShellText.Actions" Label="Dots" StopPropagation="true" Width="MenuWidth" EstimatedHeight="260" KeyNavigation="true">
+    <ChildContent Context="menu">
+        <ConnectionMenuBody Profile="Profile" OnClose="() => CloseAsync(menu)" />
+    </ChildContent>
+</MenuButton>
 
 @code {
-    [CascadingParameter]
-    public ShellState Shell { get; set; } = null!;
+    /// <summary>The width of a connection's menu, also on a right-click.</summary>
+    public const double MenuWidth = 340;
+
+    private static readonly RenderFragment Dots = @<text>@Icons.More</text>;
 
     [Parameter, EditorRequired]
     public ConnectionProfile Profile { get; set; } = null!;
@@ -15,11 +21,9 @@
     [Parameter]
     public EventCallback OnAction { get; set; }
 
-    private IReadOnlyList<MoreMenuItem> Items =>
-    [
-        new(ConnectionViewText.ConnectionMenu_Connect, () => Shell.Connect(Profile)) { Strong = true },
-        new(ConnectionViewText.Connection_Edit, () => Shell.EditConnection(Profile)) { SeparatorBefore = true },
-        new(ConnectionViewText.ConnectionMenu_Duplicate, () => Shell.DuplicateConnection(Profile)),
-        new(ConnectionViewText.Connection_DeleteEllipsis, () => Shell.RequestDelete(Profile)) { SeparatorBefore = true, Danger = true },
-    ];
+    private async Task CloseAsync(MenuButton menu)
+    {
+        menu.Close();
+        await OnAction.InvokeAsync();
+    }
 }

@@ -46,12 +46,18 @@ public sealed class ConnectionExportSelection
 {
     private readonly IReadOnlyList<ConnectionProfile> _profiles;
     private readonly HashSet<Guid> _selected;
+    private readonly IReadOnlyList<string>? _order;
 
-    /// <param name="request">All connections start selected, or only those of the requested group.</param>
-    public ConnectionExportSelection(IReadOnlyList<ConnectionProfile> profiles, ConnectionExportRequest request)
+    /// <param name="request">All connections start selected, or only those of the requested group (or connection).</param>
+    /// <param name="order">The user's order of the groups (WP-66), as the connection list shows them.</param>
+    public ConnectionExportSelection(IReadOnlyList<ConnectionProfile> profiles, ConnectionExportRequest request, IReadOnlyList<string>? order = null)
     {
         _profiles = profiles;
-        _selected = profiles.Where(p => !request.OnlyGroup || SameGroup(p.Group, request.Group)).Select(p => p.Id).ToHashSet();
+        _order = order;
+        _selected = profiles
+            .Where(p => request.Connection is { } only ? p.Id == only : !request.OnlyGroup || SameGroup(p.Group, request.Group))
+            .Select(p => p.Id)
+            .ToHashSet();
     }
 
     public string Query { get; set; } = "";
@@ -59,13 +65,13 @@ public sealed class ConnectionExportSelection
     /// <summary>Keep the paths only valid on this computer (C# project, script folder).</summary>
     public bool IncludeLocalPaths { get; set; }
 
-    public IReadOnlyList<ConnectionGroup> Groups => ConnectionSearch.Group(_profiles, Query);
+    public IReadOnlyList<ConnectionGroup> Groups => ConnectionSearch.Group(_profiles, Query, _order);
 
     public int SelectedCount => _selected.Count;
 
     /// <summary>In the order of the connections page.</summary>
     public IReadOnlyList<ConnectionProfile> Selected =>
-        ConnectionSearch.Group(_profiles).SelectMany(g => g.Profiles).Where(p => _selected.Contains(p.Id)).ToList();
+        ConnectionSearch.Group(_profiles, order: _order).SelectMany(g => g.Profiles).Where(p => _selected.Contains(p.Id)).ToList();
 
     public bool IsSelected(ConnectionProfile profile) => _selected.Contains(profile.Id);
 

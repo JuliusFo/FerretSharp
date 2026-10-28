@@ -1,0 +1,129 @@
+@* The menu of a connection (WP-66, built like the cell menus of WP-61): what the connection is in the head, its single
+   actions as icons, the groups it can move to as chips, "Delete…" in red. Behind "⋯" and on a right-click, on the
+   connections page and in the switcher. *@
+@using FerretSharp.Core.Connections
+@implements IAsyncDisposable
+@inject ConnectionHub Hub
+@inject RecentConnections Recent
+@inject ShortcutService Shortcuts
+@inject ConnectionGroups Groups
+@inject IJSRuntime JS
+
+<div class="ctx-head-block">
+    <div class="ctx-head">
+        <span class="kind-badge @ConnectionKindInfo.CssClass(Profile.Kind)">@ConnectionKindInfo.Short(Profile.Kind)</span>
+        <span class="ctx-conn-name">@Profile.Name</span>
+        @if (Shortcuts.ConnectionKey(Profile.Id) is { } key)
+        {
+            <kbd class="ctx-key" title="@ConnectionViewText.ConnectionMenu_KeyTitle">@key</kbd>
+        }
+    </div>
+    <div class="ctx-facts">
+        <span class="ctx-fact" title="@ConnectionViewText.ConnectionMenu_AddressTitle">@Profile.Address.Display@(Profile.Address is TnsAliasAddress ? " (TNS)" : "")</span>
+        <span class="ctx-fact">@Profile.User@(Profile.DefaultSchema is { } schema ? $" → {schema}" : "")</span>
+        @if (Profile.ReadOnly)
+        {
+            <span class="ctx-fact">@ConnectionViewText.ConnectionMenu_ReadOnly</span>
+        }
+        @if (Hub.Find(Profile.Id) is { } scope)
+        {
+            <span class="ctx-fact fk">@(scope == Hub.Current ? ConnectionViewText.Connection_TagShown : ConnectionViewText.Connection_TagConnected)</span>
+        }
+        @if (ConnectionLastUsed.Text(Recent.LastUsed.TryGetValue(Profile.Id, out var used) ? used : null, DateTime.Today) is { Length: > 0 } last)
+        {
+            <span class="ctx-fact" title="@ConnectionViewText.ConnectionMenu_LastUsedTitle">@last</span>
+        }
+    </div>
+</div>
+
+<QuickBar>
+    <QuickAction Icon="Icons.Connect" Label="@(Hub.Find(Profile.Id) is null ? ConnectionViewText.ConnectionMenu_Connect : ConnectionViewText.ConnectionMenu_Show)"
+                 Title="@(Shortcuts.ConnectionKey(Profile.Id) is { } k ? TextFormat.Format(ConnectionViewText.ConnectionMenu_ConnectKey, k) : null)"
+                 Active="true" OnClick="() => RunAsync(() => Shell.Connect(Profile))" />
+    <QuickAction Icon="Icons.Edit" Label="@ConnectionViewText.Connection_Edit" OnClick="() => RunAsync(() => Shell.EditConnection(Profile))" />
+    <QuickAction Icon="Icons.Duplicate" Label="@ConnectionViewText.ConnectionMenu_Duplicate" OnClick="() => RunAsync(() => Shell.DuplicateConnection(Profile))" />
+    <QuickAction Icon="Icons.Copy" Label="@ConnectionViewText.ConnectionMenu_CopyAddress" Title="@Profile.Address.Display" OnClick="CopyAddressAsync" />
+    <QuickAction Icon="Icons.Download" Label="@ConnectionViewText.ConnectionMenu_Export"
+                 OnClick="() => RunAsync(() => Shell.OpenExport(new ConnectionExportRequest(Connection: Profile.Id)))" />
+    @if (Hub.Find(Profile.Id) is { } open)
+    {
+        <QuickAction Icon="Icons.Disconnect" Label="@ConnectionViewText.Connection_Disconnect" Title="@ConnectionViewText.Switcher_DisconnectTitle"
+                     OnClick="() => RunAsync(() => Lifecycle.DisconnectAsync(open))" />
+    }
+</QuickBar>
+
+<div class="ctx-section">
+    <div class="group-head-btn static">@ConnectionViewText.ConnectionMenu_MoveToGroup</div>
+    <div class="chips menu-chips">
+        @foreach (var group in Groups.Names.Where(g => !ConnectionSearch.SameGroup(g, Profile.Group)))
+        {
+            var target = group;
+            <button type="button" class="menu-chip" title="@TextFormat.Format(ConnectionViewText.ConnectionMenu_MoveToTitle, target)"
+                    @onclick="() => MoveAsync(target)">@target</button>
+        }
+        @if (ConnectionSearch.NormalizeGroup(Profile.Group) is not null)
+        {
+            <button type="button" class="menu-chip" @onclick="() => MoveAsync(null)">@ConnectionViewText.Connection_NoGroup</button>
+        }
+        <button type="button" class="menu-chip" @onclick="() => RunAsync(() => Shell.NewGroupFor(Profile))">@Icons.Plus @ConnectionViewText.ConnectionMenu_NewGroup</button>
+    </div>
+</div>
+
+<div class="menu-sep"></div>
+<MenuEntry Label="@ConnectionViewText.Connection_DeleteEllipsis" Danger="true" OnClick="() => RunAsync(() => Shell.RequestDelete(Profile))" />
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ConnectionProfile Profile { get; set; } = null!;
+
+    /// <summary>Closes the menu (and what it sits in, e.g. the switcher) before an entry acts.</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Inject]
+    private ILogger<ConnectionMenuBody> Logger { get; set; } = null!;
+
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    private async Task RunAsync(Action action)
+    {
+        await OnClose.InvokeAsync();
+        action();
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        await OnClose.InvokeAsync();
+        await action();
+    }
+
+    private async Task CopyAddressAsync()
+    {
+        // Copied before closing: dom.js goes with the menu.
+        await Dom.CopyTextAsync(Shell, Profile.Address.Display);
+        await OnClose.InvokeAsync();
+    }
+
+    private Task MoveAsync(string? group) => RunAsync(async () =>
+    {
+        try
+        {
+            await Groups.MoveConnectionAsync(Profile, group);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Logger.LogWarning(ex, "Moving connection {Name} to another group failed", Profile.Name);
+            Shell.Notify(TextFormat.Format(CommonText.SaveFailed, ex.Message));
+        }
+    });
+
+    public ValueTask DisposeAsync() => _dom?.DisposeAsync() ?? ValueTask.CompletedTask;
+}

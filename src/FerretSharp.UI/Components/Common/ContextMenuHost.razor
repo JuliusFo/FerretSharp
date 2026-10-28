@@ -1,0 +1,64 @@
+@* A right-click menu for the items of a list (WP-66: connections and groups): OpenAsync at the mouse with the item, the
+   content gets the item. Built on PopoverMenu (backdrop, Escape, ↑ ↓, kept inside the window). *@
+@typeparam TItem
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@if (_at is { } at && _item is { } item)
+{
+    <PopoverMenu X="at.X" Y="at.Y" ViewportWidth="at.ViewportWidth" ViewportHeight="at.ViewportHeight" Width="Width"
+                 EstimatedHeight="EstimatedHeight" KeyNavigation="true" OnClose="Close">
+        @ChildContent?.Invoke(item)
+    </PopoverMenu>
+}
+
+@code {
+    [Parameter]
+    public double Width { get; set; } = 320;
+
+    [Parameter]
+    public double EstimatedHeight { get; set; } = 230;
+
+    [Parameter]
+    public RenderFragment<TItem>? ChildContent { get; set; }
+
+    private MenuPlacement? _at;
+    private TItem? _item;
+    private DomModule? _dom;
+    private bool _disposed;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    /// <summary>Shows the menu of <paramref name="item"/> at the mouse (the handler prevents the browser's own menu).</summary>
+    public async Task OpenAsync(MouseEventArgs e, TItem item)
+    {
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        (_at, _item) = (new MenuPlacement(e.ClientX, e.ClientY, width, height), item);
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        if (_at is null)
+        {
+            return;
+        }
+
+        (_at, _item) = (null, default);
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+}

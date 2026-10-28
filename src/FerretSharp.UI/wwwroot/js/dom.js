@@ -197,6 +197,40 @@ export function dragToDrop(root, pointerId, selector, hoverClass) {
   });
 }
 
+/**
+ * Like dragToDrop, but only once the pointer moved `threshold` pixels with the button down (WP-66: connections and group
+ * heads, which also take clicks and double clicks). Released before: resolves null without capturing, so the click goes
+ * to the row as usual.
+ */
+export function dragAfter(root, pointerId, startX, startY, selector, hoverClass, threshold = 5) {
+  return new Promise(resolve => {
+    const stop = () => {
+      document.removeEventListener('pointermove', wait, true);
+      document.removeEventListener('pointerup', release, true);
+      document.removeEventListener('pointercancel', release, true);
+    };
+    const release = e => {
+      if (e.pointerId !== pointerId) return;
+      stop();
+      resolve(null);
+    };
+    const wait = e => {
+      if (e.pointerId !== pointerId) return;
+      if ((e.buttons & 1) === 0) {
+        release(e);
+        return;
+      }
+      if (Math.hypot(e.clientX - startX, e.clientY - startY) < threshold) return;
+      stop();
+      window.getSelection()?.removeAllRanges();
+      dragToDrop(root, pointerId, selector, hoverClass).then(resolve);
+    };
+    document.addEventListener('pointermove', wait, true);
+    document.addEventListener('pointerup', release, true);
+    document.addEventListener('pointercancel', release, true);
+  });
+}
+
 /** Focuses the first enabled input, select or text area inside the element (a new row in the form). */
 export function focusFirstInput(element) {
   element?.querySelector('input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]):not([readonly])')?.focus();

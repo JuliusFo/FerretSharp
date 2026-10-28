@@ -85,8 +85,18 @@ public static class SettingsCatalog
 
     public static string IdOf(FixedShortcut fixedKey) => "fixed:" + fixedKey.Group + "/" + fixedKey.Label;
 
-    /// <summary>The rows of the page as it shows them now: "Check at start" only for an installed FerretSharp.</summary>
-    public static IReadOnlyList<SettingsEntry> Entries(ShortcutMap shortcuts, bool installed)
+    /// <summary>The row of a connection's key (WP-66).</summary>
+    public static string IdOf(Guid connectionId) => "connection-key:" + connectionId;
+
+    /// <summary>The connections that have a key, in list order, with it (WP-66: the shortcuts page lists them).</summary>
+    public static IReadOnlyList<(ConnectionProfile Profile, KeyChord Key)> ConnectionKeys(ShortcutMap shortcuts, IEnumerable<ConnectionProfile> connections) =>
+        [.. ConnectionSearch.InListOrder(connections).Select(p => (Profile: p, Key: shortcuts.ConnectionChord(p.Id))).Where(c => c.Key is not null).Select(c => (c.Profile, c.Key!))];
+
+    /// <summary>
+    /// The rows of the page as it shows them now: "Check at start" only for an installed FerretSharp, the keys of
+    /// <paramref name="connections"/> that have one (WP-66).
+    /// </summary>
+    public static IReadOnlyList<SettingsEntry> Entries(ShortcutMap shortcuts, bool installed, IEnumerable<ConnectionProfile>? connections = null)
     {
         ArgumentNullException.ThrowIfNull(shortcuts);
         List<SettingsEntry> entries =
@@ -136,6 +146,9 @@ public static class SettingsCatalog
         entries.AddRange(ShortcutMap.Definitions.Select(d => new SettingsEntry(
             IdOf(d.Action), SettingsPart.Shortcuts, d.Label, d.Hint, d.Group, shortcuts.Chord(d.Action) is { } chord ? [chord.Label] : [])));
         entries.AddRange(ShortcutMap.Fixed.Select(f => new SettingsEntry(IdOf(f), SettingsPart.Shortcuts, f.Label, f.Hint, f.Group, [f.Keys])));
+        entries.AddRange(ConnectionKeys(shortcuts, connections ?? []).Select(c => new SettingsEntry(
+            IdOf(c.Profile.Id), SettingsPart.Shortcuts, c.Profile.Name, null, SettingsViewText.Shortcuts_ConnectionsGroup,
+            [c.Key.Label, .. c.Profile.Group is { } group ? [group] : Array.Empty<string>()])));
         return entries;
     }
 

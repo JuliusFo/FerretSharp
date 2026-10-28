@@ -122,6 +122,19 @@ public sealed partial class WorkspaceLifecycle
     public Task DisconnectAsync(ConnectionScope scope) =>
         GuardAsync(TextFormat.Format(ShellText.Lifecycle_DisconnectWhat, scope.Profile?.Name), WorkspacesOf(scope), () => DisconnectCoreAsync(scope));
 
+    /// <summary>
+    /// Disconnects several connections (WP-66, "Disconnect all" of a group) after one question about the uncommitted work
+    /// of all of them – one after the other, each question would replace the one before.
+    /// </summary>
+    public Task DisconnectAllAsync(IReadOnlyList<ConnectionScope> scopes, string what) =>
+        GuardAsync(what, scopes.SelectMany(WorkspacesOf).ToList(), async () =>
+        {
+            foreach (var scope in scopes)
+            {
+                await DisconnectCoreAsync(scope);
+            }
+        });
+
     public Task DeleteAsync(ConnectionProfile profile)
     {
         shell.CancelDelete();

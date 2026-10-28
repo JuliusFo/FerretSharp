@@ -105,4 +105,25 @@ public sealed class SettingsCatalogTests
 
     [Fact]
     public void A_query_without_any_match_is_empty() => Assert.True(Filter("xyzzy").IsEmpty);
+
+    /// <summary>WP-66: the keys of connections are found by name, group and key, under "Connections".</summary>
+    [Fact]
+    public void Keys_of_connections_are_searched_by_name_group_and_key()
+    {
+        var erp = new FerretSharp.Core.Connections.ConnectionProfile(
+            Guid.NewGuid(), "ERP Dev", FerretSharp.Core.Connections.ConnectionKind.Dev,
+            new FerretSharp.Core.Connections.HostPortAddress("db01", 1521, "ERP", null), "app", null, false, "Warenwirtschaft");
+        var map = new ShortcutMap(connections: SettingsMap.From([new(erp.Id.ToString(), "alt+1")]));
+        var entries = SettingsCatalog.Entries(map, installed: true, [erp]);
+
+        Assert.Single(entries, e => e.Id == SettingsCatalog.IdOf(erp.Id));
+        foreach (var query in new[] { "erp dev", "warenwirtschaft", "alt+1" })
+        {
+            var filter = new SettingsFilter(new SettingsSearch(query), entries);
+            Assert.True(filter.Shows(SettingsCatalog.IdOf(erp.Id)), query);
+            Assert.True(filter.ShowsGroup(FerretSharp.UI.Resources.SettingsViewText.Shortcuts_ConnectionsGroup), query);
+        }
+
+        Assert.Empty(SettingsCatalog.ConnectionKeys(new ShortcutMap(), [erp]));
+    }
 }

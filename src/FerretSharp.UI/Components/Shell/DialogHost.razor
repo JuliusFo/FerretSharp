@@ -214,6 +214,11 @@
     </ConfirmDialog>
 }
 
+@if (Shell.GroupName is { } groupName)
+{
+    <GroupNameDialog Request="groupName" />
+}
+
 @if (Shell.PendingDelete is { } pending)
 {
     <ConfirmDialog Title="@ConnectionViewText.Connection_Delete" ConfirmLabel="@CommonText.Delete" Danger="true"

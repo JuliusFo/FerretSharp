@@ -179,6 +179,9 @@ public partial class App : Application
         builder.Services.AddScoped<LinqConsoleService>();
         builder.Services.AddSingleton(new CodeUsageBuilder(paths.CodeUsageCacheDirectory));
         builder.Services.AddSingleton(new WorkClones(paths.WorkClonesFile));
+        // Order and collapsed connection groups (WP-66), one state for the switcher and the connections page.
+        builder.Services.AddSingleton(new ConnectionGroupState(paths.ConnectionGroupsFile));
+        builder.Services.AddSingleton<ConnectionGroups>();
         builder.Services.AddScoped<CodeUsageService>();
         builder.Services.AddSingleton<CodeUsageOpener>();
         builder.Services.AddSingleton<ExitGuard>();

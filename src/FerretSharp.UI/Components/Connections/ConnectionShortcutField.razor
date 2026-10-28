@@ -1,0 +1,144 @@
+@* The key of a connection in its dialog (WP-66): press the keys as on the settings page, checked by the same rules
+   (ShortcutMap.CheckConnection). A key an action or another connection has is taken only after "Apply". The value is a
+   draft: the dialog saves it with the connection. *@
+@implements IAsyncDisposable
+@inject ShortcutService Shortcuts
+@inject ConnectionManager Connections
+@inject IJSRuntime JS
+@using FerretSharp.Core.Connections
+
+<div class="shortcut-keys">
+    @if (_recording)
+    {
+        <span class="shortcut-recording">@SettingsViewText.Shortcuts_PressKeys</span>
+        <button type="button" class="btn ghost" @onclick="CancelRecordAsync">@CommonText.Cancel</button>
+    }
+    else
+    {
+        @if (Value is not null)
+        {
+            <kbd>@Value.KbdLabel</kbd>
+        }
+        else
+        {
+            <span class="shortcut-none">@SettingsViewText.Shortcuts_None</span>
+        }
+
+        <button type="button" class="btn ghost" @onclick="RecordAsync">@SettingsViewText.Shortcuts_Change</button>
+        @if (Value is not null)
+        {
+            <button type="button" class="btn ghost" @onclick="() => SetAsync(null)">@ConnectionViewText.ConnectionDialog_ShortcutRemove</button>
+        }
+    }
+</div>
+@if (_proposal is { } proposal)
+{
+    <div class="settings-note shortcut-message @(proposal.Check.Error is null ? "warn" : "error")" role="alert">
+        @if (proposal.Check.Error is { } error)
+        {
+            <span>@TextFormat.Format(SettingsViewText.Shortcuts_NotPossible, proposal.Chord.Label, error)</span>
+            <button type="button" class="btn ghost" @onclick="Dismiss">@CommonText.Ok</button>
+        }
+        else
+        {
+            <span>@Explain(proposal) @proposal.Check.Warning</span>
+            <button type="button" class="btn primary" @onclick="AcceptAsync">@CommonText.Apply</button>
+            <button type="button" class="btn ghost" @onclick="Dismiss">@CommonText.Cancel</button>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The connection the key is for (a new one's id from the form).</summary>
+    [Parameter, EditorRequired]
+    public Guid ProfileId { get; set; }
+
+    [Parameter]
+    public KeyChord? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<KeyChord?> ValueChanged { get; set; }
+
+    private JsModule? _module;
+    private bool _recording;
+    private Proposal? _proposal;
+    private bool _disposed;
+
+    private sealed record Proposal(KeyChord Chord, ShortcutCheck Check);
+
+    private async Task RecordAsync()
+    {
+        _proposal = null;
+        _recording = true;
+        string? combo;
+        try
+        {
+            _module ??= new JsModule(JS, "./_content/FerretSharp.UI/js/shortcuts.js");
+            combo = _disposed ? null : await _module.InvokeAsync<string?>("record");
+        }
+        finally
+        {
+            _recording = false;
+        }
+
+        if (_disposed || KeyChord.Parse(combo) is not { } chord || chord == Value)
+        {
+            return;
+        }
+
+        var check = Shortcuts.Map.CheckConnection(ProfileId, chord);
+        if (check.IsFine)
+        {
+            await SetAsync(chord);
+        }
+        else
+        {
+            _proposal = new Proposal(chord, check);
+        }
+    }
+
+    /// <summary>Who has the key now: they lose it when the connection is saved.</summary>
+    private string Explain(Proposal proposal)
+    {
+        var owner = proposal.Check.Conflict is { } action
+            ? ShortcutMap.Definition(action).Label
+            : proposal.Check.ConflictConnection is { } id && Connections.Profiles.FirstOrDefault(p => p.Id == id) is { } other
+                ? other.Name
+                : null;
+        return owner is null ? "" : TextFormat.Format(SettingsViewText.Shortcuts_Conflict, proposal.Chord.Label, owner);
+    }
+
+    private async Task AcceptAsync()
+    {
+        if (_proposal is { Check.Error: null } proposal)
+        {
+            _proposal = null;
+            await SetAsync(proposal.Chord);
+        }
+    }
+
+    private void Dismiss() => _proposal = null;
+
+    private Task SetAsync(KeyChord? chord)
+    {
+        _proposal = null;
+        return ValueChanged.InvokeAsync(chord);
+    }
+
+    private async Task CancelRecordAsync()
+    {
+        if (_module is { IsLoaded: true })
+        {
+            await _module.InvokeVoidAsync("cancelRecord");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_module is not null)
+        {
+            await _module.DisposeAsync("cancelRecord");
+        }
+    }
+}

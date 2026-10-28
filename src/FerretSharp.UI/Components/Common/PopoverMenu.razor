@@ -4,8 +4,13 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
-<div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
+@* Events stay in the menu and its backdrop (WP-66): a menu inside a row (a connection's "⋯", in the switcher and on the
+   connections page) passed ↑ ↓ and Escape to the switcher, clicks to the row that connects, right-clicks to the row's
+   own menu and a press to the row's dragging. *@
+<div class="popover-backdrop" @onclick="CloseAsync" @onclick:stopPropagation="true" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"
+     @oncontextmenu:stopPropagation="true" @onpointerdown:stopPropagation="true"></div>
+<div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="true"
+     @oncontextmenu:preventDefault="true" @oncontextmenu:stopPropagation="true" @onclick:stopPropagation="true" @onpointerdown:stopPropagation="true">
     @ChildContent
 </div>
 

@@ -7,6 +7,8 @@
 @inject IConnectionTester Tester
 @inject IFileOpenService Files
 @inject FerretSharp.Core.Audit.AuditTemplateSource AuditTemplates
+@inject ShortcutService Shortcuts
+@inject ILogger<ConnectionDialog> Logger
 
 @{
     // Once per render: validating builds the profile; what looks at the file system answers from the background (PathProbe).
@@ -124,6 +126,12 @@
             @ConnectionViewText.ConnectionDialog_ReadOnly
             <span class="hint">@ConnectionViewText.ConnectionDialog_ReadOnlyHint</span>
         </label>
+
+        <label>@ConnectionViewText.ConnectionDialog_Shortcut</label>
+        <div>
+            <ConnectionShortcutField ProfileId="Form.Id" @bind-Value="_shortcut" />
+            <div class="hint small">@ConnectionViewText.ConnectionDialog_ShortcutHint</div>
+        </div>
 
         <div class="form-section">@ConnectionViewText.ConnectionDialog_ClrModel <span class="hint">@ConnectionViewText.ConnectionDialog_ClrModelHint</span></div>
 
@@ -283,10 +291,16 @@
         {
             { Mode: ConnectionDialogMode.Edit, Profile: { } p } => ConnectionForm.FromProfile(p),
             { Mode: ConnectionDialogMode.Duplicate, Profile: { } p } => ConnectionForm.Duplicate(p),
-            _ => new ConnectionForm(),
+            _ => new ConnectionForm { Group = Request.Group ?? "" },
         };
         HasStoredPassword = Form.PasswordSourceId is { } source && Connections.GetStoredPassword(source) is not null;
+        _shortcut = _savedShortcut = Shortcuts.Map.ConnectionChord(Form.Id); // a copy has a new id: no key
     }
+
+    /// <summary>The connection's key as chosen in the dialog (WP-66) and as saved; written with the connection.</summary>
+    private KeyChord? _shortcut;
+
+    private KeyChord? _savedShortcut;
 
     /// <summary>The typed password, otherwise the stored one of the edited/original profile.</summary>
     private string? EffectivePassword() =>
@@ -442,6 +456,13 @@
             var newPassword = Form.IsNew ? EffectivePassword() : Form.Password.Length > 0 ? Form.Password : null;
             var open = Form.IsNew ? null : Hub.Find(profile.Id)?.Profile;
             await Connections.SaveAsync(profile, newPassword, CancellationToken.None);
+            if (_shortcut != _savedShortcut)
+            {
+                // The connection is saved: a key that could not be saved applies until quitting, with a notice.
+                var shortcut = _shortcut;
+                await Shell.TrySaveSettingsAsync(() => Shortcuts.SetConnectionAsync(profile.Id, shortcut), Logger);
+            }
+
             await CloseAsync();
             if (open is not null && (open.SessionDiffers(profile) || newPassword is not null))
             {

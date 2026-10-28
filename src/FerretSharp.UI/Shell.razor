@@ -8,6 +8,7 @@
 @inject ConnectionHub Hub
 @inject RecentConnections Recent
 @inject FerretSharp.Core.ClrModel.WorkClones WorkClones
+@inject ConnectionGroups Groups
 @inject ConnectionKeepAlive KeepAlive
 @inject FerretSharp.Core.Settings.AppSettingsService Settings
 @inject ShortcutService Shortcuts
@@ -314,6 +315,7 @@
         await Connections.LoadAsync(CancellationToken.None);
         await Recent.LoadAsync(CancellationToken.None);
         await WorkClones.LoadAsync(CancellationToken.None);
+        await Groups.LoadAsync(CancellationToken.None);
 
         // Links (WP-37): the start argument is waiting already; a second start hands one over through the host's pipe.
         Links.Received += OnLinkReceived;
@@ -384,9 +386,24 @@
 
     private void OnShortcutCore(string combo, bool modalOpen, bool cellEditing)
     {
-        if (!modalOpen && Shortcuts.Map.ActionFor(combo, ShortcutScope.Global) is { } action)
+        if (modalOpen)
+        {
+            return;
+        }
+
+        if (Shortcuts.Map.ActionFor(combo, ShortcutScope.Global) is { } action)
         {
             RunAction(action, cellEditing);
+        }
+        else if (Shortcuts.Map.ConnectionFor(combo) is { } id && Connections.Profiles.FirstOrDefault(p => p.Id == id) is { } profile)
+        {
+            // WP-66: the connection's key shows it, connecting it first if it is not open – as a click in the switcher.
+            if (_state.Palette is not null)
+            {
+                _state.ClosePalette();
+            }
+
+            _state.Connect(profile);
         }
     }
 

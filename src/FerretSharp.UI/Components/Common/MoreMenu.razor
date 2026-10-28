@@ -2,7 +2,8 @@
    R6b: a connection's actions, "C# ▾" of the filter bar) – a MenuButton with MoreMenuItem entries. *@
 
 <MenuButton Class="@ButtonClassOrDefault"Title="@(Title ?? ShellText.Actions)" Label="@(Label ?? Dots)" StopPropagation="true"
-            Width="Width" EstimatedHeight="@(12 + 32 * Items.Count + 9 * Items.Count(i => i.SeparatorBefore))" ShiftX="ShiftX" ShiftY="ShiftY">
+            Width="Width" EstimatedHeight="@(12 + 32 * Items.Count + 9 * Items.Count(i => i.SeparatorBefore))" ShiftX="ShiftX" ShiftY="ShiftY"
+            KeyNavigation="true">
     <ChildContent Context="menu">
         @foreach (var item in Items)
         {

@@ -2,6 +2,7 @@
    this computer (C# project, script folder) only on request. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Connections.Transfer
+@inject ConnectionGroups Groups
 @inject ConnectionTransfer Transfer
 @inject IFileSaveService Files
 @inject ILogger<ConnectionExportDialog> Logger
@@ -65,7 +66,7 @@
     [Parameter, EditorRequired]
     public ConnectionExportRequest Request { get; set; } = null!;
 
-    protected override void OnInitialized() => _selection = new ConnectionExportSelection(Transfer.Profiles, Request);
+    protected override void OnInitialized() => _selection = new ConnectionExportSelection(Transfer.Profiles, Request, Groups.Order);
 
     private async Task ExportAsync()
     {

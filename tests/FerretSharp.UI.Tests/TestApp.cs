@@ -53,6 +53,9 @@ internal sealed class TestApp : IAsyncDisposable
         services.AddScoped<LinqConsoleService>();
         services.AddSingleton(new CodeUsageBuilder(_folder.Combine("code-usage")));
         services.AddSingleton(new WorkClones(_folder.Combine("work-clones.json")));
+        services.AddSingleton(new ConnectionGroupState(_folder.Combine("connection-groups.json")));
+        services.AddSingleton<ShortcutService>();
+        services.AddSingleton<ConnectionGroups>();
         services.AddScoped<CodeUsageService>();
         services.AddSingleton<ConnectionHub>();
         _services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
@@ -83,6 +86,13 @@ internal sealed class TestApp : IAsyncDisposable
     private int _openAttempts;
 
     public ConnectionManager Connections => _services.GetRequiredService<ConnectionManager>();
+
+    /// <summary>Order and collapsed connection groups, renaming and moving (WP-66).</summary>
+    public ConnectionGroups Groups => _services.GetRequiredService<ConnectionGroups>();
+
+    public ShortcutService Shortcuts => _services.GetRequiredService<ShortcutService>();
+
+    public FerretSharp.Core.ClrModel.WorkClones WorkClones => _services.GetRequiredService<FerretSharp.Core.ClrModel.WorkClones>();
 
     public InMemoryWorkspaceStore WorkspaceStore { get; } = new();
 

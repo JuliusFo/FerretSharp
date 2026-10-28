@@ -14,13 +14,16 @@ public sealed class LinkTargetChoice
     private readonly IncomingLink _request;
     private readonly IReadOnlyList<ConnectionProfile> _profiles;
     private readonly IReadOnlyList<ConnectionProfile> _suggestions;
+    private readonly IReadOnlyList<string>? _order;
 
-    public LinkTargetChoice(IncomingLink request, IReadOnlyList<ConnectionProfile> profiles)
+    /// <param name="order">The user's order of the connection groups (WP-66), as the connection list shows them.</param>
+    public LinkTargetChoice(IncomingLink request, IReadOnlyList<ConnectionProfile> profiles, IReadOnlyList<string>? order = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(profiles);
         _request = request;
         _profiles = profiles;
+        _order = order;
         _suggestions = request.Link is { } link ? LinkConnectionMatch.Suggestions(profiles, link) : [];
         Choosing = request.Link is not null && request.Match.Profile is null && request.Match.Candidates.Count == 0 && profiles.Count > 0;
     }
@@ -44,7 +47,7 @@ public sealed class LinkTargetChoice
     public IReadOnlyList<ConnectionProfile> Suggested => _suggestions.Where(p => ConnectionSearch.Matches(p, Query)).ToList();
 
     /// <summary>All other connections, grouped and searched like the connection list.</summary>
-    public IReadOnlyList<ConnectionGroup> Others => ConnectionSearch.Group(_profiles.Except(_suggestions), Query);
+    public IReadOnlyList<ConnectionGroup> Others => ConnectionSearch.Group(_profiles.Except(_suggestions), Query, _order);
 
     /// <summary>
     /// The user opens the link on a connection it does not point at – not the one found, none of the candidates: the

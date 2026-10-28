@@ -8,7 +8,14 @@ namespace FerretSharp.UI.State;
 
 public enum ConnectionDialogMode { New, Edit, Duplicate }
 
-public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, ConnectionProfile? Profile);
+/// <param name="Group">A new connection starts in this group (WP-66, from the group's menu).</param>
+public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, ConnectionProfile? Profile, string? Group = null);
+
+/// <summary>
+/// A group name to type (WP-66): <paramref name="Group"/> renamed, or – without one – a new group for
+/// <paramref name="Profile"/>.
+/// </summary>
+public sealed record GroupNameRequest(string? Group, ConnectionProfile? Profile);
 
 /// <summary>The password to ask for before connecting (WP-35).</summary>
 /// <param name="ShowWhenConnected">
@@ -18,7 +25,8 @@ public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, Connecti
 public sealed record PasswordRequest(ConnectionProfile Profile, bool ShowWhenConnected);
 
 /// <summary>Export all connections, or – <paramref name="OnlyGroup"/> – those of one group (null = without group).</summary>
-public sealed record ConnectionExportRequest(bool OnlyGroup = false, string? Group = null);
+/// <param name="Connection">Only this connection (WP-66, from its menu); the group is then not looked at.</param>
+public sealed record ConnectionExportRequest(bool OnlyGroup = false, string? Group = null, Guid? Connection = null);
 
 public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements }
 
@@ -118,11 +126,23 @@ public sealed partial class ShellState
 
     public void ShowExplorer() => Set(() => Page = ShellPage.Explorer);
 
-    public void ShowSettings() => Set(() =>
+    /// <param name="part">The section to open (WP-66: the audit templates from a group's menu); null: where it was left.</param>
+    public void ShowSettings(SettingsPart? part = null) => Set(() =>
     {
         SwitcherOpen = false;
         Page = ShellPage.Settings;
+        RequestedSettingsPart = part;
     });
+
+    /// <summary>The section the settings page opens with, once (<see cref="TakeSettingsPart"/>).</summary>
+    public SettingsPart? RequestedSettingsPart { get; private set; }
+
+    public SettingsPart? TakeSettingsPart()
+    {
+        var part = RequestedSettingsPart;
+        RequestedSettingsPart = null;
+        return part;
+    }
 
     /// <summary>Schema comparison of several connections (WP-20); needs no active connection.</summary>
     public void ShowCompare() => Set(() =>
@@ -167,7 +187,17 @@ public sealed partial class ShellState
     /// <summary>Tab state changed (see <see cref="Dirty"/>); no re-render.</summary>
     public void MarkDirty() => Dirty?.Invoke();
 
-    public void NewConnection() => Set(() => ConnectionDialog = new(ConnectionDialogMode.New, null));
+    /// <param name="group">The group the new connection starts in (WP-66); none by default.</param>
+    public void NewConnection(string? group = null) => Set(() => ConnectionDialog = new(ConnectionDialogMode.New, null, group));
+
+    /// <summary>The group name being typed (WP-66): rename a group or put a connection into a new one.</summary>
+    public GroupNameRequest? GroupName { get; private set; }
+
+    public void RenameGroup(string group) => Set(() => GroupName = new(group, null));
+
+    public void NewGroupFor(ConnectionProfile profile) => Set(() => GroupName = new(null, profile));
+
+    public void CloseGroupName() => Set(() => GroupName = null);
 
     public void EditConnection(ConnectionProfile profile) => Set(() => ConnectionDialog = new(ConnectionDialogMode.Edit, profile));
 

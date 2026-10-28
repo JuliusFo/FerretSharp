@@ -74,4 +74,52 @@ public sealed class ShortcutServiceTests : IDisposable
         _shortcuts.Dispose();
         _folder.Dispose();
     }
+
+    private static readonly Guid Erp = Guid.Parse("6f1e1b6e-0000-0000-0000-000000000001");
+
+    /// <summary>WP-66: a connection's key is registered like a global action; taking it moves it, never doubles it.</summary>
+    [Fact]
+    public async Task A_connection_key_takes_the_key_from_an_action_and_back()
+    {
+        var changed = 0;
+        _shortcuts.Changed += () => changed++;
+
+        await _shortcuts.SetConnectionAsync(Erp, KeyChord.Parse("alt+o")); // the previous connection's
+
+        Assert.Equal(1, changed);
+        Assert.Equal("Alt+O", _shortcuts.ConnectionKey(Erp));
+        Assert.Null(_shortcuts.Label(ShortcutAction.PreviousConnection));
+        Assert.Equal(Erp, _shortcuts.Map.ConnectionFor("alt+o"));
+
+        await _shortcuts.ResetAsync(ShortcutAction.PreviousConnection);
+
+        Assert.Equal("Alt+O", _shortcuts.Label(ShortcutAction.PreviousConnection));
+        Assert.Null(_shortcuts.ConnectionKey(Erp));
+        Assert.Empty(_settings.Current.ConnectionShortcuts);
+    }
+
+    [Fact]
+    public async Task Resetting_all_shortcuts_takes_the_defaults_from_connections()
+    {
+        await _shortcuts.SetConnectionAsync(Erp, KeyChord.Parse("alt+o"));
+        await _shortcuts.SetConnectionAsync(Guid.NewGuid(), KeyChord.Parse("alt+2"));
+
+        await _shortcuts.ResetAllAsync();
+
+        Assert.Null(_shortcuts.ConnectionKey(Erp));
+        Assert.Single(_settings.Current.ConnectionShortcuts);
+    }
+
+    [Fact]
+    public async Task Keys_of_connections_that_are_gone_are_dropped()
+    {
+        var other = Guid.NewGuid();
+        await _shortcuts.SetConnectionAsync(Erp, KeyChord.Parse("alt+1"));
+        await _shortcuts.SetConnectionAsync(other, KeyChord.Parse("alt+2"));
+
+        await _shortcuts.ForgetConnectionsExceptAsync(new HashSet<Guid> { other });
+
+        Assert.Null(_shortcuts.ConnectionKey(Erp));
+        Assert.Equal("Alt+2", _shortcuts.ConnectionKey(other));
+    }
 }
