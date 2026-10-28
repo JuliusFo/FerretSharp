@@ -53,7 +53,8 @@ public sealed record AssemblyUses(
 {
     /// <summary>
     /// 2: the property an <c>ExecuteUpdate</c> sets is a write, no longer an expression. 3: conditions of <c>Where</c>,
-    /// <c>Any</c>, <c>First</c> … are filters.
+    /// <c>Any</c>, <c>First</c> … are filters. 4: no filter from a value the condition compares with, a tree kept in a
+    /// variable or passed in a <c>params</c> array, or <c>All</c>.
     /// </summary>
-    public const int CurrentFormatVersion = 3;
+    public const int CurrentFormatVersion = 4;
 }

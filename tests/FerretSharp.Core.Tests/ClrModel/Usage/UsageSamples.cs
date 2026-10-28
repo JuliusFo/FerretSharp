@@ -133,10 +133,38 @@ namespace FerretSharp.Core.Tests.ClrModel.UsageSamples
     public class TicketNote
     {
         public string Text { get; set; } = "";
+
+        public Ticket? Ticket { get; set; }
+    }
+
+    public sealed class TicketRepository
+    {
+        public IQueryable<Ticket> Load(params Expression<Func<Ticket, object?>>[] includes) => Enumerable.Empty<Ticket>().AsQueryable();
     }
 
     public sealed class TicketService
     {
+        private readonly Ticket _template = new();
+
+        public IQueryable<Ticket> Follow(IQueryable<Ticket> tickets, Ticket parent, TicketNote note) =>
+            tickets.Where(t => t.Number == parent.Number && t.Due == _template.Due && t.Title == note.Ticket!.Title); // marker: filter-values
+
+        public IQueryable<Ticket> Sorted(IQueryable<Ticket> tickets, string sort)
+        {
+            Expression<Func<Ticket, object?>> key = sort switch
+            {
+                "title" => t => t.Title,
+                _ => t => t.Due,
+            };
+            Expression<Func<Ticket, int>> number = t => t.Number;
+            return tickets.Where(t => t.Status != "closed").OrderBy(key).ThenBy(number); // marker: filter-stored
+        }
+
+        public IQueryable<Ticket> Loaded(TicketRepository repository) =>
+            repository.Load(t => t.Notes, t => t.Title).Where(t => t.Status == "open"); // marker: filter-params
+
+        public bool AllClosed(IQueryable<Ticket> tickets) => tickets.All(t => t.Status == "closed");
+
         public IQueryable<string?> OpenTitles(IQueryable<Ticket> tickets) =>
             tickets.Where(t => t.Status == "open").OrderBy(t => t.Due).Select(t => t.Title); // marker: filter-where
 

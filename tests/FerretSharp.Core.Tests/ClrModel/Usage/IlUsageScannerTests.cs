@@ -89,6 +89,43 @@ public sealed class IlUsageScannerTests
     }
 
     [Fact]
+    public void A_value_the_condition_compares_with_is_no_filter()
+    {
+        // t.Number == parent.Number: the row's Number is filtered by, the parent's only gives the value (also from a
+        // field of this and along a chain of properties).
+        var line = LineOf("filter-values");
+        foreach (var member in new[] { "Number", "Due", "Title" })
+        {
+            Assert.Equal(line, Single("Ticket", member, CodeUseKind.Filter, "Follow").Line);
+            Assert.Equal(line, Single("Ticket", member, CodeUseKind.Expression, "Follow").Line);
+        }
+
+        Single("TicketNote", "Ticket", CodeUseKind.Expression, "Follow");
+        Assert.DoesNotContain(Uses.Uses, u => u is { Member: "Ticket", Kind: CodeUseKind.Filter });
+    }
+
+    [Fact]
+    public void A_tree_kept_in_a_variable_or_passed_in_a_params_array_is_no_filter()
+    {
+        Assert.Equal(LineOf("filter-stored"), Single("Ticket", "Status", CodeUseKind.Filter, "Sorted").Line);
+        Single("Ticket", "Title", CodeUseKind.Expression, "Sorted");
+        Single("Ticket", "Due", CodeUseKind.Expression, "Sorted");
+        Single("Ticket", "Number", CodeUseKind.Expression, "Sorted");
+
+        Assert.Equal(LineOf("filter-params"), Single("Ticket", "Status", CodeUseKind.Filter, "Loaded").Line);
+        Single("Ticket", "Notes", CodeUseKind.Expression, "Loaded");
+        Single("Ticket", "Title", CodeUseKind.Expression, "Loaded");
+        Assert.DoesNotContain(Uses.Uses, u => u is { Kind: CodeUseKind.Filter, CallerMethod: "Sorted" or "Loaded" } && u.Member != "Status");
+    }
+
+    [Fact]
+    public void The_condition_of_all_is_no_filter()
+    {
+        // NOT EXISTS (… WHERE NOT …): an index on the column seldom helps there.
+        Single("Ticket", "Status", CodeUseKind.Expression, "AllClosed");
+    }
+
+    [Fact]
     public void Lambdas_async_methods_and_local_functions_resolve_to_the_method_as_written()
     {
         Assert.Equal(LineOf("async-orders"), Single("Customer", "Orders", CodeUseKind.Read, "CountOrdersAsync").Line);
