@@ -110,7 +110,7 @@ public sealed class ActiveConnectionTests : IDisposable
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(opening.Task);
         var connecting = _active.ConnectAsync(_profile, Ct);
-        await Eventually(() => _active.Step == ConnectionText.Step_OpeningSession);
+        await Eventually(() => _connector.ReceivedCalls().Any()); // the attempt runs on the thread pool
 
         _active.CancelPendingConnect();
         await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
@@ -145,16 +145,19 @@ public sealed class ActiveConnectionTests : IDisposable
     [Fact]
     public async Task An_open_past_its_limit_is_tried_again_as_a_step_of_its_own()
     {
-        var time = new FakeTimeProvider();
+        var time = new CountingTimeProvider();
         var active = new ActiveConnection(new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets), _connector, _recent, _workspaces, time);
         var hanging = new TaskCompletionSource<IDatabaseConnection>();
+        var second = new TaskCompletionSource<IDatabaseConnection>();
         var late = FakeDatabase.Connection(_reader);
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(hanging.Task, Task.FromResult(_connection));
+            .Returns(hanging.Task, second.Task);
         var connecting = active.ConnectAsync(_profile, Ct);
-        await Eventually(() => _connector.ReceivedCalls().Count() == 1);
+        await Eventually(() => time.Timers == 1);
 
         time.Advance(SessionOpening.AttemptLimits[0]);
+        await Eventually(() => _connector.ReceivedCalls().Count() == 2);
+        second.SetResult(_connection);
         await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
 
         Assert.Equal(ConnectionStatus.Connected, active.Status);
@@ -169,14 +172,14 @@ public sealed class ActiveConnectionTests : IDisposable
     [Fact]
     public async Task When_every_attempt_runs_past_its_limit_the_connect_fails_as_timed_out()
     {
-        var time = new FakeTimeProvider();
+        var time = new CountingTimeProvider();
         var active = new ActiveConnection(new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets), _connector, _recent, _workspaces, time);
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new TaskCompletionSource<IDatabaseConnection>().Task);
         var connecting = active.ConnectAsync(_profile, Ct);
         for (var attempt = 1; attempt <= SessionOpening.AttemptLimits.Count; attempt++)
         {
-            await Eventually(() => _connector.ReceivedCalls().Count() == attempt);
+            await Eventually(() => time.Timers == attempt);
             time.Advance(SessionOpening.AttemptLimits[attempt - 1]);
         }
 
@@ -188,6 +191,30 @@ public sealed class ActiveConnectionTests : IDisposable
         Assert.True(ReconnectPolicy.IsWorthRetrying(active.Error));
     }
 
+    /// <summary>Review of the fix (7a): cancelling while a later attempt runs disconnects and starts no further one.</summary>
+    [Fact]
+    public async Task Cancelling_during_a_later_attempt_disconnects_without_another_one()
+    {
+        var time = new CountingTimeProvider();
+        var active = new ActiveConnection(new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets), _connector, _recent, _workspaces, time);
+        var hanging = new TaskCompletionSource<IDatabaseConnection>();
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(hanging.Task);
+        var connecting = active.ConnectAsync(_profile, Ct);
+        await Eventually(() => time.Timers == 1);
+        time.Advance(SessionOpening.AttemptLimits[0]);
+        await Eventually(() => time.Timers == 2 && _connector.ReceivedCalls().Count() == 2);
+
+        active.CancelPendingConnect();
+        await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        Assert.Equal(ConnectionStatus.Disconnected, active.Status);
+        time.Advance(SessionOpening.AttemptLimits.Aggregate(TimeSpan.Zero, (sum, l) => sum + l));
+        Assert.Equal(2, _connector.ReceivedCalls().Count());
+        hanging.SetResult(_connection);
+        await Eventually(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
+    }
+
     [Fact]
     public async Task An_open_that_ends_after_a_cancel_is_still_reported()
     {
@@ -197,7 +224,7 @@ public sealed class ActiveConnectionTests : IDisposable
         SessionOpenOutcome? ended = null;
         _active.SessionOpenEnded += o => ended = o;
         var connecting = _active.ConnectAsync(_profile, Ct);
-        await Eventually(() => _active.Step == ConnectionText.Step_OpeningSession);
+        await Eventually(() => _connector.ReceivedCalls().Any()); // the attempt runs on the thread pool
 
         _active.CancelPendingConnect();
         await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);

@@ -2,74 +2,154 @@ using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Connections;
 
-/// <summary>Every attempt to open the session ran past its limit (<see cref="SessionOpening.AttemptLimits"/>).</summary>
-public sealed class SessionOpenTimeoutException(IReadOnlyList<TimeSpan> limits)
-    : DatabaseException(TextFormat.Format(ConnectionText.OpenTimedOut, limits.Count, (int)limits.Sum(l => l.TotalSeconds)));
+/// <summary>No attempt to open the session opened one within the limits (<see cref="SessionOpening.AttemptLimits"/>).</summary>
+/// <param name="lastError">The last network error of an attempt given up on, if one came meanwhile: the actual cause (VPN not up).</param>
+public sealed class SessionOpenTimeoutException(IReadOnlyList<TimeSpan> limits, string? lastError)
+    : DatabaseException(lastError is null
+        ? TextFormat.Format(ConnectionText.OpenTimedOut, limits.Count, Seconds(limits))
+        : TextFormat.Format(ConnectionText.OpenTimedOutWithError, limits.Count, Seconds(limits), lastError))
+{
+    private static int Seconds(IReadOnlyList<TimeSpan> limits) => (int)limits.Sum(l => l.TotalSeconds);
+}
 
 /// <summary>
 /// Opens a session in attempts with growing limits. Over the customer VPN, opening sometimes hangs for about 20 s and ends
 /// with ORA-12570 ("error reading packet"), while an attempt right after opens in under a second (log of 2026-10-21 to
 /// 10-28; a healthy open took 0.4 to 2.4 s). ODP.NET's own <c>ConnectionTimeout</c> (15 s) does not cover that hang.
-/// So an attempt past its limit is given up and the next one started; the limits grow, so a slow but healthy line still gets
-/// through. A failure within the limit (wrong password, no listener) ends at once: another attempt would not fix it.
+/// So past its limit the next attempt starts – the earlier ones keep running, and the first session to open wins (a slow but
+/// healthy line is not thrown away); the others are closed when they open.
 /// </summary>
 /// <remarks>
+/// <para>
+/// When to stop: the latest attempt failing ends the open with its error (wrong password, no listener – another attempt would
+/// not fix it). An earlier attempt failing ends it only with an error that is not the network's
+/// (<see cref="ReconnectPolicy.IsNetworkError"/>): a refused login answered late (Oracle delays it after failed logins) must
+/// not be tried again, each one counts towards <c>FAILED_LOGIN_ATTEMPTS</c> (review of the fix). A late network error is the
+/// hang ending; it is kept for the message if no attempt opens.
+/// </para>
+/// <para>
 /// ODP.NET does not stop opening when cancelled: the TCP connect to an unreachable address runs to its timeout, and Cancel did
-/// nothing until then. Giving up returns at once; a session that opens after all is closed right away.
+/// nothing until then. Cancelling returns at once. Each attempt starts on the thread pool, so a driver that blocks before
+/// returning its task cannot hold up the limit.
+/// </para>
 /// </remarks>
 public static class SessionOpening
 {
-    /// <summary>The limit of each attempt, in order; 34 s in all before the open fails (<see cref="SessionOpenTimeoutException"/>).</summary>
+    /// <summary>The limit of each attempt, in order; 43 s in all before the open fails (<see cref="SessionOpenTimeoutException"/>).</summary>
     public static readonly IReadOnlyList<TimeSpan> AttemptLimits =
-        [TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(15)];
+        [TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(15)];
 
-    /// <param name="open">One attempt; its token is cancelled when the attempt is given up.</param>
-    /// <param name="retrying">Called before attempt 2, 3 … with its number (1-based).</param>
-    /// <exception cref="SessionOpenTimeoutException">The last attempt ran past its limit as well.</exception>
+    /// <param name="open">One attempt with its number (1-based) and the caller's token.</param>
+    /// <param name="retrying">Called before attempt 2, 3 … with its number.</param>
+    /// <exception cref="SessionOpenTimeoutException">No attempt opened a session within the limits.</exception>
     public static async Task<IDatabaseConnection> OpenAsync(
-        Func<CancellationToken, Task<IDatabaseConnection>> open, TimeProvider time, Action<int>? retrying, CancellationToken cancellationToken)
+        Func<int, CancellationToken, Task<IDatabaseConnection>> open, TimeProvider time, Action<int>? retrying, CancellationToken cancellationToken)
     {
-        for (var attempt = 1; ; attempt++)
+        var race = new Race();
+        try
         {
-            using var expired = new CancellationTokenSource(AttemptLimits[attempt - 1], time);
-            using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, expired.Token);
-            try
+            for (var attempt = 1; ; attempt++)
             {
-                return await AttemptAsync(open, limit.Token);
-            }
-            catch (OperationCanceledException) when (expired.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-            {
-                if (attempt == AttemptLimits.Count)
+                cancellationToken.ThrowIfCancellationRequested(); // cancelled just as the limit ran: no further login
+                if (race.Winner.IsCompleted)
                 {
-                    throw new SessionOpenTimeoutException(AttemptLimits);
+                    return await race.Winner; // an earlier attempt ended just as the limit ran: no further login either
+                }
+
+                if (attempt > 1)
+                {
+                    retrying?.Invoke(attempt);
+                }
+
+                var number = attempt;
+                race.Start(number, Task.Run(() => open(number, cancellationToken), cancellationToken)); // not started once cancelled
+                try
+                {
+                    return await race.Winner.WaitAsync(AttemptLimits[attempt - 1], time, cancellationToken);
+                }
+                catch (TimeoutException) when (attempt < AttemptLimits.Count)
+                {
+                    race.PastLimit();
+                }
+                catch (TimeoutException)
+                {
+                    throw new SessionOpenTimeoutException(AttemptLimits, race.LastNetworkError);
                 }
             }
-
-            retrying?.Invoke(attempt + 1);
+        }
+        finally
+        {
+            race.End();
         }
     }
 
-    private static async Task<IDatabaseConnection> AttemptAsync(Func<CancellationToken, Task<IDatabaseConnection>> open, CancellationToken cancellationToken)
+    /// <summary>The attempts of one open: the first session wins, sessions after the end are closed.</summary>
+    private sealed class Race
     {
-        var opening = open(cancellationToken);
-        try
+        private readonly TaskCompletionSource<IDatabaseConnection> _winner = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private volatile int _latest;
+        private volatile string? _lastNetworkError;
+
+        public Task<IDatabaseConnection> Winner => _winner.Task;
+
+        public string? LastNetworkError => _lastNetworkError;
+
+        public void Start(int attempt, Task<IDatabaseConnection> opening)
         {
-            return await opening.WaitAsync(cancellationToken);
+            _latest = attempt;
+            // As it ends: a late network error is known before a limit that runs right after it.
+            _ = opening.ContinueWith(opened => EndedAsync(attempt, opened), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default)
+                .Unwrap();
         }
-        catch (OperationCanceledException)
+
+        /// <summary>The latest attempt ran past its limit: until the next one starts, none is the latest.</summary>
+        public void PastLimit() => _latest = 0;
+
+        /// <summary>No session is taken any more: one that opens from now on is closed.</summary>
+        public void End() => _winner.TrySetCanceled();
+
+        private async Task EndedAsync(int attempt, Task<IDatabaseConnection> opened)
         {
-            _ = opening.ContinueWith(async opened =>
+            if (opened.IsCompletedSuccessfully)
             {
-                if (opened.IsCompletedSuccessfully)
+                if (!_winner.TrySetResult(opened.Result))
                 {
-                    await opened.Result.DisposeAsync();
+                    await CloseAsync(opened.Result);
                 }
-                else
+
+                return;
+            }
+
+            if (opened.IsCanceled)
+            {
+                if (attempt == _latest)
                 {
-                    _ = opened.Exception; // observed: a failure nobody waits for any more
+                    _winner.TrySetCanceled();
                 }
-            }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap();
-            throw;
+
+                return;
+            }
+
+            var error = opened.Exception!.GetBaseException();
+            if (attempt != _latest && error is DatabaseException { ErrorCode: var code } && ReconnectPolicy.IsNetworkError(code))
+            {
+                _lastNetworkError = error.Message;
+                return;
+            }
+
+            _winner.TrySetException(error);
+        }
+
+        private static async Task CloseAsync(IDatabaseConnection connection)
+        {
+            try
+            {
+                await connection.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is DatabaseException or OperationCanceledException or ObjectDisposedException or InvalidOperationException)
+            {
+                // A session nobody uses; closing it is all that is left to try.
+            }
         }
     }
 }

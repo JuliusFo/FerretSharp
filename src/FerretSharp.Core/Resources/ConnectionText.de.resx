@@ -132,4 +132,7 @@
   <data name="OpenTimedOut" xml:space="preserve">
     <value>Die Session ließ sich in {0} Versuchen nicht öffnen ({1} s insgesamt).</value>
   </data>
+  <data name="OpenTimedOutWithError" xml:space="preserve">
+    <value>Die Session ließ sich in {0} Versuchen nicht öffnen ({1} s insgesamt). Zuletzt: {2}</value>
+  </data>
 </root>

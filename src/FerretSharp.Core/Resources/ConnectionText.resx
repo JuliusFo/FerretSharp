@@ -152,4 +152,8 @@
     <value>Opening the session did not finish in {0} attempts ({1} s in all).</value>
     <comment>{0} = number of attempts, {1} = seconds of all attempts together</comment>
   </data>
+  <data name="OpenTimedOutWithError" xml:space="preserve">
+    <value>Opening the session did not finish in {0} attempts ({1} s in all). Last error: {2}</value>
+    <comment>{0} = number of attempts, {1} = seconds of all attempts together, {2} = error message of the driver</comment>
+  </data>
 </root>

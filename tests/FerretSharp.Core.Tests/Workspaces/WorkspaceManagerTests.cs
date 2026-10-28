@@ -15,7 +15,7 @@ public sealed class WorkspaceManagerTests
     private readonly InMemoryWorkspaceStore _store = new();
     private readonly InMemorySecretStore _secrets = new();
     private readonly IDatabaseConnector _connector = Substitute.For<IDatabaseConnector>();
-    private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 10, 1, 8, 0, 0, TimeSpan.Zero));
+    private readonly CountingTimeProvider _time = new(new DateTimeOffset(2026, 10, 1, 8, 0, 0, TimeSpan.Zero));
     private readonly List<(string Action, IDatabaseConnection Connection)> _opened = [];
     private readonly ConnectionProfile _profile = TestProfiles.HostPort();
     private readonly WorkspaceManager _manager;
@@ -368,20 +368,47 @@ public sealed class WorkspaceManagerTests
     {
         await _manager.AttachAsync(_profile, Ct);
         var session = Substitute.For<IDatabaseConnection>();
+        var data = Substitute.For<IDataAccess>();
+        session.Data.Returns(data); // not an auto-value: created by whichever thread reads it first
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new TaskCompletionSource<IDatabaseConnection>().Task, Task.FromResult(session));
 
+        var timers = _time.Timers;
         var opening = _manager.GetDataAsync(_manager.Active!.Id, Ct);
-        for (var waited = 0; _connector.ReceivedCalls().Count() < 1; waited += 10)
+        await Eventually(() => _time.Timers > timers);
+
+        _time.Advance(SessionOpening.AttemptLimits[0]);
+
+        Assert.Same(data, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
+        await _connector.Received(2).OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>Review of the fix (7b): disconnecting while a session opens returns at once; the session opening late is closed.</summary>
+    [Fact]
+    public async Task Detaching_while_a_session_opens_returns_at_once_and_closes_it_later()
+    {
+        await _manager.AttachAsync(_profile, Ct);
+        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        var late = Substitute.For<IDatabaseConnection>();
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(opening.Task);
+        var data = _manager.GetDataAsync(_manager.Active!.Id, Ct);
+        await Eventually(() => _connector.ReceivedCalls().Any());
+
+        await _manager.DetachAsync().WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => data.WaitAsync(TimeSpan.FromSeconds(5), Ct));
+        opening.SetResult(late);
+        await Eventually(() => late.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
+    }
+
+    private static async Task Eventually(Func<bool> condition)
+    {
+        for (var waited = 0; !condition(); waited += 10)
         {
             Assert.True(waited < 5_000, "Timed out.");
             await Task.Delay(10, Ct);
         }
-
-        _time.Advance(SessionOpening.AttemptLimits[0]);
-
-        Assert.Same(session.Data, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
-        await _connector.Received(2).OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

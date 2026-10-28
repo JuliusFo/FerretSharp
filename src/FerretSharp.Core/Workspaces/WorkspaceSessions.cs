@@ -231,7 +231,7 @@ internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabase
         var password = connections.GetPassword(profile.Id)
             ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
         var connection = await SessionOpening.OpenAsync(
-            token => connector.OpenAsync(profile, password, action, token), time, retrying: null, cancellationToken);
+            (_, token) => connector.OpenAsync(profile, password, action, token), time, retrying: null, cancellationToken);
         if (!profile.ReadOnly || IsUnlocked(workspaceId))
         {
             return connection;

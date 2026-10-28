@@ -21,10 +21,11 @@ public sealed record ConnectionError(string Message, string? ErrorCode)
     public bool TimedOut { get; init; }
 }
 
-/// <summary>How opening the explorer session ended, seen from the thread pool (<see cref="ActiveConnection.SessionOpenEnded"/>).</summary>
-/// <param name="Synchronous">It had ended when the connector returned: the open blocked the calling thread, the UI thread.</param>
+/// <summary>How an attempt to open the explorer session ended, seen from the thread pool (<see cref="ActiveConnection.SessionOpenEnded"/>).</summary>
+/// <param name="Attempt">Which attempt (<see cref="SessionOpening"/>, 1-based): a hang given up on ends long after the next one.</param>
+/// <param name="Synchronous">It had ended when the connector returned: the open blocked the thread it ran on.</param>
 /// <param name="Error">Why no session opened (also a cancelled open); null if one did.</param>
-public sealed record SessionOpenOutcome(TimeSpan Took, bool Synchronous, string? Error);
+public sealed record SessionOpenOutcome(int Attempt, TimeSpan Took, bool Synchronous, string? Error);
 
 /// <summary>
 /// The connection currently being browsed: opens the explorer session, loads the schema cache, attaches the
@@ -148,7 +149,7 @@ public sealed class ActiveConnection(
 
             StartStep(ConnectionText.Step_OpeningSession);
             _connection = await SessionOpening.OpenAsync(
-                token => OpenAsync(profile, password, token),
+                (attempt, token) => OpenAsync(attempt, profile, password, token),
                 time ?? TimeProvider.System,
                 attempt => StartStep(TextFormat.Format(ConnectionText.Step_OpeningSessionAgain, attempt, SessionOpening.AttemptLimits.Count)),
                 cts.Token);
@@ -322,13 +323,14 @@ public sealed class ActiveConnection(
         }
     }
 
-    /// <summary>One attempt; its end is reported (<see cref="SessionOpenEnded"/>), also after it was given up.</summary>
-    private Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, string password, CancellationToken cancellationToken)
+    /// <summary>One attempt; its end is reported (<see cref="SessionOpenEnded"/>), also after the connect has ended.</summary>
+    private Task<IDatabaseConnection> OpenAsync(int attempt, ConnectionProfile profile, string password, CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();
         var opening = connector.OpenAsync(profile, password, ExplorerAction, cancellationToken);
         var synchronous = opening.IsCompleted;
         _ = opening.ContinueWith(opened => SessionOpenEnded?.Invoke(new SessionOpenOutcome(
+                attempt,
                 Stopwatch.GetElapsedTime(started),
                 synchronous,
                 opened.IsCanceled ? "cancelled" : opened.Exception?.GetBaseException().Message)),
