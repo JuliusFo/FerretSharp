@@ -163,14 +163,35 @@
 
     protected override void OnInitialized()
     {
-        if (Shell.TakeSettingsPart() is { } requested)
-        {
-            _part = s_part = requested; // opened for one section (WP-66: a group's audit template)
-        }
-
+        TakeRequestedPart();
         Updates.Changed += OnUpdatesChanged;
         Shortcuts.Changed += OnCatalogChanged;
+        Connections.Changed += OnCatalogChanged; // names and groups of connections with a key (WP-66)
+        Shell.Changed += OnShellChanged;
     }
+
+    /// <summary>
+    /// Opened for one section (WP-66: a group's audit template) – also while the page is shown already (review of WP-66:
+    /// from the switcher the request stayed unread until the next visit).
+    /// </summary>
+    private bool TakeRequestedPart()
+    {
+        if (Shell.TakeSettingsPart() is not { } requested)
+        {
+            return false;
+        }
+
+        Select(requested);
+        return true;
+    }
+
+    private void OnShellChanged() => InvokeAsync(() =>
+    {
+        if (TakeRequestedPart())
+        {
+            StateHasChanged();
+        }
+    });
 
     /// <summary>A shortcut changed: part of what the search finds.</summary>
     private void OnCatalogChanged() => InvokeAsync(() =>
@@ -194,5 +215,7 @@
     {
         Updates.Changed -= OnUpdatesChanged;
         Shortcuts.Changed -= OnCatalogChanged;
+        Connections.Changed -= OnCatalogChanged;
+        Shell.Changed -= OnShellChanged;
     }
 }
