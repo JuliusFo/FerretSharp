@@ -131,6 +131,46 @@ public sealed class SessionOpeningTests
         Assert.Same(slow, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
     }
 
+    /// <summary>
+    /// Third review (D): after the latest attempt failed, its limit running must not start another one ("attempt 3 of 5" while
+    /// attempt 1 still hung) – only the earlier ones are waited for, as long as the remaining limits would have taken.
+    /// </summary>
+    [Fact]
+    public async Task After_the_latest_attempt_failed_no_further_one_starts()
+    {
+        var opening = OpenAsync(Ct);
+        await RunPastLimitAsync(1);
+        await Eventually(() => Attempts == 2 && _time.Timers == 2);
+        AttemptNo(2).SetException(new DatabaseException("no listener", "ORA-12541"));
+
+        _time.Advance(SessionOpening.AttemptLimits[1]);
+        await Eventually(() => _time.Timers == 3); // waiting for the earlier attempt only
+
+        Assert.Equal(2, Attempts);
+        Assert.Equal([2], _retrying);
+        Assert.Equal(SessionOpening.AttemptLimits.Skip(2).Aggregate(TimeSpan.Zero, (sum, l) => sum + l), _time.DueTimes[2]);
+        var slow = FakeDatabase.Connection();
+        AttemptNo(1).SetResult(slow);
+        Assert.Same(slow, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
+    }
+
+    [Fact]
+    public async Task After_the_latest_attempt_failed_the_open_times_out_when_the_earlier_ones_hang_on()
+    {
+        var opening = OpenAsync(Ct);
+        await RunPastLimitAsync(1);
+        await Eventually(() => Attempts == 2 && _time.Timers == 2);
+        AttemptNo(2).SetException(new DatabaseException("no listener", "ORA-12541"));
+        _time.Advance(SessionOpening.AttemptLimits[1]);
+        await Eventually(() => _time.Timers == 3);
+
+        _time.Advance(SessionOpening.AttemptLimits.Skip(2).Aggregate(TimeSpan.Zero, (sum, l) => sum + l));
+
+        var error = await Assert.ThrowsAsync<SessionOpenTimeoutException>(() => opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
+        Assert.EndsWith("Zuletzt: no listener", error.Message);
+        Assert.Equal(2, Attempts);
+    }
+
     [Fact]
     public async Task A_network_error_of_the_latest_attempt_ends_the_open_once_none_runs_any_more()
     {

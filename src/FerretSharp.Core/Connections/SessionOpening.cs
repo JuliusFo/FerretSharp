@@ -67,6 +67,7 @@ public static class SessionOpening
 
                 var number = attempt;
                 race.Start(number, Task.Run(() => open(number, cancellationToken), cancellationToken)); // not started once cancelled
+                TimeSpan? onlyEarlier = null;
                 try
                 {
                     var session = await race.Winner.WaitAsync(AttemptLimits[attempt - 1], time, cancellationToken);
@@ -75,11 +76,30 @@ public static class SessionOpening
                 }
                 catch (TimeoutException) when (attempt < AttemptLimits.Count)
                 {
-                    race.PastLimit();
+                    if (race.PastLimit())
+                    {
+                        onlyEarlier = AttemptLimits.Skip(attempt).Aggregate(TimeSpan.Zero, (sum, limit) => sum + limit);
+                    }
                 }
                 catch (TimeoutException)
                 {
                     throw new SessionOpenTimeoutException(AttemptLimits, race.LastNetworkError);
+                }
+
+                if (onlyEarlier is { } rest)
+                {
+                    // The latest attempt failed on the network while earlier ones still run (third review): no further
+                    // attempt after an error – only the earlier ones, for the time the remaining limits would have taken.
+                    try
+                    {
+                        var session = await race.Winner.WaitAsync(rest, time, cancellationToken);
+                        taken = true;
+                        return session;
+                    }
+                    catch (TimeoutException)
+                    {
+                        throw new SessionOpenTimeoutException(AttemptLimits, race.LastNetworkError);
+                    }
                 }
             }
         }
@@ -117,12 +137,14 @@ public static class SessionOpening
                 .Unwrap();
         }
 
-        /// <summary>The latest attempt ran past its limit: until the next one starts, none is the latest.</summary>
-        public void PastLimit()
+        /// <summary>The latest attempt's limit ran: until the next one starts, none is the latest.</summary>
+        /// <returns>The latest attempt had already failed on the network (earlier ones still run): no next one may start.</returns>
+        public bool PastLimit()
         {
             lock (_lock)
             {
                 _latest = 0;
+                return _latestNetworkError is not null;
             }
         }
 
