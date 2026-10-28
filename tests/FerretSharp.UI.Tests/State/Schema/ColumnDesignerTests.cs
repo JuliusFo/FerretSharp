@@ -495,6 +495,21 @@ public sealed class ColumnDesignerTests
         Assert.False(new ColumnDesigner(Kunde, []).AuditTakesPart(hasAuditTable: true, createAllowed: true));
     }
 
+    /// <summary>
+    /// Reading the audit objects failed (connection lost): taken as "no audit table" the box started off for good, and opened
+    /// for the audit the plan created an existing audit table (ORA-00955) – now the box takes no part and starts once read.
+    /// </summary>
+    [Fact]
+    public void An_audit_state_that_could_not_be_read_keeps_the_box_out_and_undecided()
+    {
+        var ticked = new ColumnDesigner(Kunde, []) { WithAudit = true };
+
+        Assert.False(ColumnDesigner.CanAudit(null, createAllowed: true));
+        Assert.False(ticked.AuditTakesPart(null, createAllowed: true));
+        Assert.Null(ColumnDesigner.AuditAtStart(openedForAudit: true, null, syncByDefault: true, createAllowed: true));
+        Assert.True(ColumnDesigner.AuditAtStart(openedForAudit: true, false, syncByDefault: true, createAllowed: true));
+    }
+
     [Fact]
     public void Not_null_check_constraints_belong_to_their_columns_and_are_not_listed()
     {

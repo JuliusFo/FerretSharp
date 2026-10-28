@@ -886,6 +886,10 @@
     <value>Create audit table and trigger</value>
     <comment>Checkbox in the table designer (WP-26)</comment>
   </data>
+  <data name="Audit_DesignerUnread" xml:space="preserve">
+    <value>The table's audit table and trigger could not be read, so the audit box is locked.</value>
+    <comment>Audit tab of the table designer when reading the audit objects failed (e.g. connection lost); "Reload" follows</comment>
+  </data>
   <data name="Audit_DesignerSync" xml:space="preserve">
     <value>Bring audit table and trigger up to date</value>
     <comment>Checkbox in the table designer when the table has an audit table</comment>
