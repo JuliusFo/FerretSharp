@@ -890,6 +890,10 @@
     <value>The table's audit table and trigger could not be read, so the audit box is locked.</value>
     <comment>Audit tab of the table designer when reading the audit objects failed (e.g. connection lost); "Reload" follows</comment>
   </data>
+  <data name="Audit_DesignerUnreadWarning" xml:space="preserve">
+    <value>Audit table and trigger could not be read: this script does not bring them up to date.</value>
+    <comment>Warning of the table designer (and dot on its audit tab) when reading the audit objects failed; does not block running</comment>
+  </data>
   <data name="Audit_DesignerSync" xml:space="preserve">
     <value>Bring audit table and trigger up to date</value>
     <comment>Checkbox in the table designer when the table has an audit table</comment>

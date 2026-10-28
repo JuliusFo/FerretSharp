@@ -1650,6 +1650,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-tab.active { border-bottom-color: var(--accent); color: var(--text); font-weight: 600; }
 .tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
 .tab-dot.bad { background: var(--danger); }
+.tab-dot.warn { background: var(--warn); }
 .designer-body { display: flex; flex-direction: column; gap: 10px; }
 .designer table.columns th { position: static; }
 .designer-was { margin-top: 2px; font-size: 11.5px; color: var(--faint); }

@@ -738,6 +738,9 @@
   <data name="Audit_DesignerUnread" xml:space="preserve">
     <value>Audit-Tabelle und Trigger der Tabelle konnten nicht gelesen werden, der Audit-Haken ist deshalb gesperrt.</value>
   </data>
+  <data name="Audit_DesignerUnreadWarning" xml:space="preserve">
+    <value>Audit-Tabelle und Trigger konnten nicht gelesen werden: Dieses Skript gleicht sie nicht ab.</value>
+  </data>
   <data name="Audit_DesignerSync" xml:space="preserve">
     <value>Audit-Tabelle und Trigger abgleichen</value>
   </data>

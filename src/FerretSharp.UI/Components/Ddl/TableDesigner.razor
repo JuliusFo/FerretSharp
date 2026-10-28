@@ -33,11 +33,13 @@ else
     // Where the problems are, for the dots on the tabs: constraints, audit (what WithAudit added), columns (the rest).
     var constraintProblems = tablePlan.ConstraintProblems.Count > 0;
     var auditProblems = plan.Problems.Except(tablePlan.Problems).Any();
+    // audit state not read: the script brings nothing up to date, not blocking (code review 2026-10-28)
+    string? auditWarning = NewTab is null && _auditUnread ? SchemaViewText.Audit_DesignerUnreadWarning : null;
     var columnProblems = inputProblems.Count > 0 || tablePlan.Problems.Except(tablePlan.ConstraintProblems).Any();
     var counting = _counting.Count > 0 || _auditCounting.Count > 0;
     var usageNotes = UsageNotes(designer);
     var problems = inputProblems.Concat(plan.Problems).ToList();
-    var warnings = plan.Warnings.Concat(usageNotes).ToList();
+    var warnings = plan.Warnings.Concat(usageNotes).Concat(auditWarning is null ? [] : [auditWarning]).ToList();
     IReadOnlyList<DdlStep> steps = counting ? [] : plan.Steps;
     var suggestions = PropertyLines(designer);
     // The C# tab goes with the last new column; the view falls back to the columns.
@@ -81,7 +83,7 @@ else
                         designer.ColumnsChanged, columnProblems)
                     @TabButton(designer, shown, DesignerSection.Constraints, SchemaViewText.Designer_TabConstraints,
                         designer.Existing.Count + designer.AddedConstraints.Count - designer.DroppedConstraints.Count, designer.ConstraintsChanged, constraintProblems)
-                    @TabButton(designer, shown, DesignerSection.Audit, SchemaViewText.Designer_TabAudit, problem: auditProblems)
+                    @TabButton(designer, shown, DesignerSection.Audit, SchemaViewText.Designer_TabAudit, problem: auditProblems, warning: auditWarning)
                     @if (suggestions.Count > 0)
                     {
                         @TabButton(designer, shown, DesignerSection.CSharp, SchemaViewText.Designer_TabCSharp, suggestions.Count)
@@ -559,9 +561,12 @@ else
         await OnRan.InvokeAsync();
     }
 
-    /// <summary>A tab of the designer: its count, a dot when something in it changed – red when its fields have problems.</summary>
+    /// <summary>
+    /// A tab of the designer: its count, a dot when something in it changed – red when its fields have problems, yellow
+    /// with a warning that does not block running (the audit state not read).
+    /// </summary>
     private RenderFragment TabButton(ColumnDesigner designer, DesignerSection shown, DesignerSection section, string label, int? count = null,
-        bool changed = false, bool problem = false) => @<button class="designer-tab @(shown == section ? "active" : "")" role="tab"
+        bool changed = false, bool problem = false, string? warning = null) => @<button class="designer-tab @(shown == section ? "active" : "")" role="tab"
                 aria-selected="@(shown == section ? "true" : "false")" @onclick="() => designer.Section = section">
         @label
         @if (count is { } n)
@@ -571,6 +576,10 @@ else
         @if (problem)
         {
             <span class="tab-dot bad" title="@SchemaViewText.Designer_TabProblem"></span>
+        }
+        else if (warning is not null)
+        {
+            <span class="tab-dot warn" title="@warning"></span>
         }
         else if (changed)
         {
