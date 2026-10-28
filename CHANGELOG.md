@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - Table designer: when reading the table's audit table and trigger failed (connection lost), the designer took it as "no audit table" – opened from the audit line, its script tried to create the existing audit table and failed with ORA-00955 after the table's own steps had run. The audit box is now locked with a hint and "Reload", the audit tab has a yellow dot and the designer warns that the script does not bring the audit up to date; while the audit is read there is no script yet. The same holds for a template that becomes readable while the designer is open.
+- Opening a session no longer hangs for 20 s when the network swallows the first attempt (seen over VPN): when an attempt takes longer than 5 s, another one starts, with growing limits (5, 5, 8, 10 and 15 s), for the explorer and for each workspace; whichever opens first is used. The connect progress shows the attempt (“Opening the session (attempt 2 of 5)”). A refused login is never tried again. If no attempt opens, the message names the last network error.
 
 ## [3.53.0] - 2026-10-27
 

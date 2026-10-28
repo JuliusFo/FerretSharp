@@ -15,12 +15,6 @@ public static class ReconnectPolicy
     /// <summary>No attempt starts later than this after the connection was lost.</summary>
     public static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(10);
 
-    /// <summary>
-    /// Opening a session may hang beyond ODP.NET's own 15 s (2026-10-21, after sleep); an attempt gives up on it after this
-    /// and counts as failed (<see cref="ConnectionError.TimedOut"/>). Loading the schema afterwards has no limit.
-    /// </summary>
-    public static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(30);
-
     /// <summary>Errors that say the database is not reachable or not open yet; everything else ends the attempts.</summary>
     private static readonly HashSet<string> Unavailable =
     [
@@ -42,9 +36,10 @@ public static class ReconnectPolicy
 
     /// <summary>The attempt failed in a way another one may fix: the network, the listener or the instance is away.</summary>
     public static bool IsWorthRetrying(ConnectionError? error) =>
-        error is not null && (error.TimedOut || IsNetwork(error.ErrorCode));
+        error is not null && (error.TimedOut || IsNetworkError(error.ErrorCode));
 
-    private static bool IsNetwork(string? code) =>
+    /// <summary>The network, the listener or the instance is away (<paramref name="code"/> e.g. <c>ORA-12570</c>); never a refused login.</summary>
+    public static bool IsNetworkError(string? code) =>
         code is not null && (DatabaseException.IsConnectionLostCode(code) || Unavailable.Contains(code) || IsNetworkRange(code));
 
     /// <summary>

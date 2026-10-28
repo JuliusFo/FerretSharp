@@ -28,6 +28,7 @@
     <Compile Include="..\Shared\ReleaseWorkflow.cs" Link="Shared\ReleaseWorkflow.cs" />
     <Compile Include="..\Shared\InMemorySecretStore.cs" Link="Shared\InMemorySecretStore.cs" />
     <Compile Include="..\Shared\InMemoryWorkspaceStore.cs" Link="Shared\InMemoryWorkspaceStore.cs" />
+    <Compile Include="..\Shared\CountingTimeProvider.cs" Link="Shared\CountingTimeProvider.cs" />
     <Using Include="FerretSharp.Testing" />
   </ItemGroup>
 

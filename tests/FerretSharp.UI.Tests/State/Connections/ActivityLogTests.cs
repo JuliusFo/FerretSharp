@@ -53,7 +53,7 @@ public sealed class ActivityLogTests : IAsyncDisposable
             }
         }
 
-        Assert.Matches(@"^ERP Test: session open after \d+ ms", Assert.Single(_logger.Lines, IsSessionOpenLine));
+        Assert.Matches(@"^ERP Test: session open after \d+ ms \(attempt 1\)", Assert.Single(_logger.Lines, IsSessionOpenLine));
     }
 
     private static bool IsSessionOpenLine(string line) =>

@@ -25,6 +25,8 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 
 ## Verbindungen, Sessions, Workspaces
 
+- Schema-Vergleich (`SchemaCompareLoader`) und „Verbindung testen“ (`OracleConnectionTester`) öffnen ihre Session noch mit einem Versuch, ohne die Grenzen von `SessionOpening` (fix-session-open-retry): Hängt das Öffnen über das VPN, warten sie wie früher rund 20 s. Der Vergleich geht über `IDatabaseConnector` und lässt sich direkt umstellen; der Test ruft `OracleSession.OpenAsync` selbst auf.
+- Endet ein Öffnen innerhalb der Grenze mit einer `OperationCanceledException` des Treibers, ohne dass jemand abgebrochen hat, zeigt `ActiveConnection.ConnectAsync` still „getrennt“ statt eines Fehlers (Review von fix-session-open-retry, vorher schon da, nie beobachtet).
 - Workspaces speichern (Gesamt-Review 3.40.0, ST-10, gemessen in R6a): Jedes `ShellState.Dirty` (Zellbearbeitung, Filterklick, Monaco nach 250 ms) baut `TabState` für alle Workspaces aller Verbindungen und serialisiert alte und neue Liste zum Vergleich. 36 Workspaces mit 360 SQL-Tabs à 10 KB kosten 17 ms je Änderung, im Alltag weit weniger. Erst wenn es spürbar wird: `MarkDirty(workspaceId)` und nur diesen Workspace speichern.
 - Import: JDBC-URLs mit Connect-Descriptor (`jdbc:oracle:thin:@(DESCRIPTION=…)`) und TNS-Alias lesen – `OracleAddress.Parse` kann beides, `JdbcUrl` nimmt bisher nur `host:port/service` und `host:port:SID` (in R5b bewusst nicht, wäre eine neue Fähigkeit).
 
