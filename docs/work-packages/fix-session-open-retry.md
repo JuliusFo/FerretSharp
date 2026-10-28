@@ -47,3 +47,15 @@ Dritter Durchgang, ein neuer Befund; Entscheidung des Nutzers: „Ja, D beheben�
 - D (K) Seit B startete die abgelaufene Grenze eines schon gescheiterten jüngsten Versuchs doch den nächsten („Versuch 3 von 5“, während Versuch 1 noch hing) – gegen „kein neuer Versuch nach einem Fehler“: behoben, `Race.PastLimit()` meldet den Fehler, dann wartet `OpenAsync` nur noch auf die früheren Versuche (höchstens so lange, wie die übrigen Grenzen gedauert hätten). Zwei Tests.
 
 Vierter Durchgang über D: ohne Befund. Offen als UX-Frage: Während nur noch auf frühere Versuche gewartet wird, bleibt „Öffne die Session (Versuch 2 von 5)“ stehen (im Extremfall bis zu 33 s) – inhaltlich richtig, ein eigener Hinweis nur, falls es stört.
+
+## Nachtrag: E2E (2026-10-29)
+Vor dem Merge, Stand mit `main` (3.53.0 + Audit-Fixes, Werteauswahl, Verwendung ohne Index): eigener Container `ferret-e2e-enum` (Port 1547), davor ein TCP-Proxy im Scratchpad (Port 1548), der je neuer Verbindung durchreicht, sie hängen lässt (angenommen und gelesen, nie beantwortet: der TCP-Connect steht, der Login hängt) oder nach dem ersten Paket kappt. Build in den Scratchpad, eigene Instanz mit `--data-dir`, eigenem WebView2-Ordner, Debug-Port, `--lang=en`, Passwort ohne Speichern. Bedienung per CDP, Fortschritt alle 250 ms ausgelesen:
+- Erster Versuch hängt: nach 5 s „attempt 2 of 5“, Session nach 115 ms offen, verbunden nach 5,7 s. Log: „session open after 115 ms (attempt 2)“, später „ended without one after 15064 ms (attempt 1): Connection request timed out“.
+- Zwei Versuche hängen: Fortschritt und Statusleiste zeigen „Opening the session (attempt 2 of 5)“ mit eigener Dauer, Versuch 3 geht durch (10 s).
+- Workspace-Session (Tabelle in einem neuen Workspace öffnen, zwei Versuche hängen): dritter Versuch nach 10 s, bis dahin „Loading rows“ im Tab – ohne Angabe des Versuchs (die Schritte zeigt nur das Verbinden).
+- Alle Versuche hängen: Versuche bei 0, 5, 10, 18 und 28 s, „Connection failed“ nach 43,0 s mit „Opening the session did not finish in 5 attempts (43 s in all). Last error: Connection request timed out“ und „Try again“.
+- Abbrechen in Versuch 3: sofort „Not connected“, kein weiterer Versuch; die drei offenen enden 15 s nach ihrem Start mit „Connection request timed out“ im Log.
+- Verbindung sofort gekappt (Netzfehler innerhalb der Grenze): sofort ORA-50201, genau ein Verbindungsaufbau.
+- Falsches Passwort: ORA-01017 nach 1,2 s, genau ein Verbindungsaufbau, kein zweiter Login.
+- Log ohne `[ERR]`/`[WRN]`.
+- Beobachtet, nicht geändert: Die Sockets aufgegebener Versuche blieben offen, bis die App beendet wurde – auch nach „Connection request timed out“ (der Proxy sah das Schließen erst beim Beenden). `OracleSession.OpenAsync` gibt die Connection im Fehlerfall frei; das Socket hält ODP.NET selbst, solange die Gegenseite stumm bleibt. Über das echte VPN endet der Hänger laut Log mit ORA-12570 (Gegenseite trennt), dort sollte nichts übrig bleiben. Ebenfalls vorher schon da: Die Dauer im Fortschritt zeigt kurz vor einer Sekunde „1000 ms“ statt „1,0 s“.
