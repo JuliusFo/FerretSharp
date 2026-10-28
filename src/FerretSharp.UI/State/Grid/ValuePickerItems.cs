@@ -9,8 +9,10 @@ public sealed record ValuePickerItem(string Name, string Value, string? Detail, 
 /// <summary>
 /// The entries of the value picker of an enum or converted bool column in the filter bar (WP-12): the members, then the
 /// selected values without a member (typed before the model was loaded, from an FK jump). Typed text filters them like a
-/// menu (<see cref="MenuFilter"/>: each word in the name, the C# member or the value). A typed value the column can hold
-/// that no member has comes first as an entry of its own, so a value the C# model does not know can be filtered for.
+/// menu (<see cref="MenuFilter"/>: each word in the name, the C# member or the value). The entry the text stands for comes
+/// first, also when written another way. Otherwise a typed value the column can hold becomes an entry of its own, so a value
+/// the C# model does not know can be filtered for: first in a number column, after the members found in a text column (there
+/// the text is mostly a search, and Enter takes the first entry).
 /// </summary>
 public static class ValuePickerItems
 {
@@ -29,10 +31,15 @@ public static class ValuePickerItems
         }
 
         var shown = all.Where(i => filter.Matches(i.Name, i.Unknown ? i.Value : i.Detail)).ToList();
-        if (values.TypedValue(typed) is { } value && values.FindOption(typed) is null && all.All(i => i.Value != value)
-            && !values.Options.Any(o => Names(o, typed.Trim())))
+        if (Meant(values, all, typed.Trim()) is { } meant)
         {
-            shown.Insert(0, Unknown(value));
+            shown.Remove(meant);
+            shown.Insert(0, meant);
+        }
+        else if (values.TypedValue(typed) is { } value && !value.Contains(FilterRow.ListSeparator))
+        {
+            // A value with the separator would become several in an "in" list.
+            shown.Insert(values.HoldsNumbers ? 0 : shown.Count, Unknown(value));
         }
 
         return shown;
@@ -40,7 +47,18 @@ public static class ValuePickerItems
 
     private static ValuePickerItem Unknown(string value) => new(value, value, GridText.ValuePicker_NoMember, true);
 
-    /// <summary>The text is a member's name (<c>offen</c> for <c>Offen</c> stored as <c>OFFEN</c>): it means the member, no other value.</summary>
+    /// <summary>
+    /// The entry the text stands for: a member by its value (<c>2,0</c> for 2, <c>versandt</c> for <c>VERSANDT</c>) or by its
+    /// name (<c>offen</c> for <c>Offen</c> stored as <c>OFFEN</c>), or a selected value without a member; null for none.
+    /// </summary>
+    private static ValuePickerItem? Meant(ValueTable values, List<ValuePickerItem> all, string text)
+    {
+        var value = values.FindOption(text)?.Value
+            ?? values.Options.FirstOrDefault(o => Names(o, text) || string.Equals(o.Value, text, StringComparison.OrdinalIgnoreCase))?.Value
+            ?? values.TypedValue(text);
+        return value is null ? null : all.FirstOrDefault(i => i.Value == value);
+    }
+
     private static bool Names(ValueOption option, string text) =>
         string.Equals(option.Name, text, StringComparison.CurrentCultureIgnoreCase)
         || string.Equals(option.Member, text, StringComparison.CurrentCultureIgnoreCase);

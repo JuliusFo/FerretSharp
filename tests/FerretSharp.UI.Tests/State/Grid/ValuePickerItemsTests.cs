@@ -9,6 +9,7 @@ public class ValuePickerItemsTests
 {
     private static readonly ColumnInfo Number2 = new("TASKTYP", "NUMBER", null, false, 2, 0, false, false, null, 1);
     private static readonly ColumnInfo Status = new("STATUS", "VARCHAR2", 20, true, null, null, false, false, null, 2);
+    private static readonly ColumnInfo JaNein = new("GESPERRT", "CHAR", 1, false, null, null, false, false, null, 3);
 
     private static PropertyExport Enum(string type, params ValueMapping[] values) =>
         new("P", type, false, false, "C", null, null, null, false, values);
@@ -18,6 +19,9 @@ public class ValuePickerItemsTests
 
     private static readonly ValueTable AuftragStatus = ValueTable.For(Enum("AuftragStatus",
         new("Offen", "0", "OFFEN"), new("Versandt", "1", "VERSANDT")) with { Converter = "UpperCaseEnumConverter<AuftragStatus>" }, Status)!;
+
+    private static readonly ValueTable Gesperrt = ValueTable.For(new PropertyExport("Gesperrt", "bool", false, false, "GESPERRT", null,
+        "JaNeinConverter", "string", false, [new("false", "False", "N"), new("true", "True", "J")]), JaNein)!;
 
     private static List<string> Values(IReadOnlyList<ValuePickerItem> items) => [.. items.Select(i => i.Value)];
 
@@ -71,4 +75,32 @@ public class ValuePickerItemsTests
         Assert.Equal(["STORNIERT"], Values(ValuePickerItems.Of(AuftragStatus, [], "STORNIERT")));
         Assert.Equal(["OFFEN"], Values(ValuePickerItems.Of(AuftragStatus, [], "offen")));
     }
+
+    [Fact]
+    public void In_a_text_column_the_members_found_come_before_the_typed_text()
+    {
+        // Review: Enter took the highlighted first entry, the search text "vers", and the filter found nothing.
+        var items = ValuePickerItems.Of(AuftragStatus, [], "vers");
+
+        Assert.Equal(["VERSANDT", "vers"], Values(items));
+        Assert.True(items[1].Unknown);
+    }
+
+    [Fact]
+    public void A_members_value_in_another_case_means_the_member()
+    {
+        Assert.Equal(["VERSANDT"], Values(ValuePickerItems.Of(AuftragStatus, [], "versandt")));
+        Assert.Equal(["J"], Values(ValuePickerItems.Of(Gesperrt, [], "j")));
+    }
+
+    [Fact]
+    public void A_value_written_another_way_finds_its_entry()
+    {
+        Assert.Equal(["2"], Values(ValuePickerItems.Of(TaskTyp, [], "2,0")));
+        Assert.Equal(["1"], Values(ValuePickerItems.Of(TaskTyp, ["1"], "1,0")));
+    }
+
+    [Fact]
+    public void A_typed_text_with_the_list_separator_gets_no_entry() =>
+        Assert.DoesNotContain(ValuePickerItems.Of(AuftragStatus, [], "A;B"), i => i.Unknown);
 }

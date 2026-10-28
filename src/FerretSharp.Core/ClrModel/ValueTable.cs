@@ -121,6 +121,9 @@ public sealed class ValueTable
             : null;
     }
 
+    /// <summary>The column holds numbers: a typed number is a value of its own rather than a search for a member.</summary>
+    public bool HoldsNumbers => _category == ColumnCategory.Number;
+
     /// <summary>The option of a raw database value (to preselect it in the cell editor); null without a member.</summary>
     public ValueOption? OptionOf(object? value) => Find(value) is { } mapping ? _byMember.GetValueOrDefault(mapping.Name) : null;
 
