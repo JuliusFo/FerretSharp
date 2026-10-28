@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- Opening a session no longer hangs for 20 s when the network swallows the first attempt (seen over VPN): an attempt that takes longer than 3 s is given up and the next one started, with growing limits (3, 3, 5, 8 and 15 s), for the explorer and for each workspace. The connect progress shows the attempt (“Opening the session (attempt 2 of 5)”). A refused login is never tried again.
+
 ## [3.53.0] - 2026-10-27
 
 Names beside foreign keys combine several columns, and the C# model travels as a file.
