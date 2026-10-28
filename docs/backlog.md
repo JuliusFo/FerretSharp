@@ -116,6 +116,7 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
   - Später: Verlauf ohne Historientabelle über Flashback (`VERSIONS BETWEEN`; braucht Rechte, reicht nur so weit wie das Undo).
   - Kontextmenü für Tabellen im Explorer (es gibt noch keins), darin „Audit anlegen/abgleichen…“ (WP-26 bietet es über die Zeile über den Spalten an; „Anlegen“ nur, wenn die Einstellung `CreateAuditTables` es erlaubt, wie Zeile und Designer). Die Audit-Zeile liest eine geänderte Vorlage erst beim nächsten Laden des Tabs – seit WP-51 auch nach einer geänderten Gruppe der Verbindung.
   - Mehrere Tabellen auf einmal abgleichen (z. B. nach einem Wechsel der Vorlage oder vielen Spaltenänderungen): Liste der veralteten Audit-Tabellen eines Schemas mit einem Skript.
+  - Tabellen-Designer: Wird die Vorlage, während er offen ist, durch eine mit anderen Namen ersetzt, plant er mit der neuen Vorlage und dem nach der alten gelesenen Audit-Zustand (Code-Review von `small-audit-load-failure.md`). Abhilfe: `AuditRead` merkt sich die Namen des Lesens, bei Abweichung gilt der Zustand als ungelesen.
 
 ## C#-Modell, LINQ-Konsole, ModelHost
 
