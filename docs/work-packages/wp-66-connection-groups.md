@@ -49,6 +49,22 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--l
 - **Nicht mit echter Eingabe geprüft:** Per `SendInput` kam wie bei WP-61 kein `pointerdown` an – laut Anleitung nicht weitergeklickt. Ziehen (Gruppenkopf, Verbindung), Doppelklick zum Verbinden auf der Seite und Rechtsklick bitte von Hand prüfen.
 - **Nicht geprüft:** „Exportieren“ bis zum Dialog (unveränderter Weg), „Alle trennen“ und „Anzeigen“ mit offenen Verbindungen (brauchen eine DB), die Taste über einem offenen SQL-Editor (Monaco).
 
+## Nachtrag: Code-Review (2026-10-28)
+Unabhängiger Reviewer über den Branch, zwei Prüfdurchgänge über die Fixes. Entscheidung des Nutzers zur ersten Runde: „Alle beheben“, zur zweiten: „Alle vier beheben“.
+1. **M – Offene Verbindungen behielten nach dem Umbenennen die alte Gruppe** (Audit-Vorlage und Arbeits-Klon unter dem alten Namen gesucht): behoben. Nach jedem Speichern übernehmen offene Verbindungen ihr Profil, wenn sich an der Session nichts ändert (`ConnectionHub.UseSaved`, `ActiveConnection.UseSaved`); Art, Adresse, User, Schema und Schreibschutz weiter erst nach dem Neuverbinden. Löst auch das Versprechen „Name, group and paths apply at once“ an `SessionDiffers` ein, das vorher schon für den Dialog nicht galt.
+2. **M – „Audit-Vorlage der Gruppe…“ tat auf einer offenen Einstellungsseite nichts:** behoben, die Seite nimmt den Bereich auch bei `Shell.Changed`.
+3. **M – „Zurücksetzen“ nahm einer Verbindung die Taste ohne Rückfrage:** behoben; die Frage bei „Alle zurücksetzen“ nennt die Folge.
+4. **K – Schnelle Klicks hoben einander auf** (Gruppenzustand vor der Sperre berechnet): behoben, jede Änderung wird in der Sperre aus dem aktuellen Stand berechnet.
+5. **K – Reihenfolge fehlte an fünf Stellen:** behoben (Tastenliste, App-Statements, Schema-Vergleich, Link-Vorschläge, Audit-Gruppen; verwaiste Audit-Einträge stehen jetzt hinter den Gruppen).
+6. **K – Suche der Einstellungen veraltete:** behoben (neu bei `Connections.Changed`).
+7. **K – Eine neue Gruppe erbte Reste einer früheren gleichen Namens:** behoben – beim Umbenennen und für jede Gruppe, die in der Liste neu auftaucht (Dialog, Import, Chips, Ziehen; Nachtrag aus der zweiten Runde).
+8. **K – Verschieben speicherte das Profil vom Öffnen des Menüs:** behoben (per Id neu gelesen, gelöschte Verbindungen bleiben gelöscht).
+9. **K – Der Arbeits-Klon fiel beim Zusammenlegen still weg:** behoben, der Dialog nennt ihn – seit der zweiten Runde auch beim Umbenennen auf einen Namen, unter dem noch ein Klon steht.
+10. **K – Eine fehlende `connections.json` löschte alle Verbindungstasten:** behoben (bei leerer Liste kein Aufräumen).
+11. **K (zweite Runde) – Ein Speichern während des Verbindens ging verloren:** erst nachgestellt (Test schlug fehl), dann behoben (`ActiveConnection.Saved`).
+12. **K (zweite Runde) – Ein Test wartete fest 50 ms:** behoben, `ConnectionGroups.Cleanup` ist abwartbar. Die Einstellungsseite selbst (Punkte 2 und 6) hat keinen Komponententest (kein bUnit): von Hand prüfen.
+- Vorher schon da, nicht geändert: Menüs zeigen „verbunden“ auch bei einem laufenden oder fehlgeschlagenen Verbinden, die Verbindungsseite nicht.
+
 ## Offen
 - Tastenkürzel systemweit (Backlog).
 - Die Taste einer Verbindung in einem „@“-Modus der Schnellsuche (Backlog, Fortsetzung von WP-38).

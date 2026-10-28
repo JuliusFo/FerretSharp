@@ -11,6 +11,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - The "⋯" menus of a connection and of a group are built like the cell menus: what the connection is at the top (kind, address, user, read-only, group, last used, connected), its actions as icons (connect or show, edit, duplicate, copy address, export, disconnect), the groups to move it to as chips (also a new group) and "Delete…". The group's menu renames it, adds a connection to it, exports it, moves it up or down, opens its audit template in the settings and disconnects all its open connections at once. A right-click on a connection or a group head opens the same menu, on the connections page and in the switcher. ↑ ↓ and Enter work in all "⋯" menus.
 - A connection can have a shortcut: set it in the connection's dialog under "Shortcut". The key shows the connection from anywhere in FerretSharp, connecting it first if needed. It follows the rules of the other shortcuts and is listed under Settings › Shortcuts › Connections; a key an action or another connection has is taken from it after asking. The key of a deleted connection is dropped. There is no default key.
 
+### Fixed
+- A new name, group or project path of an open connection applies at once – the group's audit template and work clone, the name in the status bar and dialogs. Before, they did only after connecting again. Kind, address, user, schema and read-only still need a new connection, which the dialog offers.
+
 ## [3.53.0] - 2026-10-27
 
 Names beside foreign keys combine several columns, and the C# model travels as a file.
