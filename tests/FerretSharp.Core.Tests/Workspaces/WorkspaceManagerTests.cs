@@ -362,6 +362,28 @@ public sealed class WorkspaceManagerTests
         await _connector.Received(2).OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>A workspace session hangs over the VPN like the explorer's (2026-10-28): the open is tried again past its limit.</summary>
+    [Fact]
+    public async Task A_session_open_past_its_limit_is_tried_again()
+    {
+        await _manager.AttachAsync(_profile, Ct);
+        var session = Substitute.For<IDatabaseConnection>();
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new TaskCompletionSource<IDatabaseConnection>().Task, Task.FromResult(session));
+
+        var opening = _manager.GetDataAsync(_manager.Active!.Id, Ct);
+        for (var waited = 0; _connector.ReceivedCalls().Count() < 1; waited += 10)
+        {
+            Assert.True(waited < 5_000, "Timed out.");
+            await Task.Delay(10, Ct);
+        }
+
+        _time.Advance(SessionOpening.AttemptLimits[0]);
+
+        Assert.Same(session.Data, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
+        await _connector.Received(2).OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task Missing_password_fails_the_session_open()
     {

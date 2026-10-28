@@ -119,6 +119,10 @@
   <data name="Step_OpeningSession" xml:space="preserve">
     <value>Opening the session</value>
   </data>
+  <data name="Step_OpeningSessionAgain" xml:space="preserve">
+    <value>Opening the session (attempt {0} of {1})</value>
+    <comment>Connect step after an attempt ran past its limit; {0} = number of this attempt, {1} = number of attempts</comment>
+  </data>
   <data name="Step_ReadingTables" xml:space="preserve">
     <value>Reading tables and views</value>
   </data>
@@ -145,7 +149,7 @@
     <value>The TNS alias may not contain blanks or “(”, “)”, “=”.</value>
   </data>
   <data name="OpenTimedOut" xml:space="preserve">
-    <value>Opening the session did not finish within {0} s.</value>
-    <comment>{0}: seconds</comment>
+    <value>Opening the session did not finish in {0} attempts ({1} s in all).</value>
+    <comment>{0} = number of attempts, {1} = seconds of all attempts together</comment>
   </data>
 </root>

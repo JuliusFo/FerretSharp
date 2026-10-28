@@ -102,6 +102,9 @@
   <data name="Step_OpeningSession" xml:space="preserve">
     <value>Öffne die Session</value>
   </data>
+  <data name="Step_OpeningSessionAgain" xml:space="preserve">
+    <value>Öffne die Session (Versuch {0} von {1})</value>
+  </data>
   <data name="Step_ReadingTables" xml:space="preserve">
     <value>Lese Tabellen und Views</value>
   </data>
@@ -127,6 +130,6 @@
     <value>Der TNS-Alias darf keine Leerzeichen und kein „(“, „)“, „=“ enthalten.</value>
   </data>
   <data name="OpenTimedOut" xml:space="preserve">
-    <value>Die Session ließ sich nicht innerhalb von {0} s öffnen.</value>
+    <value>Die Session ließ sich in {0} Versuchen nicht öffnen ({1} s insgesamt).</value>
   </data>
 </root>

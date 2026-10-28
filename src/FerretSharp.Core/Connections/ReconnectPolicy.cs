@@ -15,12 +15,6 @@ public static class ReconnectPolicy
     /// <summary>No attempt starts later than this after the connection was lost.</summary>
     public static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(10);
 
-    /// <summary>
-    /// Opening a session may hang beyond ODP.NET's own 15 s (2026-10-21, after sleep); an attempt gives up on it after this
-    /// and counts as failed (<see cref="ConnectionError.TimedOut"/>). Loading the schema afterwards has no limit.
-    /// </summary>
-    public static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(30);
-
     /// <summary>Errors that say the database is not reachable or not open yet; everything else ends the attempts.</summary>
     private static readonly HashSet<string> Unavailable =
     [

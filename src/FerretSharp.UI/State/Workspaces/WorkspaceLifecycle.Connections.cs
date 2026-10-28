@@ -65,8 +65,8 @@ public sealed partial class WorkspaceLifecycle
 
     /// <summary>
     /// Reconnecting by itself (<see cref="AutoReconnect"/>): like <see cref="Reconnect"/>, but where the user is – a connection
-    /// in the background stays there, the shown one stays on its page – and with a limit on opening the session, since nobody
-    /// watches the attempt. A later attempt after a failed one only connects. Ends when connecting has ended.
+    /// in the background stays there, the shown one stays on its page. A later attempt after a failed one only connects. Ends
+    /// when connecting has ended (opening the session has limits, <see cref="SessionOpening"/>: nobody watches the attempt).
     /// </summary>
     public Task ReconnectInPlaceAsync(ConnectionScope scope)
     {
@@ -80,7 +80,7 @@ public sealed partial class WorkspaceLifecycle
             DropLost(scope);
         }
 
-        return Task.Run(() => scope.Active.ConnectAsync(profile, CancellationToken.None, ReconnectPolicy.OpenTimeout));
+        return Task.Run(() => scope.Active.ConnectAsync(profile, CancellationToken.None));
     }
 
     /// <summary>The lost connection's transactions are gone: its tabs' changes are forgotten, the workspaces restored from what was saved.</summary>

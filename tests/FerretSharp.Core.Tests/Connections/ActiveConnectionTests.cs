@@ -138,42 +138,54 @@ public sealed class ActiveConnectionTests : IDisposable
         Assert.True(ended[0].Took >= TimeSpan.Zero);
     }
 
-    /// <summary>Reconnecting by itself gives the open a limit: after sleep it hung beyond ODP.NET's 15 s (2026-10-21).</summary>
+    /// <summary>
+    /// Over the VPN opening sometimes hung for 20 s while the next attempt opened at once (log 2026-10-21 to 10-28): an attempt
+    /// past its limit makes way for the next, shown as a step of its own; the late session is closed.
+    /// </summary>
     [Fact]
-    public async Task An_open_beyond_its_limit_fails_as_timed_out_and_a_session_that_opens_later_is_closed()
+    public async Task An_open_past_its_limit_is_tried_again_as_a_step_of_its_own()
     {
         var time = new FakeTimeProvider();
         var active = new ActiveConnection(new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets), _connector, _recent, _workspaces, time);
-        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        var hanging = new TaskCompletionSource<IDatabaseConnection>();
+        var late = FakeDatabase.Connection(_reader);
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(opening.Task);
-        var connecting = active.ConnectAsync(_profile, Ct, ReconnectPolicy.OpenTimeout);
-        await Eventually(() => active.Step == ConnectionText.Step_OpeningSession);
+            .Returns(hanging.Task, Task.FromResult(_connection));
+        var connecting = active.ConnectAsync(_profile, Ct);
+        await Eventually(() => _connector.ReceivedCalls().Count() == 1);
 
-        time.Advance(ReconnectPolicy.OpenTimeout);
+        time.Advance(SessionOpening.AttemptLimits[0]);
+        await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        Assert.Equal(ConnectionStatus.Connected, active.Status);
+        Assert.Equal(
+            [ConnectionText.Step_OpeningSession, TextFormat.Format(ConnectionText.Step_OpeningSessionAgain, 2, SessionOpening.AttemptLimits.Count)],
+            active.Steps.Take(2).Select(s => s.Name));
+        hanging.SetResult(late);
+        await Eventually(() => late.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
+    }
+
+    /// <summary>After sleep it hung beyond ODP.NET's 15 s (2026-10-21): reconnecting by itself must not show "Connecting" for ever.</summary>
+    [Fact]
+    public async Task When_every_attempt_runs_past_its_limit_the_connect_fails_as_timed_out()
+    {
+        var time = new FakeTimeProvider();
+        var active = new ActiveConnection(new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets), _connector, _recent, _workspaces, time);
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new TaskCompletionSource<IDatabaseConnection>().Task);
+        var connecting = active.ConnectAsync(_profile, Ct);
+        for (var attempt = 1; attempt <= SessionOpening.AttemptLimits.Count; attempt++)
+        {
+            await Eventually(() => _connector.ReceivedCalls().Count() == attempt);
+            time.Advance(SessionOpening.AttemptLimits[attempt - 1]);
+        }
+
         await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
 
         Assert.Equal(ConnectionStatus.Failed, active.Status);
         Assert.True(active.Error!.TimedOut);
         Assert.Null(active.Error.ErrorCode);
-        opening.SetResult(_connection);
-        await Eventually(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
-    }
-
-    [Fact]
-    public async Task Cancelling_an_open_with_a_limit_still_disconnects()
-    {
-        var opening = new TaskCompletionSource<IDatabaseConnection>();
-        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(opening.Task);
-        var connecting = _active.ConnectAsync(_profile, Ct, ReconnectPolicy.OpenTimeout);
-        await Eventually(() => _active.Step == ConnectionText.Step_OpeningSession);
-
-        _active.CancelPendingConnect();
-        await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
-
-        Assert.Equal(ConnectionStatus.Disconnected, _active.Status);
-        opening.SetResult(_connection);
+        Assert.True(ReconnectPolicy.IsWorthRetrying(active.Error));
     }
 
     [Fact]
