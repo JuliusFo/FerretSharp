@@ -230,6 +230,13 @@
     <value>Template</value>
     <comment>Settings row: the file of the audit template</comment>
   </data>
+  <data name="Settings_AuditCreateTables" xml:space="preserve">
+    <value>Create audit tables</value>
+    <comment>Settings row: whether FerretSharp offers to create audit tables</comment>
+  </data>
+  <data name="Settings_AuditCreateTablesHint" xml:space="preserve">
+    <value>Offers “Create audit…” above the columns of a table without audit table and the audit box in the table designer of such a table and of a new one. Off: existing audit tables are still shown and brought up to date, new ones are never created.</value>
+  </data>
   <data name="Settings_AuditSyncInDesigner" xml:space="preserve">
     <value>Bring audit up to date in the designer</value>
   </data>
