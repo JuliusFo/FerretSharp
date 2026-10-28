@@ -195,4 +195,28 @@ public sealed class WorkCloneTests : IDisposable
         Assert.Equal(work, clones.ActiveFor("ERP"));
         Assert.True(await clones.SetActiveAsync("ERP", work, TestContext.Current.CancellationToken)); // free again: saved
     }
+
+    /// <summary>WP-66: renaming a group takes its work clone along; merged into a group with one, that one stays.</summary>
+    [Fact]
+    public async Task A_renamed_group_keeps_its_work_clone()
+    {
+        var file = _folder.Combine("work-clones.json");
+        var erp = Clone("erp-work", "feature/a");
+        var kasse = Clone("kasse-work", "feature/b");
+        var clones = new WorkClones(file);
+        await clones.SetActiveAsync("ERP", erp, TestContext.Current.CancellationToken);
+        await clones.SetActiveAsync("Kasse", kasse, TestContext.Current.CancellationToken);
+
+        Assert.True(await clones.RenameGroupAsync("erp", "Warenwirtschaft", TestContext.Current.CancellationToken));
+        var loaded = new WorkClones(file);
+        await loaded.LoadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(erp, loaded.ActiveFor("Warenwirtschaft"));
+        Assert.Null(loaded.ActiveFor("ERP"));
+
+        await loaded.RenameGroupAsync("Warenwirtschaft", "Kasse", TestContext.Current.CancellationToken);
+        Assert.Equal(kasse, loaded.ActiveFor("Kasse"));
+        Assert.Null(loaded.ActiveFor("Warenwirtschaft"));
+
+        Assert.True(await loaded.RenameGroupAsync("Nothing", "Else", TestContext.Current.CancellationToken));
+    }
 }

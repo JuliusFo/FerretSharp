@@ -37,6 +37,7 @@ public sealed class SettingsStore(string filePath)
                     return settings with
                     {
                         Shortcuts = settings.Shortcuts ?? SettingsMap.Empty,
+                        ConnectionShortcuts = settings.ConnectionShortcuts ?? SettingsMap.Empty,
                         AuditTemplateGroups = settings.AuditTemplateGroups ?? SettingsMap.Empty,
                     };
                 case JsonFileState.Empty:
