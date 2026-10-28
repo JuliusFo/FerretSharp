@@ -114,19 +114,9 @@ public sealed class ConnectionGroupsTests : IAsyncDisposable
 
         await _app.Connections.DeleteAsync(Kasse.Id, Ct);
 
-        await WaitUntilAsync(() => !_app.Settings.Current.ConnectionShortcuts.ContainsKey(Kasse.Id.ToString()));
+        await Groups.Cleanup;
+        Assert.False(_app.Settings.Current.ConnectionShortcuts.ContainsKey(Kasse.Id.ToString()));
         Assert.Equal("alt+2", _app.Settings.Current.ConnectionShortcuts[Zoll.Id.ToString()]);
-    }
-
-    /// <summary>The settings are written after the list changed, not awaited by it.</summary>
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        for (var i = 0; i < 200 && !condition(); i++)
-        {
-            await Task.Delay(10, Ct);
-        }
-
-        Assert.True(condition());
     }
 
     public async ValueTask DisposeAsync()
@@ -175,7 +165,7 @@ public sealed class ConnectionGroupsTests : IAsyncDisposable
         await _app.Connections.LoadAsync(Ct); // the store of the test app has no file: no connections, no load error
         Assert.Empty(_app.Connections.Profiles);
 
-        await Task.Delay(50, Ct);
+        await Groups.Cleanup;
         Assert.True(_app.Settings.Current.ConnectionShortcuts.ContainsKey(Kasse.Id.ToString()));
     }
 
@@ -194,5 +184,21 @@ public sealed class ConnectionGroupsTests : IAsyncDisposable
 
         Assert.Equal(zoll, Groups.DroppedWorkClone(Groups.PlanRename("Zoll", "Kasse")!));
         Assert.Null(Groups.DroppedWorkClone(Groups.PlanRename("Zoll", "Lager")!)); // no merge
+    }
+
+    /// <summary>Review of WP-66: a group typed in the connection dialog (or imported) started collapsed when an old one had the name.</summary>
+    [Fact]
+    public async Task A_group_typed_in_the_connection_dialog_starts_clean()
+    {
+        await SaveAllAsync();
+        await Groups.ToggleAsync("Zoll");
+        await Groups.MoveAsync("Zoll", "ERP");
+        await _app.Connections.DeleteAsync(Zoll.Id, Ct); // the group is gone, its entries stay
+
+        await _app.Connections.SaveAsync(TestApp.Profile("Neu") with { Group = "ZOLL" }, null, Ct);
+        await Groups.Cleanup;
+
+        Assert.False(Groups.IsCollapsed("Zoll"));
+        Assert.Equal(["ERP", "Kasse", "ZOLL"], Groups.Names);
     }
 }

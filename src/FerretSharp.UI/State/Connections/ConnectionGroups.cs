@@ -151,31 +151,51 @@ public sealed class ConnectionGroups : IDisposable
             return;
         }
 
-        var isNew = target is not null && !_connections.Profiles.Any(p => ConnectionSearch.SameGroup(p.Group, target));
         await _connections.SaveAsync(saved with { Group = target }, null, CancellationToken.None);
-        if (isNew)
-        {
-            await _state.ForgetAsync(target!, CancellationToken.None);
-        }
+        await Cleanup; // a new group starts clean (OnConnectionsChanged)
     }
+
+    /// <summary>
+    /// What the last change of the list set off in the background – keys of deleted connections, leftovers of new groups;
+    /// tests wait for it instead of a fixed time (review of WP-66).
+    /// </summary>
+    internal Task Cleanup { get; private set; } = Task.CompletedTask;
+
+    /// <summary>The named groups the list had at the last change; null before the first one.</summary>
+    private HashSet<string>? _known;
 
     private void OnStateChanged() => Changed?.Invoke();
 
-    /// <summary>A deleted connection's key would stay in the settings: dropped when the list no longer has it.</summary>
+    /// <summary>
+    /// After every change of the list: a group that appears – from the connection dialog, an import, a chip or dragging –
+    /// starts expanded and without a place an earlier group of its name left (review of WP-66: the new connection
+    /// disappeared into a collapsed group), and a deleted connection's key leaves the settings.
+    /// </summary>
     private void OnConnectionsChanged()
     {
         // An unreadable file lists no connections – that does not mean all were deleted. Neither does a missing one (moved
-        // away by a sync for a moment, review of WP-66): with no connection left, the keys stay until there is one again.
+        // away by a sync for a moment, review of WP-66): with no connection left, keys and known groups stay until there is
+        // one again.
         if (_connections.LoadError is not null || _connections.Profiles.Count == 0)
         {
             return;
         }
 
-        _ = ForgetDeletedKeysAsync(_connections.Profiles.Select(p => p.Id).ToHashSet());
+        var groups = _connections.Profiles.Select(p => ConnectionSearch.NormalizeGroup(p.Group)).OfType<string>()
+            .ToHashSet(ConnectionSearch.GroupNameComparer);
+        // The first list (loading at start) only tells which groups there are: nothing of them is new.
+        var started = _known is null ? [] : groups.Where(g => !_known.Contains(g)).ToList();
+        _known = groups;
+        Cleanup = CleanUpAsync(_connections.Profiles.Select(p => p.Id).ToHashSet(), started);
     }
 
-    private async Task ForgetDeletedKeysAsync(IReadOnlySet<Guid> existing)
+    private async Task CleanUpAsync(IReadOnlySet<Guid> existing, IReadOnlyList<string> started)
     {
+        foreach (var group in started)
+        {
+            await _state.ForgetAsync(group, CancellationToken.None); // a file it cannot write: in effect for the session
+        }
+
         try
         {
             await _shortcuts.ForgetConnectionsExceptAsync(existing);
