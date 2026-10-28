@@ -426,6 +426,21 @@ public sealed class ActiveConnection(
         }
     }
 
+    /// <summary>
+    /// The connection's profile was saved again (review of WP-66): name, group and paths apply at once – the group's audit
+    /// template and work clone are looked up by the group's name –, changes the session works with only after a new
+    /// connection (<see cref="ConnectionProfile.SessionDiffers"/>, the dialog offers it).
+    /// </summary>
+    public void UseSaved(ConnectionProfile saved)
+    {
+        ArgumentNullException.ThrowIfNull(saved);
+        if (Profile is { } current && current.Id == saved.Id && current != saved && !current.SessionDiffers(saved))
+        {
+            Profile = saved;
+            Changed?.Invoke();
+        }
+    }
+
     private void Set(ConnectionStatus status, ConnectionProfile? profile, ConnectionError? error = null)
     {
         Status = status;

@@ -303,6 +303,7 @@
         _state.RestoreChanges(Settings.Current.ChangesPanelOpen);
         _state.ChangesOpenChanged += OnChangesOpenChanged;
         Connections.Changed += OnChanged;
+        Connections.Changed += OnConnectionsSaved;
         Hub.Changed += OnHubChanged;
         KeepAlive.ConnectionLost += OnKeepAliveLost;
         Shortcuts.Changed += OnShortcutsChanged;
@@ -322,6 +323,9 @@
         _state.IncomingLinkClosed += OnLinkReceived;
         TakeLinks();
     }
+
+    /// <summary>Open connections take what applies at once from their saved profile (review of WP-66).</summary>
+    private void OnConnectionsSaved() => Hub.UseSaved(Connections.Profiles);
 
     private void OnLinkReceived() => Run(TakeLinks);
 
@@ -697,6 +701,7 @@
         _state.ConnectRequested -= OnConnectRequested;
         _state.ChangesOpenChanged -= OnChangesOpenChanged;
         Connections.Changed -= OnChanged;
+        Connections.Changed -= OnConnectionsSaved;
         Hub.Changed -= OnHubChanged;
         foreach (var (scope, handler) in _subscribed.ToList())
         {

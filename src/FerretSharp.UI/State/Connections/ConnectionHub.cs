@@ -14,7 +14,7 @@ namespace FerretSharp.UI.State;
 public sealed class ConnectionScope : IAsyncDisposable
 {
     private readonly AsyncServiceScope _scope;
-    private readonly ConnectionProfile? _openedWith;
+    private ConnectionProfile? _openedWith;
     private readonly ClrActivityLog? _activity;
     private readonly ConnectActivityLog? _connecting;
 
@@ -42,6 +42,17 @@ public sealed class ConnectionScope : IAsyncDisposable
     public ConnectionProfile? Profile => Active.Profile ?? _openedWith;
 
     public Guid Id => _openedWith?.Id ?? Guid.Empty;
+
+    /// <summary>The profile was saved again: what applies at once, applies (<see cref="ActiveConnection.UseSaved"/>).</summary>
+    internal void UseSaved(ConnectionProfile saved)
+    {
+        if (_openedWith is { } opened && opened.Id == saved.Id && !opened.SessionDiffers(saved))
+        {
+            _openedWith = saved;
+        }
+
+        Active.UseSaved(saved);
+    }
 
     public ActiveConnection Active { get; }
 
@@ -94,6 +105,21 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
 
     /// <summary>Opened, closed or switched; fires on the caller's thread.</summary>
     public event Action? Changed;
+
+    /// <summary>
+    /// The saved profiles (after a save, review of WP-66): open connections take theirs where nothing the session works
+    /// with changed – a renamed group finds its audit template and work clone, the labels show the new name.
+    /// </summary>
+    public void UseSaved(IReadOnlyList<ConnectionProfile> saved)
+    {
+        foreach (var scope in Open)
+        {
+            if (saved.FirstOrDefault(p => p.Id == scope.Id) is { } profile)
+            {
+                scope.UseSaved(profile);
+            }
+        }
+    }
 
     /// <summary>In the order they were opened.</summary>
     public IReadOnlyList<ConnectionScope> Open
