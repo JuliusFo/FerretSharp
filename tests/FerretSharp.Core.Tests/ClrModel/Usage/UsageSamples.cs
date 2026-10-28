@@ -137,6 +137,11 @@ namespace FerretSharp.Core.Tests.ClrModel.UsageSamples
         public Ticket? Ticket { get; set; }
     }
 
+    public static class TicketClock
+    {
+        public static Ticket Current { get; } = new();
+    }
+
     public sealed class TicketRepository
     {
         public IQueryable<Ticket> Load(params Expression<Func<Ticket, object?>>[] includes) => Enumerable.Empty<Ticket>().AsQueryable();
@@ -158,6 +163,15 @@ namespace FerretSharp.Core.Tests.ClrModel.UsageSamples
             };
             Expression<Func<Ticket, int>> number = t => t.Number;
             return tickets.Where(t => t.Status != "closed").OrderBy(key).ThenBy(number); // marker: filter-stored
+        }
+
+        public IQueryable<Ticket> Reversed(IQueryable<Ticket> tickets) =>
+            tickets.Where(t => "open" == t.Status && null == t.Title && t.Due < TicketClock.Current.Due); // marker: filter-reversed
+
+        public IQueryable<Ticket> SortedByMap(IQueryable<Ticket> tickets, string sort)
+        {
+            var keys = new Dictionary<string, Expression<Func<Ticket, object?>>> { ["title"] = t => t.Title, ["due"] = t => t.Due };
+            return tickets.Where(t => t.Status != "closed").OrderBy(keys[sort]); // marker: filter-map
         }
 
         public IQueryable<Ticket> Loaded(TicketRepository repository) =>

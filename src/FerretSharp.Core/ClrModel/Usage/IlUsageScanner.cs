@@ -193,6 +193,7 @@ public static class IlUsageScanner
                     Flush(pending, CodeUseKind.Expression);
                 }
 
+                var afterTree = treeBuilt;
                 treeBuilt = false;
                 if (IsLoad(opCode))
                 {
@@ -238,10 +239,19 @@ public static class IlUsageScanner
                         onValue = building.Name == "Constant" || (onValue && building.Name is "Property" or "Field" or "Convert" or "ConvertChecked" or "TypeAs");
                         treeBuilt = building.Name == "Lambda";
                     }
-                    else if (pending.Count > 0 && opCode.FlowControl == FlowControl.Call && method is { } taker
-                        && !BuildsTrees(taker) && TakesTree(MetadataTokens.EntityHandle(token)))
+                    else if (pending.Count > 0 && opCode.FlowControl == FlowControl.Call && method is { } taker && !BuildsTrees(taker)
+                        && Signature(MetadataTokens.EntityHandle(token)) is { } signature)
                     {
-                        Flush(pending, IsFilter(taker) ? CodeUseKind.Filter : CodeUseKind.Expression);
+                        if (TakesTree(signature))
+                        {
+                            Flush(pending, IsFilter(taker) ? CodeUseKind.Filter : CodeUseKind.Expression);
+                        }
+                        else if (afterTree && (signature.ParameterTypes.Length > 0 || signature.Header.IsInstance))
+                        {
+                            // The call right after the lambda takes the tree as its last argument, but not as an
+                            // Expression<T>: a dictionary of sort keys, List.Add. CancellationToken.None takes nothing.
+                            Flush(pending, CodeUseKind.Expression);
+                        }
                     }
                 }
 
@@ -284,23 +294,28 @@ public static class IlUsageScanner
             return FilterOperators.Contains(name);
         }
 
-        /// <summary>A parameter of the called method is an <c>Expression&lt;T&gt;</c>: the call takes the tree just built.</summary>
-        private bool TakesTree(EntityHandle handle)
+        /// <summary>The called method's signature (a generic one by its definition); null for anything else.</summary>
+        private MethodSignature<TypeName>? Signature(EntityHandle handle)
         {
             if (handle.Kind == HandleKind.MethodSpecification)
             {
                 handle = reader.GetMethodSpecification((MethodSpecificationHandle)handle).Method;
             }
 
-            var signature = handle.Kind switch
+            return handle.Kind switch
             {
                 HandleKind.MethodDefinition => reader.GetMethodDefinition((MethodDefinitionHandle)handle).DecodeSignature(_names, null),
                 HandleKind.MemberReference => reader.GetMemberReference((MemberReferenceHandle)handle).DecodeMethodSignature(_names, null),
-                _ => (MethodSignature<TypeName>?)null,
+                _ => null,
             };
-            // Also params Expression<T>[]: Include-like helpers of the solution taking several trees.
-            return signature?.ParameterTypes.Any(p => p.Name is ExpressionType or ExpressionType + "[]") == true;
         }
+
+        /// <summary>
+        /// A parameter of the called method is an <c>Expression&lt;T&gt;</c>: the call takes the tree just built. Also
+        /// <c>params Expression&lt;T&gt;[]</c>: Include-like helpers of the solution taking several trees.
+        /// </summary>
+        private static bool TakesTree(MethodSignature<TypeName> signature) =>
+            signature.ParameterTypes.Any(p => p.Name is ExpressionType or ExpressionType + "[]");
 
         /// <summary>The method behind a token with its declaring type (a generic one by its definition); null for anything else.</summary>
         private MethodName? Method(EntityHandle handle)

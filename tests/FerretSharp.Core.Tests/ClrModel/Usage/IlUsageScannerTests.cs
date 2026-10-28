@@ -105,6 +105,28 @@ public sealed class IlUsageScannerTests
     }
 
     [Fact]
+    public void A_getter_on_the_parameter_after_a_constant_is_a_filter()
+    {
+        // "open" == t.Status: the constant comes first, the parameter's getter after it is still filtered by. A static
+        // property (TicketClock.Current.Due) is a value.
+        var line = LineOf("filter-reversed");
+        Assert.Equal(line, Single("Ticket", "Status", CodeUseKind.Filter, "Reversed").Line);
+        Assert.Equal(line, Single("Ticket", "Title", CodeUseKind.Filter, "Reversed").Line);
+        Assert.Equal(line, Single("Ticket", "Due", CodeUseKind.Filter, "Reversed").Line);
+        Assert.Equal(line, Single("Ticket", "Due", CodeUseKind.Expression, "Reversed").Line);
+        Single("TicketClock", "Current", CodeUseKind.Expression, "Reversed");
+    }
+
+    [Fact]
+    public void A_tree_put_into_a_collection_is_no_filter()
+    {
+        Assert.Equal(LineOf("filter-map"), Single("Ticket", "Status", CodeUseKind.Filter, "SortedByMap").Line);
+        Single("Ticket", "Title", CodeUseKind.Expression, "SortedByMap");
+        Single("Ticket", "Due", CodeUseKind.Expression, "SortedByMap");
+        Assert.DoesNotContain(Uses.Uses, u => u is { Kind: CodeUseKind.Filter, CallerMethod: "SortedByMap" } && u.Member != "Status");
+    }
+
+    [Fact]
     public void A_tree_kept_in_a_variable_or_passed_in_a_params_array_is_no_filter()
     {
         Assert.Equal(LineOf("filter-stored"), Single("Ticket", "Status", CodeUseKind.Filter, "Sorted").Line);
