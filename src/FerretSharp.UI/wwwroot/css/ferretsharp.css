@@ -489,6 +489,8 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .audit-status .link-btn { padding: 0; }
 .audit-status .link-btn.muted { color: var(--faint); text-decoration: none; }
 .audit-status .link-btn.muted:hover { color: var(--muted); text-decoration: underline; }
+/* "Creating is switched off" instead of "Bring up to date": --muted alone has 4.2:1 on the light warn tint */
+.audit-status span.muted { color: color-mix(in srgb, var(--muted) 85%, var(--text)); }
 .audit-status.warn { padding: 6px 10px; border-radius: 7px; background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .audit-status .audit-head { display: inline-flex; align-items: center; gap: 4px; }
 .audit-status .link-btn .chev { margin-left: 2px; }
