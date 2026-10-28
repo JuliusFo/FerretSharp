@@ -234,6 +234,9 @@
   <data name="Usage_NoIndexHint" xml:space="preserve">
     <value>Abfragen, die danach filtern, lesen womöglich die ganze Tabelle (Full Table Scan). Aus dem Code gelesen, ohne Datenmengen und Statistiken – sicher sagt es erst der Ausführungsplan.</value>
   </data>
+  <data name="Usage_IndexesFailed" xml:space="preserve">
+    <value>Ohne die Indizes sind Spalten, nach denen ohne Index gefiltert wird, nicht markiert.</value>
+  </data>
   <data name="Usage_Projects" xml:space="preserve">
     <value>{0} Projekte</value>
   </data>

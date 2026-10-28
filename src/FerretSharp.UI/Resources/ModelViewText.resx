@@ -282,6 +282,9 @@
   <data name="Usage_NoIndexHint" xml:space="preserve">
     <value>Queries filtering by them may read the whole table (full table scan). Read from the code, without data volumes or statistics – only the execution plan tells for sure.</value>
   </data>
+  <data name="Usage_IndexesFailed" xml:space="preserve">
+    <value>Without the indexes, columns filtered without one are not marked.</value>
+  </data>
   <data name="Usage_Projects" xml:space="preserve">
     <value>{0} projects</value>
   </data>
