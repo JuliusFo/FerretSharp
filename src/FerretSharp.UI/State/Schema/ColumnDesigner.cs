@@ -1,4 +1,5 @@
 using System.Globalization;
+using FerretSharp.Core.Audit;
 using FerretSharp.Core.Design;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Resources;
@@ -375,21 +376,37 @@ public sealed class ColumnDesigner
     /// Where the audit box starts: on when the designer was opened for the audit table; on for a table with an audit table
     /// unless the setting says otherwise (<see cref="Core.Settings.AppSettings.SyncAuditInDesigner"/>); off for a table
     /// without one, which is the normal case, and always when audit tables may not be created (<see cref="CanAudit"/>).
+    /// Not decided (null) while it is unknown whether there is an audit table – reading it failed: the box starts once read.
     /// </summary>
-    public static bool AuditAtStart(bool openedForAudit, bool hasAuditTable, bool syncByDefault, bool createAllowed) =>
-        CanAudit(hasAuditTable, createAllowed) && (openedForAudit || (hasAuditTable && syncByDefault));
+    /// <param name="hasAuditTable">Null: unknown, reading the audit objects failed.</param>
+    public static bool? AuditAtStart(bool openedForAudit, bool? hasAuditTable, bool syncByDefault, bool createAllowed) =>
+        hasAuditTable is { } has ? CanAudit(has, createAllowed) && (openedForAudit || (has && syncByDefault)) : null;
 
     /// <summary>
     /// Whether the audit box can take part: always for a table with an audit table (brought up to date), for one without
     /// – or a new table – only when audit tables may be created (<see cref="Core.Settings.AppSettings.CreateAuditTables"/>).
+    /// Never while it is unknown whether there is one: reading it failed, and taken as "none" the plan would create an
+    /// existing audit table (ORA-00955) after the table's own steps had run.
     /// </summary>
-    public static bool CanAudit(bool hasAuditTable, bool createAllowed) => hasAuditTable || createAllowed;
+    /// <param name="hasAuditTable">Null: unknown, reading the audit objects failed.</param>
+    public static bool CanAudit(bool? hasAuditTable, bool createAllowed) => hasAuditTable is { } has && (has || createAllowed);
+
+    /// <summary>
+    /// Whether the table has an audit table, for the rules above: never for a new table, and taken as none while there is
+    /// no template (the plan names the broken one); unknown (null) while its audit objects are read, after reading them
+    /// failed and when a template turned up that they were not read by – taken as "none", the plan created an existing
+    /// audit table, and a box ticked while reading became the user's choice (code review 2026-10-28).
+    /// </summary>
+    /// <param name="templateMissing">There is no usable template now (the file is read again when it changes).</param>
+    /// <param name="read">What was read of the audit objects (<see cref="AuditRead.State"/>).</param>
+    public static bool? HasAuditTable(bool newTable, bool templateMissing, AuditState? read) =>
+        newTable || templateMissing ? false : read is null ? null : read.AuditTable is not null;
 
     /// <summary>
     /// Whether the audit objects go into the plan: the box ticked and able to take part (<see cref="CanAudit"/>) – a box
     /// ticked before creating was switched off, kept over a rebase, creates nothing.
     /// </summary>
-    public bool AuditTakesPart(bool hasAuditTable, bool createAllowed) => WithAudit == true && CanAudit(hasAuditTable, createAllowed);
+    public bool AuditTakesPart(bool? hasAuditTable, bool createAllowed) => WithAudit == true && CanAudit(hasAuditTable, createAllowed);
 
     /// <summary>The names of the columns as drafted (renamed, new), without dropped ones – for constraint columns.</summary>
     public IReadOnlyList<string> ColumnNames => Columns.Where(c => !c.Dropped && c.Name.Trim().Length > 0).Select(c => c.Name.Trim()).ToList();

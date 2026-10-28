@@ -1,3 +1,4 @@
+using FerretSharp.Core.Audit;
 using FerretSharp.Core.Design;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
@@ -493,6 +494,44 @@ public sealed class ColumnDesignerTests
         Assert.True(designer.AuditTakesPart(hasAuditTable: true, createAllowed: false));
         Assert.False(new ColumnDesigner(Kunde, []) { WithAudit = false }.AuditTakesPart(hasAuditTable: true, createAllowed: true));
         Assert.False(new ColumnDesigner(Kunde, []).AuditTakesPart(hasAuditTable: true, createAllowed: true));
+    }
+
+    /// <summary>
+    /// Reading the audit objects failed (connection lost): taken as "no audit table" the box started off for good, and opened
+    /// for the audit the plan created an existing audit table (ORA-00955) – now the box takes no part and starts once read.
+    /// </summary>
+    [Fact]
+    public void An_audit_state_that_could_not_be_read_keeps_the_box_out_and_undecided()
+    {
+        var ticked = new ColumnDesigner(Kunde, []) { WithAudit = true };
+
+        Assert.False(ColumnDesigner.CanAudit(null, createAllowed: true));
+        Assert.False(ticked.AuditTakesPart(null, createAllowed: true));
+        Assert.Null(ColumnDesigner.AuditAtStart(openedForAudit: true, null, syncByDefault: true, createAllowed: true));
+        Assert.True(ColumnDesigner.AuditAtStart(openedForAudit: true, false, syncByDefault: true, createAllowed: true));
+    }
+
+    /// <summary>Code review: while the audit objects were read again, the box was free as for a table without audit table.</summary>
+    [Fact]
+    public void Whether_there_is_an_audit_table_is_unknown_until_read()
+    {
+        Assert.Null(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, read: null));
+        Assert.False(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, AuditState.None));
+        Assert.True(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, new AuditState(Kunde, null)));
+        Assert.False(ColumnDesigner.HasAuditTable(newTable: true, templateMissing: false, read: null));
+    }
+
+    /// <summary>
+    /// Code review 2026-10-28: a template broken when the designer opened and readable later – the state taken as "none"
+    /// made the plan create the existing audit table. Without a template the box takes part (the plan names the broken
+    /// template); one that turns up unread leaves it unknown.
+    /// </summary>
+    [Fact]
+    public void A_template_that_turns_up_later_leaves_the_audit_table_unknown()
+    {
+        Assert.False(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: true, read: null));
+        Assert.Null(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, read: null));
+        Assert.True(ColumnDesigner.CanAudit(ColumnDesigner.HasAuditTable(false, templateMissing: true, null), createAllowed: true));
     }
 
     [Fact]
