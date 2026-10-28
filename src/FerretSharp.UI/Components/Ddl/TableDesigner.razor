@@ -34,9 +34,11 @@ else
     var constraintProblems = tablePlan.ConstraintProblems.Count > 0;
     var auditProblems = plan.Problems.Except(tablePlan.Problems).Any();
     // audit state not read: the script brings nothing up to date, not blocking (code review 2026-10-28)
-    string? auditWarning = NewTab is null && _auditUnread ? SchemaViewText.Audit_DesignerUnreadWarning : null;
+    string? auditWarning = AuditUnread(audit) ? SchemaViewText.Audit_DesignerUnreadWarning : null;
+    // while the audit objects are read, there is no script to run without them (code review 2026-10-28)
+    var reading = NewTab is null && _auditRead.Reading;
     var columnProblems = inputProblems.Count > 0 || tablePlan.Problems.Except(tablePlan.ConstraintProblems).Any();
-    var counting = _counting.Count > 0 || _auditCounting.Count > 0;
+    var counting = _counting.Count > 0 || _auditCounting.Count > 0 || reading;
     var usageNotes = UsageNotes(designer);
     var problems = inputProblems.Concat(plan.Problems).ToList();
     var warnings = plan.Warnings.Concat(usageNotes).Concat(auditWarning is null ? [] : [auditWarning]).ToList();
@@ -57,7 +59,7 @@ else
                 <button class="designer-summary" title="@SummaryTitle(problems, warnings)" @onclick="() => designer.Section = DesignerSection.Script">
                     @if (counting)
                     {
-                        <span class="summary-chip"><span class="spinner"></span> @SchemaViewText.Designer_Counting</span>
+                        <span class="summary-chip"><span class="spinner"></span> @(reading ? SchemaViewText.Audit_DesignerReading : SchemaViewText.Designer_Counting)</span>
                     }
                     else if (steps.Count > 0)
                     {
@@ -110,7 +112,7 @@ else
                             <DdlDraftMessages Steps="steps" Problems="problems" Warnings="warnings" Empty="@(counting ? null : SchemaViewText.Designer_NoScript)">
                                 @if (counting)
                                 {
-                                    <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
+                                    <p class="hint small"><span class="spinner"></span> @(reading ? SchemaViewText.Audit_DesignerReading : SchemaViewText.Designer_Counting)</p>
                                 }
                             </DdlDraftMessages>
                             break;
@@ -136,12 +138,7 @@ else
     private readonly HashSet<DataQuestion> _failed = [];
 
     /// <summary>What the schema has of the table's audit objects (WP-26); null while loading or for a new table.</summary>
-    private AuditState? _audit;
-
-    /// <summary>Reading the audit objects failed (connection lost): whether there is an audit table is unknown.</summary>
-    private bool _auditUnread;
-
-    private bool _auditReading; // "Reload" is locked meanwhile
+    private readonly AuditRead _auditRead = new();
 
     // Counts about the existing audit table (its rows: may a new column be NOT NULL?), apart from the table's own.
     private readonly Dictionary<DataQuestion, long> _auditFacts = [];
@@ -276,38 +273,28 @@ else
     /// </summary>
     private async Task LoadAuditAsync(SchemaCache schema, CancellationToken token)
     {
-        _audit = null; // unknown while reading (ColumnDesigner.HasAuditTable)
         _auditFacts.Clear();
         _auditFailed.Clear();
-        if (AuditTemplates.For(Active.Profile).Template is not { } template)
+        var audit = AuditTemplates.For(Active.Profile);
+        if (audit.Template is not { } template)
         {
-            (_audit, _auditUnread) = (AuditState.None, false); // the plan names the broken template
+            _auditRead.WithoutTemplate(); // the plan names the broken template
         }
         else
         {
-            _auditReading = true;
-            try
+            var generation = _auditRead.Begin();
+            var loaded = await Shell.RunDbAsync(Logger, Active, () => AuditLoader.LoadAsync(schema, template.NamesFor(Details.Table.Ref), token), token);
+            // a failed read is not "none": the plan would create an existing audit table; a later read decides (code review 2026-10-28)
+            if (_disposed || !_auditRead.End(generation, loaded.Succeeded, loaded.Value))
             {
-                var loaded = await Shell.RunDbAsync(Logger, Active, () => AuditLoader.LoadAsync(schema, template.NamesFor(Details.Table.Ref), token), token);
-                if (_disposed)
-                {
-                    return;
-                }
-
-                // not "none" when reading failed: the plan would create an existing audit table (code review 2026-10-28)
-                _auditUnread = !loaded.Succeeded;
-                _audit = loaded.Succeeded ? loaded.Value ?? AuditState.None : null;
-            }
-            finally
-            {
-                _auditReading = false;
+                return;
             }
         }
 
-        if (_designer is { } designer)
+        // a choice of the user stays (R5 review); without a template it is decided once read by one
+        if (_designer is { } designer && audit.Template is not null)
         {
-            // a choice of the user stays (R5 review)
-            designer.WithAudit ??= ColumnDesigner.AuditAtStart(StartWithAudit, HasAuditTable, Settings.Current.SyncAuditInDesigner,
+            designer.WithAudit ??= ColumnDesigner.AuditAtStart(StartWithAudit, HasAuditTable(audit), Settings.Current.SyncAuditInDesigner,
                 Settings.Current.CreateAuditTables);
         }
     }
@@ -315,7 +302,7 @@ else
     /// <summary>Reads the audit objects again after reading them failed ("Reload" in the audit tab).</summary>
     private async Task ReloadAuditAsync()
     {
-        if (!_disposed && !_auditReading && Active.Schema is { } schema)
+        if (!_disposed && !_auditRead.Reading && Active.Schema is { } schema)
         {
             await LoadAuditAsync(schema, _cts.Token);
         }
@@ -330,18 +317,22 @@ else
     /// Whether the audit box takes part: always for a table with an audit table, for one without (or a new table) only when
     /// audit tables may be created – a box ticked before the setting was turned off creates nothing.
     /// </summary>
-    private bool CanAudit => ColumnDesigner.CanAudit(HasAuditTable, Settings.Current.CreateAuditTables);
+    private bool CanAudit(AuditTemplateLoad audit) => ColumnDesigner.CanAudit(HasAuditTable(audit), Settings.Current.CreateAuditTables);
 
     /// <summary>The audit box is ticked and takes part (<see cref="ColumnDesigner.AuditTakesPart"/>).</summary>
-    private bool AuditTakesPart(ColumnDesigner designer) => designer.AuditTakesPart(HasAuditTable, Settings.Current.CreateAuditTables);
+    private bool AuditTakesPart(ColumnDesigner designer, AuditTemplateLoad audit) =>
+        designer.AuditTakesPart(HasAuditTable(audit), Settings.Current.CreateAuditTables);
 
-    /// <summary>An existing table whose audit table is there; a new table has none yet; null while reading or when reading failed.</summary>
-    private bool? HasAuditTable => ColumnDesigner.HasAuditTable(NewTab is not null, _audit);
+    /// <summary>An existing table whose audit table is there; a new table has none yet; null while not known (<see cref="ColumnDesigner.HasAuditTable"/>).</summary>
+    private bool? HasAuditTable(AuditTemplateLoad audit) => ColumnDesigner.HasAuditTable(NewTab is not null, audit.Template is null, _auditRead.State);
+
+    /// <summary>The audit objects of an existing table could not be read, or not by the template there is now.</summary>
+    private bool AuditUnread(AuditTemplateLoad audit) => NewTab is null && audit.Template is not null && _auditRead.Unread;
 
     /// <summary>The designer's plan with the audit table and trigger, if the box is on (WP-26): one script, checked as one.</summary>
     private DesignPlan WithAudit(ColumnDesigner designer, TableDraft draft, DesignPlan plan, AuditTemplateLoad audit)
     {
-        if (!AuditTakesPart(designer) || AuditTable is not { } table)
+        if (!AuditTakesPart(designer, audit) || AuditTable is not { } table)
         {
             return plan;
         }
@@ -351,14 +342,14 @@ else
             return new DesignPlan(plan.Steps, [.. plan.Problems, SchemaViewText.Audit_TemplateBroken, .. audit.Errors], plan.Warnings);
         }
 
-        if (NewTab is null && _audit is null)
+        if (NewTab is null && _auditRead.State is null)
         {
             return plan; // still loading what the schema has
         }
 
         var (columns, renamed) = AuditPlanner.After(draft);
         var taken = NewTab is null ? TakenNames : TakenNames.Append(table.Name);
-        var auditPlan = AuditPlanner.Plan(template, table, columns, _audit ?? AuditState.None, new DataFacts(_auditFacts), renamed, taken);
+        var auditPlan = AuditPlanner.Plan(template, table, columns, _auditRead.State ?? AuditState.None, new DataFacts(_auditFacts), renamed, taken);
         return AuditPlanner.Combine(plan, auditPlan);
     }
 
@@ -455,7 +446,7 @@ else
         }
 
         // The existing audit table: its rows decide whether a new column may be NOT NULL (WP-26).
-        if (_designer.WithAudit == true && _audit is { AuditTable: { } auditTable } state && AuditTemplates.For(Active.Profile).Template is { } template)
+        if (_designer.WithAudit == true && _auditRead.State is { AuditTable: { } auditTable } state && AuditTemplates.For(Active.Profile).Template is { } template)
         {
             var (columns, renamed) = AuditPlanner.After(draft);
             var auditMissing = AuditPlanner.Questions(template, Details.Table.Ref, columns, state, renamed)
@@ -779,14 +770,14 @@ else
     </text>;
 
     private RenderFragment AuditTab(ColumnDesigner designer, AuditTemplateLoad audit) => @<div class="designer-audit">
-        <label class="check" title="@(_auditUnread ? SchemaViewText.Audit_DesignerUnread : CanAudit || HasAuditTable is null ? SchemaViewText.Audit_DesignerTitle : AuditStatusSummary.CreateOffHint)">
-            <input type="checkbox" checked="@AuditTakesPart(designer)" disabled="@(!CanAudit)" @onchange="e => designer.WithAudit = e.Value is true" />
-            @(_audit?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
+        <label class="check" title="@(AuditUnread(audit) ? SchemaViewText.Audit_DesignerUnread : CanAudit(audit) || HasAuditTable(audit) is null ? SchemaViewText.Audit_DesignerTitle : AuditStatusSummary.CreateOffHint)">
+            <input type="checkbox" checked="@AuditTakesPart(designer, audit)" disabled="@(!CanAudit(audit))" @onchange="e => designer.WithAudit = e.Value is true" />
+            @(_auditRead.State?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
         </label>
-        @if (_auditUnread)
+        @if (AuditUnread(audit))
         {
             <span class="hint small">@Icons.Warning @SchemaViewText.Audit_DesignerUnread</span>
-            <button type="button" class="link-btn" disabled="@_auditReading" @onclick="ReloadAuditAsync">@CommonText.Reload</button>
+            <button type="button" class="link-btn" disabled="@_auditRead.Reading" @onclick="ReloadAuditAsync">@CommonText.Reload</button>
         }
         else if (audit.Template is { } template && AuditTable is { } auditTable)
         {

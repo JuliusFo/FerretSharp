@@ -894,6 +894,10 @@
     <value>Audit table and trigger could not be read: this script does not bring them up to date.</value>
     <comment>Warning of the table designer (and dot on its audit tab) when reading the audit objects failed; does not block running</comment>
   </data>
+  <data name="Audit_DesignerReading" xml:space="preserve">
+    <value>Reading audit table and trigger …</value>
+    <comment>Table designer while it reads the audit objects; no script meanwhile</comment>
+  </data>
   <data name="Audit_DesignerSync" xml:space="preserve">
     <value>Bring audit table and trigger up to date</value>
     <comment>Checkbox in the table designer when the table has an audit table</comment>

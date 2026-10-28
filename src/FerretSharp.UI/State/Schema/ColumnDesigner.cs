@@ -392,12 +392,15 @@ public sealed class ColumnDesigner
     public static bool CanAudit(bool? hasAuditTable, bool createAllowed) => hasAuditTable is { } has && (has || createAllowed);
 
     /// <summary>
-    /// Whether the table has an audit table, for the rules above: never for a new table; unknown (null) while its audit
-    /// objects are read and after reading them failed – taken as "none" while reading, a box ticked then became the
-    /// user's choice (code review 2026-10-28).
+    /// Whether the table has an audit table, for the rules above: never for a new table, and taken as none while there is
+    /// no template (the plan names the broken one); unknown (null) while its audit objects are read, after reading them
+    /// failed and when a template turned up that they were not read by – taken as "none", the plan created an existing
+    /// audit table, and a box ticked while reading became the user's choice (code review 2026-10-28).
     /// </summary>
-    /// <param name="read">What was read of the audit objects; null while reading or after reading failed.</param>
-    public static bool? HasAuditTable(bool newTable, AuditState? read) => newTable ? false : read is null ? null : read.AuditTable is not null;
+    /// <param name="templateMissing">There is no usable template now (the file is read again when it changes).</param>
+    /// <param name="read">What was read of the audit objects (<see cref="AuditRead.State"/>).</param>
+    public static bool? HasAuditTable(bool newTable, bool templateMissing, AuditState? read) =>
+        newTable || templateMissing ? false : read is null ? null : read.AuditTable is not null;
 
     /// <summary>
     /// Whether the audit objects go into the plan: the box ticked and able to take part (<see cref="CanAudit"/>) – a box

@@ -741,6 +741,9 @@
   <data name="Audit_DesignerUnreadWarning" xml:space="preserve">
     <value>Audit-Tabelle und Trigger konnten nicht gelesen werden: Dieses Skript gleicht sie nicht ab.</value>
   </data>
+  <data name="Audit_DesignerReading" xml:space="preserve">
+    <value>Audit-Tabelle und Trigger werden gelesen …</value>
+  </data>
   <data name="Audit_DesignerSync" xml:space="preserve">
     <value>Audit-Tabelle und Trigger abgleichen</value>
   </data>

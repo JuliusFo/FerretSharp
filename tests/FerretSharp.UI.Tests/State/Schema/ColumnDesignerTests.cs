@@ -515,10 +515,23 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void Whether_there_is_an_audit_table_is_unknown_until_read()
     {
-        Assert.Null(ColumnDesigner.HasAuditTable(newTable: false, read: null));
-        Assert.False(ColumnDesigner.HasAuditTable(newTable: false, AuditState.None));
-        Assert.True(ColumnDesigner.HasAuditTable(newTable: false, new AuditState(Kunde, null)));
-        Assert.False(ColumnDesigner.HasAuditTable(newTable: true, read: null));
+        Assert.Null(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, read: null));
+        Assert.False(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, AuditState.None));
+        Assert.True(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, new AuditState(Kunde, null)));
+        Assert.False(ColumnDesigner.HasAuditTable(newTable: true, templateMissing: false, read: null));
+    }
+
+    /// <summary>
+    /// Code review 2026-10-28: a template broken when the designer opened and readable later – the state taken as "none"
+    /// made the plan create the existing audit table. Without a template the box takes part (the plan names the broken
+    /// template); one that turns up unread leaves it unknown.
+    /// </summary>
+    [Fact]
+    public void A_template_that_turns_up_later_leaves_the_audit_table_unknown()
+    {
+        Assert.False(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: true, read: null));
+        Assert.Null(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, read: null));
+        Assert.True(ColumnDesigner.CanAudit(ColumnDesigner.HasAuditTable(false, templateMissing: true, null), createAllowed: true));
     }
 
     [Fact]
