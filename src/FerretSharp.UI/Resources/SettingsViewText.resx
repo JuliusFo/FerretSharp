@@ -216,7 +216,7 @@
     <comment>A shortcut that cannot be changed</comment>
   </data>
   <data name="Shortcuts_ResetAllQuestion" xml:space="preserve">
-    <value>Reset all shortcuts to the defaults?</value>
+    <value>Reset all shortcuts to the defaults? A connection that has a default key loses it.</value>
   </data>
   <data name="Shortcuts_ResetAll" xml:space="preserve">
     <value>Reset all</value>

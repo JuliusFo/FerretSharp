@@ -228,8 +228,8 @@
     private Task ResetAsync(ShortcutAction action)
     {
         _proposal = null;
-        // Another action has the default meanwhile: ask as when recording it, it would lose it (R4a).
-        if (ShortcutMap.Definition(action).DefaultChord is { } chord && Map.Check(action, chord) is { Conflict: not null } check)
+        // Another action or a connection has the default meanwhile: ask as when recording it, it would lose it (R4a, review of WP-66).
+        if (ShortcutMap.Definition(action).DefaultChord is { } chord && Map.Check(action, chord) is var check && (check.Conflict is not null || check.ConflictConnection is not null))
         {
             _proposal = new Proposal(action, chord, check);
             return Task.CompletedTask;

@@ -181,7 +181,7 @@
     <value>fest</value>
   </data>
   <data name="Shortcuts_ResetAllQuestion" xml:space="preserve">
-    <value>Alle Kürzel auf die Standardbelegung zurücksetzen?</value>
+    <value>Alle Kürzel auf die Standardbelegung zurücksetzen? Eine Verbindung mit einer Standardtaste verliert sie.</value>
   </data>
   <data name="Shortcuts_ResetAll" xml:space="preserve">
     <value>Alle zurücksetzen</value>
