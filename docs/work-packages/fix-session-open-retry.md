@@ -11,7 +11,7 @@ Log des Nutzers (21.–28.10.):
 - Gesundes Öffnen (38 Fälle): Median 0,64 s, p90 1,2 s, Maximum 2,4 s (Prod).
 
 ## Entscheidungen des Nutzers (2026-10-28)
-- Statt fix 5 × 3 s **gestaffelte Grenzen 3, 3, 5, 8, 15 s** (34 s insgesamt): Bei fix 3 s käme eine langsame, aber gesunde Strecke (Prod 2,4 s) nie durch.
+- Statt fix 5 × 3 s **gestaffelte Grenzen 3, 3, 5, 8, 15 s** (34 s insgesamt): Bei fix 3 s käme eine langsame, aber gesunde Strecke (Prod 2,4 s) nie durch. Nach dem Code-Review: Start mit 5 s (5, 5, 8, 10, 15 s, 43 s), siehe Nachtrag.
 - Für **Explorer- und Workspace-Sessions**.
 
 ## Gebaut
@@ -22,3 +22,28 @@ Log des Nutzers (21.–28.10.):
 ## Offen
 - Nicht abgedeckt: Schema-Vergleich (`SchemaCompareLoader`) und „Verbindung testen“ (`OracleConnectionTester`) öffnen weiter mit einem Versuch.
 - Nicht gegen das echte VPN geprüft (der Hänger lässt sich nicht auslösen) – im Log nach dem nächsten Hänger auf „Opening the session (attempt 2 of 5)“ achten.
+
+## Nachtrag: Code-Review (2026-10-28)
+Unabhängiger Reviewer über `e35f6d16..d3fff838`, acht Befunde. Entscheidung des Nutzers: „Behebe alle und mach die Staffelung eventuell als Start mit 5s.“ → Grenzen 5, 5, 8, 10, 15 s (43 s); mit dem Rennen schadet eine längere erste Grenze einer langsamen Strecke nicht mehr und spart Logins.
+
+- 1 (M) Später Login-Fehler wurde wiederholt (Oracle beantwortet Logins nach Fehlversuchen verzögert, jeder Versuch zählte für `FAILED_LOGIN_ATTEMPTS`): behoben. Die Versuche „rennen“ (`SessionOpening.Race`): Ein später Fehler eines früheren Versuchs beendet das Öffnen, außer es ist ein Netzfehler (`ReconnectPolicy.IsNetworkError`, jetzt public). Test.
+- 2 (K) Eine knapp zu spät geöffnete Session wurde weggeworfen: behoben, die erste Session gewinnt, auch die eines Versuchs über seiner Grenze; die übrigen werden geschlossen. Test.
+- 3 (K) Abbruch zwischen Grenze und nächstem Versuch startete noch einen Login: behoben (`ThrowIfCancellationRequested` am Schleifenanfang, `Task.Run` mit dem Token startet nach einem Abbruch nichts mehr; ein Gewinner, der in dem Moment feststeht, wird genommen). Das Fenster selbst ist nicht im Test nachgestellt.
+- 4 (K) Log ordnete die Versuche nicht zu: behoben, `SessionOpenOutcome.Attempt`, `ConnectActivityLog` schreibt „(attempt n)“.
+- 5 (K) Ursache ging verloren (VPN aus: früher ODP.NET-Fehler nach 15 s, dann nur „in 5 Versuchen nicht öffnen“): behoben, der letzte späte Netzfehler steht in der Meldung (`OpenTimedOutWithError`, „Zuletzt: …“). Länger dauert es weiterhin (43 s statt 15 s), wenn das Ziel stumm bleibt.
+- 6 (K, Verdacht) Ein Connector, der vor der Rückgabe blockiert, hebelte die Grenze aus: im Log nie beobachtet (0 von 58 Öffnungen blockierend), trotzdem abgesichert – jeder Versuch startet per `Task.Run`. Test mit einem blockierenden Versuch.
+- 7 (K) Testlücken: ergänzt – Abbrechen in Versuch 2 (`ActiveConnectionTests`), Trennen während eine Workspace-Session öffnet (`WorkspaceManagerTests`), später ORA-01017 und später Netzfehler (`SessionOpeningTests`). `CountingTimeProvider` liegt jetzt in `tests/Shared` (vorspulen erst, wenn der Timer des Versuchs steht).
+- 8 (K) Doku: Schema-Vergleich und „Verbindung testen“ in `docs/backlog.md`, Hinweis in der Indexzeile von small-auto-reconnect.
+- Vorher schon da: Der Task, der eine späte Session schließt, wurde verworfen (Fehler beim Schließen unbeobachtet) – mit dem Rennen behoben (`Race.CloseAsync` fängt). Eine Treiber-`OperationCanceledException` ohne Abbruch zeigt still „getrennt“ – in den Backlog.
+- Falle beim Testen: Eine Auto-Property eines NSubstitute-Fakes (`session.Data`), die Test- und Pool-Thread zugleich zum ersten Mal lesen, liefert zwei verschiedene Instanzen – im Test vorher fest setzen.
+
+Zweiter Durchgang des Reviewers über die Fixes, vier neue Befunde; Entscheidung des Nutzers: „Alle (A–C2)“.
+- A (K) Eine Session, die genau beim Ende des Wartens (Grenze oder Abbruch) gewann, blieb offen (`Pooling=false`: echte Oracle-Session bis zum Ende der App); ein Fehler dort blieb unbeobachtet: behoben, `Race.End(taken)` schließt bzw. beobachtet. Test direkt am `Race` (jetzt `internal`).
+- B (K, Designfrage) Ein schneller Netzfehler des jüngsten Versuchs beendete das Öffnen, obwohl ein früherer noch lief: behoben, er beendet erst, wenn kein Versuch mehr läuft (dann mit seinem Fehler); Nicht-Netzfehler beenden weiter sofort. Zwei Tests.
+- C1 (K) Der Test der Staffelung hätte eine zu kurze dritte Grenze übersehen: prüft jetzt die Fristen der Timer (`CountingTimeProvider.DueTimes`).
+- C2 (K) Der Test mit blockierendem Versuch hätte bei einem Rückfall den Lauf blockiert: läuft per `Task.Run`, wartet höchstens 10 s, gibt im `finally` frei.
+
+Dritter Durchgang, ein neuer Befund; Entscheidung des Nutzers: „Ja, D beheben“.
+- D (K) Seit B startete die abgelaufene Grenze eines schon gescheiterten jüngsten Versuchs doch den nächsten („Versuch 3 von 5“, während Versuch 1 noch hing) – gegen „kein neuer Versuch nach einem Fehler“: behoben, `Race.PastLimit()` meldet den Fehler, dann wartet `OpenAsync` nur noch auf die früheren Versuche (höchstens so lange, wie die übrigen Grenzen gedauert hätten). Zwei Tests.
+
+Vierter Durchgang über D: ohne Befund. Offen als UX-Frage: Während nur noch auf frühere Versuche gewartet wird, bleibt „Öffne die Session (Versuch 2 von 5)“ stehen (im Extremfall bis zu 33 s) – inhaltlich richtig, ein eigener Hinweis nur, falls es stört.
