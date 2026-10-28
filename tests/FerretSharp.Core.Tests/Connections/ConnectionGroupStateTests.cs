@@ -131,4 +131,40 @@ public sealed class ConnectionGroupStateTests : IDisposable
         Assert.False(await state.SetCollapsedAsync("ERP", true, Ct));
         Assert.True(state.IsCollapsed("ERP"));
     }
+
+    /// <summary>Review of WP-66: two quick clicks each started from the old state, and the second undid the first.</summary>
+    [Fact]
+    public async Task Quick_changes_one_after_another_all_count()
+    {
+        var state = await LoadedAsync();
+
+        await Task.WhenAll(
+            state.ToggleCollapsedAsync("A", Ct),
+            state.ToggleCollapsedAsync("B", Ct),
+            state.SetOrderAsync(order => [.. order, "A"], Ct),
+            state.SetOrderAsync(order => [.. order, "B"], Ct));
+
+        var loaded = await LoadedAsync();
+        Assert.True(loaded.IsCollapsed("A"));
+        Assert.True(loaded.IsCollapsed("B"));
+        Assert.Equal(["A", "B"], loaded.Order);
+    }
+
+    /// <summary>Review of WP-66: a new group of a name an old one had came up collapsed, and the moved connection was hidden.</summary>
+    [Fact]
+    public async Task A_new_name_drops_what_an_earlier_group_of_it_left()
+    {
+        var state = await LoadedAsync();
+        await state.SetOrderAsync(["X", "A"], Ct);
+        await state.SetCollapsedAsync("X", true, Ct);
+
+        await state.RenameAsync("A", "x", merges: false, Ct);
+
+        Assert.Equal(["x"], state.Order); // the place of A
+        Assert.False(state.IsCollapsed("x"));
+
+        await state.SetCollapsedAsync("Y", true, Ct);
+        await state.ForgetAsync("y", Ct);
+        Assert.False(state.IsCollapsed("Y"));
+    }
 }

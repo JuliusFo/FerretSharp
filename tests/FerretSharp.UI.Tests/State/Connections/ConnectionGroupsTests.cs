@@ -134,4 +134,48 @@ public sealed class ConnectionGroupsTests : IAsyncDisposable
         _folder.Dispose();
         await _app.DisposeAsync();
     }
+
+    /// <summary>Review of WP-66: a connection moved into a group of a name an earlier, collapsed group had was hidden.</summary>
+    [Fact]
+    public async Task A_connection_moved_into_a_new_group_is_seen()
+    {
+        await SaveAllAsync();
+        await Groups.ToggleAsync("Zoll");
+        await Groups.MoveConnectionAsync(Zoll, "Kasse"); // Zoll has no connection now, its entry stays
+
+        await Groups.MoveConnectionAsync(Loose, "zoll");
+
+        Assert.False(Groups.IsCollapsed("zoll"));
+    }
+
+    /// <summary>Review of WP-66: the profile of an open menu may be older than the saved one, or deleted meanwhile.</summary>
+    [Fact]
+    public async Task Moving_saves_the_current_profile_and_never_brings_back_a_deleted_one()
+    {
+        await SaveAllAsync();
+        await _app.Connections.SaveAsync(Kasse with { ScriptFolder = @"C:\scripts" }, null, Ct);
+
+        await Groups.MoveConnectionAsync(Kasse, "ERP"); // the menu's older profile
+
+        Assert.Equal(@"C:\scripts", _app.Connections.Profiles.Single(p => p.Id == Kasse.Id).ScriptFolder);
+
+        await _app.Connections.DeleteAsync(Zoll.Id, Ct);
+        await Groups.MoveConnectionAsync(Zoll, "ERP");
+
+        Assert.DoesNotContain(_app.Connections.Profiles, p => p.Id == Zoll.Id);
+    }
+
+    /// <summary>Review of WP-66: a connections file missing for a moment lists none – that is no reason to drop every key.</summary>
+    [Fact]
+    public async Task Keys_stay_while_no_connection_is_listed()
+    {
+        await SaveAllAsync();
+        await _app.Shortcuts.SetConnectionAsync(Kasse.Id, KeyChord.Parse("alt+1"));
+
+        await _app.Connections.LoadAsync(Ct); // the store of the test app has no file: no connections, no load error
+        Assert.Empty(_app.Connections.Profiles);
+
+        await Task.Delay(50, Ct);
+        Assert.True(_app.Settings.Current.ConnectionShortcuts.ContainsKey(Kasse.Id.ToString()));
+    }
 }

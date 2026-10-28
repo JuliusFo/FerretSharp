@@ -54,11 +54,13 @@ public sealed class ConnectionGroupState(string filePath)
 
     /// <returns>False if the file could not be written: the change applies all the same, until quitting (as work clones).</returns>
     public Task<bool> SetCollapsedAsync(string? group, bool collapsed, CancellationToken cancellationToken) =>
+        UpdateAsync(state => state with { Collapsed = Collapse(state.Collapsed, group, collapsed) }, cancellationToken);
+
+    /// <summary>Collapses an open group or opens a collapsed one, decided on the state when it is its turn.</summary>
+    /// <inheritdoc cref="SetCollapsedAsync" path="/returns"/>
+    public Task<bool> ToggleCollapsedAsync(string? group, CancellationToken cancellationToken) =>
         UpdateAsync(
-            _order,
-            collapsed
-                ? [.. _collapsed.Where(c => !SameKey(c, Key(group))), Key(group)]
-                : [.. _collapsed.Where(c => !SameKey(c, Key(group)))],
+            state => state with { Collapsed = Collapse(state.Collapsed, group, !state.Collapsed.Any(c => SameKey(c, Key(group)))) },
             cancellationToken);
 
     /// <summary>
@@ -67,9 +69,19 @@ public sealed class ConnectionGroupState(string filePath)
     /// </summary>
     /// <inheritdoc cref="SetCollapsedAsync" path="/returns"/>
     public Task<bool> SetOrderAsync(IReadOnlyList<string> order, CancellationToken cancellationToken) =>
+        SetOrderAsync(_ => order, cancellationToken);
+
+    /// <summary>
+    /// The order <paramref name="reorder"/> makes of the current one, worked out when it is its turn: a move right after
+    /// another starts from where that one put the groups (review of WP-66).
+    /// </summary>
+    /// <inheritdoc cref="SetCollapsedAsync" path="/returns"/>
+    public Task<bool> SetOrderAsync(Func<IReadOnlyList<string>, IReadOnlyList<string>> reorder, CancellationToken cancellationToken) =>
         UpdateAsync(
-            [.. order.Select(ConnectionSearch.NormalizeGroup).OfType<string>().Distinct(ConnectionSearch.GroupNameComparer)],
-            _collapsed,
+            state => state with
+            {
+                Order = [.. reorder(state.Order).Select(ConnectionSearch.NormalizeGroup).OfType<string>().Distinct(ConnectionSearch.GroupNameComparer)],
+            },
             cancellationToken);
 
     /// <summary>
@@ -97,7 +109,8 @@ public sealed class ConnectionGroupState(string filePath)
 
     /// <summary>
     /// A group was renamed (<see cref="ConnectionGroupRename"/>): the new name takes its place and whether it is collapsed.
-    /// Merged into a group that exists, the target keeps its place and is expanded – the moved connections are seen.
+    /// Merged into a group that exists, the target keeps its place and is expanded – the moved connections are seen. What
+    /// a group of the new name without connections left behind is dropped (review of WP-66).
     /// </summary>
     /// <inheritdoc cref="SetCollapsedAsync" path="/returns"/>
     public Task<bool> RenameAsync(string from, string to, bool merges, CancellationToken cancellationToken)
@@ -106,38 +119,63 @@ public sealed class ConnectionGroupState(string filePath)
         if (merges)
         {
             return UpdateAsync(
-                [.. _order.Where(o => !ConnectionSearch.SameGroup(o, from))],
-                [.. _collapsed.Where(c => !ConnectionSearch.SameGroup(c, from) && !ConnectionSearch.SameGroup(c, target))],
+                state => new GroupState(
+                    [.. state.Order.Where(o => !ConnectionSearch.SameGroup(o, from))],
+                    [.. state.Collapsed.Where(c => !ConnectionSearch.SameGroup(c, from) && !ConnectionSearch.SameGroup(c, target))]),
                 cancellationToken);
         }
 
+        var renamesOnly = ConnectionSearch.SameGroup(from, target); // a new spelling: its own entries are the target's
         return UpdateAsync(
-            [.. _order.Select(o => ConnectionSearch.SameGroup(o, from) ? target : o)],
-            [.. _collapsed.Select(c => ConnectionSearch.SameGroup(c, from) ? target : c)],
+            state => new GroupState(
+                [.. state.Order.Where(o => renamesOnly || !ConnectionSearch.SameGroup(o, target)).Select(o => ConnectionSearch.SameGroup(o, from) ? target : o)],
+                [.. state.Collapsed.Where(c => renamesOnly || !ConnectionSearch.SameGroup(c, target)).Select(c => ConnectionSearch.SameGroup(c, from) ? target : c)]),
             cancellationToken);
     }
 
-    private async Task<bool> UpdateAsync(IReadOnlyList<string> order, IReadOnlyList<string> collapsed, CancellationToken cancellationToken)
+    /// <summary>
+    /// A group starts out (a connection moved into a name no connection had, review of WP-66): a place or a collapsed
+    /// entry left by an earlier group of that name is dropped, else the moved connection disappeared into a collapsed group.
+    /// </summary>
+    /// <inheritdoc cref="SetCollapsedAsync" path="/returns"/>
+    public Task<bool> ForgetAsync(string group, CancellationToken cancellationToken) =>
+        _order.Any(o => ConnectionSearch.SameGroup(o, group)) || _collapsed.Any(c => ConnectionSearch.SameGroup(c, group))
+            ? UpdateAsync(
+                state => new GroupState(
+                    [.. state.Order.Where(o => !ConnectionSearch.SameGroup(o, group))],
+                    [.. state.Collapsed.Where(c => !ConnectionSearch.SameGroup(c, group))]),
+                cancellationToken)
+            : Task.FromResult(true);
+
+    private static IReadOnlyList<string> Collapse(IReadOnlyList<string> collapsed, string? group, bool collapse) =>
+        collapse
+            ? [.. collapsed.Where(c => !SameKey(c, Key(group))), Key(group)]
+            : [.. collapsed.Where(c => !SameKey(c, Key(group)))];
+
+    /// <summary>
+    /// Works out the new state from the current one inside the gate and keeps it before writing (review of WP-66: two
+    /// quick clicks each started from the old state, and the second undid the first).
+    /// </summary>
+    private async Task<bool> UpdateAsync(Func<GroupState, GroupState> change, CancellationToken cancellationToken)
     {
         bool saved;
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            var next = change(new GroupState(_order, _collapsed));
+            (_order, _collapsed) = (next.Order, next.Collapsed);
             saved = true;
             if (!_keepFile)
             {
                 try
                 {
-                    await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, order, collapsed), JsonFiles.Options, cancellationToken);
+                    await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, next.Order, next.Collapsed), JsonFiles.Options, cancellationToken);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     saved = false;
                 }
             }
-
-            _order = order;
-            _collapsed = collapsed;
         }
         finally
         {
@@ -147,6 +185,8 @@ public sealed class ConnectionGroupState(string filePath)
         Changed?.Invoke();
         return saved;
     }
+
+    private sealed record GroupState(IReadOnlyList<string> Order, IReadOnlyList<string> Collapsed);
 
     /// <summary>The entry of a group in <see cref="Document.Collapsed"/>: its name as the lists show it, "" for none.</summary>
     private static string Key(string? group) => ConnectionSearch.NormalizeGroup(group) ?? "";

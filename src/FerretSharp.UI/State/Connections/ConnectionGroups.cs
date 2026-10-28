@@ -42,16 +42,16 @@ public sealed class ConnectionGroups : IDisposable
     public IReadOnlyList<ConnectionGroup> All(string? query = null) => Of(_connections.Profiles, query);
 
     /// <summary>The named groups in the order shown, for chips and moving.</summary>
-    public IReadOnlyList<string> Names => [.. All().Select(g => g.Name).OfType<string>()];
+    public IReadOnlyList<string> Names => NamesIn(_state.Order);
 
     /// <summary>Whether the group is collapsed; null for connections without a group. A search shows all groups open.</summary>
     public bool IsCollapsed(string? group) => _state.IsCollapsed(group);
 
     /// <returns>False if the state could not be saved (it applies until quitting).</returns>
-    public Task<bool> ToggleAsync(string? group) => _state.SetCollapsedAsync(group, !_state.IsCollapsed(group), CancellationToken.None);
+    public Task<bool> ToggleAsync(string? group) => _state.ToggleCollapsedAsync(group, CancellationToken.None);
 
     /// <summary>The group the one moves before with "up"; null if it is first (or no named group).</summary>
-    public string? Previous(string group) => Names.TakeWhile(n => !ConnectionSearch.SameGroup(n, group)).LastOrDefault();
+    public string? Previous(string group) => Previous(Names, group);
 
     /// <summary>Whether "down" can move the group: a named group follows it.</summary>
     public bool HasNext(string group) => Names.SkipWhile(n => !ConnectionSearch.SameGroup(n, group)).Skip(1).Any();
@@ -59,18 +59,31 @@ public sealed class ConnectionGroups : IDisposable
     /// <summary>Moves the group before <paramref name="before"/>; null: after all named groups.</summary>
     /// <inheritdoc cref="ToggleAsync" path="/returns"/>
     public Task<bool> MoveAsync(string group, string? before) =>
-        _state.SetOrderAsync(ConnectionGroupState.Move(Names, group, before), CancellationToken.None);
+        _state.SetOrderAsync(order => ConnectionGroupState.Move(NamesIn(order), group, before), CancellationToken.None);
 
+    /// <summary>Worked out on the order when it is its turn, like the other moves (review of WP-66).</summary>
     /// <inheritdoc cref="ToggleAsync" path="/returns"/>
     public Task<bool> MoveUpAsync(string group) =>
-        Previous(group) is { } previous ? MoveAsync(group, previous) : Task.FromResult(true);
+        _state.SetOrderAsync(
+            order => NamesIn(order) is var names && Previous(names, group) is { } previous ? ConnectionGroupState.Move(names, group, previous) : order,
+            CancellationToken.None);
 
-    /// <inheritdoc cref="ToggleAsync" path="/returns"/>
-    public Task<bool> MoveDownAsync(string group)
-    {
-        var after = Names.SkipWhile(n => !ConnectionSearch.SameGroup(n, group)).Skip(2).FirstOrDefault();
-        return HasNext(group) ? MoveAsync(group, after) : Task.FromResult(true);
-    }
+    /// <inheritdoc cref="MoveUpAsync"/>
+    public Task<bool> MoveDownAsync(string group) =>
+        _state.SetOrderAsync(
+            order =>
+            {
+                var names = NamesIn(order);
+                var after = names.SkipWhile(n => !ConnectionSearch.SameGroup(n, group)).Skip(1).ToList();
+                return after.Count == 0 ? order : ConnectionGroupState.Move(names, group, after.Skip(1).FirstOrDefault());
+            },
+            CancellationToken.None);
+
+    private IReadOnlyList<string> NamesIn(IReadOnlyList<string> order) =>
+        [.. ConnectionSearch.Group(_connections.Profiles, order: order).Select(g => g.Name).OfType<string>()];
+
+    private static string? Previous(IReadOnlyList<string> names, string group) =>
+        names.TakeWhile(n => !ConnectionSearch.SameGroup(n, group)).LastOrDefault();
 
     /// <summary>What renaming <paramref name="from"/> to <paramref name="to"/> would do; null for a name that is no group name.</summary>
     public ConnectionGroupRename? PlanRename(string from, string to) =>
@@ -114,14 +127,26 @@ public sealed class ConnectionGroups : IDisposable
         return notSaved;
     }
 
-    /// <summary>Puts the connection into the group (null or blank: none); nothing is written if it is there already.</summary>
+    /// <summary>
+    /// Puts the connection into the group (null or blank: none); nothing is written if it is there already or the connection
+    /// is gone. The saved profile is read again by id: the one of an open menu may be older than a save in the background
+    /// (review of WP-66). A group no connection had starts expanded and without a place an earlier group of its name left.
+    /// </summary>
     /// <exception cref="IOException">The connections could not be saved.</exception>
-    public Task MoveConnectionAsync(ConnectionProfile profile, string? group)
+    public async Task MoveConnectionAsync(ConnectionProfile profile, string? group)
     {
         var target = ConnectionSearch.NormalizeGroup(group);
-        return profile.Group == target
-            ? Task.CompletedTask
-            : _connections.SaveAsync(profile with { Group = target }, null, CancellationToken.None);
+        if (_connections.Profiles.FirstOrDefault(p => p.Id == profile.Id) is not { } saved || saved.Group == target)
+        {
+            return;
+        }
+
+        var isNew = target is not null && !_connections.Profiles.Any(p => ConnectionSearch.SameGroup(p.Group, target));
+        await _connections.SaveAsync(saved with { Group = target }, null, CancellationToken.None);
+        if (isNew)
+        {
+            await _state.ForgetAsync(target!, CancellationToken.None);
+        }
     }
 
     private void OnStateChanged() => Changed?.Invoke();
@@ -129,9 +154,11 @@ public sealed class ConnectionGroups : IDisposable
     /// <summary>A deleted connection's key would stay in the settings: dropped when the list no longer has it.</summary>
     private void OnConnectionsChanged()
     {
-        if (_connections.LoadError is not null)
+        // An unreadable file lists no connections – that does not mean all were deleted. Neither does a missing one (moved
+        // away by a sync for a moment, review of WP-66): with no connection left, the keys stay until there is one again.
+        if (_connections.LoadError is not null || _connections.Profiles.Count == 0)
         {
-            return; // an unreadable file lists no connections – that does not mean all were deleted
+            return;
         }
 
         _ = ForgetDeletedKeysAsync(_connections.Profiles.Select(p => p.Id).ToHashSet());
