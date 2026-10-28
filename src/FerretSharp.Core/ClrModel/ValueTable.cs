@@ -115,7 +115,10 @@ public sealed class ValueTable
             return trimmed;
         }
 
-        return ValueInput.TryParseNumber(trimmed, out var number) ? number.ToString("G29", CultureInfo.InvariantCulture) : null;
+        // Without trailing zeros and without an exponent ("G29" writes 0.0000001 as 1E-07, which the filter takes as no number).
+        return ValueInput.TryParseNumber(trimmed, out var number)
+            ? number.ToString("0.############################", CultureInfo.InvariantCulture)
+            : null;
     }
 
     /// <summary>The option of a raw database value (to preselect it in the cell editor); null without a member.</summary>

@@ -66,6 +66,8 @@ public sealed class ValueTableTests
     [InlineData("x", null)]
     [InlineData("1.000", "1")]
     [InlineData("  ", null)]
+    [InlineData("0.0000001", "0.0000001")] // no exponent: the filter takes no "1E-07"
+    [InlineData("0,0000001", "0.0000001")]
     public void Typed_values_of_a_number_column_are_normalized_member_or_not(string text, string? expected) =>
         Assert.Equal(expected, ValueTable.For(Kundenart, Number2)!.TypedValue(text));
 
