@@ -784,21 +784,21 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .fs-desc.missing { color: var(--danger); font-style: italic; }
 .fs-badge.display { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green-text); }
 
-/* editing (v2): pending = only in the tab, flushed = written in the transaction, not committed */
-.ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); box-shadow: inset 2px 0 0 var(--pending); }
-.ag-cell.fs-flushed { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
-.ag-row.fs-row-deleted .ag-cell { text-decoration: line-through; color: var(--danger); background: var(--danger-weak); }
-.ag-row.fs-row-new .ag-cell { background: color-mix(in srgb, var(--green) 12%, transparent); }
-.ag-row.fs-row-new .ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
 /* Audit tables (WP-63): what a row changed against the version before, and the rows of an insert or a delete – quieter
-   than the own edits above, which win where both apply. */
+   than the own edits below, which win where both apply: same weight, declared later (review 3.54.0, A23: the row tint
+   weighed more and hid pending values and marks). */
 .ag-row.fs-audit-insert .ag-cell { background: color-mix(in srgb, var(--green) 7%, transparent); }
 .ag-row.fs-audit-delete .ag-cell { background: color-mix(in srgb, var(--danger) 7%, transparent); }
 .ag-cell.fs-audit-changed { background: color-mix(in srgb, var(--audit-change) 18%, transparent); }
-.ag-cell.fs-audit-changed.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
-.ag-cell.fs-audit-changed.fs-flushed { background: color-mix(in srgb, var(--accent) 16%, transparent); }
-/* Marked cells and columns (WP-58), over the edit states: the outline as an overlay, the edit marker (box-shadow) stays. */
-.ag-cell.fs-range { background: var(--grid-range); }
+/* editing (v2): pending = only in the tab, flushed = written in the transaction, not committed */
+.ag-row .ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); box-shadow: inset 2px 0 0 var(--pending); }
+.ag-row .ag-cell.fs-flushed { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.ag-row.fs-row-deleted .ag-cell { text-decoration: line-through; color: var(--danger); background: var(--danger-weak); }
+.ag-row.fs-row-new .ag-cell { background: color-mix(in srgb, var(--green) 12%, transparent); }
+.ag-row.fs-row-new .ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
+/* Marked cells and columns (WP-58), over every row and cell state above – hence the row class twice: the outline as an
+   overlay, the edit marker (box-shadow) stays. */
+.ag-row.ag-row .ag-cell.fs-range { background: var(--grid-range); }
 .ag-cell.fs-range::after { content: ""; position: absolute; inset: 0; pointer-events: none; border: 0 solid var(--grid-range-border); }
 .ag-cell.fs-range-top::after { border-top-width: 2px; }
 .ag-cell.fs-range-bottom::after { border-bottom-width: 2px; }

@@ -177,6 +177,12 @@
     [Parameter]
     public bool Shown { get; set; }
 
+    /// <summary>
+    /// Mounted once opened, it rendered its whole SVG on every change of the shell – each typed cell in another tab – also
+    /// hidden (review 3.54.0, A24; as <c>UsageView</c>, review 3.44.0, A35). Shown again, its parameters render it.
+    /// </summary>
+    protected override bool ShouldRender() => Shown;
+
     private DomModule Dom => _dom ??= new(JS);
 
     private string FocusId => _id + "-focus";

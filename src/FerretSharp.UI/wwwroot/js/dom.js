@@ -120,6 +120,16 @@ export function menuKeys(id, top) {
 }
 
 /**
+ * ↑ ↓ in a list's search field move the list's highlight (.NET handles the key), not the caret to the start or end of the
+ * text (review 3.54.0, A25). Bound to the popover; the listener goes with it.
+ */
+export function arrowsMoveList(id) {
+  document.getElementById(id)?.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') e.preventDefault();
+  });
+}
+
+/**
  * Drags the left edge of a side panel (the form beside the grid, WP-21) while the pointer is down: the width follows
  * the pointer, between min and maxFraction of the parent. Resolves with the final width when the pointer is released.
  */

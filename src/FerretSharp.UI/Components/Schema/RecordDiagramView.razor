@@ -246,6 +246,9 @@
     /// <summary>The tab is what the user sees now; a restored tab mounts hidden, and scrolling it does nothing then.</summary>
     private bool Shown => ReferenceEquals(Shell.ActiveTab, Tab) && Shell.Page == ShellPage.Explorer;
 
+    /// <summary>Hidden, it rendered its whole diagram on every change of the shell (review 3.54.0, A24); shown again, the shell renders it.</summary>
+    protected override bool ShouldRender() => Shown;
+
     private DomModule Dom => _dom ??= new(JS);
 
     private string FocusId => _id + "-focus";
