@@ -70,7 +70,12 @@ Teil A bis D des Gesamt-Reviews (`docs/review-3.54.0.md`) in **einem** Paket und
 - **D13, D14:** NSubstitute-Falle und `Wait.UntilAsync` in `tests.md`; 27 resx-Kommentare für Platzhalter.
 
 ## E2E
-(folgt)
+Eigene Instanz mit `--data-dir` im Scratch, eigener Container `ferret-e2e-r8` (Beispiel-DB per `New-SampleDb.ps1 -Name`), zwei Verbindungen „E2E Test“ und „E2E Dev“ in einer Gruppe; Mausaktionen als echte Windows-Eingabe (`SendInput`), gelesen per CDP. Log ohne Warnung und Fehler.
+- **C12 Zellmarkierung:** Ziehen mit der echten Maus über 4 Zeilen × 3 Spalten markiert 12 Zellen, keine Zeile wird ausgewählt, Zellen außerhalb ohne Fläche.
+- **A23:** in einer zum Löschen vorgemerkten Zeile hat die Markierung dieselbe Fläche wie in einer normalen Zeile.
+- **B3/B4 Beziehungsdiagramm:** vier Knoten, vier deklarierte Kanten, Zoom 100 → 90 → 100 % mit mitwachsender Fläche, Tiefe 1 und 2. Echter Rechtsklick auf einen Knoten öffnet das Menü über `ContextMenuHost` (pointerdown/mousedown/contextmenu je einmal), der Fokus liegt auf dem ersten Eintrag, Pfeil runter springt über die gesperrten.
+- **A1/C3 „Alle trennen“** im Gruppenmenü (echter Rechtsklick auf den Gruppenkopf): eine einzige Rückfrage für die Gruppe, sie nennt den Workspace mit der ausstehenden Löschung; „Verwerfen“ trennt beide Verbindungen, die Statusleiste zeigt „Nicht verbunden“.
+- Nicht mit echter Eingabe geprüft (Rest von C12, Backlog): Markierung über den Fensterrand, Filterzeilen ziehen, Breite von Formular/Änderungsübersicht (A27), Spaltenwahl Klick/Ctrl/Shift, Sortierköpfe, `ValuePicker`, Datensatzdiagramm, Kopie in eine andere Verbindung mit Fortschritt (A2).
 
 ## Zweites Review
 (folgt)
