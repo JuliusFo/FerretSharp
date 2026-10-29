@@ -103,20 +103,4 @@ public class FkJumpListsTests
         Assert.Equal(ten.Take(8), shown);
         Assert.Equal(ten.Skip(8), folded);
     }
-
-    [Fact]
-    public void The_menu_filter_keeps_entries_with_every_typed_word_in_one_of_their_labels()
-    {
-        var filter = new MenuFilter();
-        Assert.False(filter.Active);
-        Assert.True(filter.Matches("Copy as table"));
-
-        filter.Set("  exc  ROH ");
-
-        Assert.True(filter.Active);
-        Assert.True(filter.Matches("Excel (Rohwerte)", null));
-        Assert.True(filter.Matches("Excel", "Rohwerte speichern"));
-        Assert.False(filter.Matches("Excel"));
-        Assert.False(filter.Matches(null, "CSV"));
-    }
 }

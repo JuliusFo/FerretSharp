@@ -332,9 +332,8 @@
 
     private static string RowsText(long rows) => ExportActions.RowsText(rows);
 
-    /// <summary>A heading stays while the filter matches it or one of its lines (null: a line not offered).</summary>
-    private bool Matches(string group, params string?[] lines) =>
-        !_filter.Active || _filter.Matches(group) || lines.Any(line => line is not null && _filter.Matches(line));
+    /// <summary>A heading stays while one of its lines does (null: a line not offered).</summary>
+    private bool Matches(string group, params string?[] lines) => _filter.KeepsHeading(group, lines);
 
     private Task CopyObjectsAsync() => Export.CopyAsync(CSharpRows.Initializers(_presentation, Request.Selected), ExportCopy.CSharpObjects);
 

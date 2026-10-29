@@ -156,9 +156,14 @@ else if (MissingRows > 0 && !Filtering)
         }
     }
 
-    /// <summary>The filter matches the jump's table (as labeled, with the C# entity), its key's columns or its constraint.</summary>
+    /// <summary>
+    /// The filter matches the jump's table (as labeled, with the C# entity), its key's columns or its constraint – the table's
+    /// name also as the palette finds it, underscores left out (review 3.54.0, A8).
+    /// </summary>
     private bool Shown(FkJump jump) =>
-        Filter?.Matches(FkTargets.Label(Active, jump.Table), jump.Table.Name, string.Join(" ", jump.RowColumns), jump.ForeignKey.Name) != false;
+        Filter is null
+        || Filter.Matches(FkTargets.Label(Active, jump.Table), jump.Table.Name, string.Join(" ", jump.RowColumns), jump.ForeignKey.Name)
+        || Filter.MatchesName(jump.Table.Name);
 
     protected override void OnInitialized()
     {
