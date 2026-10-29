@@ -132,3 +132,11 @@ public static class IndexAdvice
         return leading.All(c => !c.IsExpression) && leading.Select(c => c.Name).ToHashSet(StringComparer.Ordinal).SetEquals(columns);
     }
 }
+
+/// <summary>Names a table's new or renamed constraints and indexes cannot take (<see cref="ISchemaReader.GetNamesElsewhereAsync"/>).</summary>
+/// <param name="Constraints">Constraints of the owner's other tables (named by a user).</param>
+/// <param name="Objects">The owner's objects – tables, views, sequences, indexes of other tables …: an index shares their namespace.</param>
+public sealed record SchemaNames(IReadOnlySet<string> Constraints, IReadOnlySet<string> Objects)
+{
+    public static readonly SchemaNames None = new(new HashSet<string>(), new HashSet<string>());
+}

@@ -243,4 +243,12 @@
     <value>{0}: scale {1} does not fit NUMBER, which takes {2} to {3}.</value>
     <comment>{0}: column name; {1}: the scale typed; {2}, {3}: smallest and largest scale</comment>
   </data>
+  <data name="ConstraintNameTakenInSchema" xml:space="preserve">
+    <value>Another table of the schema already has a constraint named {0} (ORA-02264).</value>
+    <comment>{0}: constraint name</comment>
+  </data>
+  <data name="IndexNameTakenInSchema" xml:space="preserve">
+    <value>Another object of the schema is already named {0} (ORA-00955).</value>
+    <comment>{0}: index name</comment>
+  </data>
 </root>

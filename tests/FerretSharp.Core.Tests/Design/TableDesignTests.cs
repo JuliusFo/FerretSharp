@@ -721,6 +721,25 @@ public class TableDesignTests
             PlanEdits(Edited(new ConstraintEdit("PK_KUNDE", "IX_KUNDE")), indexes: [UniqueIndex("PK_KUNDE", "ID"), UniqueIndex("IX_KUNDE", "NAME")]).Problems);
     }
 
+    /// <summary>
+    /// Review 3.54.0, A14: names were checked against the table only – the plan looked fine and stopped with ORA-02264 or
+    /// ORA-00955 after the drops of its first stage had run.
+    /// </summary>
+    [Fact]
+    public void A_name_another_table_of_the_schema_holds_is_refused()
+    {
+        var elsewhere = new SchemaNames(new HashSet<string> { "UK_LAND", "FK_ANDERS" }, new HashSet<string> { "IX_LAND", "LAENDER" });
+        DesignPlan Plan(TableDraft draft) =>
+            TableDesign.Plan(new DesignContext(Kunde, [PkKunde, CkUmsatz, FkLand], [UniqueIndex("PK_KUNDE", "ID")], []) { Elsewhere = elsewhere }, draft, DataFacts.None);
+
+        Assert.Equal(["Eine andere Tabelle des Schemas hat schon einen Constraint UK_LAND (ORA-02264)."],
+            Plan(Edited(new ConstraintEdit("CK_UMSATZ", "UK_LAND", "UMSATZ >= 0"))).Problems);
+        Assert.Equal(["Ein anderes Objekt des Schemas heißt schon LAENDER (ORA-00955)."],
+            Plan(Edited(new ConstraintEdit("PK_KUNDE", "LAENDER"))).Problems);
+        Assert.Contains("Eine andere Tabelle des Schemas hat schon einen Constraint FK_ANDERS (ORA-02264).",
+            Plan(Draft() with { AddedConstraints = [new ConstraintDraft("FK_ANDERS", ConstraintType.Unique, ["NAME"])] }).Problems);
+    }
+
     [Fact]
     public void A_renamed_check_or_foreign_key_keeps_its_definition()
     {

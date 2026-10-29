@@ -23,7 +23,7 @@
 else
 {
     var (draft, inputProblems) = designer.ToDraft();
-    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = designer.Referenced };
+    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = designer.Referenced, Elsewhere = _elsewhere };
     var plan = NewTab is { } created
         ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames)
         : TableDesign.Plan(context, draft, new DataFacts(_facts));
@@ -132,6 +132,7 @@ else
     private IReadOnlyList<ConstraintInfo> _constraints = [];
     private IReadOnlyList<IndexInfo> _indexes = [];
     private IReadOnlyList<ForeignKeyInfo> _incoming = [];
+    private SchemaNames _elsewhere = SchemaNames.None;
 
     private readonly Dictionary<DataQuestion, long> _facts = [];
     private readonly HashSet<DataQuestion> _counting = [];
@@ -245,15 +246,15 @@ else
         var token = _cts.Token;
         var loaded = await Shell.RunDbAsync(Logger, Active, async () =>
             (await schema.GetDetailsAsync(Details.Table, token), await schema.GetConstraintsAsync(Details.Table.Ref, token),
-             await schema.GetIndexesAsync(Details.Table.Ref, token)), token);
+             await schema.GetIndexesAsync(Details.Table.Ref, token), await schema.GetNamesElsewhereAsync(Details.Table.Ref, token)), token);
         if (!loaded.Succeeded)
         {
             _loadError = loaded.Error ?? new DatabaseException(SqlEditorText.Run_Canceled);
             return;
         }
 
-        var (table, constraints, indexes) = loaded.Value;
-        (_constraints, _indexes) = (constraints, indexes);
+        var (table, constraints, indexes, elsewhere) = loaded.Value;
+        (_constraints, _indexes, _elsewhere) = (constraints, indexes, elsewhere ?? SchemaNames.None);
         _incoming = schema.IncomingOf(Details.Table.Ref).Where(f => f.Source == FkSource.Declared).ToList();
         _designer = previous?.Rebase(table, constraints) ?? new TableDesignerDraft(table, constraints);
         _facts.Clear(); // the data may have changed with the DDL

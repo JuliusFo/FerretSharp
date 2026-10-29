@@ -81,6 +81,9 @@ public sealed record DesignContext(TableDetails Table, IReadOnlyList<ConstraintI
     /// <summary>The tables new foreign keys reference, for their keys and column types; a missing one is not checked.</summary>
     public IReadOnlyDictionary<TableRef, TableDetails> Referenced { get; init; } = new Dictionary<TableRef, TableDetails>();
 
+    /// <summary>Names other tables of the owner hold (review 3.54.0, A14); none known by default.</summary>
+    public SchemaNames Elsewhere { get; init; } = SchemaNames.None;
+
     /// <summary>Only the table: no constraints, indexes or references known.</summary>
     public static DesignContext Of(TableDetails table) => new(table, [], [], []);
 }
