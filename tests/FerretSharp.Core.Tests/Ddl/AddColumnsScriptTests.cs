@@ -64,4 +64,19 @@ public class AddColumnsScriptTests
         Assert.Contains("ALTER TABLE \"SHOP_PROD\".\"KUNDE\" ADD (\"FAX\" VARCHAR2(30 CHAR));", script);
         Assert.Contains("COMMENT ON COLUMN \"SHOP_PROD\".\"KUNDE\".\"FAX\" IS 'Fax';", script);
     }
+
+    /// <summary>
+    /// Review 3.54.0, A11: a quoted Oracle name with a line break in the header made the rest of it an executable line of the
+    /// script opened in the SQL editor of another connection.
+    /// </summary>
+    [Fact]
+    public void A_line_break_in_the_source_name_stays_in_the_comment()
+    {
+        var odd = new TableRef("SHOP", "X\nDROP TABLE Y;\r--");
+
+        var script = AddColumnsScript.Write(odd, Kunde, [Column("FAX", "VARCHAR2", 3, length: 30)]);
+
+        Assert.Contains("\n-- DROP TABLE Y;\n", script);
+        Assert.DoesNotContain("\nDROP", script);
+    }
 }
