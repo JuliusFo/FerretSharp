@@ -65,22 +65,13 @@ public sealed class ModelFileLoadingTests : IAsyncDisposable
 
     private static readonly ModelFileOrigin Origin = new("Shop.Data", "Release", null, DateTimeOffset.Now, "release", "a1b2c3d", "3.53.0");
 
-    private static async Task WaitUntil(Func<bool> condition)
-    {
-        for (var waited = 0; !condition(); waited += 20)
-        {
-            Assert.True(waited < 10_000, "Timed out.");
-            await Task.Delay(20, Ct);
-        }
-    }
-
     [Fact]
     public async Task A_linked_model_file_loads_without_the_model_host()
     {
         await ModelFile.WriteAsync(_file, Model("KundeId"), Origin, Ct);
 
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
 
         Assert.Equal((null, _file, Origin), (_models.State.Link, _models.State.ModelFile, _models.State.Origin));
         Assert.True(_models.State.IsLinked);
@@ -94,7 +85,7 @@ public sealed class ModelFileLoadingTests : IAsyncDisposable
     public async Task A_missing_file_fails_with_its_path_and_loads_once_it_is_copied_there()
     {
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Failed);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Failed);
         Assert.Equal(ClrModelErrorKind.ModelFile, _models.State.Error!.Kind);
         Assert.Contains(_file, _models.State.Error.Message);
 
@@ -115,7 +106,7 @@ public sealed class ModelFileLoadingTests : IAsyncDisposable
     {
         await ModelFile.WriteAsync(_file, Model("KundeId"), Origin, Ct);
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         Assert.DoesNotContain(_models.Mapping!.Issues, i => i.Kind == MappingIssueKind.PropertyWithoutColumn);
 
         var newer = Origin with { Commit = "fffffff" };
@@ -145,7 +136,7 @@ public sealed class ModelFileLoadingTests : IAsyncDisposable
         var linked = _profile with { ClrProject = new ClrProjectLink(project, "Release"), ClrModelFile = null };
         await _connections.SaveAsync(linked, null, Ct);
         await _active.ConnectAsync(linked, Ct);
-        await WaitUntil(() => _models.State is { Phase: ClrModelPhase.Loaded, Link: not null });
+        await Wait.UntilAsync(() => _models.State is { Phase: ClrModelPhase.Loaded, Link: not null });
         var exported = _folder.Combine("export", "Shop.Data.ferretmodel.json");
 
         await _models.ExportAsync(exported, "3.53.0", Ct);
@@ -156,7 +147,7 @@ public sealed class ModelFileLoadingTests : IAsyncDisposable
 
         // Switching the connection to the file: the model now comes from there.
         await _connections.SaveAsync(linked with { ClrProject = null, ClrModelFile = exported }, null, Ct);
-        await WaitUntil(() => _models.State is { Phase: ClrModelPhase.Loaded, ModelFile: not null });
+        await Wait.UntilAsync(() => _models.State is { Phase: ClrModelPhase.Loaded, ModelFile: not null });
         Assert.Null(_models.State.Link);
         Assert.Equal(read.Origin, _models.State.Origin);
     }
@@ -166,7 +157,7 @@ public sealed class ModelFileLoadingTests : IAsyncDisposable
     {
         await ModelFile.WriteAsync(_file, Model("KundeId"), Origin, Ct);
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _models.ExportAsync(_folder.Combine("weiter.json"), "3.53.0", Ct));
     }

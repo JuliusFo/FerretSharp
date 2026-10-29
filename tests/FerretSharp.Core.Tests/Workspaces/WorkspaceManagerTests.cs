@@ -399,7 +399,7 @@ public sealed class WorkspaceManagerTests
 
         var timers = _time.Timers;
         var opening = _manager.GetDataAsync(_manager.Active!.Id, Ct);
-        await Eventually(() => _time.Timers > timers);
+        await Wait.UntilAsync(() => _time.Timers > timers);
 
         _time.Advance(SessionOpening.AttemptLimits[0]);
 
@@ -417,22 +417,13 @@ public sealed class WorkspaceManagerTests
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(opening.Task);
         var data = _manager.GetDataAsync(_manager.Active!.Id, Ct);
-        await Eventually(() => _connector.ReceivedCalls().Any());
+        await Wait.UntilAsync(() => _connector.ReceivedCalls().Any());
 
         await _manager.DetachAsync().WaitAsync(TimeSpan.FromSeconds(5), Ct);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => data.WaitAsync(TimeSpan.FromSeconds(5), Ct));
         opening.SetResult(late);
-        await Eventually(() => late.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
-    }
-
-    private static async Task Eventually(Func<bool> condition)
-    {
-        for (var waited = 0; !condition(); waited += 10)
-        {
-            Assert.True(waited < 5_000, "Timed out.");
-            await Task.Delay(10, Ct);
-        }
+        await Wait.UntilAsync(() => late.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
     }
 
     [Fact]

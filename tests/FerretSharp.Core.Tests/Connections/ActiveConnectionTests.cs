@@ -110,14 +110,14 @@ public sealed class ActiveConnectionTests : IDisposable
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(opening.Task);
         var connecting = _active.ConnectAsync(_profile, Ct);
-        await Eventually(() => _connector.ReceivedCalls().Any()); // the attempt runs on the thread pool
+        await Wait.UntilAsync(() => _connector.ReceivedCalls().Any()); // the attempt runs on the thread pool
 
         _active.CancelPendingConnect();
         await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
 
         Assert.Equal(ConnectionStatus.Disconnected, _active.Status);
         opening.SetResult(_connection);
-        await Eventually(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
+        await Wait.UntilAsync(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
     }
 
     /// <summary>
@@ -132,7 +132,7 @@ public sealed class ActiveConnectionTests : IDisposable
 
         await _active.ConnectAsync(_profile, Ct);
 
-        await Eventually(() => { lock (ended) { return ended.Count == 1; } });
+        await Wait.UntilAsync(() => { lock (ended) { return ended.Count == 1; } });
         Assert.Null(ended[0].Error);
         Assert.True(ended[0].Synchronous); // the fake returns a completed task
         Assert.True(ended[0].Took >= TimeSpan.Zero);
@@ -153,10 +153,10 @@ public sealed class ActiveConnectionTests : IDisposable
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(hanging.Task, second.Task);
         var connecting = active.ConnectAsync(_profile, Ct);
-        await Eventually(() => time.Timers == 1);
+        await Wait.UntilAsync(() => time.Timers == 1);
 
         time.Advance(SessionOpening.AttemptLimits[0]);
-        await Eventually(() => _connector.ReceivedCalls().Count() == 2);
+        await Wait.UntilAsync(() => _connector.ReceivedCalls().Count() == 2);
         second.SetResult(_connection);
         await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
 
@@ -165,7 +165,7 @@ public sealed class ActiveConnectionTests : IDisposable
             [ConnectionText.Step_OpeningSession, TextFormat.Format(ConnectionText.Step_OpeningSessionAgain, 2, SessionOpening.AttemptLimits.Count)],
             active.Steps.Take(2).Select(s => s.Name));
         hanging.SetResult(late);
-        await Eventually(() => late.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
+        await Wait.UntilAsync(() => late.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
     }
 
     /// <summary>After sleep it hung beyond ODP.NET's 15 s (2026-10-21): reconnecting by itself must not show "Connecting" for ever.</summary>
@@ -179,7 +179,7 @@ public sealed class ActiveConnectionTests : IDisposable
         var connecting = active.ConnectAsync(_profile, Ct);
         for (var attempt = 1; attempt <= SessionOpening.AttemptLimits.Count; attempt++)
         {
-            await Eventually(() => time.Timers == attempt);
+            await Wait.UntilAsync(() => time.Timers == attempt);
             time.Advance(SessionOpening.AttemptLimits[attempt - 1]);
         }
 
@@ -201,9 +201,9 @@ public sealed class ActiveConnectionTests : IDisposable
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(hanging.Task);
         var connecting = active.ConnectAsync(_profile, Ct);
-        await Eventually(() => time.Timers == 1);
+        await Wait.UntilAsync(() => time.Timers == 1);
         time.Advance(SessionOpening.AttemptLimits[0]);
-        await Eventually(() => time.Timers == 2 && _connector.ReceivedCalls().Count() == 2);
+        await Wait.UntilAsync(() => time.Timers == 2 && _connector.ReceivedCalls().Count() == 2);
 
         active.CancelPendingConnect();
         await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
@@ -212,7 +212,7 @@ public sealed class ActiveConnectionTests : IDisposable
         time.Advance(SessionOpening.AttemptLimits.Aggregate(TimeSpan.Zero, (sum, l) => sum + l));
         Assert.Equal(2, _connector.ReceivedCalls().Count());
         hanging.SetResult(_connection);
-        await Eventually(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
+        await Wait.UntilAsync(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
     }
 
     [Fact]
@@ -224,25 +224,16 @@ public sealed class ActiveConnectionTests : IDisposable
         SessionOpenOutcome? ended = null;
         _active.SessionOpenEnded += o => ended = o;
         var connecting = _active.ConnectAsync(_profile, Ct);
-        await Eventually(() => _connector.ReceivedCalls().Any()); // the attempt runs on the thread pool
+        await Wait.UntilAsync(() => _connector.ReceivedCalls().Any()); // the attempt runs on the thread pool
 
         _active.CancelPendingConnect();
         await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
         Assert.Null(ended);
         opening.SetException(new DatabaseException("timeout", "ORA-12170"));
 
-        await Eventually(() => ended is not null);
+        await Wait.UntilAsync(() => ended is not null);
         Assert.False(ended!.Synchronous);
         Assert.Contains("timeout", ended.Error);
-    }
-
-    private static async Task Eventually(Func<bool> condition)
-    {
-        for (var waited = 0; !condition(); waited += 10)
-        {
-            Assert.True(waited < 5_000, "Timed out.");
-            await Task.Delay(10, Ct);
-        }
     }
 
     [Fact]
@@ -445,7 +436,7 @@ public sealed class ActiveConnectionTests : IDisposable
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(opening.Task);
         var connecting = _active.ConnectAsync(_profile, Ct);
-        await Eventually(() => _active.Step == ConnectionText.Step_OpeningSession);
+        await Wait.UntilAsync(() => _active.Step == ConnectionText.Step_OpeningSession);
 
         _active.UseSaved(_profile with { Group = "Kasse-Neu" });
         opening.SetResult(_connection);

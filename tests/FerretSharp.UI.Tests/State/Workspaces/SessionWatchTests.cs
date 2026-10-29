@@ -40,7 +40,7 @@ public sealed class SessionWatchTests
     /// </summary>
     private async Task AssertNoLookAsync(int timers)
     {
-        await WaitUntilAsync(() => _time.Timers == timers);
+        await Wait.UntilAsync(() => _time.Timers == timers);
         Assert.False(_looks.Reader.TryRead(out _));
     }
 
@@ -59,16 +59,16 @@ public sealed class SessionWatchTests
         await AssertNoLookAsync(timers: 1); // no second delay either: the check below for the second one would fail
         var waiting = new SessionActivity(new SessionWait("enq: TX - row lock contention", TimeSpan.FromSeconds(4), 77, null, null), null);
         first.SetResult(waiting);
-        await WaitUntilAsync(() => watch.Latest is not null);
+        await Wait.UntilAsync(() => watch.Latest is not null);
         Assert.Same(waiting, watch.Latest);
         Assert.False(watch.Unavailable);
 
         // _latest is set before the next delay starts: advancing in between would be lost, and no second look would come.
-        await WaitUntilAsync(() => _time.Timers == 2);
+        await Wait.UntilAsync(() => _time.Timers == 2);
         _time.Advance(SessionWatch.Interval);
         var second = await NextLookAsync();
         second.SetResult(SessionActivity.None);
-        await WaitUntilAsync(() => watch.Latest == SessionActivity.None);
+        await Wait.UntilAsync(() => watch.Latest == SessionActivity.None);
 
         watch.Dispose();
         await run.WaitAsync(TimeSpan.FromSeconds(10), Ct);
@@ -119,15 +119,5 @@ public sealed class SessionWatchTests
 
         Assert.True(look.Task.IsCanceled);
         Assert.False(watch.Unavailable);
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        var until = DateTime.UtcNow.AddSeconds(10);
-        while (!condition())
-        {
-            Assert.True(DateTime.UtcNow < until, "timed out");
-            await Task.Delay(10, Ct);
-        }
     }
 }

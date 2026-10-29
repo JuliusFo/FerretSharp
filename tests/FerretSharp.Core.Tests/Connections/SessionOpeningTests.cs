@@ -53,7 +53,7 @@ public sealed class SessionOpeningTests
     /// <summary>Waits until attempt <paramref name="number"/> was started and waits on its limit, then lets the limit run.</summary>
     private async Task RunPastLimitAsync(int number)
     {
-        await Eventually(() => Attempts == number && _time.Timers == number);
+        await Wait.UntilAsync(() => Attempts == number && _time.Timers == number);
         _time.Advance(SessionOpening.AttemptLimits[number - 1]);
     }
 
@@ -64,7 +64,7 @@ public sealed class SessionOpeningTests
         var opening = OpenAsync(Ct);
 
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2);
+        await Wait.UntilAsync(() => Attempts == 2);
         var session = FakeDatabase.Connection();
         AttemptNo(2).SetResult(session);
 
@@ -72,7 +72,7 @@ public sealed class SessionOpeningTests
         Assert.Equal([2], _retrying);
         var late = FakeDatabase.Connection();
         AttemptNo(1).SetResult(late);
-        await Eventually(() => Disposed(late));
+        await Wait.UntilAsync(() => Disposed(late));
         Assert.False(Disposed(session));
     }
 
@@ -82,7 +82,7 @@ public sealed class SessionOpeningTests
     {
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2);
+        await Wait.UntilAsync(() => Attempts == 2);
 
         var slow = FakeDatabase.Connection();
         AttemptNo(1).SetResult(slow);
@@ -90,7 +90,7 @@ public sealed class SessionOpeningTests
         Assert.Same(slow, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
         var second = FakeDatabase.Connection();
         AttemptNo(2).SetResult(second);
-        await Eventually(() => Disposed(second));
+        await Wait.UntilAsync(() => Disposed(second));
         Assert.False(Disposed(slow));
     }
 
@@ -105,7 +105,7 @@ public sealed class SessionOpeningTests
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
         await RunPastLimitAsync(2);
-        await Eventually(() => Attempts == 3 && _time.Timers == 3);
+        await Wait.UntilAsync(() => Attempts == 3 && _time.Timers == 3);
 
         Assert.Equal(SessionOpening.AttemptLimits.Take(3), _time.DueTimes);
         AttemptNo(3).SetResult(FakeDatabase.Connection());
@@ -121,7 +121,7 @@ public sealed class SessionOpeningTests
     {
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2);
+        await Wait.UntilAsync(() => Attempts == 2);
 
         AttemptNo(2).SetException(new DatabaseException("no listener", "ORA-12541"));
         Assert.False(opening.IsCompleted);
@@ -140,11 +140,11 @@ public sealed class SessionOpeningTests
     {
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2 && _time.Timers == 2);
+        await Wait.UntilAsync(() => Attempts == 2 && _time.Timers == 2);
         AttemptNo(2).SetException(new DatabaseException("no listener", "ORA-12541"));
 
         _time.Advance(SessionOpening.AttemptLimits[1]);
-        await Eventually(() => _time.Timers == 3); // waiting for the earlier attempt only
+        await Wait.UntilAsync(() => _time.Timers == 3); // waiting for the earlier attempt only
 
         Assert.Equal(2, Attempts);
         Assert.Equal([2], _retrying);
@@ -159,10 +159,10 @@ public sealed class SessionOpeningTests
     {
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2 && _time.Timers == 2);
+        await Wait.UntilAsync(() => Attempts == 2 && _time.Timers == 2);
         AttemptNo(2).SetException(new DatabaseException("no listener", "ORA-12541"));
         _time.Advance(SessionOpening.AttemptLimits[1]);
-        await Eventually(() => _time.Timers == 3);
+        await Wait.UntilAsync(() => _time.Timers == 3);
 
         _time.Advance(SessionOpening.AttemptLimits.Skip(2).Aggregate(TimeSpan.Zero, (sum, l) => sum + l));
 
@@ -176,7 +176,7 @@ public sealed class SessionOpeningTests
     {
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2);
+        await Wait.UntilAsync(() => Attempts == 2);
 
         AttemptNo(2).SetException(new DatabaseException("no listener", "ORA-12541"));
         AttemptNo(1).SetException(new DatabaseException("packet", "ORA-12570"));
@@ -247,7 +247,7 @@ public sealed class SessionOpeningTests
     {
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2);
+        await Wait.UntilAsync(() => Attempts == 2);
         AttemptNo(1).SetException(new DatabaseException("ORA-12570: Netzwerksession: Unerwarteter Fehler beim Lesen des Pakets", "ORA-12570"));
         for (var attempt = 2; attempt <= SessionOpening.AttemptLimits.Count; attempt++)
         {
@@ -269,7 +269,7 @@ public sealed class SessionOpeningTests
     {
         var opening = OpenAsync(Ct);
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2);
+        await Wait.UntilAsync(() => Attempts == 2);
 
         AttemptNo(1).SetException(new DatabaseException("invalid username/password", "ORA-01017"));
 
@@ -279,7 +279,7 @@ public sealed class SessionOpeningTests
         Assert.Equal(2, Attempts);
         var late = FakeDatabase.Connection();
         AttemptNo(2).SetResult(late);
-        await Eventually(() => Disposed(late));
+        await Wait.UntilAsync(() => Disposed(late));
     }
 
     /// <summary>A refused login must not be tried again; neither a listener that is not there (it would not be there 1 s later).</summary>
@@ -289,7 +289,7 @@ public sealed class SessionOpeningTests
     public async Task A_failure_within_the_limit_is_not_tried_again(string code)
     {
         var opening = OpenAsync(Ct);
-        await Eventually(() => Attempts == 1);
+        await Wait.UntilAsync(() => Attempts == 1);
 
         AttemptNo(1).SetException(new DatabaseException("refused", code));
 
@@ -306,7 +306,7 @@ public sealed class SessionOpeningTests
         using var cts = new CancellationTokenSource();
         var opening = OpenAsync(cts.Token);
         await RunPastLimitAsync(1);
-        await Eventually(() => Attempts == 2);
+        await Wait.UntilAsync(() => Attempts == 2);
 
         await cts.CancelAsync();
 
@@ -315,7 +315,7 @@ public sealed class SessionOpeningTests
         Assert.Equal(2, Attempts);
         var late = FakeDatabase.Connection();
         AttemptNo(1).SetResult(late);
-        await Eventually(() => Disposed(late));
+        await Wait.UntilAsync(() => Disposed(late));
     }
 
     /// <summary>Review of the fix (6): a driver that blocks before returning its task must not hold up the limit.</summary>
@@ -338,7 +338,7 @@ public sealed class SessionOpeningTests
                 return Task.FromResult(session);
             }, _time, null, Ct), Ct);
 
-            await Eventually(() => _time.Timers == 1);
+            await Wait.UntilAsync(() => _time.Timers == 1);
             _time.Advance(SessionOpening.AttemptLimits[0]);
 
             Assert.Same(session, await opening.WaitAsync(TimeSpan.FromSeconds(5), Ct));
@@ -351,13 +351,4 @@ public sealed class SessionOpeningTests
 
     private static bool Disposed(IDatabaseConnection connection) =>
         connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync));
-
-    private static async Task Eventually(Func<bool> condition)
-    {
-        for (var waited = 0; !condition(); waited += 10)
-        {
-            Assert.True(waited < 5_000, "Timed out.");
-            await Task.Delay(10, Ct);
-        }
-    }
 }

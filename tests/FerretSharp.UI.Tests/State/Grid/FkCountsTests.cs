@@ -75,25 +75,16 @@ public sealed class FkCountsTests
         }
     }
 
-    private static async Task Eventually(Func<bool> condition)
-    {
-        for (var waited = 0; !condition(); waited += 10)
-        {
-            Assert.True(waited < 5_000, "Timed out waiting for the counts.");
-            await Task.Delay(10, Ct);
-        }
-    }
-
     [Fact]
     public async Task Immediately_counts_every_jump_one_after_the_other()
     {
         var counts = Create();
 
         var all = counts.CountAllAsync([Auftrag, Rechnung], Ct);
-        await Eventually(() => Asked.Count == 1);
+        await Wait.UntilAsync(() => Asked.Count == 1);
         Assert.IsType<FkCount.Loading>(counts.Of(Rechnung));
         Answer(Auftrag, 3);
-        await Eventually(() => Asked.Count == 2);
+        await Wait.UntilAsync(() => Asked.Count == 2);
         Answer(Rechnung, null);
         await all;
 
@@ -109,7 +100,7 @@ public sealed class FkCountsTests
         using var cts = new CancellationTokenSource();
 
         var all = counts.CountAllAsync([Auftrag, Rechnung], cts.Token);
-        await Eventually(() => Asked.Count == 1);
+        await Wait.UntilAsync(() => Asked.Count == 1);
         await cts.CancelAsync();
         await all;
 
@@ -125,11 +116,11 @@ public sealed class FkCountsTests
 
         var hover = counts.HoverAsync(Auftrag, Ct);
         _time.Advance(FkCounts.HoverDelay / 2);
-        await Eventually(() => _time.Timers == 1); // parked on the delay (review 3.40.0, C8: was a fixed wait of 50 ms)
+        await Wait.UntilAsync(() => _time.Timers == 1); // parked on the delay (review 3.40.0, C8: was a fixed wait of 50 ms)
         Assert.Empty(Asked);
 
         _time.Advance(FkCounts.HoverDelay);
-        await Eventually(() => Asked.Count == 1);
+        await Wait.UntilAsync(() => Asked.Count == 1);
         Assert.IsType<FkCount.Loading>(counts.Of(Auftrag));
         Answer(Auftrag, 7);
         await hover;
@@ -157,7 +148,7 @@ public sealed class FkCountsTests
         var counts = Create();
         var first = counts.HoverAsync(Auftrag, Ct);
         _time.Advance(FkCounts.HoverDelay);
-        await Eventually(() => Asked.Count == 1);
+        await Wait.UntilAsync(() => Asked.Count == 1);
 
         // Over Rechnung, then on to Adresse while Auftrag is still counted: only the entry under the mouse follows.
         counts.Leave(Auftrag);
@@ -169,7 +160,7 @@ public sealed class FkCountsTests
         Assert.Single(Asked);
 
         Answer(Auftrag, 1);
-        await Eventually(() => Asked.Count == 2);
+        await Wait.UntilAsync(() => Asked.Count == 2);
         Answer(Adresse, 2);
         await first;
 
@@ -184,7 +175,7 @@ public sealed class FkCountsTests
         var counts = Create();
         var hover = counts.HoverAsync(Auftrag, Ct);
         _time.Advance(FkCounts.HoverDelay);
-        await Eventually(() => Asked.Count == 1);
+        await Wait.UntilAsync(() => Asked.Count == 1);
         Answer(Auftrag, 5);
         await hover;
 
@@ -201,7 +192,7 @@ public sealed class FkCountsTests
     {
         var counts = Create();
         var all = counts.CountAllAsync([Auftrag], Ct);
-        await Eventually(() => Asked.Count == 1);
+        await Wait.UntilAsync(() => Asked.Count == 1);
         Answer(Auftrag, 5);
         await all;
 

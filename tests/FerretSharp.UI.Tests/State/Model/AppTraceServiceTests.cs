@@ -44,17 +44,6 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
     private static ConnectionProfile Profile(string name, string? environment = null, string service = "ERPTEST") =>
         new(Guid.NewGuid(), name, ConnectionKind.Test, new HostPortAddress("db-test", 1521, service, null), "app", null, false, AppEnvironment: environment);
 
-    /// <summary>Waits until the pump (on the thread pool) got that far.</summary>
-    private static async Task Until(Func<bool> condition)
-    {
-        for (var i = 0; i < 500 && !condition(); i++)
-        {
-            await Task.Delay(10, Ct);
-        }
-
-        Assert.True(condition());
-    }
-
     [Fact]
     public async Task Processes_are_listed_on_request_with_their_environment()
     {
@@ -90,7 +79,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
             await _source.Events.Writer.WriteAsync(Executed("SELECT 1 FROM DUAL"), Ct);
         }
 
-        await Until(() => _service.Snapshot.Count == 100);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 100);
         Assert.Equal(TraceStatus.Recording, _service.Status);
         var before = _changed;
         _time.Advance(AppTraceService.RenderInterval);
@@ -107,7 +96,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
         await _source.Events.Writer.WriteAsync(Executed("SELECT 1 FROM DUAL"), Ct);
         await _source.Events.Writer.WriteAsync(Executed("SELECT 2 FROM DUAL", source: "FromSqlQuery"), Ct);
         await _source.Events.Writer.WriteAsync(Executed("SELECT 2 FROM DUAL", source: "FromSqlQuery"), Ct);
-        await Until(() => _service.Snapshot.Count == 3);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 3);
 
         var byTime = _service.ShownStatements;
         Assert.Same(byTime, _service.ShownStatements);
@@ -120,7 +109,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
         Assert.Equal(["SELECT 1 FROM DUAL"], _service.ShownStatements.Select(s => s.Text));
 
         await _source.Events.Writer.WriteAsync(Executed("SELECT 3 FROM DUAL"), Ct);
-        await Until(() => _service.Snapshot.Count == 4);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 4);
         Assert.Equal(2, _service.ShownStatements.Count);
     }
 
@@ -132,7 +121,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
 
         _source.Events.Writer.Complete();
 
-        await Until(() => _service.Status == TraceStatus.Ended);
+        await Wait.UntilAsync(() => _service.Status == TraceStatus.Ended);
         Assert.Equal(1, _service.Snapshot.Count);
     }
 
@@ -141,7 +130,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
     {
         await _service.AttachAsync(ErpApi);
         await _source.Events.Writer.WriteAsync(Executed("SELECT 1 FROM DUAL"), Ct);
-        await Until(() => _service.Snapshot.Count == 1);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 1);
 
         await _service.DetachAsync();
         await _source.Events.Writer.WriteAsync(Executed("SELECT 2 FROM DUAL"), Ct);
@@ -158,7 +147,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
 
         await _service.AttachAsync(ErpApi);
 
-        await Until(() => _service.Status == TraceStatus.Failed);
+        await Wait.UntilAsync(() => _service.Status == TraceStatus.Failed);
         Assert.Equal("The process is gone.", _service.TraceError);
     }
 
@@ -167,12 +156,12 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
     {
         await _service.AttachAsync(ErpApi);
         await _source.Events.Writer.WriteAsync(Executed("SELECT 1 FROM DUAL"), Ct);
-        await Until(() => _service.Snapshot.Count == 1);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 1);
 
         await _service.AttachAsync(Worker);
         Assert.Equal((0, Worker), (_service.Snapshot.Count, _service.Process));
         await _source.Events.Writer.WriteAsync(Executed("SELECT 2 FROM DUAL"), Ct);
-        await Until(() => _service.Snapshot.Count == 1);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 1);
 
         _service.Reset();
 
@@ -186,17 +175,17 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
         await _service.AttachAsync(ErpApi);
         var first = Executed("SELECT 1 FROM DUAL");
         await _source.Events.Writer.WriteAsync(first with { Fields = new Dictionary<string, string>(first.Fields) { [EfEvents.CommandId] = "a" } }, Ct);
-        await Until(() => _service.Snapshot.Count == 1);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 1);
 
         _service.SetPaused(true);
         await _source.Events.Writer.WriteAsync(Executed("SELECT 2 FROM DUAL"), Ct);
         var closed = new Dictionary<string, string> { [EfEvents.CommandId] = "a", [EfEvents.ReadCount] = "3", [EfEvents.Duration] = "00:00:00" };
         await _source.Events.Writer.WriteAsync(new EfEvent(EfEvents.DataReaderDisposing, closed, DateTimeOffset.UtcNow), Ct);
-        await Until(() => _service.Snapshot.Statements is [{ Rows: 2 }]); // its reader still counts, SELECT 2 was left out
+        await Wait.UntilAsync(() => _service.Snapshot.Statements is [{ Rows: 2 }]); // its reader still counts, SELECT 2 was left out
         _service.Reset();
         _service.SetPaused(false);
         await _source.Events.Writer.WriteAsync(Executed("SELECT 3 FROM DUAL"), Ct);
-        await Until(() => _service.Snapshot.Count == 1);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 1);
 
         Assert.Equal("SELECT 3 FROM DUAL", Assert.Single(_service.Snapshot.Statements).Text);
         Assert.Equal((TraceStatus.Recording, false), (_service.Status, _source.Canceled));
@@ -215,7 +204,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
         await _connections.SaveAsync(testReader, "pw", Ct);
         await _service.AttachAsync(ErpApi);
         await _source.Events.Writer.WriteAsync(Executed("SELECT 1 FROM DUAL"), Ct);
-        await Until(() => _service.Snapshot.Count == 1);
+        await Wait.UntilAsync(() => _service.Snapshot.Count == 1);
 
         var ambiguous = _service.Match; // same database, no environment at the connections yet
         Assert.Equal((null, 2), (ambiguous.Profile, ambiguous.Candidates.Count));
@@ -237,20 +226,20 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
         var slow = new TaskCompletionSource();
         _source.SlowStop = slow;
         await _service.AttachAsync(ErpApi);
-        await Until(() => _source.Running == 1);
+        await Wait.UntilAsync(() => _source.Running == 1);
 
         var toWorker = _service.AttachAsync(Worker); // waits for the stop of the first one
-        await Until(() => _service.Switching);
+        await Wait.UntilAsync(() => _service.Switching);
         var toThird = _service.AttachAsync(third);
         slow.SetResult();
         await Task.WhenAll(toWorker, toThird);
 
         Assert.Equal(third, _service.Process);
-        await Until(() => _source.Running == 1);
+        await Wait.UntilAsync(() => _source.Running == 1);
         Assert.False(_service.Switching);
 
         await _service.DetachAsync();
-        await Until(() => _source.Running == 0);
+        await Wait.UntilAsync(() => _source.Running == 0);
         Assert.Equal(TraceStatus.Detached, _service.Status);
     }
 
@@ -259,7 +248,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
     {
         _source.AttachError = new RefusedException("No diagnostics port.");
         await _service.AttachAsync(ErpApi);
-        await Until(() => _service.Status == TraceStatus.Failed);
+        await Wait.UntilAsync(() => _service.Status == TraceStatus.Failed);
 
         await _service.RefreshProcessesAsync();
 
