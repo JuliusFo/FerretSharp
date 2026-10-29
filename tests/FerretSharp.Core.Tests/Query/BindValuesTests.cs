@@ -33,12 +33,13 @@ public class BindValuesTests
     }
 
     [Fact]
-    public void Statement_lists_every_bind_variable()
+    public void Statement_lists_every_bind_variable_each_line_a_comment()
     {
-        var statement = new QuerySpec("SELECT 1 FROM t WHERE a = :p0 AND b = :p1", [new("p0", "x"), new("p1", 2m)]);
+        // Review of R8: a value with a line break left its rest as an executable line in "Copy as SQL".
+        var statement = new QuerySpec("SELECT 1 FROM t WHERE a = :p0 AND b = :p1 AND c = :p2", [new("p0", "x"), new("p1", 2m), new("p2", "y\nDROP TABLE t;")]);
 
         Assert.Equal(
-            ["SELECT 1 FROM t WHERE a = :p0 AND b = :p1", "-- :p0 = 'x'", "-- :p1 = 2"],
+            ["SELECT 1 FROM t WHERE a = :p0 AND b = :p1 AND c = :p2", "-- :p0 = 'x'", "-- :p1 = 2", "-- :p2 = 'y", "-- DROP TABLE t;'"],
             BindValues.Describe(statement, mask: false).Split(Environment.NewLine));
     }
 

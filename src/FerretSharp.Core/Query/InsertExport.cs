@@ -45,11 +45,7 @@ public static class InsertExport
         return new ExportText(header.Append(statements).ToString(), rows.Count, warnings.ToList());
     }
 
-    /// <summary>
-    /// A comment of one line per physical line: a quoted name may hold a line break, and the rest of it was an executable line
-    /// in the script pasted into another connection (review of R8, as <c>DdlScript.Render</c> since review 3.54.0, A11).
-    /// </summary>
-    private static string Comment(string text) => "-- " + string.Join("\r\n-- ", text.ReplaceLineEndings("\n").Split('\n'));
+    private static string Comment(string text) => SqlComment.Of(text, "\r\n");
 
     /// <summary>An Oracle literal for <paramref name="value"/> read from <paramref name="column"/>.</summary>
     internal static string Literal(ColumnInfo column, object? value, ExportWarnings warnings) => value switch
