@@ -12,6 +12,9 @@
     <!-- Compile only: at run time the user's EF Core assemblies are used (none are copied next to the host). The lowest
          supported EF Core: .NET binds to a higher assembly version, never to a lower one. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" VersionOverride="8.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <!-- EF Core 8.0.0 brings Microsoft.Extensions.Caching.Memory 8.0.0 (GHSA-qj66-m88j-hmgj). Never shipped (compile only,
+         as above), but the report of vulnerable packages listed it and hid real hits (review 3.54.0, A21). -->
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" VersionOverride="8.0.1" ExcludeAssets="runtime" PrivateAssets="all" />
     <!-- Shipped next to the host and resolved from its folder (the project's deps.json does not know it). -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
   </ItemGroup>
