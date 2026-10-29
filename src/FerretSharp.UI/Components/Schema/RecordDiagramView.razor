@@ -127,7 +127,7 @@
                                 <div id="@(node == FirstStart ? FocusId : null)" class="relations-node record @(diagram.Start.Contains(node) ? "focus" : "") @(State.IsMarked(node) ? "marked" : "") @DiagramStyle.NodeState(node, _hover, lit)"
                                      style="@DiagramStyle.Box(box)"
                                      @onclick="() => ToggleMark(node)"
-                                     @onmouseenter="() => _hover = node" @onmouseleave="() => Leave(node)" @oncontextmenu="e => OpenMenuAsync(e, node)" @oncontextmenu:preventDefault="true">
+                                     @onmouseenter="() => _hover = node" @onmouseleave="() => Leave(node)" @oncontextmenu="e => _menu!.OpenAsync(e, node)" @oncontextmenu:preventDefault="true">
                                     @if (parents > 0)
                                     {
                                         <button class="relations-handle left @DiagramStyle.HandleClass(toParents)" disabled="@Running" title="@DiagramStyle.HandleTitle(TextFormat.Plural(parents, SchemaViewText.Records_ShowParentsOne, SchemaViewText.Records_ShowParentsOther), toParents)"
@@ -166,16 +166,16 @@
     </div>
 </div>
 
-@if (_menu is { } menu && State.Diagram is { } menuDiagram)
-{
-    var open = OpenUnavailable(menu.Node);
-    var parents = menuDiagram.Pending(menu.Node, DiagramSide.Parents);
-    var children = menuDiagram.Pending(menu.Node, DiagramSide.Children);
-    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="320"
-                 EstimatedHeight="@(120 + 28 * (parents.Count + children.Count))" OnClose="() => _menu = null">
-        <button class="menu-item" disabled="@(open is not null)" title="@open" @onclick="() => FromMenu(() => OpenRow(menu.Node))">@SchemaViewText.Records_MenuOpen</button>
-        <button class="menu-item" disabled="@Running" @onclick="() => FromMenu(() => ToggleMark(menu.Node))">
-            @(State.IsMarked(menu.Node) ? SchemaViewText.Records_MenuUnmark : SchemaViewText.Records_MenuMark)
+@* A row's right-click menu (review 3.54.0, B2: built by hand before, without ↑ ↓; the menu keeps itself in the window). *@
+<ContextMenuHost @ref="_menu" TItem="RecordNode" Width="320" EstimatedHeight="240" Context="node">
+    @if (State.Diagram is { } menuDiagram)
+    {
+        var open = OpenUnavailable(node);
+        var parents = menuDiagram.Pending(node, DiagramSide.Parents);
+        var children = menuDiagram.Pending(node, DiagramSide.Children);
+        <button class="menu-item" disabled="@(open is not null)" title="@open" @onclick="() => FromMenu(() => OpenRow(node))">@SchemaViewText.Records_MenuOpen</button>
+        <button class="menu-item" disabled="@Running" @onclick="() => FromMenu(() => ToggleMark(node))">
+            @(State.IsMarked(node) ? SchemaViewText.Records_MenuUnmark : SchemaViewText.Records_MenuMark)
         </button>
         @foreach (var (side, relations, heading) in new[] { (DiagramSide.Parents, parents, SchemaViewText.Records_MenuParents), (DiagramSide.Children, children, SchemaViewText.Records_MenuChildren) })
         {
@@ -188,19 +188,19 @@
             <div class="group-head-btn static">@heading</div>
             @if (relations.Count > 1)
             {
-                <button class="menu-item" disabled="@Running" @onclick="() => FromMenuAsync(() => ExpandAsync(menu.Node, s))">@SchemaViewText.Records_MenuAll</button>
+                <button class="menu-item" disabled="@Running" @onclick="() => FromMenuAsync(() => ExpandAsync(node, s))">@SchemaViewText.Records_MenuAll</button>
             }
             @foreach (var relation in relations)
             {
                 var r = relation;
                 var other = s == DiagramSide.Parents ? r.To : r.From;
-                <button class="menu-item" disabled="@Running" title="@EdgeTitle(r)" @onclick="() => FromMenuAsync(() => ExpandAsync(menu.Node, r, s))">
+                <button class="menu-item" disabled="@Running" title="@EdgeTitle(r)" @onclick="() => FromMenuAsync(() => ExpandAsync(node, r, s))">
                     @TextFormat.Format(SchemaViewText.Records_Via, Label(other), r.Name)
                 </button>
             }
         }
-    </PopoverMenu>
-}
+    }
+</ContextMenuHost>
 
 @if (_copy is { } copy)
 {
@@ -213,7 +213,7 @@
     private HashSet<string>? _loadedKeys;
     private bool _loadedOnce;
     private RecordNode? _hover;
-    private NodeMenu? _menu;
+    private ContextMenuHost<RecordNode>? _menu;
     private Run? _running;
     private TraversalProgress? _progress;
     private bool _scroll = true;
@@ -259,9 +259,6 @@
 
     /// <summary>A running read: since when, and how to stop it.</summary>
     private sealed record Run(DateTimeOffset Started, CancellationTokenSource Cancellation, bool Starting);
-
-    /// <summary>The row whose right-click menu is open, with the mouse position and window size.</summary>
-    private sealed record NodeMenu(RecordNode Node, double X, double Y, double ViewportWidth, double ViewportHeight);
 
     protected override void OnInitialized()
     {
@@ -489,25 +486,14 @@
 
     private void FromMenu(Action action)
     {
-        _menu = null;
+        _menu?.Close();
         action();
     }
 
     private async Task FromMenuAsync(Func<Task> action)
     {
-        _menu = null;
+        _menu?.Close();
         await action();
-    }
-
-    private async Task OpenMenuAsync(MouseEventArgs e, RecordNode node)
-    {
-        var size = await Dom.InvokeAsync<double[]>("viewportSize");
-        if (_disposed || size is not [var width, var height])
-        {
-            return;
-        }
-
-        _menu = new NodeMenu(node, e.ClientX, e.ClientY, width, height);
     }
 
     /// <summary>Why the row's table cannot be opened filtered on it (no primary key, a type without filter text); null if it can.</summary>
