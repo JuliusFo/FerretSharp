@@ -114,6 +114,78 @@ public sealed class WorkspaceLifecycleTests : IAsyncDisposable
         Assert.Equal((0, 0), (tab.Changes!.PendingCount, tab.Changes.FlushedCount));
     }
 
+    /// <summary>
+    /// "Disconnect all" of a group (WP-66) asks once about the work of all connections; cancelled, nothing closes, discarded,
+    /// all of them close (review 3.54.0, C3).
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Disconnecting_a_group_asks_once_about_the_work_of_all_its_connections(bool discard)
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("ERP Dev"));
+        foreach (var scope in new[] { test, dev })
+        {
+            _app.AddPendingWork(scope);
+            Assert.True(await _app.Editing.FlushAsync(_app.WorkspaceOf(scope)));
+        }
+
+        await Lifecycle.DisconnectAllAsync([test, dev], "Gruppe trennen");
+        Assert.Equal([test.Workspaces.Active!.Id, dev.Workspaces.Active!.Id], Lifecycle.PendingLeave!.WorkspaceIds);
+        Assert.Equal(2, _app.Hub.Open.Count);
+
+        if (discard)
+        {
+            await Lifecycle.LeaveAsync(commit: false);
+        }
+        else
+        {
+            Lifecycle.CancelLeave();
+        }
+
+        Assert.Null(Lifecycle.PendingLeave);
+        Assert.Equal(discard ? 0 : 2, _app.Hub.Open.Count);
+    }
+
+    /// <summary>
+    /// Review 3.54.0, A1: the connections of a group closed one after the other – over a silent VPN the later ones stayed open
+    /// and shown for seconds, and what was written there meanwhile was discarded unasked. All leave before the first closes.
+    /// </summary>
+    [Fact]
+    public async Task Disconnecting_a_group_takes_all_its_connections_away_before_any_closes()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("ERP Dev"));
+        var stillOpen = new List<int>();
+        _app.Hub.Changed += () => stillOpen.Add(_app.Hub.Open.Count);
+
+        await Lifecycle.DisconnectAllAsync([test, dev], "Gruppe trennen");
+
+        Assert.Equal(0, stillOpen[0]);
+        Assert.Null(_app.Hub.Current);
+    }
+
+    /// <summary>Deleting an open connection with written work asks first; cancelled, it stays open (review 3.54.0, C3).</summary>
+    [Fact]
+    public async Task Deleting_an_open_connection_asks_about_its_work_first()
+    {
+        var profile = TestApp.Profile("ERP Test");
+        var scope = await _app.OpenAsync(profile);
+        _app.AddPendingWork(scope);
+        Assert.True(await _app.Editing.FlushAsync(_app.WorkspaceOf(scope)));
+
+        await Lifecycle.DeleteAsync(profile);
+        Assert.Equal([scope.Workspaces.Active!.Id], Lifecycle.PendingLeave!.WorkspaceIds);
+
+        Lifecycle.CancelLeave();
+        Assert.Same(scope, _app.Hub.Find(profile.Id));
+
+        await Lifecycle.DeleteAsync(profile);
+        await Lifecycle.LeaveAsync(commit: false);
+        Assert.Null(_app.Hub.Find(profile.Id));
+    }
+
     [Fact]
     public async Task Leaving_stops_when_discarding_fails_and_keeps_the_work()
     {
