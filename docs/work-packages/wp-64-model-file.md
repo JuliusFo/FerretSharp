@@ -1,4 +1,4 @@
-# WP-64 C#-Modell als Datei weitergeben
+# WP-64 C#-Modell als Datei weitergeben → Release 3.53.0
 
 Branch `wp/64-model-file`, begonnen am 2026-10-27. ADR 0037. Baut auf WP-11 (Modell aus dem Build, ModelHost), WP-16 (Cache) und ADR 0016 (Watcher) auf.
 

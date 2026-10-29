@@ -1,5 +1,5 @@
 using FerretSharp.Core.Schema;
-using FerretSharp.UI.Components.Schema;
+using FerretSharp.UI.Components;
 
 namespace FerretSharp.UI.Tests.Components.Schema;
 

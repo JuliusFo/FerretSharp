@@ -34,6 +34,31 @@ public enum ConstraintType
     Other,
 }
 
+/// <summary>How a kind of constraint is named – one rule for the designer, the constraints view and the plan (review 3.54.0, B5).</summary>
+public static class ConstraintTypes
+{
+    /// <summary>As in DDL (<c>PRIMARY KEY</c>, <c>CHECK OPTION</c> …); null for <see cref="ConstraintType.Other"/>.</summary>
+    public static string? Keyword(ConstraintType type) => type switch
+    {
+        ConstraintType.PrimaryKey => "PRIMARY KEY",
+        ConstraintType.Unique => "UNIQUE",
+        ConstraintType.ForeignKey => "FOREIGN KEY",
+        ConstraintType.Check => "CHECK",
+        ConstraintType.ViewCheckOption => "CHECK OPTION",
+        ConstraintType.ViewReadOnly => "READ ONLY",
+        _ => null,
+    };
+
+    /// <summary>The badge of a key (<c>PK</c>, <c>UK</c>, <c>FK</c>); <c>CHECK</c> for the rest.</summary>
+    public static string Short(ConstraintType type) => type switch
+    {
+        ConstraintType.PrimaryKey => "PK",
+        ConstraintType.Unique => "UK",
+        ConstraintType.ForeignKey => "FK",
+        _ => "CHECK",
+    };
+}
+
 /// <param name="Columns">Constrained columns in key order; empty for most check constraints on several columns.</param>
 /// <param name="Condition">Check condition (<c>SEARCH_CONDITION</c>); null for other types.</param>
 /// <param name="References">Referenced table of a foreign key.</param>
@@ -131,4 +156,15 @@ public static class IndexAdvice
         var leading = index.Columns.Take(columns.Count).ToList();
         return leading.All(c => !c.IsExpression) && leading.Select(c => c.Name).ToHashSet(StringComparer.Ordinal).SetEquals(columns);
     }
+}
+
+/// <summary>Names a table's new or renamed constraints and indexes cannot take (<see cref="ISchemaReader.GetNamesElsewhereAsync"/>).</summary>
+/// <param name="Constraints">Constraints of the owner's other tables (named by a user).</param>
+/// <param name="Indexes">
+/// The owner's indexes of other tables: indexes have a namespace of their own (a table and an index may share a name), and
+/// so does the index a new primary or unique key creates (review of R8).
+/// </param>
+public sealed record SchemaNames(IReadOnlySet<string> Constraints, IReadOnlySet<string> Indexes)
+{
+    public static readonly SchemaNames None = new(new HashSet<string>(), new HashSet<string>());
 }

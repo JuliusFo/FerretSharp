@@ -403,7 +403,7 @@
             ColumnValuesFormat.Lines, rows.OfType<RowData>().ToList(), rows.Count(r => r is null));
     });
 
-    /// <summary>Right click on a column header (SQL editor only, <see cref="ExportsAllRows"/>): copy all its values.</summary>
+    /// <summary>Right click on a column header (SQL editor only, <see cref="ExportsAllRows"/>): copy all its values, mark the column.</summary>
     /// <param name="marks">What is marked (grid.js sends it for a table's menu, WP-61); a result's menu has no use for it.</param>
     [JSInvokable]
     public Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight, GridMarks? marks) => GuardAsync(() =>
@@ -476,13 +476,17 @@
         _blocks.At,
         ReadRowsAsync,
         ExportsAllRows ? AllValuesOf : null,
-        _ => 0);
+        _ => 0,
+        WorkspaceId);
+
+    /// <summary>Cancels reads of a marked range's rows when the result goes away (review of R8, like FerretGrid); never disposed.</summary>
+    private readonly CancellationTokenSource _closing = new();
 
     /// <summary>
     /// Rows of a marked range that are not loaded: from the rows sorted in memory, else the query read for them like a
-    /// block; null if it failed.
+    /// block; null if it failed or was cancelled (review 3.54.0, A5).
     /// </summary>
-    private async Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count)
+    private async Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count, CancellationToken cancellationToken)
     {
         if (_order.Ordered is { } ordered)
         {
@@ -490,8 +494,10 @@
         }
 
         var query = _order.Query;
+        using var reading = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _closing.Token);
+        var token = reading.Token;
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
-            await Workspaces.ReadSqlAsync(WorkspaceId, query, start, count, CancellationToken.None));
+            await Workspaces.ReadSqlAsync(WorkspaceId, query, start, count, token), token);
         return Shell.ShowFailure(result) ? result.Value!.Rows.Select(values => new RowData(RowKey.None.Instance, values)).ToList() : null;
     }
 
@@ -627,6 +633,7 @@
     {
         _disposed = true;
         Presentations.HeaderChanged -= OnHeaderChanged;
+        CancelOffThread.Run(_closing);
         await _cts.CancelAsync();
         _cts.Dispose();
         await _grid.DisposeAsync();

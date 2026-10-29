@@ -17,7 +17,7 @@
         <div class="relations-head">
             <span class="muted" title="@SchemaViewText.Relations_LevelsTitle">@SchemaViewText.Relations_Levels</span>
             <div class="segmented small" role="group" title="@SchemaViewText.Relations_LevelsTitle">
-                @foreach (var depth in new[] { 1, 2 })
+                @for (var depth = 1; depth <= RelationDiagram.MaxDepth; depth++)
                 {
                     var d = depth;
                     <button class="seg @(_state.Depth == d ? "active" : "")" aria-pressed="@(_state.Depth == d ? "true" : "false")"
@@ -37,9 +37,7 @@
                 </label>
             }
             <span class="spacer"></span>
-            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!_state.CanZoomOut)" @onclick="_state.ZoomOut">@Icons.ZoomOut</button>
-            <button class="btn ghost relations-zoom" title="@SchemaViewText.Relations_ZoomReset" @onclick="_state.ResetZoom">@($"{_state.Zoom:P0}")</button>
-            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!_state.CanZoomIn)" @onclick="_state.ZoomIn">@Icons.ZoomIn</button>
+            <DiagramZoomBar Zoom="_state.Zoom" OnChange="() => { }" />
             <button class="btn ghost" title="@TextFormat.Format(SchemaViewText.Relations_ResetTitle, Label(_state.Home))" disabled="@(!_state.Changed)"
                     @onclick="() => Change(_state.Reset, scroll: true)">@CommonText.Reset</button>
             <button class="btn ghost" title="@SchemaViewText.Relations_CopyMermaidTitle" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
@@ -54,93 +52,76 @@
         }
         else
         {
-            <div id="@CanvasId" class="relations-canvas" @onmouseleave="() => _hover = null">
-                <div class="relations-size" style="@DiagramStyle.Size(placement.Width * _state.Zoom, placement.Height * _state.Zoom)">
-                    <div class="relations-stage" style="@DiagramStyle.Stage(placement, _state.Zoom)">
-                        <svg class="relations-edges" width="@DiagramStyle.Px(placement.Width)" height="@DiagramStyle.Px(placement.Height)">
-                            @foreach (var edge in placement.Edges)
-                            {
-                                var relation = diagram.RelationOf(edge.Id);
-                                var end = edge.Points[^1];
-                                <g class="relations-edge @(relation is null ? "group" : DiagramStyle.KindClass(relation.Source)) @DiagramStyle.EdgeState(edge, HoverId)" title="@(relation is null ? null : DiagramStyle.EdgeTitle(relation, Label))">
-                                    <path class="hit" d="@edge.Svg" />
-                                    <path class="line" d="@edge.Svg" />
-                                    <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
-                                </g>
-                            }
-                        </svg>
-                        @foreach (var table in diagram.Tables)
+            <DiagramCanvas Id="@CanvasId" Placement="placement" Zoom="_state.Zoom.Value" OnMouseLeave="() => _hover = null"
+                           EdgeClass="edge => EdgeClass(diagram, edge)" EdgeTitle="edge => diagram.RelationOf(edge.Id) is { } r ? DiagramStyle.EdgeTitle(r, Label) : null">
+                @foreach (var table in diagram.Tables)
+                {
+                    var t = table.Table;
+                    var box = placement.Nodes[RelationDiagram.IdOf(t)];
+                    var summary = Active.Schema?.Find(t);
+                    var parents = diagram.HiddenCount(t, DiagramSide.Parents);
+                    var children = diagram.HiddenCount(t, DiagramSide.Children);
+                    var toParents = parents > 0 ? diagram.HiddenRelations(t, DiagramSide.Parents) : [];
+                    var toChildren = children > 0 ? diagram.HiddenRelations(t, DiagramSide.Children) : [];
+                    <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @DiagramStyle.NodeState(t, _hover, lit)" style="@DiagramStyle.Box(box)"
+                         @onmouseenter="() => _hover = t" @onmouseleave="() => Leave(t)" @oncontextmenu="e => _menu!.OpenAsync(e, t)" @oncontextmenu:preventDefault="true">
+                        @if (parents > 0)
                         {
-                            var t = table.Table;
-                            var box = placement.Nodes[RelationDiagram.IdOf(t)];
-                            var summary = Active.Schema?.Find(t);
-                            var parents = diagram.HiddenCount(t, DiagramSide.Parents);
-                            var children = diagram.HiddenCount(t, DiagramSide.Children);
-                            var toParents = parents > 0 ? diagram.HiddenRelations(t, DiagramSide.Parents) : [];
-                            var toChildren = children > 0 ? diagram.HiddenRelations(t, DiagramSide.Children) : [];
-                            <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @DiagramStyle.NodeState(t, _hover, lit)" style="@DiagramStyle.Box(box)"
-                                 @onmouseenter="() => _hover = t" @onmouseleave="() => Leave(t)" @oncontextmenu="e => OpenMenuAsync(e, t)" @oncontextmenu:preventDefault="true">
-                                @if (parents > 0)
-                                {
-                                    <button class="relations-handle left @DiagramStyle.HandleClass(toParents)" title="@DiagramStyle.HandleTitle(TextFormat.Plural(parents, SchemaViewText.Relations_ShowParentsOne, SchemaViewText.Relations_ShowParentsOther), toParents)"
-                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Parents), anchor: t)">@Icons.ChevronsLeft+@parents</button>
-                                }
-                                @if (summary is not null)
-                                {
-                                    <button class="relations-name" title="@TextFormat.Format(SchemaViewText.Relations_OpenTitle, $"{t.Owner}.{t.Name}")"
-                                            @onclick="() => Shell.OpenTable(summary)">@Label(t)</button>
-                                }
-                                else
-                                {
-                                    <span class="relations-name" title="@SchemaViewText.TableLink_OtherSchema">@Label(t)</span>
-                                }
-                                @if (SubLabel(t) is { } sub)
-                                {
-                                    <span class="relations-sub">@sub</span>
-                                }
-                                @if (children > 0)
-                                {
-                                    <button class="relations-handle right @DiagramStyle.HandleClass(toChildren)" title="@DiagramStyle.HandleTitle(TextFormat.Plural(children, SchemaViewText.Relations_ShowChildrenOne, SchemaViewText.Relations_ShowChildrenOther), toChildren)"
-                                            @onclick="() => Change(() => _state.Expand(t, DiagramSide.Children), anchor: t)">+@children@Icons.ChevronsRight</button>
-                                }
-                            </div>
+                            <button class="relations-handle left @DiagramStyle.HandleClass(toParents)" title="@DiagramStyle.HandleTitle(TextFormat.Plural(parents, SchemaViewText.Relations_ShowParentsOne, SchemaViewText.Relations_ShowParentsOther), toParents)"
+                                    @onclick="() => Change(() => _state.Expand(t, DiagramSide.Parents), anchor: t)">@Icons.ChevronsLeft+@parents</button>
                         }
-                        @foreach (var group in diagram.Groups)
+                        @if (summary is not null)
                         {
-                            var g = group;
-                            var members = diagram.Members(g);
-                            if (members.Count > 0 && placement.Nodes.TryGetValue(g.Id, out var box))
-                            {
-                                <div class="relations-node group" style="@DiagramStyle.Box(box)">
-                                    <span class="relations-name">@TextFormat.Plural(members.Count, SchemaViewText.Relations_GroupOne, SchemaViewText.Relations_GroupOther)</span>
-                                    <button class="btn small" title="@TextFormat.Format(SchemaViewText.Relations_GroupTitle, string.Join(", ", members.Select(Label)))"
-                                            @onclick="() => Change(() => _state.Open(g), anchor: g.Table)">@SchemaViewText.Relations_GroupShow</button>
-                                </div>
-                            }
+                            <button class="relations-name" title="@TextFormat.Format(SchemaViewText.Relations_OpenTitle, $"{t.Owner}.{t.Name}")"
+                                    @onclick="() => Shell.OpenTable(summary)">@Label(t)</button>
+                        }
+                        else
+                        {
+                            <span class="relations-name" title="@SchemaViewText.TableLink_OtherSchema">@Label(t)</span>
+                        }
+                        @if (SubLabel(t) is { } sub)
+                        {
+                            <span class="relations-sub">@sub</span>
+                        }
+                        @if (children > 0)
+                        {
+                            <button class="relations-handle right @DiagramStyle.HandleClass(toChildren)" title="@DiagramStyle.HandleTitle(TextFormat.Plural(children, SchemaViewText.Relations_ShowChildrenOne, SchemaViewText.Relations_ShowChildrenOther), toChildren)"
+                                    @onclick="() => Change(() => _state.Expand(t, DiagramSide.Children), anchor: t)">+@children@Icons.ChevronsRight</button>
                         }
                     </div>
-                </div>
-            </div>
+                }
+                @foreach (var group in diagram.Groups)
+                {
+                    var g = group;
+                    var members = diagram.Members(g);
+                    if (members.Count > 0 && placement.Nodes.TryGetValue(g.Id, out var box))
+                    {
+                        <div class="relations-node group" style="@DiagramStyle.Box(box)">
+                            <span class="relations-name">@TextFormat.Plural(members.Count, SchemaViewText.Relations_GroupOne, SchemaViewText.Relations_GroupOther)</span>
+                            <button class="btn small" title="@TextFormat.Format(SchemaViewText.Relations_GroupTitle, string.Join(", ", members.Select(Label)))"
+                                    @onclick="() => Change(() => _state.Open(g), anchor: g.Table)">@SchemaViewText.Relations_GroupShow</button>
+                        </div>
+                    }
+                }
+            </DiagramCanvas>
         }
     </div>
 }
 
-@if (_menu is { } menu)
-{
-    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="260" EstimatedHeight="150" OnClose="() => _menu = null">
-        @{
-            var summary = Active.Schema?.Find(menu.Table);
-            var diagram = _state.Diagram;
-        }
-        <button class="menu-item" disabled="@(summary is null)" @onclick="() => FromMenu(() => Shell.OpenTable(summary!))">@TextFormat.Format(SchemaViewText.Relations_OpenTitle, Label(menu.Table))</button>
-        <button class="menu-item" disabled="@(menu.Table == _state.Focus)" @onclick="() => FromMenu(() => _state.Recenter(menu.Table), scroll: true)">@SchemaViewText.Relations_MenuCenter</button>
-        <div class="menu-sep"></div>
-        <button class="menu-item" disabled="@(diagram?.HiddenCount(menu.Table, DiagramSide.Parents) is not > 0)"
-                @onclick="() => FromMenu(() => _state.Expand(menu.Table, DiagramSide.Parents), anchor: menu.Table)">@SchemaViewText.Relations_MenuShowParents</button>
-        <button class="menu-item" disabled="@(diagram?.HiddenCount(menu.Table, DiagramSide.Children) is not > 0)"
-                @onclick="() => FromMenu(() => _state.Expand(menu.Table, DiagramSide.Children), anchor: menu.Table)">@SchemaViewText.Relations_MenuShowChildren</button>
-    </PopoverMenu>
-}
+@* A node's right-click menu (review 3.54.0, B2: built by hand before, without ↑ ↓). *@
+<ContextMenuHost @ref="_menu" TItem="TableRef" Width="260" EstimatedHeight="150" Context="table">
+    @{
+        var summary = Active.Schema?.Find(table);
+        var diagram = _state.Diagram;
+    }
+    <button class="menu-item" disabled="@(summary is null)" @onclick="() => FromMenu(() => Shell.OpenTable(summary!))">@TextFormat.Format(SchemaViewText.Relations_OpenTitle, Label(table))</button>
+    <button class="menu-item" disabled="@(table == _state.Focus)" @onclick="() => FromMenu(() => _state.Recenter(table), scroll: true)">@SchemaViewText.Relations_MenuCenter</button>
+    <div class="menu-sep"></div>
+    <button class="menu-item" disabled="@(diagram?.HiddenCount(table, DiagramSide.Parents) is not > 0)"
+            @onclick="() => FromMenu(() => _state.Expand(table, DiagramSide.Parents), anchor: table)">@SchemaViewText.Relations_MenuShowParents</button>
+    <button class="menu-item" disabled="@(diagram?.HiddenCount(table, DiagramSide.Children) is not > 0)"
+            @onclick="() => FromMenu(() => _state.Expand(table, DiagramSide.Children), anchor: table)">@SchemaViewText.Relations_MenuShowChildren</button>
+</ContextMenuHost>
 
 @code {
     private readonly string _id = "rel-" + Guid.NewGuid().ToString("N");
@@ -148,10 +129,9 @@
     private IReadOnlyList<ForeignKeyInfo>? _loadedRelations;
     private int? _loadedVersion;
     private TableRef? _hover;
-    private NodeMenu? _menu;
+    private ContextMenuHost<TableRef>? _menu;
     private bool _scroll = true;
     private (double X, double Y)? _scrollBy;
-    private bool _disposed;
     private DomModule? _dom;
 
     [CascadingParameter]
@@ -177,14 +157,17 @@
     [Parameter]
     public bool Shown { get; set; }
 
+    /// <summary>
+    /// Mounted once opened, it rendered its whole SVG on every change of the shell – each typed cell in another tab – also
+    /// hidden (review 3.54.0, A24; as <c>UsageView</c>, review 3.44.0, A35). Shown again, its parameters render it.
+    /// </summary>
+    protected override bool ShouldRender() => Shown;
+
     private DomModule Dom => _dom ??= new(JS);
 
     private string FocusId => _id + "-focus";
 
     private string CanvasId => _id + "-canvas";
-
-    /// <summary>The node whose right-click menu is open, with the mouse position and window size.</summary>
-    private sealed record NodeMenu(TableRef Table, double X, double Y, double ViewportWidth, double ViewportHeight);
 
     protected override void OnInitialized()
     {
@@ -255,7 +238,7 @@
         _scroll |= scroll;
         if (before is not null && _state.Placement?.Nodes.GetValueOrDefault(RelationDiagram.IdOf(anchor!)) is { } after)
         {
-            _scrollBy = ((after.X - before.X) * _state.Zoom, (after.Y - before.Y) * _state.Zoom);
+            _scrollBy = ((after.X - before.X) * _state.Zoom.Value, (after.Y - before.Y) * _state.Zoom.Value);
         }
     }
 
@@ -269,19 +252,8 @@
 
     private void FromMenu(Action action, bool scroll = false, TableRef? anchor = null)
     {
-        _menu = null;
+        _menu?.Close();
         Change(action, scroll, anchor);
-    }
-
-    private async Task OpenMenuAsync(MouseEventArgs e, TableRef table)
-    {
-        var size = await Dom.InvokeAsync<double[]>("viewportSize");
-        if (_disposed || size is not [var width, var height])
-        {
-            return;
-        }
-
-        _menu = new NodeMenu(table, e.ClientX, e.ClientY, width, height);
     }
 
     private async Task CopyMermaidAsync()
@@ -304,6 +276,10 @@
         Presentations.ShownEntityNameOf(table)
         ?? (Active.Schema?.Find(table)?.Synonym is not null ? table.Owner : null);
 
+    /// <summary>An edge's kind of relationship (<c>group</c> for one to a group) and its state under the mouse.</summary>
+    private string EdgeClass(RelationDiagram diagram, EdgePath edge) =>
+        $"{(diagram.RelationOf(edge.Id) is { } relation ? DiagramStyle.KindClass(relation.Source) : "group")} {DiagramStyle.EdgeState(edge, HoverId)}";
+
     private string? HoverId => _hover is { } hover ? RelationDiagram.IdOf(hover) : null;
 
     /// <summary>The tables related to the one under the mouse.</summary>
@@ -313,7 +289,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        _disposed = true;
         Presentations.Changed -= OnPresentationChanged;
         await Dom.DisposeAsync();
     }

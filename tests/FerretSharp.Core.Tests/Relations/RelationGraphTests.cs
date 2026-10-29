@@ -48,7 +48,7 @@ public class RelationGraphTests
     {
         var order = RelationGraph.Order([Position, Auftrag, Kunde, Artikel], [PositionAuftrag, AuftragKunde, PositionArtikel]);
 
-        Assert.False(order.HasCycles);
+        Assert.Empty(order.Cycles);
         Assert.Equal([Artikel, Kunde, Auftrag, Position], order.Tables);
     }
 
@@ -57,7 +57,7 @@ public class RelationGraphTests
     {
         var order = RelationGraph.Order([Position, Mitarbeiter], [PositionAuftrag, PositionArtikel, Vorgesetzter]);
 
-        Assert.False(order.HasCycles);
+        Assert.Empty(order.Cycles);
         Assert.Equal([Mitarbeiter, Position], order.Tables);
     }
 
@@ -71,7 +71,7 @@ public class RelationGraphTests
             [Position, Auftrag, Kunde, Rechnung],
             [PositionAuftrag, AuftragKunde, auftragRechnung, rechnungAuftrag]);
 
-        Assert.True(order.HasCycles);
+        Assert.NotEmpty(order.Cycles);
         var cycle = Assert.Single(order.Cycles);
         Assert.Equal([Auftrag, Rechnung], cycle.Tables);
         Assert.Equal([auftragRechnung, rechnungAuftrag], cycle.Relations);
@@ -88,7 +88,7 @@ public class RelationGraphTests
 
         var order = RelationGraph.Order([Auftrag, Kunde], [bestellt, liefert]);
 
-        Assert.False(order.HasCycles);
+        Assert.Empty(order.Cycles);
         Assert.Equal([Kunde, Auftrag], order.Tables);
     }
 }

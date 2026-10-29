@@ -252,7 +252,7 @@
     <value>The partitioning of the index is not copied.</value>
   </data>
   <data name="IdentityOptionsUnknown" xml:space="preserve">
-    <value>Identity {0}: ALWAYS or BY DEFAULT and the options (start, increment) are not known – check them against the reference’s DDL.</value>
+    <value>Identity {0}: start and increment are not known – check them against the reference’s DDL.</value>
     <comment>{0}: column name</comment>
   </data>
   <data name="ExpressionNamesReferenceSchema" xml:space="preserve">
@@ -281,5 +281,9 @@
   <data name="AddColumnsHeader" xml:space="preserve">
     <value>Columns of {0}, to add to the same table.</value>
     <comment>{0}: source table as OWNER.TABLE</comment>
+  </data>
+  <data name="IdentityModeHint" xml:space="preserve">
+    <value>Identity {0}: ALWAYS or BY DEFAULT (ON NULL) differs – check the statement before running it; start and increment are not compared.</value>
+    <comment>{0}: column name</comment>
   </data>
 </root>

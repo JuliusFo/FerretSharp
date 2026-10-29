@@ -67,7 +67,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     {
         var (seen, reported) = _models.WatcherCounts;
         await write();
-        await WaitUntil(() => _models.WatcherCounts.Seen > seen);
+        await Wait.UntilAsync(() => _models.WatcherCounts.Seen > seen);
 
         // A later event of the same write may move the end of the quiet period while the clock moves on: on until it reported.
         for (var waited = 0; _models.WatcherCounts.Reported == reported; waited += 20)
@@ -79,15 +79,6 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     }
 
     private static ModelHostResult Model() => new(new ModelExport(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null, []), null);
-
-    private static async Task WaitUntil(Func<bool> condition)
-    {
-        for (var waited = 0; !condition(); waited += 20)
-        {
-            Assert.True(waited < 10_000, "Timed out.");
-            await Task.Delay(20, Ct);
-        }
-    }
 
     private ILinqConsole Console(string name)
     {
@@ -158,7 +149,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
             .Returns(new ModelHostResult(new ModelExport(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null, [kunde]), null));
         await ConnectAsync();
         // ConnectAsync settles on any phase but Loading – also on None before the load has begun (CI runners are slower).
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         Assert.DoesNotContain(_models.Mapping!.Issues, i => i.Kind == MappingIssueKind.ColumnWithoutProperty);
 
         columns = ["KUNDE_ID", "FAX"]; // ALTER TABLE kunden ADD fax …
@@ -206,6 +197,20 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         Assert.Contains("kaputt", _models.State.Error!.Message);
     }
 
+    /// <summary>Review 3.54.0, A19: a build past its time limit showed "exit code -1" and lost what it wrote up to then.</summary>
+    [Fact]
+    public async Task A_build_past_its_time_limit_keeps_its_output_and_says_why()
+    {
+        await ConnectAsync();
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ClrModelException(ClrModelErrorKind.Timeout, "nicht in 1800 s fertig", "Restore läuft …"));
+
+        var run = await _models.BuildSolutionAsync("App.sln", Ct);
+
+        Assert.Equal(("Restore läuft …", "nicht in 1800 s fertig"), (run!.Output, run.Error));
+        Assert.False(run.Succeeded);
+    }
+
     [Fact]
     public async Task A_console_that_cannot_start_fails_with_a_message()
     {
@@ -251,15 +256,15 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         var changed = 0;
         _models.BuildOutputChanged += () => Interlocked.Increment(ref changed);
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         var first = _models.Mapping;
 
         await BuildAsync(() => File.WriteAllTextAsync(_dll, "neuer Build", Ct));
 
-        await WaitUntil(() => _models.State is { Phase: ClrModelPhase.Loading, BuildChanged: true });
+        await Wait.UntilAsync(() => _models.State is { Phase: ClrModelPhase.Loading, BuildChanged: true });
         Assert.Same(first, _models.State.Mapping);
         second.SetResult(Model());
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         Assert.NotSame(first, _models.Mapping);
         Assert.False(_models.State.BuildChanged);
         Assert.Equal(1, changed);
@@ -274,7 +279,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         var changed = 0;
         _models.BuildOutputChanged += () => Interlocked.Increment(ref changed);
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
 
         var written = File.GetLastWriteTimeUtc(_dll);
         await BuildAsync(async () =>
@@ -294,7 +299,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .Returns(Model());
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         await using var consoles = new LinqConsoleService(_runner, _models);
         var old = Console("alt");
         var started = new TaskCompletionSource<ILinqConsole>();
@@ -305,13 +310,13 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
         await BuildAsync(() => File.WriteAllTextAsync(_dll, "neuer Build", Ct));
 
-        await WaitUntil(() => consoles.State.IsReloading);
+        await Wait.UntilAsync(() => consoles.State.IsReloading);
         Assert.Equal("alt", (await consoles.RunAsync("x", "", Ct)).ResultType);
         var fresh = Console("neu");
         started.SetResult(fresh);
-        await WaitUntil(() => consoles.State is { Phase: LinqConsolePhase.Ready, Step: null });
+        await Wait.UntilAsync(() => consoles.State is { Phase: LinqConsolePhase.Ready, Step: null });
         Assert.Equal("neu", (await consoles.RunAsync("x", "", Ct)).ResultType);
-        await WaitUntil(() => old.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync)));
+        await Wait.UntilAsync(() => old.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync)));
     }
 
     [Fact]
@@ -321,7 +326,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .Returns(Model());
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         var consoles = new LinqConsoleService(_runner, _models);
         var old = Console("alt");
         var started = new TaskCompletionSource<ILinqConsole>();
@@ -329,7 +334,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
             .Returns(Task.FromResult(old), started.Task);
         await consoles.WarmUpAsync();
         await BuildAsync(() => File.WriteAllTextAsync(_dll, "neuer Build", Ct));
-        await WaitUntil(() => consoles.State is { IsReloading: true, Step: not null } && consoles.State.Step.EndsWith("lade neu", StringComparison.Ordinal));
+        await Wait.UntilAsync(() => consoles.State is { IsReloading: true, Step: not null } && consoles.State.Step.EndsWith("lade neu", StringComparison.Ordinal));
 
         // The connection closes while the new host is still starting; the start then completes anyway.
         var closing = consoles.DisposeAsync().AsTask();
@@ -337,7 +342,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         started.SetResult(fresh);
         await closing;
 
-        await WaitUntil(() => fresh.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync)));
+        await Wait.UntilAsync(() => fresh.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync)));
         Assert.Contains(old.ReceivedCalls(), c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync));
     }
 
@@ -350,7 +355,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         // Loaded, not just "not loading": right after connecting the load may not have begun, and without a linked
         // project the start gives up before it says "Starting" (failed on the slower release runner).
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         var consoles = new LinqConsoleService(_runner, _models);
         var started = new TaskCompletionSource<ILinqConsole>();
         var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -370,7 +375,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         started.SetResult(fresh);
         await warmUp;
 
-        await WaitUntil(() => fresh.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync)));
+        await Wait.UntilAsync(() => fresh.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync)));
     }
 
     [Fact]
@@ -380,7 +385,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .Returns(Model());
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         await using var consoles = new LinqConsoleService(_runner, _models);
         var old = Console("alt");
         _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
@@ -389,7 +394,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
         await BuildAsync(() => File.WriteAllTextAsync(_dll, "kaputter Build", Ct));
 
-        await WaitUntil(() => consoles.State.Error is not null);
+        await Wait.UntilAsync(() => consoles.State.Error is not null);
         Assert.Equal(LinqConsolePhase.Ready, consoles.State.Phase);
         Assert.Contains("OnModelCreating kaputt", consoles.State.Error!.Message);
         Assert.Equal("alt", (await consoles.RunAsync("x", "", Ct)).ResultType);
@@ -412,7 +417,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
             });
 
         var warmUp = consoles.WarmUpAsync();
-        await WaitUntil(() => consoles.State.Phase == LinqConsolePhase.Starting);
+        await Wait.UntilAsync(() => consoles.State.Phase == LinqConsolePhase.Starting);
         consoles.CancelStart();
         await warmUp;
 
@@ -428,7 +433,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .Returns(_ => Interlocked.Increment(ref reads) == 1 ? Task.FromResult(Model()) : second.Task);
         await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await Wait.UntilAsync(() => _models.State.Phase == ClrModelPhase.Loaded);
         await using var consoles = new LinqConsoleService(_runner, _models);
         var old = Console("alt");
         var fresh = Console("neu");
@@ -439,12 +444,12 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         await BuildAsync(() => File.WriteAllTextAsync(_dll, "neuer Build", Ct));
 
         // Two hosts building a large model at the same time made the UI stutter: the console waits for the model.
-        await WaitUntil(() => _models.State is { Phase: ClrModelPhase.Loading, BuildChanged: true });
-        await WaitUntil(() => consoles.Restart.IsWaiting); // parked on the reload (review 3.40.0, C8: was a fixed wait of 300 ms)
+        await Wait.UntilAsync(() => _models.State is { Phase: ClrModelPhase.Loading, BuildChanged: true });
+        await Wait.UntilAsync(() => consoles.Restart.IsWaiting); // parked on the reload (review 3.40.0, C8: was a fixed wait of 300 ms)
         Assert.True(consoles.State.IsReloading);
         await _runner.Received(1).StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>());
         second.SetResult(Model());
-        await WaitUntil(() => consoles.State is { Phase: LinqConsolePhase.Ready, Step: null });
+        await Wait.UntilAsync(() => consoles.State is { Phase: LinqConsolePhase.Ready, Step: null });
         Assert.Equal("neu", (await consoles.RunAsync("x", "", Ct)).ResultType);
     }
 }

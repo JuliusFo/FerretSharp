@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-26, zuletzt released 3.50.2 (Historie: `CHANGELOG.md`).
+> Release-Stand und Historie: die Tags `vX.Y.Z` und `CHANGELOG.md`.
 
 ## Wo steht was
 
@@ -67,13 +67,13 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
   Oracle/ Query/ (SqlEditor/, Search/) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/ Ddl/
-  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ ClrModel/ (Host/ CodeGen/ Usage/) – Unterordner ohne eigenen Namespace
+  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ Relations/ ClrModel/ (Host/ CodeGen/ Usage/) – Unterordner ohne eigenen Namespace
 src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/, Components/ (Ordner =
                             Namespace), State/ (Namespace `UI.State`), wwwroot/ (css, js als ES-Module, lib/)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 src/FerretSharp.AppTrace/   an eine laufende App anhängen (EventPipe, ADR 0023), plattformneutral
 src/FerretSharp.App/        net10.0-windows10.0.19041.0 – schlanker WPF-Host (Generic Host, Serilog, Host-Dienste)
-tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (Testcontainers), Stand-ins
+tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (Testcontainers), js/ (node:test), Stand-ins
                             FakeModelHost, FakeEfApp, FakeEfModel; Shared/
 samples/                    Beispielmodell (DbContext + Entities) zur Beispiel-DB
 pages/                      Weiterleitungsseite für Links auf GitHub Pages (ADR 0026)
@@ -86,25 +86,18 @@ Regeln:
 - SQL-Strings entstehen ausschließlich in `Core/Query/` und `Core/Oracle/`, DDL-Text nur in `Core/Ddl/` (`OracleDdl`; Vergleich, Designer und Audit bauen darauf, nur der Trigger-Text einer Audit-Vorlage kommt vom Nutzer). Komponenten in `FerretSharp.UI` enthalten kein SQL (Ausnahme: Anzeige eines erzeugten Statements).
 - `QueryBuilder` kennt den Oracle-Treiber nicht: Er liefert eigene `QueryParameter`, das Mapping auf `OracleParameter` passiert in `Core/Oracle`.
 
-## 5. Kernbegriffe (Details: `docs/architecture.md`)
+## 5. Kernbegriffe (Details: `docs/architecture.md` 1.x)
 
-- **Verbindung** (`ConnectionProfile`): Art (Prod/Test/Dev/Other → Farbe), Adresse, User, „Schreibgeschützt“ (Prod voreingestellt). Mehrere offen, eine sichtbar: je Verbindung ein DI-Scope `ConnectionScope` im `ConnectionHub`.
-- **Workspace**: eigene Session (Connection und Transaktion, `Pooling=false`, MODULE/ACTION = FerretSharp/Workspace-Name), Tabs als `TabState`, Persistenz als JSON; das Schema lädt eine separate Explorer-Session (ADR 0005).
-- **Query**: Werte nur als Bind-Variablen (jede kommt im SQL vor), Spaltennamen gegen das Schema validiert und gequotet, immer deterministisch sortiert (PK → ROWID). Row-Key: durchgesetzter PK, sonst ROWID; Views nur lesbar.
-- **Änderungen**: Pending (`ChangeTracker`) → Flushed (DML in der Session, Zeilen gesperrt, Savepoint je Flush) → Committed, nur auf Nutzerbefehl. Grid und SQL/LINQ teilen einen Undo-Stapel (ADR 0018); DDL läuft außerhalb jeder Transaktion (ADR 0019).
+Verbindung (`ConnectionProfile`, je offene ein `ConnectionScope`), Workspace (eigene Session und Transaktion, Tabs als `TabState`), Query (Binds, gequotete Namen, Sortierung PK → ROWID) und Änderungen (Pending → Flushed → Committed, Undo-Stapel ADR 0018, DDL außerhalb jeder Transaktion ADR 0019) sind dort beschrieben.
 
 ## 6. Arbeitsweise
 
 - **Pakete:** eigener Branch `wp/NN-kurzname` (kleinere Themen `feat/…`, `fix/…`; reine Doku-Commits direkt auf `main`, ohne Branch und PR); neue Arbeit immer von `main` abzweigen. Welches Paket als Nächstes kommt, entscheidet der Nutzer jeweils selbst – keine Reihenfolge planen, nur Abhängigkeiten festhalten („braucht WP-NN“). Vor dem Start den Plan nennen, dann umsetzen. Ein Paket zu Ende bringen, bevor andere Themen angefasst werden; Ideen unterwegs nach `docs/backlog.md`. Bei Unsicherheit über UX-Details die einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in `docs/roadmap.md` notieren, nicht blockieren.
-- **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch, ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages/` (eigene Datei, Zeile im Index), Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
+- **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch, eine sichtbare Funktion im `README.md`, ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages/` (eigene Datei, Zeile im Index), Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
 - **Commits** klein und thematisch, Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
 - **Core zuerst mit Tests, dann UI.** Unit-Tests laufen ohne DB (Mocks). Alles, was eine echte DB braucht, gehört in `FerretSharp.Integration.Tests` und muss sich ohne Docker sauber überspringen.
 - **Ordner rekursiv löschen nur über `SafeDelete.DirectoryBelow(root, path)`** (nur strikt unter einer festen Wurzel), in Tests über `TestFolder`. Nie einen Pfad aus Einstellungen, Umgebung oder Eingaben ungeprüft löschen, keine `Remove-Item -Recurse`/`rm -r`/`RemoveDir` in Skripten (`SafeDeleteTests` sucht danach).
-- **UI end-to-end prüfen, ohne echte Nutzerdaten anzufassen** (Ablauf: `docs/e2e-testing.md`):
-  - App nur mit `--data-dir=<scratch>` starten; eigene Test-DB-Container per Name anlegen und wieder entfernen.
-  - Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers – **nicht anfassen** (`New-SampleDb.ps1` nie ohne `-Name`).
-  - Native Dialoge (Speichern unter) nicht per UI Automation bedienen: Sie öffnen sich in den echten Ordnern des Nutzers.
-  - Mausinteraktionen mit echter Windows-Eingabe prüfen, nicht nur per CDP.
+- **UI end-to-end prüfen, ohne echte Nutzerdaten anzufassen** (Ablauf und weitere Regeln: `docs/e2e-testing.md`): App nur mit `--data-dir=<scratch>`, eigene Test-DB-Container per Name. Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers – **nicht anfassen** (`New-SampleDb.ps1` nie ohne `-Name`). Mausinteraktionen mit echter Windows-Eingabe prüfen, nicht nur per CDP.
 
 ## 7. Kontext des Nutzers
 

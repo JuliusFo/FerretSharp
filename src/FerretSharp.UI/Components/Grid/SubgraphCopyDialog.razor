@@ -7,6 +7,7 @@
 @using FerretSharp.Core.Schema
 @implements IDisposable
 @inject AppSettingsService Settings
+@inject ConnectionHub Hub
 @inject ILogger<SubgraphCopyDialog> Logger
 
 <ModalFrame Label="@CopyViewText.Title" Class="copy-dialog" OnCancel="CloseAsync">
@@ -127,6 +128,18 @@
                 </ul>
             }
         }
+
+        @if (_copying is { } copying && Hub.Find(copying.Target.ConnectionId) is { } targetScope)
+        {
+            @* The write runs on the target's session (review 3.54.0, A2): time, cancel and "Disconnect session" for that one –
+               an insert waits without end for a key another session inserted and has not committed. *@
+            <CascadingValue Value="targetScope.Workspaces">
+                <CascadingValue Value="targetScope.Active">
+                    <RunProgress WorkspaceId="copying.Target.WorkspaceId" Title="@TextFormat.Format(CopyViewText.Copying, copying.Target.Label)"
+                                 Started="copying.Started" OnCancel="CancelCopy" MayWaitForLock="true" />
+                </CascadingValue>
+            </CascadingValue>
+        }
     </div>
     <footer>
         <div class="copy-read">
@@ -157,7 +170,7 @@
         </div>
         <span class="spacer"></span>
         <button class="btn" @onclick="CloseAsync">@CommonText.Cancel</button>
-        <button class="btn primary" disabled="@(!Draft.CanCopy || _copying)" title="@CopyTitle" @onclick="CopyAsync">@CopyViewText.Copy</button>
+        <button class="btn primary" disabled="@(!Draft.CanCopy || _copying is not null)" title="@CopyTitle" @onclick="CopyAsync">@CopyViewText.Copy</button>
     </footer>
 </ModalFrame>
 
@@ -166,7 +179,11 @@
     private CancellationTokenSource? _reading;
     private TraversalProgress? _progress;
     private bool _readOnce;
-    private bool _copying;
+
+    /// <summary>The write running into the target: where, since when, and how to cancel it.</summary>
+    private sealed record Copying(CopyTarget Target, DateTimeOffset Started, CancellationTokenSource Cancel);
+
+    private Copying? _copying;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -187,7 +204,7 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    private bool Busy => Draft.Stage == CopyStage.Loading || _copying;
+    private bool Busy => Draft.Stage == CopyStage.Loading || _copying is not null;
 
     /// <summary>Why "Copy" is off when the target is locked, otherwise what it does.</summary>
     private string CopyTitle => Draft.Target is { Writable: false } locked ? TextFormat.Format(CopyViewText.TargetLockedHint, locked.Label) : CopyViewText.CopyTitle;
@@ -304,43 +321,31 @@
         var placement = _preview;
         var issues = Draft.Issues;
         return @<div class="relations-view copy-diagram">
-            <div class="relations-canvas">
-                <div class="relations-size" style="@Schema.DiagramStyle.Size(placement.Width, placement.Height)">
-                    <div class="relations-stage" style="@Schema.DiagramStyle.Stage(placement, 1)">
-                        <svg class="relations-edges" width="@Schema.DiagramStyle.Px(placement.Width)" height="@Schema.DiagramStyle.Px(placement.Height)">
-                            @foreach (var edge in placement.Edges)
-                            {
-                                var relation = Draft.Relations.Find(edge.Id);
-                                var end = edge.Points[^1];
-                                <g class="relations-edge @(relation is null ? "other" : Schema.DiagramStyle.KindClass(relation.Source))" title="@relation?.Name">
-                                    <path class="hit" d="@edge.Svg" />
-                                    <path class="line" d="@edge.Svg" />
-                                    <circle cx="@Schema.DiagramStyle.Px(end.X)" cy="@Schema.DiagramStyle.Px(end.Y)" r="3" />
-                                </g>
-                            }
-                        </svg>
-                        @foreach (var table in plan.Tables)
+            <DiagramCanvas Placement="placement" EdgeClass="PreviewEdgeClass"
+                           EdgeTitle="edge => Draft.Relations.Find(edge.Id)?.Name">
+                @foreach (var table in plan.Tables)
+                {
+                    var box = placement.Nodes[RelationDiagram.IdOf(table.Table)];
+                    var own = issues.Where(i => i.Table == table.Table).ToList();
+                    var worst = own.Count == 0 ? null : (CopySeverity?)own.Min(i => i.Severity);
+                    <div class="relations-node copy-table-node @(worst is { } w ? SeverityClass(w) : "")" style="@DiagramStyle.Box(box)"
+                         title="@(own.Count == 0 ? null : string.Join(Environment.NewLine, own.Select(i => i.Message)))">
+                        <span class="relations-name">@table.Source.Details.Table.DisplayName</span>
+                        <span class="relations-sub">@TextFormat.Plural(table.Rows.Count, CopyViewText.DiagramRowsOne, CopyViewText.DiagramRowsOther, table.NewRows, table.Existing.Count)</span>
+                        @if (table.Existing.Count > 0)
                         {
-                            var box = placement.Nodes[RelationDiagram.IdOf(table.Table)];
-                            var own = issues.Where(i => i.Table == table.Table).ToList();
-                            var worst = own.Count == 0 ? null : (CopySeverity?)own.Min(i => i.Severity);
-                            <div class="relations-node copy-table-node @(worst is { } w ? SeverityClass(w) : "")" style="@Schema.DiagramStyle.Box(box)"
-                                 title="@(own.Count == 0 ? null : string.Join(Environment.NewLine, own.Select(i => i.Message)))">
-                                <span class="relations-name">@table.Source.Details.Table.DisplayName</span>
-                                <span class="relations-sub">@TextFormat.Plural(table.Rows.Count, CopyViewText.DiagramRowsOne, CopyViewText.DiagramRowsOther, table.NewRows, table.Existing.Count)</span>
-                                @if (table.Existing.Count > 0)
-                                {
-                                    <span class="relations-sub">@(table.Differing.Count > 0
-                                        ? TextFormat.Format(CopyViewText.DiagramConflictDiffering, ModeLabel(Draft.ModeOf(table)), table.Differing.Count)
-                                        : TextFormat.Format(CopyViewText.DiagramConflict, ModeLabel(Draft.ModeOf(table))))</span>
-                                }
-                            </div>
+                            <span class="relations-sub">@(table.Differing.Count > 0
+                                ? TextFormat.Format(CopyViewText.DiagramConflictDiffering, ModeLabel(Draft.ModeOf(table)), table.Differing.Count)
+                                : TextFormat.Format(CopyViewText.DiagramConflict, ModeLabel(Draft.ModeOf(table))))</span>
                         }
                     </div>
-                </div>
-            </div>
+                }
+            </DiagramCanvas>
         </div>;
     }
+
+    /// <summary>An edge's kind of relationship; <c>group</c> without one (it was <c>other</c> here, without a style).</summary>
+    private string PreviewEdgeClass(EdgePath edge) => Draft.Relations.Find(edge.Id) is { } relation ? DiagramStyle.KindClass(relation.Source) : "group";
 
     /// <summary>Taller nodes than in the relationship diagram: name, rows and the conflict mode.</summary>
     private static readonly LayoutMetrics PreviewMetrics = LayoutMetrics.Default with { NodeWidth = 200, NodeHeight = 64, LayerGap = 64 };
@@ -385,11 +390,27 @@
 
     private async Task ReadAsync()
     {
-        _reading?.Dispose();
-        _reading = new CancellationTokenSource();
+        // The read owns its token source and frees it once it ended: freed by the dialog's Dispose, a cancel still on its way
+        // to the pool thread found it gone and the read went on (review 3.54.0, A3).
+        using var reading = new CancellationTokenSource();
+        _reading = reading;
+        try
+        {
+            await ReadCoreAsync(reading.Token);
+        }
+        finally
+        {
+            if (_reading == reading)
+            {
+                _reading = null;
+            }
+        }
+    }
+
+    private async Task ReadCoreAsync(CancellationToken token)
+    {
         _readOnce = true;
         _progress = null;
-        var token = _reading.Token;
         var progress = new Progress<TraversalProgress>(p =>
         {
             _progress = p;
@@ -400,7 +421,7 @@
         var collecting = Shell.RunDbAsync(Logger, Active, () => Draft.CollectAsync(progress, token), token);
         StateHasChanged(); // the stage is Loading now
         var collected = await collecting;
-        if (Failed(collected) || !collected.Value || Draft.Target is not { } target)
+        if (token.IsCancellationRequested || Failed(collected) || !collected.Value || Draft.Target is not { } target)
         {
             return;
         }
@@ -420,26 +441,9 @@
         return false;
     }
 
-    /// <summary>On a pool thread: ODP.NET sends the break synchronously, over a silent VPN it blocks (A3).</summary>
-    private void CancelRead()
-    {
-        if (_reading is not { } reading)
-        {
-            return;
-        }
+    private void CancelRead() => CancelOffThread.Run(_reading);
 
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                reading.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // the dialog is gone, and its read with it
-            }
-        });
-    }
+    private void CancelCopy() => CancelOffThread.Run(_copying?.Cancel);
 
     private async Task CopyAsync()
     {
@@ -448,12 +452,13 @@
             return;
         }
 
-        _copying = true;
+        using var cancel = new CancellationTokenSource();
+        _copying = new Copying(target, DateTimeOffset.Now, cancel);
         try
         {
             var write = Draft.Write(Settings.Current.LockWaitSeconds);
             var workspace = Shell.FindWorkspace(target.WorkspaceId) ?? new WorkspaceTabs(target.WorkspaceId, target.ConnectionId);
-            if (await Lifecycle.Editing.CopyAsync(workspace, write) is { } action)
+            if (await Lifecycle.Editing.CopyAsync(workspace, write, cancel.Token) is { } action)
             {
                 Shell.Notify(TextFormat.Format(CopyViewText.Copied, action.Display, target.Label));
                 await CloseAsync();
@@ -461,7 +466,7 @@
         }
         finally
         {
-            _copying = false;
+            _copying = null;
         }
     }
 
@@ -471,5 +476,9 @@
         return OnClose.InvokeAsync();
     }
 
-    public void Dispose() => _reading?.Dispose();
+    /// <summary>
+    /// Gone without "Close" too (the tab went away on a reconnect): the read stops (A3). A copy already writing goes on – it
+    /// is one action of the target's transaction, shown in its status bar like any write.
+    /// </summary>
+    public void Dispose() => CancelRead();
 }

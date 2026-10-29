@@ -107,10 +107,10 @@ public sealed class SchemaCompareService(
             ? $"{ConnectionLabel.Of(profile, settings.Current)} · {side.OwnerFor(profile)}"
             : CompareViewText.Compare_MissingConnection;
 
-    /// <summary>The connections to choose a side from, in the order of the switcher: by group (none last), kind, name.</summary>
-    public IReadOnlyList<ConnectionProfile> Choices => ChoicesIn(null);
-
-    /// <summary><see cref="Choices"/> in the user's order of the groups (WP-66).</summary>
+    /// <summary>
+    /// The connections to choose a side from, in the order of the switcher: by group in the user's order (WP-66; none:
+    /// alphabetical, no group last), kind, name.
+    /// </summary>
     public IReadOnlyList<ConnectionProfile> ChoicesIn(IReadOnlyList<string>? order) => ConnectionSearch.InListOrder(connections.Profiles, order);
 
     /// <summary>A connection in the side's list: <c>Kunde A › ERP Test</c>.</summary>

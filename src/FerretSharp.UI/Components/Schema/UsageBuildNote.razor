@@ -42,7 +42,7 @@
     @if (Usage.LastSolutionBuild is { Succeeded: false } build && !Usage.IsBuildingSolution)
     {
         <div class="tab-error">
-            <span>@TextFormat.Format(ModelViewText.Usage_BuildSolutionFailed, build.ExitCode)</span>
+            <span>@(build.Error ?? TextFormat.Format(ModelViewText.Usage_BuildSolutionFailed, build.ExitCode))</span>
             <button class="link-btn" @onclick="() => _showOutput = !_showOutput">@(_showOutput ? ModelViewText.Model_HideDetails : CommonText.Details)</button>
         </div>
         @if (_showOutput)

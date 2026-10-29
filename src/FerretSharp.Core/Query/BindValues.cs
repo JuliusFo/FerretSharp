@@ -36,10 +36,13 @@ public static class BindValues
 
     private static string Quote(string s) => OracleLiteral.Text(s);
 
-    /// <summary>The statement followed by one line per bind variable, e.g. <c>-- :p0 = 'Müller'</c>.</summary>
+    /// <summary>
+    /// The statement followed by one comment per bind variable, e.g. <c>-- :p0 = 'Müller'</c>; a value with line breaks
+    /// stays a comment on each line ("Copy as SQL" of the change overview, review of R8).
+    /// </summary>
     public static string Describe(QuerySpec statement, bool mask) =>
         statement.Parameters.Count == 0
             ? statement.Sql
             : statement.Sql + Environment.NewLine + string.Join(
-                Environment.NewLine, statement.Parameters.Select(p => $"-- :{p.Name} = {Format(p, mask)}"));
+                Environment.NewLine, statement.Parameters.Select(p => SqlComment.Of($":{p.Name} = {Format(p, mask)}", Environment.NewLine)));
 }

@@ -214,6 +214,7 @@
   </data>
   <data name="TypeChangeKeepsBlanks" xml:space="preserve">
     <value>{0}: {1} → {2} keeps the blanks every value was padded with; comparisons with the text without them (relationships, filters, EF Core) no longer match – trim them with RTRIM afterwards.</value>
+    <comment>{0}: column; {1}: type before; {2}: type after</comment>
   </data>
   <data name="ConstraintNameMissing" xml:space="preserve">
     <value>{0}: enter a name for the constraint.</value>
@@ -242,5 +243,13 @@
   <data name="ColumnScaleRange" xml:space="preserve">
     <value>{0}: scale {1} does not fit NUMBER, which takes {2} to {3}.</value>
     <comment>{0}: column name; {1}: the scale typed; {2}, {3}: smallest and largest scale</comment>
+  </data>
+  <data name="ConstraintNameTakenInSchema" xml:space="preserve">
+    <value>Another table of the schema already has a constraint named {0} (ORA-02264).</value>
+    <comment>{0}: constraint name</comment>
+  </data>
+  <data name="IndexNameTakenInSchema" xml:space="preserve">
+    <value>Another table of the schema already has an index named {0} (ORA-00955).</value>
+    <comment>{0}: index name</comment>
   </data>
 </root>

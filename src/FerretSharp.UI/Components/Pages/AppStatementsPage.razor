@@ -70,7 +70,7 @@
                 @{ var match = Trace.Match; }
                 @if (match.Profile is { } profile)
                 {
-                    <span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @ConnectionLabel.Of(profile, Settings.Current)</span>
+                    <span class="@ConnectionKindInfo.CssClass(profile.Kind)"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @ConnectionLabel.Of(profile, Settings.Current)</span>
                     <span class="muted">@MatchText(match.Kind)</span>
                     @if (match.Kind == MatchKind.Chosen && process.Environment is { } env && string.IsNullOrEmpty(profile.AppEnvironment))
                     {

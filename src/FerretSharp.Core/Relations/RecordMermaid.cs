@@ -46,6 +46,6 @@ public static class RecordMermaid
 
     private static string Arrow(ForeignKeyInfo relation) => relation.Source == FkSource.Declared ? "-->" : "-.->";
 
-    /// <summary>Mermaid text in quotes; a double quote inside is its entity <c>#quot;</c>.</summary>
-    private static string Quote(string text) => $"\"{text.Replace("\"", "#quot;", StringComparison.Ordinal).Replace('\n', ' ').Replace('\r', ' ')}\"";
+    /// <summary>Mermaid text in quotes (<see cref="MermaidText.Plain"/>); a double quote inside is its entity <c>#quot;</c>.</summary>
+    private static string Quote(string text) => $"\"{MermaidText.Plain(text).Replace("\"", "#quot;", StringComparison.Ordinal)}\"";
 }

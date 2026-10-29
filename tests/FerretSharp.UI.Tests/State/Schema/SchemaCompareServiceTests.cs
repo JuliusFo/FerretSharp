@@ -311,7 +311,7 @@ public sealed class SchemaCompareServiceTests : IDisposable
     {
         var service = await ServiceAsync();
 
-        Assert.Equal([_test.Id, _dev.Id], service.Choices.Select(p => p.Id));
+        Assert.Equal([_test.Id, _dev.Id], service.ChoicesIn(null).Select(p => p.Id));
         Assert.Equal("Kunde A › ERP Test", service.ChoiceLabel(_test));
         Assert.Equal("ERP Dev", service.ChoiceLabel(_dev));
     }

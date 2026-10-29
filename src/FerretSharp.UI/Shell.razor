@@ -225,7 +225,8 @@
     /// <summary>
     /// Work the shell starts outside a Blazor event handler (shortcut, service event). No error boundary sits above the
     /// shell: an exception is logged and shown instead of going unobserved (R4a). Database errors the actions report
-    /// themselves.
+    /// themselves. A cancel ends quietly: let through, the WPF dispatcher threw it again as "Unexpected error" (as
+    /// <c>GuardAsync</c> since fixes-guard-cancel; review 3.54.0, A18).
     /// </summary>
     private void Run(Func<Task> work) => _ = InvokeAsync(async () =>
     {
@@ -233,7 +234,10 @@
         {
             await work();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
         {
             Failed(ex);
         }

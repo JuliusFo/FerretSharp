@@ -208,8 +208,12 @@ public interface IDataAccess : IRowLookup
     /// workspace's session like a lookup: it does not start a new read-only snapshot.
     /// </summary>
     /// <param name="rows">Rows of the audit table as the grid read them.</param>
+    /// <param name="started">
+    /// Runs when a statement gets the session – not while it waits behind another caller (review of R8: the highlighting's
+    /// time limit counted the wait); null if nobody times it.
+    /// </param>
     Task<IReadOnlyList<Audit.AuditRowChange>> ReadAuditChangesAsync(
-        TableDetails table, Audit.AuditVersions versions, IReadOnlyList<RowData> rows, CancellationToken cancellationToken);
+        TableDetails table, Audit.AuditVersions versions, IReadOnlyList<RowData> rows, Action? started, CancellationToken cancellationToken);
 
     /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>
     public const int ActualPlanPageSize = 500;

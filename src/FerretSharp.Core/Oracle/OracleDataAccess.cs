@@ -336,7 +336,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     }
 
     public async Task<IReadOnlyList<Audit.AuditRowChange>> ReadAuditChangesAsync(
-        TableDetails table, Audit.AuditVersions versions, IReadOnlyList<RowData> rows, CancellationToken cancellationToken)
+        TableDetails table, Audit.AuditVersions versions, IReadOnlyList<RowData> rows, Action? started, CancellationToken cancellationToken)
     {
         // A row without its base key (NULL in a copy of it) has no versions to compare; a new row has no key yet.
         var usable = rows.Where(r => r.Key is RowKey.PrimaryKey or RowKey.RowId && versions.KeyColumns.All(i => r.Values[i] is not null)).ToList();
@@ -371,7 +371,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
                 }
 
                 return found;
-            }, cancellationToken));
+            }, OracleSession.WholeLobs, cancellationToken, started));
         }
 
         return changes;

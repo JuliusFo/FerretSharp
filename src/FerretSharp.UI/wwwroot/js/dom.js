@@ -120,6 +120,16 @@ export function menuKeys(id, top) {
 }
 
 /**
+ * ↑ ↓ in a list's search field move the list's highlight (.NET handles the key), not the caret to the start or end of the
+ * text (review 3.54.0, A25). Bound to the popover; the listener goes with it.
+ */
+export function arrowsMoveList(id) {
+  document.getElementById(id)?.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') e.preventDefault();
+  });
+}
+
+/**
  * Drags the left edge of a side panel (the form beside the grid, WP-21) while the pointer is down: the width follows
  * the pointer, between min and maxFraction of the parent. Resolves with the final width when the pointer is released.
  */
@@ -128,23 +138,33 @@ export function dragWidth(handle, panel, pointerId, startX, min, maxFraction) {
     const startWidth = panel.getBoundingClientRect().width;
     const max = Math.max(min, panel.parentElement.getBoundingClientRect().width * maxFraction);
     const widthAt = x => Math.round(Math.min(max, Math.max(min, startWidth + startX - x)));
-    const move = e => { panel.style.width = widthAt(e.clientX) + 'px'; };
-    const up = e => {
-      handle.removeEventListener('pointermove', move);
+    let width = Math.round(startWidth);
+    let done = false;
+    // Ends like dragToDrop (review 3.54.0, A27): also when the capture goes (Alt+Tab, the host) or the button came up
+    // unseen – the promise stayed open, the listeners on the handle, and the width was never kept.
+    const end = () => {
+      if (done) return;
+      done = true;
+      handle.removeEventListener('pointermove', onMove);
       handle.removeEventListener('pointerup', up);
-      handle.removeEventListener('pointercancel', up);
+      handle.removeEventListener('pointercancel', end);
+      handle.removeEventListener('lostpointercapture', end);
       if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
-      resolve(widthAt(e.clientX));
+      resolve(width);
     };
+    const move = e => { width = widthAt(e.clientX); panel.style.width = width + 'px'; };
+    const onMove = e => ((e.buttons & 1) === 0 ? end() : move(e));
+    const up = e => { move(e); end(); };
     try {
       handle.setPointerCapture(pointerId);
     } catch {
-      resolve(Math.round(startWidth)); // released before the capture: nothing to drag
+      resolve(width); // released before the capture: nothing to drag
       return;
     }
-    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointermove', onMove);
     handle.addEventListener('pointerup', up);
-    handle.addEventListener('pointercancel', up);
+    handle.addEventListener('pointercancel', end);
+    handle.addEventListener('lostpointercapture', end);
   });
 }
 

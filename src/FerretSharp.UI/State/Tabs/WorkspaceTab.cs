@@ -233,7 +233,7 @@ public sealed class NewTableTab : WorkspaceTab
     public NewTableTab(Guid workspaceId, string owner) : base(workspaceId, "newtable-")
     {
         Owner = owner;
-        Designer = new ColumnDesigner(new TableDetails(new TableSummary(owner, "", TableKind.Table), [], [], [], false), []);
+        Designer = new TableDesignerDraft(new TableDetails(new TableSummary(owner, "", TableKind.Table), [], [], [], false), []);
     }
 
     /// <summary>The schema the table is created in (the connection's).</summary>
@@ -244,7 +244,7 @@ public sealed class NewTableTab : WorkspaceTab
 
     public string Comment { get; set; } = "";
 
-    public ColumnDesigner Designer { get; }
+    public TableDesignerDraft Designer { get; }
 
     /// <summary>How the last run failed, while the table does not exist yet.</summary>
     public DdlRunResult? Failure { get; set; }

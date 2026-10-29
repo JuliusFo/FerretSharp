@@ -33,7 +33,7 @@
         {
             <span class="ctx-fact fk">@(scope == Hub.Current ? ConnectionViewText.Connection_TagShown : ConnectionViewText.Connection_TagConnected)</span>
         }
-        @if (ConnectionLastUsed.Text(Recent.LastUsed.TryGetValue(Profile.Id, out var used) ? used : null, DateTime.Today) is { Length: > 0 } last)
+        @if (ConnectionLastUsed.Text(Recent.LastUsed, Profile.Id, DateTime.Today) is { Length: > 0 } last)
         {
             <span class="ctx-fact" title="@ConnectionViewText.ConnectionMenu_LastUsedTitle">@last</span>
         }
@@ -43,7 +43,7 @@
 <QuickBar>
     <QuickAction Icon="Icons.Connect" Label="@(Hub.Find(Profile.Id) is null ? ConnectionViewText.ConnectionMenu_Connect : ConnectionViewText.ConnectionMenu_Show)"
                  Title="@(Shortcuts.ConnectionKey(Profile.Id) is { } k ? TextFormat.Format(ConnectionViewText.ConnectionMenu_ConnectKey, k) : null)"
-                 Active="true" OnClick="() => RunAsync(() => Shell.Connect(Profile))" />
+                 Primary="true" OnClick="() => RunAsync(() => Shell.Connect(Profile))" />
     <QuickAction Icon="Icons.Edit" Label="@ConnectionViewText.Connection_Edit" OnClick="() => RunAsync(() => Shell.EditConnection(Profile))" />
     <QuickAction Icon="Icons.Duplicate" Label="@ConnectionViewText.ConnectionMenu_Duplicate" OnClick="() => RunAsync(() => Shell.DuplicateConnection(Profile))" />
     <QuickAction Icon="Icons.Copy" Label="@ConnectionViewText.ConnectionMenu_CopyAddress" Title="@Profile.Address.Display" OnClick="CopyAddressAsync" />

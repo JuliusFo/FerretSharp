@@ -151,6 +151,10 @@ public static partial class TableDesign
             {
                 Problems.Add(TextFormat.Format(DesignText.ConstraintNameTaken, edit.Name)); // ORA-02264
             }
+            else if (context.Elsewhere.Constraints.Contains(edit.Name))
+            {
+                Problems.Add(TextFormat.Format(DesignText.ConstraintNameTakenInSchema, edit.Name)); // unique in the schema (review 3.54.0, A14)
+            }
             else if (OracleIdentifier.NeedsQuotes(edit.Name))
             {
                 Warnings.Add(TextFormat.Format(DesignText.NameNeedsQuotes, edit.Name));
@@ -184,7 +188,7 @@ public static partial class TableDesign
             }
 
             var keepsName = !after.GeneratedName && after.Name == before.Name;
-            var taken = context.Constraints.Select(c => c.Name).Concat(_renamedTo).ToHashSet(StringComparer.Ordinal);
+            var taken = context.Constraints.Select(c => c.Name).Concat(_renamedTo).Concat(context.Elsewhere.Constraints).ToHashSet(StringComparer.Ordinal);
             var added = keepsName ? after with { Name = Enumerable.Range(1, int.MaxValue).Select(n => $"{ReplacementPrefix}{n}").First(taken.Add) } : after;
             _renamedTo.Add(added.Name);
             Keep(DdlStepKind.AddCheck, OracleDdl.AddConstraint(Table, OracleDdl.ConstraintClause(added, table => table)));
@@ -207,9 +211,9 @@ public static partial class TableDesign
                 return;
             }
 
-            if (context.Indexes.Any(i => i.Name == edit.Name))
+            if (context.Indexes.Any(i => i.Name == edit.Name) || context.Elsewhere.Indexes.Contains(edit.Name))
             {
-                Problems.Add(TextFormat.Format(DesignText.IndexNameTaken, edit.Name));
+                Problems.Add(TextFormat.Format(context.Elsewhere.Indexes.Contains(edit.Name) ? DesignText.IndexNameTakenInSchema : DesignText.IndexNameTaken, edit.Name));
                 return;
             }
 
@@ -239,7 +243,7 @@ public static partial class TableDesign
             var columns = kept.Select(c => c.Column).Where(c => !string.IsNullOrWhiteSpace(c.Name)).ToList();
             var taken = context.Constraints.Where(c => !_dropped.Contains(c.Name)).Select(c => c.Name).Concat(_renamedTo).ToHashSet(StringComparer.Ordinal);
             var keys = context.Constraints.Where(c => c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && !_dropped.Contains(c.Name)).ToList();
-            var indexNames = context.Indexes.Select(i => i.Name).Concat(_renamedTo).ToList();
+            var indexNames = context.Indexes.Select(i => i.Name).Concat(_renamedTo).Concat(context.Elsewhere.Indexes).ToList();
 
             // Keys before foreign keys: a new foreign key may reference a new key of the same table.
             foreach (var added in draft.AddedConstraints.OrderBy(c => c.Type switch
@@ -299,6 +303,17 @@ public static partial class TableDesign
             else if (taken.Contains(added.Name))
             {
                 Problems.Add(TextFormat.Format(DesignText.ConstraintNameTaken, added.Name)); // ORA-02264
+            }
+            else if (context.Elsewhere.Constraints.Contains(added.Name))
+            {
+                Problems.Add(TextFormat.Format(DesignText.ConstraintNameTakenInSchema, added.Name)); // ORA-02264 (review 3.54.0, A14)
+            }
+            else if (added.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && context.Elsewhere.Indexes.Contains(added.Name)
+                     && !context.Indexes.Any(i => !_dropped.Contains(i.Name) && IndexAdvice.Covers(i, added.Columns)))
+            {
+                // The key creates an index of its name unless one of the table starts with its columns (review of R8) – not
+                // the index of a key this plan drops: it goes with its key.
+                Problems.Add(TextFormat.Format(DesignText.IndexNameTakenInSchema, added.Name)); // ORA-00955
             }
 
             if (added.Type != ConstraintType.Check && added.Columns.Count == 0)
@@ -389,13 +404,7 @@ public static partial class TableDesign
 
         /// <summary>The constraint's name, or its kind and columns while it has none.</summary>
         private static string Label(ConstraintDraft constraint) =>
-            constraint.Name.Length > 0 ? constraint.Name : $"{constraint.Type switch
-            {
-                ConstraintType.PrimaryKey => "PRIMARY KEY",
-                ConstraintType.Unique => "UNIQUE",
-                ConstraintType.ForeignKey => "FOREIGN KEY",
-                _ => "CHECK",
-            }} ({string.Join(", ", constraint.Columns)})";
+            constraint.Name.Length > 0 ? constraint.Name : $"{ConstraintTypes.Keyword(constraint.Type) ?? "CHECK"} ({string.Join(", ", constraint.Columns)})";
 
         private static bool SameColumns(IReadOnlyList<string> a, IReadOnlyList<string> b) =>
             a.Count == b.Count && a.ToHashSet(StringComparer.Ordinal).SetEquals(b);

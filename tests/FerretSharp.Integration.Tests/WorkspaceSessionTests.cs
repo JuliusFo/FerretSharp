@@ -90,8 +90,14 @@ public sealed class WorkspaceSessionTests(OracleContainerFixture oracle) : IAsyn
         var before = await SessionInfoAsync(id);
 
         _workspaces.Rename(id, "Feature ABC");
-        await Task.Delay(100, Ct); // the action is set in the background
+        // The action is set in the background: polled, not waited for a fixed 100 ms (review 3.54.0, C8).
         var after = await SessionInfoAsync(id);
+        for (var watch = System.Diagnostics.Stopwatch.StartNew(); after.Action != "Feature ABC" && watch.Elapsed < TimeSpan.FromSeconds(10);)
+        {
+            await Task.Delay(50, Ct);
+            after = await SessionInfoAsync(id);
+        }
+
 
         Assert.Equal("Feature ABC", after.Action);
         Assert.Equal(before.Sid, after.Sid);

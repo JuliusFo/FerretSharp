@@ -144,5 +144,6 @@ public static class GitFolder
     private static bool Followed(string folder, string root) =>
         !IsShare(folder) || string.Equals(Path.GetPathRoot(folder), Path.GetPathRoot(Path.GetFullPath(root)), StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsShare(string path) => path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
+    /// <summary>A path on another machine (UNC, also with forward slashes): touching it signs in there over SMB (NTLM).</summary>
+    public static bool IsShare(string path) => path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
 }

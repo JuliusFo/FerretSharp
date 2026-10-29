@@ -28,16 +28,19 @@ public enum MarksCopy
 /// <param name="ColumnOf">A grid column as presented; <see cref="ExportColumn.Source"/> is its index in a row's values.</param>
 /// <param name="RowAt">A loaded row by grid index, pending values applied as shown (A21); null if its block is not loaded.</param>
 /// <param name="ReadRows">
-/// Reads rows from a grid index on (start, count), pending values applied; null if the read failed – the grid has said why.
+/// Reads rows from a grid index on (start, count), pending values applied; null if the read failed – the grid has said why –
+/// or was cancelled.
 /// </param>
 /// <param name="AllOf">All values of whole columns, read again; null where the grid cannot read all rows (LINQ console).</param>
 /// <param name="PendingIn">Rows with pending changes of the columns: a read of all values does not have them.</param>
+/// <param name="WorkspaceId">The workspace whose session <paramref name="ReadRows"/> reads: no commit or write there while it does.</param>
 public sealed record MarkedCells(
     Func<int, ExportColumn> ColumnOf,
     Func<int, RowData?> RowAt,
-    Func<int, int, Task<IReadOnlyList<RowData>?>> ReadRows,
+    Func<int, int, CancellationToken, Task<IReadOnlyList<RowData>?>> ReadRows,
     Func<IReadOnlyList<int>, AllColumnValues>? AllOf,
-    Func<IReadOnlyList<int>, int> PendingIn);
+    Func<IReadOnlyList<int>, int> PendingIn,
+    Guid? WorkspaceId);
 
 /// <summary>
 /// Copies the marked cells of a grid (WP-58): a rectangle as shown – pending values included (A21), rows not loaded read
@@ -76,7 +79,39 @@ public static class CellCopies
             return;
         }
 
-        if (await RowsAsync(grid.RowAt, grid.ReadRows, marks.FromRow, marks.ToRow) is not { } rows)
+        var missing = Missing(grid.RowAt, marks.FromRow, marks.ToRow);
+        IReadOnlyList<RowData>? rows;
+        if (missing == 0)
+        {
+            rows = await RowsAsync(grid.RowAt, grid.ReadRows, marks.FromRow, marks.ToRow, CancellationToken.None);
+        }
+        else
+        {
+            // Rows not loaded are read in the background, with their count and "Cancel" in the status bar (review 3.54.0, A5):
+            // up to twenty reads of 5,000 rows, over a silent VPN without end. The window may be behind afterwards – the text
+            // goes through the host like the values of whole columns.
+            var label = marks.Text;
+            // On this thread: the loop reads the grid's loaded rows, each read leaves the thread itself. With the workspace,
+            // so no commit or write slips in between two reads (review of R8).
+            var read = await shell.CallInBackgroundAsync(logger, connection,
+                TextFormat.Format(ShellText.Status_CopyValuesLabel, label), missing, TextFormat.Format(ShellText.Status_CopyValuesTitle, label), grid.WorkspaceId,
+                async (progress, token) =>
+                {
+                    var found = await RowsAsync(grid.RowAt, grid.ReadRows, marks.FromRow, marks.ToRow, token, progress);
+                    token.ThrowIfCancellationRequested(); // a cancelled read says null, like a failed one
+                    return found;
+                });
+            if (read.Cancelled)
+            {
+                shell.Notify(TextFormat.Format(GridText.Marks_Cancelled, label));
+                return;
+            }
+
+            rows = read.Value;
+            copy = clipboard.SetTextAsync;
+        }
+
+        if (rows is null)
         {
             return;
         }
@@ -99,10 +134,13 @@ public static class CellCopies
     /// Also for changing marked cells (WP-59, <see cref="GridEditing"/>), there with the rows as loaded.
     /// </summary>
     /// <param name="rowAt">A loaded row by grid index; null if its block is not loaded.</param>
-    /// <param name="read">Reads rows from a grid index on (start, count); null if the read failed.</param>
+    /// <param name="read">Reads rows from a grid index on (start, count); null if the read failed or was cancelled.</param>
+    /// <param name="progress">Rows read so far (not those already loaded).</param>
     internal static async Task<IReadOnlyList<RowData>?> RowsAsync(
-        Func<int, RowData?> rowAt, Func<int, int, Task<IReadOnlyList<RowData>?>> read, int from, int to)
+        Func<int, RowData?> rowAt, Func<int, int, CancellationToken, Task<IReadOnlyList<RowData>?>> read, int from, int to,
+        CancellationToken cancellationToken, IProgress<long>? progress = null)
     {
+        long readSoFar = 0;
         var rows = new List<RowData>(to - from + 1);
         for (var i = from; i <= to;)
         {
@@ -119,12 +157,14 @@ public static class CellCopies
                 count++;
             }
 
-            if (await read(i, count) is not { } block)
+            if (await read(i, count, cancellationToken) is not { } block)
             {
                 return null;
             }
 
             rows.AddRange(block);
+            readSoFar += block.Count;
+            progress?.Report(readSoFar);
             if (block.Count < count)
             {
                 break;
@@ -135,6 +175,10 @@ public static class CellCopies
 
         return rows;
     }
+
+    /// <summary>Rows of the range whose block is not loaded.</summary>
+    private static int Missing(Func<int, RowData?> rowAt, int from, int to) =>
+        Enumerable.Range(from, to - from + 1).Count(i => rowAt(i) is null);
 
     /// <summary>Whole columns: all their rows read again in the background, copied through the host when the read is done.</summary>
     private static async Task CopyColumnsAsync(
@@ -164,28 +208,10 @@ public static class CellCopies
         var cells = new CellValues(presented, kind == MarksCopy.Table);
         var read = all.Read(false);
         var label = marks.Text;
-        var result = await shell.RunInBackgroundAsync(logger, connection,
+        var result = await shell.ReadAllRowsAsync(logger, connection,
             TextFormat.Format(ShellText.Status_CopyValuesLabel, label), all.Total, TextFormat.Format(ShellText.Status_CopyValuesTitle, label), all.WorkspaceId,
-            async (progress, token) =>
-            {
-                long rows = 0;
-                await read((block, _, _) =>
-                {
-                    foreach (var row in block)
-                    {
-                        if (!cells.AddRow(row.Values))
-                        {
-                            return Task.FromResult(false);
-                        }
-                    }
-
-                    rows += block.Count;
-                    progress.Report(rows);
-                    return Task.FromResult(true);
-                }, token);
-                return cells;
-            });
-        if (result.Value is not null)
+            read, row => cells.AddRow(row.Values));
+        if (result.Succeeded)
         {
             await FinishAsync(shell, clipboard.SetTextAsync, cells, marks, kind, extra);
         }

@@ -206,5 +206,5 @@
         </label>;
 
     private RenderFragment Connection(ConnectionProfile profile, bool withGroup = true) =>
-        @<span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @(withGroup ? ConnectionLabel.Of(profile, Settings.Current) : profile.Name) <span class="muted">· @profile.Address.Display</span></span>;
+        @<span class="@ConnectionKindInfo.CssClass(profile.Kind)"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @(withGroup ? ConnectionLabel.Of(profile, Settings.Current) : profile.Name) <span class="muted">· @profile.Address.Display</span></span>;
 }

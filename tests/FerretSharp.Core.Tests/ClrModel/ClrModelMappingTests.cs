@@ -127,19 +127,19 @@ public sealed class ClrModelMappingTests
     [Fact]
     public async Task An_entity_on_a_view_is_matched_to_the_view_even_if_a_convention_gave_it_a_table_name()
     {
-        // As in the user's project: ToView("GEP_MATBESTAND_VIEW") plus a naming convention that sets a table name for every
+        // As in a real project: ToView("ARTIKEL_BESTAND_V") plus a naming convention that sets a table name for every
         // entity. EF queries the view; the table (which does not exist) would only serve SaveChanges.
-        _columns["GEP_MATBESTAND_VIEW"] = ["MAT_ID", "BESTAND"];
-        var schema = await SchemaAsync(new TableSummary(Owner, "GEP_MATBESTAND_VIEW", TableKind.View));
-        var entity = Entity("Shop.GepMatbestandView", "GEPMATBESTANDVIEW",
-                Prop("MatId", "MATID") with { ViewColumn = "MAT_ID" }, Prop("Bestand", "BESTAND") with { ViewColumn = "BESTAND" })
-            with { View = "GEP_MATBESTAND_VIEW" };
+        _columns["ARTIKEL_BESTAND_V"] = ["ART_NR", "BESTAND"];
+        var schema = await SchemaAsync(new TableSummary(Owner, "ARTIKEL_BESTAND_V", TableKind.View));
+        var entity = Entity("Shop.ArtikelBestand", "ARTIKELBESTAND",
+                Prop("ArtNr", "ARTNR") with { ViewColumn = "ART_NR" }, Prop("Bestand", "BESTAND") with { ViewColumn = "BESTAND" })
+            with { View = "ARTIKEL_BESTAND_V" };
 
         var mapping = await ClrModelMapping.BuildAsync(Model(entity), schema, Ct);
 
-        var view = new TableRef(Owner, "GEP_MATBESTAND_VIEW");
-        Assert.Equal("Shop.GepMatbestandView", mapping.EntityOf(view)!.Entity.ClrType);
-        Assert.Equal("MatId", mapping.PropertyOf(view, "MAT_ID")!.Name); // the view's column name, not the table's
+        var view = new TableRef(Owner, "ARTIKEL_BESTAND_V");
+        Assert.Equal("Shop.ArtikelBestand", mapping.EntityOf(view)!.Entity.ClrType);
+        Assert.Equal("ArtNr", mapping.PropertyOf(view, "ART_NR")!.Name); // the view's column name, not the table's
         Assert.Empty(mapping.Issues);
         Assert.Equal(1, mapping.MappedEntityCount);
     }

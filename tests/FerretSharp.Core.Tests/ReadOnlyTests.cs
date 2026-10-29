@@ -92,6 +92,7 @@ public class ReadOnlyTests
     [InlineData("COMMENT ON COLUMN t.c IS 'a;b'")]
     [InlineData("CREATE OR REPLACE VIEW v AS SELECT * FROM t")]
     [InlineData("CREATE INDEX t_c ON t (c);")]
+    [InlineData("ALTER DATABASE LINK remote CONNECT TO app IDENTIFIED BY geheim")] // review 3.54.0, A13: a link, not the database
     [InlineData("GRANT SELECT ON t TO x")]
     [InlineData("ALTER TRIGGER t_bi DISABLE")]
     [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t BEGIN NULL; END;")] // WP-26, ADR 0021
@@ -174,7 +175,7 @@ public class ReadOnlyTests
         {
             typeof(ISchemaReader), [
                 "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetDdlAsync", "GetDependenciesAsync",
-                "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetObjectInfoAsync",
+                "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetNamesElsewhereAsync", "GetObjectInfoAsync",
                 "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetPrimaryKeysAsync", "GetSessionActivityAsync", "GetSourceAsync", "GetSubprogramsAsync", "GetSynonymTargetsAsync",
                 "GetTableTriggersAsync", "GetTablesAsync", "GetTriggerColumnsAsync", "ReadSnapshotAsync", "SearchSourceAsync",
             ]
@@ -229,6 +230,25 @@ public class ReadOnlyTests
         Assert.Throws<InvalidOperationException>(() => OracleSession.GuardReadOnly(sql));
         var nested = new OracleSession.NestedReader(null!); // the guard comes before the session is touched
         await Assert.ThrowsAsync<InvalidOperationException>(() => nested.ReadAsync(sql, [], (_, _) => Task.FromResult(0), TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Review 3.54.0, C1: the statement checks of the write path for many rows (WP-42), the locking reader and the savepoint
+    /// name had no test – they come before the session is touched (the transaction checks: SessionTransactionTests).
+    /// </summary>
+    [Fact]
+    public async Task The_batch_write_the_lock_and_the_savepoint_refuse_what_is_not_theirs_before_the_session_is_touched()
+    {
+        var session = (OracleSession)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(OracleSession));
+        var ct = TestContext.Current.CancellationToken;
+        BatchSpec Batch(string sql) => new(sql, [new BatchParameter("p0", [1m], OracleTypeHint.Number)], 1);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteNonQueryAsync(Batch("DROP TABLE t"), ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteNonQueryAsync(Batch("BEGIN DELETE FROM t; END;"), ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteNonQueryAsync(Batch("INSERT INTO t VALUES (:p0); DROP TABLE t"), ct));
+        await Assert.ThrowsAsync<ArgumentException>(() => session.ExecuteNonQueryAsync(new BatchSpec("INSERT INTO t VALUES (:p0)", [], 1), ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteLockingReaderAsync("SELECT * FROM t", [], (_, _) => Task.FromResult(0), ct));
+        await Assert.ThrowsAsync<ArgumentException>(() => session.SavepointAsync("X; DROP TABLE t", ct));
     }
 
     /// <summary>
@@ -291,7 +311,8 @@ public class ReadOnlyTests
     {
         static string Field(string name) =>
             (string)typeof(OracleSchemaReader).GetField(name, BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
-        static int Commas(string sql) => sql[..sql.IndexOf("FROM", StringComparison.Ordinal)].Count(c => c == ',');
+        // Up to the outer FROM: since WP-42 the identity's sub-select has a FROM of its own, and cutting there compared only the first nine fields (review 3.54.0, C7).
+        static int Commas(string sql) => sql[..sql.IndexOf("FROM all_tab_cols c", StringComparison.Ordinal)].Count(c => c == ',');
 
         Assert.Equal(Commas(Field("ColumnsSelect")), Commas(Field("SchemaColumnsSql")));
         Assert.DoesNotContain("data_default", Field("SchemaColumnsSql"), StringComparison.Ordinal);

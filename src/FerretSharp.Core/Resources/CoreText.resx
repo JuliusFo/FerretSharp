@@ -32,4 +32,8 @@
     <value>{0} comes from a newer version of FerretSharp (format {1}). It will not be overwritten.</value>
     <comment>{0}: file path; {1}: format version number</comment>
   </data>
+  <data name="FileTooLarge" xml:space="preserve">
+    <value>larger than {0} MB</value>
+    <comment>Reason after 'file … cannot be read:'; {0}: limit in MB</comment>
+  </data>
 </root>

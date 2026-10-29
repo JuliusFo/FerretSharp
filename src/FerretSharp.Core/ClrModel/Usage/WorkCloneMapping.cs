@@ -56,10 +56,14 @@ public static partial class WorkCloneMapping
     {
         var linkedRoot = GitFolder.FindRoot(linkedProjectFile);
         var relative = Relative(document, linkedRoot);
-        // "/_/…" is fully qualified on Linux, but it is no file there either.
+        // "/_/…" is fully qualified on Linux, but it is no file there either. An absolute path only below the repository
+        // root, or without one on this machine: a "#line 1 \\host\share\x.cs" made File.Exists sign in there (review
+        // 3.54.0, A9).
         var linkedFile = DeterministicPath().IsMatch(document)
             ? linkedRoot is null || relative is null ? null : Path.Combine(linkedRoot, relative)
-            : Path.IsPathFullyQualified(document) ? document : null;
+            : !Path.IsPathFullyQualified(document) ? null
+            : linkedRoot is not null ? relative is null ? null : Path.Combine(linkedRoot, relative)
+            : GitFolder.IsShare(document) ? null : document;
 
         if (workClone is not null && Check(linkedProjectFile, workClone) == WorkCloneFit.Fits)
         {
@@ -135,9 +139,11 @@ public static partial class WorkCloneMapping
     {
         if (DeterministicPath().Match(document) is { Success: true } deterministic)
         {
-            // "/_/../../x.cmd" would lead out of the repository (review 3.44.0, A29) – the absolute branch below checks it too.
-            var path = deterministic.Groups[1].Value;
-            return path.Split('/', '\\').Any(s => s == "..") ? null : path.Replace('/', Path.DirectorySeparatorChar);
+            // "/_/../../x.cmd" would lead out of the repository (review 3.44.0, A29) – the absolute branch below checks it too –,
+            // and so would a root: Path.Combine returns "/_///host/share/x.cs" as \\host\share\x.cs, and File.Exists signs in
+            // there (review of R8, the way of A9).
+            var path = deterministic.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
+            return path.Split('/', '\\').Any(s => s == "..") || Path.IsPathRooted(path) ? null : path;
         }
 
         if (linkedRoot is null || !Path.IsPathFullyQualified(document))

@@ -113,9 +113,10 @@ public class IndexDesignTests
     [InlineData("   ", "Gib einen Namen für den Index ein.")]
     [InlineData("IX\"X", "IX\"X: Ein Name darf keine doppelten Anführungszeichen enthalten.")] // R5b: with the name, as everywhere
     [InlineData("PK_AUFTRAG", "Die Tabelle hat schon einen Index PK_AUFTRAG.")]
+    [InlineData("IX_KUNDE_NAME", "Eine andere Tabelle des Schemas hat schon einen Index IX_KUNDE_NAME (ORA-00955).")] // review of R8
     public void Name_problems_stop_the_draft(string name, string problem)
     {
-        var check = IndexDesign.Check(new IndexDraft(name, ["KUNDE_ID"]), Table, [PrimaryKey]);
+        var check = IndexDesign.Check(new IndexDraft(name, ["KUNDE_ID"]), Table, [PrimaryKey], new HashSet<string> { "IX_KUNDE_NAME" });
 
         Assert.False(check.CanRun);
         Assert.Contains(problem, check.Problems);

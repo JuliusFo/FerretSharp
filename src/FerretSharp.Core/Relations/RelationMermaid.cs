@@ -38,7 +38,7 @@ public static class RelationMermaid
                 var comment = group.Side == DiagramSide.Parents
                     ? TextFormat.Plural(count, RelationText.MermaidHiddenParentsOne, RelationText.MermaidHiddenParentsOther, label(group.Table))
                     : TextFormat.Plural(count, RelationText.MermaidHiddenChildrenOne, RelationText.MermaidHiddenChildrenOther, label(group.Table));
-                text.Append($"    %% {comment}\n");
+                text.Append($"    %% {MermaidText.Plain(comment)}\n");
             }
         }
 
@@ -48,6 +48,6 @@ public static class RelationMermaid
     /// <summary>An entity name: plain if Mermaid takes it so (letters, digits, _ and -), otherwise in quotes.</summary>
     private static string Name(string label) => label.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-') ? label : Quote(label);
 
-    /// <summary>Mermaid has no escape for a double quote inside quotes.</summary>
-    private static string Quote(string text) => $"\"{text.Replace('"', '\'')}\"";
+    /// <summary>On one line (<see cref="MermaidText.Plain"/>); an <c>erDiagram</c> has no escape for a double quote inside quotes.</summary>
+    private static string Quote(string text) => $"\"{MermaidText.Plain(text).Replace('"', '\'')}\"";
 }

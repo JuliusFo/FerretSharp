@@ -224,10 +224,9 @@ public static class FkTargets
         TextFormat.Format(GridText.GridMenu_ReferencedViaTitle, Label(active, via),
             string.Join(", ", jumps.Select(j => j.Inherited?.Table).OfType<TableRef>().Distinct().Select(t => Label(active, t))));
 
+    /// <summary>The relationship as the column menu names it (<see cref="ColumnFacts.Title"/>; review 3.54.0, B5), and why a jump is not offered.</summary>
     public static string Tooltip(FkJump jump) =>
-        $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
-        $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})" +
-        (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + GridText.FkJump_ModelRelationship : "") +
+        ColumnFacts.Title(jump.ForeignKey) +
         (jump.SkippedNote is { } skipped ? Environment.NewLine + skipped + "." : "") +
         (jump.Unavailable is { } reason ? Environment.NewLine + reason : "");
 }

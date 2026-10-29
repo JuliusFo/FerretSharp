@@ -6,7 +6,7 @@
 
 ## Kontext
 
-Tabellen wie `AUFTRAG` verweisen über IDs auf andere Tabellen (`KUNDE_ID`, `SDLAND_ID`). Das Grid zeigt `4711`; wer wissen will, welcher Kunde das ist, springt per FK oder merkt sich die IDs. Gewünscht (Idee des Nutzers, 2026-10-12): Neben dem Wert steht der Name der Zielzeile – `4711 · PetersPizza`. Dafür braucht jede Zieltabelle eine **Anzeigespalte**, und jemand muss die Namen holen, ohne die Datenbank spürbar zu belasten (Frage des Nutzers).
+Tabellen wie `AUFTRAG` verweisen über IDs auf andere Tabellen (`KUNDE_ID`, `STAAT_ID`). Das Grid zeigt `4711`; wer wissen will, welcher Kunde das ist, springt per FK oder merkt sich die IDs. Gewünscht (Idee des Nutzers, 2026-10-12): Neben dem Wert steht der Name der Zielzeile – `4711 · PetersPizza`. Dafür braucht jede Zieltabelle eine **Anzeigespalte**, und jemand muss die Namen holen, ohne die Datenbank spürbar zu belasten (Frage des Nutzers).
 
 Entscheidungen des Nutzers (2026-10-12, `docs/roadmap.md`):
 - Festgelegt **in FerretSharp**, nicht im C#-Code. Verworfen: ein Attribut an der Entity (`[DisplayColumn(nameof(Name))]` oder ein eigenes), das der ModelHost ausliest – es käme auf Prod erst nach dem Merge nach `release` an (ein Klon je Datenbank) und ginge nur mit C#-Projekt.

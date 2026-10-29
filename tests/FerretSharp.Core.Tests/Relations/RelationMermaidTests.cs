@@ -56,4 +56,20 @@ public class RelationMermaidTests
             Assert.Equal("erDiagram\n    KUNDE\n    %% KUNDE: 3 more referencing tables not shown\n", RelationMermaid.Write(diagram, Label));
         }
     }
+
+    /// <summary>
+    /// Review 3.54.0, A10: a quoted Oracle name may hold a line break – it ended the label or comment, and the rest became
+    /// lines of their own; <c>%%</c> starts a comment or directive anywhere.
+    /// </summary>
+    [Fact]
+    public void Line_breaks_and_comment_marks_of_names_stay_inside_their_line()
+    {
+        var odd = new TableRef(Owner, "X\nY %%{init}%%");
+        var graph = new RelationGraph([Fk("FK\r\nB", odd, Kunde)]);
+
+        var text = RelationMermaid.Write(new RelationDiagram(graph, Kunde, DiagramOptions.Default), Label);
+
+        Assert.Equal("erDiagram\n    KUNDE ||--o{ \"X Y % %{init}% %\" : \"FK B\"\n", text);
+        Assert.Equal("a b % % % %", MermaidText.Plain("a\r\nb %%%%"));
+    }
 }

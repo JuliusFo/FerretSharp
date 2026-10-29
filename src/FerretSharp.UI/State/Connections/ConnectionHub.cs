@@ -250,19 +250,26 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
     /// Disconnects and forgets a connection; the caller asked about uncommitted changes before. If it was shown, the
     /// previous one (or the last opened) is shown instead – or none.
     /// </summary>
-    public async Task CloseAsync(ConnectionScope scope)
+    public Task CloseAsync(ConnectionScope scope) => CloseAsync([scope]);
+
+    /// <summary>
+    /// Disconnects several connections ("Disconnect all" of a group, WP-66): all of them leave <see cref="Open"/> at once,
+    /// before any session closes, and close side by side – one after the other, over a silent VPN, the later ones stayed
+    /// open and shown for seconds, and what was written there in the meantime was discarded unasked (review 3.54.0, A1).
+    /// </summary>
+    public async Task CloseAsync(IReadOnlyCollection<ConnectionScope> scopes)
     {
         lock (_lock)
         {
-            _open = _open.Where(s => s != scope).ToList();
+            _open = _open.Where(s => !scopes.Contains(s)).ToList();
         }
 
-        if (Previous == scope)
+        if (Previous is { } previous && scopes.Contains(previous))
         {
             Previous = null;
         }
 
-        if (Current == scope)
+        if (Current is { } current && scopes.Contains(current))
         {
             Current = null;
             var next = Previous ?? Open.LastOrDefault();
@@ -274,7 +281,7 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
         }
 
         Changed?.Invoke();
-        await scope.DisposeAsync();
+        await Task.WhenAll(scopes.Select(s => s.DisposeAsync().AsTask()));
     }
 
     /// <summary>Ends the LINQ hosts of connections that have been in the background for <see cref="LinqIdleTime"/>.</summary>

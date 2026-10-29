@@ -80,6 +80,12 @@ public static class ColumnChange
         {
             ChangeType(steps, table, before, after, column, intent);
             ChangeDefaultAndNull(steps, table, before, after, column, intent);
+            if (after.IsIdentity && (before.IdentityAlways != after.IdentityAlways || before.DefaultOnNull != after.DefaultOnNull))
+            {
+                // The comparison shows ALWAYS against BY DEFAULT (review of R8) – the script said nothing about it. A hint: the
+                // statement is not tried against a database here.
+                steps.Add(DdlStep.Hint(table.Name, OracleDdl.ModifyIdentity(table, column, after), TextFormat.Format(CompareText.IdentityModeHint, column)));
+            }
         }
 
         if (!string.Equals(before.Comment, after.Comment, StringComparison.Ordinal))

@@ -15,7 +15,7 @@ public sealed class DisplayLinksTests
         [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2", 100), Col("KUERZEL", "CHAR", 5), Col("BILD", "BLOB"), Col("PARENT_ID", "NUMBER"), Col("ORT", "VARCHAR2", 50)],
         ["ID"], [["KUERZEL"], ["NAME", "ORT"]], false);
 
-    private static readonly TableDetails Land = new(new TableSummary(Owner, "SDLAND", TableKind.Table),
+    private static readonly TableDetails Land = new(new TableSummary(Owner, "STAAT", TableKind.Table),
         [Col("ID", "NUMBER"), Col("BEZEICHNUNG", "VARCHAR2", 50)], ["ID"], [], false);
 
     private static readonly TableDetails KundeView = new(new TableSummary(Owner, "V_KUNDE", TableKind.View),
@@ -23,7 +23,7 @@ public sealed class DisplayLinksTests
 
     private static readonly TableDetails Auftrag = new(new TableSummary(Owner, "AUFTRAG", TableKind.Table),
         [
-            Col("ID", "NUMBER"), Col("KUNDE_ID", "NUMBER"), Col("SDLAND_ID", "NUMBER"), Col("KUNDE_KZ", "CHAR", 5),
+            Col("ID", "NUMBER"), Col("KUNDE_ID", "NUMBER"), Col("STAAT_ID", "NUMBER"), Col("KUNDE_KZ", "CHAR", 5),
             Col("VERTRETER", "VARCHAR2", 10), Col("V_KUNDE_ID", "NUMBER"), Col("KUNDE_NAME", "VARCHAR2", 100), Col("KUNDE_ORT", "VARCHAR2", 50),
         ],
         ["ID"], [], false);
@@ -39,7 +39,7 @@ public sealed class DisplayLinksTests
     private static readonly ForeignKeyInfo[] ForeignKeys =
     [
         AuftragKunde,
-        Fk("Auftrag.Land", Auftrag, ["SDLAND_ID"], Land, ["ID"], FkSource.ClrModel),
+        Fk("Auftrag.Land", Auftrag, ["STAAT_ID"], Land, ["ID"], FkSource.ClrModel),
         Fk("FK_AUFTRAG_KUNDE_KZ", Auftrag, ["KUNDE_KZ"], Kunde, ["KUERZEL"]),
         Fk("Auftrag.Vertreter", Auftrag, ["VERTRETER"], Kunde, ["ID"], FkSource.ClrModel), // VARCHAR2 → NUMBER
         Fk("Auftrag.VKunde", Auftrag, ["V_KUNDE_ID"], KundeView, ["ID"], FkSource.ClrModel),
@@ -70,7 +70,7 @@ public sealed class DisplayLinksTests
     }
 
     private static readonly DisplayColumns Columns = DisplayColumns.Empty
-        .With("KUNDE", ["NAME"]).With("SDLAND", ["BEZEICHNUNG"]).With("V_KUNDE", ["NAME"]).With("ARTIKEL", ["BEZ"]);
+        .With("KUNDE", ["NAME"]).With("STAAT", ["BEZEICHNUNG"]).With("V_KUNDE", ["NAME"]).With("ARTIKEL", ["BEZ"]);
 
     [Fact]
     public async Task Single_column_foreign_keys_to_a_unique_key_of_a_table_with_a_display_column_get_names()
@@ -78,7 +78,7 @@ public sealed class DisplayLinksTests
         var links = await DisplayLinks.PlanAsync(Auftrag, await SchemaAsync(), Columns, Ct);
 
         Assert.Equal(
-            [("KUNDE_ID", "KUNDE", "ID", "NAME", false), ("KUNDE_KZ", "KUNDE", "KUERZEL", "NAME", true), ("SDLAND_ID", "SDLAND", "ID", "BEZEICHNUNG", false)],
+            [("KUNDE_ID", "KUNDE", "ID", "NAME", false), ("KUNDE_KZ", "KUNDE", "KUERZEL", "NAME", true), ("STAAT_ID", "STAAT", "ID", "BEZEICHNUNG", false)],
             links.Select(l => (Auftrag.Columns[l.Column].Name, l.Target.Table.Name, l.Key.Name, l.Label, l.SourcePadded)));
         Assert.Same(AuftragKunde, links[0].ForeignKey);
     }
@@ -154,7 +154,7 @@ public sealed class DisplayLinksTests
         Assert.Equal(("KUNDE", "ID", "PARENT_ID - NAME"), (via.Target.Table.Name, via.Key.Name, via.Label));
         Assert.All(via.Parts, p => Assert.Null(p.Via));
         Assert.Null(kunde.Parts[1].Via);
-        Assert.All(links.Single(l => l.Column == 2).Parts, p => Assert.Null(p.Via)); // SDLAND: a plain name
+        Assert.All(links.Single(l => l.Column == 2).Parts, p => Assert.Null(p.Via)); // STAAT: a plain name
     }
 
     [Fact]

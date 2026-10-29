@@ -3,7 +3,7 @@
 
 @if (Filter?.Matches(Label, Caption) != false)
 {
-    <button type="button" class="quick-btn @(Active ? "active" : "")" disabled="@(Unavailable is not null)" title="@Tooltip" aria-label="@Label"
+    <button type="button" class="quick-btn @(Active || Primary ? "active" : "")" disabled="@(Unavailable is not null)" title="@Tooltip" aria-label="@Label"
             aria-pressed="@(Active ? "true" : null)" @onclick="OnClick">
         @Icon
         @if (Caption is not null)
@@ -40,6 +40,13 @@
     /// <summary>The state the action switches is on (a pinned column, the display column): outlined.</summary>
     [Parameter]
     public bool Active { get; set; }
+
+    /// <summary>
+    /// The menu's main action (Connect), outlined like an active state but no switch: a screen reader heard "pressed"
+    /// (review 3.54.0, A29).
+    /// </summary>
+    [Parameter]
+    public bool Primary { get; set; }
 
     [Parameter]
     public EventCallback OnClick { get; set; }

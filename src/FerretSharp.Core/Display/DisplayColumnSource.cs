@@ -273,11 +273,18 @@ public sealed class DisplayColumnSource : IDisposable
 
     /// <summary>The document; null for a missing or empty file.</summary>
     /// <exception cref="JsonException">No valid JSON (or not the expected shape).</exception>
+    /// <exception cref="IOException">Also for a file larger than <see cref="CachedFileRead{T}.MaxBytes"/>.</exception>
     private static DisplayColumnDocument? ReadDocument(string path)
     {
-        if (!File.Exists(path))
+        var file = new FileInfo(path);
+        if (!file.Exists)
         {
             return null;
+        }
+
+        if (file.Length > CachedFileRead<DisplayColumnLoad>.MaxBytes)
+        {
+            throw CachedFileRead<DisplayColumnLoad>.TooLarge(); // also when a change reads it (review of R8)
         }
 
         var text = File.ReadAllText(path);

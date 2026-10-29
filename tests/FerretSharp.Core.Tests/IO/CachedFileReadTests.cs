@@ -127,4 +127,22 @@ public sealed class CachedFileReadTests : IDisposable
     {
         Assert.Equal("error: ArgumentException", Cache().Get("bad\0path"));
     }
-}
+
+    /// <summary>
+    /// Review 3.54.0, A12: a huge file in the shared repository (an export saved under the wrong name) was read whole on
+    /// every change; it is not read, and says why, until it changes.
+    /// </summary>
+    [Fact]
+    public void A_file_beyond_the_limit_is_not_read()
+    {
+        var cache = Cache();
+        using (var file = File.Create(File1))
+        {
+            file.SetLength(CachedFileRead<string>.MaxBytes + 1);
+        }
+
+        Assert.Equal("error: IOException", cache.Get(File1));
+        _clock.Advance(CachedFileRead<string>.Fresh);
+        Assert.Equal("error: IOException", cache.Get(File1));
+        Assert.Equal(0, _reads);
+    }}

@@ -51,7 +51,9 @@ public static class DdlScript
     public static string Render(IEnumerable<DdlStep> steps, IEnumerable<string>? header = null)
     {
         ArgumentNullException.ThrowIfNull(steps);
-        var lines = header?.ToList() ?? [];
+        // A header names tables, and a quoted Oracle name may hold a line break: every physical line stays a comment – the
+        // rest of the name was an executable line in a script opened in the SQL editor (review 3.54.0, A11).
+        var lines = header?.SelectMany(h => h.ReplaceLineEndings("\n").Split('\n').Select((line, i) => i == 0 ? line : "-- " + line)).ToList() ?? [];
         foreach (var step in steps)
         {
             if (lines.Count > 0)

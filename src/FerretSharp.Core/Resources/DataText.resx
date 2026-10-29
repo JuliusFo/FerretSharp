@@ -96,6 +96,7 @@
   </data>
   <data name="ExportFractionsCut" xml:space="preserve">
     <value>{0} ({1}): values are read to {2} fractional digits – finer fractions are not exported.</value>
+    <comment>{0}: column; {1}: its type; {2}: fractional digits kept</comment>
   </data>
   <data name="ExportSkippedOther" xml:space="preserve">
     <value>{1} ({2}): {0} values not exported – {3}.</value>

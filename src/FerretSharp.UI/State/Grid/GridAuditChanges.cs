@@ -31,24 +31,38 @@ public sealed record AuditMarks(IReadOnlySet<int> Changed, AuditActionKind? Acti
 /// The highlighting of one audit table's grid (WP-63): after each block the grid reads, asks which cells differ from the
 /// version before – one query at a time on the workspace's session, like the names beside foreign keys – and redraws the
 /// rows whose marks changed (an answer also takes marks away). The action of a row comes from its own value at once. A
-/// failed query switches the highlighting off for the tab (told once), a cancelled one is asked once more; <see cref="Clear"/>
-/// forgets what was read. It keeps marks for about as many rows as the grid holds.
+/// failed query switches the highlighting off for the tab (told once), as does one that takes longer than
+/// <see cref="TimeLimit"/>; a cancelled one is asked once more; <see cref="Clear"/> cancels the running query and forgets
+/// what was read. It keeps marks for about as many rows as the grid holds.
 /// </summary>
 /// <param name="view">What the template says about the audit table.</param>
-/// <param name="read">One read on the workspace's session (<see cref="IDataAccess.ReadAuditChangesAsync"/>).</param>
+/// <param name="read">
+/// One read on the workspace's session (<see cref="IDataAccess.ReadAuditChangesAsync"/>), calling the action when its
+/// statement gets the session.
+/// </param>
+/// <param name="time">The clock of the time limit; the system's by default.</param>
 public sealed class GridAuditChanges(
     IAuditChangesGrid grid,
     AuditView view,
-    Func<AuditVersions, IReadOnlyList<RowData>, CancellationToken, Task<DbResult<IReadOnlyList<AuditRowChange>>>> read) : IAsyncDisposable
+    Func<AuditVersions, IReadOnlyList<RowData>, Action, CancellationToken, Task<DbResult<IReadOnlyList<AuditRowChange>>>> read,
+    TimeProvider? time = null) : IAsyncDisposable
 {
     /// <summary>Marks kept before those of rows the grid no longer holds are dropped: the grid's own limit.</summary>
     public const int MaxKept = RowBlocks.MaxBlocks * IDataAccess.BlockSize;
+
+    /// <summary>
+    /// How long one query may take (decision of the user, review 3.54.0, A4): without an index on the base table's key in
+    /// the audit table it scans the table (ADR 0036) and holds the workspace's session – paging, writing, commit wait.
+    /// </summary>
+    public static readonly TimeSpan TimeLimit = TimeSpan.FromSeconds(10);
 
     private static readonly IReadOnlySet<int> None = new HashSet<int>();
 
     private readonly Dictionary<RowKey, IReadOnlySet<int>> _changed = [];
     private readonly Queue<(IReadOnlyList<RowData> Rows, int Generation, bool Retried)> _blocks = new();
     private readonly CancellationTokenSource _cancel = new();
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+    private CancellationTokenSource? _running;
     private bool _reading;
     private bool _off;
     private bool _disposed;
@@ -71,13 +85,15 @@ public sealed class GridAuditChanges(
 
     /// <summary>
     /// The grid reads its rows again (F5, after writing, commit or rollback – also in place, when the first block is no
-    /// longer held): the versions may differ now, the blocks it reads ask anew.
+    /// longer held): the versions may differ now, the blocks it reads ask anew. The running query stops – it held the session,
+    /// and the grid's new read waited behind it (review 3.54.0, A4).
     /// </summary>
     public void Clear()
     {
         _changed.Clear();
         _blocks.Clear();
         Generation++;
+        CancelOffThread.Run(_running);
     }
 
     /// <summary>Asks for the changes of a block the grid read; one query at a time.</summary>
@@ -112,10 +128,30 @@ public sealed class GridAuditChanges(
                     continue;
                 }
 
-                var result = await read(view.Versions!, block.Rows, _cancel.Token);
+                // The limit counts from when the query has the session: waiting behind a long statement of the same
+                // workspace is no slow query (review of R8).
+                using var running = CancellationTokenSource.CreateLinkedTokenSource(_cancel.Token);
+                using var limit = new TimeLimitOf(running, _time);
+                _running = running;
+                DbResult<IReadOnlyList<AuditRowChange>> result;
+                try
+                {
+                    result = await read(view.Versions!, block.Rows, limit.Start, running.Token);
+                }
+                finally
+                {
+                    _running = null;
+                }
+
                 if (_disposed || !grid.IsAlive || block.Generation != Generation)
                 {
                     continue; // read again meanwhile: the new blocks ask again
+                }
+
+                if (result.Cancelled && limit.Expired)
+                {
+                    SwitchOff(TextFormat.Format(GridText.Grid_AuditChangesSlow, (int)TimeLimit.TotalSeconds));
+                    continue;
                 }
 
                 if (result.Cancelled)
@@ -130,9 +166,7 @@ public sealed class GridAuditChanges(
 
                 if (result.Error is { } error)
                 {
-                    _off = true;
-                    _blocks.Clear();
-                    grid.Notify(TextFormat.Format(GridText.Grid_AuditChangesOff, error.Display));
+                    SwitchOff(error.Display);
                     continue;
                 }
 
@@ -151,6 +185,13 @@ public sealed class GridAuditChanges(
                 _cancel.Dispose();
             }
         }
+    }
+
+    private void SwitchOff(string why)
+    {
+        _off = true;
+        _blocks.Clear();
+        grid.Notify(TextFormat.Format(GridText.Grid_AuditChangesOff, why));
     }
 
     /// <summary>
@@ -204,5 +245,45 @@ public sealed class GridAuditChanges(
         {
             _cancel.Dispose();
         }
+    }
+
+    /// <summary>
+    /// <see cref="TimeLimit"/> for one query, from the first <see cref="Start"/> on (a repeat in a new snapshot calls it
+    /// again): then it cancels <paramref name="running"/>. Start runs on the session's thread, the timer on the clock's.
+    /// </summary>
+    private sealed class TimeLimitOf(CancellationTokenSource running, TimeProvider time) : IDisposable
+    {
+        private ITimer? _timer;
+        private int _expired;
+
+        public bool Expired => Volatile.Read(ref _expired) == 1;
+
+        public void Start()
+        {
+            var timer = time.CreateTimer(_ => Expire(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            if (Interlocked.CompareExchange(ref _timer, timer, null) is null)
+            {
+                timer.Change(TimeLimit, Timeout.InfiniteTimeSpan);
+            }
+            else
+            {
+                timer.Dispose();
+            }
+        }
+
+        private void Expire()
+        {
+            Volatile.Write(ref _expired, 1);
+            try
+            {
+                running.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the query ended just now
+            }
+        }
+
+        public void Dispose() => _timer?.Dispose();
     }
 }

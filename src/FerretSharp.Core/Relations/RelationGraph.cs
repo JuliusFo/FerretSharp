@@ -173,10 +173,7 @@ public sealed class RelationGraph
 /// <summary>Tables in an order to insert rows in (<see cref="RelationGraph.Order"/>).</summary>
 /// <param name="Tables">All tables: parents first; those on or below a cycle last.</param>
 /// <param name="Cycles">Cycles among the tables; with any, no order satisfies every relationship.</param>
-public sealed record TableOrder(IReadOnlyList<TableRef> Tables, IReadOnlyList<RelationCycle> Cycles)
-{
-    public bool HasCycles => Cycles.Count > 0;
-}
+public sealed record TableOrder(IReadOnlyList<TableRef> Tables, IReadOnlyList<RelationCycle> Cycles);
 
 /// <summary>Tables that reference each other in a circle, with the relationships that close it.</summary>
 public sealed record RelationCycle(IReadOnlyList<TableRef> Tables, IReadOnlyList<ForeignKeyInfo> Relations)

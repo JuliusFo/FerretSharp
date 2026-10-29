@@ -58,6 +58,29 @@ public sealed class StatementRunnerTests : IAsyncDisposable
         Assert.Single(await _app.History.LoadAsync(profile.Id, Ct));
     }
 
+    /// <summary>
+    /// What the SQL editor says about a write afterwards (review 3.54.0, C5: only "open" had a test): undone in the same
+    /// transaction, or gone with the transaction.
+    /// </summary>
+    [Fact]
+    public async Task A_write_undone_is_undone_and_one_rolled_back_has_ended()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var sql = new SqlTab(workspace.WorkspaceId, "SQL 1");
+        workspace.Tabs.Add(sql);
+        await Runner.WriteAsync(sql, new QuerySpec("UPDATE kunden SET name = 'a'", []), Log("UPDATE kunden SET name = 'a'"), Ct); // keeps the transaction open
+        var outcome = await Runner.WriteAsync(sql, new QuerySpec("UPDATE kunden SET name = 'x'", []), Log("UPDATE kunden SET name = 'x'"), Ct);
+        var written = Assert.IsType<WriteAction>(outcome.Written);
+        WriteFate Fate() => WorkspaceEditing.FateOf(scope.Workspaces, workspace.WorkspaceId, written.Id, outcome.Transaction);
+
+        Assert.True(await _app.Editing.UndoLastAsync(workspace));
+        Assert.Equal(WriteFate.Undone, Fate());
+
+        Assert.True(await _app.Editing.RollbackAsync(workspace));
+        Assert.Equal(WriteFate.Ended, Fate());
+    }
+
     [Fact]
     public async Task A_write_goes_into_the_transaction_and_the_change_overview_learns_its_tab()
     {

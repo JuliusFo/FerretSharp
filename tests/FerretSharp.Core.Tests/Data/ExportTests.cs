@@ -85,6 +85,19 @@ public class ExportTests
         Assert.Contains(lines, l => l.StartsWith("-- ID ist eine Identity-Spalte", StringComparison.Ordinal));
     }
 
+    /// <summary>Review of R8: a quoted name with a line break left the rest of the header as an executable line.</summary>
+    [Fact]
+    public void A_name_with_a_line_break_stays_a_comment_in_the_header()
+    {
+        var table = new TableDetails(new TableSummary("APP", "K\nDROP TABLE X", TableKind.Table), [Col("I\r\nD", "NUMBER", identity: true)], [], [], false);
+
+        var export = InsertExport.Build(table, [Row(1m)]);
+
+        var header = export.Text.Split("\r\n").TakeWhile(l => !l.StartsWith("INSERT", StringComparison.Ordinal)).ToList();
+        Assert.Equal(4, header.Count);
+        Assert.All(header, line => Assert.StartsWith("-- ", line));
+    }
+
     [Fact]
     public void Cell_text_is_the_full_value_not_the_display_text()
     {

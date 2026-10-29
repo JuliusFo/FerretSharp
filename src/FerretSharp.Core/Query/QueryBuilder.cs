@@ -246,17 +246,14 @@ public static class QueryBuilder
             throw new ArgumentException("A lookup reads at least one display column.", nameof(displayColumns));
         }
 
-        var key = target.Columns[keyColumn];
-        var type = OracleTypeMapper.BindType(key);
-        var size = LookupSizes.First(s => s >= keys.Count);
-        var parameters = Enumerable.Range(0, size)
-            .Select(i => new QueryParameter("k" + i.ToString(System.Globalization.CultureInfo.InvariantCulture), keys[Math.Min(i, keys.Count - 1)], type))
-            .ToList();
-        var keyRef = $"{Alias}.{OracleIdentifier.Quote(key.Name)}";
+        // The IN list of a one-column key, as the rows a relationship leads to (review 3.54.0, B4: it was built here a second time).
+        var parameters = new List<QueryParameter>();
+        var where = KeyIn(target, [keyColumn], [.. keys.Select(k => (IReadOnlyList<object>)[k])], parameters);
+        var keyRef = $"{Alias}.{OracleIdentifier.Quote(target.Columns[keyColumn].Name)}";
         var display = string.Join(", ", displayColumns.Select(c => $"{Alias}.{OracleIdentifier.Quote(target.Columns[c].Name)}"));
         var sql = $"SELECT {keyRef}, {display}"
                   + $"\n  FROM {OracleIdentifier.Qualify(target.Table.Owner, target.Table.Name)} {Alias}"
-                  + $"\n WHERE {keyRef} IN ({string.Join(", ", parameters.Select(p => ":" + p.Name))})";
+                  + $"\n WHERE {where}";
         return new QuerySpec(sql, parameters);
     }
 

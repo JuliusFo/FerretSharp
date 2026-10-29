@@ -78,6 +78,19 @@ public sealed partial class OracleSchemaReader
          ORDER BY d.type, d.owner, d.name
         """;
 
+    // Constraint names are unique per owner (names Oracle generated are left out, nobody types them); index names too, in a
+    // namespace of their own – a table may be named like an index (ORA-00955 only between indexes). The table's own indexes
+    // are the designer's to rename.
+    private const string NamesElsewhereSql = """
+        SELECT 'C', constraint_name
+          FROM all_constraints
+         WHERE owner = :owner AND table_name <> :name AND generated = 'USER NAME' AND constraint_name NOT LIKE 'BIN$%'
+        UNION ALL
+        SELECT 'I', index_name
+          FROM all_indexes
+         WHERE owner = :owner AND NOT (table_owner = :owner AND table_name = :name) AND index_name NOT LIKE 'BIN$%'
+        """;
+
     // A function call in a plain query: DBMS_METADATA only reads. Object type names use underscores here.
     private const string DdlSql = "SELECT DBMS_METADATA.GET_DDL(:object_type, :name, :owner) FROM DUAL";
 
@@ -114,6 +127,15 @@ public sealed partial class OracleSchemaReader
         QueryParameter[] parameters = [new("owner", table.Owner), new("name", table.Name)];
         var columnsByIndex = await ReadIndexColumnsAsync(IndexColumnsSql, IndexExpressionsSql, parameters, many: false, cancellationToken);
         return await session.ReadListAsync(IndexesSql, parameters, reader => ReadIndex(reader, columnsByIndex), cancellationToken);
+    }
+
+    public async Task<SchemaNames> GetNamesElsewhereAsync(TableRef table, CancellationToken cancellationToken)
+    {
+        var names = await session.ReadListAsync(NamesElsewhereSql, [new("owner", table.Owner), new("name", table.Name)],
+            reader => (Kind: reader.GetString(0), Name: reader.GetString(1)), cancellationToken, many: true);
+        return new SchemaNames(
+            names.Where(n => n.Kind == "C").Select(n => n.Name).ToHashSet(StringComparer.Ordinal),
+            names.Where(n => n.Kind == "I").Select(n => n.Name).ToHashSet(StringComparer.Ordinal));
     }
 
     public async Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken)

@@ -3,7 +3,6 @@
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@inject ShortcutService Shortcuts
 
 <div class="filterbar" @ref="_bar">
     @if (Tab.FilterRows.Count == 0 && Tab.FilterGroups.Count == 0)

@@ -140,9 +140,16 @@ public sealed class AutoReconnect(
 
         if (run.Attempts == 0 && Busy(scope))
         {
+            // Rendered only on the way in: every recheck rendered the whole shell, every 2 s for as long as an export ran
+            // (review 3.54.0, A17).
+            var entering = run.Phase != ReconnectPhase.Holding;
             run.Phase = ReconnectPhase.Holding;
             Schedule(scope, run, HoldRecheck);
-            shell.NotifyChanged();
+            if (entering)
+            {
+                shell.NotifyChanged();
+            }
+
             return;
         }
 

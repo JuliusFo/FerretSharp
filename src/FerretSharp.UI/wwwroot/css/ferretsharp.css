@@ -33,6 +33,7 @@
   --grid-range-border: var(--accent);
   /* States and hints (A50): text/markers as tokens, their light fills as color-mix of them, so dark mode follows. */
   --warn: #c07a00;            /* warnings in text, borders */
+  --warn-text: #8a5600;       /* text on a warn fill: 5.3:1 on 14 % (review 3.54.0, A28; --warn there 3.0:1) */
   --pending: #d4a106;         /* marker of a pending (unwritten) value */
   --yellow: #eab308;          /* fill of pending values, primary keys, advice */
   --key: #b7791f;             /* text of a primary key badge */
@@ -75,6 +76,7 @@
     --grid-range: color-mix(in srgb, var(--accent) 20%, transparent);
     --grid-range-border: var(--accent);
     --warn: #e8a33c;
+  --warn-text: #e8a33c;
     --pending: #e3b341;
     --key: #e0b04a;
     --green: #3cc47a;
@@ -552,7 +554,7 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 .fs-badge.unused { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
 .fs-badge.test, .fs-badge.mapping { background: var(--surface-2); color: var(--faint); font-weight: 600; }
 /* A frame tells it from "unused" in the same column (decision of the user); inset, so the row keeps its height. */
-.fs-badge.no-index { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+.fs-badge.no-index { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn-text); box-shadow: inset 0 0 0 1px var(--warn); }
 .usage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 4px 0 12px; }
 .usage-tabs .seg-count { margin-left: 6px; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .usage-tabs .seg-count.unused { color: var(--key); }
@@ -784,21 +786,21 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .fs-desc.missing { color: var(--danger); font-style: italic; }
 .fs-badge.display { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green-text); }
 
-/* editing (v2): pending = only in the tab, flushed = written in the transaction, not committed */
-.ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); box-shadow: inset 2px 0 0 var(--pending); }
-.ag-cell.fs-flushed { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
-.ag-row.fs-row-deleted .ag-cell { text-decoration: line-through; color: var(--danger); background: var(--danger-weak); }
-.ag-row.fs-row-new .ag-cell { background: color-mix(in srgb, var(--green) 12%, transparent); }
-.ag-row.fs-row-new .ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
 /* Audit tables (WP-63): what a row changed against the version before, and the rows of an insert or a delete – quieter
-   than the own edits above, which win where both apply. */
+   than the own edits below, which win where both apply: same weight, declared later (review 3.54.0, A23: the row tint
+   weighed more and hid pending values and marks). */
 .ag-row.fs-audit-insert .ag-cell { background: color-mix(in srgb, var(--green) 7%, transparent); }
 .ag-row.fs-audit-delete .ag-cell { background: color-mix(in srgb, var(--danger) 7%, transparent); }
 .ag-cell.fs-audit-changed { background: color-mix(in srgb, var(--audit-change) 18%, transparent); }
-.ag-cell.fs-audit-changed.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
-.ag-cell.fs-audit-changed.fs-flushed { background: color-mix(in srgb, var(--accent) 16%, transparent); }
-/* Marked cells and columns (WP-58), over the edit states: the outline as an overlay, the edit marker (box-shadow) stays. */
-.ag-cell.fs-range { background: var(--grid-range); }
+/* editing (v2): pending = only in the tab, flushed = written in the transaction, not committed */
+.ag-row .ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); box-shadow: inset 2px 0 0 var(--pending); }
+.ag-row .ag-cell.fs-flushed { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.ag-row.fs-row-deleted .ag-cell { text-decoration: line-through; color: var(--danger); background: var(--danger-weak); }
+.ag-row.fs-row-new .ag-cell { background: color-mix(in srgb, var(--green) 12%, transparent); }
+.ag-row.fs-row-new .ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
+/* Marked cells and columns (WP-58), over every row and cell state above – hence the row class twice: the outline as an
+   overlay, the edit marker (box-shadow) stays. */
+.ag-row.ag-row .ag-cell.fs-range { background: var(--grid-range); }
 .ag-cell.fs-range::after { content: ""; position: absolute; inset: 0; pointer-events: none; border: 0 solid var(--grid-range-border); }
 .ag-cell.fs-range-top::after { border-top-width: 2px; }
 .ag-cell.fs-range-bottom::after { border-bottom-width: 2px; }
@@ -1113,10 +1115,7 @@ button.badge-btn:hover { filter: brightness(1.08); }
 .copy-tables td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
 .copy-tables .num { text-align: right; font-variant-numeric: tabular-nums; }
 .copy-tables .faint { color: var(--faint); font-family: var(--mono); }
-.copy-tree .faint, .copy-parents .faint { color: var(--faint); }
-.copy-parents { list-style: none; margin: 0; padding: 0; }
-.copy-parents li { margin: 3px 0; }
-.copy-parents label { display: inline-flex; align-items: center; gap: 6px; }
+.copy-tree .faint { color: var(--faint); }
 .copy-issues { margin: 0; padding-left: 18px; font-size: 12.5px; }
 .copy-issues li { margin: 3px 0; }
 /* The copy preview as a diagram (WP-60): the drawing of the relations view in a box of its own. */
@@ -1655,7 +1654,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-summary { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .summary-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 .summary-chip.none { color: var(--faint); }
-.summary-chip.warn { border-color: transparent; background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
+.summary-chip.warn { border-color: transparent; background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn-text); }
 .summary-chip.bad { border-color: transparent; background: var(--danger-weak); color: var(--danger); }
 .summary-chip .icon { width: 12px; height: 12px; }
 .designer-summary:hover .summary-chip { border-color: var(--border-strong); }

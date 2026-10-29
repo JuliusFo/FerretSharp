@@ -192,4 +192,10 @@
   <data name="ColumnScaleRange" xml:space="preserve">
     <value>{0}: Nachkommastellen {1} passen nicht zu NUMBER – erlaubt sind {2} bis {3}.</value>
   </data>
+  <data name="ConstraintNameTakenInSchema" xml:space="preserve">
+    <value>Eine andere Tabelle des Schemas hat schon einen Constraint {0} (ORA-02264).</value>
+  </data>
+  <data name="IndexNameTakenInSchema" xml:space="preserve">
+    <value>Eine andere Tabelle des Schemas hat schon einen Index {0} (ORA-00955).</value>
+  </data>
 </root>

@@ -1,4 +1,4 @@
-# Klein: Audit-Tabellen nie anlegen, nur abgleichen
+# Klein: Audit-Tabellen nie anlegen, nur abgleichen → Release 3.54.0
 
 Branch `feat/audit-create-setting` (von `main`), 2026-10-28.
 

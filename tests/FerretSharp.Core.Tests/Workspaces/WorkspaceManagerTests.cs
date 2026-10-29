@@ -242,6 +242,30 @@ public sealed class WorkspaceManagerTests
         Assert.Single(_opened); // the session stays
     }
 
+    /// <summary>
+    /// Review 3.54.0, C4: locking again failed on the database (lost, cancelled) – kept, the workspace would count as locked
+    /// with a session that has no read-only transaction, and on Prod only the UI would stop writes. It goes, the next use
+    /// opens a locked one.
+    /// </summary>
+    [Fact]
+    public async Task A_session_that_cannot_be_locked_again_is_dropped_and_the_next_use_opens_a_locked_one()
+    {
+        await _manager.AttachAsync(_profile with { ReadOnly = true }, Ct);
+        var id = _manager.Active!.Id;
+        await _manager.UnlockAsync(id, Ct);
+        var first = Assert.Single(_opened).Connection;
+        first.Transaction.Returns(TransactionInfo.None);
+        first.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new DatabaseException("weg", "ORA-03113")));
+
+        await Assert.ThrowsAsync<DatabaseException>(() => _manager.LockAsync(id, Ct));
+
+        await first.Received(1).DisposeAsync();
+        await _manager.GetDataAsync(id, Ct);
+        Assert.Equal(2, _opened.Count);
+        await _opened[1].Connection.Received(1).UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
+        Assert.False(_manager.IsWritable(id));
+    }
+
     [Fact]
     public async Task Resetting_the_session_closes_it_and_the_next_use_opens_a_new_one_still_unlocked()
     {
@@ -375,7 +399,7 @@ public sealed class WorkspaceManagerTests
 
         var timers = _time.Timers;
         var opening = _manager.GetDataAsync(_manager.Active!.Id, Ct);
-        await Eventually(() => _time.Timers > timers);
+        await Wait.UntilAsync(() => _time.Timers > timers);
 
         _time.Advance(SessionOpening.AttemptLimits[0]);
 
@@ -393,22 +417,13 @@ public sealed class WorkspaceManagerTests
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(opening.Task);
         var data = _manager.GetDataAsync(_manager.Active!.Id, Ct);
-        await Eventually(() => _connector.ReceivedCalls().Any());
+        await Wait.UntilAsync(() => _connector.ReceivedCalls().Any());
 
         await _manager.DetachAsync().WaitAsync(TimeSpan.FromSeconds(5), Ct);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => data.WaitAsync(TimeSpan.FromSeconds(5), Ct));
         opening.SetResult(late);
-        await Eventually(() => late.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
-    }
-
-    private static async Task Eventually(Func<bool> condition)
-    {
-        for (var waited = 0; !condition(); waited += 10)
-        {
-            Assert.True(waited < 5_000, "Timed out.");
-            await Task.Delay(10, Ct);
-        }
+        await Wait.UntilAsync(() => late.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
     }
 
     [Fact]

@@ -62,7 +62,11 @@ public static partial class IndexDesign
     }
 
     /// <summary>Checks the draft against the table's columns and its existing indexes.</summary>
-    public static DraftCheck Check(IndexDraft draft, TableDetails table, IReadOnlyList<IndexInfo> indexes)
+    /// <param name="elsewhere">
+    /// Index names of the owner's other tables (<see cref="SchemaNames.Indexes"/>), null while not read: Oracle would refuse the
+    /// name with ORA-00955 (review of R8, as the table designer since review 3.54.0, A14).
+    /// </param>
+    public static DraftCheck Check(IndexDraft draft, TableDetails table, IReadOnlyList<IndexInfo> indexes, IReadOnlySet<string>? elsewhere = null)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentNullException.ThrowIfNull(table);
@@ -80,6 +84,10 @@ public static partial class IndexDesign
         else if (indexes.Any(i => string.Equals(i.Name, draft.Name, StringComparison.Ordinal)))
         {
             problems.Add(TextFormat.Format(DesignText.IndexNameTaken, draft.Name));
+        }
+        else if (elsewhere?.Contains(draft.Name) == true)
+        {
+            problems.Add(TextFormat.Format(DesignText.IndexNameTakenInSchema, draft.Name));
         }
         else if (OracleIdentifier.NeedsQuotes(draft.Name))
         {

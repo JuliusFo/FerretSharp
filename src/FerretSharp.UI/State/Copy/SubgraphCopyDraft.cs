@@ -8,14 +8,18 @@ namespace FerretSharp.UI.State;
 /// <summary>A workspace of another open connection a copy can go to (WP-42).</summary>
 /// <param name="Label">"TEST › Workspace 1": connection (with group) and workspace.</param>
 /// <param name="CanWrite">Whether the workspace may write now (a locked Prod must be unlocked first) – asked each time.</param>
+/// <param name="SchemaNow">The target's schema now – asked each time: reconnected while the dialog is open, the one of the start
+/// read on a closed session, and "Read rows" did nothing without a word (review 3.54.0, A16).</param>
 /// <param name="Data">The workspace's read path (existing rows are looked up there).</param>
 /// <param name="Connection">The target connection: its errors are logged and its lost session reported there.</param>
 public sealed record CopyTarget(
-    Guid ConnectionId, Guid WorkspaceId, string Label, ConnectionKind Kind, Func<bool> CanWrite, SchemaCache Schema,
+    Guid ConnectionId, Guid WorkspaceId, string Label, ConnectionKind Kind, Func<bool> CanWrite, Func<SchemaCache> SchemaNow,
     Func<CancellationToken, Task<IDataAccess>> Data, ActiveConnection? Connection = null)
 {
     /// <summary>The workspace may write now; follows unlocking and locking while the dialog is open.</summary>
     public bool Writable => CanWrite();
+
+    public SchemaCache Schema => SchemaNow();
 }
 
 /// <summary>Where a copy stands in the dialog.</summary>

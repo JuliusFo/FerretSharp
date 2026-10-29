@@ -92,7 +92,8 @@ public sealed partial class AppTraceSourceTests(OracleContainerFixture oracle)
         // At a breakpoint the app does not answer the stop: the trace closes its stream itself (review of WP-33).
         await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(Ct);
-        await using var events = _source.AttachAsync(app.Id, cts.Token).GetAsyncEnumerator(cts.Token);
+        var source = new EventPipeTraceSource(NullLogger<EventPipeTraceSource>.Instance) { StopAfter = TimeSpan.FromMilliseconds(500) };
+        await using var events = source.AttachAsync(app.Id, cts.Token).GetAsyncEnumerator(cts.Token);
         var first = events.MoveNextAsync();
         await app.SendAsync("warm");
         Assert.True(await first);
@@ -104,7 +105,7 @@ public sealed partial class AppTraceSourceTests(OracleContainerFixture oracle)
         {
         }
 
-        Assert.True(watch.Elapsed < EventPipeTraceSource.StopTimeout * 3, $"Detaching took {watch.Elapsed}");
+        Assert.True(watch.Elapsed < source.StopAfter * 3 + TimeSpan.FromSeconds(1), $"Detaching took {watch.Elapsed}");
     }
 
     /// <summary>

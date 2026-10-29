@@ -355,8 +355,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
     {
         var mappings = key.Select(t => columns.First(c => c.Target == t)).ToArray();
         var trim = key.Select(i => target.Columns[i]).Concat(mappings.Select(m => source.Details.Columns[m.Source])).Any(c => OracleTypes.IsFixedChar(c.DataType));
-        var byText = new Dictionary<string, List<RowData>>(StringComparer.Ordinal);
-        var keys = new List<IReadOnlyList<object>>();
+        var byKey = new KeyGroups(trim);
         foreach (var row in rows)
         {
             var written = mappings.Select(m => m.ValueOf(source.Details, target, row)).ToArray();
@@ -365,27 +364,18 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
                 continue; // a NULL in a unique key never conflicts
             }
 
-            object[] values = [.. written.Select(v => trim && v is string s ? s.TrimEnd(' ') : v!)];
-            var text = RowTraversal.KeyText(values, trim);
-            if (!byText.TryGetValue(text, out var list))
-            {
-                byText[text] = list = [];
-                keys.Add(values);
-            }
-
-            list.Add(row);
+            byKey.Add(written!, row);
         }
 
         var matched = new Dictionary<RowKey, (RowData Source, RowData Target)>();
-        if (keys.Count == 0)
+        if (byKey.Keys.Count == 0)
         {
             return matched;
         }
 
-        foreach (var found in await targetData.ReadByKeysAsync(target, key, keys, wholeLobs: false, maxRows: null, cancellationToken))
+        foreach (var found in await targetData.ReadByKeysAsync(target, key, byKey.Keys, wholeLobs: false, maxRows: null, cancellationToken))
         {
-            var text = RowTraversal.KeyText([.. key.Select(i => trim && found.Values[i] is string s ? s.TrimEnd(' ') : found.Values[i]!)], trim);
-            foreach (var row in byText.GetValueOrDefault(text) ?? [])
+            foreach (var row in byKey.RowsOf(key.Select(i => found.Values[i])))
             {
                 matched.TryAdd(row.Key, (row, found));
             }

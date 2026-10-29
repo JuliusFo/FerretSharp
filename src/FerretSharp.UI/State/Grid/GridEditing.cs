@@ -43,8 +43,11 @@ public interface IEditableGrid
     /// <summary>How many rows the query has, once all of them are loaded; null while more may follow (WP-59: whole columns).</summary>
     int? AllRows { get; }
 
-    /// <summary>Rows not loaded, read from a grid index on (start, count) as the database has them; null if the read failed (said why).</summary>
-    Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count);
+    /// <summary>
+    /// Rows not loaded, read from a grid index on (start, count) as the database has them; null if the read failed (said why)
+    /// or was cancelled – the grid cancels when it goes away (review 3.54.0, A5).
+    /// </summary>
+    Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count, CancellationToken cancellationToken);
 }
 
 /// <summary>A command for many cells (WP-59): the loaded rows to redraw, or why nothing was set.</summary>
@@ -247,7 +250,7 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
         }
 
         var changes = grid.Changes;
-        if (await CellCopies.RowsAsync(grid.RowAt, grid.ReadRowsAsync, from, to) is not { } rows)
+        if (await CellCopies.RowsAsync(grid.RowAt, grid.ReadRowsAsync, from, to, CancellationToken.None) is not { } rows)
         {
             return GridFill.Refused(""); // the read said why
         }

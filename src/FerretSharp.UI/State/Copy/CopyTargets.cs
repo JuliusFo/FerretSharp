@@ -16,11 +16,17 @@ public static class CopyTargets
     [
         .. hub.Open
             .Where(scope => !ReferenceEquals(scope.Active, source) && scope.Active.IsConnected && scope.Active.Schema is not null && scope.Profile is not null)
-            .SelectMany(scope => scope.Workspaces.Open.Select(workspace => new CopyTarget(
-                scope.Id, workspace.Id, $"{ConnectionLabel.Of(scope.Profile!, settings)} · {workspace.Name}", scope.Profile!.Kind,
-                () => scope.Workspaces.IsWritable(workspace.Id), scope.Active.Schema!, ct => scope.Workspaces.GetDataAsync(workspace.Id, ct),
-                scope.Active))),
+            .SelectMany(scope => scope.Workspaces.Open.Select(workspace => Target(scope, workspace.Id, workspace.Name, settings))),
     ];
+
+    private static CopyTarget Target(ConnectionScope scope, Guid workspaceId, string workspaceName, AppSettings settings)
+    {
+        var atStart = scope.Active.Schema!;
+        return new CopyTarget(
+            scope.Id, workspaceId, $"{ConnectionLabel.Of(scope.Profile!, settings)} · {workspaceName}", scope.Profile!.Kind,
+            () => scope.Workspaces.IsWritable(workspaceId), () => scope.Active.Schema ?? atStart, ct => scope.Workspaces.GetDataAsync(workspaceId, ct),
+            scope.Active);
+    }
 
     /// <summary>Why rows of <paramref name="table"/> cannot be copied to another connection (a view, none open); null if they can.</summary>
     public static string? Unavailable(ConnectionHub hub, ActiveConnection source, AppSettings settings, TableDetails? table) =>

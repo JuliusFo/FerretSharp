@@ -13,7 +13,7 @@ public sealed class DisplayNamesTests
     private static readonly TableDetails Kunde = new(new TableSummary("APP", "KUNDE", TableKind.Table),
         [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2"), Col("KUERZEL", "CHAR")], ["ID"], [["KUERZEL"]], false);
 
-    private static readonly TableDetails Land = new(new TableSummary("APP", "SDLAND", TableKind.Table),
+    private static readonly TableDetails Land = new(new TableSummary("APP", "STAAT", TableKind.Table),
         [Col("CODE", "RAW"), Col("BEZEICHNUNG", "VARCHAR2")], ["CODE"], [], false);
 
     private static ForeignKeyInfo Fk(string column, TableDetails to, string key) => new("FK_" + column, new("APP", "AUFTRAG"), [column], to.Table.Ref, [key], FkSource.Declared);

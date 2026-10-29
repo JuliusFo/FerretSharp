@@ -162,7 +162,7 @@ else
     /// <summary>The steps as a script (<see cref="DdlScript.Render"/>): each ends with a semicolon, a blank line between them.</summary>
     private string Script => DdlScript.Render(Steps);
 
-    private bool CanRun => Steps.Count > 0 && Problems.Count == 0 && _running is null && Workspaces.IsWritable(WorkspaceId);
+    private bool CanRun => FerretSharp.Core.Design.DesignPlan.Runnable(Steps, Problems) && _running is null && Workspaces.IsWritable(WorkspaceId);
 
     private string? RunBlocked => Problems.Count > 0 ? Problems[0] : !Workspaces.IsWritable(WorkspaceId) ? SchemaViewText.Ddl_WorkspaceLocked : null;
 

@@ -211,7 +211,7 @@
     <value>Die Partitionierung des Index wird nicht übernommen.</value>
   </data>
   <data name="IdentityOptionsUnknown" xml:space="preserve">
-    <value>Identity {0}: ALWAYS oder BY DEFAULT und die Optionen (Start, Schrittweite) sind nicht bekannt – mit der DDL der Referenz abgleichen.</value>
+    <value>Identity {0}: Start und Schrittweite sind nicht bekannt – mit der DDL der Referenz abgleichen.</value>
   </data>
   <data name="ExpressionNamesReferenceSchema" xml:space="preserve">
     <value>Der Ausdruck nennt das Schema der Referenz ({0}) – im Ziel anpassen.</value>
@@ -236,5 +236,8 @@
   </data>
   <data name="AddColumnsHeader" xml:space="preserve">
     <value>Spalten aus {0}, zum Hinzufügen in dieselbe Tabelle.</value>
+  </data>
+  <data name="IdentityModeHint" xml:space="preserve">
+    <value>Identity {0}: ALWAYS oder BY DEFAULT (ON NULL) weicht ab – Statement vor dem Ausführen prüfen; Start und Schrittweite sind nicht verglichen.</value>
   </data>
 </root>

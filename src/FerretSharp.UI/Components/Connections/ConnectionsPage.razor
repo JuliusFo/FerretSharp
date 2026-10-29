@@ -87,7 +87,7 @@
                                 <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
                                 <span class="addr">@p.Address.Display@(p.Address is TnsAliasAddress ? " (TNS)" : "")</span>
                                 <span class="user">@p.User@(p.DefaultSchema is { } schema ? $" → {schema}" : "")</span>
-                                <span class="last-used">@ConnectionLastUsed.Text(Recent.LastUsed.TryGetValue(p.Id, out var used) ? used : null, DateTime.Today)</span>
+                                <span class="last-used">@ConnectionLastUsed.Text(Recent.LastUsed, p.Id, DateTime.Today)</span>
                                 <ConnectionActionsMenu Profile="p" />
                             </div>
                         }

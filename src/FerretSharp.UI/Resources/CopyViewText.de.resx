@@ -147,4 +147,7 @@
   <data name="DiagramConflictDiffering" xml:space="preserve">
     <value>Vorhandene: {0} ({1:N0} abweichend)</value>
   </data>
+  <data name="Copying" xml:space="preserve">
+    <value>Kopiere nach {0}</value>
+  </data>
 </root>

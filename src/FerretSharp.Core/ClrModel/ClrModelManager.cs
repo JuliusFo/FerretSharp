@@ -412,7 +412,8 @@ public sealed class ClrModelManager : IDisposable
         }
         catch (Exception ex) when (ex is ClrModelException or IOException or System.ComponentModel.Win32Exception)
         {
-            run = new DotNetRun(-1, ex.Message);
+            // A build past its time limit brings what it wrote up to then: where it hung (review 3.54.0, A19).
+            run = new DotNetRun(-1, (ex as ClrModelException)?.Detail ?? ex.Message, ex.Message);
         }
         finally
         {

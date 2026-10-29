@@ -1,3 +1,5 @@
+using FerretSharp.Core.Resources;
+
 namespace FerretSharp.Core.IO;
 
 /// <summary>What reading a file gave, and whether it may be reused while the file is unchanged.</summary>
@@ -23,6 +25,15 @@ public sealed class CachedFileRead<T>(Func<string, FileInfo, FileRead<T>> read, 
 
     /// <summary>Paths kept at most; the one looked at longest ago goes first.</summary>
     internal const int MaxPaths = 32;
+
+    /// <summary>A larger file is not read (a template or a list of names is a few kilobytes).</summary>
+    public const long MaxBytes = 4L * 1024 * 1024;
+
+    /// <summary>
+    /// What a file larger than <see cref="MaxBytes"/> gives – also for a read that changes the file and writes it back
+    /// (display columns, review of R8: that read was not limited).
+    /// </summary>
+    public static IOException TooLarge() => new(TextFormat.Format(CoreText.FileTooLarge, MaxBytes / (1024 * 1024)));
 
     private readonly Dictionary<string, (DateTime Written, long Length, T Value, bool Reuse, DateTimeOffset Checked)> _cached = new(StringComparer.Ordinal);
 
@@ -56,7 +67,11 @@ public sealed class CachedFileRead<T>(Func<string, FileInfo, FileRead<T>> read, 
                 }
             }
 
-            result = read(path, file);
+            // Files others write into a shared repository: a huge one (an export saved under the wrong name) was read whole
+            // on every change, by the watcher and the poll alike (review 3.54.0, A12). Kept while unchanged.
+            result = length > MaxBytes
+                ? new FileRead<T>(unreadable(path, TooLarge()))
+                : read(path, file);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {

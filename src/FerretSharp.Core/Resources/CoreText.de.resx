@@ -27,4 +27,7 @@
   <data name="FileFromNewerVersionNotOverwritten" xml:space="preserve">
     <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}). Sie wird nicht überschrieben.</value>
   </data>
+  <data name="FileTooLarge" xml:space="preserve">
+    <value>größer als {0} MB</value>
+  </data>
 </root>

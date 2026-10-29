@@ -124,16 +124,11 @@ public sealed partial class WorkspaceLifecycle
 
     /// <summary>
     /// Disconnects several connections (WP-66, "Disconnect all" of a group) after one question about the uncommitted work
-    /// of all of them – one after the other, each question would replace the one before.
+    /// of all of them – one after the other, each question would replace the one before. All of them close at once
+    /// (review 3.54.0, A1).
     /// </summary>
     public Task DisconnectAllAsync(IReadOnlyList<ConnectionScope> scopes, string what) =>
-        GuardAsync(what, scopes.SelectMany(WorkspacesOf).ToList(), async () =>
-        {
-            foreach (var scope in scopes)
-            {
-                await DisconnectCoreAsync(scope);
-            }
-        });
+        GuardAsync(what, scopes.SelectMany(WorkspacesOf).ToList(), () => DisconnectCoreAsync(scopes));
 
     public Task DeleteAsync(ConnectionProfile profile)
     {
@@ -207,18 +202,20 @@ public sealed partial class WorkspaceLifecycle
 
     private IReadOnlyList<WorkspaceTabs> WorkspacesOf(ConnectionScope scope) => shell.AllWorkspaces.Where(w => w.ConnectionId == scope.Id).ToList();
 
-    private async Task DisconnectCoreAsync(ConnectionScope scope)
+    private Task DisconnectCoreAsync(ConnectionScope scope) => DisconnectCoreAsync([scope]);
+
+    private async Task DisconnectCoreAsync(IReadOnlyList<ConnectionScope> scopes)
     {
         SaveTabs();
-        foreach (var workspace in WorkspacesOf(scope))
+        foreach (var workspace in scopes.SelectMany(WorkspacesOf))
         {
             editing.Forget(workspace.WorkspaceId);
         }
 
-        await hub.CloseAsync(scope);
+        await hub.CloseAsync(scopes);
 
         // Opened again while its sessions closed (review 3.31.0, A29): the tabs belong to the new connection now.
-        if (hub.Find(scope.Id) is null)
+        foreach (var scope in scopes.Where(s => hub.Find(s.Id) is null))
         {
             shell.ClearWorkspaces(scope.Id);
         }

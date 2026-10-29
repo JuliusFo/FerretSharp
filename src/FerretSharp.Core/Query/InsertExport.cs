@@ -30,7 +30,7 @@ public static class InsertExport
         }
 
         var header = new StringBuilder()
-            .Append("-- ").Append(TextFormat.Plural(rows.Count, QueryText.InsertExportHeaderOne, QueryText.InsertExportHeaderOther, target))
+            .Append(Comment(TextFormat.Plural(rows.Count, QueryText.InsertExportHeaderOne, QueryText.InsertExportHeaderOther, target)))
             .Append("\r\n");
         if (hasAmpersand)
         {
@@ -39,11 +39,13 @@ public static class InsertExport
 
         foreach (var identity in table.Columns.Where(c => c.IsIdentity))
         {
-            header.Append("-- ").Append(TextFormat.Format(QueryText.InsertExportIdentity, identity.Name)).Append("\r\n");
+            header.Append(Comment(TextFormat.Format(QueryText.InsertExportIdentity, identity.Name))).Append("\r\n");
         }
 
         return new ExportText(header.Append(statements).ToString(), rows.Count, warnings.ToList());
     }
+
+    private static string Comment(string text) => SqlComment.Of(text, "\r\n");
 
     /// <summary>An Oracle literal for <paramref name="value"/> read from <paramref name="column"/>.</summary>
     internal static string Literal(ColumnInfo column, object? value, ExportWarnings warnings) => value switch

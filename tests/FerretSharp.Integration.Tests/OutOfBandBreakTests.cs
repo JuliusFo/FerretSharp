@@ -47,6 +47,9 @@ public sealed class OutOfBandBreakTests(OracleContainerFixture oracle)
         await using var allowed = await oracle.AllowOutOfBandBreaksAsync();
         await using var proxy = Proxy(UrgentData.Lost);
         await using var session = await OpenAsync(proxy);
+        // Measured warm: the first run (parse, cold blocks) was longer than the one the break comes in, and half of it could
+        // be more than the whole of the second (review 3.54.0, C8).
+        await session.ExecuteReaderAsync(BoundedSql, [], (reader, ct) => reader.ReadAsync(ct), Ct).WaitAsync(Limit, Ct);
         var watch = Stopwatch.StartNew();
         await session.ExecuteReaderAsync(BoundedSql, [], (reader, ct) => reader.ReadAsync(ct), Ct).WaitAsync(Limit, Ct);
         var work = watch.Elapsed;

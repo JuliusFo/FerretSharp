@@ -4,7 +4,7 @@ using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.Resources;
 
-namespace FerretSharp.UI.Components.Schema;
+namespace FerretSharp.UI.Components;
 
 /// <summary>
 /// How a laid-out diagram is drawn (relations WP-46, records WP-60, the copy preview): positions in CSS pixels, invariant;

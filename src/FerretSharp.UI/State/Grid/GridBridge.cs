@@ -100,11 +100,11 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 /// <summary>How grid.js builds the grid.</summary>
 /// <param name="FirstRow">Rough scroll position to restore (0 = top).</param>
 /// <param name="Editable">The workspace may write (v2); the columns say whether they can be edited at all.</param>
-/// <param name="HeaderHeight">With the line for C# names (WP-12), without the type line; null for the theme default (<see cref="ColumnHeaderLines.HeightWith"/>).</param>
+/// <param name="HeaderHeight">For the header lines shown (C# names WP-12, type and NOT NULL as set); null for the theme default (<see cref="ColumnHeaderLines.HeightWith"/>).</param>
 /// <param name="Table">
 /// A table tab: Del, pinning and scroll position are reported to .NET. A query result (SQL editor, LINQ console) has none of
-/// these: it answers GetRows, OnCopy, OnCopyColumn, OnSelectionChanged, OnCellContextMenu and OnHeaderContextMenu, with
-/// <c>form</c> also OnFocused and OnFormKey (WP-56, WP-57; review 3.44.0, B7).
+/// these: it answers GetRows, OnCopy, OnCopyCells, OnCopyColumn, OnSelectionChanged, OnCellContextMenu and OnHeaderContextMenu, with
+/// <c>form</c> also OnFocused and OnFormKey (WP-56, WP-57, WP-58; review 3.54.0, B9).
 /// </param>
 public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bool Editable, int? HeaderHeight, bool Table)
 {

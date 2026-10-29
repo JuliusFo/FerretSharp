@@ -1,4 +1,4 @@
-# Klein: Filter auf Enum-Werte, die das Modell nicht kennt
+# Klein: Filter auf Enum-Werte, die das Modell nicht kennt → Release 3.54.0
 
 Branch `feat/enum-filter-any-value` (von `main`), 2026-10-28.
 

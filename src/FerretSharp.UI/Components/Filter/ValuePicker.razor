@@ -3,6 +3,8 @@
    member (typed before the model was loaded, from an FK jump) stay and can be removed. The field on top searches the
    list and takes a value the C# model does not know (ValuePickerItems). *@
 @using FerretSharp.Core.ClrModel
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <div class="valpick">
     <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "valpick-unset" : "")" title="@Summary" @ref="_button"
@@ -14,7 +16,7 @@
     {
         <div class="popover-backdrop" @onclick="Close"></div>
         @* Escape with text clears the search (SearchBox) and goes no further; in the empty field it closes the list. *@
-        <div class="popover valpick-pop" @onkeydown="OnKeyDown">
+        <div class="popover valpick-pop" id="@_id" @onkeydown="OnKeyDown">
             <SearchBox @ref="_search" Class="popover-search ctx-filter valpick-search" Value="@_typed" ValueChanged="OnTyped"
                        Placeholder="@GridText.ValuePicker_Search" Title="@GridText.ValuePicker_SearchTitle" />
             <div class="valpick-list" role="listbox" aria-multiselectable="@(Multiple ? "true" : "false")">
@@ -23,7 +25,7 @@
                     var item = _items[i];
                     var position = i;
                     var selected = Selected.Contains(item.Value);
-                    <div class="valpick-item @(position == _highlight ? "highlight" : "") @(selected ? "selected" : "") @(item.Unknown ? "unknown" : "")"
+                    <div id="@($"{_id}-{position}")" class="valpick-item @(position == _highlight ? "highlight" : "") @(selected ? "selected" : "") @(item.Unknown ? "unknown" : "")"
                          role="option" aria-selected="@(selected ? "true" : "false")"
                          @onmousedown="() => PickAsync(item)" @onmousedown:preventDefault="true" @onmouseenter="() => _highlight = position">
                         @if (Multiple)
@@ -46,8 +48,13 @@
     private string _typed = "";
     private ElementReference _button;
     private SearchBox? _search;
+    private readonly string _id = "valpick-" + Guid.NewGuid().ToString("N");
+    private DomModule? _dom;
     private bool _focusSearch;
     private bool _focusButton;
+    private bool _scrollToHighlight;
+
+    private DomModule Dom => _dom ??= new(JS);
 
     [Parameter, EditorRequired]
     public ValueTable Values { get; set; } = null!;
@@ -81,6 +88,13 @@
         {
             _focusSearch = false;
             await _search.FocusAsync();
+            await Dom.InvokeVoidAsync("arrowsMoveList", _id);
+        }
+        else if (_scrollToHighlight)
+        {
+            // ↑ ↓ beyond the visible part of the list (review 3.54.0, A25): Enter took an entry nobody saw.
+            _scrollToHighlight = false;
+            await Dom.InvokeVoidAsync("scrollIntoViewById", $"{_id}-{_highlight}");
         }
         else if (_focusButton)
         {
@@ -169,9 +183,11 @@
         {
             case "ArrowDown":
                 _highlight = Math.Min(_highlight + 1, _items.Count - 1);
+                _scrollToHighlight = true;
                 break;
             case "ArrowUp":
                 _highlight = Math.Max(_highlight - 1, 0);
+                _scrollToHighlight = true;
                 break;
             case "Enter" when _items.Count > 0:
                 // "in" stays open to pick more; Esc closes.
@@ -183,6 +199,14 @@
             case "Tab":
                 Close();
                 break;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
         }
     }
 }

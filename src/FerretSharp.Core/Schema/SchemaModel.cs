@@ -215,6 +215,12 @@ public interface ISchemaReader
     /// <summary>Indexes on the table (without LOB indexes), by name.</summary>
     Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(TableRef table, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Names a constraint or index of <paramref name="table"/> cannot take because another object of its owner has them – Oracle
+    /// wants them unique in the schema (ORA-02264, ORA-00955; review 3.54.0, A14). One round trip.
+    /// </summary>
+    Task<SchemaNames> GetNamesElsewhereAsync(TableRef table, CancellationToken cancellationToken);
+
     /// <summary>Dependencies in both directions, limited to objects the session may see.</summary>
     Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken);
 

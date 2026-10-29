@@ -26,7 +26,7 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
                 await ExecuteAsync(connection, "CREATE TABLE TXS (ID NUMBER PRIMARY KEY, TXT VARCHAR2(20)) SEGMENT CREATION IMMEDIATE");
                 await ExecuteAsync(connection, "INSERT INTO TXS VALUES (10, 'zehn')");
                 await ExecuteAsync(connection, "INSERT INTO TXS VALUES (20, 'zwanzig')");
-                await Task.Delay(3000, Ct); // a snapshot right after CREATE TABLE fails with ORA-01466
+                await SettledAsync(connection); // a snapshot right after CREATE TABLE fails with ORA-01466
                 _created = true;
             }
         }
@@ -37,6 +37,34 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Until a read-only snapshot sees the new table: polled instead of a fixed 3 s (review 3.54.0, C8; the way of
+    /// TransactionBehaviorTests).
+    /// </summary>
+    private static async Task SettledAsync(OracleConnection connection)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            await using var transaction = connection.BeginTransaction();
+            await using var setReadOnly = connection.CreateCommand();
+            setReadOnly.CommandText = "SET TRANSACTION READ ONLY";
+            await setReadOnly.ExecuteNonQueryAsync(Ct);
+            try
+            {
+                await using var count = connection.CreateCommand();
+                count.CommandText = "SELECT COUNT(*) FROM TXS";
+                await count.ExecuteScalarAsync(Ct);
+                await transaction.RollbackAsync(Ct);
+                return;
+            }
+            catch (OracleException ex) when (ex.Number == 1466 && attempt < 20)
+            {
+                await transaction.RollbackAsync(Ct);
+                await Task.Delay(250, Ct);
+            }
+        }
+    }
 
     private async Task<OracleSession> OpenAsync()
     {
@@ -301,6 +329,28 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         await session.RollbackAsync(Ct); // locked: continues in a new snapshot
         Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);
         Assert.Equal(0, await CountRawAsync("ID = 60"));
+    }
+
+    /// <summary>
+    /// Review 3.54.0, C1: the write path for many rows (WP-42) and the locking reader only inside a writing transaction, one
+    /// transaction at a time, locking only without writes – none of these refusals had a test.
+    /// </summary>
+    [Fact]
+    public async Task Batches_and_locks_need_a_writing_transaction_and_a_second_one_is_refused()
+    {
+        await using var session = await OpenAsync();
+        var batch = new BatchSpec("INSERT INTO TXS VALUES (:id, 'stapel')", [new BatchParameter("id", [61m, 62m], OracleTypeHint.Number)], 2);
+
+        await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteNonQueryAsync(batch, Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteLockingReaderAsync("SELECT * FROM TXS WHERE ID = 1 FOR UPDATE NOWAIT", [], (_, _) => Task.FromResult(0), Ct));
+
+        await session.BeginTransactionAsync(Ct);
+        Assert.Equal(2, await session.ExecuteNonQueryAsync(batch, Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => session.BeginTransactionAsync(Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => session.UseReadOnlySnapshotsAsync(Ct));
+        await session.RollbackAsync(Ct);
+
+        Assert.Equal(0, await CountRawAsync("ID IN (61, 62)"));
     }
 
     /// <summary>WP-22, ADR 0019: the schema path takes a single DDL statement – never inside a transaction, never locked.</summary>

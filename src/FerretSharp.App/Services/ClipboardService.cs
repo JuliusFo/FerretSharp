@@ -25,6 +25,11 @@ public sealed class ClipboardService : IClipboardService
             {
                 done.SetResult(false);
             }
+            catch (Exception ex)
+            {
+                // Unhandled on a thread of its own it ended the app (review 3.54.0, A20) – the caller shows it instead.
+                done.SetException(ex);
+            }
         })
         {
             IsBackground = true,

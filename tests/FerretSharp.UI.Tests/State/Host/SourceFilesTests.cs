@@ -18,6 +18,7 @@ public sealed class SourceFilesTests
     [InlineData(@"C:\repo\page.url", false)]
     [InlineData(@"C:\repo\Customer", false)]
     [InlineData(@"\\host\share\Customer.cs", false)] // an SMB sign-in to a foreign host
+    [InlineData("//host/share/Customer.cs", false)] // the same with forward slashes (review 3.54.0, A9)
     public void Only_source_files_go_to_the_shell(string path, bool opens) =>
         Assert.Equal(opens, SourceFiles.MayOpenWithShell(path));
 }

@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Display;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Settings;
 using Microsoft.Extensions.Time.Testing;
 
@@ -43,7 +44,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
         var path = _folder.Combine("repo", "ferretsharp", "display-columns.json");
         var (source, _) = Source(path);
 
-        await source.SetAsync("SDLAND", "BEZEICHNUNG", Ct);
+        await source.SetAsync("STAAT", "BEZEICHNUNG", Ct);
         await source.SetAsync("KUNDE", "NAME", Ct);
 
         Assert.Equal(
@@ -52,7 +53,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
               "version": 1,
               "displayColumns": {
                 "KUNDE": "NAME",
-                "SDLAND": "BEZEICHNUNG"
+                "STAAT": "BEZEICHNUNG"
               }
             }
             """.ReplaceLineEndings(),
@@ -77,10 +78,10 @@ public sealed class DisplayColumnSourceTests : IDisposable
               "virtualForeignKeys": [ { "from": "AUFTRAG.VERTRETER_ID" } ]
             }
             """, Ct);
-        await source.SetAsync("SDLAND", "BEZEICHNUNG", Ct);
+        await source.SetAsync("STAAT", "BEZEICHNUNG", Ct);
 
         var text = await File.ReadAllTextAsync(path, Ct);
-        Assert.Equal(["ARTIKEL", "KUNDE", "SDLAND"], source.Current().Columns.All.Keys);
+        Assert.Equal(["ARTIKEL", "KUNDE", "STAAT"], source.Current().Columns.All.Keys);
         Assert.Contains("virtualForeignKeys", text);
         Assert.Contains("AUFTRAG.VERTRETER_ID", text);
     }
@@ -90,11 +91,11 @@ public sealed class DisplayColumnSourceTests : IDisposable
     {
         var (source, _) = Source(_folder.Combine("display-columns.json"));
         await source.SetAsync("KUNDE", "NAME", Ct);
-        await source.SetAsync("SDLAND", "BEZEICHNUNG", Ct);
+        await source.SetAsync("STAAT", "BEZEICHNUNG", Ct);
 
         await source.SetAsync("KUNDE", null, Ct);
 
-        Assert.Equal(["SDLAND"], source.Current().Columns.All.Keys);
+        Assert.Equal(["STAAT"], source.Current().Columns.All.Keys);
     }
 
     /// <summary>
@@ -106,7 +107,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
     {
         var path = _folder.Combine("display-columns.json");
         var (source, _) = Source(path);
-        await source.SetAsync("SDLAND", "BEZEICHNUNG", Ct);
+        await source.SetAsync("STAAT", "BEZEICHNUNG", Ct);
         await source.SetAsync("MITARBEITER", "NACHNAME", Ct);
 
         await source.AddAsync("MITARBEITER", "VORNAME", Ct);
@@ -118,7 +119,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
               "version": 2,
               "displayColumns": {
                 "MITARBEITER": "NACHNAME",
-                "SDLAND": "BEZEICHNUNG"
+                "STAAT": "BEZEICHNUNG"
               },
               "displayNames": {
                 "MITARBEITER": [
@@ -139,7 +140,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
               "version": 1,
               "displayColumns": {
                 "MITARBEITER": "VORNAME",
-                "SDLAND": "BEZEICHNUNG"
+                "STAAT": "BEZEICHNUNG"
               }
             }
             """.ReplaceLineEndings(),
@@ -192,7 +193,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
         var (source, _) = Source(path);
 
         var load = source.Current();
-        var refused = await Assert.ThrowsAsync<RefusedException>(() => source.SetAsync("SDLAND", "BEZEICHNUNG", Ct));
+        var refused = await Assert.ThrowsAsync<RefusedException>(() => source.SetAsync("STAAT", "BEZEICHNUNG", Ct));
 
         Assert.Equal(["NAME"], load.Columns.ColumnsOf("KUNDE"));
         Assert.Contains("neueren FerretSharp", load.ReadOnly);
@@ -232,6 +233,23 @@ public sealed class DisplayColumnSourceTests : IDisposable
         Assert.Equal("<<<<<<< HEAD", await File.ReadAllTextAsync(path, Ct));
     }
 
+    /// <summary>Review of R8: the size limit of review 3.54.0, A12 held for loading only – marking read a huge file whole.</summary>
+    [Fact]
+    public async Task A_file_beyond_the_size_limit_is_neither_read_nor_changed()
+    {
+        var path = _folder.Combine("display-columns.json");
+        var (source, _) = Source(path);
+        await using (var file = File.Create(path))
+        {
+            file.SetLength(CachedFileRead<DisplayColumnLoad>.MaxBytes + 1);
+        }
+
+        var refused = await Assert.ThrowsAsync<RefusedException>(() => source.SetAsync("KUNDE", "NAME", Ct));
+
+        Assert.Contains("größer als 4 MB", refused.Message);
+        Assert.Equal(CachedFileRead<DisplayColumnLoad>.MaxBytes + 1, new FileInfo(path).Length);
+    }
+
     [Fact]
     public async Task Changes_are_reported_once_and_only_when_something_changed()
     {
@@ -245,7 +263,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
         source.Reload(); // the watcher saw the own write: nothing new
         Assert.Equal(1, reported);
 
-        await File.WriteAllTextAsync(path, """{ "version": 1, "displayColumns": { "KUNDE": "NAME", "SDLAND": "BEZEICHNUNG" } }""", Ct);
+        await File.WriteAllTextAsync(path, """{ "version": 1, "displayColumns": { "KUNDE": "NAME", "STAAT": "BEZEICHNUNG" } }""", Ct);
         source.Reload();
         Assert.Equal(2, reported);
 

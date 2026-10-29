@@ -173,6 +173,9 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(TableRef table, CancellationToken cancellationToken) =>
         reader.GetIndexesAsync(table, cancellationToken);
 
+    public Task<SchemaNames> GetNamesElsewhereAsync(TableRef table, CancellationToken cancellationToken) =>
+        reader.GetNamesElsewhereAsync(table, cancellationToken);
+
     public Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken) =>
         reader.GetDependenciesAsync(table, cancellationToken);
 

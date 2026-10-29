@@ -1,6 +1,7 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
 using NSubstitute;
@@ -151,5 +152,5 @@ public sealed class LinqFilterTests
 
     [Fact]
     public void Without_an_entity_there_is_nothing_to_generate() =>
-        Assert.NotNull(LinqFilter.Unavailable(TablePresentation.Plain(CodeGenerationModel.Kunden)));
+        Assert.Equal(ClrModelText.NoEntity, LinqFilter.Unavailable(TablePresentation.Plain(CodeGenerationModel.Kunden))); // the reason, not any text (review 3.54.0, C9)
 }

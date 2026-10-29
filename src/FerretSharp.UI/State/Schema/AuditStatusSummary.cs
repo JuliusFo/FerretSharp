@@ -63,12 +63,12 @@ public static class AuditStatusSummary
 
     /// <summary>
     /// Whether "Bring up to date" can do something: not when it would create the missing audit table and audit tables may
-    /// not be created – the designer's audit box is locked then (<see cref="ColumnDesigner.CanAudit"/>).
+    /// not be created – the designer's audit box is locked then (<see cref="AuditDesignRules.CanAudit"/>).
     /// </summary>
     public static bool CanSync(AuditStatus status, bool createAllowed)
     {
         ArgumentNullException.ThrowIfNull(status);
-        return ColumnDesigner.CanAudit(!status.TableMissing, createAllowed);
+        return AuditDesignRules.CanAudit(!status.TableMissing, createAllowed);
     }
 
     /// <summary>Where creating audit tables is switched off, named by the settings page's own texts (code review).</summary>

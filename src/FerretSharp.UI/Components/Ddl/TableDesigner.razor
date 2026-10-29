@@ -23,7 +23,7 @@
 else
 {
     var (draft, inputProblems) = designer.ToDraft();
-    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = designer.Referenced };
+    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = designer.Referenced, Elsewhere = _elsewhere };
     var plan = NewTab is { } created
         ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames)
         : TableDesign.Plan(context, draft, new DataFacts(_facts));
@@ -124,7 +124,7 @@ else
 }
 
 @code {
-    private ColumnDesigner? _designer;
+    private TableDesignerDraft? _designer;
 
     /// <summary>How the last run failed: shown in the panel until it runs again.</summary>
     private DdlRunResult? _failure;
@@ -132,6 +132,7 @@ else
     private IReadOnlyList<ConstraintInfo> _constraints = [];
     private IReadOnlyList<IndexInfo> _indexes = [];
     private IReadOnlyList<ForeignKeyInfo> _incoming = [];
+    private SchemaNames _elsewhere = SchemaNames.None;
 
     private readonly Dictionary<DataQuestion, long> _facts = [];
     private readonly HashSet<DataQuestion> _counting = [];
@@ -172,7 +173,7 @@ else
     public CodeUsageService Usage { get; set; } = null!;
 
     /// <summary>Code using a column that is dropped or renamed (WP-40); empty until the index is read or without a model.</summary>
-    private IReadOnlyList<string> UsageNotes(ColumnDesigner designer) =>
+    private IReadOnlyList<string> UsageNotes(TableDesignerDraft designer) =>
         Models.Mapping is { } mapping && Usage.State.Result is { } usage && NewTab is null
             ? CodeUsageRows.DropNotes(mapping, usage.Index, Details.Table.Ref, designer.Columns
                 .Where(c => c.Before is not null && (c.Dropped || c.Name.Trim() != c.Before.Name))
@@ -235,7 +236,7 @@ else
     /// The table as the database has it now – not the tab's structure, which a tab with uncommitted changes keeps after
     /// DDL – with its constraints and indexes; a draft from before (a run that stopped halfway) is laid over it.
     /// </summary>
-    private async Task LoadAsync(ColumnDesigner? previous)
+    private async Task LoadAsync(TableDesignerDraft? previous)
     {
         if (_disposed || Active.Schema is not { } schema)
         {
@@ -245,17 +246,17 @@ else
         var token = _cts.Token;
         var loaded = await Shell.RunDbAsync(Logger, Active, async () =>
             (await schema.GetDetailsAsync(Details.Table, token), await schema.GetConstraintsAsync(Details.Table.Ref, token),
-             await schema.GetIndexesAsync(Details.Table.Ref, token)), token);
+             await schema.GetIndexesAsync(Details.Table.Ref, token), await schema.GetNamesElsewhereAsync(Details.Table.Ref, token)), token);
         if (!loaded.Succeeded)
         {
             _loadError = loaded.Error ?? new DatabaseException(SqlEditorText.Run_Canceled);
             return;
         }
 
-        var (table, constraints, indexes) = loaded.Value;
-        (_constraints, _indexes) = (constraints, indexes);
+        var (table, constraints, indexes, elsewhere) = loaded.Value;
+        (_constraints, _indexes, _elsewhere) = (constraints, indexes, elsewhere ?? SchemaNames.None);
         _incoming = schema.IncomingOf(Details.Table.Ref).Where(f => f.Source == FkSource.Declared).ToList();
-        _designer = previous?.Rebase(table, constraints) ?? new ColumnDesigner(table, constraints);
+        _designer = previous?.Rebase(table, constraints) ?? new TableDesignerDraft(table, constraints);
         _facts.Clear(); // the data may have changed with the DDL
         _failed.Clear();
         if (Tab is not null)
@@ -267,7 +268,7 @@ else
     }
 
     /// <summary>
-    /// The table's audit table and trigger by the template's names (WP-26). The box starts as <see cref="ColumnDesigner.AuditAtStart"/>
+    /// The table's audit table and trigger by the template's names (WP-26). The box starts as <see cref="AuditDesignRules.AuditAtStart"/>
     /// says: on if there is an audit table (unless the setting says otherwise) or the view was opened for it – never when
     /// that would create an audit table that may not be created.
     /// </summary>
@@ -294,7 +295,7 @@ else
         // a choice of the user stays (R5 review); without a template it is decided once read by one
         if (_designer is { } designer && audit.Template is not null)
         {
-            designer.WithAudit ??= ColumnDesigner.AuditAtStart(StartWithAudit, HasAuditTable(audit), Settings.Current.SyncAuditInDesigner,
+            designer.WithAudit ??= AuditDesignRules.AuditAtStart(StartWithAudit, HasAuditTable(audit), Settings.Current.SyncAuditInDesigner,
                 Settings.Current.CreateAuditTables);
         }
     }
@@ -317,14 +318,14 @@ else
     /// Whether the audit box takes part: always for a table with an audit table, for one without (or a new table) only when
     /// audit tables may be created – a box ticked before the setting was turned off creates nothing.
     /// </summary>
-    private bool CanAudit(AuditTemplateLoad audit) => ColumnDesigner.CanAudit(HasAuditTable(audit), Settings.Current.CreateAuditTables);
+    private bool CanAudit(AuditTemplateLoad audit) => AuditDesignRules.CanAudit(HasAuditTable(audit), Settings.Current.CreateAuditTables);
 
-    /// <summary>The audit box is ticked and takes part (<see cref="ColumnDesigner.AuditTakesPart"/>).</summary>
-    private bool AuditTakesPart(ColumnDesigner designer, AuditTemplateLoad audit) =>
+    /// <summary>The audit box is ticked and takes part (<see cref="TableDesignerDraft.AuditTakesPart"/>).</summary>
+    private bool AuditTakesPart(TableDesignerDraft designer, AuditTemplateLoad audit) =>
         designer.AuditTakesPart(HasAuditTable(audit), Settings.Current.CreateAuditTables);
 
-    /// <summary>An existing table whose audit table is there; a new table has none yet; null while not known (<see cref="ColumnDesigner.HasAuditTable"/>).</summary>
-    private bool? HasAuditTable(AuditTemplateLoad audit) => ColumnDesigner.HasAuditTable(NewTab is not null, audit.Template is null, _auditRead.State);
+    /// <summary>An existing table whose audit table is there; a new table has none yet; null while not known (<see cref="AuditDesignRules.HasAuditTable"/>).</summary>
+    private bool? HasAuditTable(AuditTemplateLoad audit) => AuditDesignRules.HasAuditTable(NewTab is not null, audit.Template is null, _auditRead.State);
 
     /// <summary>
     /// The audit objects of an existing table could not be read, or there was no template when they were read. A template
@@ -333,7 +334,7 @@ else
     private bool AuditUnread(AuditTemplateLoad audit) => NewTab is null && audit.Template is not null && _auditRead.Unread;
 
     /// <summary>The designer's plan with the audit table and trigger, if the box is on (WP-26): one script, checked as one.</summary>
-    private DesignPlan WithAudit(ColumnDesigner designer, TableDraft draft, DesignPlan plan, AuditTemplateLoad audit)
+    private DesignPlan WithAudit(TableDesignerDraft designer, TableDraft draft, DesignPlan plan, AuditTemplateLoad audit)
     {
         if (!AuditTakesPart(designer, audit) || AuditTable is not { } table)
         {
@@ -501,7 +502,7 @@ else
     private static IEnumerable<string> TypesFor(DesignColumn column) =>
         DesignColumn.Types.Contains(column.Type) ? DesignColumn.Types : [column.Type, .. DesignColumn.Types];
 
-    private static void SetType(ColumnDesigner designer, DesignConstraint constraint, object? value)
+    private static void SetType(TableDesignerDraft designer, DesignConstraint constraint, object? value)
     {
         if (Enum.TryParse<ConstraintType>(value as string, out var type))
         {
@@ -510,7 +511,7 @@ else
     }
 
     /// <summary>The foreign key references another table; its structure is loaded once, for its key and column types.</summary>
-    private async Task ReferenceAsync(ColumnDesigner designer, DesignConstraint constraint, string? value)
+    private async Task ReferenceAsync(TableDesignerDraft designer, DesignConstraint constraint, string? value)
     {
         var references = Tables.FirstOrDefault(t => $"{t.Owner}.{t.Name}" == value)?.Ref;
         designer.Reference(constraint, references);
@@ -526,7 +527,7 @@ else
         }
     }
     /// <summary>Property lines for the new columns, if the C# model maps this table.</summary>
-    private IReadOnlyList<PropertySuggestion> PropertyLines(ColumnDesigner designer)
+    private IReadOnlyList<PropertySuggestion> PropertyLines(TableDesignerDraft designer)
     {
         if (NewTab is not null || Models.Mapping is not { } mapping || mapping.EntityOf(Details.Table.Ref) is null)
         {
@@ -559,7 +560,7 @@ else
     /// A tab of the designer: its count, a dot when something in it changed – red when its fields have problems, yellow
     /// with a warning that does not block running (the audit state not read).
     /// </summary>
-    private RenderFragment TabButton(ColumnDesigner designer, DesignerSection shown, DesignerSection section, string label, int? count = null,
+    private RenderFragment TabButton(TableDesignerDraft designer, DesignerSection shown, DesignerSection section, string label, int? count = null,
         bool changed = false, bool problem = false, string? warning = null) => @<button class="designer-tab @(shown == section ? "active" : "")" role="tab"
                 aria-selected="@(shown == section ? "true" : "false")" @onclick="() => designer.Section = section">
         @label
@@ -584,7 +585,7 @@ else
     private static string SummaryTitle(IReadOnlyList<string> problems, IReadOnlyList<string> warnings) =>
         string.Join("\n", [SchemaViewText.Designer_SummaryTitle, .. problems, .. warnings]);
 
-    private RenderFragment ColumnsTab(ColumnDesigner designer) => @<text>
+    private RenderFragment ColumnsTab(TableDesignerDraft designer) => @<text>
         <table class="columns designer-columns">
             <thead>
                 <tr>
@@ -636,7 +637,7 @@ else
     /// The table's constraints – each renamed in place, a check's condition and a foreign key's delete rule changed, a
     /// renamed key's index of its name along – then the new ones.
     /// </summary>
-    private RenderFragment ConstraintsTab(ColumnDesigner designer) => @<text>
+    private RenderFragment ConstraintsTab(TableDesignerDraft designer) => @<text>
         @if (designer.Existing.Count > 0)
         {
             <table class="columns designer-columns designer-existing">
@@ -772,7 +773,7 @@ else
         </div>
     </text>;
 
-    private RenderFragment AuditTab(ColumnDesigner designer, AuditTemplateLoad audit) => @<div class="designer-audit">
+    private RenderFragment AuditTab(TableDesignerDraft designer, AuditTemplateLoad audit) => @<div class="designer-audit">
         <label class="check" title="@(AuditUnread(audit) ? SchemaViewText.Audit_DesignerUnread : CanAudit(audit) || HasAuditTable(audit) is null ? SchemaViewText.Audit_DesignerTitle : AuditStatusSummary.CreateOffHint)">
             <input type="checkbox" checked="@AuditTakesPart(designer, audit)" disabled="@(!CanAudit(audit))" @onchange="e => designer.WithAudit = e.Value is true" />
             @(_auditRead.State?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
@@ -793,28 +794,9 @@ else
         }
     </div>;
 
-    private static string Kind(ConstraintType type) => type switch
-    {
-        ConstraintType.PrimaryKey => "PK",
-        ConstraintType.Unique => "UK",
-        ConstraintType.ForeignKey => "FK",
-        _ => "CHECK",
-    };
+    private static string Kind(ConstraintType type) => ConstraintTypes.Short(type);
 
-    private static string BadgeCss(ConstraintType type) => type switch
-    {
-        ConstraintType.PrimaryKey => "pk",
-        ConstraintType.Unique => "uk",
-        ConstraintType.ForeignKey => "fk",
-        _ => "",
-    };
-
-    private static string Describe(ConstraintInfo constraint) => constraint.Type switch
-    {
-        ConstraintType.Check => constraint.Condition ?? "",
-        ConstraintType.ForeignKey => $"({string.Join(", ", constraint.Columns)}) → {constraint.References?.Name} ({string.Join(", ", constraint.ReferencedColumns)})",
-        _ => $"({string.Join(", ", constraint.Columns)})",
-    };
+    private static string BadgeCss(ConstraintType type) => ConstraintBadges.Css(type);
 
     public void Dispose()
     {
