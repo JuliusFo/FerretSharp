@@ -1,5 +1,7 @@
+using System.Globalization;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
@@ -43,7 +45,7 @@ public sealed class CellCopiesTests
     private MarkedCells Grid(Func<IReadOnlyList<int>, AllColumnValues>? all = null, int pending = 0, int rowsInDatabase = int.MaxValue) => new(
         ColumnOf,
         i => _loaded.GetValueOrDefault(i),
-        (start, count) =>
+        (start, count, _) =>
         {
             _reads.Add((start, count));
             return Task.FromResult<IReadOnlyList<RowData>?>([.. Enumerable.Range(start, Math.Max(0, Math.Min(count, rowsInDatabase - start))).Select(Row)]);
@@ -122,10 +124,37 @@ public sealed class CellCopiesTests
         Assert.Equal(["0\r\n1\r\n2"], _copied);
     }
 
+    /// <summary>
+    /// Review 3.54.0, A5: rows not loaded were read without a way to stop – up to twenty reads over the VPN. They are a read in
+    /// the background now, with its rows and "Cancel" in the status bar.
+    /// </summary>
+    [Fact]
+    public async Task Rows_not_loaded_are_read_in_the_background_and_cancelling_copies_nothing()
+    {
+        long? total = null;
+        var grid = Grid() with
+        {
+            ReadRows = (start, count, token) =>
+            {
+                var job = Assert.Single(_shell.BackgroundReads.Running);
+                total = job.Total;
+                job.Cancel();
+                return Task.FromResult<IReadOnlyList<RowData>?>(token.IsCancellationRequested ? null : [.. Enumerable.Range(start, count).Select(Row)]);
+            },
+        };
+
+        await CopyAsync(grid, new GridMarks(0, 9, ["c0"], false), MarksCopy.Cells);
+
+        Assert.Equal(10, total);
+        Assert.Empty(_copied);
+        Assert.Empty(_shell.BackgroundReads.Running);
+        Assert.Equal(TextFormat.Format(GridText.Marks_Cancelled, new GridMarks(0, 9, ["c0"], false).Text), _shell.Notice!.Text);
+    }
+
     [Fact]
     public async Task A_read_that_failed_copies_nothing()
     {
-        var grid = Grid() with { ReadRows = (_, _) => Task.FromResult<IReadOnlyList<RowData>?>(null) };
+        var grid = Grid() with { ReadRows = (_, _, _) => Task.FromResult<IReadOnlyList<RowData>?>(null) };
 
         await CopyAsync(grid, new GridMarks(0, 9, ["c0"], false), MarksCopy.Cells);
 
@@ -139,7 +168,7 @@ public sealed class CellCopiesTests
 
         Assert.Empty(_reads);
         Assert.Empty(_copied);
-        Assert.Matches("^Mehr als 100.000 Zellen – nichts kopiert", _shell.Notice!.Text);
+        Assert.StartsWith($"Mehr als {ColumnValues.MaxValues.ToString("N0", CultureInfo.CurrentCulture)} Zellen – nichts kopiert", _shell.Notice!.Text);
     }
 
     [Fact]

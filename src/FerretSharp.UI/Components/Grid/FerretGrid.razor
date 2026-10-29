@@ -568,7 +568,8 @@
 
     int? IEditableGrid.AllRows => RowCount;
 
-    Task<IReadOnlyList<RowData>?> IEditableGrid.ReadRowsAsync(int start, int count) => ReadRowsAsync(start, count);
+    Task<IReadOnlyList<RowData>?> IEditableGrid.ReadRowsAsync(int start, int count, CancellationToken cancellationToken) =>
+        ReadRowsAsync(start, count, cancellationToken);
 
     /// <summary>When the connection's schema was loaded last (<see cref="OnShellChanged"/>).</summary>
     private DateTimeOffset? _schemaLoadedAt;
@@ -1190,21 +1191,29 @@
         columns => ColumnValueCopies.ForTable(Tab, Details, columns, Workspaces.GetDataAsync),
         columns => Tab.Changes?.PendingIn([.. columns]) ?? 0);
 
-    /// <summary>Rows of a marked range that are not loaded: read like a block, as the database has them; null if it failed.</summary>
-    private async Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count)
+    /// <summary>Cancels reads of a marked range's rows when the tab goes away (review 3.54.0, A5); never disposed (no timer).</summary>
+    private readonly CancellationTokenSource _closing = new();
+
+    /// <summary>
+    /// Rows of a marked range that are not loaded: read like a block, as the database has them; null if it failed or was
+    /// cancelled (by the caller, or the tab closed).
+    /// </summary>
+    private async Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count, CancellationToken cancellationToken)
     {
         var (details, filters, sorts) = (Details, Tab.AppliedFilters, Tab.Sorts);
+        using var reading = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _closing.Token);
+        var token = reading.Token;
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
-            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
-            return await data.ReadPageAsync(details, filters, sorts, new PageSpec(start, count), CancellationToken.None);
-        });
+            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+            return await data.ReadPageAsync(details, filters, sorts, new PageSpec(start, count), token);
+        }, token);
         return Shell.ShowFailure(result) ? result.Value!.Rows : null;
     }
 
     /// <summary>Rows of a marked range that are not loaded, shown with the tab's changes (copying, A21).</summary>
-    private async Task<IReadOnlyList<RowData>?> ReadShownRowsAsync(int start, int count) =>
-        await ReadRowsAsync(start, count) is { } rows ? [.. rows.Select(Shown)] : null;
+    private async Task<IReadOnlyList<RowData>?> ReadShownRowsAsync(int start, int count, CancellationToken cancellationToken) =>
+        await ReadRowsAsync(start, count, cancellationToken) is { } rows ? [.. rows.Select(Shown)] : null;
 
     /// <summary>Copies marked cells or columns (Ctrl+C, the cell menu).</summary>
     private Task CopyMarksAsync(GridMarks marks, MarksCopy kind) =>
@@ -1295,6 +1304,7 @@
         DisplayColumns.Changed -= OnDisplayColumnsChanged;
         Presentations.HeaderChanged -= OnHeaderChanged;
         _loads.Supersede(); // the tab closed: its query need not hold the workspace's session any longer
+        CancelOffThread.Run(_closing);
         if (_displayNames is not null)
         {
             await _displayNames.DisposeAsync(); // a running lookup stops; queued ones are not run

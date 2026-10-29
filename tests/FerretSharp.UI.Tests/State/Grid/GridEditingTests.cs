@@ -284,7 +284,7 @@ public sealed class GridEditingTests
         /// <summary>Runs while a read is on its way (a write starting, a reload).</summary>
         public Action? DuringRead { get; set; }
 
-        public Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count)
+        public Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count, CancellationToken cancellationToken)
         {
             Reads.Add((start, count));
             DuringRead?.Invoke();
