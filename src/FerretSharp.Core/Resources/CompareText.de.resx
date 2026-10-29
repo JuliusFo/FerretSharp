@@ -237,4 +237,7 @@
   <data name="AddColumnsHeader" xml:space="preserve">
     <value>Spalten aus {0}, zum Hinzufügen in dieselbe Tabelle.</value>
   </data>
+  <data name="IdentityModeHint" xml:space="preserve">
+    <value>Identity {0}: ALWAYS oder BY DEFAULT (ON NULL) weicht ab – Statement vor dem Ausführen prüfen; Start und Schrittweite sind nicht verglichen.</value>
+  </data>
 </root>

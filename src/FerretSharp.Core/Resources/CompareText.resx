@@ -282,4 +282,8 @@
     <value>Columns of {0}, to add to the same table.</value>
     <comment>{0}: source table as OWNER.TABLE</comment>
   </data>
+  <data name="IdentityModeHint" xml:space="preserve">
+    <value>Identity {0}: ALWAYS or BY DEFAULT (ON NULL) differs – check the statement before running it; start and increment are not compared.</value>
+    <comment>{0}: column name</comment>
+  </data>
 </root>

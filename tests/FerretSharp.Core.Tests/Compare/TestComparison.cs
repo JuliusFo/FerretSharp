@@ -59,7 +59,7 @@ public static class TestComparison
     /// <summary>The definition text the rows carry; the DDL writer only compares it between two sides.</summary>
     public static string ColumnDefinition(ColumnInfo column, bool withPosition = false) =>
         $"{column.DisplayType}{(column.CharSemantics ? " C" : "")}{(column.Nullable ? "" : " NOT NULL")}"
-        + (column.IsIdentity ? " IDENTITY" : column.IsVirtual ? $" AS ({column.Default})" : column.Default is { } d ? $" DEFAULT {(column.DefaultOnNull ? "ON NULL " : "")}{d}" : "")
+        + (column.IsIdentity ? (column.IdentityAlways ? " IDENTITY ALWAYS" : column.DefaultOnNull ? " IDENTITY ON NULL" : " IDENTITY") : column.IsVirtual ? $" AS ({column.Default})" : column.Default is { } d ? $" DEFAULT {(column.DefaultOnNull ? "ON NULL " : "")}{d}" : "")
         + (column.Comment is { } comment ? $" -- {comment}" : "")
         + (withPosition ? $" #{column.Position.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "");
 
@@ -102,8 +102,9 @@ public static class TestComparison
         bool identity = false,
         bool isVirtual = false,
         bool defaultOnNull = false,
-        string? comment = null) =>
-        new(name, type, length, charSemantics, precision, scale, nullable && !identity && !defaultOnNull, identity, @default, 0, comment, isVirtual, defaultOnNull);
+        string? comment = null,
+        bool always = false) =>
+        new(name, type, length, charSemantics, precision, scale, nullable && !identity && !defaultOnNull, identity, @default, 0, comment, isVirtual, defaultOnNull, always);
 
     public static ConstraintInfo PrimaryKey(string name, params string[] columns) =>
         new(name, ConstraintType.PrimaryKey, columns, null, null, [], null, true, true, false, false, Generated(name));
