@@ -116,16 +116,16 @@ public sealed class RelationsDiagramStateTests
     public void Zoom_goes_in_steps_and_stops_at_both_ends()
     {
         var state = new RelationsDiagramState(Kunde);
-        state.ZoomIn();
-        Assert.Equal(1.1, state.Zoom);
+        state.Zoom.ZoomIn();
+        Assert.Equal(1.1, state.Zoom.Value);
         for (var i = 0; i < 20; i++)
         {
-            state.ZoomOut();
+            state.Zoom.ZoomOut();
         }
 
-        Assert.Equal(0.5, state.Zoom);
-        Assert.False(state.CanZoomOut);
-        state.ResetZoom();
-        Assert.Equal(1, state.Zoom);
+        Assert.Equal(0.5, state.Zoom.Value);
+        Assert.False(state.Zoom.CanZoomOut);
+        state.Zoom.Reset();
+        Assert.Equal(1, state.Zoom.Value);
     }
 }

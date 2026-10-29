@@ -321,43 +321,31 @@
         var placement = _preview;
         var issues = Draft.Issues;
         return @<div class="relations-view copy-diagram">
-            <div class="relations-canvas">
-                <div class="relations-size" style="@DiagramStyle.Size(placement.Width, placement.Height)">
-                    <div class="relations-stage" style="@DiagramStyle.Stage(placement, 1)">
-                        <svg class="relations-edges" width="@DiagramStyle.Px(placement.Width)" height="@DiagramStyle.Px(placement.Height)">
-                            @foreach (var edge in placement.Edges)
-                            {
-                                var relation = Draft.Relations.Find(edge.Id);
-                                var end = edge.Points[^1];
-                                <g class="relations-edge @(relation is null ? "other" : DiagramStyle.KindClass(relation.Source))" title="@relation?.Name">
-                                    <path class="hit" d="@edge.Svg" />
-                                    <path class="line" d="@edge.Svg" />
-                                    <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
-                                </g>
-                            }
-                        </svg>
-                        @foreach (var table in plan.Tables)
+            <DiagramCanvas Placement="placement" EdgeClass="PreviewEdgeClass"
+                           EdgeTitle="edge => Draft.Relations.Find(edge.Id)?.Name">
+                @foreach (var table in plan.Tables)
+                {
+                    var box = placement.Nodes[RelationDiagram.IdOf(table.Table)];
+                    var own = issues.Where(i => i.Table == table.Table).ToList();
+                    var worst = own.Count == 0 ? null : (CopySeverity?)own.Min(i => i.Severity);
+                    <div class="relations-node copy-table-node @(worst is { } w ? SeverityClass(w) : "")" style="@DiagramStyle.Box(box)"
+                         title="@(own.Count == 0 ? null : string.Join(Environment.NewLine, own.Select(i => i.Message)))">
+                        <span class="relations-name">@table.Source.Details.Table.DisplayName</span>
+                        <span class="relations-sub">@TextFormat.Plural(table.Rows.Count, CopyViewText.DiagramRowsOne, CopyViewText.DiagramRowsOther, table.NewRows, table.Existing.Count)</span>
+                        @if (table.Existing.Count > 0)
                         {
-                            var box = placement.Nodes[RelationDiagram.IdOf(table.Table)];
-                            var own = issues.Where(i => i.Table == table.Table).ToList();
-                            var worst = own.Count == 0 ? null : (CopySeverity?)own.Min(i => i.Severity);
-                            <div class="relations-node copy-table-node @(worst is { } w ? SeverityClass(w) : "")" style="@DiagramStyle.Box(box)"
-                                 title="@(own.Count == 0 ? null : string.Join(Environment.NewLine, own.Select(i => i.Message)))">
-                                <span class="relations-name">@table.Source.Details.Table.DisplayName</span>
-                                <span class="relations-sub">@TextFormat.Plural(table.Rows.Count, CopyViewText.DiagramRowsOne, CopyViewText.DiagramRowsOther, table.NewRows, table.Existing.Count)</span>
-                                @if (table.Existing.Count > 0)
-                                {
-                                    <span class="relations-sub">@(table.Differing.Count > 0
-                                        ? TextFormat.Format(CopyViewText.DiagramConflictDiffering, ModeLabel(Draft.ModeOf(table)), table.Differing.Count)
-                                        : TextFormat.Format(CopyViewText.DiagramConflict, ModeLabel(Draft.ModeOf(table))))</span>
-                                }
-                            </div>
+                            <span class="relations-sub">@(table.Differing.Count > 0
+                                ? TextFormat.Format(CopyViewText.DiagramConflictDiffering, ModeLabel(Draft.ModeOf(table)), table.Differing.Count)
+                                : TextFormat.Format(CopyViewText.DiagramConflict, ModeLabel(Draft.ModeOf(table))))</span>
                         }
                     </div>
-                </div>
-            </div>
+                }
+            </DiagramCanvas>
         </div>;
     }
+
+    /// <summary>An edge's kind of relationship; <c>group</c> without one (it was <c>other</c> here, without a style).</summary>
+    private string PreviewEdgeClass(EdgePath edge) => Draft.Relations.Find(edge.Id) is { } relation ? DiagramStyle.KindClass(relation.Source) : "group";
 
     /// <summary>Taller nodes than in the relationship diagram: name, rows and the conflict mode.</summary>
     private static readonly LayoutMetrics PreviewMetrics = LayoutMetrics.Default with { NodeWidth = 200, NodeHeight = 64, LayerGap = 64 };

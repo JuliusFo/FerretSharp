@@ -51,9 +51,7 @@
                         @onclick="OpenCopyAsync">@GridText.GridMenu_CopyToConnection</button>
                 <button class="btn ghost" disabled="@Running" @onclick="State.ClearMarks">@SchemaViewText.Records_ClearMarks</button>
             }
-            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!State.CanZoomOut)" @onclick="State.ZoomOut">@Icons.ZoomOut</button>
-            <button class="btn ghost relations-zoom" title="@SchemaViewText.Relations_ZoomReset" @onclick="State.ResetZoom">@($"{State.Zoom:P0}")</button>
-            <button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!State.CanZoomIn)" @onclick="State.ZoomIn">@Icons.ZoomIn</button>
+            <DiagramZoomBar Zoom="State.Zoom" OnChange="() => { }" />
             <button class="btn ghost" title="@SchemaViewText.Records_ResetTitle" disabled="@(!State.Changed || Running)" @onclick="ResetAsync">@CommonText.Reset</button>
             <button class="btn ghost" title="@SchemaViewText.Records_CopyMermaidTitle" disabled="@(State.Diagram is null || Running)" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
             <button class="icon-btn ghost" title="@(CommonText.Reload + Shortcuts.Hint(ShortcutAction.Refresh))" disabled="@Running" @onclick="LoadAsync">@Icons.Refresh</button>
@@ -101,66 +99,50 @@
             else
             {
                 var lit = Neighbours(diagram);
-                <div id="@CanvasId" class="relations-canvas" @onmouseleave="() => _hover = null">
-                    <div class="relations-size" style="@DiagramStyle.Size(placement.Width * State.Zoom, placement.Height * State.Zoom)">
-                        <div class="relations-stage" style="@DiagramStyle.Stage(placement, State.Zoom)">
-                            <svg class="relations-edges" width="@DiagramStyle.Px(placement.Width)" height="@DiagramStyle.Px(placement.Height)">
-                                @foreach (var edge in placement.Edges)
-                                {
-                                    var link = diagram.EdgeOf(edge.Id);
-                                    var relation = link?.Relation ?? diagram.Groups.FirstOrDefault(g => g.Id == edge.Id)?.Relation;
-                                    var end = edge.Points[^1];
-                                    <g class="relations-edge @(relation is null ? "group" : DiagramStyle.KindClass(relation.Source)) @DiagramStyle.EdgeState(edge, _hover?.Id)" title="@(relation is null ? null : EdgeTitle(relation))">
-                                        <path class="hit" d="@edge.Svg" />
-                                        <path class="line" d="@edge.Svg" />
-                                        <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
-                                    </g>
-                                }
-                            </svg>
-                            @foreach (var (node, box) in State.Drawn)
+                <DiagramCanvas Id="@CanvasId" Placement="placement" Zoom="State.Zoom.Value" OnMouseLeave="() => _hover = null"
+                               EdgeClass="edge => EdgeClass(diagram, edge)" EdgeTitle="edge => RelationOf(diagram, edge) is { } r ? EdgeTitle(r) : null">
+                    @foreach (var (node, box) in State.Drawn)
+                    {
+                        var toParents = diagram.Pending(node, DiagramSide.Parents);
+                        var toChildren = diagram.Pending(node, DiagramSide.Children);
+                        var parents = toParents.Count;
+                        var children = toChildren.Count;
+                        var open = OpenUnavailable(node);
+                        <div id="@(node == FirstStart ? FocusId : null)" class="relations-node record @(diagram.Start.Contains(node) ? "focus" : "") @(State.IsMarked(node) ? "marked" : "") @DiagramStyle.NodeState(node, _hover, lit)"
+                             style="@DiagramStyle.Box(box)"
+                             @onclick="() => ToggleMark(node)"
+                             @onmouseenter="() => _hover = node" @onmouseleave="() => Leave(node)" @oncontextmenu="e => _menu!.OpenAsync(e, node)" @oncontextmenu:preventDefault="true">
+                            @if (parents > 0)
                             {
-                                var toParents = diagram.Pending(node, DiagramSide.Parents);
-                                var toChildren = diagram.Pending(node, DiagramSide.Children);
-                                var parents = toParents.Count;
-                                var children = toChildren.Count;
-                                var open = OpenUnavailable(node);
-                                <div id="@(node == FirstStart ? FocusId : null)" class="relations-node record @(diagram.Start.Contains(node) ? "focus" : "") @(State.IsMarked(node) ? "marked" : "") @DiagramStyle.NodeState(node, _hover, lit)"
-                                     style="@DiagramStyle.Box(box)"
-                                     @onclick="() => ToggleMark(node)"
-                                     @onmouseenter="() => _hover = node" @onmouseleave="() => Leave(node)" @oncontextmenu="e => _menu!.OpenAsync(e, node)" @oncontextmenu:preventDefault="true">
-                                    @if (parents > 0)
-                                    {
-                                        <button class="relations-handle left @DiagramStyle.HandleClass(toParents)" disabled="@Running" title="@DiagramStyle.HandleTitle(TextFormat.Plural(parents, SchemaViewText.Records_ShowParentsOne, SchemaViewText.Records_ShowParentsOther), toParents)"
-                                                @onclick="() => ExpandAsync(node, DiagramSide.Parents)" @onclick:stopPropagation="true">@Icons.ChevronsLeft+@parents</button>
-                                    }
-                                    <button class="relations-name" disabled="@(open is not null)" title="@(open ?? TextFormat.Format(SchemaViewText.Records_OpenTitle, Label(node.Table)))"
-                                            @onclick="() => OpenRow(node)" @onclick:stopPropagation="true">@NameOf(node.Table)</button>
-                                    <span class="relations-sub">@RowText(diagram, node)</span>
-                                    @if (children > 0)
-                                    {
-                                        <button class="relations-handle right @DiagramStyle.HandleClass(toChildren)" disabled="@Running" title="@DiagramStyle.HandleTitle(TextFormat.Plural(children, SchemaViewText.Records_ShowChildrenOne, SchemaViewText.Records_ShowChildrenOther), toChildren)"
-                                                @onclick="() => ExpandAsync(node, DiagramSide.Children)" @onclick:stopPropagation="true">+@children@Icons.ChevronsRight</button>
-                                    }
-                                </div>
+                                <button class="relations-handle left @DiagramStyle.HandleClass(toParents)" disabled="@Running" title="@DiagramStyle.HandleTitle(TextFormat.Plural(parents, SchemaViewText.Records_ShowParentsOne, SchemaViewText.Records_ShowParentsOther), toParents)"
+                                        @onclick="() => ExpandAsync(node, DiagramSide.Parents)" @onclick:stopPropagation="true">@Icons.ChevronsLeft+@parents</button>
                             }
-                            @foreach (var group in diagram.Groups)
+                            <button class="relations-name" disabled="@(open is not null)" title="@(open ?? TextFormat.Format(SchemaViewText.Records_OpenTitle, Label(node.Table)))"
+                                    @onclick="() => OpenRow(node)" @onclick:stopPropagation="true">@NameOf(node.Table)</button>
+                            <span class="relations-sub">@RowText(diagram, node)</span>
+                            @if (children > 0)
                             {
-                                var g = group;
-                                var members = diagram.Members(g);
-                                if (members.Count > 0 && placement.Nodes.TryGetValue(g.Id, out var box))
-                                {
-                                    <div class="relations-node group" style="@DiagramStyle.Box(box)" title="@EdgeTitle(g.Relation)">
-                                        <span class="records-group-text">
-                                            <span class="relations-name">@TextFormat.Format(SchemaViewText.Records_Group, members.Count, NameOf(g.Table))</span>
-                                            <span class="relations-sub">@TextFormat.Format(SchemaViewText.Records_GroupVia, g.Relation.Name)</span>
-                                        </span>
-                                        <button class="btn small" disabled="@Running" @onclick="() => Change(() => State.Open(g), anchor: g.Node)">@SchemaViewText.Relations_GroupShow</button>
-                                    </div>
-                                }
+                                <button class="relations-handle right @DiagramStyle.HandleClass(toChildren)" disabled="@Running" title="@DiagramStyle.HandleTitle(TextFormat.Plural(children, SchemaViewText.Records_ShowChildrenOne, SchemaViewText.Records_ShowChildrenOther), toChildren)"
+                                        @onclick="() => ExpandAsync(node, DiagramSide.Children)" @onclick:stopPropagation="true">+@children@Icons.ChevronsRight</button>
                             }
                         </div>
-                    </div>
-                </div>
+                    }
+                    @foreach (var group in diagram.Groups)
+                    {
+                        var g = group;
+                        var members = diagram.Members(g);
+                        if (members.Count > 0 && placement.Nodes.TryGetValue(g.Id, out var box))
+                        {
+                            <div class="relations-node group" style="@DiagramStyle.Box(box)" title="@EdgeTitle(g.Relation)">
+                                <span class="records-group-text">
+                                    <span class="relations-name">@TextFormat.Format(SchemaViewText.Records_Group, members.Count, NameOf(g.Table))</span>
+                                    <span class="relations-sub">@TextFormat.Format(SchemaViewText.Records_GroupVia, g.Relation.Name)</span>
+                                </span>
+                                <button class="btn small" disabled="@Running" @onclick="() => Change(() => State.Open(g), anchor: g.Node)">@SchemaViewText.Relations_GroupShow</button>
+                            </div>
+                        }
+                    }
+                </DiagramCanvas>
             }
         </div>
     </div>
@@ -397,7 +379,7 @@
 
         if (before is not null && AnchorBox(anchor) is { } after)
         {
-            _scrollBy = ((after.X - before.X) * State.Zoom, (after.Y - before.Y) * State.Zoom);
+            _scrollBy = ((after.X - before.X) * State.Zoom.Value, (after.Y - before.Y) * State.Zoom.Value);
         }
 
         Shell.MarkDirty(); // the steps are saved with the workspace
@@ -461,7 +443,7 @@
         change();
         if (before is not null && AnchorBox(anchor) is { } after)
         {
-            _scrollBy = ((after.X - before.X) * State.Zoom, (after.Y - before.Y) * State.Zoom);
+            _scrollBy = ((after.X - before.X) * State.Zoom.Value, (after.Y - before.Y) * State.Zoom.Value);
         }
 
         Shell.MarkDirty();
@@ -495,6 +477,14 @@
         _menu?.Close();
         await action();
     }
+
+    /// <summary>The relationship an edge stands for: of a row's link or of a group.</summary>
+    private static ForeignKeyInfo? RelationOf(RecordDiagram diagram, EdgePath edge) =>
+        diagram.EdgeOf(edge.Id)?.Relation ?? diagram.Groups.FirstOrDefault(g => g.Id == edge.Id)?.Relation;
+
+    /// <summary>An edge's kind of relationship (<c>group</c> without one) and its state under the mouse.</summary>
+    private string EdgeClass(RecordDiagram diagram, EdgePath edge) =>
+        $"{(RelationOf(diagram, edge) is { } relation ? DiagramStyle.KindClass(relation.Source) : "group")} {DiagramStyle.EdgeState(edge, _hover?.Id)}";
 
     /// <summary>Why the row's table cannot be opened filtered on it (no primary key, a type without filter text); null if it can.</summary>
     private string? OpenUnavailable(RecordNode node)

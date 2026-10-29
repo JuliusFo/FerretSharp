@@ -14,7 +14,6 @@ public sealed class RelationsDiagramState(TableRef home)
 {
     private readonly List<Step> _steps = [];
     private readonly HashSet<FkSource> _hiddenSources = [];
-    private readonly DiagramZoom _zoom = new();
     private RelationGraph? _graph;
 
     /// <summary>The tab's table: where "Reset" goes back to.</summary>
@@ -25,7 +24,8 @@ public sealed class RelationsDiagramState(TableRef home)
 
     public int Depth { get; private set; } = 1;
 
-    public double Zoom => _zoom.Value;
+    /// <summary>The zoom; only in memory (review 3.54.0, B1: one zoom bar for both diagrams).</summary>
+    public DiagramZoom Zoom { get; } = new();
 
     public RelationDiagram? Diagram { get; private set; }
 
@@ -80,7 +80,7 @@ public sealed class RelationsDiagramState(TableRef home)
 
     public void SetDepth(int depth)
     {
-        Depth = Math.Clamp(depth, 1, 2);
+        Depth = Math.Clamp(depth, 1, RelationDiagram.MaxDepth);
         Rebuild(Placement);
     }
 
@@ -103,16 +103,6 @@ public sealed class RelationsDiagramState(TableRef home)
         _hiddenSources.Clear();
         Rebuild(previous: null);
     }
-
-    public bool CanZoomIn => _zoom.CanZoomIn;
-
-    public bool CanZoomOut => _zoom.CanZoomOut;
-
-    public void ZoomIn() => _zoom.ZoomIn();
-
-    public void ZoomOut() => _zoom.ZoomOut();
-
-    public void ResetZoom() => _zoom.Reset();
 
     /// <param name="previous">The placement to keep the order of; null for a new diagram (another table in the middle, reset).</param>
     private void Rebuild(DiagramPlacement? previous)

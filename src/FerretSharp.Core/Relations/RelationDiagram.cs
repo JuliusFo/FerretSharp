@@ -10,6 +10,9 @@ namespace FerretSharp.Core.Relations;
 /// </summary>
 public sealed class RelationDiagram
 {
+    /// <summary>Levels the view offers (review 3.54.0, B1: the 2 stood in the view and its state).</summary>
+    public const int MaxDepth = 2;
+
     private readonly RelationGraph _graph;
     private readonly DiagramOptions _options;
     private readonly Dictionary<TableRef, int> _layers = [];

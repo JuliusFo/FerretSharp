@@ -1,0 +1,21 @@
+@* The zoom of a diagram (relations WP-46, records WP-60): out, the value (a click resets it), in. One for both since
+   review 3.54.0, B1. *@
+
+<button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomOut" disabled="@(!Zoom.CanZoomOut)" @onclick="() => ChangeAsync(Zoom.ZoomOut)">@Icons.ZoomOut</button>
+<button class="btn ghost relations-zoom" title="@SchemaViewText.Relations_ZoomReset" @onclick="() => ChangeAsync(Zoom.Reset)">@($"{Zoom.Value:P0}")</button>
+<button class="icon-btn ghost" title="@SchemaViewText.Relations_ZoomIn" disabled="@(!Zoom.CanZoomIn)" @onclick="() => ChangeAsync(Zoom.ZoomIn)">@Icons.ZoomIn</button>
+
+@code {
+    [Parameter, EditorRequired]
+    public DiagramZoom Zoom { get; set; } = null!;
+
+    /// <summary>The zoom changed: the diagram renders at the new size.</summary>
+    [Parameter]
+    public EventCallback OnChange { get; set; }
+
+    private Task ChangeAsync(Action change)
+    {
+        change();
+        return OnChange.InvokeAsync();
+    }
+}

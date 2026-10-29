@@ -1,0 +1,52 @@
+@* The drawing area of a laid-out diagram (relations WP-46, records WP-60, the copy preview): its size at the zoom, the
+   stage, the edges as SVG – each a wide invisible path to hover, the line and a dot where it ends – and the nodes the
+   caller draws on top. One for all three since review 3.54.0, B1: the copies had begun to differ (an edge without a
+   relationship was "group" in two of them, "other" in the third). *@
+@using FerretSharp.Core.Relations
+
+<div id="@Id" class="relations-canvas" @onmouseleave="OnMouseLeave">
+    <div class="relations-size" style="@DiagramStyle.Size(Placement.Width * Zoom, Placement.Height * Zoom)">
+        <div class="relations-stage" style="@DiagramStyle.Stage(Placement, Zoom)">
+            <svg class="relations-edges" width="@DiagramStyle.Px(Placement.Width)" height="@DiagramStyle.Px(Placement.Height)">
+                @foreach (var edge in Placement.Edges)
+                {
+                    var end = edge.Points[^1];
+                    <g class="relations-edge @EdgeClass(edge)" title="@EdgeTitle?.Invoke(edge)">
+                        <path class="hit" d="@edge.Svg" />
+                        <path class="line" d="@edge.Svg" />
+                        <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
+                    </g>
+                }
+            </svg>
+            @ChildContent
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string? Id { get; set; }
+
+    [Parameter, EditorRequired]
+    public DiagramPlacement Placement { get; set; } = null!;
+
+    [Parameter]
+    public double Zoom { get; set; } = 1;
+
+    /// <summary>
+    /// The classes of an edge: its kind of relationship (<see cref="DiagramStyle.KindClass"/>, <c>group</c> for one to a
+    /// group) and its state under the mouse.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public Func<EdgePath, string> EdgeClass { get; set; } = null!;
+
+    [Parameter]
+    public Func<EdgePath, string?>? EdgeTitle { get; set; }
+
+    [Parameter]
+    public EventCallback OnMouseLeave { get; set; }
+
+    /// <summary>The nodes, placed by <see cref="DiagramStyle.Box"/>.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

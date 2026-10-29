@@ -13,7 +13,6 @@ namespace FerretSharp.UI.State;
 /// </summary>
 public sealed class RecordDiagramState
 {
-    private readonly DiagramZoom _zoom = new();
     private readonly HashSet<RecordNode> _marked = [];
 
     /// <summary>What to do when loading: null for a new diagram (the start rows expanded on both sides).</summary>
@@ -73,17 +72,8 @@ public sealed class RecordDiagramState
     /// <summary>None of the start rows exists (any more): deleted, or their keys no longer fit the table.</summary>
     public bool StartGone => Diagram is { Start.Count: 0 };
 
-    public double Zoom => _zoom.Value;
-
-    public bool CanZoomIn => _zoom.CanZoomIn;
-
-    public bool CanZoomOut => _zoom.CanZoomOut;
-
-    public void ZoomIn() => _zoom.ZoomIn();
-
-    public void ZoomOut() => _zoom.ZoomOut();
-
-    public void ResetZoom() => _zoom.Reset();
+    /// <summary>The zoom; only in memory (review 3.54.0, B1: one zoom bar for both diagrams).</summary>
+    public DiagramZoom Zoom { get; } = new();
 
     /// <summary>Rows marked for a copy, in no particular order.</summary>
     public IReadOnlyCollection<RecordNode> Marked => _marked;
