@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using FerretSharp.App.Services;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.Logging;
@@ -81,16 +82,19 @@ public partial class MainWindow : Window
     /// While the left button is down the WebView holds the mouse, so a drag goes on beyond the window like in a browser:
     /// the composition control does not, and neither the moves out there nor the release reached the page. Marking cells
     /// (WP-58) scrolled on until the mouse came back (seen in the E2E with real input).
+    /// Released only after the control has passed the button's release on (its class handler, <c>OnMouseUp</c>, runs before
+    /// this one): released in the preview, the page lost its pointer capture before the <c>pointerup</c>, and dragging a
+    /// group head or a connection (WP-66) ended without a drop target.
     /// </summary>
     private static void HoldMouseWhileDragging(UIElement view)
     {
         view.PreviewMouseLeftButtonDown += (_, _) => view.CaptureMouse();
-        view.PreviewMouseLeftButtonUp += (_, _) =>
+        view.AddHandler(UIElement.MouseUpEvent, new MouseButtonEventHandler((_, e) =>
         {
-            if (view.IsMouseCaptured)
+            if (e.ChangedButton == MouseButton.Left && view.IsMouseCaptured)
             {
                 view.ReleaseMouseCapture();
             }
-        };
+        }), handledEventsToo: true);
     }
 }
