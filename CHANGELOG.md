@@ -10,19 +10,19 @@ Fixes, structure, tests and docs after the full review of 3.54.0.
 ### Security
 - "Open with the default program" and the other ways to open a source file of the code usage take a path from the build's debug information only below the repository root and never on a network share – a crafted `#line` made FerretSharp sign in to a foreign host just by checking whether the file exists. `//host/share` paths are refused like `\\host\share`.
 - The release workflow no longer keeps its write token in the checkout while building and testing with code from NuGet packages.
-- "Copy as Mermaid" keeps line breaks and `%%` of table names and values inside their label; a DDL script's header comments every line of a table name with a line break.
+- "Copy as Mermaid" keeps line breaks and `%%` of table names and values inside their label; a DDL script's and an INSERT script's header comment every line of a table or column name with a line break, as do the bind values of the change overview's "Copy as SQL".
 
 ### Changed
 - "Disconnect all" of a group takes all its connections away at once and closes them side by side; one after the other, over a dropped VPN, the later ones stayed open and shown for seconds.
 - Copying rows into another connection shows the write's time, "Cancel" and, after 5 s, "Disconnect session" for the target in the dialog – an insert waits without end for a key another session holds uncommitted.
-- Copying marked cells with rows not loaded reads them in the background, with the rows and "Cancel" in the status bar.
-- The highlighting of an audit table's changes stops its query when the grid reads anew, and switches itself off for the tab when one takes longer than 10 s (an index on the base table's key in the audit table would help).
+- Copying marked cells with rows not loaded reads them in the background, with the rows and "Cancel" in the status bar; no commit or write runs in the workspace meanwhile.
+- The highlighting of an audit table's changes stops its query when the grid reads anew, and switches itself off for the tab when one takes longer than 10 s once it has the session – waiting behind another statement does not count (an index on the base table's key in the audit table would help).
 - One project build at a time: a second build of the same solution from another connection waits for the first.
 - The right-click menus filter like every search box: accents do not count ("anderung" finds "Änderungen"), and a jump's table is found without its underscores. A group's heading stays exactly while one of its entries does.
-- The table designer checks new and renamed constraint and index names against the whole schema, not only the table; before, the run stopped with ORA-02264 or ORA-00955 after its first steps.
+- The table designer checks new and renamed constraint and index names against the other tables of the schema, not only its own – the index a new primary or unique key creates too; a table or view may still share an index's name. "Create index" checks its name against the other tables' indexes too. Before, the run stopped with ORA-02264 or ORA-00955 after its first steps.
 - `ALTER DATABASE LINK` runs in the SQL editor again, like `ALTER PUBLIC DATABASE LINK`.
-- An identity column `GENERATED ALWAYS` is written as such in DDL ("ALTER TABLE … ADD" for another connection).
-- A display columns file or audit template larger than 4 MB is not read.
+- An identity column `GENERATED ALWAYS` is written as such in DDL ("ALTER TABLE … ADD" for another connection), and the schema comparison tells it from `BY DEFAULT`, with a hint in the DDL proposal.
+- A display columns file or audit template larger than 4 MB is not read, nor is a display columns file changed then.
 - The node menus of the relationship and the record diagram work with ↑ ↓ like the other right-click menus.
 
 ### Fixed
