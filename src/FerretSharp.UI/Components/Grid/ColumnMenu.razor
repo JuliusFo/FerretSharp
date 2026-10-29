@@ -25,8 +25,8 @@
                           ?? (isDisplay ? null : Details.Table.Kind == TableKind.View ? GridText.ColumnMenu_DisplayView : DisplayColumns.NotDisplayableReason(Column));
     }
     <QuickBar Captions="true">
-        <QuickAction Icon="Icons.Pin" Caption="@GridText.Caption_Pin" Label="@(primary ? GridText.ColumnMenu_PkPinned : Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)"
-                     Active="@(Pinned || primary)" Unavailable="@(primary ? GridText.ColumnMenu_PkPinnedTitle : null)" OnClick="ToggleAsync" />
+        <QuickAction Icon="Icons.Pin" Caption="@GridText.Caption_Pin" Label="@PinAction.Of(Pinned, primary).Label"
+                     Active="@PinAction.Of(Pinned, primary).Active" Unavailable="@PinAction.Of(Pinned, primary).Unavailable" OnClick="ToggleAsync" />
         <QuickAction Icon="Icons.SelectColumn" Caption="@GridText.Caption_Select" Label="@GridText.ColumnMenu_MarkColumn" Title="@GridText.ColumnMenu_MarkColumnTitle" OnClick="MarkAsync" />
         <QuickAction Icon="Icons.Star" Caption="@GridText.Caption_Display"
                      Label="@(several ? GridText.ColumnMenu_RemoveFromName : isDisplay ? GridText.ColumnMenu_RemoveDisplay : GridText.ColumnMenu_UseAsDisplay)" Active="isDisplay"
