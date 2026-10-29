@@ -309,9 +309,10 @@ public static partial class TableDesign
                 Problems.Add(TextFormat.Format(DesignText.ConstraintNameTakenInSchema, added.Name)); // ORA-02264 (review 3.54.0, A14)
             }
             else if (added.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && context.Elsewhere.Indexes.Contains(added.Name)
-                     && !context.Indexes.Any(i => IndexAdvice.Covers(i, added.Columns)))
+                     && !context.Indexes.Any(i => !_dropped.Contains(i.Name) && IndexAdvice.Covers(i, added.Columns)))
             {
-                // The key creates an index of its name unless one of the table starts with its columns (review of R8).
+                // The key creates an index of its name unless one of the table starts with its columns (review of R8) – not
+                // the index of a key this plan drops: it goes with its key.
                 Problems.Add(TextFormat.Format(DesignText.IndexNameTakenInSchema, added.Name)); // ORA-00955
             }
 

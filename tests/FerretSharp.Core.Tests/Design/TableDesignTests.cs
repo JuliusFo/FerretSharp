@@ -743,6 +743,12 @@ public class TableDesignTests
         var newKey = Draft() with { AddedConstraints = [new ConstraintDraft("IX_LAND", ConstraintType.Unique, ["NAME"])] };
         Assert.Equal(["Eine andere Tabelle des Schemas hat schon einen Index IX_LAND (ORA-00955)."], Plan(newKey).Problems);
         Assert.Empty(Plan(newKey, UniqueIndex("IX_KUNDE_NAME", "NAME")).Problems);
+
+        // Not the index of a key the plan drops: it goes with its key, and the new one creates IX_LAND.
+        var ukName = new ConstraintInfo("UK_KUNDE_NAME", ConstraintType.Unique, ["NAME"], null, null, [], null, true, true, false, false, false);
+        var replacing = TableDesign.Plan(new DesignContext(Kunde, [PkKunde, ukName], [UniqueIndex("PK_KUNDE", "ID"), UniqueIndex("UK_KUNDE_NAME", "NAME")], []) { Elsewhere = elsewhere },
+            newKey with { DroppedConstraints = ["UK_KUNDE_NAME"] }, DataFacts.None);
+        Assert.Equal(["Eine andere Tabelle des Schemas hat schon einen Index IX_LAND (ORA-00955)."], replacing.Problems);
     }
 
     [Fact]
