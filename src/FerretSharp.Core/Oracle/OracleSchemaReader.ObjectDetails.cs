@@ -78,18 +78,17 @@ public sealed partial class OracleSchemaReader
          ORDER BY d.type, d.owner, d.name
         """;
 
-    // Constraint names are unique per owner (names Oracle generated are left out, nobody types them); index names share the
-    // namespace of tables, views, sequences … (ORA-00955) – the table's own indexes are the designer's to rename.
+    // Constraint names are unique per owner (names Oracle generated are left out, nobody types them); index names too, in a
+    // namespace of their own – a table may be named like an index (ORA-00955 only between indexes). The table's own indexes
+    // are the designer's to rename.
     private const string NamesElsewhereSql = """
         SELECT 'C', constraint_name
           FROM all_constraints
          WHERE owner = :owner AND table_name <> :name AND generated = 'USER NAME' AND constraint_name NOT LIKE 'BIN$%'
         UNION ALL
-        SELECT 'O', object_name
-          FROM all_objects
-         WHERE owner = :owner AND object_name NOT LIKE 'BIN$%'
-           AND NOT (object_type = 'INDEX' AND object_name IN (
-                    SELECT index_name FROM all_indexes WHERE owner = :owner AND table_owner = :owner AND table_name = :name))
+        SELECT 'I', index_name
+          FROM all_indexes
+         WHERE owner = :owner AND NOT (table_owner = :owner AND table_name = :name) AND index_name NOT LIKE 'BIN$%'
         """;
 
     // A function call in a plain query: DBMS_METADATA only reads. Object type names use underscores here.
@@ -136,7 +135,7 @@ public sealed partial class OracleSchemaReader
             reader => (Kind: reader.GetString(0), Name: reader.GetString(1)), cancellationToken, many: true);
         return new SchemaNames(
             names.Where(n => n.Kind == "C").Select(n => n.Name).ToHashSet(StringComparer.Ordinal),
-            names.Where(n => n.Kind == "O").Select(n => n.Name).ToHashSet(StringComparer.Ordinal));
+            names.Where(n => n.Kind == "I").Select(n => n.Name).ToHashSet(StringComparer.Ordinal));
     }
 
     public async Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken)

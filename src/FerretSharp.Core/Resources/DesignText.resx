@@ -249,7 +249,7 @@
     <comment>{0}: constraint name</comment>
   </data>
   <data name="IndexNameTakenInSchema" xml:space="preserve">
-    <value>Another object of the schema is already named {0} (ORA-00955).</value>
+    <value>Another table of the schema already has an index named {0} (ORA-00955).</value>
     <comment>{0}: index name</comment>
   </data>
 </root>

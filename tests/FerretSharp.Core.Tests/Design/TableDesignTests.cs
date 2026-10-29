@@ -728,16 +728,21 @@ public class TableDesignTests
     [Fact]
     public void A_name_another_table_of_the_schema_holds_is_refused()
     {
-        var elsewhere = new SchemaNames(new HashSet<string> { "UK_LAND", "FK_ANDERS" }, new HashSet<string> { "IX_LAND", "LAENDER" });
-        DesignPlan Plan(TableDraft draft) =>
-            TableDesign.Plan(new DesignContext(Kunde, [PkKunde, CkUmsatz, FkLand], [UniqueIndex("PK_KUNDE", "ID")], []) { Elsewhere = elsewhere }, draft, DataFacts.None);
+        var elsewhere = new SchemaNames(new HashSet<string> { "UK_LAND", "FK_ANDERS" }, new HashSet<string> { "IX_LAND" });
+        DesignPlan Plan(TableDraft draft, params IndexInfo[] more) =>
+            TableDesign.Plan(new DesignContext(Kunde, [PkKunde, CkUmsatz, FkLand], [UniqueIndex("PK_KUNDE", "ID"), .. more], []) { Elsewhere = elsewhere }, draft, DataFacts.None);
 
         Assert.Equal(["Eine andere Tabelle des Schemas hat schon einen Constraint UK_LAND (ORA-02264)."],
             Plan(Edited(new ConstraintEdit("CK_UMSATZ", "UK_LAND", "UMSATZ >= 0"))).Problems);
-        Assert.Equal(["Ein anderes Objekt des Schemas heißt schon LAENDER (ORA-00955)."],
-            Plan(Edited(new ConstraintEdit("PK_KUNDE", "LAENDER"))).Problems);
+        Assert.Equal(["Eine andere Tabelle des Schemas hat schon einen Index IX_LAND (ORA-00955)."],
+            Plan(Edited(new ConstraintEdit("PK_KUNDE", "IX_LAND"))).Problems);
         Assert.Contains("Eine andere Tabelle des Schemas hat schon einen Constraint FK_ANDERS (ORA-02264).",
             Plan(Draft() with { AddedConstraints = [new ConstraintDraft("FK_ANDERS", ConstraintType.Unique, ["NAME"])] }).Problems);
+
+        // Review of R8: a new key creates an index of its name – unless an index of the table starts with its columns.
+        var newKey = Draft() with { AddedConstraints = [new ConstraintDraft("IX_LAND", ConstraintType.Unique, ["NAME"])] };
+        Assert.Equal(["Eine andere Tabelle des Schemas hat schon einen Index IX_LAND (ORA-00955)."], Plan(newKey).Problems);
+        Assert.Empty(Plan(newKey, UniqueIndex("IX_KUNDE_NAME", "NAME")).Problems);
     }
 
     [Fact]

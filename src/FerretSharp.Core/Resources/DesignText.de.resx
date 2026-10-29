@@ -196,6 +196,6 @@
     <value>Eine andere Tabelle des Schemas hat schon einen Constraint {0} (ORA-02264).</value>
   </data>
   <data name="IndexNameTakenInSchema" xml:space="preserve">
-    <value>Ein anderes Objekt des Schemas heißt schon {0} (ORA-00955).</value>
+    <value>Eine andere Tabelle des Schemas hat schon einen Index {0} (ORA-00955).</value>
   </data>
 </root>

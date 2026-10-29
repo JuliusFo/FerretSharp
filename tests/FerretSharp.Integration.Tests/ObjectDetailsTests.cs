@@ -129,8 +129,9 @@ public sealed class ObjectDetailsTests(OracleContainerFixture oracle) : IAsyncLi
     }
 
     /// <summary>
-    /// Review 3.54.0, A14: names a constraint or index of OD_KUNDE cannot take – the other tables' constraints, every object
-    /// name of the schema except OD_KUNDE's own indexes – in one round trip that passes the read guard.
+    /// Review 3.54.0, A14: names a constraint or index of OD_KUNDE cannot take – the other tables' constraints and indexes
+    /// (OD_KUNDE's own are the designer's to rename) – in one round trip that passes the read guard. Tables and views are not
+    /// among them: an index has a namespace of its own (review of R8).
     /// </summary>
     [Fact]
     public async Task Names_held_elsewhere_in_the_schema_are_read_without_the_tables_own()
@@ -140,8 +141,10 @@ public sealed class ObjectDetailsTests(OracleContainerFixture oracle) : IAsyncLi
         Assert.Contains("FK_OD_AUFTRAG_KUNDE", names.Constraints);
         Assert.DoesNotContain("PK_OD_KUNDE", names.Constraints);
         Assert.DoesNotContain(names.Constraints, n => n.StartsWith("SYS_C", StringComparison.Ordinal)); // generated, nobody types them
-        Assert.Superset(new HashSet<string> { "IX_OD_AUFTRAG_KUNDE", "OD_AUFTRAG", "OD_V_KUNDE", "OD_KUNDE" }, names.Objects.ToHashSet());
-        Assert.DoesNotContain("IX_OD_KUNDE_NAME", names.Objects);
+        Assert.Contains("IX_OD_AUFTRAG_KUNDE", names.Indexes);
+        Assert.DoesNotContain("IX_OD_KUNDE_NAME", names.Indexes);
+        Assert.DoesNotContain("OD_AUFTRAG", names.Indexes);
+        Assert.DoesNotContain("OD_V_KUNDE", names.Indexes);
     }
 
     [Fact]

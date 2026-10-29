@@ -211,9 +211,9 @@ public static partial class TableDesign
                 return;
             }
 
-            if (context.Indexes.Any(i => i.Name == edit.Name) || context.Elsewhere.Objects.Contains(edit.Name))
+            if (context.Indexes.Any(i => i.Name == edit.Name) || context.Elsewhere.Indexes.Contains(edit.Name))
             {
-                Problems.Add(TextFormat.Format(context.Elsewhere.Objects.Contains(edit.Name) ? DesignText.IndexNameTakenInSchema : DesignText.IndexNameTaken, edit.Name));
+                Problems.Add(TextFormat.Format(context.Elsewhere.Indexes.Contains(edit.Name) ? DesignText.IndexNameTakenInSchema : DesignText.IndexNameTaken, edit.Name));
                 return;
             }
 
@@ -243,7 +243,7 @@ public static partial class TableDesign
             var columns = kept.Select(c => c.Column).Where(c => !string.IsNullOrWhiteSpace(c.Name)).ToList();
             var taken = context.Constraints.Where(c => !_dropped.Contains(c.Name)).Select(c => c.Name).Concat(_renamedTo).ToHashSet(StringComparer.Ordinal);
             var keys = context.Constraints.Where(c => c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && !_dropped.Contains(c.Name)).ToList();
-            var indexNames = context.Indexes.Select(i => i.Name).Concat(_renamedTo).Concat(context.Elsewhere.Objects).ToList();
+            var indexNames = context.Indexes.Select(i => i.Name).Concat(_renamedTo).Concat(context.Elsewhere.Indexes).ToList();
 
             // Keys before foreign keys: a new foreign key may reference a new key of the same table.
             foreach (var added in draft.AddedConstraints.OrderBy(c => c.Type switch
@@ -307,6 +307,12 @@ public static partial class TableDesign
             else if (context.Elsewhere.Constraints.Contains(added.Name))
             {
                 Problems.Add(TextFormat.Format(DesignText.ConstraintNameTakenInSchema, added.Name)); // ORA-02264 (review 3.54.0, A14)
+            }
+            else if (added.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && context.Elsewhere.Indexes.Contains(added.Name)
+                     && !context.Indexes.Any(i => IndexAdvice.Covers(i, added.Columns)))
+            {
+                // The key creates an index of its name unless one of the table starts with its columns (review of R8).
+                Problems.Add(TextFormat.Format(DesignText.IndexNameTakenInSchema, added.Name)); // ORA-00955
             }
 
             if (added.Type != ConstraintType.Check && added.Columns.Count == 0)

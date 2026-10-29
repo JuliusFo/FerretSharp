@@ -160,8 +160,11 @@ public static class IndexAdvice
 
 /// <summary>Names a table's new or renamed constraints and indexes cannot take (<see cref="ISchemaReader.GetNamesElsewhereAsync"/>).</summary>
 /// <param name="Constraints">Constraints of the owner's other tables (named by a user).</param>
-/// <param name="Objects">The owner's objects – tables, views, sequences, indexes of other tables …: an index shares their namespace.</param>
-public sealed record SchemaNames(IReadOnlySet<string> Constraints, IReadOnlySet<string> Objects)
+/// <param name="Indexes">
+/// The owner's indexes of other tables: indexes have a namespace of their own (a table and an index may share a name), and
+/// so does the index a new primary or unique key creates (review of R8).
+/// </param>
+public sealed record SchemaNames(IReadOnlySet<string> Constraints, IReadOnlySet<string> Indexes)
 {
     public static readonly SchemaNames None = new(new HashSet<string>(), new HashSet<string>());
 }
