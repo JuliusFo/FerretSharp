@@ -38,9 +38,12 @@ jobs:
         shell: pwsh
     steps:
       # Pinned to commits (review 3.40.0, A35): this job may write releases; Dependabot keeps the pins current.
+      # Without the token in .git/config (review 3.54.0, A7): the build and tests run code from NuGet packages (MSBuild
+      # targets, analyzers, tools); only the two vpk steps get the token, through their environment.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ env.TAG }}
+          persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
