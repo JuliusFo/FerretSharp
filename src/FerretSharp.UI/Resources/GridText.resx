@@ -20,6 +20,7 @@
   </data>
   <data name="Editing_ExportReading" xml:space="preserve">
     <value>An export is reading through this workspace’s session ({0}) – wait for it, or cancel it in the status bar.</value>
+    <comment>{0}: what the export reads (file name or column)</comment>
   </data>
   <data name="Editing_StatementRunning" xml:space="preserve">
     <value>A statement of this workspace is still running – wait for it or cancel it first; it would otherwise be committed or rolled back unseen.</value>
@@ -1306,6 +1307,7 @@
   </data>
   <data name="ColumnValues_TooLong" xml:space="preserve">
     <value>The values are longer than {0:N0} characters together – nothing copied. Better save them through “All rows” as CSV or Excel.</value>
+    <comment>{0}: the limit in characters</comment>
   </data>
   <data name="ColumnValues_Cancelled" xml:space="preserve">
     <value>Copying the values of {0} cancelled.</value>
@@ -1421,21 +1423,26 @@
   </data>
   <data name="Fill_CellsSetOther" xml:space="preserve">
     <value>{0:N0} cells set.</value>
+    <comment>{0}: number of cells set</comment>
   </data>
   <data name="Fill_NothingSet" xml:space="preserve">
     <value>No cell set.</value>
   </data>
   <data name="Fill_DeletedRowsOne" xml:space="preserve">
     <value>{0:N0} row left out: marked for deletion.</value>
+    <comment>{0}: number of rows left out</comment>
   </data>
   <data name="Fill_DeletedRowsOther" xml:space="preserve">
     <value>{0:N0} rows left out: marked for deletion.</value>
+    <comment>{0}: number of rows left out</comment>
   </data>
   <data name="Fill_TooPreciseOne" xml:space="preserve">
     <value>{0:N0} cell left out: a number with more than 28 digits.</value>
+    <comment>{0}: number of cells left out</comment>
   </data>
   <data name="Fill_TooPreciseOther" xml:space="preserve">
     <value>{0:N0} cells left out: numbers with more than 28 digits.</value>
+    <comment>{0}: number of cells left out</comment>
   </data>
   <data name="Fill_ColumnLeft" xml:space="preserve">
     <value>{0} unchanged: {1}</value>

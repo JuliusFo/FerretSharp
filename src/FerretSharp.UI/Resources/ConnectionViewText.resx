@@ -546,6 +546,7 @@
   </data>
   <data name="ConnectionMenu_ConnectKey" xml:space="preserve">
     <value>Shortcut: {0}</value>
+    <comment>{0}: the connection's shortcut</comment>
   </data>
   <data name="ConnectionMenu_CopyAddress" xml:space="preserve">
     <value>Copy address</value>
@@ -558,6 +559,7 @@
   </data>
   <data name="ConnectionMenu_MoveToTitle" xml:space="preserve">
     <value>Move to “{0}”</value>
+    <comment>{0}: group name</comment>
   </data>
   <data name="ConnectionMenu_NewGroup" xml:space="preserve">
     <value>New group…</value>
@@ -567,18 +569,23 @@
   </data>
   <data name="GroupMenu_ConnectionsOne" xml:space="preserve">
     <value>{0} connection</value>
+    <comment>{0}: number of connections in the group</comment>
   </data>
   <data name="GroupMenu_ConnectionsOther" xml:space="preserve">
     <value>{0} connections</value>
+    <comment>{0}: number of connections in the group</comment>
   </data>
   <data name="GroupMenu_Connected" xml:space="preserve">
     <value>{0} connected</value>
+    <comment>{0}: number of connected connections</comment>
   </data>
   <data name="GroupMenu_AuditTemplate" xml:space="preserve">
     <value>Audit: {0}</value>
+    <comment>{0}: the group's audit template (file or built-in)</comment>
   </data>
   <data name="GroupMenu_WorkClone" xml:space="preserve">
     <value>Work clone: {0}</value>
+    <comment>{0}: the group's work clone folder</comment>
   </data>
   <data name="GroupMenu_Rename" xml:space="preserve">
     <value>Rename group…</value>
@@ -627,18 +634,23 @@
   </data>
   <data name="GroupMenu_DisconnectAllWhat" xml:space="preserve">
     <value>Disconnect the group {0}</value>
+    <comment>{0}: group name</comment>
   </data>
   <data name="GroupName_NewFor" xml:space="preserve">
     <value>A new group for {0}:</value>
+    <comment>{0}: connection name</comment>
   </data>
   <data name="GroupName_Merges" xml:space="preserve">
     <value>The group “{0}” exists already. Merging moves the connections ({1}) into it.</value>
+    <comment>{0}: the existing group; {1}: number of connections moved</comment>
   </data>
   <data name="GroupName_TemplateDropped" xml:space="preserve">
     <value>Its audit template {0} is dropped; “{1}” keeps its own.</value>
+    <comment>{0}: the audit template dropped; {1}: the group that keeps its own</comment>
   </data>
   <data name="GroupName_Exists" xml:space="preserve">
     <value>The group “{0}” exists already: the connection is added to it.</value>
+    <comment>{0}: group name</comment>
   </data>
   <data name="GroupName_Merge" xml:space="preserve">
     <value>Merge</value>
@@ -648,6 +660,7 @@
   </data>
   <data name="GroupName_RenameTitle" xml:space="preserve">
     <value>Rename group “{0}”</value>
+    <comment>{0}: group name</comment>
   </data>
   <data name="GroupName_NewTitle" xml:space="preserve">
     <value>New group</value>
@@ -660,5 +673,6 @@
   </data>
   <data name="GroupName_WorkCloneDropped" xml:space="preserve">
     <value>Its work clone {0} is dropped; “{1}” keeps its own (the folder stays among the recent ones).</value>
+    <comment>{0}: the work clone folder dropped; {1}: the group that keeps its own</comment>
   </data>
 </root>

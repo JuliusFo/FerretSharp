@@ -1194,9 +1194,11 @@
   </data>
   <data name="Records_ReadingOne" xml:space="preserve">
     <value>Reading {1} – {0:N0} row so far</value>
+    <comment>{0}: rows read so far; {1}: table</comment>
   </data>
   <data name="Records_ReadingOther" xml:space="preserve">
     <value>Reading {1} – {0:N0} rows so far</value>
+    <comment>{0}: rows read so far; {1}: table</comment>
   </data>
   <data name="Records_ReadingStart" xml:space="preserve">
     <value>Reading the start rows</value>
@@ -1308,9 +1310,11 @@
   </data>
   <data name="Records_ReadingLevelOne" xml:space="preserve">
     <value>Level {1} of {2}: reading {3} – {0:N0} row so far</value>
+    <comment>{0}: rows read so far; {1}: level; {2}: levels in all; {3}: table</comment>
   </data>
   <data name="Records_ReadingLevelOther" xml:space="preserve">
     <value>Level {1} of {2}: reading {3} – {0:N0} rows so far</value>
+    <comment>{0}: rows read so far; {1}: level; {2}: levels in all; {3}: table</comment>
   </data>
   <data name="Records_LevelsTitle" xml:space="preserve">
     <value>How far opening and the "+" handles go: 2 also brings the children of the children and their parents. Going up never turns down again, so no siblings come in. Each level reads once per relationship.</value>

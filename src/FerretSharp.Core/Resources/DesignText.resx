@@ -214,6 +214,7 @@
   </data>
   <data name="TypeChangeKeepsBlanks" xml:space="preserve">
     <value>{0}: {1} → {2} keeps the blanks every value was padded with; comparisons with the text without them (relationships, filters, EF Core) no longer match – trim them with RTRIM afterwards.</value>
+    <comment>{0}: column; {1}: type before; {2}: type after</comment>
   </data>
   <data name="ConstraintNameMissing" xml:space="preserve">
     <value>{0}: enter a name for the constraint.</value>
