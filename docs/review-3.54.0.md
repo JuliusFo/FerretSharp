@@ -2,7 +2,7 @@
 
 Auftrag des Nutzers (2026-10-29): `/complete-code-review` – Gesamt-Review über die ganze Solution mit denselben Punkten wie 3.44.0 – toter Code, Duplikate, Lesbarkeit, Architektur, Sicherheit, Projekt- und Ordnerstruktur, Tests, Doku –, ohne eigenen Schwerpunkt. Seit 3.44 (R7 in 3.45.0) sind ohne Gesamt-Review dazugekommen: automatisches Neuverbinden, WP-58/59 (Zellen markieren, Bereich setzen), WP-42/46/60/62 (Teilgraph-Kopie, Beziehungs- und Datensatz-Diagramm), WP-61 (Kontextmenüs), Lucide-Icons, Sortieren von Ergebnissen, Designer in Reitern, WP-63 (Audit-Ansicht), WP-64 (Modelldatei), WP-65 (zusammengesetzte Anzeigenamen), WP-66 (Verbindungsgruppen), das wiederholte Öffnen von Sessions und mehrere Fixes. Acht parallele Agenten nach Themen, nur lesend, auf einer festen Kopie von 4f13d44: DB-Zugriff (DB), Zustand/Nebenläufigkeit (ST), UI/JS/CSS (UI), Host/Prozesse/Build (PH), Sicherheit (SE), Wiederverwendung/toter Code (RE), Tests (TE), Doku (DO). Befunde aus `docs/review-3.44.0.md` und dem Backlog wurden nur gemeldet, wenn ihre Umsetzung fehlt oder fehlerhaft ist. Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = zusätzlich von Hand im Code bestätigt; sonst die Einschätzung des Agenten.
 
-**Stand:** offen – Entscheidungen des Nutzers ausstehend.
+**Stand:** in Umsetzung als R8 (`docs/work-packages/r8-review-3.54.md`), Branch `wp/r8-review-3.54`.
 
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
@@ -136,3 +136,14 @@ Nicht vorgeschlagen: `ColumnValueCopiesTests.A_result_counts_its_null_rows` (hä
 4. **A4** – Audit-Hervorhebung: zusätzlich zum Abbruch beim Neuladen eine Zeitgrenze je Abfrage (Vorschlag 10 s), danach für den Tab aus mit Hinweis?
 5. **A6** – Zweiter Build derselben Solution aus einer anderen Verbindung: warten, bis der erste fertig ist (Vorschlag), oder ablehnen mit „läuft schon in Verbindung X“?
 6. **A13** – `ALTER DATABASE LINK` (z. B. Passwort eines DB-Links ändern) wieder als normales DDL zulassen wie `ALTER PUBLIC DATABASE LINK`, oder beide sperren?
+
+## Entscheidungen des Nutzers (2026-10-29)
+
+1. **Umfang** – Alles (Teil A bis D) in **einem** Paket R8 und einem Release 3.55.0.
+2. **D3** – Die Namen werden überall neutral ersetzt (die Git-Historie bleibt).
+3. **A2** – Fortschritt im Kopie-Dialog mit Zeit, Abbrechen und nach 5 s „Session trennen“.
+4. **A4** – Abbruch beim Neuladen und eine Zeitgrenze von 10 s je Abfrage; danach ist die Hervorhebung für den Tab aus, mit Hinweis.
+5. **A6** – Der zweite Build derselben Solution wartet, bis der erste fertig ist.
+6. **A13** – `ALTER DATABASE LINK` läuft wieder als normales DDL wie `ALTER PUBLIC/SHARED DATABASE LINK`.
+
+Für alle übrigen Punkte gelten die Vorschläge oben. Verdachtsfälle werden vor einer Änderung nachgestellt bzw. begründet; was sich nicht bestätigt, kommt mit Begründung ins Protokoll.
