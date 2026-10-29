@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Display;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Settings;
 using Microsoft.Extensions.Time.Testing;
 
@@ -230,6 +231,23 @@ public sealed class DisplayColumnSourceTests : IDisposable
 
         Assert.Contains("kein gültiges JSON", refused.Message);
         Assert.Equal("<<<<<<< HEAD", await File.ReadAllTextAsync(path, Ct));
+    }
+
+    /// <summary>Review of R8: the size limit of review 3.54.0, A12 held for loading only – marking read a huge file whole.</summary>
+    [Fact]
+    public async Task A_file_beyond_the_size_limit_is_neither_read_nor_changed()
+    {
+        var path = _folder.Combine("display-columns.json");
+        var (source, _) = Source(path);
+        await using (var file = File.Create(path))
+        {
+            file.SetLength(CachedFileRead<DisplayColumnLoad>.MaxBytes + 1);
+        }
+
+        var refused = await Assert.ThrowsAsync<RefusedException>(() => source.SetAsync("KUNDE", "NAME", Ct));
+
+        Assert.Contains("größer als 4 MB", refused.Message);
+        Assert.Equal(CachedFileRead<DisplayColumnLoad>.MaxBytes + 1, new FileInfo(path).Length);
     }
 
     [Fact]

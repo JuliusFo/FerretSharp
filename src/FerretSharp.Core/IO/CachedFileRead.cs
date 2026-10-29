@@ -29,6 +29,12 @@ public sealed class CachedFileRead<T>(Func<string, FileInfo, FileRead<T>> read, 
     /// <summary>A larger file is not read (a template or a list of names is a few kilobytes).</summary>
     public const long MaxBytes = 4L * 1024 * 1024;
 
+    /// <summary>
+    /// What a file larger than <see cref="MaxBytes"/> gives – also for a read that changes the file and writes it back
+    /// (display columns, review of R8: that read was not limited).
+    /// </summary>
+    public static IOException TooLarge() => new(TextFormat.Format(CoreText.FileTooLarge, MaxBytes / (1024 * 1024)));
+
     private readonly Dictionary<string, (DateTime Written, long Length, T Value, bool Reuse, DateTimeOffset Checked)> _cached = new(StringComparer.Ordinal);
 
     /// <summary>The file at <paramref name="path"/>: the last result if looked at within <see cref="Fresh"/> or unchanged since.</summary>
@@ -64,7 +70,7 @@ public sealed class CachedFileRead<T>(Func<string, FileInfo, FileRead<T>> read, 
             // Files others write into a shared repository: a huge one (an export saved under the wrong name) was read whole
             // on every change, by the watcher and the poll alike (review 3.54.0, A12). Kept while unchanged.
             result = length > MaxBytes
-                ? new FileRead<T>(unreadable(path, new IOException(TextFormat.Format(CoreText.FileTooLarge, MaxBytes / (1024 * 1024)))))
+                ? new FileRead<T>(unreadable(path, TooLarge()))
                 : read(path, file);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
