@@ -17,7 +17,7 @@ public static class FerretSharpConnections
 
     /// <param name="includeLocalPaths">
     /// Keep the paths that only make sense on this computer (<see cref="ConnectionProfile.LocalPaths"/>: linked C# project and
-    /// the solution chosen for it, script folder, TNS_ADMIN, audit template) – for moving to a new computer of one's own; left
+    /// the solution chosen for it, model file, script folder, TNS_ADMIN, audit template) – for moving to a new computer of one's own; left
     /// out when passing connections on to colleagues.
     /// </param>
     public static string Export(IEnumerable<ConnectionProfile> profiles, bool includeLocalPaths)

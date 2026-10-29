@@ -1,4 +1,4 @@
-# WP-65 Zusammengesetzte Anzeigenamen
+# WP-65 Zusammengesetzte Anzeigenamen → Release 3.53.0
 
 Branch `wp/65-composite-display-names`, begonnen am 2026-10-27. Fortsetzung von WP-31 (ADR 0022, Nachtrag WP-65).
 

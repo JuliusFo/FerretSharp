@@ -1,4 +1,4 @@
-# Fix: Hängendes Öffnen der Session neu versuchen (`fix/session-open-retry`)
+# Fix: Hängendes Öffnen der Session neu versuchen (`fix/session-open-retry`) → Release 3.54.0
 
 Branch `fix/session-open-retry` (von `main`), 2026-10-28.
 

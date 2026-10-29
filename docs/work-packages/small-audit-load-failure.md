@@ -1,4 +1,4 @@
-# Klein: Audit-Zustand im Designer nicht gelesen
+# Klein: Audit-Zustand im Designer nicht gelesen → Release 3.54.0
 
 Branch `fix/audit-load-failure` (von `main`), 2026-10-28.
 

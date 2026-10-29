@@ -40,3 +40,12 @@ Verworfen:
 - COM-Aufrufe an Visual Studio werden abgelehnt, solange VS beschäftigt ist (`RPC_E_CALL_REJECTED`, `RPC_E_SERVERCALL_RETRYLATER` – im Spike regelmäßig direkt nach dem Öffnen): jeder Aufruf wird alle 100 ms wiederholt, höchstens einige Sekunden, dann Rückfall. Erkannt wird das HRESULT auch in der `MissingMemberException` des `dynamic`-Binders. Die Aufrufe laufen nicht im UI-Thread. Eine als Administrator gestartete Instanz ist für eine nicht erhöhte App in der Running Object Table nicht sichtbar – dann greift der Rückfall.
 - Kein Schreiben in Repos des Nutzers (das kommt mit WP-41 und eigenem ADR); der Arbeits-Klon wird hier nur gelesen.
 - Kein neues NuGet-Paket.
+
+## Nachtrag (small-usage-build-projects, 3.48.0)
+
+- „Projekte bauen“ startet `dotnet build` der ganzen Solution des verknüpften Projekts – eine neue Art Prozessstart, die MSBuild-Code des Projekts ausführt wie jeder Build, den der Nutzer selbst startet. Nur auf Klick, nie für den Arbeits-Klon, über `DotNetCli` mit `ArgumentList`, ohne Build-Server, im Job Object, mit 30 min Zeitgrenze. Seit Review 3.54.0 (A6) läuft app-weit ein Build zur Zeit.
+- Nicht gebaute Projekte, die das Modell erreichen, machen „ungenutzt“ unsicher (`CodeUsageResult.Missing`); was die Projektdatei nicht sicher verrät, zählt in die vorsichtige Richtung.
+
+## Nachtrag (small-usage-filter-without-index, 3.54.0)
+
+- Bedingungen von `Where`/`Any`/`First…` sind eine eigene Art `CodeUseKind.Filter`: Getter aus einem Expression Tree warten auf den ersten Aufruf mit `Expression<T>`-Parameter. Spalten, nach denen Anwendungscode filtert, ohne Index, der mit ihnen beginnt, werden markiert. Die Einordnung änderte das Cache-Format (`AssemblyUses.CurrentFormatVersion`), alte Einträge werden verworfen.

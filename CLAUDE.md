@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-26, zuletzt released 3.50.2 (Historie: `CHANGELOG.md`).
+> Release-Stand und Historie: die Tags `vX.Y.Z` und `CHANGELOG.md`.
 
 ## Wo steht was
 
@@ -67,13 +67,13 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
   Oracle/ Query/ (SqlEditor/, Search/) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/ Ddl/
-  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ ClrModel/ (Host/ CodeGen/ Usage/) – Unterordner ohne eigenen Namespace
+  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ Relations/ ClrModel/ (Host/ CodeGen/ Usage/) – Unterordner ohne eigenen Namespace
 src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/, Components/ (Ordner =
                             Namespace), State/ (Namespace `UI.State`), wwwroot/ (css, js als ES-Module, lib/)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 src/FerretSharp.AppTrace/   an eine laufende App anhängen (EventPipe, ADR 0023), plattformneutral
 src/FerretSharp.App/        net10.0-windows10.0.19041.0 – schlanker WPF-Host (Generic Host, Serilog, Host-Dienste)
-tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (Testcontainers), Stand-ins
+tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (Testcontainers), js/ (node:test), Stand-ins
                             FakeModelHost, FakeEfApp, FakeEfModel; Shared/
 samples/                    Beispielmodell (DbContext + Entities) zur Beispiel-DB
 pages/                      Weiterleitungsseite für Links auf GitHub Pages (ADR 0026)

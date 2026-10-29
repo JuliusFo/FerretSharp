@@ -65,13 +65,13 @@ Review-Lauf über den Branch, zehn Funde, alle behoben:
 - **Links** lassen die Ansicht „Verwendung“ weg wie die Datenansicht: Ein älteres FerretSharp lehnte den ganzen Link wegen der unbekannten Ansicht ab.
 - **Dialog „Arbeits-Klon“** schließt nicht mehr bei Klick daneben (`.claude/rules/ui.md`: nur reine Anzeige-Dialoge).
 
-## Nachtrag: Fremdschlüssel über Navigations (2026-10-20, `fix/fk-usage-via-navigation`, 3.43.1)
+## Nachtrag: Fremdschlüssel über Navigations (2026-10-20, `fix/fk-usage-via-navigation`, 3.44.0)
 Gefunden vom Nutzer im eigenen Test: Eine FK-Spalte, die der Code nur über die Navigation nutzt (`virtual Kunde` statt `KundeId`), zeigte in „Verwendung“ nur die Konfiguration. Die Markierung „ungenutzt“ zählte die Navigations schon (`UsesCountingFor`), die Liste und der Designer nicht – beide widersprachen sich.
 - **Spalte:** `CodeUsageIndex.ForColumn` liefert die Verwendungen der Property und die ihrer Navigations, auch der Gegenseite (`Kunde.Auftraege`); `IsUnused` baut darauf, damit Markierung und Liste nicht mehr auseinanderlaufen. `CodeUsage.Navigation` nennt die Navigation (`Auftrag.Kunde`), die Ansicht zeigt „über Navigation …“ gemischt mit den direkten Verwendungen nach Datei und Zeile, gezählt wie diese (Entscheidung des Nutzers: gemischt, Gegenseite mit). Ein Schatten-FK hat nur diese Verwendungen.
 - **Abfragen (Entscheidung des Nutzers: gleich mitbauen):** `CodeUsageIndex.NavigationsTo` – Navigations, die Zeilen der Tabelle laden (`auftrag.Kunde` für `KUNDEN`, `kunde.Auftraege` für `AUFTRAEGE`), als eigener Block „Über Navigations“ unter den Abfragen, im Zähler des Unter-Tabs mitgezählt (ohne Tests und Mapping).
 - **Designer:** Beim Löschen einer FK-Spalte stehen die Navigations eigens in der Warnung: Über sie bricht der Build nicht, ihre Abfragen scheitern zur Laufzeit. Umbenennen bleibt bei einem Text (das Mapping muss mitgehen).
 - „Namen kopieren“ kopiert bei einer Verwendung über eine Navigation deren Namen (`Auftrag.Kunde`).
-- Version: Patch 3.43.1 (Entscheidung des Nutzers), obwohl der Block unter „Abfragen“ neu ist.
+- Version: als Patch 3.43.1 geplant (Entscheidung des Nutzers), erschienen mit 3.44.0 (Review 3.54.0, D6).
 
 ## Nachtrag: Filter Lesen/Schreiben (2026-10-20, `feat/usage-read-write-filter`)
 Wunsch des Nutzers: in „Verwendung“ Lese- und Schreibzugriffe filtern. Entscheidung des Nutzers: Variante A (Chips plus getrennte Zählspalten) und `ExecuteUpdate` als Schreiben erkennen.

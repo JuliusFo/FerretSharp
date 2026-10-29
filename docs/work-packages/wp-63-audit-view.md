@@ -1,4 +1,4 @@
-# WP-63 Audit-Tabellen lesen wie ihre Basistabelle
+# WP-63 Audit-Tabellen lesen wie ihre Basistabelle → Release 3.52.0
 
 Branch `wp/63-audit-view`, begonnen am 2026-10-27. ADR 0036. Baut auf WP-26 (Vorlage, Zuordnung über die Namensregel) und WP-51 (Vorlage je Verbindung) auf; die Hervorhebung folgt dem Muster der Anzeigespalten (WP-31).
 
