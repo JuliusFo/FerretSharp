@@ -92,6 +92,7 @@ public class ReadOnlyTests
     [InlineData("COMMENT ON COLUMN t.c IS 'a;b'")]
     [InlineData("CREATE OR REPLACE VIEW v AS SELECT * FROM t")]
     [InlineData("CREATE INDEX t_c ON t (c);")]
+    [InlineData("ALTER DATABASE LINK remote CONNECT TO app IDENTIFIED BY geheim")] // review 3.54.0, A13: a link, not the database
     [InlineData("GRANT SELECT ON t TO x")]
     [InlineData("ALTER TRIGGER t_bi DISABLE")]
     [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t BEGIN NULL; END;")] // WP-26, ADR 0021

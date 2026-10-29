@@ -9,13 +9,18 @@ public enum SqlStatementKind
     Delete,
     Merge,
 
-    /// <summary>CREATE, ALTER (except SESSION/SYSTEM), DROP, GRANT … – commits implicitly (WP-22: runs without an open transaction).</summary>
+    /// <summary>
+    /// CREATE, ALTER (except SESSION, SYSTEM, DATABASE without LINK, PLUGGABLE DATABASE), DROP, GRANT … – commits implicitly
+    /// (WP-22: runs without an open transaction).
+    /// </summary>
     Ddl,
 
     /// <summary>
     /// DDL that deletes or overwrites rows without a way back – never run (decision of the user, WP-22): TRUNCATE, and since
     /// review 3.31.0 (A9) <c>ALTER TABLE … TRUNCATE/DROP [SUB]PARTITION</c>, <c>FLASHBACK TABLE … TO</c> a time, SCN or
-    /// restore point (not <c>TO BEFORE DROP</c>, which brings a dropped table back) and <c>PURGE</c>.
+    /// restore point (not <c>TO BEFORE DROP</c>, which brings a dropped table back) and <c>PURGE</c>; since review 3.40.0
+    /// <c>DROP TABLE … PURGE</c> and <c>DROP USER … CASCADE</c>, since review 3.44.0 <c>DROP TABLESPACE/CLUSTER/PLUGGABLE
+    /// DATABASE … INCLUDING …</c>.
     /// </summary>
     Truncate,
 
@@ -36,7 +41,7 @@ public enum SqlStatementKind
     /// <summary>COMMIT, ROLLBACK, SAVEPOINT, SET TRANSACTION.</summary>
     TransactionControl,
 
-    /// <summary>ALTER SESSION, ALTER SYSTEM.</summary>
+    /// <summary>ALTER SESSION, ALTER SYSTEM, ALTER DATABASE (not LINK), ALTER PLUGGABLE DATABASE.</summary>
     SessionControl,
 
     /// <summary>LOCK TABLE.</summary>
@@ -92,8 +97,10 @@ public static class SqlClassifier
             "UPDATE" => SqlStatementKind.Update,
             "DELETE" => SqlStatementKind.Delete,
             "MERGE" => SqlStatementKind.Merge,
-            // ALTER DATABASE / PLUGGABLE DATABASE (CLOSE IMMEDIATE …) like ALTER SYSTEM (review 3.44.0, A14, decision of the user).
-            "ALTER" when second is "SESSION" or "SYSTEM" or "DATABASE" or "PLUGGABLE" => SqlStatementKind.SessionControl,
+            // ALTER DATABASE / PLUGGABLE DATABASE (CLOSE IMMEDIATE …) like ALTER SYSTEM (review 3.44.0, A14, decision of the user);
+            // ALTER DATABASE LINK is DDL of a link like ALTER PUBLIC DATABASE LINK (review 3.54.0, A13, decision of the user).
+            "ALTER" when second is "SESSION" or "SYSTEM" or "PLUGGABLE"
+                || (second == "DATABASE" && !(tokens.Count > 2 && tokens[2].IsWord("LINK"))) => SqlStatementKind.SessionControl,
             "TRUNCATE" or "PURGE" => SqlStatementKind.Truncate,
             "ALTER" when second == "TABLE" && DropsPartition(tokens) => SqlStatementKind.Truncate,
             "FLASHBACK" when !Follows(tokens, "TO", "BEFORE", "DROP") => SqlStatementKind.Truncate,

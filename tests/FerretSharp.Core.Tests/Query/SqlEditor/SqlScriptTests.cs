@@ -411,6 +411,10 @@ public sealed class SqlScriptTests
     [InlineData("DROP PLUGGABLE DATABASE pdb1 KEEP DATAFILES", SqlStatementKind.Ddl)]
     [InlineData("ALTER DATABASE CLOSE", SqlStatementKind.SessionControl)]
     [InlineData("ALTER PLUGGABLE DATABASE pdb1 CLOSE IMMEDIATE", SqlStatementKind.SessionControl)]
+    // A link's DDL like ALTER PUBLIC DATABASE LINK (review 3.54.0, A13, decision of the user).
+    [InlineData("ALTER DATABASE LINK remote CONNECT TO app IDENTIFIED BY geheim", SqlStatementKind.Ddl)]
+    [InlineData("ALTER PUBLIC DATABASE LINK remote CONNECT TO app IDENTIFIED BY geheim", SqlStatementKind.Ddl)]
+    [InlineData("ALTER DATABASE OPEN READ ONLY", SqlStatementKind.SessionControl)]
     [InlineData("DROP TABLE t", SqlStatementKind.Ddl)] // the recycle bin keeps it (FLASHBACK … TO BEFORE DROP)
     [InlineData("DROP TABLE t CASCADE CONSTRAINTS", SqlStatementKind.Ddl)]
     [InlineData("DROP USER app", SqlStatementKind.Ddl)] // fails if the user owns objects
