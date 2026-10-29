@@ -43,7 +43,7 @@
 <QuickBar>
     <QuickAction Icon="Icons.Connect" Label="@(Hub.Find(Profile.Id) is null ? ConnectionViewText.ConnectionMenu_Connect : ConnectionViewText.ConnectionMenu_Show)"
                  Title="@(Shortcuts.ConnectionKey(Profile.Id) is { } k ? TextFormat.Format(ConnectionViewText.ConnectionMenu_ConnectKey, k) : null)"
-                 Active="true" OnClick="() => RunAsync(() => Shell.Connect(Profile))" />
+                 Primary="true" OnClick="() => RunAsync(() => Shell.Connect(Profile))" />
     <QuickAction Icon="Icons.Edit" Label="@ConnectionViewText.Connection_Edit" OnClick="() => RunAsync(() => Shell.EditConnection(Profile))" />
     <QuickAction Icon="Icons.Duplicate" Label="@ConnectionViewText.ConnectionMenu_Duplicate" OnClick="() => RunAsync(() => Shell.DuplicateConnection(Profile))" />
     <QuickAction Icon="Icons.Copy" Label="@ConnectionViewText.ConnectionMenu_CopyAddress" Title="@Profile.Address.Display" OnClick="CopyAddressAsync" />

@@ -33,6 +33,7 @@
   --grid-range-border: var(--accent);
   /* States and hints (A50): text/markers as tokens, their light fills as color-mix of them, so dark mode follows. */
   --warn: #c07a00;            /* warnings in text, borders */
+  --warn-text: #8a5600;       /* text on a warn fill: 5.3:1 on 14 % (review 3.54.0, A28; --warn there 3.0:1) */
   --pending: #d4a106;         /* marker of a pending (unwritten) value */
   --yellow: #eab308;          /* fill of pending values, primary keys, advice */
   --key: #b7791f;             /* text of a primary key badge */
@@ -75,6 +76,7 @@
     --grid-range: color-mix(in srgb, var(--accent) 20%, transparent);
     --grid-range-border: var(--accent);
     --warn: #e8a33c;
+  --warn-text: #e8a33c;
     --pending: #e3b341;
     --key: #e0b04a;
     --green: #3cc47a;
@@ -552,7 +554,7 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 .fs-badge.unused { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
 .fs-badge.test, .fs-badge.mapping { background: var(--surface-2); color: var(--faint); font-weight: 600; }
 /* A frame tells it from "unused" in the same column (decision of the user); inset, so the row keeps its height. */
-.fs-badge.no-index { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+.fs-badge.no-index { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn-text); box-shadow: inset 0 0 0 1px var(--warn); }
 .usage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 4px 0 12px; }
 .usage-tabs .seg-count { margin-left: 6px; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .usage-tabs .seg-count.unused { color: var(--key); }
@@ -1655,7 +1657,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-summary { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .summary-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 .summary-chip.none { color: var(--faint); }
-.summary-chip.warn { border-color: transparent; background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
+.summary-chip.warn { border-color: transparent; background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn-text); }
 .summary-chip.bad { border-color: transparent; background: var(--danger-weak); color: var(--danger); }
 .summary-chip .icon { width: 12px; height: 12px; }
 .designer-summary:hover .summary-chip { border-color: var(--border-strong); }

@@ -874,6 +874,9 @@ export function create(elementId, dotnet, columns, options) {
       marked = new Set();
       markColumn(colId, false);
     },
+    // The grid goes while cells are dragged (the tab closed by a key): the document listeners and the scrolling would call
+    // the destroyed grid until the next mouse event (review 3.54.0, A26).
+    endDrag: () => onDragEnd(),
   });
 
   // Ctrl+A selects all rows, Esc clears the selection (only if there is one: otherwise Esc goes on). Space selects or
@@ -1577,6 +1580,7 @@ export function setEditable(elementId, enabled) {
 }
 
 export function destroy(elementId) {
+  focusControls.get(elementId)?.endDrag();
   grids.get(elementId)?.destroy();
   grids.delete(elementId);
   focusControls.delete(elementId);
