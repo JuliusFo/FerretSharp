@@ -1293,4 +1293,7 @@
   <data name="Grid_AuditChangedTitle" xml:space="preserve">
     <value>Geändert gegenüber der Vorversion</value>
   </data>
+  <data name="Grid_AuditChangesSlow" xml:space="preserve">
+    <value>die Abfrage dauerte länger als {0} s – ein Index in der Audit-Tabelle auf den Schlüsselspalten der Basistabelle würde helfen</value>
+  </data>
 </root>

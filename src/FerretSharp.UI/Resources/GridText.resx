@@ -1646,4 +1646,8 @@
     <value>Changed against the version before</value>
     <comment>Tooltip line of a highlighted cell in an audit table (WP-63)</comment>
   </data>
+  <data name="Grid_AuditChangesSlow" xml:space="preserve">
+    <value>the query took longer than {0} s – an index in the audit table on the key columns of the base table would help</value>
+    <comment>Reason for Grid_AuditChangesOff; {0}: seconds</comment>
+  </data>
 </root>

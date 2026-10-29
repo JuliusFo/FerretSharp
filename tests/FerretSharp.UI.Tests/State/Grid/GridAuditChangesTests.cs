@@ -4,6 +4,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
+using Microsoft.Extensions.Time.Testing;
 
 namespace FerretSharp.UI.Tests.State;
 
@@ -23,14 +24,17 @@ public sealed class GridAuditChangesTests
     private readonly FakeGrid _grid = new();
     private readonly Queue<TaskCompletionSource<DbResult<IReadOnlyList<AuditRowChange>>>> _answers = new();
     private readonly List<IReadOnlyList<RowData>> _asked = [];
+    private readonly List<CancellationToken> _tokens = [];
+    private readonly FakeTimeProvider _time = new();
 
-    private GridAuditChanges Create(AuditView? view = null) => new(_grid, view ?? View, (_, rows, _) =>
+    private GridAuditChanges Create(AuditView? view = null) => new(_grid, view ?? View, (_, rows, token) =>
     {
         _asked.Add(rows);
+        _tokens.Add(token);
         var answer = new TaskCompletionSource<DbResult<IReadOnlyList<AuditRowChange>>>();
         _answers.Enqueue(answer);
         return answer.Task;
-    });
+    }, _time);
 
     private static DbResult<IReadOnlyList<AuditRowChange>> Changes(params AuditRowChange[] changes) => new(changes, null, false);
 
@@ -81,6 +85,39 @@ public sealed class GridAuditChangesTests
         Assert.Single(_asked);
         Assert.Empty(_grid.Redrawn);
         Assert.Null(audit.MarksOf(new RowKey.RowId("A"), null));
+    }
+
+    /// <summary>Review 3.54.0, A4: the running query held the session, and the grid's new read waited behind it.</summary>
+    [Fact]
+    public async Task Reading_anew_cancels_the_running_query()
+    {
+        var audit = Create();
+        audit.Queue([Row("A", "U", 1m)]);
+
+        audit.Clear();
+
+        await Task.Delay(Timeout.Infinite, _tokens[0]).ContinueWith(_ => { }, TestContext.Current.CancellationToken);
+        Assert.True(_tokens[0].IsCancellationRequested);
+        await AnswerAsync(new(null, null, true));
+        Assert.Single(_asked); // the cancelled block belonged to the old read: not asked again
+        Assert.True(audit.Compares);
+    }
+
+    /// <summary>Review 3.54.0, A4 (decision of the user): a query longer than 10 s switches the highlighting off for the tab.</summary>
+    [Fact]
+    public async Task A_query_beyond_the_time_limit_switches_the_highlighting_off()
+    {
+        var audit = Create();
+        audit.Queue([Row("A", "U", 1m)]);
+        audit.Queue([Row("B", "U", 2m)]);
+
+        _time.Advance(GridAuditChanges.TimeLimit);
+        Assert.True(_tokens[0].IsCancellationRequested);
+        await AnswerAsync(new(null, null, true));
+
+        Assert.Single(_asked);
+        Assert.False(audit.Compares);
+        Assert.Contains("10 s", Assert.Single(_grid.Notices));
     }
 
     [Fact]
