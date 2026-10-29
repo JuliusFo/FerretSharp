@@ -53,7 +53,7 @@ public sealed class ConnectionGroupState(string filePath)
     }
 
     /// <returns>False if the file could not be written: the change applies all the same, until quitting (as work clones).</returns>
-    public Task<bool> SetCollapsedAsync(string? group, bool collapsed, CancellationToken cancellationToken) =>
+    internal Task<bool> SetCollapsedAsync(string? group, bool collapsed, CancellationToken cancellationToken) =>
         UpdateAsync(state => state with { Collapsed = Collapse(state.Collapsed, group, collapsed) }, cancellationToken);
 
     /// <summary>Collapses an open group or opens a collapsed one, decided on the state when it is its turn.</summary>
@@ -68,7 +68,7 @@ public sealed class ConnectionGroupState(string filePath)
     /// stays there. Groups not in it lose their place.
     /// </summary>
     /// <inheritdoc cref="SetCollapsedAsync" path="/returns"/>
-    public Task<bool> SetOrderAsync(IReadOnlyList<string> order, CancellationToken cancellationToken) =>
+    internal Task<bool> SetOrderAsync(IReadOnlyList<string> order, CancellationToken cancellationToken) =>
         SetOrderAsync(_ => order, cancellationToken);
 
     /// <summary>

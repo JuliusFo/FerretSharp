@@ -28,7 +28,7 @@ public sealed record TraversalPlan(IReadOnlyList<IReadOnlyList<ForeignKeyInfo>> 
     /// <summary>Levels of children below the start rows (decision of the user: 1 by default, up to 3).</summary>
     public const int MaxDepth = 3;
 
-    public static readonly TraversalPlan ParentsOnly = new([], new HashSet<string>());
+    internal static readonly TraversalPlan ParentsOnly = new([], new HashSet<string>());
 
     /// <summary>The children of the start table one level deep along every relationship (the default).</summary>
     public static TraversalPlan Default(RelationGraph graph, TableRef start) =>

@@ -794,28 +794,9 @@ else
         }
     </div>;
 
-    private static string Kind(ConstraintType type) => type switch
-    {
-        ConstraintType.PrimaryKey => "PK",
-        ConstraintType.Unique => "UK",
-        ConstraintType.ForeignKey => "FK",
-        _ => "CHECK",
-    };
+    private static string Kind(ConstraintType type) => ConstraintTypes.Short(type);
 
-    private static string BadgeCss(ConstraintType type) => type switch
-    {
-        ConstraintType.PrimaryKey => "pk",
-        ConstraintType.Unique => "uk",
-        ConstraintType.ForeignKey => "fk",
-        _ => "",
-    };
-
-    private static string Describe(ConstraintInfo constraint) => constraint.Type switch
-    {
-        ConstraintType.Check => constraint.Condition ?? "",
-        ConstraintType.ForeignKey => $"({string.Join(", ", constraint.Columns)}) → {constraint.References?.Name} ({string.Join(", ", constraint.ReferencedColumns)})",
-        _ => $"({string.Join(", ", constraint.Columns)})",
-    };
+    private static string BadgeCss(ConstraintType type) => ConstraintBadges.Css(type);
 
     public void Dispose()
     {

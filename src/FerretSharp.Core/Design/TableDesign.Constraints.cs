@@ -397,13 +397,7 @@ public static partial class TableDesign
 
         /// <summary>The constraint's name, or its kind and columns while it has none.</summary>
         private static string Label(ConstraintDraft constraint) =>
-            constraint.Name.Length > 0 ? constraint.Name : $"{constraint.Type switch
-            {
-                ConstraintType.PrimaryKey => "PRIMARY KEY",
-                ConstraintType.Unique => "UNIQUE",
-                ConstraintType.ForeignKey => "FOREIGN KEY",
-                _ => "CHECK",
-            }} ({string.Join(", ", constraint.Columns)})";
+            constraint.Name.Length > 0 ? constraint.Name : $"{ConstraintTypes.Keyword(constraint.Type) ?? "CHECK"} ({string.Join(", ", constraint.Columns)})";
 
         private static bool SameColumns(IReadOnlyList<string> a, IReadOnlyList<string> b) =>
             a.Count == b.Count && a.ToHashSet(StringComparer.Ordinal).SetEquals(b);

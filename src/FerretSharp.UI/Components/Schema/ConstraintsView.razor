@@ -136,24 +136,9 @@
         _ => SchemaViewText.Constraints_RowKeyNone,
     };
 
-    private static string TypeLabel(ConstraintType type) => type switch
-    {
-        ConstraintType.PrimaryKey => "PRIMARY KEY",
-        ConstraintType.Unique => "UNIQUE",
-        ConstraintType.ForeignKey => "FOREIGN KEY",
-        ConstraintType.Check => "CHECK",
-        ConstraintType.ViewCheckOption => "CHECK OPTION",
-        ConstraintType.ViewReadOnly => "READ ONLY",
-        _ => SchemaViewText.Constraints_TypeOther,
-    };
+    private static string TypeLabel(ConstraintType type) => ConstraintTypes.Keyword(type) ?? SchemaViewText.Constraints_TypeOther;
 
-    private static string TypeClass(ConstraintType type) => type switch
-    {
-        ConstraintType.PrimaryKey => "pk",
-        ConstraintType.Unique => "uk",
-        ConstraintType.ForeignKey => "fk",
-        _ => "",
-    };
+    private static string TypeClass(ConstraintType type) => ConstraintBadges.Css(type);
 
     private static string State(ConstraintInfo c) => string.Join(" · ", new[]
     {

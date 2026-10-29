@@ -34,6 +34,31 @@ public enum ConstraintType
     Other,
 }
 
+/// <summary>How a kind of constraint is named – one rule for the designer, the constraints view and the plan (review 3.54.0, B5).</summary>
+public static class ConstraintTypes
+{
+    /// <summary>As in DDL (<c>PRIMARY KEY</c>, <c>CHECK OPTION</c> …); null for <see cref="ConstraintType.Other"/>.</summary>
+    public static string? Keyword(ConstraintType type) => type switch
+    {
+        ConstraintType.PrimaryKey => "PRIMARY KEY",
+        ConstraintType.Unique => "UNIQUE",
+        ConstraintType.ForeignKey => "FOREIGN KEY",
+        ConstraintType.Check => "CHECK",
+        ConstraintType.ViewCheckOption => "CHECK OPTION",
+        ConstraintType.ViewReadOnly => "READ ONLY",
+        _ => null,
+    };
+
+    /// <summary>The badge of a key (<c>PK</c>, <c>UK</c>, <c>FK</c>); <c>CHECK</c> for the rest.</summary>
+    public static string Short(ConstraintType type) => type switch
+    {
+        ConstraintType.PrimaryKey => "PK",
+        ConstraintType.Unique => "UK",
+        ConstraintType.ForeignKey => "FK",
+        _ => "CHECK",
+    };
+}
+
 /// <param name="Columns">Constrained columns in key order; empty for most check constraints on several columns.</param>
 /// <param name="Condition">Check condition (<c>SEARCH_CONDITION</c>); null for other types.</param>
 /// <param name="References">Referenced table of a foreign key.</param>
