@@ -77,6 +77,13 @@ Vor dem Merge, Stand mit `main` (alle anderen offenen Branches gemerged, auch da
 - **Aufgefallen:** Die gemeinsame Frage von „Disconnect all“ listete beide Einträge als „Workspace 1 – open transaction“, ohne die Verbindung zu nennen. Entscheidung des Nutzers: „Ja, ergänzen“ – `ConnectionLabel.WorkspaceNames` stellt die Verbindung (mit Gruppe wie `ConnectionLabel.Of`) voran, sobald die Liste mehrere Verbindungen umfasst; mit einer Verbindung bleiben die Namen kurz. Gilt für jede Frage des `LeaveDialog`, also auch beim Beenden. Tests in `ConnectionLabelTests`; in der App nachgeprüft: „Team Neu › Alpha › Workspace 1“, „Team Neu › Beta › Workspace 1“.
 - **Weiter nicht mit echter Eingabe geprüft:** Ziehen (Gruppenkopf, Verbindung), Doppelklick und Rechtsklick mit echter Maus – bitte von Hand.
 
+## Nachtrag: Ziehen mit echter Maus (2026-10-29)
+Vom Nutzer nach dem Merge gemeldet: Gruppenköpfe ließen sich ziehen (Linie sichtbar), aber nichts wurde umsortiert. Nachgestellt in eigener Instanz (`--data-dir`, eigener WebView2-Ordner, erfundene Verbindungen in vier Gruppen) mit `SendInput` (Stufe 3, kam diesmal an) und Ereignis-Mitschnitt per CDP:
+- **Ursache:** Mit echter Maus kam `lostpointercapture` vor `pointerup`; `dragToDrop` endete beim Verlust des Capture ohne Ziel. `MainWindow.HoldMouseWhileDragging` (WP-58) gab die WPF-Maus schon in `PreviewMouseLeftButtonUp` frei, also bevor das `WebView2CompositionControl` das Loslassen an Chromium schickt – Chromium verlor dabei den Pointer-Capture der Seite. Per CDP (am Host vorbei) kam `pointerup` zuerst, deshalb fiel es im E2E nicht auf.
+- **Behoben:** Die Maus wird erst nach dem Weiterreichen freigegeben (Handler für `MouseUp` mit `handledEventsToo`, läuft nach dem Klassen-Handler `OnMouseUp` des Steuerelements).
+- **Geprüft mit echter Eingabe:** Gruppenkopf vor eine andere Gruppe gezogen (Reihenfolge in Seite und `connection-groups.json`), Verbindung aus „Ohne Gruppe“ in eine Gruppe gezogen, einfacher Klick auf einen Gruppenkopf klappt weiter zu. `pointerup` kommt jetzt vor `lostpointercapture`. Log ohne `[ERR]`/`[WRN]`.
+- **Nicht geprüft:** Ziehen über das Fenster hinaus beim Markieren im Grid (WP-58, braucht eine DB) – der Halt beginnt unverändert beim Drücken, nur das Freigeben kommt einen Schritt später.
+
 ## Offen
 - Tastenkürzel systemweit (Backlog).
 - Die Taste einer Verbindung in einem „@“-Modus der Schnellsuche (Backlog, Fortsetzung von WP-38).
