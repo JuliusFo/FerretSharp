@@ -188,9 +188,8 @@ public sealed class RowTraversal(
         var targetIndexes = targetColumns.Select(details.IndexOf).ToArray();
         var trim = ownIndexes.Select(i => own.Columns[i]).Concat(targetIndexes.Select(i => details.Columns[i])).Any(c => OracleTypes.IsFixedChar(c.DataType));
 
-        // Each row's key on this side, as text to match what comes back.
-        var fromRows = new Dictionary<string, List<RowData>>(StringComparer.Ordinal);
-        var keys = new List<IReadOnlyList<object>>();
+        // Each row's key on this side, to match what comes back.
+        var fromRows = new KeyGroups(trim);
         foreach (var row in rows)
         {
             var values = ownIndexes.Select(i => row.Values[i]).ToArray();
@@ -205,30 +204,22 @@ public sealed class RowTraversal(
                 return [];
             }
 
-            var bound = values.Select((v, i) => trim && v is string s ? s.TrimEnd(' ') : v!).ToArray();
-            var text = KeyText(bound, trim);
-            if (!fromRows.TryGetValue(text, out var list))
-            {
-                fromRows[text] = list = [];
-                keys.Add(bound);
-            }
-
-            list.Add(row);
+            fromRows.Add(values!, row);
         }
 
         // A parent the graph holds by the primary key the relationship points to needs no read.
         var known = graph.Of(target);
-        var toRead = keys;
+        var toRead = fromRows.Keys.ToList();
         if (parents && known is not null && QueryBuilder.RowKeyOf(details) == RowKeyKind.PrimaryKey
             && details.PrimaryKey.Order(StringComparer.Ordinal).SequenceEqual(targetColumns.Order(StringComparer.Ordinal), StringComparer.Ordinal))
         {
             toRead = [];
-            foreach (var key in keys)
+            foreach (var key in fromRows.Keys)
             {
                 var pk = new RowKey.PrimaryKey([.. details.PrimaryKey.Select(name => key[targetColumns.ToList().IndexOf(name)])]);
                 if (known.Find(pk) is { } parent)
                 {
-                    LinkAll(graph, relation, parents, fromRows[KeyText(key, trim)], parent);
+                    LinkAll(graph, relation, parents, fromRows.RowsOf(key), parent);
                 }
                 else
                 {
@@ -261,8 +252,7 @@ public sealed class RowTraversal(
                 added.Add(row);
             }
 
-            var text = KeyText([.. targetIndexes.Select(i => trim && row.Values[i] is string s ? s.TrimEnd(' ') : row.Values[i]!)], trim);
-            if (fromRows.TryGetValue(text, out var matching))
+            if (fromRows.RowsOf(targetIndexes.Select(i => row.Values[i])) is { Count: > 0 } matching)
             {
                 LinkAll(graph, relation, parents, matching, graph.Of(target)!.Find(row.Key) ?? row);
             }
