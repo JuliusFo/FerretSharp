@@ -103,22 +103,16 @@ public class ColumnValuesTests
         Assert.Equal(["2 Zeilen ohne Wert (NULL) fehlen in der Liste."], text.Warnings);
     }
 
-    [Fact]
-    public void Distinct_lines_read_with_select_distinct_name_their_nulls_without_a_number()
+    /// <summary>Read with SELECT DISTINCT, the NULLs are named without a number (review 3.54.0, C14: two facts of the same shape).</summary>
+    [Theory]
+    [InlineData(ColumnValuesFormat.DistinctLines, "Zeilen ohne Wert (NULL) fehlen in der Liste.")]
+    [InlineData(ColumnValuesFormat.InList, "NULL-Werte stehen nicht in der Liste: IN findet NULL nie.")]
+    public void Nulls_collapsed_by_distinct_are_named_without_a_number(ColumnValuesFormat format, string warning)
     {
-        var copy = new ColumnValues(new ExportColumn("NAME", 0, Name), ColumnValuesFormat.DistinctLines) { NullsCollapsed = true };
+        var copy = new ColumnValues(new ExportColumn("NAME", 0, Name), format) { NullsCollapsed = true };
         copy.AddRange(["A", null]);
 
-        Assert.Equal(["Zeilen ohne Wert (NULL) fehlen in der Liste."], copy.Finish().Warnings);
-    }
-
-    [Fact]
-    public void Nulls_collapsed_by_distinct_are_named_without_a_number()
-    {
-        var copy = new ColumnValues(new ExportColumn("NAME", 0, Name), ColumnValuesFormat.InList) { NullsCollapsed = true };
-        copy.AddRange(["A", null]);
-
-        Assert.Equal(["NULL-Werte stehen nicht in der Liste: IN findet NULL nie."], copy.Finish().Warnings);
+        Assert.Equal([warning], copy.Finish().Warnings);
     }
 
     [Theory]

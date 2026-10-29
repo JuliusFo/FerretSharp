@@ -31,110 +31,59 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.False(File.Exists(_store.FilePath + ".tmp"));
     }
 
+    /// <summary>
+    /// A file written before a setting existed gives that setting its default – every setting at once (review 3.54.0, C13: one
+    /// test per setting before, ten of them, each new setting brought another).
+    /// </summary>
     [Fact]
-    public async Task Language_is_English_by_default_also_in_files_written_before_it_existed_and_round_trips()
+    public async Task An_old_file_gives_every_setting_it_does_not_name_its_default()
     {
         await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
-        Assert.Equal(UiLanguage.English, (await _store.LoadAsync(Ct)).Language);
 
-        await _store.SaveAsync(new AppSettings { Language = UiLanguage.German }, Ct);
-
-        Assert.Equal(UiLanguage.German, (await _store.LoadAsync(Ct)).Language);
-        Assert.Contains("\"language\": \"german\"", await File.ReadAllTextAsync(_store.FilePath, Ct), StringComparison.Ordinal);
+        Assert.Equal(AppSettings.Default with { Theme = ThemeMode.Dark }, await _store.LoadAsync(Ct));
     }
 
+    /// <summary>
+    /// Every setting comes back as saved: each one set away from its default (review 3.54.0, C13) – a new setting the file does
+    /// not keep fails here without a test of its own. Maps have their own tests below; a property of another type must get a
+    /// value here first.
+    /// </summary>
     [Fact]
-    public async Task Keep_alive_is_on_by_default_also_in_files_written_before_it_existed()
+    public async Task Every_setting_round_trips()
     {
-        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+        var changed = AppSettings.Default;
+        foreach (var property in Properties.Where(p => p.PropertyType != typeof(SettingsMap)))
+        {
+            var value = Changed(property.PropertyType, property.GetValue(AppSettings.Default));
+            changed = With(changed, property, value);
+        }
 
-        var settings = await _store.LoadAsync(Ct);
-
-        Assert.Equal(ThemeMode.Dark, settings.Theme);
-        Assert.True(settings.KeepAlive);
-    }
-
-    [Fact]
-    public async Task Ui_stall_diagnostics_are_off_by_default_and_round_trip()
-    {
-        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
-        Assert.False((await _store.LoadAsync(Ct)).DiagnoseUiStalls);
-
-        await _store.SaveAsync(new AppSettings { DiagnoseUiStalls = true }, Ct);
-
-        Assert.True((await _store.LoadAsync(Ct)).DiagnoseUiStalls);
-    }
-
-    [Fact]
-    public async Task Fk_counts_run_immediately_by_default_and_round_trip()
-    {
-        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
-        Assert.Equal(FkCountMode.Immediately, (await _store.LoadAsync(Ct)).FkCounts);
-
-        await _store.SaveAsync(new AppSettings { FkCounts = FkCountMode.OnHover }, Ct);
-
-        Assert.Equal(FkCountMode.OnHover, (await _store.LoadAsync(Ct)).FkCounts);
-    }
-
-    [Fact]
-    public async Task Header_lines_show_and_filter_sql_lists_columns_by_default_and_round_trip()
-    {
-        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+        await _store.SaveAsync(changed, Ct);
         var loaded = await _store.LoadAsync(Ct);
-        Assert.Equal((true, true, FilterSqlColumns.Listed), (loaded.ShowColumnTypes, loaded.ShowNotNull, loaded.FilterSql));
 
-        await _store.SaveAsync(new AppSettings { ShowColumnTypes = false, ShowNotNull = false, FilterSql = FilterSqlColumns.Star }, Ct);
-
-        loaded = await _store.LoadAsync(Ct);
-        Assert.Equal((false, false, FilterSqlColumns.Star), (loaded.ShowColumnTypes, loaded.ShowNotNull, loaded.FilterSql));
+        Assert.All(Properties, p => Assert.Equal(p.GetValue(changed), p.GetValue(loaded)));
+        Assert.Contains("\"language\": \"german\"", await File.ReadAllTextAsync(_store.FilePath, Ct), StringComparison.Ordinal); // enums by name
     }
 
-    [Fact]
-    public async Task Audit_sync_in_the_designer_is_on_by_default_also_in_files_written_before_it_existed_and_round_trips()
+    private static readonly System.Reflection.PropertyInfo[] Properties =
+        typeof(AppSettings).GetProperties().Where(p => p.CanWrite && p.GetIndexParameters().Length == 0).ToArray();
+
+    /// <summary>A value other than <paramref name="current"/>, valid for the setting.</summary>
+    private static object? Changed(Type type, object? current) => type switch
     {
-        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
-        Assert.True((await _store.LoadAsync(Ct)).SyncAuditInDesigner);
+        _ when type == typeof(bool) => !(bool)current!,
+        _ when type == typeof(int) => (int)current! + 1,
+        _ when type == typeof(int?) => (int?)current is { } n ? n + 1 : 520,
+        _ when type == typeof(string) => current is null ? "C:\\team\\file.json" : null,
+        _ when type.IsEnum => Enum.GetValues(type).Cast<object>().First(v => !v.Equals(current)),
+        _ => throw new InvalidOperationException($"No changed value for a setting of type {type.Name}: add one here."),
+    };
 
-        await _store.SaveAsync(new AppSettings { SyncAuditInDesigner = false }, Ct);
-
-        Assert.False((await _store.LoadAsync(Ct)).SyncAuditInDesigner);
-    }
-
-    [Fact]
-    public async Task Creating_audit_tables_is_on_by_default_also_in_files_written_before_it_existed_and_round_trips()
+    private static AppSettings With(AppSettings settings, System.Reflection.PropertyInfo property, object? value)
     {
-        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
-        Assert.True((await _store.LoadAsync(Ct)).CreateAuditTables);
-
-        await _store.SaveAsync(new AppSettings { CreateAuditTables = false }, Ct);
-
-        Assert.False((await _store.LoadAsync(Ct)).CreateAuditTables);
-    }
-
-    [Fact]
-    public async Task Update_check_is_on_by_default_also_in_files_written_before_it_existed_and_round_trips()
-    {
-        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
-        Assert.True((await _store.LoadAsync(Ct)).CheckForUpdates);
-
-        await _store.SaveAsync(new AppSettings { CheckForUpdates = false }, Ct);
-
-        Assert.False((await _store.LoadAsync(Ct)).CheckForUpdates);
-    }
-
-    [Fact]
-    public async Task Change_overview_is_closed_with_default_width_by_default_and_round_trips()
-    {
-        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
-        var loaded = await _store.LoadAsync(Ct);
-        Assert.False(loaded.ChangesPanelOpen);
-        Assert.Null(loaded.ChangesPanelWidth);
-
-        await _store.SaveAsync(new AppSettings { ChangesPanelOpen = true, ChangesPanelWidth = 520 }, Ct);
-
-        loaded = await _store.LoadAsync(Ct);
-        Assert.True(loaded.ChangesPanelOpen);
-        Assert.Equal(520, loaded.ChangesPanelWidth);
+        var copy = settings with { };
+        property.SetValue(copy, value);
+        return copy;
     }
 
     [Fact]

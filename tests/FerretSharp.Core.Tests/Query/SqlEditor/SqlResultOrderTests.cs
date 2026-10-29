@@ -32,47 +32,22 @@ public sealed class SqlResultOrderTests
             Sorted("SELECT id, name FROM t WHERE id > :p", SameNames, new(1, true), new(0, false)));
     }
 
-    /// <summary>The query's own order breaks ties: rows of the same city stay in it, also from page to page.</summary>
-    [Fact]
-    public void The_new_keys_go_in_front_of_the_query_s_own_order()
-    {
-        Assert.Equal("SELECT id, name, city FROM t ORDER BY 3, name DESC NULLS LAST",
-            Sorted("SELECT id, name, city FROM t ORDER BY name DESC NULLS LAST", SameNames, new ResultSort(2, false)));
-    }
-
-    [Fact]
-    public void Orders_inside_parentheses_are_not_the_query_s()
-    {
-        const string sql = "WITH x AS (SELECT a FROM t ORDER BY a) SELECT a, ROW_NUMBER() OVER (ORDER BY a) rn, (SELECT MAX(b) FROM u) m FROM x";
-
-        Assert.Equal(sql + "\nORDER BY 1", Sorted(sql, SameNames, new ResultSort(0, false)));
-    }
-
-    [Fact]
-    public void A_line_comment_at_the_end_does_not_swallow_the_order()
-    {
-        Assert.Equal("SELECT id FROM t -- all of them\nORDER BY 1 DESC", Sorted("SELECT id FROM t -- all of them", SameNames, new ResultSort(0, true)));
-    }
-
-    [Fact]
-    public void Order_by_in_a_comment_or_a_literal_is_not_the_query_s()
-    {
-        Assert.Equal("SELECT 'ORDER BY x' t /* ORDER BY y */ FROM dual\nORDER BY 1",
-            Sorted("SELECT 'ORDER BY x' t /* ORDER BY y */ FROM dual", SameNames, new ResultSort(0, false)));
-    }
-
-    [Fact]
-    public void A_compound_query_is_sorted_as_a_whole()
-    {
-        Assert.Equal("SELECT a FROM t UNION ALL SELECT b FROM u\nORDER BY 1", Sorted("SELECT a FROM t UNION ALL SELECT b FROM u", SameNames, new ResultSort(0, false)));
-    }
-
-    /// <summary>ROWNUM limits before ORDER BY: the same rows, re-sorted.</summary>
-    [Fact]
-    public void A_rownum_limit_keeps_its_rows()
-    {
-        Assert.Equal("SELECT id FROM t WHERE ROWNUM <= 10\nORDER BY 1", Sorted("SELECT id FROM t WHERE ROWNUM <= 10", SameNames, new ResultSort(0, false)));
-    }
+    /// <summary>
+    /// One key in front of the query's own order (which breaks ties, also from page to page), or appended by position: orders
+    /// in parentheses, comments and literals are not the query's, a line comment at the end swallows nothing, a compound
+    /// query is sorted as a whole, ROWNUM limits before ORDER BY (the same rows, re-sorted). Review 3.54.0, C14: seven facts
+    /// of the same shape before.
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT id, name, city FROM t ORDER BY name DESC NULLS LAST", 2, false, "SELECT id, name, city FROM t ORDER BY 3, name DESC NULLS LAST")]
+    [InlineData("WITH x AS (SELECT a FROM t ORDER BY a) SELECT a, ROW_NUMBER() OVER (ORDER BY a) rn, (SELECT MAX(b) FROM u) m FROM x", 0, false,
+        "WITH x AS (SELECT a FROM t ORDER BY a) SELECT a, ROW_NUMBER() OVER (ORDER BY a) rn, (SELECT MAX(b) FROM u) m FROM x\nORDER BY 1")]
+    [InlineData("SELECT id FROM t -- all of them", 0, true, "SELECT id FROM t -- all of them\nORDER BY 1 DESC")]
+    [InlineData("SELECT 'ORDER BY x' t /* ORDER BY y */ FROM dual", 0, false, "SELECT 'ORDER BY x' t /* ORDER BY y */ FROM dual\nORDER BY 1")]
+    [InlineData("SELECT a FROM t UNION ALL SELECT b FROM u", 0, false, "SELECT a FROM t UNION ALL SELECT b FROM u\nORDER BY 1")]
+    [InlineData("SELECT id FROM t WHERE ROWNUM <= 10", 0, false, "SELECT id FROM t WHERE ROWNUM <= 10\nORDER BY 1")]
+    public void One_key_goes_in_front_of_the_query_s_own_order_or_after_the_query(string sql, int column, bool descending, string expected) =>
+        Assert.Equal(expected, Sorted(sql, SameNames, new ResultSort(column, descending)));
 
     /// <summary>The top 10 of the query's order, re-sorted – an order of its own would pick other rows.</summary>
     [Theory]
