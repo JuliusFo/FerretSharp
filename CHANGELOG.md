@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.54.0] - 2026-10-29
+
+Connection groups are managed from their menus and by dragging, connections get their own keys, and a hanging session open is tried again.
+
 ### Added
 - Settings › Audit tables › "Create audit tables" (on by default): switched off, FerretSharp keeps showing existing audit tables and bringing them up to date in the table designer, but never creates new ones – "Create audit…" above the columns disappears, and the audit box in the designer of a table without audit table or of a new table is locked. Where only the trigger is left and its audit table is missing, the line says creating is switched off instead of offering "Bring up to date".
 - The value picker of an enum column in the filter bar has a search field: it finds members by name, C# member and value, and a typed value that is no member of the C# enum (`1`, where the grid shows it red) can be picked as it is, to filter for rows the model does not know. With "in" Enter picks and keeps the list open; Esc clears the search, then closes the list.
