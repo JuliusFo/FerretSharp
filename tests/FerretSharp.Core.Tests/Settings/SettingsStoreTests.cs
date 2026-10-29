@@ -11,12 +11,22 @@ public sealed class SettingsStoreTests : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>
+    /// The defaults are decisions of the user, each held here (review of R8: C13 merged the tests that held them, and a
+    /// changed default no longer failed anything).
+    /// </summary>
     [Fact]
-    public async Task Missing_file_means_defaults()
+    public async Task A_missing_file_gives_the_decided_defaults()
     {
         var settings = await _store.LoadAsync(Ct);
 
-        Assert.Equal(ThemeMode.System, settings.Theme);
+        Assert.Equal(AppSettings.Default, settings);
+        Assert.Equal(
+            (ThemeMode.System, UiLanguage.English, KeepAlive: true, DiagnoseUiStalls: false, FkCountMode.Immediately, FilterSqlColumns.Listed),
+            (settings.Theme, settings.Language, settings.KeepAlive, settings.DiagnoseUiStalls, settings.FkCounts, settings.FilterSql));
+        Assert.Equal(
+            (ShowColumnTypes: true, ShowNotNull: true, SyncAuditInDesigner: true, CreateAuditTables: true, CheckForUpdates: true, ChangesPanelOpen: false, ChangesPanelWidth: (int?)null),
+            (settings.ShowColumnTypes, settings.ShowNotNull, settings.SyncAuditInDesigner, settings.CreateAuditTables, settings.CheckForUpdates, settings.ChangesPanelOpen, settings.ChangesPanelWidth));
     }
 
     [Theory]
