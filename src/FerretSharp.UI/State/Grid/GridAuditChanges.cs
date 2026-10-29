@@ -36,12 +36,15 @@ public sealed record AuditMarks(IReadOnlySet<int> Changed, AuditActionKind? Acti
 /// what was read. It keeps marks for about as many rows as the grid holds.
 /// </summary>
 /// <param name="view">What the template says about the audit table.</param>
-/// <param name="read">One read on the workspace's session (<see cref="IDataAccess.ReadAuditChangesAsync"/>).</param>
+/// <param name="read">
+/// One read on the workspace's session (<see cref="IDataAccess.ReadAuditChangesAsync"/>), calling the action when its
+/// statement gets the session.
+/// </param>
 /// <param name="time">The clock of the time limit; the system's by default.</param>
 public sealed class GridAuditChanges(
     IAuditChangesGrid grid,
     AuditView view,
-    Func<AuditVersions, IReadOnlyList<RowData>, CancellationToken, Task<DbResult<IReadOnlyList<AuditRowChange>>>> read,
+    Func<AuditVersions, IReadOnlyList<RowData>, Action, CancellationToken, Task<DbResult<IReadOnlyList<AuditRowChange>>>> read,
     TimeProvider? time = null) : IAsyncDisposable
 {
     /// <summary>Marks kept before those of rows the grid no longer holds are dropped: the grid's own limit.</summary>
@@ -125,13 +128,15 @@ public sealed class GridAuditChanges(
                     continue;
                 }
 
-                using var limit = new CancellationTokenSource(TimeLimit, _time);
-                using var running = CancellationTokenSource.CreateLinkedTokenSource(_cancel.Token, limit.Token);
+                // The limit counts from when the query has the session: waiting behind a long statement of the same
+                // workspace is no slow query (review of R8).
+                using var running = CancellationTokenSource.CreateLinkedTokenSource(_cancel.Token);
+                using var limit = new TimeLimitOf(running, _time);
                 _running = running;
                 DbResult<IReadOnlyList<AuditRowChange>> result;
                 try
                 {
-                    result = await read(view.Versions!, block.Rows, running.Token);
+                    result = await read(view.Versions!, block.Rows, limit.Start, running.Token);
                 }
                 finally
                 {
@@ -143,7 +148,7 @@ public sealed class GridAuditChanges(
                     continue; // read again meanwhile: the new blocks ask again
                 }
 
-                if (result.Cancelled && limit.IsCancellationRequested)
+                if (result.Cancelled && limit.Expired)
                 {
                     SwitchOff(TextFormat.Format(GridText.Grid_AuditChangesSlow, (int)TimeLimit.TotalSeconds));
                     continue;
@@ -240,5 +245,45 @@ public sealed class GridAuditChanges(
         {
             _cancel.Dispose();
         }
+    }
+
+    /// <summary>
+    /// <see cref="TimeLimit"/> for one query, from the first <see cref="Start"/> on (a repeat in a new snapshot calls it
+    /// again): then it cancels <paramref name="running"/>. Start runs on the session's thread, the timer on the clock's.
+    /// </summary>
+    private sealed class TimeLimitOf(CancellationTokenSource running, TimeProvider time) : IDisposable
+    {
+        private ITimer? _timer;
+        private int _expired;
+
+        public bool Expired => Volatile.Read(ref _expired) == 1;
+
+        public void Start()
+        {
+            var timer = time.CreateTimer(_ => Expire(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            if (Interlocked.CompareExchange(ref _timer, timer, null) is null)
+            {
+                timer.Change(TimeLimit, Timeout.InfiniteTimeSpan);
+            }
+            else
+            {
+                timer.Dispose();
+            }
+        }
+
+        private void Expire()
+        {
+            Volatile.Write(ref _expired, 1);
+            try
+            {
+                running.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the query ended just now
+            }
+        }
+
+        public void Dispose() => _timer?.Dispose();
     }
 }

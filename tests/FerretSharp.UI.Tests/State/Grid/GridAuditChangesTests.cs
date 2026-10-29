@@ -25,11 +25,13 @@ public sealed class GridAuditChangesTests
     private readonly Queue<TaskCompletionSource<DbResult<IReadOnlyList<AuditRowChange>>>> _answers = new();
     private readonly List<IReadOnlyList<RowData>> _asked = [];
     private readonly List<CancellationToken> _tokens = [];
+    private readonly List<Action> _started = [];
     private readonly FakeTimeProvider _time = new();
 
-    private GridAuditChanges Create(AuditView? view = null) => new(_grid, view ?? View, (_, rows, token) =>
+    private GridAuditChanges Create(AuditView? view = null) => new(_grid, view ?? View, (_, rows, started, token) =>
     {
         _asked.Add(rows);
+        _started.Add(started);
         _tokens.Add(token);
         var answer = new TaskCompletionSource<DbResult<IReadOnlyList<AuditRowChange>>>();
         _answers.Enqueue(answer);
@@ -110,6 +112,7 @@ public sealed class GridAuditChangesTests
         var audit = Create();
         audit.Queue([Row("A", "U", 1m)]);
         audit.Queue([Row("B", "U", 2m)]);
+        _started[0](); // the query has the session
 
         _time.Advance(GridAuditChanges.TimeLimit);
         Assert.True(_tokens[0].IsCancellationRequested);
@@ -118,6 +121,29 @@ public sealed class GridAuditChangesTests
         Assert.Single(_asked);
         Assert.False(audit.Compares);
         Assert.Contains("10 s", Assert.Single(_grid.Notices));
+    }
+
+    /// <summary>
+    /// Review of R8: the limit counted the wait for the session – behind a long statement of the same workspace the
+    /// highlighting went off with a hint at a missing index, though its own query was quick.
+    /// </summary>
+    [Fact]
+    public async Task Waiting_for_the_session_does_not_count_against_the_time_limit()
+    {
+        var audit = Create();
+        audit.Queue([Row("A", "U", 1m)]);
+
+        _time.Advance(GridAuditChanges.TimeLimit * 3); // waits behind another statement
+        Assert.False(_tokens[0].IsCancellationRequested);
+
+        _started[0]();
+        _started[0](); // a repeat in a new snapshot does not start the limit again
+        _time.Advance(GridAuditChanges.TimeLimit - TimeSpan.FromSeconds(1));
+        Assert.False(_tokens[0].IsCancellationRequested);
+
+        await AnswerAsync(Changes(Changed("A", 3)));
+        Assert.True(audit.Compares);
+        Assert.Equal([3], audit.MarksOf(new RowKey.RowId("A"), null)!.Changed);
     }
 
     [Fact]

@@ -242,14 +242,16 @@ public sealed class AuditTests(OracleContainerFixture oracle) : IAsyncLifetime
                 : string.Join(", ", change.Changed.Order().Select(i => audit.Columns[i].Name));
         string Trans(RowData row) => ((string)row.Values[audit.IndexOf("AUDIT_TRANS")]!).Trim();
 
-        var all = await connection.Data.ReadAuditChangesAsync(audit, view.Versions!, rows, Ct);
+        var started = 0;
+        var all = await connection.Data.ReadAuditChangesAsync(audit, view.Versions!, rows, () => started++, Ct);
+        Assert.Equal(1, started); // one statement, timed from when it had the session (review of R8)
         Assert.Equal(
         [
             "I first", "I first", "U NAME", "U PREIS, AB", "U AKTIV", "U ", "D ",
         ], rows.Select(r => $"{Trans(r)} {Changes(all, r)}"));
 
         // Only the later rows, as a filter might leave them: still compared with the versions before them.
-        var later = await connection.Data.ReadAuditChangesAsync(audit, view.Versions!, rows.Skip(4).ToList(), Ct);
+        var later = await connection.Data.ReadAuditChangesAsync(audit, view.Versions!, rows.Skip(4).ToList(), null, Ct);
         Assert.Equal(["U AKTIV", "U ", "D "], rows.Skip(4).Select(r => $"{Trans(r)} {Changes(later, r)}"));
         Assert.Equal(AuditActionKind.Delete, view.ActionOf(rows[^1].Values));
     }

@@ -367,10 +367,10 @@
         }
 
         var details = Details;
-        return new GridAuditChanges(this, view, (versions, rows, token) => Shell.RunDbAsync(Logger, Active, async () =>
+        return new GridAuditChanges(this, view, (versions, rows, started, token) => Shell.RunDbAsync(Logger, Active, async () =>
         {
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
-            return await data.ReadAuditChangesAsync(details, versions, rows, token);
+            return await data.ReadAuditChangesAsync(details, versions, rows, started, token);
         }, token));
     }
 

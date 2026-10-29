@@ -203,15 +203,24 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// Characters or bytes of each LOB that come with the row; the length always comes along (review 3.40.0, A12: the SQL
     /// editor keeps a preview only, but fetched every LOB whole – also of the rows it skips to reach a page).
     /// </param>
+    /// <param name="entered">
+    /// Runs once the call holds the gate, before the statement (again for a repeat in a new snapshot): a time limit of the
+    /// statement itself starts here, not while it waits behind another caller (review of R8, audit highlighting).
+    /// </param>
     internal async Task<T> ExecuteReaderAsync<T>(
         string sql,
         IReadOnlyList<QueryParameter> parameters,
         Func<DbDataReader, CancellationToken, Task<T>> read,
         int lobPrefetch,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action? entered = null)
     {
         GuardReadOnly(sql);
-        return await ReadInSnapshotAsync(_ => ReadCoreAsync(sql, parameters, read, cancellationToken, lobPrefetch), cancellationToken);
+        return await ReadInSnapshotAsync(_ =>
+        {
+            entered?.Invoke();
+            return ReadCoreAsync(sql, parameters, read, cancellationToken, lobPrefetch);
+        }, cancellationToken);
     }
 
     /// <summary>
