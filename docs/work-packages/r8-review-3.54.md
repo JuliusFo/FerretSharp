@@ -1,4 +1,4 @@
-# R8 Fehler, Struktur, Tests und Doku nach dem Gesamt-Review 3.54.0 → Release offen
+# R8 Fehler, Struktur, Tests und Doku nach dem Gesamt-Review 3.54.0 → Release 3.55.0
 Teil A bis D des Gesamt-Reviews (`docs/review-3.54.0.md`) in **einem** Paket und einem Release (Entscheidung 1 des Nutzers, 2026-10-29). Branch `wp/r8-review-3.54` mit dem Review-Commit vorne, gebaut in einer Session ohne weitere Agenten. Reihenfolge wie in R7: erst die reinen Verschiebungen (B6, B7), dann Teil A mit Tests, dann Struktur (B), Tests (C), Doku (D), zuletzt E2E.
 
 ## Ordner (B6, B7)
