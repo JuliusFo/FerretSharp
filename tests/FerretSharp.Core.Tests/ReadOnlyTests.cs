@@ -233,6 +233,25 @@ public class ReadOnlyTests
     }
 
     /// <summary>
+    /// Review 3.54.0, C1: the statement checks of the write path for many rows (WP-42), the locking reader and the savepoint
+    /// name had no test – they come before the session is touched (the transaction checks: SessionTransactionTests).
+    /// </summary>
+    [Fact]
+    public async Task The_batch_write_the_lock_and_the_savepoint_refuse_what_is_not_theirs_before_the_session_is_touched()
+    {
+        var session = (OracleSession)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(OracleSession));
+        var ct = TestContext.Current.CancellationToken;
+        BatchSpec Batch(string sql) => new(sql, [new BatchParameter("p0", [1m], OracleTypeHint.Number)], 1);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteNonQueryAsync(Batch("DROP TABLE t"), ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteNonQueryAsync(Batch("BEGIN DELETE FROM t; END;"), ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteNonQueryAsync(Batch("INSERT INTO t VALUES (:p0); DROP TABLE t"), ct));
+        await Assert.ThrowsAsync<ArgumentException>(() => session.ExecuteNonQueryAsync(new BatchSpec("INSERT INTO t VALUES (:p0)", [], 1), ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteLockingReaderAsync("SELECT * FROM t", [], (_, _) => Task.FromResult(0), ct));
+        await Assert.ThrowsAsync<ArgumentException>(() => session.SavepointAsync("X; DROP TABLE t", ct));
+    }
+
+    /// <summary>
     /// Review 3.44.0, C4: a read is repeated in a new snapshot only in a locked session, only for an unusable snapshot, a
     /// few times – and never after rows were handed on: the export would write them a second time.
     /// </summary>

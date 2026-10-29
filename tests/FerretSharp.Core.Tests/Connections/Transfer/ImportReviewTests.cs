@@ -298,6 +298,54 @@ etworkadmin") };
         Assert.Equal("Die Datei ist zu groß für eine Verbindungsdatei (mehr als 16 MB).", many.Message);
     }
 
+    /// <summary>
+    /// Review 3.54.0, C2: the limits against another person's file had no test – one entry beyond 16 MB (a few KB packed),
+    /// entries beyond 64 MB together, a file beyond 16 MB on disk. Simplified to "read it all", any of them took the app
+    /// down with a zip bomb.
+    /// </summary>
+    [Fact]
+    public async Task A_huge_entry_entries_beyond_the_zip_limit_and_a_huge_file_are_refused()
+    {
+        const string TooLarge = "Die Datei ist zu groß für eine Verbindungsdatei (mehr als 16 MB).";
+        var huge = ZipWith(("projects/P/.dbeaver/data-sources.json", ImportLimits.MaxFileBytes + 1));
+        var many = ZipWith([.. Enumerable.Range(1, 5).Select(i => ($"projects/P/.dbeaver/data-sources-{i}.json", 15L * 1024 * 1024))]);
+        using var folder = new TestFolder();
+        var file = folder.Combine("connections.json");
+        using (var stream = File.Create(file))
+        {
+            stream.SetLength(ImportLimits.MaxFileBytes + 1);
+        }
+
+        Assert.Equal(TooLarge, Assert.Throws<ConnectionImportException>(() => DbeaverConnections.ReadExport(huge, Ct)).Message);
+        Assert.Equal(TooLarge, Assert.Throws<ConnectionImportException>(() => DbeaverConnections.ReadExport(many, Ct)).Message);
+        Assert.Equal(TooLarge, (await Assert.ThrowsAsync<ConnectionImportException>(() => ConnectionImportReader.ReadFileAsync(file, Ct))).Message);
+    }
+
+    /// <summary>A zip whose entries hold DBeaver's data sources without a connection, padded with blanks to the given lengths (packed to a few KB each).</summary>
+    private static byte[] ZipWith(params (string Name, long Length)[] entries)
+    {
+        using var buffer = new MemoryStream();
+        using (var zip = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var block = new byte[1024 * 1024];
+            Array.Fill(block, (byte)' ');
+            foreach (var (name, length) in entries)
+            {
+                using var entry = zip.CreateEntry(name, CompressionLevel.Fastest).Open();
+                var head = "{\"connections\":{}"u8.ToArray();
+                entry.Write(head);
+                for (var left = length - head.Length - 1; left > 0; left -= block.Length)
+                {
+                    entry.Write(block, 0, (int)Math.Min(left, block.Length));
+                }
+
+                entry.WriteByte((byte)'}');
+            }
+        }
+
+        return buffer.ToArray();
+    }
+
     [Fact]
     public void Reading_a_project_export_can_be_canceled()
     {

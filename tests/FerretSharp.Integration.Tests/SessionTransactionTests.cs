@@ -303,6 +303,28 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         Assert.Equal(0, await CountRawAsync("ID = 60"));
     }
 
+    /// <summary>
+    /// Review 3.54.0, C1: the write path for many rows (WP-42) and the locking reader only inside a writing transaction, one
+    /// transaction at a time, locking only without writes – none of these refusals had a test.
+    /// </summary>
+    [Fact]
+    public async Task Batches_and_locks_need_a_writing_transaction_and_a_second_one_is_refused()
+    {
+        await using var session = await OpenAsync();
+        var batch = new BatchSpec("INSERT INTO TXS VALUES (:id, 'stapel')", [new BatchParameter("id", [61m, 62m], OracleTypeHint.Number)], 2);
+
+        await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteNonQueryAsync(batch, Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteLockingReaderAsync("SELECT * FROM TXS WHERE ID = 1 FOR UPDATE NOWAIT", [], (_, _) => Task.FromResult(0), Ct));
+
+        await session.BeginTransactionAsync(Ct);
+        Assert.Equal(2, await session.ExecuteNonQueryAsync(batch, Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => session.BeginTransactionAsync(Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => session.UseReadOnlySnapshotsAsync(Ct));
+        await session.RollbackAsync(Ct);
+
+        Assert.Equal(0, await CountRawAsync("ID IN (61, 62)"));
+    }
+
     /// <summary>WP-22, ADR 0019: the schema path takes a single DDL statement – never inside a transaction, never locked.</summary>
     [Fact]
     public async Task Ddl_needs_no_open_transaction_a_ddl_statement_and_an_unlocked_session()
