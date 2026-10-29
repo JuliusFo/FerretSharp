@@ -142,14 +142,16 @@ public sealed partial class WorkspaceEditing
     /// Copies rows from another connection into the workspace's transaction (WP-42) as one write; its table tabs reload. Undo
     /// and redo treat it like a statement (redo asks first and compares the rows).
     /// </summary>
-    /// <returns>The write; null if it did not run (the reason was shown).</returns>
-    public async Task<WriteAction?> CopyAsync(WorkspaceTabs workspace, CopyWrite copy)
+    /// <param name="cancellationToken">"Cancel" of the dialog (review 3.54.0, A2): an insert waits without end for a key another
+    /// session inserted and has not committed; cancelled, the copy is rolled back to its savepoint.</param>
+    /// <returns>The write; null if it did not run (the reason was shown) or was cancelled.</returns>
+    public async Task<WriteAction?> CopyAsync(WorkspaceTabs workspace, CopyWrite copy, CancellationToken cancellationToken = default)
     {
         WriteAction? done = null;
         await RunAsync(workspace, async () =>
         {
             var id = workspace.WorkspaceId;
-            done = await WorkspacesOf(id).CopyAsync(id, copy, CancellationToken.None);
+            done = await WorkspacesOf(id).CopyAsync(id, copy, cancellationToken);
             KeepRedoable(id);
             shell.ReloadTableTabs(id);
             return true;

@@ -134,6 +134,11 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
             return Task.FromException<WriteAction>(new RefusedException(OracleText.WorkspaceReadOnly));
         }
 
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled<WriteAction>(cancellationToken);
+        }
+
         return FailCopy?.Invoke(copy) is { } failure
             ? Task.FromException<WriteAction>(failure)
             : Task.FromResult(Locked(() => Copy(copy, null)));

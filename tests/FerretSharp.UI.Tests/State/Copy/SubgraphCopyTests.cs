@@ -65,7 +65,7 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
         return new SubgraphCopyDraft(
             "DEV", "APP", Relations, Kunde, [new RowKey.PrimaryKey([1m])], _ => Task.FromResult(source),
             (table, _) => Task.FromResult(all.GetValueOrDefault(table)),
-            [new CopyTarget(Guid.NewGuid(), Guid.NewGuid(), "TEST · Workspace 1", ConnectionKind.Test, () => writable, schema, _ => Task.FromResult(target))]);
+            [new CopyTarget(Guid.NewGuid(), Guid.NewGuid(), "TEST · Workspace 1", ConnectionKind.Test, () => writable, () => schema, _ => Task.FromResult(target))]);
     }
 
     [Fact]
@@ -215,13 +215,27 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
         var details = _app.KundenDetails;
         var copy = new CopyWrite("Kopie aus DEV: 1 Zeile", [new CopyInsert(details, DmlBuilder.InsertBatch(details, [0], [[1m]]))]);
 
-        var action = await _app.Editing.CopyAsync(_app.WorkspaceOf(test), copy);
+        var action = await _app.Editing.CopyAsync(_app.WorkspaceOf(test), copy, Ct);
 
         Assert.NotNull(action);
         Assert.Equal(WriteActionKind.Copy, action.Kind);
         Assert.Equal([action], test.Workspaces.ActionsOf(test.Workspaces.Active!.Id));
-        Assert.Null(await _app.Editing.CopyAsync(_app.WorkspaceOf(prod), copy));
+        Assert.Null(await _app.Editing.CopyAsync(_app.WorkspaceOf(prod), copy, Ct));
         Assert.Equal(Core.Resources.OracleText.WorkspaceReadOnly, _app.Shell.Notice?.Text);
+    }
+
+    /// <summary>"Cancel" of the dialog reaches the write (review 3.54.0, A2): nothing written, no error shown.</summary>
+    [Fact]
+    public async Task A_cancelled_copy_writes_nothing_and_says_nothing()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("Test"));
+        var details = _app.KundenDetails;
+        var copy = new CopyWrite("Kopie aus DEV: 1 Zeile", [new CopyInsert(details, DmlBuilder.InsertBatch(details, [0], [[1m]]))]);
+
+        Assert.Null(await _app.Editing.CopyAsync(_app.WorkspaceOf(test), copy, new CancellationToken(canceled: true)));
+
+        Assert.Empty(test.Workspaces.ActionsOf(test.Workspaces.Active!.Id));
+        Assert.Null(_app.Shell.ErrorDetails);
     }
 
     public ValueTask DisposeAsync() => _app.DisposeAsync();

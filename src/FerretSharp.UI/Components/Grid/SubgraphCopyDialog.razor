@@ -7,6 +7,7 @@
 @using FerretSharp.Core.Schema
 @implements IDisposable
 @inject AppSettingsService Settings
+@inject ConnectionHub Hub
 @inject ILogger<SubgraphCopyDialog> Logger
 
 <ModalFrame Label="@CopyViewText.Title" Class="copy-dialog" OnCancel="CloseAsync">
@@ -127,6 +128,18 @@
                 </ul>
             }
         }
+
+        @if (_copying is { } copying && Hub.Find(copying.Target.ConnectionId) is { } targetScope)
+        {
+            @* The write runs on the target's session (review 3.54.0, A2): time, cancel and "Disconnect session" for that one –
+               an insert waits without end for a key another session inserted and has not committed. *@
+            <CascadingValue Value="targetScope.Workspaces">
+                <CascadingValue Value="targetScope.Active">
+                    <RunProgress WorkspaceId="copying.Target.WorkspaceId" Title="@TextFormat.Format(CopyViewText.Copying, copying.Target.Label)"
+                                 Started="copying.Started" OnCancel="CancelCopy" MayWaitForLock="true" />
+                </CascadingValue>
+            </CascadingValue>
+        }
     </div>
     <footer>
         <div class="copy-read">
@@ -157,7 +170,7 @@
         </div>
         <span class="spacer"></span>
         <button class="btn" @onclick="CloseAsync">@CommonText.Cancel</button>
-        <button class="btn primary" disabled="@(!Draft.CanCopy || _copying)" title="@CopyTitle" @onclick="CopyAsync">@CopyViewText.Copy</button>
+        <button class="btn primary" disabled="@(!Draft.CanCopy || _copying is not null)" title="@CopyTitle" @onclick="CopyAsync">@CopyViewText.Copy</button>
     </footer>
 </ModalFrame>
 
@@ -166,7 +179,11 @@
     private CancellationTokenSource? _reading;
     private TraversalProgress? _progress;
     private bool _readOnce;
-    private bool _copying;
+
+    /// <summary>The write running into the target: where, since when, and how to cancel it.</summary>
+    private sealed record Copying(CopyTarget Target, DateTimeOffset Started, CancellationTokenSource Cancel);
+
+    private Copying? _copying;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -187,7 +204,7 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    private bool Busy => Draft.Stage == CopyStage.Loading || _copying;
+    private bool Busy => Draft.Stage == CopyStage.Loading || _copying is not null;
 
     /// <summary>Why "Copy" is off when the target is locked, otherwise what it does.</summary>
     private string CopyTitle => Draft.Target is { Writable: false } locked ? TextFormat.Format(CopyViewText.TargetLockedHint, locked.Label) : CopyViewText.CopyTitle;
@@ -385,11 +402,27 @@
 
     private async Task ReadAsync()
     {
-        _reading?.Dispose();
-        _reading = new CancellationTokenSource();
+        // The read owns its token source and frees it once it ended: freed by the dialog's Dispose, a cancel still on its way
+        // to the pool thread found it gone and the read went on (review 3.54.0, A3).
+        using var reading = new CancellationTokenSource();
+        _reading = reading;
+        try
+        {
+            await ReadCoreAsync(reading.Token);
+        }
+        finally
+        {
+            if (_reading == reading)
+            {
+                _reading = null;
+            }
+        }
+    }
+
+    private async Task ReadCoreAsync(CancellationToken token)
+    {
         _readOnce = true;
         _progress = null;
-        var token = _reading.Token;
         var progress = new Progress<TraversalProgress>(p =>
         {
             _progress = p;
@@ -400,7 +433,7 @@
         var collecting = Shell.RunDbAsync(Logger, Active, () => Draft.CollectAsync(progress, token), token);
         StateHasChanged(); // the stage is Loading now
         var collected = await collecting;
-        if (Failed(collected) || !collected.Value || Draft.Target is not { } target)
+        if (token.IsCancellationRequested || Failed(collected) || !collected.Value || Draft.Target is not { } target)
         {
             return;
         }
@@ -420,26 +453,9 @@
         return false;
     }
 
-    /// <summary>On a pool thread: ODP.NET sends the break synchronously, over a silent VPN it blocks (A3).</summary>
-    private void CancelRead()
-    {
-        if (_reading is not { } reading)
-        {
-            return;
-        }
+    private void CancelRead() => CancelOffThread.Run(_reading);
 
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                reading.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // the dialog is gone, and its read with it
-            }
-        });
-    }
+    private void CancelCopy() => CancelOffThread.Run(_copying?.Cancel);
 
     private async Task CopyAsync()
     {
@@ -448,12 +464,13 @@
             return;
         }
 
-        _copying = true;
+        using var cancel = new CancellationTokenSource();
+        _copying = new Copying(target, DateTimeOffset.Now, cancel);
         try
         {
             var write = Draft.Write(Settings.Current.LockWaitSeconds);
             var workspace = Shell.FindWorkspace(target.WorkspaceId) ?? new WorkspaceTabs(target.WorkspaceId, target.ConnectionId);
-            if (await Lifecycle.Editing.CopyAsync(workspace, write) is { } action)
+            if (await Lifecycle.Editing.CopyAsync(workspace, write, cancel.Token) is { } action)
             {
                 Shell.Notify(TextFormat.Format(CopyViewText.Copied, action.Display, target.Label));
                 await CloseAsync();
@@ -461,7 +478,7 @@
         }
         finally
         {
-            _copying = false;
+            _copying = null;
         }
     }
 
@@ -471,5 +488,9 @@
         return OnClose.InvokeAsync();
     }
 
-    public void Dispose() => _reading?.Dispose();
+    /// <summary>
+    /// Gone without "Close" too (the tab went away on a reconnect): the read stops (A3). A copy already writing goes on – it
+    /// is one action of the target's transaction, shown in its status bar like any write.
+    /// </summary>
+    public void Dispose() => CancelRead();
 }
