@@ -6,7 +6,7 @@ using FerretSharp.UI.State;
 namespace FerretSharp.UI.Tests.State;
 
 /// <summary>The edit mode of the "Columns" view (WP-23): fields from and to the dictionary's columns, and the draft they make.</summary>
-public sealed class ColumnDesignerTests
+public sealed class TableDesignerDraftTests
 {
     private static ColumnInfo Col(string name, string type, int? length = null, bool charSemantics = false, int? precision = null, int? scale = null,
         bool nullable = true, string? @default = null, string? comment = null, bool identity = false) =>
@@ -64,7 +64,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void The_char_box_shows_the_semantics_of_the_type_and_keeps_the_choice()
     {
-        var column = new ColumnDesigner(Kunde, []).AddColumn();
+        var column = new TableDesignerDraft(Kunde, []).AddColumn();
         Assert.True(column.ShowsCharSemantics);
 
         column.Type = "NUMBER";
@@ -83,7 +83,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void An_untouched_designer_has_no_changes_and_its_draft_writes_nothing()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         var (draft, problems) = designer.ToDraft();
 
         Assert.False(designer.HasChanges);
@@ -94,7 +94,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void Edited_fields_make_the_draft()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         var name = designer.Columns[1];
         name.Name = "NACHNAME";
         name.Size = "80";
@@ -122,7 +122,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void Numbers_that_are_none_are_a_problem_and_the_column_stays()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         designer.Columns[1].Size = "viel";
 
         var (draft, problems) = designer.ToDraft();
@@ -134,7 +134,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void A_new_column_goes_away_an_existing_one_is_dropped_and_kept_again()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         var added = designer.AddColumn();
         designer.ToggleDrop(added);
         Assert.Equal(4, designer.Columns.Count);
@@ -150,7 +150,7 @@ public sealed class ColumnDesignerTests
     public void An_identity_column_keeps_its_definition_only_name_and_comment_change()
     {
         var identity = Kunde with { Columns = [Col("ID", "NUMBER", identity: true, nullable: false, @default: "\"SHOP\".\"ISEQ$$_1\".nextval")] };
-        var designer = new ColumnDesigner(identity, []);
+        var designer = new TableDesignerDraft(identity, []);
         var row = designer.Columns[0];
         Assert.True(row.OnlyNameAndComment);
         row.Comment = "Schlüssel";
@@ -165,7 +165,7 @@ public sealed class ColumnDesignerTests
     public void Constraints_get_names_by_kind_and_columns_until_one_is_typed()
     {
         var existing = new ConstraintInfo("UK_KUNDE_NAME", ConstraintType.Unique, ["NAME"], null, null, [], null, true, true, false, false, false);
-        var designer = new ColumnDesigner(Kunde, [existing]);
+        var designer = new TableDesignerDraft(Kunde, [existing]);
         var unique = designer.AddConstraint(ConstraintType.Unique);
         unique.Columns.Add("NAME");
         designer.SuggestName(unique);
@@ -181,7 +181,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void A_cleared_name_follows_type_and_columns_again()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         var constraint = designer.AddConstraint(ConstraintType.Unique);
         constraint.Name = "UK_EIGEN";
 
@@ -202,7 +202,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void A_foreign_key_takes_the_referenced_key_once_the_table_is_known()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         var fk = designer.AddConstraint(ConstraintType.ForeignKey);
         designer.AddColumn(fk, "KUERZEL");
         designer.AddColumn(fk, "KUERZEL"); // twice: ignored
@@ -238,7 +238,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void Another_type_for_a_new_column_drops_a_size_it_cannot_take()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         var column = designer.AddColumn();
         column.Name = "BLA";
 
@@ -263,7 +263,7 @@ public sealed class ColumnDesignerTests
     public void An_existing_constraint_is_dropped_and_kept_again()
     {
         var check = new ConstraintInfo("CK_BETRAG", ConstraintType.Check, ["BETRAG"], "BETRAG >= 0", null, [], null, true, true, false, false, false);
-        var designer = new ColumnDesigner(Kunde, [check]);
+        var designer = new TableDesignerDraft(Kunde, [check]);
 
         designer.ToggleDropConstraint("CK_BETRAG");
         Assert.Equal(["CK_BETRAG"], designer.ToDraft().Draft.DroppedConstraints);
@@ -279,7 +279,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void Existing_constraints_become_edits_once_renamed_or_changed()
     {
-        var designer = new ColumnDesigner(Kunde, [CkBetrag, FkLand]);
+        var designer = new TableDesignerDraft(Kunde, [CkBetrag, FkLand]);
         var (check, fk) = (designer.Existing[0], designer.Existing[1]);
         Assert.Equal(("BETRAG >= 0", ""), (check.Condition, fk.DeleteRule)); // trimmed; NO ACTION is none
         Assert.False(designer.HasChanges);
@@ -306,7 +306,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void A_suggested_name_avoids_the_names_existing_constraints_get()
     {
-        var designer = new ColumnDesigner(Kunde, [CkBetrag]);
+        var designer = new TableDesignerDraft(Kunde, [CkBetrag]);
         designer.Existing[0].Name = "UK_KUNDE_NAME";
 
         var unique = designer.AddConstraint(ConstraintType.Unique);
@@ -319,7 +319,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void A_check_replaced_halfway_goes_on_with_drop_and_rename()
     {
-        var designer = new ColumnDesigner(Kunde, [CkBetrag]);
+        var designer = new TableDesignerDraft(Kunde, [CkBetrag]);
         designer.Existing[0].Condition = "BETRAG > 0";
         var replacement = CkBetrag with { Name = "FS_CHECK_1", Condition = "BETRAG > 0" };
 
@@ -338,7 +338,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void A_foreign_key_dropped_halfway_is_added_again()
     {
-        var designer = new ColumnDesigner(Kunde, [FkLand]);
+        var designer = new TableDesignerDraft(Kunde, [FkLand]);
         designer.Existing[0].DeleteRule = "CASCADE";
         designer.Columns[2].Name = "LAND"; // renamed too, before the run stopped
 
@@ -350,13 +350,13 @@ public sealed class ColumnDesignerTests
         Assert.Equal(["CODE"], fk.ReferencedColumns);
     }
 
-    private static IReadOnlyList<string> Plan(ColumnDesigner designer, IReadOnlyList<ConstraintInfo> constraints) =>
+    private static IReadOnlyList<string> Plan(TableDesignerDraft designer, IReadOnlyList<ConstraintInfo> constraints) =>
         TableDesign.Plan(new DesignContext(Kunde, constraints, [], []), designer.ToDraft().Draft, DataFacts.None).Statements;
 
     [Fact]
     public void Edits_of_existing_constraints_and_the_tab_shown_survive_a_rebase()
     {
-        var designer = new ColumnDesigner(Kunde, [CkBetrag, FkLand]) { Section = DesignerSection.Constraints };
+        var designer = new TableDesignerDraft(Kunde, [CkBetrag, FkLand]) { Section = DesignerSection.Constraints };
         designer.Existing[0].Name = "CK_POSITIV";
         designer.Existing[1].DeleteRule = "SET NULL";
 
@@ -414,7 +414,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void A_draft_laid_over_the_table_after_a_partial_run_writes_only_the_rest()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         designer.Columns[1].Name = "NACHNAME";
         designer.ToggleDrop(designer.Columns[2]);
         designer.AddColumn().Name = "FAX";
@@ -436,7 +436,7 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void Laid_over_an_unchanged_table_the_draft_stays_whole()
     {
-        var designer = new ColumnDesigner(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []);
         designer.Columns[1].Name = "NACHNAME";
         designer.ToggleDrop(designer.Columns[2]);
 
@@ -451,49 +451,23 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void The_audit_box_survives_a_rebase()
     {
-        var designer = new ColumnDesigner(Kunde, []) { WithAudit = true };
+        var designer = new TableDesignerDraft(Kunde, []) { WithAudit = true };
 
         Assert.True(designer.Rebase(Kunde, []).WithAudit);
-        Assert.Null(new ColumnDesigner(Kunde, []).Rebase(Kunde, []).WithAudit);
+        Assert.Null(new TableDesignerDraft(Kunde, []).Rebase(Kunde, []).WithAudit);
     }
-
-    /// <summary>
-    /// The audit box at start: the setting turns it off for a table with an audit table, not when opened for the audit;
-    /// without creating audit tables it stays off for a table without one, also when opened for the audit.
-    /// </summary>
-    [Theory]
-    [InlineData(false, false, true, true, false)]
-    [InlineData(false, true, true, true, true)]
-    [InlineData(false, true, false, true, false)]
-    [InlineData(true, false, false, true, true)]
-    [InlineData(true, true, false, true, true)]
-    [InlineData(true, false, true, false, false)]
-    [InlineData(false, true, true, false, true)]
-    [InlineData(true, true, false, false, true)]
-    public void The_audit_box_starts_by_audit_table_settings_and_how_the_designer_was_opened(bool openedForAudit, bool hasAuditTable, bool syncByDefault,
-        bool createAllowed, bool expected) =>
-        Assert.Equal(expected, ColumnDesigner.AuditAtStart(openedForAudit, hasAuditTable, syncByDefault, createAllowed));
-
-    /// <summary>Without creating audit tables the box is only there for a table that has one.</summary>
-    [Theory]
-    [InlineData(true, true, true)]
-    [InlineData(false, true, true)]
-    [InlineData(true, false, true)]
-    [InlineData(false, false, false)]
-    public void The_audit_box_takes_part_unless_it_would_create_an_audit_table_that_may_not_be_created(bool hasAuditTable, bool createAllowed, bool expected) =>
-        Assert.Equal(expected, ColumnDesigner.CanAudit(hasAuditTable, createAllowed));
 
     /// <summary>Code review: a box ticked before creating was switched off survives a rebase but puts no audit into the plan.</summary>
     [Fact]
     public void A_ticked_audit_box_takes_part_only_where_the_audit_may_be_planned()
     {
-        var designer = new ColumnDesigner(Kunde, []) { WithAudit = true }.Rebase(Kunde, []);
+        var designer = new TableDesignerDraft(Kunde, []) { WithAudit = true }.Rebase(Kunde, []);
 
         Assert.False(designer.AuditTakesPart(hasAuditTable: false, createAllowed: false));
         Assert.True(designer.AuditTakesPart(hasAuditTable: false, createAllowed: true));
         Assert.True(designer.AuditTakesPart(hasAuditTable: true, createAllowed: false));
-        Assert.False(new ColumnDesigner(Kunde, []) { WithAudit = false }.AuditTakesPart(hasAuditTable: true, createAllowed: true));
-        Assert.False(new ColumnDesigner(Kunde, []).AuditTakesPart(hasAuditTable: true, createAllowed: true));
+        Assert.False(new TableDesignerDraft(Kunde, []) { WithAudit = false }.AuditTakesPart(hasAuditTable: true, createAllowed: true));
+        Assert.False(new TableDesignerDraft(Kunde, []).AuditTakesPart(hasAuditTable: true, createAllowed: true));
     }
 
     /// <summary>
@@ -503,35 +477,12 @@ public sealed class ColumnDesignerTests
     [Fact]
     public void An_audit_state_that_could_not_be_read_keeps_the_box_out_and_undecided()
     {
-        var ticked = new ColumnDesigner(Kunde, []) { WithAudit = true };
+        var ticked = new TableDesignerDraft(Kunde, []) { WithAudit = true };
 
-        Assert.False(ColumnDesigner.CanAudit(null, createAllowed: true));
+        Assert.False(AuditDesignRules.CanAudit(null, createAllowed: true));
         Assert.False(ticked.AuditTakesPart(null, createAllowed: true));
-        Assert.Null(ColumnDesigner.AuditAtStart(openedForAudit: true, null, syncByDefault: true, createAllowed: true));
-        Assert.True(ColumnDesigner.AuditAtStart(openedForAudit: true, false, syncByDefault: true, createAllowed: true));
-    }
-
-    /// <summary>Code review: while the audit objects were read again, the box was free as for a table without audit table.</summary>
-    [Fact]
-    public void Whether_there_is_an_audit_table_is_unknown_until_read()
-    {
-        Assert.Null(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, read: null));
-        Assert.False(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, AuditState.None));
-        Assert.True(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, new AuditState(Kunde, null)));
-        Assert.False(ColumnDesigner.HasAuditTable(newTable: true, templateMissing: false, read: null));
-    }
-
-    /// <summary>
-    /// Code review 2026-10-28: a template broken when the designer opened and readable later – the state taken as "none"
-    /// made the plan create the existing audit table. Without a template the box takes part (the plan names the broken
-    /// template); one that turns up unread leaves it unknown.
-    /// </summary>
-    [Fact]
-    public void A_template_that_turns_up_later_leaves_the_audit_table_unknown()
-    {
-        Assert.False(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: true, read: null));
-        Assert.Null(ColumnDesigner.HasAuditTable(newTable: false, templateMissing: false, read: null));
-        Assert.True(ColumnDesigner.CanAudit(ColumnDesigner.HasAuditTable(false, templateMissing: true, null), createAllowed: true));
+        Assert.Null(AuditDesignRules.AuditAtStart(openedForAudit: true, null, syncByDefault: true, createAllowed: true));
+        Assert.True(AuditDesignRules.AuditAtStart(openedForAudit: true, false, syncByDefault: true, createAllowed: true));
     }
 
     [Fact]
@@ -540,6 +491,6 @@ public sealed class ColumnDesignerTests
         var notNull = new ConstraintInfo("SYS_C001", ConstraintType.Check, ["NAME"], "\"NAME\" IS NOT NULL", null, [], null, true, true, false, false, true);
         var check = new ConstraintInfo("CK_BETRAG", ConstraintType.Check, ["BETRAG"], "BETRAG >= 0", null, [], null, true, true, false, false, false);
 
-        Assert.Equal(["CK_BETRAG"], new ColumnDesigner(Kunde, [notNull, check]).Existing.Select(c => c.Name));
+        Assert.Equal(["CK_BETRAG"], new TableDesignerDraft(Kunde, [notNull, check]).Existing.Select(c => c.Name));
     }
 }

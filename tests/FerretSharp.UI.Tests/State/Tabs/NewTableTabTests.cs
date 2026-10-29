@@ -53,7 +53,7 @@ public sealed class NewTableTabTests : IAsyncDisposable
     {
         await _app.OpenAsync(TestApp.Profile("Test"));
         var tab = _app.Shell.OpenTable(TestApp.Kunden)!;
-        var designer = new ColumnDesigner(_app.KundenDetails, []);
+        var designer = new TableDesignerDraft(_app.KundenDetails, []);
         tab.Designer = new DesignerSession(designer);
         _app.Lifecycle.CloseTab(tab);
         Assert.Null(_app.Lifecycle.ConfirmCloseTab); // nothing changed yet
