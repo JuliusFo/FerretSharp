@@ -29,6 +29,9 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
     /// <summary>How long ending a trace waits for the app's answer to the stop, and then for the reading to end.</summary>
     internal static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(3);
 
+    /// <summary><see cref="StopTimeout"/>; shorter in a test of the halted app (twice 3 s; review 3.54.0, C10).</summary>
+    internal TimeSpan StopAfter { get; init; } = StopTimeout;
+
     /// <summary>How long attaching waits for the app's answer (a running app answers within milliseconds).</summary>
     internal static readonly TimeSpan AttachTimeout = TimeSpan.FromSeconds(10);
 
@@ -167,7 +170,7 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
     /// </summary>
     private async Task CleanUpAsync(Task stopping, Task reading, EventPipeEventSource source, EventPipeSession session, int processId)
     {
-        if (await Task.WhenAny(stopping, Task.Delay(StopTimeout)) != stopping)
+        if (await Task.WhenAny(stopping, Task.Delay(StopAfter)) != stopping)
         {
             logger.LogInformation("Stopping the trace of process {ProcessId} takes long (halted?); closing the stream", processId);
             try
@@ -180,7 +183,7 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
             }
         }
 
-        if (await Task.WhenAny(reading, Task.Delay(StopTimeout)) != reading)
+        if (await Task.WhenAny(reading, Task.Delay(StopAfter)) != reading)
         {
             logger.LogWarning("The trace of process {ProcessId} did not end its reading", processId);
         }

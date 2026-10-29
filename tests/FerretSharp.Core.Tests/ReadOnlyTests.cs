@@ -311,7 +311,8 @@ public class ReadOnlyTests
     {
         static string Field(string name) =>
             (string)typeof(OracleSchemaReader).GetField(name, BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
-        static int Commas(string sql) => sql[..sql.IndexOf("FROM", StringComparison.Ordinal)].Count(c => c == ',');
+        // Up to the outer FROM: since WP-42 the identity's sub-select has a FROM of its own, and cutting there compared only the first nine fields (review 3.54.0, C7).
+        static int Commas(string sql) => sql[..sql.IndexOf("FROM all_tab_cols c", StringComparison.Ordinal)].Count(c => c == ',');
 
         Assert.Equal(Commas(Field("ColumnsSelect")), Commas(Field("SchemaColumnsSql")));
         Assert.DoesNotContain("data_default", Field("SchemaColumnsSql"), StringComparison.Ordinal);

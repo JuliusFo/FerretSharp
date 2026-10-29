@@ -26,7 +26,7 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
                 await ExecuteAsync(connection, "CREATE TABLE TXS (ID NUMBER PRIMARY KEY, TXT VARCHAR2(20)) SEGMENT CREATION IMMEDIATE");
                 await ExecuteAsync(connection, "INSERT INTO TXS VALUES (10, 'zehn')");
                 await ExecuteAsync(connection, "INSERT INTO TXS VALUES (20, 'zwanzig')");
-                await Task.Delay(3000, Ct); // a snapshot right after CREATE TABLE fails with ORA-01466
+                await SettledAsync(connection); // a snapshot right after CREATE TABLE fails with ORA-01466
                 _created = true;
             }
         }
@@ -37,6 +37,34 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Until a read-only snapshot sees the new table: polled instead of a fixed 3 s (review 3.54.0, C8; the way of
+    /// TransactionBehaviorTests).
+    /// </summary>
+    private static async Task SettledAsync(OracleConnection connection)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            await using var transaction = connection.BeginTransaction();
+            await using var setReadOnly = connection.CreateCommand();
+            setReadOnly.CommandText = "SET TRANSACTION READ ONLY";
+            await setReadOnly.ExecuteNonQueryAsync(Ct);
+            try
+            {
+                await using var count = connection.CreateCommand();
+                count.CommandText = "SELECT COUNT(*) FROM TXS";
+                await count.ExecuteScalarAsync(Ct);
+                await transaction.RollbackAsync(Ct);
+                return;
+            }
+            catch (OracleException ex) when (ex.Number == 1466 && attempt < 20)
+            {
+                await transaction.RollbackAsync(Ct);
+                await Task.Delay(250, Ct);
+            }
+        }
+    }
 
     private async Task<OracleSession> OpenAsync()
     {

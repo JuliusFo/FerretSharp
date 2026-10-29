@@ -33,8 +33,12 @@ public sealed class SqlHistoryStoreTests : IDisposable
     [Fact]
     public async Task At_most_500_entries()
     {
+        // A full history on disk and two more added – not 503 atomic writes (6 s; review 3.54.0, C10).
         var store = new SqlHistoryStore(_folder.Path);
-        for (var i = 0; i < SqlHistoryStore.MaxEntries + 3; i++)
+        var full = Enumerable.Range(0, SqlHistoryStore.MaxEntries).Select(i => Entry($"SELECT {i} FROM dual")).Reverse().ToList();
+        await File.WriteAllTextAsync(Path.Combine(_folder.Path, Connection.ToString("D") + ".json"),
+            System.Text.Json.JsonSerializer.Serialize(new { Version = 1, Entries = full }, FerretSharp.Core.IO.JsonFiles.Options), Ct);
+        for (var i = SqlHistoryStore.MaxEntries; i < SqlHistoryStore.MaxEntries + 3; i++)
         {
             await store.AddAsync(Connection, Entry($"SELECT {i} FROM dual"), Ct);
         }
