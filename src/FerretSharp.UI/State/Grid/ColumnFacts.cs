@@ -1,3 +1,4 @@
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.Resources;
 
@@ -20,4 +21,13 @@ public static class ColumnFacts
     public static string Title(ForeignKeyInfo fk) =>
         $"{fk.Name}: {fk.From}({string.Join(", ", fk.FromColumns)}) → {fk.To}({string.Join(", ", fk.ToColumns)})" +
         (fk.Source == FkSource.ClrModel ? Environment.NewLine + GridText.FkJump_ModelRelationship : "");
+
+    /// <summary>"Copy name" of both column menus (review 3.54.0, B5): the name, with a notice when it is in the clipboard.</summary>
+    public static async Task CopyNameAsync(ShellState shell, DomModule dom, string name)
+    {
+        if (await dom.CopyTextAsync(shell, name))
+        {
+            shell.Notify(TextFormat.Format(GridText.ColumnMenu_NameCopied, name));
+        }
+    }
 }

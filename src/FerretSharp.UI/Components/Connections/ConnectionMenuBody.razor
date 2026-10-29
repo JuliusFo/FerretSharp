@@ -33,7 +33,7 @@
         {
             <span class="ctx-fact fk">@(scope == Hub.Current ? ConnectionViewText.Connection_TagShown : ConnectionViewText.Connection_TagConnected)</span>
         }
-        @if (ConnectionLastUsed.Text(Recent.LastUsed.TryGetValue(Profile.Id, out var used) ? used : null, DateTime.Today) is { Length: > 0 } last)
+        @if (ConnectionLastUsed.Text(Recent.LastUsed, Profile.Id, DateTime.Today) is { Length: > 0 } last)
         {
             <span class="ctx-fact" title="@ConnectionViewText.ConnectionMenu_LastUsedTitle">@last</span>
         }

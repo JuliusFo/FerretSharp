@@ -55,11 +55,7 @@
 
     private async Task CopyNameAsync()
     {
-        if (await Dom.CopyTextAsync(Shell, Column.Name))
-        {
-            Shell.Notify(TextFormat.Format(GridText.ColumnMenu_NameCopied, Column.Name));
-        }
-
+        await ColumnFacts.CopyNameAsync(Shell, Dom, Column.Name);
         await OnClose.InvokeAsync();
     }
 
