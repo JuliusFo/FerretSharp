@@ -1189,7 +1189,8 @@
         rowIndex => _blocks.At(rowIndex) is { } row ? Shown(row) : null,
         ReadShownRowsAsync,
         columns => ColumnValueCopies.ForTable(Tab, Details, columns, Workspaces.GetDataAsync),
-        columns => Tab.Changes?.PendingIn([.. columns]) ?? 0);
+        columns => Tab.Changes?.PendingIn([.. columns]) ?? 0,
+        Tab.WorkspaceId);
 
     /// <summary>Cancels reads of a marked range's rows when the tab goes away (review 3.54.0, A5); never disposed (no timer).</summary>
     private readonly CancellationTokenSource _closing = new();

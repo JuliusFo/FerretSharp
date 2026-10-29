@@ -51,7 +51,10 @@ public sealed class CellCopiesTests
             return Task.FromResult<IReadOnlyList<RowData>?>([.. Enumerable.Range(start, Math.Max(0, Math.Min(count, rowsInDatabase - start))).Select(Row)]);
         },
         all,
-        _ => pending);
+        _ => pending,
+        Workspace);
+
+    private static readonly Guid Workspace = Guid.NewGuid();
 
     private Task<bool> CopyAsync(string text)
     {
@@ -149,6 +152,43 @@ public sealed class CellCopiesTests
         Assert.Empty(_copied);
         Assert.Empty(_shell.BackgroundReads.Running);
         Assert.Equal(TextFormat.Format(GridText.Marks_Cancelled, new GridMarks(0, 9, ["c0"], false).Text), _shell.Notice!.Text);
+    }
+
+    /// <summary>
+    /// Review of R8: the loop over a range ran on the thread pool and read the grid's row cache there while the grid filled
+    /// it. It stays on the caller's thread now; the read runs under the workspace, so a commit waits until it is done.
+    /// </summary>
+    [Fact]
+    public async Task Reading_rows_not_loaded_stays_on_the_ui_thread_and_holds_the_workspace()
+    {
+        using var ui = new UiThread();
+        Load(0, 1);
+        var offThread = new List<string>();
+        Guid? holding = null;
+        var grid = Grid() with
+        {
+            RowAt = i =>
+            {
+                if (!ui.IsCurrent)
+                {
+                    offThread.Add($"row {i}");
+                }
+
+                return _loaded.GetValueOrDefault(i);
+            },
+            ReadRows = async (start, count, _) =>
+            {
+                holding = _shell.BackgroundReads.ReadingIn(Workspace)?.WorkspaceId;
+                await Task.Yield(); // a read leaves the thread itself
+                return [.. Enumerable.Range(start, count).Select(Row)];
+            },
+        };
+
+        await ui.RunAsync(() => CopyAsync(grid, new GridMarks(0, 9, ["c0"], false), MarksCopy.Cells));
+
+        Assert.Empty(offThread);
+        Assert.Equal(Workspace, holding);
+        Assert.Equal(10, _copied.Single().Split("\r\n").Length);
     }
 
     [Fact]

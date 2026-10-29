@@ -33,12 +33,14 @@ public enum MarksCopy
 /// </param>
 /// <param name="AllOf">All values of whole columns, read again; null where the grid cannot read all rows (LINQ console).</param>
 /// <param name="PendingIn">Rows with pending changes of the columns: a read of all values does not have them.</param>
+/// <param name="WorkspaceId">The workspace whose session <paramref name="ReadRows"/> reads: no commit or write there while it does.</param>
 public sealed record MarkedCells(
     Func<int, ExportColumn> ColumnOf,
     Func<int, RowData?> RowAt,
     Func<int, int, CancellationToken, Task<IReadOnlyList<RowData>?>> ReadRows,
     Func<IReadOnlyList<int>, AllColumnValues>? AllOf,
-    Func<IReadOnlyList<int>, int> PendingIn);
+    Func<IReadOnlyList<int>, int> PendingIn,
+    Guid? WorkspaceId);
 
 /// <summary>
 /// Copies the marked cells of a grid (WP-58): a rectangle as shown – pending values included (A21), rows not loaded read
@@ -89,8 +91,10 @@ public static class CellCopies
             // up to twenty reads of 5,000 rows, over a silent VPN without end. The window may be behind afterwards – the text
             // goes through the host like the values of whole columns.
             var label = marks.Text;
-            var read = await shell.RunInBackgroundAsync(logger, connection,
-                TextFormat.Format(ShellText.Status_CopyValuesLabel, label), missing, TextFormat.Format(ShellText.Status_CopyValuesTitle, label), null,
+            // On this thread: the loop reads the grid's loaded rows, each read leaves the thread itself. With the workspace,
+            // so no commit or write slips in between two reads (review of R8).
+            var read = await shell.CallInBackgroundAsync(logger, connection,
+                TextFormat.Format(ShellText.Status_CopyValuesLabel, label), missing, TextFormat.Format(ShellText.Status_CopyValuesTitle, label), grid.WorkspaceId,
                 async (progress, token) =>
                 {
                     var found = await RowsAsync(grid.RowAt, grid.ReadRows, marks.FromRow, marks.ToRow, token, progress);

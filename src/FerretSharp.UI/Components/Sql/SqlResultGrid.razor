@@ -476,7 +476,11 @@
         _blocks.At,
         ReadRowsAsync,
         ExportsAllRows ? AllValuesOf : null,
-        _ => 0);
+        _ => 0,
+        WorkspaceId);
+
+    /// <summary>Cancels reads of a marked range's rows when the result goes away (review of R8, like FerretGrid); never disposed.</summary>
+    private readonly CancellationTokenSource _closing = new();
 
     /// <summary>
     /// Rows of a marked range that are not loaded: from the rows sorted in memory, else the query read for them like a
@@ -490,8 +494,10 @@
         }
 
         var query = _order.Query;
+        using var reading = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _closing.Token);
+        var token = reading.Token;
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
-            await Workspaces.ReadSqlAsync(WorkspaceId, query, start, count, cancellationToken), cancellationToken);
+            await Workspaces.ReadSqlAsync(WorkspaceId, query, start, count, token), token);
         return Shell.ShowFailure(result) ? result.Value!.Rows.Select(values => new RowData(RowKey.None.Instance, values)).ToList() : null;
     }
 
@@ -627,6 +633,7 @@
     {
         _disposed = true;
         Presentations.HeaderChanged -= OnHeaderChanged;
+        CancelOffThread.Run(_closing);
         await _cts.CancelAsync();
         _cts.Dispose();
         await _grid.DisposeAsync();

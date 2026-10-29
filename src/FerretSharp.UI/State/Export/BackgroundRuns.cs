@@ -15,17 +15,31 @@ public static class BackgroundRuns
     /// <param name="title">The tooltip; null for an export to the file <paramref name="label"/>.</param>
     /// <param name="workspaceId">The workspace whose session reads; null if none is read.</param>
     /// <param name="work">The read, reporting its rows (on the UI thread) and stopping at the token.</param>
-    public static async Task<DbResult<T>> RunInBackgroundAsync<T>(
+    public static Task<DbResult<T>> RunInBackgroundAsync<T>(
         this ShellState shell, ILogger logger, ActiveConnection? connection, string label, long? total, string? title, Guid? workspaceId,
-        Func<IProgress<long>, CancellationToken, Task<T>> work)
+        Func<IProgress<long>, CancellationToken, Task<T>> work) =>
+        shell.TrackAsync(label, total, title, workspaceId, (progress, token) => shell.RunDbAsync(logger, connection, () => work(progress, token), token));
+
+    /// <summary>
+    /// Like <see cref="RunInBackgroundAsync{T}"/>, but <paramref name="work"/> stays on the caller's thread: a loop over a grid's
+    /// own state (its loaded rows, pending changes) whose reads leave the thread themselves – the copy of a marked range read
+    /// the grid's row cache on the thread pool while the grid filled it (review of R8).
+    /// </summary>
+    public static Task<DbResult<T>> CallInBackgroundAsync<T>(
+        this ShellState shell, ILogger logger, ActiveConnection? connection, string label, long? total, string? title, Guid? workspaceId,
+        Func<IProgress<long>, CancellationToken, Task<T>> work) =>
+        shell.TrackAsync(label, total, title, workspaceId, (progress, token) => shell.CallDbAsync(logger, connection, () => work(progress, token)));
+
+    /// <summary>Shows <paramref name="call"/> in the status bar while it runs, with its rows and "Cancel".</summary>
+    private static async Task<DbResult<T>> TrackAsync<T>(
+        this ShellState shell, string label, long? total, string? title, Guid? workspaceId, Func<IProgress<long>, CancellationToken, Task<DbResult<T>>> call)
     {
         var reads = shell.BackgroundReads;
         var job = reads.Start(label, total, title, workspaceId);
         var progress = new Progress<long>(rows => reads.Report(job, rows)); // reports on the UI thread
         try
         {
-            var token = job.Token;
-            return await shell.RunDbAsync(logger, connection, () => work(progress, token), token);
+            return await call(progress, job.Token);
         }
         finally
         {
