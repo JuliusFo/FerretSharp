@@ -1,4 +1,4 @@
-# WP-66 Verbindungsgruppen verwalten → Release offen
+# WP-66 Verbindungsgruppen verwalten → Release 3.54.0
 
 Branch `wp/66-connection-groups`, 2026-10-28. Wünsche eines Kollegen, vom Nutzer am selben Tag weitergegeben: eine Gruppe umbenennen, ohne jede Verbindung einzeln zu öffnen, den Aufklappzustand speichern und die Gruppen verschieben. Der Nutzer hat die „⋯“-Menüs nach dem Muster von WP-61 und ein Tastenkürzel je Verbindung dazugenommen.
 

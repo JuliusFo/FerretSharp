@@ -1,4 +1,4 @@
-# Klein: Gefilterte Spalten ohne Index in „Verwendung“ → Release offen
+# Klein: Gefilterte Spalten ohne Index in „Verwendung“ → Release 3.54.0
 
 Branch `feat/usage-filter-without-index` (von `main`), 2026-10-28. Nachtrag zu WP-40 (ADR 0030).
 
