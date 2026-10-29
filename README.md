@@ -47,6 +47,9 @@ developer works with an Oracle database day to day:
 
 - Several connections open at once, one shown: switch from DEV to PROD and back (<kbd>Alt</kbd>+<kbd>O</kbd>) without
   disconnecting – tabs, grids and open transactions stay as they were.
+- **Connection groups** to rename, merge, order and fold – drag a connection into another group – and a shortcut of your
+  own per connection. A connection the VPN dropped can come back by itself (a setting, off by default): only when no
+  uncommitted work would be lost, with pauses between the attempts and never after a refused login.
 - Explorer with letter index and search; tables, views, materialized views and objects reachable through synonyms –
   views on request in a section of their own.
 - **Quick open and command palette**: one box at the top of the window – type a name to open a table, view or PL/SQL
@@ -79,6 +82,15 @@ developer works with an Oracle database day to day:
   of the filter**: those are read in the background, with a cancel button in the status bar.
 - Copy the values of a column, one per line or as an `IN` list of Oracle literals – from the selected rows or from all
   rows of the filter.
+- **Mark cells and whole columns** – drag across the grid (it scrolls on at the edge), Shift+click, Ctrl+click a header –
+  and copy them as shown, as a table or as an `IN` list; rows not loaded are read in the background, with cancel.
+- Sort the results of the SQL editor and the LINQ console by a click on a header.
+- **Relationship diagram**: the "Relations" view of a table – parents left, children right, one or two levels, "+n"
+  handles to go further, kinds of relationship to switch off, zoom, copy as Mermaid for a ticket.
+- **Record diagram**: marked rows with their parents and children over up to four levels, read relationship by
+  relationship; a click opens a row filtered, marked rows go to another connection (below).
+- **Audit tables read like their base table**: its relationships, C# names and enums, the cells a version changed
+  against the one before tinted, inserted and deleted rows marked.
 
 <table>
   <tr>
@@ -119,6 +131,9 @@ developer works with an Oracle database day to day:
   like any edit, and one step for <kbd>Ctrl</kbd>+<kbd>Z</kbd>.
 - **Read-only connections** (default for production) run in `SET TRANSACTION READ ONLY` – Oracle rejects DML. Unlock a
   single workspace on purpose by typing the connection's name.
+- **Copy rows to another connection**: the marked rows with their parents and the children you choose into a workspace
+  of another connection – checked against its tables first, existing rows skipped, updated or the copy stopped, previewed
+  as a table or a diagram, written as one action of its transaction (undo, commit as usual).
 
 <table>
   <tr>
@@ -208,6 +223,7 @@ changes, and a new build is picked up automatically:
 - **Usage in the code**: per column, the methods of your solution that read or write its property or query the table,
   read from the compiled code – a click opens the line in Visual Studio. Properties no code uses are marked, and the
   designer warns before dropping a column the code still uses. Uses open in your *work clone* of the connection group.
+  Columns your code filters on (`Where`, `Any`, `First…`) without an index that starts with them are marked.
 - **Model file**: can't build the project (packages from a private feed)? A colleague exports the model as a file, and
   you link that instead – names, enums and relationships without a build and without running the project's code.
 
