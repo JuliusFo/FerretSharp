@@ -204,28 +204,10 @@ public static class CellCopies
         var cells = new CellValues(presented, kind == MarksCopy.Table);
         var read = all.Read(false);
         var label = marks.Text;
-        var result = await shell.RunInBackgroundAsync(logger, connection,
+        var result = await shell.ReadAllRowsAsync(logger, connection,
             TextFormat.Format(ShellText.Status_CopyValuesLabel, label), all.Total, TextFormat.Format(ShellText.Status_CopyValuesTitle, label), all.WorkspaceId,
-            async (progress, token) =>
-            {
-                long rows = 0;
-                await read((block, _, _) =>
-                {
-                    foreach (var row in block)
-                    {
-                        if (!cells.AddRow(row.Values))
-                        {
-                            return Task.FromResult(false);
-                        }
-                    }
-
-                    rows += block.Count;
-                    progress.Report(rows);
-                    return Task.FromResult(true);
-                }, token);
-                return cells;
-            });
-        if (result.Value is not null)
+            read, row => cells.AddRow(row.Values));
+        if (result.Succeeded)
         {
             await FinishAsync(shell, clipboard.SetTextAsync, cells, marks, kind, extra);
         }

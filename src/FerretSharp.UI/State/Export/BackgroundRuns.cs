@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Data;
 using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
@@ -31,4 +32,32 @@ public static class BackgroundRuns
             reads.End(job);
         }
     }
+
+    /// <summary>
+    /// Every row of <paramref name="read"/> in the background, each handed to <paramref name="add"/> until it says no more (a
+    /// limit reached): the values of a column and of whole marked columns (review 3.54.0, B3: the loop stood there twice).
+    /// </summary>
+    /// <returns>True once read; a cancel or failure comes back in the result.</returns>
+    public static Task<DbResult<bool>> ReadAllRowsAsync(
+        this ShellState shell, ILogger logger, ActiveConnection? connection, string label, long? total, string? title, Guid? workspaceId,
+        RowReader read, Func<RowData, bool> add) =>
+        shell.RunInBackgroundAsync(logger, connection, label, total, title, workspaceId, async (progress, token) =>
+        {
+            long rows = 0;
+            await read((block, _, _) =>
+            {
+                foreach (var row in block)
+                {
+                    if (!add(row))
+                    {
+                        return Task.FromResult(false);
+                    }
+                }
+
+                rows += block.Count;
+                progress.Report(rows);
+                return Task.FromResult(true);
+            }, token);
+            return true;
+        });
 }

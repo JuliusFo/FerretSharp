@@ -117,28 +117,10 @@ public static class ColumnValueCopies
         var total = distinct && all.DistinctInQuery ? null : all.Total;
         var values = new ColumnValues(column, format) { NullsCollapsed = distinct && all.DistinctInQuery };
         var read = all.Read(distinct);
-        var result = await shell.RunInBackgroundAsync(logger, connection,
+        var result = await shell.ReadAllRowsAsync(logger, connection,
             TextFormat.Format(ShellText.Status_CopyValuesLabel, columnName), total, TextFormat.Format(ShellText.Status_CopyValuesTitle, columnName), all.WorkspaceId,
-            async (progress, token) =>
-            {
-                long rows = 0;
-                await read((block, _, _) =>
-                {
-                    foreach (var row in block)
-                    {
-                        if (!values.Add(row.Values[index]))
-                        {
-                            return Task.FromResult(false);
-                        }
-                    }
-
-                    rows += block.Count;
-                    progress.Report(rows);
-                    return Task.FromResult(true);
-                }, token);
-                return values;
-            });
-        if (result.Value is not null)
+            read, row => values.Add(row.Values[index]));
+        if (result.Succeeded)
         {
             await FinishAsync(shell, clipboard.SetTextAsync, values, columnName, extra ?? []);
         }

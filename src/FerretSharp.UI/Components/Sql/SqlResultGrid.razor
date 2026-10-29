@@ -403,7 +403,7 @@
             ColumnValuesFormat.Lines, rows.OfType<RowData>().ToList(), rows.Count(r => r is null));
     });
 
-    /// <summary>Right click on a column header (SQL editor only, <see cref="ExportsAllRows"/>): copy all its values.</summary>
+    /// <summary>Right click on a column header (SQL editor only, <see cref="ExportsAllRows"/>): copy all its values, mark the column.</summary>
     /// <param name="marks">What is marked (grid.js sends it for a table's menu, WP-61); a result's menu has no use for it.</param>
     [JSInvokable]
     public Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight, GridMarks? marks) => GuardAsync(() =>
