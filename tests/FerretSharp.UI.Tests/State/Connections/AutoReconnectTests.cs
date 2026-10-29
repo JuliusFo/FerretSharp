@@ -192,8 +192,11 @@ public sealed class AutoReconnectTests : IAsyncDisposable
 
         await LoseAsync(test);
         Assert.Equal(ReconnectPhase.Holding, _reconnect.RunOf(test)?.Phase);
+        var renders = 0;
+        _app.Shell.Changed += () => renders++;
         await AdvanceAsync(AutoReconnect.HoldRecheck);
         Assert.Equal(before, _app.OpenAttempts);
+        Assert.Equal(0, renders); // review 3.54.0, A17: still holding is no change – the whole shell rendered every 2 s
 
         running.Dispose();
         await AdvanceAsync(AutoReconnect.HoldRecheck);
