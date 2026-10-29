@@ -122,6 +122,12 @@ public sealed class WorkCloneTests : IDisposable
 
         Assert.Null(WorkCloneMapping.Resolve(outside, linked, null, null, TestContext.Current.CancellationToken));
         Assert.Equal(new SourceLocation(outside, false), WorkCloneMapping.Resolve(outside, Write("loose/Loose.csproj"), null, null, TestContext.Current.CancellationToken));
+
+        // Review of R8: the same through the deterministic path – "/_/" with a root after it (here a local one, a share would
+        // be tried), which Path.Combine returned as it was.
+        var deterministic = "/_/" + outside.Replace('\\', '/');
+        Assert.Null(WorkCloneMapping.Resolve(deterministic, linked, null, null, TestContext.Current.CancellationToken));
+        Assert.Null(WorkCloneMapping.Resolve(deterministic, linked, Clone("work", "feature/x"), null, TestContext.Current.CancellationToken));
     }
 
     [Fact]
