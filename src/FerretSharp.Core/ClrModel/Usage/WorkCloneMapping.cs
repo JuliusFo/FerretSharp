@@ -56,10 +56,14 @@ public static partial class WorkCloneMapping
     {
         var linkedRoot = GitFolder.FindRoot(linkedProjectFile);
         var relative = Relative(document, linkedRoot);
-        // "/_/…" is fully qualified on Linux, but it is no file there either.
+        // "/_/…" is fully qualified on Linux, but it is no file there either. An absolute path only below the repository
+        // root, or without one on this machine: a "#line 1 \\host\share\x.cs" made File.Exists sign in there (review
+        // 3.54.0, A9).
         var linkedFile = DeterministicPath().IsMatch(document)
             ? linkedRoot is null || relative is null ? null : Path.Combine(linkedRoot, relative)
-            : Path.IsPathFullyQualified(document) ? document : null;
+            : !Path.IsPathFullyQualified(document) ? null
+            : linkedRoot is not null ? relative is null ? null : Path.Combine(linkedRoot, relative)
+            : GitFolder.IsShare(document) ? null : document;
 
         if (workClone is not null && Check(linkedProjectFile, workClone) == WorkCloneFit.Fits)
         {

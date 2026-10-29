@@ -109,6 +109,21 @@ public sealed class WorkCloneTests : IDisposable
         Assert.Null(WorkCloneMapping.Resolve("/_/../x.cmd", linked, null, null, TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    /// Review 3.54.0, A9: an absolute path from the PDB outside the repository was opened as it was – a
+    /// <c>#line 1 "\\host\share\x.cs"</c> signed in on that host (not tried here: the test would do just that).
+    /// </summary>
+    [Fact]
+    public void An_absolute_path_outside_the_repository_is_not_opened()
+    {
+        var linkedRoot = Clone("dev-db", "dev");
+        var linked = Path.Combine(linkedRoot, "src", "Shop.Data", "Shop.Data.csproj");
+        var outside = Write("elsewhere/Customer.cs", "class Customer { }");
+
+        Assert.Null(WorkCloneMapping.Resolve(outside, linked, null, null, TestContext.Current.CancellationToken));
+        Assert.Equal(new SourceLocation(outside, false), WorkCloneMapping.Resolve(outside, Write("loose/Loose.csproj"), null, null, TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public void A_nested_or_generic_type_is_found_by_its_simple_name_files_named_after_it_first()
     {
