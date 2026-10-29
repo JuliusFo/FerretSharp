@@ -37,7 +37,7 @@ internal static class CompareDefinitions
     }
 
     /// <summary>
-    /// <c>VARCHAR2(200 CHAR) NOT NULL DEFAULT 'x'</c>, <c>NUMBER(12) NOT NULL IDENTITY</c>,
+    /// <c>VARCHAR2(200 CHAR) NOT NULL DEFAULT 'x'</c>, <c>NUMBER(12) NOT NULL IDENTITY</c> (BY DEFAULT; <c>IDENTITY ALWAYS</c>),
     /// <c>NUMBER NULL VIRTUAL AS (A + B)</c>; views and materialized views only type and nullability. With
     /// <paramref name="position"/> (column order counts) <c> · #3</c> is appended.
     /// </summary>
@@ -54,8 +54,9 @@ internal static class CompareDefinitions
             else if (c.IsIdentity)
             {
                 // The default of an identity column is the NEXTVAL of its sequence ISEQ$$_<object id>: differs on every
-                // database and says nothing.
-                text.Append(c.DefaultOnNull ? " IDENTITY ON NULL" : " IDENTITY");
+                // database and says nothing. ALWAYS refuses values of the application, BY DEFAULT takes them (review of R8:
+                // the comparison did not tell them apart).
+                text.Append(c.IdentityAlways ? " IDENTITY ALWAYS" : c.DefaultOnNull ? " IDENTITY ON NULL" : " IDENTITY");
             }
             else if (Default(c.Default) is { } expression)
             {

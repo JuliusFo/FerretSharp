@@ -9,8 +9,8 @@ public class SchemaDiffTests
 
     private static ColumnInfo Col(
         string name, string type = "NUMBER", int? length = null, bool charSemantics = false, int? precision = null, int? scale = null,
-        bool nullable = true, bool identity = false, string? defaultValue = null, bool isVirtual = false, bool onNull = false) =>
-        new(name, type, length, charSemantics, precision, scale, nullable, identity, defaultValue, 0, null, isVirtual, onNull);
+        bool nullable = true, bool identity = false, string? defaultValue = null, bool isVirtual = false, bool onNull = false, bool always = false) =>
+        new(name, type, length, charSemantics, precision, scale, nullable, identity, defaultValue, 0, null, isVirtual, onNull, always);
 
     private static ColumnInfo Id() => Col("ID", precision: 10, scale: 0, nullable: false);
 
@@ -174,6 +174,8 @@ public class SchemaDiffTests
             "NUMBER NOT NULL DEFAULT ON NULL 0", "NUMBER NOT NULL DEFAULT 0"),
         ["identity"] = (Col("C", nullable: false, identity: true, defaultValue: "\"ERP\".\"ISEQ$$_1\".nextval"), Col("C", nullable: false),
             "NUMBER NOT NULL IDENTITY", "NUMBER NOT NULL"),
+        ["identity always"] = (Col("C", nullable: false, identity: true, always: true), Col("C", nullable: false, identity: true),
+            "NUMBER NOT NULL IDENTITY ALWAYS", "NUMBER NOT NULL IDENTITY"), // review of R8
         ["virtual"] = (Col("C", isVirtual: true, defaultValue: "\"A\"+\"B\""), Col("C", isVirtual: true, defaultValue: "\"A\"-\"B\""),
             "NUMBER NULL VIRTUAL AS (\"A\"+\"B\")", "NUMBER NULL VIRTUAL AS (\"A\"-\"B\")"),
         ["virtual vs real"] = (Col("C", isVirtual: true, defaultValue: "1"), Col("C", defaultValue: "1"), "NUMBER NULL VIRTUAL AS (1)", "NUMBER NULL DEFAULT 1"),
@@ -191,6 +193,7 @@ public class SchemaDiffTests
     [InlineData("no default")]
     [InlineData("default on null")]
     [InlineData("identity")]
+    [InlineData("identity always")]
     [InlineData("virtual")]
     [InlineData("virtual vs real")]
     public void Column_differences_are_found(string name)

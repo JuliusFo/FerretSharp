@@ -71,8 +71,7 @@ public class SchemaDdlTests
                 "BRUTTO" NUMBER GENERATED ALWAYS AS ("BETRAG"*1.19) VIRTUAL)
             """.ReplaceLineEndings("\n"),
             step.Sql);
-        Assert.Contains("Identity ID", step.Warning);
-        Assert.Contains("BY DEFAULT", step.Warning);
+        Assert.Contains("Identity ID: Start und Schrittweite", step.Warning); // ALWAYS or BY DEFAULT is known since R8
     }
 
     [Fact]
