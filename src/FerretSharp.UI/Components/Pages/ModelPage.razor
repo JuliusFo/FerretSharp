@@ -158,7 +158,7 @@
 
             @if (Models.LastBuild is { Succeeded: false } build && !Models.IsBuilding)
             {
-                <div class="test-result error model-error"><span>@TextFormat.Format(ModelViewText.Model_BuildFailed, build.ExitCode)</span></div>
+                <div class="test-result error model-error"><span>@(build.Error ?? TextFormat.Format(ModelViewText.Model_BuildFailed, build.ExitCode))</span></div>
                 <pre class="model-log">@build.Output</pre>
             }
         </section>

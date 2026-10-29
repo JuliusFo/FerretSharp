@@ -217,9 +217,30 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     public Task<DotNetRun> BuildSolutionAsync(string solution, string configuration, CancellationToken cancellationToken) =>
         Build(solution, configuration, TimeSpan.FromMinutes(30), cancellationToken);
 
+    /// <summary>
+    /// One build at a time in the whole app (review 3.54.0, A6): connections linked to the same project each have their own
+    /// model manager, and two builds of one solution side by side wrote into the same <c>obj</c>/<c>bin</c> (CS2012,
+    /// MSB3026) – the second waits for the first (decision of the user).
+    /// </summary>
+    private static readonly SemaphoreSlim Building = new(1, 1);
+
     private static Task<DotNetRun> Build(string file, string configuration, TimeSpan timeout, CancellationToken cancellationToken) =>
-        DotNetCli.RunAsync(["build", file, "-c", configuration, "-nologo", "-v", "q", "-nodeReuse:false", "--disable-build-servers"],
-            Path.GetDirectoryName(file)!, timeout, cancellationToken);
+        OneBuildAtATimeAsync(() => DotNetCli.RunAsync(["build", file, "-c", configuration, "-nologo", "-v", "q", "-nodeReuse:false", "--disable-build-servers"],
+            Path.GetDirectoryName(file)!, timeout, cancellationToken), cancellationToken);
+
+    /// <summary>Runs <paramref name="build"/> once no other build runs; cancelled while waiting, it never starts.</summary>
+    internal static async Task<T> OneBuildAtATimeAsync<T>(Func<Task<T>> build, CancellationToken cancellationToken)
+    {
+        await Building.WaitAsync(cancellationToken);
+        try
+        {
+            return await build();
+        }
+        finally
+        {
+            Building.Release();
+        }
+    }
 
     /// <summary>
     /// The project's runtime (a class library has no runtimeconfig of its own), rolling forward to a newer one if only

@@ -206,6 +206,20 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         Assert.Contains("kaputt", _models.State.Error!.Message);
     }
 
+    /// <summary>Review 3.54.0, A19: a build past its time limit showed "exit code -1" and lost what it wrote up to then.</summary>
+    [Fact]
+    public async Task A_build_past_its_time_limit_keeps_its_output_and_says_why()
+    {
+        await ConnectAsync();
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ClrModelException(ClrModelErrorKind.Timeout, "nicht in 1800 s fertig", "Restore läuft …"));
+
+        var run = await _models.BuildSolutionAsync("App.sln", Ct);
+
+        Assert.Equal(("Restore läuft …", "nicht in 1800 s fertig"), (run!.Output, run.Error));
+        Assert.False(run.Succeeded);
+    }
+
     [Fact]
     public async Task A_console_that_cannot_start_fails_with_a_message()
     {

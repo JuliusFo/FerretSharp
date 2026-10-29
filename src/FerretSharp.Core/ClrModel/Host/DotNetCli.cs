@@ -6,7 +6,8 @@ using FerretSharp.Core.Resources;
 namespace FerretSharp.Core.ClrModel;
 
 /// <summary>Exit code and output (stdout and stderr interleaved) of a <c>dotnet</c> call.</summary>
-public sealed record DotNetRun(int ExitCode, string Output)
+/// <param name="Error">Why it ended without an exit code of its own (did not start, ran past its time limit); shown instead of the code.</param>
+public sealed record DotNetRun(int ExitCode, string Output, string? Error = null)
 {
     public bool Succeeded => ExitCode == 0;
 }
