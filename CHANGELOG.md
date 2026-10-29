@@ -5,6 +5,41 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+Fixes, structure, tests and docs after the full review of 3.54.0.
+
+### Security
+- "Open with the default program" and the other ways to open a source file of the code usage take a path from the build's debug information only below the repository root and never on a network share – a crafted `#line` made FerretSharp sign in to a foreign host just by checking whether the file exists. `//host/share` paths are refused like `\\host\share`.
+- The release workflow no longer keeps its write token in the checkout while building and testing with code from NuGet packages.
+- "Copy as Mermaid" keeps line breaks and `%%` of table names and values inside their label; a DDL script's header comments every line of a table name with a line break.
+
+### Changed
+- "Disconnect all" of a group takes all its connections away at once and closes them side by side; one after the other, over a dropped VPN, the later ones stayed open and shown for seconds.
+- Copying rows into another connection shows the write's time, "Cancel" and, after 5 s, "Disconnect session" for the target in the dialog – an insert waits without end for a key another session holds uncommitted.
+- Copying marked cells with rows not loaded reads them in the background, with the rows and "Cancel" in the status bar.
+- The highlighting of an audit table's changes stops its query when the grid reads anew, and switches itself off for the tab when one takes longer than 10 s (an index on the base table's key in the audit table would help).
+- One project build at a time: a second build of the same solution from another connection waits for the first.
+- The right-click menus filter like every search box: accents do not count ("anderung" finds "Änderungen"), and a jump's table is found without its underscores. A group's heading stays exactly while one of its entries does.
+- The table designer checks new and renamed constraint and index names against the whole schema, not only the table; before, the run stopped with ORA-02264 or ORA-00955 after its first steps.
+- `ALTER DATABASE LINK` runs in the SQL editor again, like `ALTER PUBLIC DATABASE LINK`.
+- An identity column `GENERATED ALWAYS` is written as such in DDL ("ALTER TABLE … ADD" for another connection).
+- A display columns file or audit template larger than 4 MB is not read.
+- The node menus of the relationship and the record diagram work with ↑ ↓ like the other right-click menus.
+
+### Fixed
+- Closing the copy dialog while it reads stops the read (it went on, and checked against the target after the dialog was gone); the dialog finds the target's schema after the target reconnected.
+- Automatic reconnecting no longer renders the whole window every 2 s while it waits for a busy session.
+- A build that runs past its time limit shows why and what it wrote up to then instead of "exit code -1".
+- Marked cells and pending values show their colour in rows of an audit table and in rows marked for deletion.
+- The relationship and record diagrams no longer render while hidden.
+- In the value list of an enum filter, ↑ ↓ scroll the highlighted entry into view and leave the search field's text cursor alone.
+- Warning badges ("no index") and warning chips have enough contrast in the light theme.
+- Dragging the width of the form beside the grid ends when the mouse capture is lost; a cell drag ends when its grid goes away.
+
+### Internal
+- `DiagramCanvas` and `DiagramZoomBar` for all diagrams, `ContextMenuHost` for the diagram menus, one background read loop, `KeyGroups`, `CancelOffThread`, `TableDesignerDraft` with `AuditDesignRules`; dead code removed.
+- Tests for the write path's guards, the import limits, a session that cannot be locked again and "Disconnect all"; ten settings tests merged into two, polling instead of fixed waits, slow tests made quick.
+- Rules `connections.md` and `code-usage.md`, a shorter `CLAUDE.md`, README with the functions since 3.46, neutral names in tests and ADR 0022.
+
 ## [3.54.0] - 2026-10-29
 
 Connection groups are managed from their menus and by dragging, connections get their own keys, and a hanging session open is tried again.
