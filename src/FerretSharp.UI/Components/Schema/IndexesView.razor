@@ -4,6 +4,7 @@
 @using FerretSharp.Core.Design
 @using FerretSharp.Core.Schema
 @inherits DetailViewBase<IReadOnlyList<IndexInfo>>
+@inject ILogger<IndexesView> Logger
 
 @if (Table.Kind == TableKind.View)
 {
@@ -25,7 +26,7 @@ else
                     <span class="mono">
                         @fk.Name (@string.Join(", ", fk.FromColumns))
                         <button class="link-btn" title="@TextFormat.Format(SchemaViewText.Indexes_CreateForFkTitle, fk.Name)"
-                                @onclick="() => StartDraft(IndexDesign.ForForeignKey(fk, indexes))">@SchemaViewText.Indexes_CreateForFk</button>
+                                @onclick="() => StartDraftAsync(IndexDesign.ForForeignKey(fk, indexes))">@SchemaViewText.Indexes_CreateForFk</button>
                     </span>
                 }
                 <span class="muted">@SchemaViewText.Indexes_UnindexedFkHint</span>
@@ -34,7 +35,7 @@ else
         @if (_draft is { } editor)
         {
             var draft = editor.Draft;
-            var check = IndexDesign.Check(draft, Details, indexes);
+            var check = IndexDesign.Check(draft, Details, indexes, _elsewhere);
             <section class="index-draft">
                 <h2>@SchemaViewText.Indexes_NewHeading</h2>
                 <div class="index-draft-form">
@@ -82,7 +83,7 @@ else
                 <h2>@SchemaViewText.Indexes_Heading <span class="count">@indexes.Count</span></h2>
                 @if (_draft is null)
                 {
-                    <button class="btn" @onclick="() => StartDraft(null)"><span class="plus">+</span> @SchemaViewText.Indexes_Create</button>
+                    <button class="btn" @onclick="() => StartDraftAsync(null)"><span class="plus">+</span> @SchemaViewText.Indexes_Create</button>
                 }
             </div>
             @if (indexes.Count == 0)
@@ -154,8 +155,23 @@ else
     protected override Task<IReadOnlyList<IndexInfo>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         Table.Kind == TableKind.View ? Task.FromResult<IReadOnlyList<IndexInfo>>([]) : schema.GetIndexesAsync(Table.Ref, cancellationToken);
 
-    /// <summary>Opens a draft: empty, or one prepared for a foreign key.</summary>
-    private void StartDraft(IndexDraft? prepared) => _draft = Data is { } indexes ? IndexDraftEditor.Start(Table.Ref, indexes, prepared) : null;
+    /// <summary>
+    /// Index names of the owner's other tables, read when the first draft opens (one round trip, not on every visit of the
+    /// view); null until then or if the read failed – the check knows the table's own then, Oracle refuses the rest cleanly.
+    /// </summary>
+    private IReadOnlySet<string>? _elsewhere;
+
+    /// <summary>Opens a draft at once – empty, or one prepared for a foreign key – and reads the names it must avoid.</summary>
+    private async Task StartDraftAsync(IndexDraft? prepared)
+    {
+        _draft = Data is { } indexes ? IndexDraftEditor.Start(Table.Ref, indexes, prepared) : null;
+        if (_draft is not null && _elsewhere is null && Active.Schema is { } schema)
+        {
+            var table = Table.Ref;
+            var names = await Shell.RunDbAsync(Logger, Active, () => schema.GetNamesElsewhereAsync(table, CancellationToken.None));
+            _elsewhere = names.Value?.Indexes;
+        }
+    }
 
     private async Task OnRanAsync()
     {
