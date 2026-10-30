@@ -207,4 +207,7 @@
   <data name="KeyUsesIndex" xml:space="preserve">
     <value>{0} nutzt den vorhandenen Index {1} – der Index-Tablespace gilt für ihn nicht.</value>
   </data>
+  <data name="TablespaceTemporaryTable" xml:space="preserve">
+    <value>Eine temporäre Tabelle hält ihre Indizes im temporären Tablespace – Oracle würde die Wahl ignorieren.</value>
+  </data>
 </root>

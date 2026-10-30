@@ -66,6 +66,14 @@ public class ObjectDetailsTests
         Assert.Single(IndexAdvice.UnindexedForeignKeys([fk], [Index("IX_MANDANT_X", Col("MANDANT"), Col("X"), Col("AUFTRAG_NR"))]));
     }
 
+    [Theory]
+    [InlineData("NORMAL", false, "A,B", true)] // Oracle takes a non-unique index starting with the key
+    [InlineData("NORMAL", true, "B,A", true)] // a unique one on the same columns in another order
+    [InlineData("NORMAL", true, "A,B,C", false)] // not a unique one with further columns: the key gets its own (measured)
+    [InlineData("BITMAP", false, "A,B,C", false)] // never a bitmap index
+    public void A_new_key_is_backed_only_by_an_index_Oracle_takes_for_it(string type, bool unique, string columns, bool backs) =>
+        Assert.Equal(backs, IndexAdvice.BacksKey(Index("IX", columns.Split(',').Select(c => Col(c)).ToArray()) with { IndexType = type, Unique = unique }, ["A", "B"]));
+
     [Fact]
     public void A_column_has_an_index_only_if_a_visible_usable_index_starts_with_it()
     {

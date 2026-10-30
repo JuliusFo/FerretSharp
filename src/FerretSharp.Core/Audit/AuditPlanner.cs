@@ -48,8 +48,9 @@ public static class AuditPlanner
     /// <param name="renamed">Columns of the table the designer renames (old name → new name).</param>
     /// <param name="taken">Names of the schema's objects: a new audit table cannot take one (ORA-00955).</param>
     /// <param name="rewriteTrigger">Write the trigger even if it looks up to date (the template changed).</param>
+    /// <param name="tablespace">The table's tablespace: a new audit table goes there too (WP-67, decision of the user); null for the default.</param>
     public static DesignPlan Plan(AuditTemplate template, TableRef table, IReadOnlyList<ColumnInfo> baseColumns, AuditState state, DataFacts facts,
-        IReadOnlyDictionary<string, string>? renamed = null, IEnumerable<string>? taken = null, bool rewriteTrigger = false)
+        IReadOnlyDictionary<string, string>? renamed = null, IEnumerable<string>? taken = null, bool rewriteTrigger = false, string? tablespace = null)
     {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(table);
@@ -68,7 +69,7 @@ public static class AuditPlanner
 
         var tablePlan = state.AuditTable is { } audit
             ? TableDesign.Plan(DesignContext.Of(audit), Draft(template, table, baseColumns, audit, facts, renamed, warnings, problems, [], []), facts)
-            : TableDesign.PlanNew(new NewTable(shape.Table.Owner, shape.Table.Name, shape.Comment), new TableDraft(shape.Columns.Select(c => new ColumnDraft(null, c)).ToList()),
+            : TableDesign.PlanNew(new NewTable(shape.Table.Owner, shape.Table.Name, shape.Comment, tablespace), new TableDraft(shape.Columns.Select(c => new ColumnDraft(null, c)).ToList()),
                 new Dictionary<TableRef, TableDetails>(), taken ?? []);
         problems.AddRange(tablePlan.Problems);
         warnings.AddRange(tablePlan.Warnings);

@@ -149,7 +149,15 @@ public static partial class IndexDesign
             warnings.Add(DesignText.IndexAllDescending);
         }
 
-        CheckTablespace(draft.Tablespace, table.Table.Owner, tablespaces, problems, warnings);
+        if (!string.IsNullOrEmpty(draft.Tablespace) && tablespaces?.TemporaryTable == true)
+        {
+            problems.Add(DesignText.TablespaceTemporaryTable); // Oracle would ignore it
+        }
+        else
+        {
+            CheckTablespace(draft.Tablespace, table.Table.Owner, tablespaces, problems, warnings);
+        }
+
         return new DraftCheck(problems, warnings);
     }
 

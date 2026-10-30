@@ -250,6 +250,8 @@ public class IndexDesignTests
         Assert.Empty(IndexDesign.Check(In("USERS"), Table, [], tablespaces: quota).Warnings);
         Assert.Empty(IndexDesign.Check(In("INDX"), Table, [], tablespaces: Tablespaces.None).Warnings); // unlimited or another schema: nothing to check
         Assert.False(IndexDesign.Check(In("IN\"DX"), Table, []).CanRun);
+        Assert.Equal(["Eine temporäre Tabelle hält ihre Indizes im temporären Tablespace – Oracle würde die Wahl ignorieren."],
+            IndexDesign.Check(In("USERS"), Table, [], tablespaces: quota with { TemporaryTable = true }).Problems);
     }
 
     [Fact]

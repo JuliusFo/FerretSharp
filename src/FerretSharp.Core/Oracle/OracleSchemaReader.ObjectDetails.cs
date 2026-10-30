@@ -92,7 +92,8 @@ public sealed partial class OracleSchemaReader
         """;
 
     // WP-67: N choosable, D default and Q quota (own schema only), U unlimited, I/S/T where the table's indexes, the owner's
-    // indexes and tables lie. Partitioned and temporary objects name no tablespace; LOB indexes follow their LOB.
+    // indexes and tables lie, B the table's own tablespace, G a global temporary table. Partitioned and temporary objects
+    // name no tablespace; LOB indexes follow their LOB.
     private const string TablespacesSql = """
         SELECT 'N', tablespace_name, 0 FROM user_tablespaces WHERE contents = 'PERMANENT' AND status = 'ONLINE'
         UNION ALL
@@ -116,6 +117,10 @@ public sealed partial class OracleSchemaReader
           FROM all_tables
          WHERE owner = :owner AND tablespace_name IS NOT NULL AND temporary = 'N' AND dropped = 'NO'
          GROUP BY tablespace_name
+        UNION ALL
+        SELECT 'B', tablespace_name, 0 FROM all_tables WHERE owner = :owner AND table_name = :name AND tablespace_name IS NOT NULL
+        UNION ALL
+        SELECT 'G', table_name, 0 FROM all_tables WHERE owner = :owner AND table_name = :name AND temporary = 'Y'
         """;
 
     // A function call in a plain query: DBMS_METADATA only reads. Object type names use underscores here.
@@ -178,7 +183,11 @@ public sealed partial class OracleSchemaReader
             own is null || Names("U").Count > 0 ? null : Names("Q").ToHashSet(StringComparer.Ordinal),
             Uses("I"),
             Uses("S"),
-            Uses("T"));
+            Uses("T"))
+        {
+            TableTablespace = Names("B").FirstOrDefault(),
+            TemporaryTable = Names("G").Count > 0,
+        };
     }
 
     public async Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken)

@@ -55,6 +55,32 @@ public static partial class TableDesign
         /// <summary>The indexes this plan creates, in <see cref="TableDraft.IndexTablespace"/> (<see cref="DesignPlan.NewIndexes"/>).</summary>
         private readonly List<NewIndex> _newIndexes = [];
 
+        /// <summary>
+        /// <see cref="TableDraft.IndexTablespace"/> as the DDL takes it: none for a temporary table (its indexes go to the
+        /// temporary tablespace) or for a name that is none.
+        /// </summary>
+        private string? _indexTablespace;
+
+        /// <summary>New keys an existing index backs: said only while the index tablespace is offered (other indexes come).</summary>
+        private readonly List<string> _keyNotes = [];
+
+        /// <summary>A chosen tablespace that can go into the DDL; a name Oracle could not take is a problem instead (never quoted).</summary>
+        private string? Usable(string? tablespace)
+        {
+            if (string.IsNullOrEmpty(tablespace))
+            {
+                return null;
+            }
+
+            if (OracleIdentifier.Problem(tablespace) is { } problem)
+            {
+                Problems.Add(problem);
+                return null;
+            }
+
+            return tablespace;
+        }
+
         /// <summary>Names existing constraints get by renaming: taken for new ones, like the names they have now.</summary>
         private readonly HashSet<string> _renamedTo = new(StringComparer.Ordinal);
 
@@ -247,6 +273,7 @@ public static partial class TableDesign
             var taken = context.Constraints.Where(c => !_dropped.Contains(c.Name)).Select(c => c.Name).Concat(_renamedTo).ToHashSet(StringComparer.Ordinal);
             var keys = context.Constraints.Where(c => c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && !_dropped.Contains(c.Name)).ToList();
             var indexNames = context.Indexes.Select(i => i.Name).Concat(_renamedTo).Concat(context.Elsewhere.Indexes).ToList();
+            _indexTablespace = context.Tablespaces.TemporaryTable ? null : Usable(draft.IndexTablespace);
 
             // Keys before foreign keys: a new foreign key may reference a new key of the same table.
             foreach (var added in draft.AddedConstraints.OrderBy(c => c.Type switch
@@ -272,7 +299,7 @@ public static partial class TableDesign
                 string? indexTablespace = null;
                 if (added.Type is ConstraintType.PrimaryKey or ConstraintType.Unique)
                 {
-                    indexTablespace = KeyIndexTablespace(draft, added, keys);
+                    indexTablespace = KeyIndexTablespace(added);
                 }
 
                 Keep(OracleDdl.AddKind(added.Type), OracleDdl.AddConstraint(Table, OracleDdl.ConstraintClause(info, table => table, indexTablespace: indexTablespace)));
@@ -285,14 +312,14 @@ public static partial class TableDesign
                 WarnRowsChecked();
 
                 if (added.Type == ConstraintType.ForeignKey && !context.Indexes.Any(i => IndexAdvice.Backs(i, added.Columns))
-                    && !keys.Any(k => BacksKey(k.Columns, added.Columns)))
+                    && !keys.Any(k => StartsWith(k.Columns, added.Columns)))
                 {
                     if (added.WithIndex)
                     {
                         var name = IndexDesign.SuggestName(current.Table.Name, added.Columns, indexNames);
                         indexNames.Add(name);
-                        _newIndexes.Add(new NewIndex(name, Label(added)));
-                        Keep(DdlStepKind.CreateIndex, IndexDesign.Ddl(new IndexDraft(name, added.Columns) { Tablespace = draft.IndexTablespace }, current.Table.Ref));
+                        Created(new NewIndex(name, Label(added)));
+                        Keep(DdlStepKind.CreateIndex, IndexDesign.Ddl(new IndexDraft(name, added.Columns) { Tablespace = _indexTablespace }, current.Table.Ref));
                     }
                     else
                     {
@@ -303,35 +330,46 @@ public static partial class TableDesign
 
             if (_newIndexes.Count > 0)
             {
-                IndexDesign.CheckTablespace(draft.IndexTablespace, Table.Owner, context.Tablespaces, Problems, Warnings);
+                Warnings.AddRange(_keyNotes);
+                IndexDesign.CheckTablespace(_indexTablespace, Table.Owner, context.Tablespaces, Problems, Warnings);
+            }
+        }
+
+        /// <summary>An index the plan creates – where the index tablespace applies; a temporary table's go elsewhere.</summary>
+        private void Created(NewIndex index)
+        {
+            if (!context.Tablespaces.TemporaryTable)
+            {
+                _newIndexes.Add(index);
             }
         }
 
         /// <summary>
-        /// The tablespace for the index a new key creates (WP-67). None if an index of the table backs the key already – one
-        /// of the table or of a key this plan adds before: Oracle takes that one and would refuse <c>USING INDEX TABLESPACE</c>
-        /// on the same column list (ORA-01408, measured against Oracle 23); the user learns where the key's index is.
+        /// The tablespace for the index a new key creates (WP-67). None if an index of the table backs the key already
+        /// (<see cref="IndexAdvice.BacksKey"/>): Oracle takes that one, and refuses <c>USING INDEX TABLESPACE</c> on its column
+        /// list (ORA-01408, measured against Oracle 23); the user learns where the key's index is. The index of a key this plan
+        /// drops counts too: one created before its key (scripts of SQL Developer, DBMS_METADATA) stays with
+        /// <c>DROP CONSTRAINT</c>, and with the clause the new key would fail after the old one is gone (WP-67 review). Keys
+        /// this plan adds before need no look: their indexes are unique, and a key on the same columns is refused anyway.
         /// </summary>
-        private string? KeyIndexTablespace(TableDraft draft, ConstraintDraft added, IReadOnlyList<ConstraintInfo> keys)
+        private string? KeyIndexTablespace(ConstraintDraft added)
         {
-            var backing = context.Indexes.FirstOrDefault(i => !_dropped.Contains(i.Name) && IndexAdvice.Backs(i, added.Columns))?.Name
-                          ?? keys.FirstOrDefault(k => !_dropped.Contains(k.Name) && BacksKey(k.Columns, added.Columns))?.Name;
-            if (backing is null)
+            if (context.Indexes.FirstOrDefault(i => IndexAdvice.BacksKey(i, added.Columns)) is not { } backing)
             {
-                _newIndexes.Add(new NewIndex(Label(added))); // Oracle names the key's index after it
-                return draft.IndexTablespace;
+                Created(new NewIndex(Label(added))); // Oracle names the key's index after it
+                return _indexTablespace;
             }
 
-            if (!string.IsNullOrEmpty(draft.IndexTablespace))
+            if (_indexTablespace is not null)
             {
-                Warnings.Add(TextFormat.Format(DesignText.KeyUsesIndex, Label(added), backing));
+                _keyNotes.Add(TextFormat.Format(DesignText.KeyUsesIndex, Label(added), backing.Name));
             }
 
             return null;
         }
 
         /// <summary>The index of a key with <paramref name="key"/> starts with <paramref name="columns"/> (in any order).</summary>
-        private static bool BacksKey(IReadOnlyList<string> key, IReadOnlyList<string> columns) =>
+        private static bool StartsWith(IReadOnlyList<string> key, IReadOnlyList<string> columns) =>
             key.Count >= columns.Count && SameColumns(key.Take(columns.Count).ToList(), columns);
 
         private bool CheckConstraint(ConstraintDraft added, IReadOnlyList<ColumnInfo> columns, HashSet<string> taken, IReadOnlyList<ConstraintInfo> keys)
@@ -351,10 +389,10 @@ public static partial class TableDesign
                 Problems.Add(TextFormat.Format(DesignText.ConstraintNameTakenInSchema, added.Name)); // ORA-02264 (review 3.54.0, A14)
             }
             else if (added.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && context.Elsewhere.Indexes.Contains(added.Name)
-                     && !context.Indexes.Any(i => !_dropped.Contains(i.Name) && IndexAdvice.Backs(i, added.Columns)))
+                     && !context.Indexes.Any(i => !_dropped.Contains(i.Name) && IndexAdvice.BacksKey(i, added.Columns)))
             {
-                // The key creates an index of its name unless one of the table starts with its columns ascending (review of
-                // R8, WP-67) – not the index of a key this plan drops: it goes with its key.
+                // The key creates an index of its name unless one of the table backs it (review of R8, WP-67) – here not the
+                // index of a key this plan drops, though one created before its key stays (backlog: then no name is needed).
                 Problems.Add(TextFormat.Format(DesignText.IndexNameTakenInSchema, added.Name)); // ORA-00955
             }
 

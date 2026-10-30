@@ -165,6 +165,14 @@ public static class IndexAdvice
     /// </summary>
     public static bool Backs(IndexInfo index, IReadOnlyList<string> columns) =>
         Covers(index, columns) && index.Columns.Take(columns.Count).All(c => !c.Descending);
+
+    /// <summary>
+    /// Oracle takes the index for a new primary or unique key on <paramref name="columns"/> instead of creating one: it
+    /// <see cref="Backs"/> them, is no bitmap index, and a unique one has no further columns (measured against Oracle 23,
+    /// WP-67 review: next to UNIQUE (A, B) a key on (A) gets an index of its own, as next to a bitmap index on (A, B)).
+    /// </summary>
+    public static bool BacksKey(IndexInfo index, IReadOnlyList<string> columns) =>
+        Backs(index, columns) && !index.IndexType.Contains("BITMAP", StringComparison.Ordinal) && (!index.Unique || index.Columns.Count == columns.Count);
 }
 
 /// <summary>Names a table's new or renamed constraints and indexes cannot take (<see cref="ISchemaReader.GetNamesElsewhereAsync"/>).</summary>

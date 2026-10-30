@@ -351,12 +351,13 @@ public static partial class TableDesign
                 }
             }
 
+            var tablespace = Usable(creating?.Tablespace);
             if (creating is not null && _definitions.Count > 0)
             {
-                Keep(DdlStepKind.CreateTable, OracleDdl.CreateTable(Table, _definitions, tablespace: creating.Tablespace));
+                Keep(DdlStepKind.CreateTable, OracleDdl.CreateTable(Table, _definitions, tablespace: tablespace));
             }
 
-            IndexDesign.CheckTablespace(creating?.Tablespace, Table.Owner, context.Tablespaces, Problems, Warnings);
+            IndexDesign.CheckTablespace(tablespace, Table.Owner, context.Tablespaces, Problems, Warnings);
 
             problems = Problems.Count;
             AddConstraints(draft, kept);

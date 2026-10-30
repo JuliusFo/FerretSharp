@@ -527,6 +527,61 @@ public class TableDesignTests
         Assert.Equal(["UK_NAME nutzt den vorhandenen Index IX_NAME – der Index-Tablespace gilt für ihn nicht."], plan.Warnings);
         Assert.Equal([new NewIndex("UK_STATUS")], plan.NewIndexes);
         Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
+
+        // Without another index to create, the tablespace is not offered – and nothing speaks of it (review of WP-67).
+        var alone = PlanWith(draft with { AddedConstraints = [draft.AddedConstraints[0]] }, Facts((Rows, 0)), indexes: [Index("NAME", descending: false)]);
+        Assert.Empty(alone.NewIndexes);
+        Assert.Empty(alone.Warnings);
+    }
+
+    /// <summary>
+    /// Measured against Oracle 23 (review of WP-67): a unique index with further columns or a bitmap index does not back a
+    /// new key – Oracle creates one, so the tablespace applies. A key dropped by the plan may leave its index behind (one
+    /// created before the key): the new key on its columns takes it, with the clause it would fail (ORA-01408).
+    /// </summary>
+    [Fact]
+    public void Only_an_index_Oracle_takes_for_the_key_keeps_the_index_tablespace_out()
+    {
+        IndexInfo Index(string name, string type, bool unique, params string[] columns) =>
+            new("SHOP", name, type, unique, "VALID", columns.Select(c => new IndexColumn(c, false, false)).ToList(), null, false, true);
+        string Clause(DesignPlan plan, string key) => Assert.Single(plan.Statements, s => s.Contains($"\"{key}\"", StringComparison.Ordinal));
+
+        var unique = PlanWith(Draft() with { AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"])], IndexTablespace = "INDX" },
+            Facts((Rows, 0)), indexes: [Index("UX_NAME_STATUS", "NORMAL", true, "NAME", "STATUS")]);
+        Assert.EndsWith("""USING INDEX TABLESPACE "INDX" """.TrimEnd(), Clause(unique, "UK_NAME"), StringComparison.Ordinal);
+
+        var bitmap = PlanWith(Draft() with { AddedConstraints = [new ConstraintDraft("UK_STATUS", ConstraintType.Unique, ["STATUS"])], IndexTablespace = "INDX" },
+            Facts((Rows, 0)), indexes: [Index("BX_STATUS_NAME", "BITMAP", false, "STATUS", "NAME")]);
+        Assert.EndsWith("""USING INDEX TABLESPACE "INDX" """.TrimEnd(), Clause(bitmap, "UK_STATUS"), StringComparison.Ordinal);
+
+        var uk = new ConstraintInfo("UK_KUNDE_NAME", ConstraintType.Unique, ["NAME"], null, null, [], null, true, true, false, false, false);
+        var swapped = TableDesign.Plan(new DesignContext(Kunde, [uk], [Index("UK_KUNDE_NAME", "NORMAL", true, "NAME")], []),
+            Draft() with { DroppedConstraints = ["UK_KUNDE_NAME"], AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"])], IndexTablespace = "INDX" },
+            Facts((Rows, 0)));
+        Assert.Empty(swapped.Problems);
+        Assert.Equal($"""ALTER TABLE {T} ADD CONSTRAINT "UK_NAME" UNIQUE ("NAME")""", Clause(swapped, "UK_NAME"));
+    }
+
+    [Fact]
+    public void A_temporary_table_s_indexes_get_no_tablespace_and_a_bad_name_is_a_problem()
+    {
+        // Oracle ignores TABLESPACE on a temporary table's index and fails USING INDEX TABLESPACE with ORA-00600.
+        var draft = WithLand(new ConstraintDraft("FK_KUNDE_LAND", ConstraintType.ForeignKey, ["LAND"], References: Land.Table.Ref, ReferencedColumns: ["CODE"]),
+            new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"])) with { IndexTablespace = "INDX" };
+        var temporary = TableDesign.Plan(new DesignContext(Kunde, [PkKunde], [], [])
+        {
+            Referenced = new Dictionary<TableRef, TableDetails> { [Land.Table.Ref] = Land },
+            Tablespaces = Tablespaces.None with { TemporaryTable = true },
+        }, draft, Facts((Rows, 0)));
+        Assert.Empty(temporary.Problems);
+        Assert.Empty(temporary.NewIndexes); // nothing to offer the tablespace for
+        Assert.DoesNotContain(temporary.Statements, s => s.Contains("TABLESPACE", StringComparison.Ordinal));
+
+        // A name that is none never reaches the DDL (it would not quote): a problem instead of an exception.
+        var bad = TableDesign.PlanNew(Ort with { Tablespace = "DA\"TA" }, NewDraft(NewColumn("ID", "NUMBER")) with { IndexTablespace = "IN\"DX" },
+            new Dictionary<TableRef, TableDetails>(), []);
+        Assert.Equal(2, bad.Problems.Count);
+        Assert.DoesNotContain(bad.Statements, s => s.Contains("TABLESPACE", StringComparison.Ordinal));
     }
 
     [Fact]

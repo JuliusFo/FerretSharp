@@ -45,6 +45,15 @@ public sealed record Tablespaces(
     public static readonly Tablespaces None = new([], null, null, [], [], []);
 
     /// <summary>
+    /// The table is a global temporary one: its indexes live in the temporary tablespace. Oracle ignores <c>TABLESPACE</c>
+    /// on such an index and fails <c>USING INDEX TABLESPACE</c> with ORA-00600 (measured against Oracle 23, WP-67 review).
+    /// </summary>
+    public bool TemporaryTable { get; init; }
+
+    /// <summary>The tablespace the table lies in; null for a new, temporary or partitioned table. Its audit table follows it.</summary>
+    public string? TableTablespace { get; init; }
+
+    /// <summary>
     /// The owner has no quota in it: Oracle refuses the first row (ORA-01950) – an index on rows at once, a table or an index
     /// on an empty table only with its first row (deferred segment creation, measured against Oracle 23).
     /// </summary>
