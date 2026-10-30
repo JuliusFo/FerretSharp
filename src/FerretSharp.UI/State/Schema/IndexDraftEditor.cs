@@ -90,6 +90,9 @@ public sealed class IndexDraftEditor(TableRef table, IReadOnlyList<IndexInfo> in
     public IReadOnlyList<DdlStep> Steps()
     {
         var draft = Draft;
-        return draft.Columns.Count > 0 && draft.Name.Length > 0 && !draft.Name.Contains('"', StringComparison.Ordinal) ? [IndexDesign.Step(draft, table)] : [];
+        return draft.Columns.Count > 0 && draft.Name.Length > 0 && !draft.Name.Contains('"', StringComparison.Ordinal)
+               && (draft.Tablespace is null || OracleIdentifier.Problem(draft.Tablespace) is null)
+            ? [IndexDesign.Step(draft, table)]
+            : [];
     }
 }

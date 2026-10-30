@@ -219,7 +219,7 @@ else
         if (NewTab is { } created)
         {
             (_designer, _failure) = (created.Designer, created.Failure);
-            await LoadTablespacesAsync(new TableRef(created.Owner, ""));
+            Fire(() => LoadTablespacesAsync(new TableRef(created.Owner, "")));
             return;
         }
 
@@ -272,8 +272,8 @@ else
             Tab.Designer = new DesignerSession(_designer, _failure);
         }
 
-        await LoadTablespacesAsync(Details.Table.Ref);
         await LoadAuditAsync(schema, token);
+        Fire(() => LoadTablespacesAsync(Details.Table.Ref)); // needed with the first new index: not a round trip before the designer shows
     }
 
     /// <summary>
@@ -295,6 +295,10 @@ else
             if (NewTab is not null)
             {
                 Shell.NotifyChanged(); // the new table's head offers them too
+            }
+            else
+            {
+                StateHasChanged();
             }
         }
     }
@@ -385,7 +389,10 @@ else
 
         var (columns, renamed) = AuditPlanner.After(draft);
         var taken = NewTab is null ? TakenNames : TakenNames.Append(table.Name);
-        var auditPlan = AuditPlanner.Plan(template, table, columns, _auditRead.State ?? AuditState.None, new DataFacts(_auditFacts), renamed, taken);
+        // A new audit table goes where its table lies (WP-67, decision of the user).
+        var tablespace = NewTab is { } created ? created.Table.Tablespace : designer.Tablespaces.TableTablespace;
+        var auditPlan = AuditPlanner.Plan(template, table, columns, _auditRead.State ?? AuditState.None, new DataFacts(_auditFacts), renamed, taken,
+            tablespace: tablespace);
         return AuditPlanner.Combine(plan, auditPlan);
     }
 

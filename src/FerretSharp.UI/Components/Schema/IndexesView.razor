@@ -78,9 +78,12 @@ else
                         @SchemaViewText.Indexes_UniqueOption
                     </label>
 
-                    <label for="@_tablespaceId">@SchemaViewText.Tablespace_Label</label>
-                    <TablespacePicker Id="@_tablespaceId" Value="@editor.Tablespace" ValueChanged="value => editor.Tablespace = value"
-                                      Tablespaces="_tablespaces" Suggestion="_tablespaces.ForIndexes()" Label="@SchemaViewText.Tablespace_Label" />
+                    @if (!_tablespaces.TemporaryTable) @* a temporary table's indexes live in the temporary tablespace *@
+                    {
+                        <label for="@_tablespaceId">@SchemaViewText.Tablespace_Label</label>
+                        <TablespacePicker Id="@_tablespaceId" Value="@editor.Tablespace" ValueChanged="value => editor.Tablespace = value"
+                                          Tablespaces="_tablespaces" Suggestion="_tablespaces.ForIndexes()" Label="@SchemaViewText.Tablespace_Label" />
+                    }
                 </div>
                 <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="editor.Steps()" Problems="check.Problems" Warnings="check.Warnings"
                                FileName="@($"{DateTime.Now:yyyy-MM-dd}_{draft.Name}.sql")" OnRan="OnRanAsync" OnClose="() => _draft = null" />
@@ -180,9 +183,11 @@ else
         if (_draft is not null && _elsewhere is null && Active.Schema is { } schema)
         {
             var table = Table.Ref;
-            var read = await Shell.RunDbAsync(Logger, Active, async () =>
-                (await schema.GetNamesElsewhereAsync(table, CancellationToken.None), await schema.GetTablespacesAsync(table, CancellationToken.None)));
-            (_elsewhere, _tablespaces) = (read.Value.Item1?.Indexes, read.Value.Item2 ?? Tablespaces.None);
+            // Two reads: without the tablespaces the default is left, the names still guard against ORA-00955.
+            var names = await Shell.RunDbAsync(Logger, Active, () => schema.GetNamesElsewhereAsync(table, CancellationToken.None));
+            _elsewhere = names.Value?.Indexes;
+            var tablespaces = await Shell.RunDbAsync(Logger, Active, () => schema.GetTablespacesAsync(table, CancellationToken.None));
+            _tablespaces = tablespaces.Value ?? Tablespaces.None;
         }
     }
 

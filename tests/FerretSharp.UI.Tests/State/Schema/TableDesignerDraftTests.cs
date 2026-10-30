@@ -421,6 +421,10 @@ public sealed class TableDesignerDraftTests
         Assert.Equal("""CREATE INDEX "SHOP"."IX_KUNDE_KUERZEL_NAME" ON "SHOP"."KUNDE" ("KUERZEL", "NAME" DESC) TABLESPACE "INDX" """.TrimEnd(),
             Assert.Single(editor.Steps()).Sql);
 
+        editor.Tablespace = "IN\"DX"; // a name that would not quote: no statement (the check names the problem)
+        Assert.Empty(editor.Steps());
+        editor.Tablespace = "INDX";
+
         editor.Remove(1);
         editor.Add("NAME"); // back again: ascending, as a new column
         editor.ToggleDescending("BETRAG"); // not in the index: nothing
