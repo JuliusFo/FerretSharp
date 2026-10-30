@@ -353,6 +353,20 @@ export function watchOverflow(element, className) {
   update();
 }
 
+/** Keeps the element's height in the CSS property `property` on its parent, for something sticky below it to stick at:
+ *  the table designer's head wraps and grows (chips, buttons), the head row of its columns sticks right under it. The
+ *  observer goes with the element. */
+export function shareHeight(element, property) {
+  if (!element || element._shareHeight) {
+    return;
+  }
+
+  const update = () => element.parentElement?.style.setProperty(property, `${element.getBoundingClientRect().height}px`);
+  new ResizeObserver(update).observe(element);
+  element._shareHeight = true;
+  update();
+}
+
 /** Makes the tab bar easy to scroll, its scrollbar being thin: the mouse wheel scrolls it sideways (a plain wheel only
  *  scrolls vertically, the bar could only be reached with Shift), and a newly activated tab – opened, or picked by
  *  shortcut – is scrolled into view next to the pinned group, which stays at the left (sticky). Only a change of the

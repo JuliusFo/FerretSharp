@@ -10,11 +10,13 @@
 @inject IFileSaveService Files
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 @if (Head is not null)
 {
     <div class="ddl-draft">
-        <div class="designer-head">
+        <div class="designer-head" @ref="_head">
             @Head
             <span class="spacer"></span>
             @Actions(close: true)
@@ -49,6 +51,12 @@ else
     private DateTimeOffset _started;
     private DdlRunResult? _result;
     private CancellationTokenSource? _cts;
+    private ElementReference _head;
+    private bool _headShared;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -196,6 +204,23 @@ else
     }
 
     private void Cancel() => _cts?.Cancel();
+
+    /// <summary>
+    /// The head stays in view while the designer scrolls, and the head row of its columns sticks right below it: dom.js
+    /// keeps the head's height (it wraps and grows) in <c>--designer-head-h</c>.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Head is null || _headShared)
+        {
+            return;
+        }
+
+        _headShared = true;
+        await Dom.InvokeVoidAsync("shareHeight", _head, "--designer-head-h");
+    }
+
+    public async ValueTask DisposeAsync() => await Dom.DisposeAsync();
 
     private string Failure(DdlRunResult result)
     {
