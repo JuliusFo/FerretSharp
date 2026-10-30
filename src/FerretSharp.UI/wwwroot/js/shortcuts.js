@@ -17,10 +17,11 @@ export const cellEditing = () => [...document.querySelectorAll('.ag-cell-inline-
 // Keys of Monaco's own (find, replace, undo, clipboard, …) that a global shortcut may also use (Ctrl+F is "find column").
 // In a Monaco editor inside a dialog (LOB editor) they stay with the editor: .NET ignores shortcuts behind a dialog
 // anyway, so taking them would only break the editor. Keys with a browser default (F5) are still taken. The settings
-// warn about the same keys (Shortcuts.TakenFromEditors in FerretSharp.Core) – keep both in step.
+// warn about the same keys (Shortcuts.TakenFromEditors in FerretSharp.Core) – keep both in step. Ctrl+Enter ("apply
+// filter", fixed) is Monaco's "insert line below" there.
 const editorKeys = new Set([
   'ctrl+f', 'ctrl+h', 'f3', 'shift+f3', 'ctrl+z', 'ctrl+y', 'ctrl+shift+z', 'ctrl+a', 'ctrl+c', 'ctrl+x', 'ctrl+v',
-  'ctrl+space', 'ctrl+d', 'ctrl+g', 'ctrl+shift+k', 'alt+arrowup', 'alt+arrowdown',
+  'ctrl+space', 'ctrl+d', 'ctrl+g', 'ctrl+shift+k', 'alt+arrowup', 'alt+arrowdown', 'ctrl+enter',
 ]);
 const inDialogEditor = e => e.target instanceof Element && !!e.target.closest('.modal .monaco-editor');
 
