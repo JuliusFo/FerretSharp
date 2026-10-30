@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Fixed
+- Typed characters often showed up only with the next key or caret blink, up to two seconds late, and the caret blinked unevenly – mostly in a large window. The window could show a picture of the page before it was completely drawn; it now waits for it.
 - The ✕ and other symbols on small buttons sit in the middle again instead of slightly to the right – in the table designer's rows, the menu of a connection, the filter presets and the list of changes.
 
 ## [3.56.1] - 2026-10-30
