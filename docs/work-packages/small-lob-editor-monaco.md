@@ -1,4 +1,4 @@
-# Klein: LOB-Editor mit Monaco (`feat/lob-editor-monaco`) → Release offen
+# Klein: LOB-Editor mit Monaco (`feat/lob-editor-monaco`) → Release 3.56.0
 
 Branch `feat/lob-editor-monaco` (von `main`), 2026-10-29.
 
