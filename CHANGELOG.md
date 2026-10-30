@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- After waking from sleep the window could stay frozen on its last picture: the cursor still changed over buttons, but clicks seemed to do nothing. FerretSharp now captures the page anew after waking (WebView2 1.0.4258.31, which also recovers after a change of the displays). Should it still happen, minimizing and restoring the window brings the picture back.
+
 ## [3.56.0] - 2026-10-30
 
 The LOB dialog edits text in the code editor.
