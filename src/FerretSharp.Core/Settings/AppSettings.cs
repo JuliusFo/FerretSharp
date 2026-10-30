@@ -148,6 +148,12 @@ public sealed record AppSettings
     public int? ChangesPanelWidth { get; init; }
 
     /// <summary>
+    /// Long lines wrap in the LOB editor – the dialog's switch for text with line breaks, kept for the next dialog and
+    /// after a restart. Text without line breaks always starts wrapped.
+    /// </summary>
+    public bool LobWordWrap { get; init; }
+
+    /// <summary>
     /// The audit template (WP-26, <c>docs/audit-templates.md</c>) as a file, e.g. in the company's repository; null or empty
     /// for the built-in one. Read through <see cref="Audit.AuditTemplateSource"/>. A connection group or a connection can
     /// have its own (<see cref="AuditTemplateGroups"/>, <see cref="Connections.ConnectionProfile.AuditTemplatePath"/>).

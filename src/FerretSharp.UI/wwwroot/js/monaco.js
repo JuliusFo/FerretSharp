@@ -6,6 +6,7 @@
 const base = './_content/FerretSharp.UI/lib/monaco/vs';
 const editors = new Map();
 const pendingTexts = new Map(); // element id → sends the text if a change is still waiting for the debounce
+const startVersions = new Map(); // element id → the model's version when created (edited or not, reportEdits)
 const completions = new Map(); // model uri → { id, dotnet } of editors that ask .NET for completion items
 const providers = new Set(); // languages with a registered completion provider
 const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -104,16 +105,48 @@ function registerPlSql(monaco) {
   });
 }
 
+// JSON in a CLOB (LOB editor): Monarch colouring like Monaco's own JSON (keys and values apart, same theme colours via the
+// '.json' postfix), without its language service – that would start a worker of the trimmed build (lib/monaco/README.md).
+function registerJson(monaco) {
+  if (monaco.languages.getLanguages().some(l => l.id === 'fs-json')) return;
+  monaco.languages.register({ id: 'fs-json' });
+  monaco.languages.setLanguageConfiguration('fs-json', {
+    brackets: [['{', '}'], ['[', ']']],
+    autoClosingPairs: [{ open: '{', close: '}' }, { open: '[', close: ']' }, { open: '"', close: '"', notIn: ['string'] }],
+  });
+  monaco.languages.setMonarchTokensProvider('fs-json', {
+    tokenPostfix: '.json',
+    tokenizer: {
+      root: [
+        [/"(?:[^"\\]|\\.)*"(?=\s*:)/, 'string.key'],
+        [/"(?:[^"\\]|\\.)*"/, 'string.value'],
+        [/-?\d+(\.\d+)?([eE][+-]?\d+)?/, 'number'],
+        [/\b(?:true|false|null)\b/, 'keyword'],
+        [/[{}[\]]/, '@brackets'],
+        [/[,:]/, 'delimiter'],
+      ],
+    },
+  });
+}
+
+/** Registers the languages FerretSharp colours itself; Monaco's own ('sql', 'xml', 'csharp' …) need nothing. */
+function registerLanguage(monaco, language) {
+  if (language === 'plsql') registerPlSql(monaco);
+  if (language === 'fs-json') registerJson(monaco);
+}
+
 media.addEventListener('change', () => { if (window.monaco) window.monaco.editor.setTheme(theme()); });
 
 /**
  * Creates an editor in the element. options: { language, minimal (no line numbers/minimap, for the variables),
- * placeholder, readOnly (PL/SQL source: view only), readOnlyMessage (the hint when typing in it), uiLanguage (Monaco's
- * own texts, see load) }. Text changes reach .NET through OnTextChanged(id, text), debounced.
+ * placeholder, readOnly (view only), readOnlyMessage (the hint when typing in it), wordWrap (long lines wrap at the
+ * edge), lineFeed (new line breaks are \n unless the text has \r\n), reportEdits (see below), uiLanguage (Monaco's own
+ * texts, see load) }. Text changes reach .NET through OnTextChanged(id, text), debounced; with reportEdits only
+ * OnEdited(id, edited, length) – a value editor (LOB) takes the text itself before a decision (getEditedText).
  */
 export async function create(elementId, dotnet, text, options) {
   const monaco = await load(options.uiLanguage);
-  if (options.language === 'plsql') registerPlSql(monaco);
+  registerLanguage(monaco, options.language);
   destroy(elementId);
   const element = document.getElementById(elementId);
   if (!element) return;
@@ -137,14 +170,23 @@ export async function create(elementId, dotnet, text, options) {
     fontFamily: '"Cascadia Mono", "Cascadia Code", Consolas, monospace',
     fontSize: 13,
     tabSize: 4,
-    wordWrap: 'off',
+    wordWrap: options.wordWrap ? 'on' : 'off',
     fixedOverflowWidgets: true,
     placeholder: options.placeholder ?? undefined,
+    // 'prompt' asked with a native English dialog and removed U+2028/U+2029 on OK – they are text like any other here.
+    unusualLineTerminators: 'off',
   });
+  // A text without line breaks gets the platform's \r\n for new ones; a text with \n keeps it, one with \r\n as well.
+  if (options.lineFeed && !(text ?? '').includes('\r\n')) editor.getModel().setEOL(monaco.editor.EndOfLineSequence.LF);
+  // Creating the model already rewrites the text (one kind of line end, no BOM): only an edit after this counts.
+  startVersions.set(elementId, editor.getModel().getAlternativeVersionId());
   let timer = null;
   const send = () => {
     timer = null;
-    dotnet.invokeMethodAsync('OnTextChanged', elementId, editor.getValue()).catch(err => console.error('Text not sent', err));
+    const sent = options.reportEdits
+      ? dotnet.invokeMethodAsync('OnEdited', elementId, isEdited(elementId, editor), editor.getModel().getValueLength())
+      : dotnet.invokeMethodAsync('OnTextChanged', elementId, editor.getValue());
+    sent.catch(err => console.error('Text not sent', err));
   };
   editor.onDidChangeModelContent(() => {
     clearTimeout(timer);
@@ -289,6 +331,17 @@ export function getText(elementId) {
   return editors.get(elementId)?.getValue() ?? null;
 }
 
+/** Undo back to the start counts as not edited, as Monaco's own version id does. */
+function isEdited(elementId, editor) {
+  return editor.getModel().getAlternativeVersionId() !== startVersions.get(elementId);
+}
+
+/** The text if it was edited since the editor was created, with a BOM it had; null if not (or no editor). */
+export function getEditedText(elementId) {
+  const editor = editors.get(elementId);
+  return editor && isEdited(elementId, editor) ? editor.getModel().getValue(undefined, true) : null;
+}
+
 /** Diagnostics: [{ line, column, endLine, endColumn, severity: 'error'|'warning', message }] (1-based). */
 export function setMarkers(elementId, markers) {
   const editor = editors.get(elementId);
@@ -310,6 +363,19 @@ export function reveal(elementId, line, column) {
   editor.focus();
 }
 
+/** Long lines wrap at the edge of the editor or scroll sideways. */
+export function setWordWrap(elementId, on) {
+  editors.get(elementId)?.updateOptions({ wordWrap: on ? 'on' : 'off' });
+}
+
+/** Other colouring for the same text (LOB editor: text, JSON, XML). */
+export function setLanguage(elementId, language) {
+  const editor = editors.get(elementId);
+  if (!editor || !window.monaco) return;
+  registerLanguage(window.monaco, language);
+  window.monaco.editor.setModelLanguage(editor.getModel(), language);
+}
+
 /** Ctrl+F is a global shortcut (column search); in the console it opens the editor's find widget. */
 export function find(elementId) {
   const editor = editors.get(elementId);
@@ -321,6 +387,7 @@ export function find(elementId) {
 export function destroy(elementId) {
   pendingTexts.get(elementId)?.();
   pendingTexts.delete(elementId);
+  startVersions.delete(elementId);
   const editor = editors.get(elementId);
   if (editor) {
     const model = editor.getModel();

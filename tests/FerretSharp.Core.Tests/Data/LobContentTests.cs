@@ -51,4 +51,77 @@ public class LobContentTests
         Assert.Equal("2,0 MB", LobContent.Size(2 * 1024 * 1024));
         Assert.Equal("NULL", LobContent.Describe(null));
     }
+
+    [Theory]
+    [InlineData("  {\"a\":1}", LobTextFormat.Json)]
+    [InlineData("\n[1,2]", LobTextFormat.Json)]
+    [InlineData("\uFEFF{\"a\":1}", LobTextFormat.Json)]
+    [InlineData("<?xml version=\"1.0\"?><a/>", LobTextFormat.Xml)]
+    [InlineData("Hallo {x}", LobTextFormat.Text)]
+    [InlineData("   ", LobTextFormat.Text)]
+    public void The_format_follows_the_first_character_that_is_not_white_space(string text, LobTextFormat expected) =>
+        Assert.Equal(expected, LobContent.DetectFormat(text));
+
+    [Fact]
+    public void Json_is_indented_without_touching_strings_and_numbers()
+    {
+        const string json = """{"Group":"North, \"0210\" {x}","Values":[{"Name":"Cost","Value":1.50E+3},{}],"Empty":[ ],"Ä":"äö"}""";
+
+        var result = LobContent.IndentJson(json);
+
+        Assert.Equal(
+            """
+            {
+              "Group": "North, \"0210\" {x}",
+              "Values": [
+                {
+                  "Name": "Cost",
+                  "Value": 1.50E+3
+                },
+                {}
+              ],
+              "Empty": [],
+              "Ä": "äö"
+            }
+            """.ReplaceLineEndings("\n"),
+            result.Text);
+    }
+
+    // The column counts characters as the editor does, not the UTF-8 bytes of the parser (Ä, ä, ö, ü are two each).
+    [Theory]
+    [InlineData("{\"a\":1,}", 1, 8)]
+    [InlineData("{\"Ä\":1,}", 1, 8)]
+    [InlineData("[\n\"äöü\",]", 2, 7)]
+    public void Invalid_json_gives_the_position_of_the_error_instead(string json, long line, long column)
+    {
+        var result = LobContent.IndentJson(json);
+
+        Assert.Null(result.Text);
+        Assert.Equal(line, result.Line);
+        Assert.Equal(column, result.Column);
+    }
+
+    [Fact]
+    public void A_bom_stays_in_front_of_the_indented_json()
+    {
+        Assert.Equal("\uFEFF[\n  1\n]", LobContent.IndentJson("\uFEFF[1]").Text);
+        Assert.Equal(6, LobContent.IndentJson("\uFEFF[1,2,]").Column); // as the editor counts: without the BOM
+    }
+
+    [Fact]
+    public void Json_deeper_than_64_levels_is_indented()
+    {
+        var json = new string('[', 100) + "1" + new string(']', 100);
+
+        Assert.NotNull(LobContent.IndentJson(json).Text);
+    }
+
+    [Fact]
+    public void Indenting_stops_once_the_result_is_longer_than_the_limit()
+    {
+        var result = LobContent.IndentJson("[[[1,2,3]]]", maxLength: 20);
+
+        Assert.True(result.TooLarge);
+        Assert.Null(result.Text);
+    }
 }

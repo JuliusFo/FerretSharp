@@ -51,7 +51,9 @@ Drei Stufen, von schwach nach stark:
 - Im Infinite Row Model kennt das Grid anfangs nur ~501 Zeilen; `scrollTop` weiter unten wird abgeschnitten.
 - AG-Grid-Optionen prüfen: `agGrid.enableDevValidations()` per CDP, dann einen Tab öffnen – das neue Grid meldet veraltete oder falsche Optionen in der Konsole und als Panel im Grid (seit 36 sonst still, WP-36).
 - Hell/dunkel bei `--theme=dark`: Die Einstellung greift erst beim nächsten Start; zum Umschalten in derselben Sitzung `Emulation.setEmulatedMedia` (`prefers-color-scheme`) und den Screenshot in **derselben** CDP-Verbindung (die Emulation endet mit ihr).
-- Text im LOB-Dialog geht erst beim `change` nach .NET → mit echter Maus übernehmen.
+- Der Text im LOB-Dialog ist ein Monaco (wie der SQL-Editor): füttern über `monaco.editor.getEditors()` (der im `.modal`), `Input.insertText` tippt; „Übernehmen“ holt den Text selbst, auch innerhalb der 250 ms.
+- VPN nachstellen: kleiner TCP-Proxy im Scratchpad (Python `asyncio`, in jeder Richtung `sleep` je Paket) vor den eigenen Container und eine zweite Verbindung auf dessen Port – 50 ms je Paket machen aus einem 6,5-MB-CLOB rund 13 s Laden.
+- Die Frage „malt die Seite nicht neu?“ nie mit einer `requestAnimationFrame`-Schleife messen: Sie erzeugt selbst laufend Frames und verdeckt genau das. Den Zustand per `setInterval` im DOM mitschreiben und das Bild per `PrintWindow` (nicht `Page.captureScreenshot`, das rendert selbst) ohne weitere Eingabe aufnehmen.
 - Monaco über `getModels()…setValue`/`setPosition` füttern, `triggerSuggest` erst nach > 250 ms.
 - Ausdrücke mit Anführungszeichen über eine Datei an `node` geben (PowerShell 5.1 verliert sie).
 - Abfragen über `Kunde` im Beispielmodell scheitern absichtlich mit ORA-00904 (Drift).
