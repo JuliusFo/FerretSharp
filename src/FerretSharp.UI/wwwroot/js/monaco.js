@@ -104,16 +104,46 @@ function registerPlSql(monaco) {
   });
 }
 
+// JSON in a CLOB (LOB editor): Monarch colouring like Monaco's own JSON (keys and values apart, same theme colours via the
+// '.json' postfix), without its language service – that would start a worker of the trimmed build (lib/monaco/README.md).
+function registerJson(monaco) {
+  if (monaco.languages.getLanguages().some(l => l.id === 'fs-json')) return;
+  monaco.languages.register({ id: 'fs-json' });
+  monaco.languages.setLanguageConfiguration('fs-json', {
+    brackets: [['{', '}'], ['[', ']']],
+    autoClosingPairs: [{ open: '{', close: '}' }, { open: '[', close: ']' }, { open: '"', close: '"', notIn: ['string'] }],
+  });
+  monaco.languages.setMonarchTokensProvider('fs-json', {
+    tokenPostfix: '.json',
+    tokenizer: {
+      root: [
+        [/"(?:[^"\\]|\\.)*"(?=\s*:)/, 'string.key'],
+        [/"(?:[^"\\]|\\.)*"/, 'string.value'],
+        [/-?\d+(\.\d+)?([eE][+-]?\d+)?/, 'number'],
+        [/\b(?:true|false|null)\b/, 'keyword'],
+        [/[{}[\]]/, '@brackets'],
+        [/[,:]/, 'delimiter'],
+      ],
+    },
+  });
+}
+
+/** Registers the languages FerretSharp colours itself; Monaco's own ('sql', 'xml', 'csharp' …) need nothing. */
+function registerLanguage(monaco, language) {
+  if (language === 'plsql') registerPlSql(monaco);
+  if (language === 'fs-json') registerJson(monaco);
+}
+
 media.addEventListener('change', () => { if (window.monaco) window.monaco.editor.setTheme(theme()); });
 
 /**
  * Creates an editor in the element. options: { language, minimal (no line numbers/minimap, for the variables),
- * placeholder, readOnly (PL/SQL source: view only), readOnlyMessage (the hint when typing in it), uiLanguage (Monaco's
- * own texts, see load) }. Text changes reach .NET through OnTextChanged(id, text), debounced.
+ * placeholder, readOnly (view only), readOnlyMessage (the hint when typing in it), wordWrap (long lines wrap at the
+ * edge), lineFeed (new line breaks are \n unless the text has \r\n), uiLanguage (Monaco's own texts, see load) }. Text changes reach .NET through OnTextChanged(id, text), debounced.
  */
 export async function create(elementId, dotnet, text, options) {
   const monaco = await load(options.uiLanguage);
-  if (options.language === 'plsql') registerPlSql(monaco);
+  registerLanguage(monaco, options.language);
   destroy(elementId);
   const element = document.getElementById(elementId);
   if (!element) return;
@@ -137,10 +167,12 @@ export async function create(elementId, dotnet, text, options) {
     fontFamily: '"Cascadia Mono", "Cascadia Code", Consolas, monospace',
     fontSize: 13,
     tabSize: 4,
-    wordWrap: 'off',
+    wordWrap: options.wordWrap ? 'on' : 'off',
     fixedOverflowWidgets: true,
     placeholder: options.placeholder ?? undefined,
   });
+  // A text without line breaks gets the platform's \r\n for new ones; a text with \n keeps it, one with \r\n as well.
+  if (options.lineFeed && !(text ?? '').includes('\r\n')) editor.getModel().setEOL(monaco.editor.EndOfLineSequence.LF);
   let timer = null;
   const send = () => {
     timer = null;
@@ -308,6 +340,19 @@ export function reveal(elementId, line, column) {
   editor.setPosition({ lineNumber: line, column });
   editor.revealLineInCenterIfOutsideViewport(line);
   editor.focus();
+}
+
+/** Long lines wrap at the edge of the editor or scroll sideways. */
+export function setWordWrap(elementId, on) {
+  editors.get(elementId)?.updateOptions({ wordWrap: on ? 'on' : 'off' });
+}
+
+/** Other colouring for the same text (LOB editor: text, JSON, XML). */
+export function setLanguage(elementId, language) {
+  const editor = editors.get(elementId);
+  if (!editor || !window.monaco) return;
+  registerLanguage(window.monaco, language);
+  window.monaco.editor.setModelLanguage(editor.getModel(), language);
 }
 
 /** Ctrl+F is a global shortcut (column search); in the console it opens the editor's find widget. */

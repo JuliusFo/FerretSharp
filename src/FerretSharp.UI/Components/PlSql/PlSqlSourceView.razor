@@ -25,6 +25,7 @@
     {
         <div class="plsql-source">
             <MonacoEditor @ref="_editor" @key="source" Text="@source.Text" Language="@(source.IsWrapped ? "plaintext" : "plsql")" ReadOnly="true"
+                          ReadOnlyMessage="@SqlEditorText.Monaco_ReadOnlyPlSql"
                           Class="plsql-code" Markers="_markers" />
         </div>
     }

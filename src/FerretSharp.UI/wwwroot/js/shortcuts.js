@@ -14,6 +14,12 @@ const modalOpen = () => [...document.querySelectorAll('.modal-backdrop')].some(e
 // are mounted but not displayed. Also asked by the tab bar before closing.
 export const cellEditing = () => [...document.querySelectorAll('.ag-cell-inline-editing, .ag-cell-popup-editing')].some(el => el.getClientRects().length > 0);
 
+// Keys of Monaco's own (find, replace, undo, clipboard) that a global shortcut may also use (Ctrl+F is "find column").
+// In a Monaco editor inside a dialog (LOB editor) they stay with the editor: .NET ignores shortcuts behind a dialog
+// anyway, so taking them would only break the editor. Keys with a browser default (F5) are still taken.
+const editorKeys = new Set(['ctrl+f', 'ctrl+h', 'f3', 'shift+f3', 'ctrl+z', 'ctrl+y', 'ctrl+shift+z', 'ctrl+a', 'ctrl+c', 'ctrl+x', 'ctrl+v']);
+const inDialogEditor = e => e.target instanceof Element && !!e.target.closest('.modal .monaco-editor');
+
 function keyOf(e) {
   if (e.key === ' ') return 'space';
   if (e.key === '+') return 'plus';
@@ -51,6 +57,7 @@ export function register(dotnet, combos, takeEditFirst = []) {
     // In a cell editor Ctrl+Enter belongs to the grid (WP-59): it sets the value for all marked cells, or is an Enter.
     // As "apply filters" it reloaded the grid, and the typed value was lost.
     if (combo === 'ctrl+enter' && cellEditing()) return;
+    if (editorKeys.has(combo) && inDialogEditor(e)) return;
     if (combo && wanted.has(combo)) {
       // Taken also while a dialog is open (.NET then ignores it): F5 would reload the whole WebView otherwise.
       e.preventDefault();

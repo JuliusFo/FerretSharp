@@ -1,6 +1,6 @@
 @* A Monaco editor (ADR 0011): C# in the LINQ console (markers show Roslyn's diagnostics), SQL in the SQL editor; both
    with completion from .NET. The text belongs to the parent: changes come back through OnChange, SetTextAsync replaces it.
-   Read-only for PL/SQL source (WP-28), with compile errors as markers. *@
+   Read-only for PL/SQL source (WP-28), with compile errors as markers; text, JSON or XML of a CLOB in the LOB editor. *@
 @using FerretSharp.Core.ClrModel
 @inherits FerretComponent
 @implements IAsyncDisposable
@@ -42,13 +42,30 @@
     [Parameter]
     public IReadOnlyList<LinqDiagnostic> Markers { get; set; } = [];
 
-    /// <summary>Monaco language id: <c>csharp</c>, <c>sql</c>, <c>plsql</c> (FerretSharp's own colouring) or <c>plaintext</c>.</summary>
+    /// <summary>
+    /// Monaco language id: <c>csharp</c>, <c>sql</c>, <c>xml</c>, <c>plaintext</c>, or FerretSharp's own colouring
+    /// <c>plsql</c> and <c>fs-json</c>.
+    /// </summary>
     [Parameter]
     public string Language { get; set; } = "csharp";
 
-    /// <summary>View only (PL/SQL source, WP-28): typing shows a hint instead of changing the text.</summary>
+    /// <summary>View only (PL/SQL source, WP-28): typing shows <see cref="ReadOnlyMessage"/> instead of changing the text.</summary>
     [Parameter]
     public bool ReadOnly { get; set; }
+
+    [Parameter]
+    public string? ReadOnlyMessage { get; set; }
+
+    /// <summary>Long lines wrap at the edge when the editor is created; later through <see cref="SetWordWrapAsync"/>.</summary>
+    [Parameter]
+    public bool WordWrap { get; set; }
+
+    /// <summary>
+    /// New line breaks are <c>\n</c> unless the text already has <c>\r\n</c> – Monaco would take Windows' <c>\r\n</c> for a
+    /// text without line breaks (LOB values: what the text box wrote before).
+    /// </summary>
+    [Parameter]
+    public bool LineFeed { get; set; }
 
     /// <summary>Completion items for (text, cursor offset); null = no completion from .NET.</summary>
     [Parameter]
@@ -74,7 +91,7 @@
                 new
                 {
                     language = Language, minimal = Minimal, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly,
-                    readOnlyMessage = SqlEditorText.Monaco_ReadOnlyPlSql, // the only read-only editor shows PL/SQL source
+                    readOnlyMessage = ReadOnlyMessage, wordWrap = WordWrap, lineFeed = LineFeed,
                     uiLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
                 });
             _created = true;
@@ -161,6 +178,11 @@
     }
 
     public Task FindAsync() => CallAsync("find", _id);
+
+    public Task SetWordWrapAsync(bool on) => CallAsync("setWordWrap", _id, on);
+
+    /// <summary>Other colouring for the same text, keeping text, cursor and undo.</summary>
+    public Task SetLanguageAsync(string language) => CallAsync("setLanguage", _id, language);
 
     public async ValueTask DisposeAsync()
     {

@@ -1,5 +1,7 @@
 @* LOB editor (WP-10): the whole CLOB/NCLOB/BLOB value of one cell – read it, save it to a file, and on a writable
-   workspace replace it (text, file, NULL). The new value becomes a pending change like a cell edit. *@
+   workspace replace it (text, file, NULL). The new value becomes a pending change like a cell edit. Text shows in Monaco
+   (word selection, find, wrapping, JSON/XML colouring, JSON indenting); the editor owns the text, the dialog takes it
+   before every decision (Escape, Apply, Save). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Oracle
@@ -8,6 +10,7 @@
 @inject IFileOpenService OpenFiles
 @inject ILogger<LobEditorDialog> Logger
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
 
 <ModalFrame Label="@Column.Name" Class="lob-dialog" OnCancel="CancelAsync" FocusOnOpen="true">
     <header>
@@ -27,7 +30,7 @@
         {
             <div class="lob-info">
                 <span class="@(Current is null ? "fs-null" : "")">@LobContent.Describe(Current)</span>
-                @if (_changed)
+                @if (Changed)
                 {
                     <span class="lob-changed">@GridText.Lob_Changed</span>
                 }
@@ -38,6 +41,24 @@
                 @if (_notice is not null)
                 {
                     <span class="lob-notice">@_notice</span>
+                }
+                @if (ShowsEditor)
+                {
+                    <span class="spacer"></span>
+                    <div class="segmented small" role="group" title="@GridText.Lob_FormatTitle">
+                        @foreach (var (format, label) in Formats)
+                        {
+                            <button class="seg @(_format == format ? "active" : "")" aria-pressed="@(_format == format ? "true" : "false")"
+                                    @onclick="() => SetFormatAsync(format)">@label</button>
+                        }
+                    </div>
+                    @if (_format == LobTextFormat.Json)
+                    {
+                        <button class="btn ghost small" title="@(CanEdit ? GridText.Lob_IndentTitle : GridText.Lob_IndentViewTitle)"
+                                @onclick="IndentAsync">@GridText.Lob_Indent</button>
+                    }
+                    <button class="btn ghost small @(_wrap ? "active" : "")" aria-pressed="@(_wrap ? "true" : "false")"
+                            title="@GridText.Lob_WordWrapTitle" @onclick="ToggleWrapAsync">@GridText.Lob_WordWrap</button>
                 }
             </div>
 
@@ -57,15 +78,17 @@
             {
                 <div class="lob-null">NULL @if (CanEdit) { <button class="link-btn" @onclick="StartText">@GridText.Lob_EnterText</button> }</div>
             }
-            else if (_text is not null && _text.Length > LobLimits.MaxEditLength)
+            else if (_tooLarge)
             {
                 <div class="lob-null">@TextFormat.Format(GridText.Lob_TooLargeToEdit, LobContent.Size(LobLimits.MaxEditLength))</div>
             }
             else
             {
-                @* Escape in the text box must not close the dialog: the typed text reaches .NET only on change (blur). *@
-                <textarea class="lob-text" spellcheck="false" readonly="@(!CanEdit)" value="@_text" @onchange="OnTextChanged"
-                          @onkeydown:stopPropagation="true"></textarea>
+                @* A new editor for new content (file, indented view); typing stays in the same one. Escape that Monaco does
+                   not need itself (no selection, no find box) reaches the dialog. *@
+                <MonacoEditor @ref="_editor" @key="_editorVersion" Class="lob-text" Text="@_editorText" Language="@LanguageOf(_format)"
+                              ReadOnly="@(!CanEdit)" ReadOnlyMessage="@(ReadOnlyReason ?? GridText.Lob_ReadOnly)" WordWrap="_wrap" LineFeed="true"
+                              OnChange="OnTextChanged" />
             }
         }
     </div>
@@ -106,10 +129,33 @@
     private string? _error;
     private string? _notice;
     private object? _loaded; // as in the database (the workspace's transaction): reference for the concurrency check
-    private string? _text;
+    private string? _text; // the value as the dialog knows it: from the editor, at the latest before each decision
     private byte[]? _bytes;
     private bool _isNull;
-    private bool _changed;
+
+    /// <summary>Changed other than by typing: NULL, a file, text for a NULL value.</summary>
+    private bool _replaced;
+
+    private MonacoEditor? _editor;
+    private int _editorVersion;
+    private string _editorText = ""; // what the current editor started with: typing back to it is no change
+    private LobTextFormat _format;
+    private bool _wrap;
+
+    /// <summary>The text has no line break: it starts wrapped whatever the switch says (decision of the user).</summary>
+    private bool _oneLine;
+
+    /// <summary>
+    /// Too large for the editor – decided when the value is shown, so that an edit (Indent, pasting) that grows past the
+    /// limit does not take the editor away under the cursor.
+    /// </summary>
+    private bool _tooLarge;
+
+    private static readonly (LobTextFormat Format, string Label)[] FormatLabels =
+        [(LobTextFormat.Text, ""), (LobTextFormat.Json, "JSON"), (LobTextFormat.Xml, "XML")];
+
+    private static IEnumerable<(LobTextFormat Format, string Label)> Formats =>
+        FormatLabels.Select(f => f.Format == LobTextFormat.Text ? (f.Format, GridText.Lob_FormatText) : f);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -137,8 +183,41 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    private bool Changed => _replaced || (!_isNull && CanEdit && _text != _editorText);
+
+    private bool ShowsEditor => !_loading && _error is null && !IsBlob && !_isNull && _text is not null && !_tooLarge;
+
     /// <summary>Escape: with changes, closing goes through "Cancel" only – Escape in the text box must not drop a long edit.</summary>
-    private Task CancelAsync() => _changed ? Task.CompletedTask : OnClose.InvokeAsync();
+    private async Task CancelAsync()
+    {
+        await TakeTextAsync();
+        if (Changed)
+        {
+            _notice = TextFormat.Format(GridText.Lob_EscapeKeepsChanges, CommonText.Cancel, CommonText.Apply);
+            return;
+        }
+
+        await OnClose.InvokeAsync();
+    }
+
+    /// <summary>
+    /// The text as the editor has it: it reports typing only after a short pause, and Escape, Apply or Save may come
+    /// sooner. A read-only editor may show the indented view – the value stays the loaded one.
+    /// </summary>
+    private async Task TakeTextAsync()
+    {
+        if (CanEdit && ShowsEditor && _editor is not null && await _editor.GetTextAsync() is { } text)
+        {
+            _text = text;
+        }
+    }
+
+    private static string LanguageOf(LobTextFormat format) => format switch
+    {
+        LobTextFormat.Json => "fs-json",
+        LobTextFormat.Xml => "xml",
+        _ => "plaintext",
+    };
 
     private ColumnInfo Column => Details.Columns[Request.Column];
 
@@ -196,19 +275,26 @@
         _isNull = value is null;
         _text = value as string ?? (IsBlob ? null : "");
         _bytes = value as byte[];
+        _tooLarge = _text is not null && _text.Length > LobLimits.MaxEditLength;
+        NewEditor(_text ?? "");
+        _format = LobContent.DetectFormat(_editorText);
+        _oneLine = _editorText.AsSpan().IndexOfAny('\r', '\n') < 0;
+        _wrap = _oneLine || Settings.Current.LobWordWrap;
     }
 
-    private void OnTextChanged(ChangeEventArgs e)
+    private void NewEditor(string text)
     {
-        _text = e.Value as string ?? "";
-        _changed = true;
+        _editorText = text;
+        _editorVersion++;
     }
+
+    private void OnTextChanged(string text) => _text = text;
 
     private void StartText()
     {
         _isNull = false;
-        _text = "";
-        _changed = true;
+        Show("");
+        _replaced = true;
     }
 
     private void SetNull()
@@ -216,13 +302,83 @@
         _isNull = true;
         _text = IsBlob ? null : "";
         _bytes = null;
-        _changed = true;
+        _replaced = true;
         _notice = null;
+    }
+
+    private async Task SetFormatAsync(LobTextFormat format)
+    {
+        _format = format;
+        if (_editor is not null)
+        {
+            await _editor.SetLanguageAsync(LanguageOf(format));
+        }
+    }
+
+    /// <summary>
+    /// JSON one member per line. Editable: an edit in the editor (undo takes it back), so the value changes only with
+    /// Apply. Read-only: a view – a new editor with the indented text, the value stays the loaded one.
+    /// </summary>
+    private async Task IndentAsync()
+    {
+        string shown;
+        if (CanEdit)
+        {
+            await TakeTextAsync();
+            shown = _text ?? "";
+        }
+        else
+        {
+            shown = _editorText;
+        }
+
+        var result = LobContent.IndentJson(shown);
+        if (result.Text is not { } indented)
+        {
+            _notice = TextFormat.Format(GridText.Lob_InvalidJson, result.Line, result.Column);
+            return;
+        }
+
+        _notice = null;
+        if (indented == shown)
+        {
+            return;
+        }
+
+        if (CanEdit && _editor is not null)
+        {
+            await _editor.SetTextAsync(indented);
+            _text = indented;
+        }
+        else
+        {
+            NewEditor(indented);
+        }
+    }
+
+    /// <summary>
+    /// For text with line breaks the switch holds for the next dialog and after a restart. Text without starts wrapped
+    /// anyway, so switching there is kept only for this dialog.
+    /// </summary>
+    private async Task ToggleWrapAsync()
+    {
+        _wrap = !_wrap;
+        if (_editor is not null)
+        {
+            await _editor.SetWordWrapAsync(_wrap);
+        }
+
+        if (!_oneLine)
+        {
+            var wrap = _wrap;
+            await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { LobWordWrap = wrap }, CancellationToken.None));
+        }
     }
 
     private async Task SaveToFileAsync()
     {
         var name = $"{Details.Table.Name}_{Column.Name}";
+        await TakeTextAsync();
         try
         {
             string? path = Current switch
@@ -280,12 +436,13 @@
             _notice = TextFormat.Format(utf8 ? GridText.Lob_FromFile : GridText.Lob_FromFileNotUtf8, file.Name);
         }
 
-        _changed = true;
+        _replaced = true;
     }
 
     private async Task ApplyAsync()
     {
-        if (!_changed)
+        await TakeTextAsync();
+        if (!Changed)
         {
             await OnClose.InvokeAsync();
             return;

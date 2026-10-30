@@ -1133,17 +1133,15 @@ button.badge-btn:hover { filter: brightness(1.08); }
 /* LOB editor (WP-10) */
 .dialog.lob-dialog { width: min(980px, 94vw); }
 .lob-type { margin-left: 8px; color: var(--muted); font-weight: 400; font-size: 12px; }
-.lob-info { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+.lob-info { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
 .lob-changed { color: var(--warn); font-weight: 600; }
 .lob-readonly { padding: 1px 6px; border: 1px solid var(--border); border-radius: 5px; }
 .lob-notice { color: var(--text); }
-.lob-text {
-  display: block; width: 100%; height: min(56vh, 520px); resize: vertical; box-sizing: border-box;
-  padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text);
-  font: 12px/1.5 var(--mono); white-space: pre; overflow: auto;
-}
-.lob-text:focus { outline: none; border-color: var(--accent); }
-.lob-text[readonly] { background: var(--surface-2); }
+.lob-info .spacer { flex: 1; }
+.lob-info .btn.small { height: 26px; padding: 0 8px; font-size: 12px; }
+.lob-info .btn.active { color: var(--accent); background: var(--accent-weak); }
+/* Monaco (automaticLayout) follows the box when it is dragged taller. */
+.monaco-host.lob-text { height: min(56vh, 520px); min-height: 120px; resize: vertical; }
 .lob-hex { margin: 0; max-height: 40vh; overflow: auto; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font: 12px/1.5 var(--mono); }
 .lob-image { margin-bottom: 8px; text-align: center; }
 .lob-image img { max-width: 100%; max-height: 40vh; border-radius: 6px; background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; } /* the transparency checkerboard stays light in both themes */

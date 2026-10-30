@@ -561,6 +561,38 @@
     <value>from “{0}” (not UTF-8 – read as Windows-1252)</value>
     <comment>{0}: file name</comment>
   </data>
+  <data name="Lob_FormatTitle" xml:space="preserve">
+    <value>Colors the text as plain text, JSON or XML</value>
+  </data>
+  <data name="Lob_FormatText" xml:space="preserve">
+    <value>Text</value>
+    <comment>Colouring: plain text</comment>
+  </data>
+  <data name="Lob_Indent" xml:space="preserve">
+    <value>Indent</value>
+    <comment>Button: puts JSON on several indented lines</comment>
+  </data>
+  <data name="Lob_IndentTitle" xml:space="preserve">
+    <value>Puts each member and element of the JSON on its own line, indented. Strings and numbers stay as they are; undo in the editor takes it back.</value>
+  </data>
+  <data name="Lob_IndentViewTitle" xml:space="preserve">
+    <value>Shows the JSON indented, one member or element per line. The value itself stays as it is.</value>
+  </data>
+  <data name="Lob_InvalidJson" xml:space="preserve">
+    <value>Not valid JSON – line {0}, position {1}.</value>
+    <comment>{0}: line, {1}: position in the line (1-based)</comment>
+  </data>
+  <data name="Lob_WordWrap" xml:space="preserve">
+    <value>Wrap lines</value>
+    <comment>Switch: long lines wrap at the edge of the text box</comment>
+  </data>
+  <data name="Lob_WordWrapTitle" xml:space="preserve">
+    <value>Long lines wrap at the edge of the box. Only the view – the value gets no line breaks.</value>
+  </data>
+  <data name="Lob_EscapeKeepsChanges" xml:space="preserve">
+    <value>The value was changed – “{0}” discards the change, “{1}” keeps it.</value>
+    <comment>{0}: the Cancel button, {1}: the Apply button</comment>
+  </data>
   <data name="Problem_LockConflictOne" xml:space="preserve">
     <value>Another session holds a lock on the row (it changed the row but has not committed yet). FerretSharp waited {0} second.</value>
     <comment>{0}: lock wait in seconds (1)</comment>

@@ -438,6 +438,33 @@
   <data name="Lob_FromFileNotUtf8" xml:space="preserve">
     <value>aus „{0}“ (kein UTF-8 – als Windows-1252 gelesen)</value>
   </data>
+  <data name="Lob_FormatTitle" xml:space="preserve">
+    <value>Färbt den Text als einfachen Text, JSON oder XML</value>
+  </data>
+  <data name="Lob_FormatText" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Lob_Indent" xml:space="preserve">
+    <value>Einrücken</value>
+  </data>
+  <data name="Lob_IndentTitle" xml:space="preserve">
+    <value>Setzt jedes Feld und jedes Element des JSON eingerückt in eine eigene Zeile. Strings und Zahlen bleiben, wie sie sind; Rückgängig im Editor nimmt es zurück.</value>
+  </data>
+  <data name="Lob_IndentViewTitle" xml:space="preserve">
+    <value>Zeigt das JSON eingerückt, ein Feld oder Element je Zeile. Der Wert selbst bleibt, wie er ist.</value>
+  </data>
+  <data name="Lob_InvalidJson" xml:space="preserve">
+    <value>Kein gültiges JSON – Zeile {0}, Position {1}.</value>
+  </data>
+  <data name="Lob_WordWrap" xml:space="preserve">
+    <value>Zeilen umbrechen</value>
+  </data>
+  <data name="Lob_WordWrapTitle" xml:space="preserve">
+    <value>Lange Zeilen brechen am Rand des Felds um. Nur die Anzeige – der Wert bekommt keine Zeilenumbrüche.</value>
+  </data>
+  <data name="Lob_EscapeKeepsChanges" xml:space="preserve">
+    <value>Der Wert wurde geändert – „{0}“ verwirft die Änderung, „{1}“ behält sie.</value>
+  </data>
   <data name="Problem_LockConflictOne" xml:space="preserve">
     <value>Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committet). FerretSharp hat {0} Sekunde gewartet.</value>
   </data>
