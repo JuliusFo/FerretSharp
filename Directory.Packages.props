@@ -9,6 +9,10 @@
   <ItemGroup Label="UI">
     <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.13" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.110" />
+    <!-- BlazorWebView brings 1.0.3179.45, whose composition control never rebuilds its Direct3D devices: after sleep the
+         picture froze. Pinned (transitively) to a version that recovers after a display change; App's WebViewCapture starts
+         that recovery by reflection – check it still finds the members when updating. -->
+    <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
   </ItemGroup>
 
   <ItemGroup Label="Windows">
