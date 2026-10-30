@@ -44,3 +44,16 @@ Im E2E **nicht nachzustellen**: Über den Proxy (50 ms je Paket, wie VPN) wechse
 
 ## Entscheidungen des Nutzers
 - Umbruch automatisch an, wenn der Text keine Zeilenumbrüche hat (2026-10-30).
+
+## Nachtrag: Code-Review (2026-10-30)
+Eigener Reviewer-Agent über `56f8c466..f77cbafe`, zweiter Durchgang über die Fix-Commits. Entscheidung des Nutzers: „Alle beheben“.
+1. (S) Monaco schreibt Zeilenenden und BOM beim Anlegen um, der Dialog nahm diese Kopie als Wert („geändert“ ohne Eingabe, Übernehmen schrieb umgeschriebene Zeilenenden, Datei nicht mehr byte-genau) – **behoben:** Der Editor meldet nur „bearbeitet“ (Monacos Version seit `create`), der Text kommt erst nach einer Bearbeitung und mit BOM (`OnEdit`, `GetEditedTextAsync`). Im E2E: gemischte Zeilenenden und BOM ohne Hinweis, Übernehmen ohne Eingabe ohne Änderung, BOM nach Bearbeiten und Einrücken in der DB genau einmal.
+2. (M) U+2028/U+2029 lösten Monacos Abfrage aus, OK entfernte sie – **behoben:** `unusualLineTerminators: 'off'`. Im E2E: keine Abfrage, Zeichen bleibt.
+3. (M) Einrücken wuchs ohne Grenze und lief im UI-Thread – **behoben:** stoppt bei 10 MB („Zu groß zum Einrücken“), läuft per `Task.Run`, Knopf gesperrt solange. Test, im E2E mit 400 KB tief verschachteltem JSON.
+4. (K) Gültiges JSON über 64 Ebenen hieß ungültig – **behoben:** `MaxDepth` 100 000, Test.
+5. (K) Position im Fehlerhinweis in UTF-8-Bytes – **behoben:** Zeichenspalte wie im Editor, Test mit Umlauten.
+6. (K) `editorKeys` wich von der Warnliste der Einstellungen ab (Strg+D, Strg+G …) – **behoben:** angeglichen, `DialogEditorKeysTests` hält beide im Gleichschritt.
+7. (K) Ganzer Text nach jeder Tipp-Pause über Interop – **behoben** mit 1 (nur „bearbeitet“ und Länge).
+- Im E2E dazu gefunden und behoben: JSON mit BOM galt als Text, Einrücken meldete Position 1 (`DetectFormat`/`IndentJson` überspringen das BOM, es bleibt vorn); nach Rückgängig zeigte die Zeichenzahl Monacos Länge.
+- Zweiter Durchgang: N1 (nach Einrücken und Rückgängig zeigte die Zahl die eingerückte Länge) und N2 (BOM als unsichtbares Zeichen im Quelltext, jetzt `\uFEFF` bzw. `LobContent.Bom`) behoben; N3 (Regel und Protokoll) mit diesem Nachtrag und `ui-monaco.md`.
+- Vorher schon da: Strg+Enter ist im LOB-Editor „Filter anwenden“ (galt auch für die Textbox) – Frage an den Nutzer, ob in den Backlog.
