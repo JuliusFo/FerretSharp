@@ -1,4 +1,4 @@
-# Fix: Bild der WebView steht nach dem Ruhezustand (`fix/webview-frozen-after-sleep`) → Release 3.56.1
+# Fix: Bild der WebView steht nach dem Ruhezustand oder nach schnellen Änderungen (`fix/webview-frozen-after-sleep`) → Release 3.56.1
 Meldung des Nutzers (2026-10-30, 3.56.0): Nach dem Aufwachen ließ sich FerretSharp nicht mehr bedienen – der Mauszeiger wechselte über Knöpfen, Klicks bewirkten nichts, Minimieren/Maximieren ging. Log: `Power mode "Resume"`, 5 s später der Keep-alive mit ORA-12571 (Verbindung weg), dann nichts bis zum Schließen per ✕ (`Main window closing by the user`).
 
 ## Analyse
@@ -17,5 +17,10 @@ Eigene Instanz (Build im Scratchpad, `--data-dir`, eigener WebView2-Ordner, Debu
 - Danach echter Windows-Klick (`SendInput`) auf „Verbindung hinzufügen“: Dialog öffnet und ist zu sehen. Maximieren: Inhalt füllt das Fenster neu. Log ohne `[WRN]`/`[ERR]`.
 - Nicht prüfbar: der Ruhezustand selbst und der zurückkehrende Front Buffer (lassen sich nicht auslösen). Beim nächsten Aufwachen im Log nach „Restarting the WebView's capture (after sleep)“ sehen; steht das Bild trotzdem, hilft Minimieren und Wiederherstellen.
 
-## Offen
-- Backlog „Anzeige bleibt stehen, bis man klickt“ (2026-10-29) betrifft denselben Aufnahmeweg; mit der neuen WebView2-Version erneut beobachten.
+## Nachtrag: Anzeige bleibt stehen, bis man klickt (Backlog 2026-10-29)
+Erneuter Test beim Kollegen (2026-10-30): Ein Klick irgendwo auf den LOB-Dialog zeigt das Ergebnis, ein Klick außerhalb nicht; nach Zeilenwechsel geht es sofort; Doppelklick auf eine bereits markierte Zeile löst es aus, auf eine nicht markierte nicht. Zwei SQL-Tabs: über den anderen fahren, den Tooltip abwarten, klicken – der Editor zeigt nur die erste Zeile, bis man hineinklickt. Bei Tabellen auch schon vorgekommen.
+
+- Ursache (ADR 0038): Das Control kopiert ein Bild nur, wenn es das `D3DImage` sofort sperren kann, sonst verwirft es das Bild. Belegt ist die Sperre, solange WPFs Render-Thread das vorige Bild präsentiert. Die Aufnahme liefert erst bei der nächsten Änderung der Seite wieder ein Bild – deshalb hilft nur ein Klick, der etwas Sichtbares ändert. Beim Tab-Wechsel mit Tooltip kommen drei Änderungen direkt hintereinander (Tooltip weg, Tab sichtbar, Monaco zeichnet nach `automaticLayout` alle Zeilen); die letzte ging verloren. Das WebView2-Update ändert daran nichts.
+- Gebaut: `WebViewCapture` übernimmt die Bilder des Bildpuffers (Handler des Controls ab, eigener an), wartet bei belegter Sperre und kopiert dann (`RequestRender`), höchstens 1 s; ein neuer Bildpuffer nach einem Wiederaufbau wird übernommen (Prüfung alle 2 s). Debug-Zeilen: „Frames of the WebView's capture taken over“, „WebView frames held until the image was free: N, longest X ms“ (höchstens einmal je Minute).
+- E2E: Stresstest im Scratchpad (CDP: Serien von 2–240 Bildwechseln per `requestAnimationFrame`, danach Fensterbild per `PrintWindow` prüfen) – vor und nach dem Fix kein verlorenes Bild, die Sperre war auf diesem Rechner nie belegt (keine „held“-Zeile). Gegenprobe mit einem Handler, der nichts tut: Das Bild blieb stehen, der Handler des Controls war also ab. Nach Minimieren/Wiederherstellen neuer Bildpuffer übernommen, danach wieder kein verlorenes Bild; echter Klick wirkt sichtbar.
+- Zu prüfen beim Kollegen: die Abläufe oben mit dem Build; im Log nach „frames held“ sehen (erscheint die Zeile, hat der Fix gegriffen).

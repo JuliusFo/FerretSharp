@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - After waking from sleep the window could stay frozen on its last picture: the cursor still changed over buttons, but clicks seemed to do nothing. FerretSharp now captures the page anew after waking (WebView2 1.0.4258.31, which also recovers after a change of the displays). Should it still happen, minimizing and restoring the window brings the picture back.
+- The window could keep showing an intermediate state until the next click: the LOB dialog stayed at "Loading …" with large CLOBs, rows after jumping along a foreign key stayed empty, a SQL tab showed only its first line after switching to it. The last picture of a quick series of changes was dropped while the previous one was still being drawn; it now waits until it can be shown.
 
 ## [3.56.0] - 2026-10-30
 
