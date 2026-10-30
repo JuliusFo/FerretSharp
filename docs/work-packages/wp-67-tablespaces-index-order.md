@@ -36,3 +36,17 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--l
 - Der Index-Tablespace stand immer oben im Reiter Constraints, auch ohne neuen Index, und las sich, als hätte ein FK einen eigenen Index. Ein FK hat keinen: „mit Index“ legt einen normalen Index auf seine Spalten an, nur PK/UK bringen ihren Index selbst mit.
 - Jetzt steht das Feld unter den neuen Constraints und erscheint nur, wenn der Plan Indizes anlegt; daneben steht, für welche („für PK_X, IX_X_A (Index für FK_X_Y)“). Die Liste kommt aus dem Plan (`DesignPlan.NewIndexes`, dieselbe Regel wie das Skript): ein Schlüssel, den ein vorhandener Index trägt, fehlt darin.
 - E2E: Die Testinstanz einer parallelen Session hielt Port 9333 – eine zweite Instanz mit eigenem WebView2-Ordner lief auf 9334 ohne Absturz. Vor CDP-Aufrufen prüfen, dass die Instanz am Port die eigene ist (eigene Verbindung im DOM).
+
+## Nachtrag: Code-Review (2026-10-30)
+Unabhängiger Reviewer über den Branch; die drei Verdachtsfälle gegen Oracle 23 gemessen (alle bestätigt). Entscheidung des Nutzers: „Behebe alle, die Audit-Tabelle übernimmt den Tablespace der Tabelle.“
+
+1. M – Ein Schlüssel, den der Plan löscht, ließ seinen vorher eigens angelegten Index stehen (`CREATE UNIQUE INDEX …; ADD CONSTRAINT … USING INDEX …`, wie SQL Developer und DBMS_METADATA schreiben); ein neuer Schlüssel auf denselben Spalten mit `USING INDEX TABLESPACE` scheiterte dann mit ORA-01408 – nach dem `DROP CONSTRAINT`, die Tabelle ohne Schlüssel: behoben, die Indizes gelöschter Schlüssel zählen weiter als vorhanden (keine Klausel). Unit- und Integrationstest.
+2. K – Ein eindeutiger Index mit weiteren Spalten (auch der eines neuen PK davor) und ein Bitmap-Index tragen einen neuen Schlüssel nicht, Oracle legt einen eigenen an – der Designer ließ die Klausel weg und meldete „nutzt den vorhandenen Index“: behoben mit `IndexAdvice.BacksKey` (gemessen: UNIQUE (A, B) und Bitmap (A, B) → eigener Index, nicht eindeutig (A, B) → genommen). Auch die Namensprüfung eines neuen Schlüssels (ORA-00955) nutzt die Regel.
+3. K – Das Lesen der Tablespaces lag vor dem Erscheinen des Designers (eine VPN-Runde mehr): behoben, es läuft danach im Hintergrund.
+4. K – „Index anlegen“ las Namen und Tablespaces in einem Aufruf; scheiterte der zweite, fehlte auch die Prüfung auf ORA-00955: behoben, zwei Aufrufe.
+5. K – Globale temporäre Tabellen: Oracle ignoriert `TABLESPACE` am Index still und bricht `USING INDEX TABLESPACE` mit ORA-00600 ab (gemessen): behoben, `GetTablespacesAsync` liest, ob die Tabelle temporär ist; dann kein Picker, keine Klausel, im Index-Entwurf ein Problem.
+6. K – Ein Tablespace-Name mit `"` warf beim Bauen des DDL, statt ein Problem zu sein (nicht erreichbar, der Name kommt aus der Liste): behoben, geprüft wird vorher; der Index-Entwurf schreibt dann kein Statement.
+7. K – „nutzt den vorhandenen Index“ erschien auch, wenn das Feld ausgeblendet war (kein neuer Index): behoben, der Hinweis nur, solange andere Indizes entstehen.
+8. K – `docs/architecture.md` nannte die FK-Regel ohne „aufsteigend“: ergänzt (`Backs`, `BacksKey`, `Covers`, `GetTablespacesAsync`).
+- Frage des Reviewers, vom Nutzer entschieden: Eine neue Audit-Tabelle übernimmt den Tablespace ihrer Tabelle (neue Tabelle: der gewählte, bestehende: `Tablespaces.TableTablespace`).
+- Nebenbei gemessen, vorher schon so: Auf den Spalten eines Bitmap-Index scheitert ein neuer Schlüssel mit ORA-01408, mit und ohne Klausel (Backlog).
