@@ -176,6 +176,9 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<SchemaNames> GetNamesElsewhereAsync(TableRef table, CancellationToken cancellationToken) =>
         reader.GetNamesElsewhereAsync(table, cancellationToken);
 
+    public Task<Tablespaces> GetTablespacesAsync(TableRef table, CancellationToken cancellationToken) =>
+        reader.GetTablespacesAsync(table, cancellationToken);
+
     public Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken) =>
         reader.GetDependenciesAsync(table, cancellationToken);
 

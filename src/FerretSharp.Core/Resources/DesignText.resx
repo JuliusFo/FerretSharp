@@ -252,4 +252,15 @@
     <value>Another table of the schema already has an index named {0} (ORA-00955).</value>
     <comment>{0}: index name</comment>
   </data>
+  <data name="IndexAllDescending" xml:space="preserve">
+    <value>All columns descending: an ascending index serves the same orders (Oracle reads it backwards) and also backs foreign keys.</value>
+  </data>
+  <data name="TablespaceNoQuota" xml:space="preserve">
+    <value>{0} has no quota in tablespace {1}: Oracle refuses the first row (ORA-01950), for an empty table only once it gets one.</value>
+    <comment>{0}: schema, {1}: tablespace</comment>
+  </data>
+  <data name="KeyUsesIndex" xml:space="preserve">
+    <value>{0} uses the existing index {1} – the index tablespace does not apply to it.</value>
+    <comment>{0}: constraint, {1}: index name</comment>
+  </data>
 </root>

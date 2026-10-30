@@ -198,4 +198,13 @@
   <data name="IndexNameTakenInSchema" xml:space="preserve">
     <value>Eine andere Tabelle des Schemas hat schon einen Index {0} (ORA-00955).</value>
   </data>
+  <data name="IndexAllDescending" xml:space="preserve">
+    <value>Alle Spalten absteigend: Ein aufsteigender Index dient denselben Sortierungen (Oracle liest ihn rückwärts) und taugt auch für Fremdschlüssel.</value>
+  </data>
+  <data name="TablespaceNoQuota" xml:space="preserve">
+    <value>{0} hat im Tablespace {1} kein Kontingent: Oracle lehnt die erste Zeile ab (ORA-01950), bei einer leeren Tabelle erst, wenn sie eine bekommt.</value>
+  </data>
+  <data name="KeyUsesIndex" xml:space="preserve">
+    <value>{0} nutzt den vorhandenen Index {1} – der Index-Tablespace gilt für ihn nicht.</value>
+  </data>
 </root>

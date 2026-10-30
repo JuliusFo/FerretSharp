@@ -36,23 +36,25 @@ public class ObjectDetailsTests
         var indexes = new[]
         {
             Index("IX_KUNDE_DATUM", Col("KUNDE_ID"), Col("DATUM")),
-            Index("IX_POS", Col("AUFTRAG_NR", descending: true), Col("MANDANT")),
+            Index("IX_POS", Col("AUFTRAG_NR"), Col("MANDANT"), Col("DATUM", descending: true)),
         };
 
         Assert.Empty(IndexAdvice.UnindexedForeignKeys(fks, indexes));
     }
 
     [Fact]
-    public void Index_with_the_columns_further_back_or_as_expression_does_not_count()
+    public void Index_with_the_columns_further_back_as_expression_or_descending_does_not_count()
     {
-        var fks = new[] { Fk("FK_KUNDE", "KUNDE_ID"), Fk("FK_LAND", "LAND") };
+        // Descending: measured against Oracle 23 (WP-67), deleting a parent row still waits for the child table.
+        var fks = new[] { Fk("FK_KUNDE", "KUNDE_ID"), Fk("FK_LAND", "LAND"), Fk("FK_ART", "ART") };
         var indexes = new[]
         {
             Index("IX_DATUM_KUNDE", Col("DATUM"), Col("KUNDE_ID")),
             Index("IX_UPPER_LAND", new IndexColumn("UPPER(\"LAND\")", true, false)),
+            Index("IX_ART", Col("ART", descending: true)),
         };
 
-        Assert.Equal(["FK_KUNDE", "FK_LAND"], IndexAdvice.UnindexedForeignKeys(fks, indexes).Select(f => f.Name));
+        Assert.Equal(["FK_KUNDE", "FK_LAND", "FK_ART"], IndexAdvice.UnindexedForeignKeys(fks, indexes).Select(f => f.Name));
     }
 
     [Fact]
@@ -73,9 +75,11 @@ public class ObjectDetailsTests
             Index("IX_STATUS", Col("STATUS")) with { Visible = false },
             Index("IX_LAND", Col("LAND")) with { Status = "UNUSABLE" },
             Index("IX_UPPER_NAME", new IndexColumn("UPPER(\"NAME\")", true, false)),
+            Index("IX_ART", Col("ART", descending: true)),
         };
 
         Assert.True(IndexAdvice.HasIndexFor("KUNDE_ID", indexes));
+        Assert.True(IndexAdvice.HasIndexFor("ART", indexes)); // a lookup may read a descending index
         Assert.False(IndexAdvice.HasIndexFor("DATUM", indexes));
         Assert.False(IndexAdvice.HasIndexFor("STATUS", indexes));
         Assert.False(IndexAdvice.HasIndexFor("LAND", indexes));

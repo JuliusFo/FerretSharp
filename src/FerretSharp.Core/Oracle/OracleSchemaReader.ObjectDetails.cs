@@ -91,6 +91,33 @@ public sealed partial class OracleSchemaReader
          WHERE owner = :owner AND NOT (table_owner = :owner AND table_name = :name) AND index_name NOT LIKE 'BIN$%'
         """;
 
+    // WP-67: N choosable, D default and Q quota (own schema only), U unlimited, I/S/T where the table's indexes, the owner's
+    // indexes and tables lie. Partitioned and temporary objects name no tablespace; LOB indexes follow their LOB.
+    private const string TablespacesSql = """
+        SELECT 'N', tablespace_name, 0 FROM user_tablespaces WHERE contents = 'PERMANENT' AND status = 'ONLINE'
+        UNION ALL
+        SELECT 'D', default_tablespace, 0 FROM user_users WHERE username = :owner
+        UNION ALL
+        SELECT 'Q', tablespace_name, 0 FROM user_ts_quotas WHERE max_bytes <> 0 AND USER = :owner
+        UNION ALL
+        SELECT 'U', privilege, 0 FROM session_privs WHERE privilege = 'UNLIMITED TABLESPACE'
+        UNION ALL
+        SELECT 'I', tablespace_name, COUNT(*)
+          FROM all_indexes
+         WHERE table_owner = :owner AND table_name = :name AND index_type <> 'LOB' AND tablespace_name IS NOT NULL AND dropped = 'NO'
+         GROUP BY tablespace_name
+        UNION ALL
+        SELECT 'S', tablespace_name, COUNT(*)
+          FROM all_indexes
+         WHERE owner = :owner AND index_type <> 'LOB' AND tablespace_name IS NOT NULL AND dropped = 'NO'
+         GROUP BY tablespace_name
+        UNION ALL
+        SELECT 'T', tablespace_name, COUNT(*)
+          FROM all_tables
+         WHERE owner = :owner AND tablespace_name IS NOT NULL AND temporary = 'N' AND dropped = 'NO'
+         GROUP BY tablespace_name
+        """;
+
     // A function call in a plain query: DBMS_METADATA only reads. Object type names use underscores here.
     private const string DdlSql = "SELECT DBMS_METADATA.GET_DDL(:object_type, :name, :owner) FROM DUAL";
 
@@ -136,6 +163,22 @@ public sealed partial class OracleSchemaReader
         return new SchemaNames(
             names.Where(n => n.Kind == "C").Select(n => n.Name).ToHashSet(StringComparer.Ordinal),
             names.Where(n => n.Kind == "I").Select(n => n.Name).ToHashSet(StringComparer.Ordinal));
+    }
+
+    public async Task<Tablespaces> GetTablespacesAsync(TableRef table, CancellationToken cancellationToken)
+    {
+        var rows = await session.ReadListAsync(TablespacesSql, [new("owner", table.Owner), new("name", table.Name)],
+            reader => (Kind: reader.GetString(0), Name: reader.GetString(1), Count: Int(reader, 2) ?? 0), cancellationToken);
+        List<string> Names(string kind) => rows.Where(r => r.Kind == kind).Select(r => r.Name).ToList();
+        List<TablespaceUse> Uses(string kind) => rows.Where(r => r.Kind == kind).Select(r => new TablespaceUse(r.Name, r.Count)).ToList();
+        var own = Names("D").FirstOrDefault();
+        return new Tablespaces(
+            Names("N").Order(StringComparer.Ordinal).ToList(),
+            own,
+            own is null || Names("U").Count > 0 ? null : Names("Q").ToHashSet(StringComparer.Ordinal),
+            Uses("I"),
+            Uses("S"),
+            Uses("T"));
     }
 
     public async Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken)

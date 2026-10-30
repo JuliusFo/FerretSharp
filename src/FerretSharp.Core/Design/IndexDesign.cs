@@ -10,7 +10,17 @@ namespace FerretSharp.Core.Design;
 /// <summary>A new index as the user puts it together (WP-23).</summary>
 /// <param name="Name">The index name in dictionary form (as stored, quoted exactly so in the DDL).</param>
 /// <param name="Columns">Column names of the table, in index order.</param>
-public sealed record IndexDraft(string Name, IReadOnlyList<string> Columns, bool Unique = false);
+public sealed record IndexDraft(string Name, IReadOnlyList<string> Columns, bool Unique = false)
+{
+    /// <summary>Columns sorted descending in the index (WP-67); the others ascending.</summary>
+    public IReadOnlySet<string> Descending { get; init; } = new HashSet<string>();
+
+    /// <summary>The tablespace to create it in (WP-67, dictionary form); null for the owner's default.</summary>
+    public string? Tablespace { get; init; }
+
+    /// <summary>The columns as an index has them.</summary>
+    public IReadOnlyList<IndexColumn> IndexColumns => Columns.Select(c => new IndexColumn(c, IsExpression: false, Descending.Contains(c))).ToList();
+}
 
 /// <summary>What the designer found about a draft.</summary>
 /// <param name="Problems">Reasons the DDL cannot run (or would certainly fail); empty if it can.</param>
@@ -66,7 +76,9 @@ public static partial class IndexDesign
     /// Index names of the owner's other tables (<see cref="SchemaNames.Indexes"/>), null while not read: Oracle would refuse the
     /// name with ORA-00955 (review of R8, as the table designer since review 3.54.0, A14).
     /// </param>
-    public static DraftCheck Check(IndexDraft draft, TableDetails table, IReadOnlyList<IndexInfo> indexes, IReadOnlySet<string>? elsewhere = null)
+    /// <param name="tablespaces">The owner's quotas (WP-67), null while not read.</param>
+    public static DraftCheck Check(IndexDraft draft, TableDetails table, IReadOnlyList<IndexInfo> indexes, IReadOnlySet<string>? elsewhere = null,
+        Tablespaces? tablespaces = null)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentNullException.ThrowIfNull(table);
@@ -118,36 +130,65 @@ public static partial class IndexDesign
             }
         }
 
-        // Oracle refuses a second index on the same column list (ORA-01408); one starting with the same columns
-        // already serves lookups by them – also for a foreign key (IndexAdvice counts it as covering).
-        if (indexes.FirstOrDefault(i => SameColumns(i, draft.Columns)) is { } twin)
+        // Oracle refuses a second index on the same column list (ORA-01408) – the same directions too: (A) and (A DESC) may
+        // both be there. One starting with the same columns ascending already serves lookups by them and a foreign key
+        // (IndexAdvice.Backs); a draft with descending columns is about a sort order, nothing else stands in for it.
+        var columns = draft.IndexColumns;
+        if (indexes.FirstOrDefault(i => SameColumns(i, columns)) is { } twin)
         {
             problems.Add(TextFormat.Format(DesignText.IndexSameColumns, twin.Name));
         }
-        else if (!draft.Unique && indexes.FirstOrDefault(i => IndexAdvice.Covers(i, draft.Columns)) is { } covering)
+        else if (!draft.Unique && draft.Descending.Count == 0 && indexes.FirstOrDefault(i => IndexAdvice.Backs(i, draft.Columns)) is { } covering)
         {
             warnings.Add(TextFormat.Format(DesignText.IndexCoveredBy, covering.Name));
         }
 
+        // Oracle reads an ascending index backwards for the reverse order; descending is function-based and backs no foreign key.
+        if (columns.All(c => c.Descending))
+        {
+            warnings.Add(DesignText.IndexAllDescending);
+        }
+
+        CheckTablespace(draft.Tablespace, table.Table.Owner, tablespaces, problems, warnings);
         return new DraftCheck(problems, warnings);
     }
 
-    /// <summary><c>CREATE [UNIQUE ]INDEX "OWNER"."NAME" ON "OWNER"."TABLE" ("A", "B")</c> – the index in the table's schema.</summary>
+    /// <summary>A chosen tablespace: a valid name, and one the owner may fill (ORA-01950 otherwise, maybe only with the first row).</summary>
+    internal static void CheckTablespace(string? tablespace, string owner, Tablespaces? tablespaces, List<string> problems, List<string> warnings)
+    {
+        if (string.IsNullOrEmpty(tablespace))
+        {
+            return;
+        }
+
+        if (OracleIdentifier.Problem(tablespace) is { } problem)
+        {
+            problems.Add(problem);
+        }
+        else if (tablespaces?.LacksQuota(tablespace) == true)
+        {
+            warnings.Add(TextFormat.Format(DesignText.TablespaceNoQuota, owner, tablespace));
+        }
+    }
+
+    /// <summary>
+    /// <c>CREATE [UNIQUE ]INDEX "OWNER"."NAME" ON "OWNER"."TABLE" ("A", "B" DESC)[ TABLESPACE "X"]</c> – the index in the
+    /// table's schema.
+    /// </summary>
     public static string Ddl(IndexDraft draft, TableRef table)
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentNullException.ThrowIfNull(table);
-        var index = new IndexInfo(table.Owner, draft.Name, "NORMAL", draft.Unique, "VALID",
-            draft.Columns.Select(c => new IndexColumn(c, IsExpression: false, Descending: false)).ToList(), null, false, Visible: true);
-        return OracleDdl.CreateIndex(index, draft.Name, table.Owner, table.Name)
+        var index = new IndexInfo(table.Owner, draft.Name, "NORMAL", draft.Unique, "VALID", draft.IndexColumns, null, false, Visible: true);
+        return OracleDdl.CreateIndex(index, draft.Name, table.Owner, table.Name, draft.Tablespace)
                ?? throw new InvalidOperationException("A normal index always has DDL.");
     }
 
     /// <summary>The <see cref="Ddl"/> as a step of a DDL script.</summary>
     public static DdlStep Step(IndexDraft draft, TableRef table) => new(table?.Name ?? throw new ArgumentNullException(nameof(table)), DdlStepKind.CreateIndex, Ddl(draft, table));
 
-    private static bool SameColumns(IndexInfo index, IReadOnlyList<string> columns) =>
-        index.Columns.Count == columns.Count && index.Columns.All(c => !c.IsExpression) && index.Columns.Select(c => c.Name).SequenceEqual(columns, StringComparer.Ordinal);
+    private static bool SameColumns(IndexInfo index, IReadOnlyList<IndexColumn> columns) =>
+        index.Columns.Count == columns.Count && index.Columns.SequenceEqual(columns);
 
     [GeneratedRegex(@"[^\p{Lu}\p{Nd}_$#]")]
     private static partial Regex NotPlain();

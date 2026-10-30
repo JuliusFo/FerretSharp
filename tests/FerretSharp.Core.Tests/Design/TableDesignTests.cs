@@ -499,6 +499,32 @@ public class TableDesignTests
         var draft = Draft() with { AddedConstraints = [new ConstraintDraft("FK", ConstraintType.ForeignKey, ["NAME"], References: Land.Table.Ref, ReferencedColumns: ["NAME"])] };
         var covering = new IndexInfo("SHOP", "IX_NAME_STATUS", "NORMAL", false, "VALID", [new IndexColumn("NAME", false, false), new IndexColumn("STATUS", false, false)], null, false, true);
         Assert.Single(PlanWith(draft, indexes: [covering]).Statements);
+
+        // A descending index backs no foreign key (WP-67, measured against Oracle 23): the index comes anyway.
+        var descending = covering with { Columns = [new IndexColumn("NAME", false, true), new IndexColumn("STATUS", false, false)] };
+        Assert.Equal(2, PlanWith(draft, indexes: [descending]).Statements.Count);
+    }
+
+    [Fact]
+    public void A_new_key_takes_an_ascending_index_of_the_table_and_the_index_tablespace_only_without_one()
+    {
+        IndexInfo Index(string column, bool descending) => new("SHOP", $"IX_{column}", "NORMAL", false, "VALID", [new IndexColumn(column, false, descending)], null, false, true);
+        var draft = Draft() with
+        {
+            AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"]), new ConstraintDraft("UK_STATUS", ConstraintType.Unique, ["STATUS"])],
+            IndexTablespace = "INDX",
+        };
+
+        // With the clause, Oracle would refuse a key on the column list of an index there (ORA-01408) instead of taking it.
+        var plan = PlanWith(draft, Facts((Rows, 0)), indexes: [Index("NAME", descending: false), Index("STATUS", descending: true)]);
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} ADD CONSTRAINT "UK_NAME" UNIQUE ("NAME")""",
+            $"""ALTER TABLE {T} ADD CONSTRAINT "UK_STATUS" UNIQUE ("STATUS") USING INDEX TABLESPACE "INDX" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.Equal(["UK_NAME nutzt den vorhandenen Index IX_NAME – der Index-Tablespace gilt für ihn nicht."], plan.Warnings);
+        Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
     }
 
     [Fact]
@@ -686,6 +712,38 @@ public class TableDesignTests
 
         Assert.Empty(plan.Problems);
         Assert.Contains("""ALTER TABLE "SHOP"."ORT" ADD CONSTRAINT "FK_ORT_PARENT" FOREIGN KEY ("PARENT_ID") REFERENCES "SHOP"."ORT" ("ID")""", plan.Statements);
+    }
+
+    [Fact]
+    public void A_new_table_and_the_indexes_it_creates_go_into_the_chosen_tablespaces()
+    {
+        var draft = NewDraft(NewColumn("ID", "NUMBER", nullable: false), NewColumn("LAND", "VARCHAR2", 2)) with
+        {
+            AddedConstraints =
+            [
+                new ConstraintDraft("PK_ORT", ConstraintType.PrimaryKey, ["ID"]),
+                new ConstraintDraft("FK_ORT_LAND", ConstraintType.ForeignKey, ["LAND"], References: Land.Table.Ref, ReferencedColumns: ["CODE"]),
+            ],
+            IndexTablespace = "INDX",
+        };
+        var quota = Tablespaces.None with { Quota = new HashSet<string> { "DATA" } };
+
+        var plan = TableDesign.PlanNew(Ort with { Comment = null, Tablespace = "DATA" }, draft, new Dictionary<TableRef, TableDetails> { [Land.Table.Ref] = Land }, [], quota);
+
+        Assert.Equal(
+        [
+            """
+            CREATE TABLE "SHOP"."ORT" (
+                "ID" NUMBER(10) NOT NULL,
+                "LAND" VARCHAR2(2 BYTE)) TABLESPACE "DATA"
+            """.ReplaceLineEndings("\n"),
+            """ALTER TABLE "SHOP"."ORT" ADD CONSTRAINT "PK_ORT" PRIMARY KEY ("ID") USING INDEX TABLESPACE "INDX" """.TrimEnd(),
+            """ALTER TABLE "SHOP"."ORT" ADD CONSTRAINT "FK_ORT_LAND" FOREIGN KEY ("LAND") REFERENCES "SHOP"."LAND" ("CODE")""",
+            """CREATE INDEX "SHOP"."IX_ORT_LAND" ON "SHOP"."ORT" ("LAND") TABLESPACE "INDX" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
+        Assert.Equal(["SHOP hat im Tablespace INDX kein Kontingent: Oracle lehnt die erste Zeile ab (ORA-01950), bei einer leeren Tabelle erst, wenn sie eine bekommt."],
+            plan.Warnings); // once for both indexes, none for DATA
     }
 
     // ---- renamed and changed constraints ----

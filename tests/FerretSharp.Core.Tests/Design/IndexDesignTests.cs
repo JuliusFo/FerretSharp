@@ -97,6 +97,17 @@ public class IndexDesignTests
         Assert.True(OracleSession.IsDdlStatement(sql));
     }
 
+    [Fact]
+    public void Descending_columns_and_the_tablespace_go_into_the_ddl()
+    {
+        var draft = new IndexDraft("IX_AUFTRAG_KUNDE_DATUM", ["KUNDE_ID", "DATUM"]) { Descending = new HashSet<string> { "DATUM" }, Tablespace = "INDX" };
+
+        var sql = IndexDesign.Ddl(draft, Auftrag);
+
+        Assert.Equal("""CREATE INDEX "SHOP"."IX_AUFTRAG_KUNDE_DATUM" ON "SHOP"."AUFTRAG" ("KUNDE_ID", "DATUM" DESC) TABLESPACE "INDX" """.TrimEnd(), sql);
+        Assert.True(OracleSession.IsDdlStatement(sql));
+    }
+
     // ---- check ----
 
     [Fact]
@@ -205,6 +216,40 @@ public class IndexDesignTests
 
         Assert.Single(IndexDesign.Check(new IndexDraft("IX_B", ["KUNDE_ID"]), Table, [existing]).Warnings);
         Assert.Empty(IndexDesign.Check(new IndexDraft("UX_B", ["KUNDE_ID"], Unique: true), Table, [existing]).Warnings);
+    }
+
+    [Fact]
+    public void Another_direction_is_another_index_and_a_descending_one_stands_in_for_none()
+    {
+        IndexInfo Descending(string name, string column) => Index(name, false, column) with { Columns = [new IndexColumn(column, false, true)] };
+        IndexDraft Draft(params string[] descending) => new("IX_B", ["KUNDE_ID", "DATUM"]) { Descending = descending.ToHashSet() };
+        var ascending = Index("IX_KUNDE_DATUM", false, "KUNDE_ID", "DATUM");
+        var mixed = Index("IX_KUNDE_DATUM_DESC", false, "KUNDE_ID") with { Columns = [new IndexColumn("KUNDE_ID", false, false), new IndexColumn("DATUM", false, true)] };
+
+        Assert.Empty(IndexDesign.Check(Draft("DATUM"), Table, [ascending]).Problems); // Oracle has both
+        Assert.Equal(["IX_KUNDE_DATUM_DESC indiziert genau diese Spalten schon in dieser Reihenfolge."], IndexDesign.Check(Draft("DATUM"), Table, [mixed]).Problems);
+        Assert.Empty(IndexDesign.Check(new IndexDraft("IX_B", ["KUNDE_ID"]), Table, [Descending("IX_KUNDE_DESC", "KUNDE_ID")]).Warnings); // backs no foreign key
+        Assert.Empty(IndexDesign.Check(Draft("DATUM"), Table, [Index("IX_KUNDE", false, "KUNDE_ID")]).Warnings); // a sort order: nothing stands in
+    }
+
+    [Fact]
+    public void All_columns_descending_is_a_warning()
+    {
+        Assert.Equal(["Alle Spalten absteigend: Ein aufsteigender Index dient denselben Sortierungen (Oracle liest ihn rückwärts) und taugt auch für Fremdschlüssel."],
+            IndexDesign.Check(new IndexDraft("IX_B", ["KUNDE_ID", "DATUM"]) { Descending = new HashSet<string> { "KUNDE_ID", "DATUM" } }, Table, []).Warnings);
+    }
+
+    [Fact]
+    public void A_tablespace_without_quota_is_a_warning_and_a_bad_name_a_problem()
+    {
+        var quota = Tablespaces.None with { Quota = new HashSet<string> { "USERS" } };
+        IndexDraft In(string tablespace) => new("IX_B", ["KUNDE_ID"]) { Tablespace = tablespace };
+
+        Assert.Equal(["SHOP hat im Tablespace INDX kein Kontingent: Oracle lehnt die erste Zeile ab (ORA-01950), bei einer leeren Tabelle erst, wenn sie eine bekommt."],
+            IndexDesign.Check(In("INDX"), Table, [], tablespaces: quota).Warnings);
+        Assert.Empty(IndexDesign.Check(In("USERS"), Table, [], tablespaces: quota).Warnings);
+        Assert.Empty(IndexDesign.Check(In("INDX"), Table, [], tablespaces: Tablespaces.None).Warnings); // unlimited or another schema: nothing to check
+        Assert.False(IndexDesign.Check(In("IN\"DX"), Table, []).CanRun);
     }
 
     [Fact]
