@@ -244,13 +244,16 @@ public sealed class NewTableTab : WorkspaceTab
 
     public string Comment { get; set; } = "";
 
+    /// <summary>The tablespace to create it in (WP-67, dictionary form); empty for the owner's default.</summary>
+    public string Tablespace { get; set; } = "";
+
     public TableDesignerDraft Designer { get; }
 
     /// <summary>How the last run failed, while the table does not exist yet.</summary>
     public DdlRunResult? Failure { get; set; }
 
     /// <summary>The table to create, as the designer needs it.</summary>
-    public NewTable Table => new(Owner, Core.Oracle.OracleIdentifier.Normalize(Name), Comment.Length > 0 ? Comment : null);
+    public NewTable Table => new(Owner, Core.Oracle.OracleIdentifier.Normalize(Name), Comment.Length > 0 ? Comment : null, Tablespace.Length > 0 ? Tablespace : null);
 
     public override bool IsSaved => false;
 

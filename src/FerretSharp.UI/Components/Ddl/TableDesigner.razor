@@ -23,9 +23,12 @@
 else
 {
     var (draft, inputProblems) = designer.ToDraft();
-    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = designer.Referenced, Elsewhere = _elsewhere };
+    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming)
+    {
+        Referenced = designer.Referenced, Elsewhere = _elsewhere, Tablespaces = designer.Tablespaces,
+    };
     var plan = NewTab is { } created
-        ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames)
+        ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames, designer.Tablespaces)
         : TableDesign.Plan(context, draft, new DataFacts(_facts));
     var audit = AuditTemplates.For(Active.Profile);
     var tablePlan = plan;
@@ -125,6 +128,7 @@ else
 
 @code {
     private TableDesignerDraft? _designer;
+    private readonly string _indexTablespaceId = $"designer-index-tablespace-{Guid.NewGuid():N}";
 
     /// <summary>How the last run failed: shown in the panel until it runs again.</summary>
     private DdlRunResult? _failure;
@@ -212,6 +216,7 @@ else
         if (NewTab is { } created)
         {
             (_designer, _failure) = (created.Designer, created.Failure);
+            await LoadTablespacesAsync(new TableRef(created.Owner, ""));
             return;
         }
 
@@ -264,7 +269,31 @@ else
             Tab.Designer = new DesignerSession(_designer, _failure);
         }
 
+        await LoadTablespacesAsync(Details.Table.Ref);
         await LoadAuditAsync(schema, token);
+    }
+
+    /// <summary>
+    /// The tablespaces to choose from (WP-67), once per draft – a failed read leaves only the default to choose, the
+    /// designer works on without them. A new table has no indexes yet: its suggestion comes from the schema.
+    /// </summary>
+    private async Task LoadTablespacesAsync(TableRef table)
+    {
+        if (_disposed || _designer is not { } designer || !ReferenceEquals(designer.Tablespaces, Tablespaces.None) || Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        var token = _cts.Token;
+        var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetTablespacesAsync(table, token), token);
+        if (!_disposed && read.Value is { } tablespaces)
+        {
+            designer.Tablespaces = tablespaces;
+            if (NewTab is not null)
+            {
+                Shell.NotifyChanged(); // the new table's head offers them too
+            }
+        }
     }
 
     /// <summary>
@@ -638,6 +667,12 @@ else
     /// renamed key's index of its name along – then the new ones.
     /// </summary>
     private RenderFragment ConstraintsTab(TableDesignerDraft designer) => @<text>
+        <div class="designer-tablespace" title="@SchemaViewText.Tablespace_IndexTitle">
+            <label for="@_indexTablespaceId">@SchemaViewText.Tablespace_IndexLabel</label>
+            <TablespacePicker Id="@_indexTablespaceId" Value="@designer.IndexTablespace" ValueChanged="value => designer.IndexTablespace = value"
+                              Tablespaces="designer.Tablespaces" Suggestion="designer.Tablespaces.ForIndexes()" Label="@SchemaViewText.Tablespace_IndexLabel"
+                              Title="@SchemaViewText.Tablespace_IndexTitle" />
+        </div>
         @if (designer.Existing.Count > 0)
         {
             <table class="columns designer-columns designer-existing">

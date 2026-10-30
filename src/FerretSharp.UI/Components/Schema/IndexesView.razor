@@ -35,7 +35,7 @@ else
         @if (_draft is { } editor)
         {
             var draft = editor.Draft;
-            var check = IndexDesign.Check(draft, Details, indexes, _elsewhere);
+            var check = IndexDesign.Check(draft, Details, indexes, _elsewhere, _tablespaces);
             <section class="index-draft">
                 <h2>@SchemaViewText.Indexes_NewHeading</h2>
                 <div class="index-draft-form">
@@ -47,8 +47,12 @@ else
                         @for (var i = 0; i < editor.Columns.Count; i++)
                         {
                             var at = i;
+                            var descending = editor.Descending.Contains(editor.Columns[at]);
                             <span class="index-draft-column">
                                 <span class="mono">@editor.Columns[at]</span>
+                                <button class="sort-toggle mono @(descending ? "desc" : "")" aria-pressed="@(descending ? "true" : "false")"
+                                        title="@(descending ? SchemaViewText.Indexes_DescendingTitle : SchemaViewText.Indexes_AscendingTitle)"
+                                        @onclick="() => editor.ToggleDescending(editor.Columns[at])">@(descending ? "DESC" : "ASC")</button>
                                 <button class="icon-btn" disabled="@(at == 0)" title="@SchemaViewText.Indexes_ColumnEarlier" @onclick="() => editor.Move(at, -1)">@Icons.ArrowUp</button>
                                 <button class="icon-btn" disabled="@(at == editor.Columns.Count - 1)" title="@SchemaViewText.Indexes_ColumnLater" @onclick="() => editor.Move(at, 1)">@Icons.ArrowDown</button>
                                 <button class="icon-btn" title="@SchemaViewText.Indexes_ColumnRemove" @onclick="() => editor.Remove(at)">@Icons.Close</button>
@@ -73,6 +77,10 @@ else
                         <input type="checkbox" checked="@editor.Unique" @onchange="e => editor.Unique = e.Value is true" />
                         @SchemaViewText.Indexes_UniqueOption
                     </label>
+
+                    <label for="@_tablespaceId">@SchemaViewText.Tablespace_Label</label>
+                    <TablespacePicker Id="@_tablespaceId" Value="@editor.Tablespace" ValueChanged="value => editor.Tablespace = value"
+                                      Tablespaces="_tablespaces" Suggestion="_tablespaces.ForIndexes()" Label="@SchemaViewText.Tablespace_Label" />
                 </div>
                 <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="editor.Steps()" Problems="check.Problems" Warnings="check.Warnings"
                                FileName="@($"{DateTime.Now:yyyy-MM-dd}_{draft.Name}.sql")" OnRan="OnRanAsync" OnClose="() => _draft = null" />
@@ -133,6 +141,7 @@ else
 
 @code {
     private readonly string _nameId = $"index-name-{Guid.NewGuid():N}";
+    private readonly string _tablespaceId = $"index-tablespace-{Guid.NewGuid():N}";
 
     /// <summary>The open draft of a new index (WP-23); null while none is open.</summary>
     private IndexDraftEditor? _draft;
@@ -161,15 +170,19 @@ else
     /// </summary>
     private IReadOnlySet<string>? _elsewhere;
 
-    /// <summary>Opens a draft at once – empty, or one prepared for a foreign key – and reads the names it must avoid.</summary>
+    /// <summary>The tablespaces to choose from, the owner's quotas and where the indexes lie (WP-67); read with the names.</summary>
+    private Tablespaces _tablespaces = Tablespaces.None;
+
+    /// <summary>Opens a draft at once – empty, or one prepared for a foreign key – and reads the names it must avoid and the tablespaces.</summary>
     private async Task StartDraftAsync(IndexDraft? prepared)
     {
         _draft = Data is { } indexes ? IndexDraftEditor.Start(Table.Ref, indexes, prepared) : null;
         if (_draft is not null && _elsewhere is null && Active.Schema is { } schema)
         {
             var table = Table.Ref;
-            var names = await Shell.RunDbAsync(Logger, Active, () => schema.GetNamesElsewhereAsync(table, CancellationToken.None));
-            _elsewhere = names.Value?.Indexes;
+            var read = await Shell.RunDbAsync(Logger, Active, async () =>
+                (await schema.GetNamesElsewhereAsync(table, CancellationToken.None), await schema.GetTablespacesAsync(table, CancellationToken.None)));
+            (_elsewhere, _tablespaces) = (read.Value.Item1?.Indexes, read.Value.Item2 ?? Tablespaces.None);
         }
     }
 
