@@ -44,6 +44,15 @@ public sealed class TableDesignerDraft
 
     public List<DesignConstraint> AddedConstraints { get; } = [];
 
+    /// <summary>
+    /// The tablespace of the indexes this draft creates (WP-67: new keys', new foreign keys'), dictionary form; empty for the
+    /// owner's default. Kept across a <see cref="Rebase"/>.
+    /// </summary>
+    public string IndexTablespace { get; set; } = "";
+
+    /// <summary>What there is to choose and suggest (WP-67), read once the designer opens; kept across a <see cref="Rebase"/>.</summary>
+    public Tablespaces Tablespaces { get; set; } = Tablespaces.None;
+
     public bool HasChanges => ColumnsChanged || ConstraintsChanged;
 
     public bool ColumnsChanged => Columns.Any(c => c.IsChanged);
@@ -244,7 +253,7 @@ public sealed class TableDesignerDraft
             next.Referenced[reference] = details;
         }
 
-        (next.WithAudit, next.Section) = (WithAudit, Section);
+        (next.WithAudit, next.Section, next.IndexTablespace, next.Tablespaces) = (WithAudit, Section, IndexTablespace, Tablespaces);
         return next;
     }
 
@@ -320,6 +329,7 @@ public sealed class TableDesignerDraft
             DroppedConstraints = [.. DroppedConstraints],
             AddedConstraints = AddedConstraints.Select(c => c.ToDraft()).ToList(),
             ChangedConstraints = Existing.Where(c => c.IsChanged && !DroppedConstraints.Contains(c.Before.Name)).Select(c => c.ToEdit()).ToList(),
+            IndexTablespace = IndexTablespace.Length > 0 ? IndexTablespace : null,
         };
         return (draft, problems);
     }

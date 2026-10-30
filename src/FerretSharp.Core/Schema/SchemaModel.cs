@@ -221,6 +221,13 @@ public interface ISchemaReader
     /// </summary>
     Task<SchemaNames> GetNamesElsewhereAsync(TableRef table, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The tablespaces to create <paramref name="table"/> and its indexes in (WP-67): those to choose from, the owner's
+    /// default and quotas (own schema only), where the table's and the owner's indexes and tables lie. One round trip; a new
+    /// table has no indexes yet.
+    /// </summary>
+    Task<Tablespaces> GetTablespacesAsync(TableRef table, CancellationToken cancellationToken);
+
     /// <summary>Dependencies in both directions, limited to objects the session may see.</summary>
     Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken);
 

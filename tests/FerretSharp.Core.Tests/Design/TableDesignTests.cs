@@ -493,12 +493,111 @@ public class TableDesignTests
     {
         var noIndex = PlanWith(WithLand(new ConstraintDraft("FK", ConstraintType.ForeignKey, ["LAND"], References: Land.Table.Ref, ReferencedColumns: ["CODE"], WithIndex: false)));
         Assert.Equal(2, noIndex.Statements.Count);
+        Assert.Empty(noIndex.NewIndexes); // nothing for the index tablespace to apply to
         Assert.Contains("FK bekommt keinen Index: Löschen oder Ändern eines referenzierten Schlüssels sperrt dann diese ganze Tabelle und durchsucht sie.", noIndex.Warnings);
         Assert.Contains("Neue Constraints prüfen die vorhandenen Zeilen: Duplikate, NULLs, Zeilen gegen einen Check oder ohne Elternzeile lassen sie scheitern (ORA-02437, ORA-02299, ORA-02293, ORA-02298).", noIndex.Warnings);
 
         var draft = Draft() with { AddedConstraints = [new ConstraintDraft("FK", ConstraintType.ForeignKey, ["NAME"], References: Land.Table.Ref, ReferencedColumns: ["NAME"])] };
         var covering = new IndexInfo("SHOP", "IX_NAME_STATUS", "NORMAL", false, "VALID", [new IndexColumn("NAME", false, false), new IndexColumn("STATUS", false, false)], null, false, true);
         Assert.Single(PlanWith(draft, indexes: [covering]).Statements);
+
+        // A descending index backs no foreign key (WP-67, measured against Oracle 23): the index comes anyway.
+        var descending = covering with { Columns = [new IndexColumn("NAME", false, true), new IndexColumn("STATUS", false, false)] };
+        Assert.Equal(2, PlanWith(draft, indexes: [descending]).Statements.Count);
+    }
+
+    [Fact]
+    public void A_new_key_takes_an_ascending_index_of_the_table_and_the_index_tablespace_only_without_one()
+    {
+        IndexInfo Index(string column, bool descending) => new("SHOP", $"IX_{column}", "NORMAL", false, "VALID", [new IndexColumn(column, false, descending)], null, false, true);
+        var draft = Draft() with
+        {
+            AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"]), new ConstraintDraft("UK_STATUS", ConstraintType.Unique, ["STATUS"])],
+            IndexTablespace = "INDX",
+        };
+
+        // With the clause, Oracle would refuse a key on the column list of an index there (ORA-01408) instead of taking it.
+        var plan = PlanWith(draft, Facts((Rows, 0)), indexes: [Index("NAME", descending: false), Index("STATUS", descending: true)]);
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} ADD CONSTRAINT "UK_NAME" UNIQUE ("NAME")""",
+            $"""ALTER TABLE {T} ADD CONSTRAINT "UK_STATUS" UNIQUE ("STATUS") USING INDEX TABLESPACE "INDX" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.Equal(["UK_NAME nutzt den vorhandenen Index IX_NAME – der Index-Tablespace gilt für ihn nicht."], plan.Warnings);
+        Assert.Equal([new NewIndex("UK_STATUS")], plan.NewIndexes);
+        Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
+
+        // Without another index to create, the tablespace is not offered – and nothing speaks of it (review of WP-67).
+        var alone = PlanWith(draft with { AddedConstraints = [draft.AddedConstraints[0]] }, Facts((Rows, 0)), indexes: [Index("NAME", descending: false)]);
+        Assert.Empty(alone.NewIndexes);
+        Assert.Empty(alone.Warnings);
+    }
+
+    /// <summary>
+    /// Measured against Oracle 23 (review of WP-67): a unique index with further columns or a bitmap index does not back a
+    /// new key – Oracle creates one, so the tablespace applies. A key dropped by the plan may leave its index behind (one
+    /// created before the key): the new key on its columns takes it, with the clause it would fail (ORA-01408).
+    /// </summary>
+    [Fact]
+    public void Only_an_index_Oracle_takes_for_the_key_keeps_the_index_tablespace_out()
+    {
+        IndexInfo Index(string name, string type, bool unique, params string[] columns) =>
+            new("SHOP", name, type, unique, "VALID", columns.Select(c => new IndexColumn(c, false, false)).ToList(), null, false, true);
+        string Clause(DesignPlan plan, string key) => Assert.Single(plan.Statements, s => s.Contains($"\"{key}\"", StringComparison.Ordinal));
+
+        var unique = PlanWith(Draft() with { AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"])], IndexTablespace = "INDX" },
+            Facts((Rows, 0)), indexes: [Index("UX_NAME_STATUS", "NORMAL", true, "NAME", "STATUS")]);
+        Assert.EndsWith("""USING INDEX TABLESPACE "INDX" """.TrimEnd(), Clause(unique, "UK_NAME"), StringComparison.Ordinal);
+
+        var bitmap = PlanWith(Draft() with { AddedConstraints = [new ConstraintDraft("UK_STATUS", ConstraintType.Unique, ["STATUS"])], IndexTablespace = "INDX" },
+            Facts((Rows, 0)), indexes: [Index("BX_STATUS_NAME", "BITMAP", false, "STATUS", "NAME")]);
+        Assert.EndsWith("""USING INDEX TABLESPACE "INDX" """.TrimEnd(), Clause(bitmap, "UK_STATUS"), StringComparison.Ordinal);
+
+        var uk = new ConstraintInfo("UK_KUNDE_NAME", ConstraintType.Unique, ["NAME"], null, null, [], null, true, true, false, false, false);
+        var fk = new ConstraintDraft("FK_KUNDE_LAND", ConstraintType.ForeignKey, ["STATUS"], References: Land.Table.Ref, ReferencedColumns: ["CODE"]);
+        var swap = Draft() with { DroppedConstraints = ["UK_KUNDE_NAME"], AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"]), fk], IndexTablespace = "INDX" };
+        DesignPlan Swapped(params IndexInfo[] indexes) =>
+            TableDesign.Plan(new DesignContext(Kunde, [uk], indexes, []) { Referenced = new Dictionary<TableRef, TableDetails> { [Land.Table.Ref] = Land } }, swap, Facts((Rows, 0)));
+        var swapped = Swapped(Index("UK_KUNDE_NAME", "NORMAL", true, "NAME")); // the foreign key's index comes too: the notes are shown
+        Assert.Empty(swapped.Problems);
+        Assert.Equal($"""ALTER TABLE {T} ADD CONSTRAINT "UK_NAME" UNIQUE ("NAME")""", Clause(swapped, "UK_NAME"));
+
+        // Whether the index stays is not in the dictionary: an implicit one goes with its key, Oracle then creates one in the
+        // default – said even though no other index comes (second review pass).
+        Assert.Contains("UK_NAME nutzt den Index UK_KUNDE_NAME, falls er beim Löschen von UK_KUNDE_NAME bleibt (vorher eigens angelegt) – sonst legt Oracle einen neuen im Standard-Tablespace an, nicht im Index-Tablespace.",
+            swapped.Warnings);
+        Assert.DoesNotContain(swapped.Warnings, w => w.Contains("nutzt den vorhandenen Index", StringComparison.Ordinal));
+
+        // Another index that backs the key stays for sure, whatever comes first: Oracle takes it (third review pass).
+        foreach (var order in new[] { new[] { "IX_NAME_STATUS", "UK_KUNDE_NAME" }, ["UK_KUNDE_NAME", "IX_NAME_STATUS"] })
+        {
+            var both = Swapped([.. order.Select(n => n == "IX_NAME_STATUS" ? Index(n, "NORMAL", false, "NAME", "STATUS") : Index(n, "NORMAL", true, "NAME"))]);
+            Assert.Contains("UK_NAME nutzt den vorhandenen Index IX_NAME_STATUS – der Index-Tablespace gilt für ihn nicht.", both.Warnings);
+            Assert.DoesNotContain(both.Warnings, w => w.Contains("falls er beim Löschen", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void A_temporary_table_s_indexes_get_no_tablespace_and_a_bad_name_is_a_problem()
+    {
+        // Oracle ignores TABLESPACE on a temporary table's index and fails USING INDEX TABLESPACE with ORA-00600.
+        var draft = WithLand(new ConstraintDraft("FK_KUNDE_LAND", ConstraintType.ForeignKey, ["LAND"], References: Land.Table.Ref, ReferencedColumns: ["CODE"]),
+            new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"])) with { IndexTablespace = "INDX" };
+        var temporary = TableDesign.Plan(new DesignContext(Kunde, [PkKunde], [], [])
+        {
+            Referenced = new Dictionary<TableRef, TableDetails> { [Land.Table.Ref] = Land },
+            Tablespaces = Tablespaces.None with { TemporaryTable = true },
+        }, draft, Facts((Rows, 0)));
+        Assert.Empty(temporary.Problems);
+        Assert.Empty(temporary.NewIndexes); // nothing to offer the tablespace for
+        Assert.DoesNotContain(temporary.Statements, s => s.Contains("TABLESPACE", StringComparison.Ordinal));
+
+        // A name that is none never reaches the DDL (it would not quote): a problem instead of an exception.
+        var bad = TableDesign.PlanNew(Ort with { Tablespace = "DA\"TA" }, NewDraft(NewColumn("ID", "NUMBER")) with { IndexTablespace = "IN\"DX" },
+            new Dictionary<TableRef, TableDetails>(), []);
+        Assert.Equal(2, bad.Problems.Count);
+        Assert.DoesNotContain(bad.Statements, s => s.Contains("TABLESPACE", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -686,6 +785,39 @@ public class TableDesignTests
 
         Assert.Empty(plan.Problems);
         Assert.Contains("""ALTER TABLE "SHOP"."ORT" ADD CONSTRAINT "FK_ORT_PARENT" FOREIGN KEY ("PARENT_ID") REFERENCES "SHOP"."ORT" ("ID")""", plan.Statements);
+    }
+
+    [Fact]
+    public void A_new_table_and_the_indexes_it_creates_go_into_the_chosen_tablespaces()
+    {
+        var draft = NewDraft(NewColumn("ID", "NUMBER", nullable: false), NewColumn("LAND", "VARCHAR2", 2)) with
+        {
+            AddedConstraints =
+            [
+                new ConstraintDraft("PK_ORT", ConstraintType.PrimaryKey, ["ID"]),
+                new ConstraintDraft("FK_ORT_LAND", ConstraintType.ForeignKey, ["LAND"], References: Land.Table.Ref, ReferencedColumns: ["CODE"]),
+            ],
+            IndexTablespace = "INDX",
+        };
+        var quota = Tablespaces.None with { Quota = new HashSet<string> { "DATA" } };
+
+        var plan = TableDesign.PlanNew(Ort with { Comment = null, Tablespace = "DATA" }, draft, new Dictionary<TableRef, TableDetails> { [Land.Table.Ref] = Land }, [], quota);
+
+        Assert.Equal(
+        [
+            """
+            CREATE TABLE "SHOP"."ORT" (
+                "ID" NUMBER(10) NOT NULL,
+                "LAND" VARCHAR2(2 BYTE)) TABLESPACE "DATA"
+            """.ReplaceLineEndings("\n"),
+            """ALTER TABLE "SHOP"."ORT" ADD CONSTRAINT "PK_ORT" PRIMARY KEY ("ID") USING INDEX TABLESPACE "INDX" """.TrimEnd(),
+            """ALTER TABLE "SHOP"."ORT" ADD CONSTRAINT "FK_ORT_LAND" FOREIGN KEY ("LAND") REFERENCES "SHOP"."LAND" ("CODE")""",
+            """CREATE INDEX "SHOP"."IX_ORT_LAND" ON "SHOP"."ORT" ("LAND") TABLESPACE "INDX" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
+        Assert.Equal([new NewIndex("PK_ORT"), new NewIndex("IX_ORT_LAND", "FK_ORT_LAND")], plan.NewIndexes);
+        Assert.Equal(["SHOP hat im Tablespace INDX kein Kontingent: Oracle lehnt die erste Zeile ab (ORA-01950), bei einer leeren Tabelle erst, wenn sie eine bekommt."],
+            plan.Warnings); // once for both indexes, none for DATA
     }
 
     // ---- renamed and changed constraints ----

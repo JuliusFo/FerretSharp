@@ -23,9 +23,12 @@
 else
 {
     var (draft, inputProblems) = designer.ToDraft();
-    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = designer.Referenced, Elsewhere = _elsewhere };
+    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming)
+    {
+        Referenced = designer.Referenced, Elsewhere = _elsewhere, Tablespaces = designer.Tablespaces,
+    };
     var plan = NewTab is { } created
-        ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames)
+        ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames, designer.Tablespaces)
         : TableDesign.Plan(context, draft, new DataFacts(_facts));
     var audit = AuditTemplates.For(Active.Profile);
     var tablePlan = plan;
@@ -36,7 +39,7 @@ else
     // audit state not read: the script brings nothing up to date, not blocking (code review 2026-10-28)
     string? auditWarning = AuditUnread(audit) ? SchemaViewText.Audit_DesignerUnreadWarning : null;
     // while the audit objects are read, there is no script to run without them (code review 2026-10-28)
-    var reading = NewTab is null && _auditRead.Reading;
+    var reading = NewTab is null && (_auditRead.Reading || WaitsForTablespace(designer, audit));
     var columnProblems = inputProblems.Count > 0 || tablePlan.Problems.Except(tablePlan.ConstraintProblems).Any();
     var counting = _counting.Count > 0 || _auditCounting.Count > 0 || reading;
     var usageNotes = UsageNotes(designer);
@@ -99,7 +102,7 @@ else
                             @ColumnsTab(designer)
                             break;
                         case DesignerSection.Constraints:
-                            @ConstraintsTab(designer)
+                            @ConstraintsTab(designer, tablePlan.NewIndexes)
                             break;
                         case DesignerSection.Audit:
                             @AuditTab(designer, audit)
@@ -125,6 +128,10 @@ else
 
 @code {
     private TableDesignerDraft? _designer;
+
+    private static string IndexLabel(NewIndex index) =>
+        index.ForeignKey is { } foreignKey ? TextFormat.Format(SchemaViewText.Tablespace_IndexForForeignKey, index.Name, foreignKey) : index.Name;
+    private readonly string _indexTablespaceId = $"designer-index-tablespace-{Guid.NewGuid():N}";
 
     /// <summary>How the last run failed: shown in the panel until it runs again.</summary>
     private DdlRunResult? _failure;
@@ -212,6 +219,7 @@ else
         if (NewTab is { } created)
         {
             (_designer, _failure) = (created.Designer, created.Failure);
+            Fire(() => LoadTablespacesAsync(new TableRef(created.Owner, "")));
             return;
         }
 
@@ -265,7 +273,55 @@ else
         }
 
         await LoadAuditAsync(schema, token);
+        Fire(() => LoadTablespacesAsync(Details.Table.Ref)); // needed with the first new index: not a round trip before the designer shows
     }
+
+    /// <summary>
+    /// The tablespaces to choose from (WP-67), once per draft – a failed read leaves only the default to choose, the
+    /// designer works on without them. A new table has no indexes yet: its suggestion comes from the schema.
+    /// </summary>
+    private async Task LoadTablespacesAsync(TableRef table)
+    {
+        if (_disposed || _designer is not { } designer || Active.Schema is not { } schema)
+        {
+            _tablespacesRead ??= false; // nothing to read with: a new audit table must not wait for ever
+            return;
+        }
+
+        if (!ReferenceEquals(designer.Tablespaces, Tablespaces.None))
+        {
+            _tablespacesRead = true; // kept over a rebase
+            return;
+        }
+
+        var token = _cts.Token;
+        var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetTablespacesAsync(table, token), token);
+        if (_disposed)
+        {
+            return;
+        }
+
+        _tablespacesRead = read.Value is not null;
+        designer.Tablespaces = read.Value ?? Tablespaces.None;
+        if (NewTab is not null)
+        {
+            Shell.NotifyChanged(); // the new table's head offers them too
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Whether the tablespaces of an existing table were read (WP-67): null while reading – a new audit table waits for its
+    /// table's tablespace –, false if the read failed: the audit table goes to the default, and the designer says so.
+    /// </summary>
+    private bool? _tablespacesRead;
+
+    /// <summary>An existing table gets a new audit table, whose tablespace is still being read: no script until it is there (review of WP-67).</summary>
+    private bool WaitsForTablespace(TableDesignerDraft designer, AuditTemplateLoad audit) =>
+        NewTab is null && _tablespacesRead is null && AuditTakesPart(designer, audit) && HasAuditTable(audit) == false;
 
     /// <summary>
     /// The table's audit table and trigger by the template's names (WP-26). The box starts as <see cref="AuditDesignRules.AuditAtStart"/>
@@ -353,7 +409,15 @@ else
 
         var (columns, renamed) = AuditPlanner.After(draft);
         var taken = NewTab is null ? TakenNames : TakenNames.Append(table.Name);
-        var auditPlan = AuditPlanner.Plan(template, table, columns, _auditRead.State ?? AuditState.None, new DataFacts(_auditFacts), renamed, taken);
+        // A new audit table goes where its table lies (WP-67, decision of the user).
+        var tablespace = NewTab is { } created ? created.Table.Tablespace : designer.Tablespaces.TableTablespace;
+        var auditPlan = AuditPlanner.Plan(template, table, columns, _auditRead.State ?? AuditState.None, new DataFacts(_auditFacts), renamed, taken,
+            tablespace: tablespace);
+        if (NewTab is null && _tablespacesRead == false && HasAuditTable(audit) == false)
+        {
+            auditPlan = auditPlan with { Warnings = [.. auditPlan.Warnings, SchemaViewText.Audit_TablespaceUnknown] };
+        }
+
         return AuditPlanner.Combine(plan, auditPlan);
     }
 
@@ -637,7 +701,7 @@ else
     /// The table's constraints – each renamed in place, a check's condition and a foreign key's delete rule changed, a
     /// renamed key's index of its name along – then the new ones.
     /// </summary>
-    private RenderFragment ConstraintsTab(TableDesignerDraft designer) => @<text>
+    private RenderFragment ConstraintsTab(TableDesignerDraft designer, IReadOnlyList<NewIndex> newIndexes) => @<text>
         @if (designer.Existing.Count > 0)
         {
             <table class="columns designer-columns designer-existing">
@@ -766,6 +830,17 @@ else
                     </span>
                 }
                 <button class="icon-btn" title="@SchemaViewText.Designer_Drop" @onclick="() => designer.AddedConstraints.Remove(a)">@Icons.Close</button>
+            </div>
+        }
+        @* WP-67: only where the draft creates indexes – a key's own (no index of the table backs it) and a foreign key's "with index". *@
+        @if (newIndexes.Count > 0)
+        {
+            <div class="designer-tablespace" title="@SchemaViewText.Tablespace_IndexTitle">
+                <label for="@_indexTablespaceId">@SchemaViewText.Tablespace_IndexLabel</label>
+                <TablespacePicker Id="@_indexTablespaceId" Value="@designer.IndexTablespace" ValueChanged="value => designer.IndexTablespace = value"
+                                  Tablespaces="designer.Tablespaces" Suggestion="designer.Tablespaces.ForIndexes()" Label="@SchemaViewText.Tablespace_IndexLabel"
+                                  Title="@SchemaViewText.Tablespace_IndexTitle" />
+                <span class="muted small">@TextFormat.Format(SchemaViewText.Tablespace_IndexesFor, string.Join(", ", newIndexes.Select(IndexLabel)))</span>
             </div>
         }
         <div class="designer-add">

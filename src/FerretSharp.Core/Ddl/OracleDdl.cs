@@ -18,11 +18,15 @@ internal static class OracleDdl
 
     // ---- tables ----
 
-    /// <summary><c>CREATE [GLOBAL TEMPORARY ]TABLE t (\n    a,\n    b)[ ORGANIZATION INDEX]</c>: one entry per line.</summary>
+    /// <summary><c>CREATE [GLOBAL TEMPORARY ]TABLE t (\n    a,\n    b)[ ORGANIZATION INDEX][ TABLESPACE "X"]</c>: one entry per line.</summary>
     /// <param name="entries">Column definitions (<see cref="ColumnDefinition"/>), then inline constraints.</param>
-    public static string CreateTable(TableRef table, IEnumerable<string> entries, bool temporary = false, bool indexOrganized = false) =>
+    /// <param name="tablespace">The tablespace to create it in (WP-67); null for the owner's default.</param>
+    public static string CreateTable(TableRef table, IEnumerable<string> entries, bool temporary = false, bool indexOrganized = false, string? tablespace = null) =>
         $"{(temporary ? "CREATE GLOBAL TEMPORARY TABLE" : "CREATE TABLE")} {T(table)} (\n    {string.Join(",\n    ", entries)})"
-        + (indexOrganized ? " ORGANIZATION INDEX" : "");
+        + (indexOrganized ? " ORGANIZATION INDEX" : "") + Tablespace(tablespace);
+
+    /// <summary><c> TABLESPACE "X"</c>, or nothing for none (the owner's default).</summary>
+    private static string Tablespace(string? tablespace) => string.IsNullOrEmpty(tablespace) ? "" : $" TABLESPACE {Q(tablespace)}";
 
     public static string DropObject(TableKind kind, TableRef table) => $"DROP {ObjectKeyword(kind)} {T(table)}";
 
@@ -114,8 +118,10 @@ internal static class OracleDdl
     /// <summary>
     /// The constraint as it follows <c>ADD</c> (or stands in a CREATE TABLE): named unless Oracle generated the name in
     /// the reference, then Oracle names it again. <paramref name="usingIndex"/>: an index of another name backing the key.
+    /// <paramref name="indexTablespace"/>: the tablespace of the index a new primary or unique key creates (WP-67) – only
+    /// when no index of the table backs the key: Oracle then refuses the clause (ORA-01408) instead of taking that one.
     /// </summary>
-    public static string ConstraintClause(ConstraintInfo constraint, Func<TableRef, TableRef> mapTable, string? usingIndex = null)
+    public static string ConstraintClause(ConstraintInfo constraint, Func<TableRef, TableRef> mapTable, string? usingIndex = null, string? indexTablespace = null)
     {
         var sql = new StringBuilder();
         if (!constraint.GeneratedName)
@@ -156,6 +162,10 @@ internal static class OracleDdl
         {
             sql.Append($" USING INDEX ({usingIndex})");
         }
+        else if (!string.IsNullOrEmpty(indexTablespace) && constraint.Type is ConstraintType.PrimaryKey or ConstraintType.Unique)
+        {
+            sql.Append($" USING INDEX{Tablespace(indexTablespace)}");
+        }
 
         if (!constraint.Enabled)
         {
@@ -172,7 +182,11 @@ internal static class OracleDdl
     // ---- indexes ----
 
     /// <summary><c>CREATE [UNIQUE |BITMAP ]INDEX "O"."N" ON "O"."T" (…)</c>; null for index types it cannot write (domain, cluster …).</summary>
-    public static string? CreateIndex(IndexInfo index, string name, string owner, string table)
+    /// <param name="tablespace">
+    /// The tablespace to create it in (WP-67); null for the owner's default. Never the <see cref="IndexInfo.Tablespace"/> of
+    /// a reference: the schema comparison does not carry tablespaces over (they differ between databases).
+    /// </param>
+    public static string? CreateIndex(IndexInfo index, string name, string owner, string table, string? tablespace = null)
     {
         var bitmap = index.IndexType.Contains("BITMAP", StringComparison.Ordinal);
         if (!bitmap && !index.IndexType.Contains("NORMAL", StringComparison.Ordinal))
@@ -186,6 +200,8 @@ internal static class OracleDdl
         {
             sql.Append(" REVERSE");
         }
+
+        sql.Append(Tablespace(tablespace));
 
         if (!index.Visible)
         {
