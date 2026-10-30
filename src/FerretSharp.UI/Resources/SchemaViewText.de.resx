@@ -1185,4 +1185,55 @@
   <data name="Constraints_EditTitle" xml:space="preserve">
     <value>Constraints der Tabelle umbenennen, ändern, löschen oder anlegen</value>
   </data>
+  <data name="Tablespace_Label" xml:space="preserve">
+    <value>Tablespace</value>
+  </data>
+  <data name="Tablespace_IndexLabel" xml:space="preserve">
+    <value>Tablespace der neuen Indizes</value>
+  </data>
+  <data name="Tablespace_IndexTitle" xml:space="preserve">
+    <value>Für die Indizes neuer Primär- und Unique-Schlüssel und neuer Fremdschlüssel</value>
+  </data>
+  <data name="Tablespace_Default" xml:space="preserve">
+    <value>Standard ({0})</value>
+  </data>
+  <data name="Tablespace_DefaultUnknown" xml:space="preserve">
+    <value>Standard des Schemas</value>
+  </data>
+  <data name="Tablespace_Take" xml:space="preserve">
+    <value>Übernehmen</value>
+  </data>
+  <data name="Tablespace_SuggestTableIndexesOne" xml:space="preserve">
+    <value>Vorschlag: {1} – dort liegt der Index der Tabelle</value>
+  </data>
+  <data name="Tablespace_SuggestTableIndexesOther" xml:space="preserve">
+    <value>Vorschlag: {1} – dort liegen {2} von {0} Indizes der Tabelle</value>
+  </data>
+  <data name="Tablespace_SuggestSchemaIndexesOne" xml:space="preserve">
+    <value>Vorschlag: {1} – dort liegt der Index des Schemas</value>
+  </data>
+  <data name="Tablespace_SuggestSchemaIndexesOther" xml:space="preserve">
+    <value>Vorschlag: {1} – dort liegen {2} von {0} Indizes des Schemas</value>
+  </data>
+  <data name="Tablespace_SuggestSchemaTablesOne" xml:space="preserve">
+    <value>Vorschlag: {1} – dort liegt die Tabelle des Schemas</value>
+  </data>
+  <data name="Tablespace_SuggestSchemaTablesOther" xml:space="preserve">
+    <value>Vorschlag: {1} – dort liegen {2} von {0} Tabellen des Schemas</value>
+  </data>
+  <data name="Indexes_AscendingTitle" xml:space="preserve">
+    <value>Aufsteigend – Klick für absteigend</value>
+  </data>
+  <data name="Indexes_DescendingTitle" xml:space="preserve">
+    <value>Absteigend – Klick für aufsteigend</value>
+  </data>
+  <data name="Tablespace_IndexesFor" xml:space="preserve">
+    <value>für {0}</value>
+  </data>
+  <data name="Tablespace_IndexForForeignKey" xml:space="preserve">
+    <value>{0} (Index für {1})</value>
+  </data>
+  <data name="Audit_TablespaceUnknown" xml:space="preserve">
+    <value>Der Tablespace der Tabelle ließ sich nicht lesen – die neue Audit-Tabelle kommt in den Standard-Tablespace des Schemas.</value>
+  </data>
 </root>

@@ -18,6 +18,9 @@
                         <input id="@_commentId" class="field" @bind="Tab.Comment" @bind:event="oninput" />
                         <span></span>
                         <span class="muted small">@TextFormat.Format(SchemaViewText.NewTable_Schema, Tab.Owner)</span>
+                        <label for="@_tablespaceId">@SchemaViewText.Tablespace_Label</label>
+                        <TablespacePicker Id="@_tablespaceId" Value="@Tab.Tablespace" ValueChanged="value => Tab.Tablespace = value"
+                                          Tablespaces="Tab.Designer.Tablespaces" Suggestion="Tab.Designer.Tablespaces.ForTable()" Label="@SchemaViewText.Tablespace_Label" />
                     </div>
                 </section>
                 <TableDesigner Details="Tab.Designer.Table" WorkspaceId="Tab.WorkspaceId" NewTab="Tab" OnClose="() => Lifecycle.CloseTab(Tab)" />
@@ -29,6 +32,7 @@
 @code {
     private readonly string _nameId = $"new-table-{Guid.NewGuid():N}";
     private readonly string _commentId = $"new-table-comment-{Guid.NewGuid():N}";
+    private readonly string _tablespaceId = $"new-table-tablespace-{Guid.NewGuid():N}";
 
     [CascadingParameter]
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;

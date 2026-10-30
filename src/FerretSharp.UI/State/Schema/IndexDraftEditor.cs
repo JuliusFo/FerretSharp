@@ -29,11 +29,32 @@ public sealed class IndexDraftEditor(TableRef table, IReadOnlyList<IndexInfo> in
 
     public bool Unique { get; set; }
 
+    /// <summary>Columns sorted descending (WP-67); a column taken out loses it.</summary>
+    public IReadOnlySet<string> Descending => _descending;
+
+    private readonly HashSet<string> _descending = new(StringComparer.Ordinal);
+
+    /// <summary>The tablespace as chosen (dictionary form); empty for the owner's default.</summary>
+    public string Tablespace { get; set; } = "";
+
     /// <summary>The name as the field shows it.</summary>
     public string Name => _name.Value;
 
     /// <summary>The name as Oracle stores it: typed without quotes upper case, in quotes as typed.</summary>
-    public IndexDraft Draft => new(OracleIdentifier.Normalize(Name), [.. _columns], Unique);
+    public IndexDraft Draft => new(OracleIdentifier.Normalize(Name), [.. _columns], Unique)
+    {
+        Descending = _descending.ToHashSet(StringComparer.Ordinal),
+        Tablespace = Tablespace.Length > 0 ? Tablespace : null,
+    };
+
+    /// <summary>The column sorts the other way: ascending ↔ descending.</summary>
+    public void ToggleDescending(string column)
+    {
+        if (!_descending.Remove(column) && _columns.Contains(column))
+        {
+            _descending.Add(column);
+        }
+    }
 
     /// <summary>The user typed a name: it no longer follows the columns – empty follows them again.</summary>
     public void TypeName(string? value) => _name.Type(value);
@@ -53,6 +74,7 @@ public sealed class IndexDraftEditor(TableRef table, IReadOnlyList<IndexInfo> in
 
     public void Remove(int at)
     {
+        _descending.Remove(_columns[at]);
         _columns.RemoveAt(at);
         SuggestName();
     }
@@ -68,6 +90,9 @@ public sealed class IndexDraftEditor(TableRef table, IReadOnlyList<IndexInfo> in
     public IReadOnlyList<DdlStep> Steps()
     {
         var draft = Draft;
-        return draft.Columns.Count > 0 && draft.Name.Length > 0 && !draft.Name.Contains('"', StringComparison.Ordinal) ? [IndexDesign.Step(draft, table)] : [];
+        return draft.Columns.Count > 0 && draft.Name.Length > 0 && !draft.Name.Contains('"', StringComparison.Ordinal)
+               && (draft.Tablespace is null || OracleIdentifier.Problem(draft.Tablespace) is null)
+            ? [IndexDesign.Step(draft, table)]
+            : [];
     }
 }

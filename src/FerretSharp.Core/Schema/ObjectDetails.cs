@@ -132,11 +132,11 @@ public sealed record ObjectDependencies(IReadOnlyList<DependencyInfo> Uses, IRea
 public static class IndexAdvice
 {
     /// <summary>
-    /// Foreign keys without an index starting with their columns (in any order). Oracle then locks the whole child
-    /// table when a parent row is deleted or its key updated, and every such check scans the child table.
+    /// Foreign keys without an index starting with their columns (in any order, ascending: <see cref="Backs"/>). Oracle then
+    /// locks the whole child table when a parent row is deleted or its key updated, and every such check scans the child table.
     /// </summary>
     public static IReadOnlyList<ForeignKeyInfo> UnindexedForeignKeys(IEnumerable<ForeignKeyInfo> foreignKeys, IReadOnlyList<IndexInfo> indexes) =>
-        foreignKeys.Where(fk => !indexes.Any(index => Covers(index, fk.FromColumns))).ToList();
+        foreignKeys.Where(fk => !indexes.Any(index => Backs(index, fk.FromColumns))).ToList();
 
     /// <summary>
     /// An index Oracle can use to find rows by the column: one that starts with it, visible and usable. Code that filters by
@@ -156,6 +156,23 @@ public static class IndexAdvice
         var leading = index.Columns.Take(columns.Count).ToList();
         return leading.All(c => !c.IsExpression) && leading.Select(c => c.Name).ToHashSet(StringComparer.Ordinal).SetEquals(columns);
     }
+
+    /// <summary>
+    /// The index <see cref="Covers"/> the columns with plain ascending ones – only such an index spares a foreign key the lock
+    /// on the whole child table, and only such an index enforces a new primary or unique key. A descending column is a
+    /// function-based one to Oracle: measured against Oracle 23 (WP-67), deleting a parent row still waits for the child
+    /// table with <c>(FK DESC)</c>, and a new key creates an index of its own next to it.
+    /// </summary>
+    public static bool Backs(IndexInfo index, IReadOnlyList<string> columns) =>
+        Covers(index, columns) && index.Columns.Take(columns.Count).All(c => !c.Descending);
+
+    /// <summary>
+    /// Oracle takes the index for a new primary or unique key on <paramref name="columns"/> instead of creating one: it
+    /// <see cref="Backs"/> them, is no bitmap index, and a unique one has no further columns (measured against Oracle 23,
+    /// WP-67 review: next to UNIQUE (A, B) a key on (A) gets an index of its own, as next to a bitmap index on (A, B)).
+    /// </summary>
+    public static bool BacksKey(IndexInfo index, IReadOnlyList<string> columns) =>
+        Backs(index, columns) && !index.IndexType.Contains("BITMAP", StringComparison.Ordinal) && (!index.Unique || index.Columns.Count == columns.Count);
 }
 
 /// <summary>Names a table's new or renamed constraints and indexes cannot take (<see cref="ISchemaReader.GetNamesElsewhereAsync"/>).</summary>

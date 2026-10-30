@@ -1,0 +1,58 @@
+@* The tablespace of a new table or index (WP-67): starts at the owner's default (empty), offers the permanent online
+   tablespaces and, while the default is chosen, a suggestion where the others lie – "Take" chooses it. *@
+@using FerretSharp.Core.Schema
+
+<span class="tablespace-picker">
+    @* Keyed on the choices: once they arrive, the browser must show the value again (it keeps the first option otherwise). *@
+    <select id="@Id" class="field mono" value="@Value" @key="Names.Count" title="@Title" aria-label="@Label"
+            @onchange="e => ValueChanged.InvokeAsync((string?)e.Value ?? string.Empty)">
+        <option value="">@(Tablespaces.Default is { } fallback ? TextFormat.Format(SchemaViewText.Tablespace_Default, fallback) : SchemaViewText.Tablespace_DefaultUnknown)</option>
+        @foreach (var name in Names)
+        {
+            <option value="@name">@name</option>
+        }
+    </select>
+    @if (Value.Length == 0 && Suggestion is { } suggestion)
+    {
+        <span class="muted small">
+            @SuggestionText(suggestion)
+            <button class="link-btn" @onclick="() => ValueChanged.InvokeAsync(suggestion.Name)">@SchemaViewText.Tablespace_Take</button>
+        </span>
+    }
+</span>
+
+@code {
+    [Parameter]
+    public string? Id { get; set; }
+
+    /// <summary>The tablespace chosen; empty for the owner's default.</summary>
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public Tablespaces Tablespaces { get; set; } = Tablespaces.None;
+
+    /// <summary>Offered while the default is chosen; null for none.</summary>
+    [Parameter]
+    public TablespaceSuggestion? Suggestion { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>The choices; one chosen before they were read (or no longer to choose) stays among them.</summary>
+    private IReadOnlyList<string> Names =>
+        Value.Length == 0 || Tablespaces.Names.Contains(Value, StringComparer.Ordinal) ? Tablespaces.Names : [.. Tablespaces.Names, Value];
+
+    private static string SuggestionText(TablespaceSuggestion suggestion) => suggestion.Basis switch
+    {
+        TablespaceBasis.TableIndexes => TextFormat.Plural(suggestion.Of, SchemaViewText.Tablespace_SuggestTableIndexesOne, SchemaViewText.Tablespace_SuggestTableIndexesOther, suggestion.Name, suggestion.Count),
+        TablespaceBasis.SchemaIndexes => TextFormat.Plural(suggestion.Of, SchemaViewText.Tablespace_SuggestSchemaIndexesOne, SchemaViewText.Tablespace_SuggestSchemaIndexesOther, suggestion.Name, suggestion.Count),
+        _ => TextFormat.Plural(suggestion.Of, SchemaViewText.Tablespace_SuggestSchemaTablesOne, SchemaViewText.Tablespace_SuggestSchemaTablesOther, suggestion.Name, suggestion.Count),
+    };
+}
