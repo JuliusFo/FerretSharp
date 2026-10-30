@@ -5,10 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
-### Changed
-- The LOB dialog shows the text of a CLOB in the code editor: a double click selects a word (it selected the whole text), Escape closes the dialog also from inside the text, find works with Ctrl+F, and Ctrl+Enter inserts a line below. With a change, Escape keeps the dialog open and says how to discard or keep it. New line breaks are saved as `\n`, as before; a text with `\r\n` keeps it.
+## [3.56.0] - 2026-10-30
+
+The LOB dialog edits text in the code editor.
+
+### Added
 - "Wrap lines" in the LOB dialog wraps long lines at the edge of the box – only the view, the value gets no line breaks. Text without line breaks starts wrapped; for other text the switch is kept for the next dialog.
 - JSON and XML in a CLOB are colored, picked by the first character and switchable (Text, JSON, XML). "Indent" puts JSON one member per line; strings and numbers stay exactly as they are, invalid JSON shows the line and position of the error. On a read-only workspace it only changes the view. A result over the dialog's 10 MB is not shown; the dialog says so.
+
+### Changed
+- The LOB dialog shows the text of a CLOB in the code editor: a double click selects a word (it selected the whole text), Escape closes the dialog also from inside the text, find works with Ctrl+F, and Ctrl+Enter inserts a line below. With a change, Escape keeps the dialog open and says how to discard or keep it. New line breaks are saved as `\n`, as before; a text with `\r\n` keeps it.
 
 ## [3.55.0] - 2026-10-29
 
