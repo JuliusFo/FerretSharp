@@ -201,7 +201,8 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
             return;
         }
 
-        // Like the control after a display change: rebuilt once the dropped back buffer has been committed.
+        // Like the control after a display change: rebuilt in a later dispatcher operation, at Normal as the control does
+        // (before the next render pass – nothing here relies on the dropped back buffer being committed first).
         control.Dispatcher.BeginInvoke(DispatcherPriority.Normal, () => RebuildNow(image));
     }
 
