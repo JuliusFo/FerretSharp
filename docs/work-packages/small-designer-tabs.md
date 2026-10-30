@@ -49,6 +49,15 @@ Beim Testen des Nutzers: Eine neue Spalte startet als `VARCHAR2(50)`; auf `NUMBE
 ## Nachtrag: README und Changelog-Bild
 Auf Nachfrage des Nutzers: README-Abschnitt „Table designer“ um Reiter, Kopf, Sperrleiste und Umbenennen/Ändern von Constraints ergänzt, `designer-light/-dark.png` neu (ARTIKEL im Reiter „Columns“, eigene Instanz mit Beispiel-DB und verknüpftem `samples`-Projekt, englisch, CDP `captureScreenshot`), Changelog-Bild `3.51.0-designer-constraints.png` (dunkel, Reiter „Constraints“).
 
+## Nachtrag: Code-Review (2026-10-30)
+Unabhängiger Reviewer über `83cc0144..6c16572a` (Kopfzeile klebt wieder unter dem Kopf), drei Befunde (K). Entscheidung des Nutzers: „1 und 2“, zum Restbefund des zweiten Durchgangs „Auf 2 px gehen“.
+
+- 1 (K, Verdacht) Haarfuge zwischen Kopf und Kopfzeile: nachgestellt und behoben. Im E2E war der Kopf ganzzahlig (47 px), bei 100/125/150 % keine Fuge; mit per Style gebrochener Höhe (47,3/47,6 px) schien bei 125/150 % je nach `scrollTop` eine Gerätepixel-Zeile in Zeilenfarbe durch. Die Kopfzeile liegt jetzt unter dem Kopf (z-index 3 darüber), danach 16 Messpunkte ohne Zeilenfarbe in der Naht. Dabei gefunden: Der ResizeObserver beobachtete die Content-Box und verpasste eine reine Padding-Änderung → `{ box: 'border-box' }`. Kein automatischer Test (reines Layout).
+- 2 (K) Keine Prüfung in der echten App: nachgeholt (eigener Container `ferret-e2e-sticky` auf Port 1533, Scratch-Datenordner, Absprache mit einer parallelen E2E-Session über den Debug-Port, danach entfernt). VERTRAG mit 71 Spalten: bündig unter dem Kopf, auch ganz unten, nach Daten → Spalten, nach anderem Tab und zurück, im Reiter Constraints, mit umbrechendem Kopf (79 px), unter „Neue Tabelle“ mit 26 Spalten. Log ohne `[ERR]`/`[WRN]`. Gemessen per CDP (`scrollTop`, Pixel der Naht aus `Page.captureScreenshot`), keine Mauseingabe nötig.
+- 3 (K) Merker `_headShared` je Instanz statt je Element: so gelassen (Empfehlung, Nutzer folgte ihr), nicht erreichbar – `TableDesigner` übergibt `Head` immer, `IndexesView` nie.
+- 4 (K, Verdacht, zweiter Durchgang) Beim Herauszoomen (Strg+Mausrad, der Host sperrt den WebView2-Zoom nicht) sind 1 px weniger als ein Gerätepixel: auf Wunsch des Nutzers 2 px Überlappung (7 px Padding oben, kein Text verdeckt). Nicht nachgestellt: Eine Nachbildung mit dem echten CSS in headless Edge rundet anders als die App (zeigte selbst ohne Überlappung bei 125 % keine Fuge, die App schon), taugt also weder als Beweis noch als Gegenbeweis.
+- Vorher schon da: Bei schmalem Fenster ist die Spaltentabelle breiter als der Designer-Kopf (der nur so breit ist wie der sichtbare Bereich), rechts neben dem Kopf scheinen Zeilenstücke über der Kopfzeile durch.
+
 ## Offen / Backlog
 - Reiter „Tabelle“ (Kommentar, Umbenennen) – vom Nutzer zurückgestellt.
 - Reiter „Indizes“ in der Maske statt der eigenen Ansicht.
