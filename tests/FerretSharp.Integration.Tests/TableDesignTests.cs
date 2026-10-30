@@ -271,4 +271,66 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
         await connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(draft, Ref("TD_AUFTRAG")), Ct);
         await connection.Editor.ExecuteDdlAsync($"DROP INDEX \"{Ref("TD_AUFTRAG").Owner}\".\"IX_TD_AUFTRAG_DATUM\"", Ct);
     }
+
+    /// <summary>
+    /// WP-67: a new table, its key's and foreign key's indexes in the chosen tablespaces, then an index with a descending
+    /// column, and the same columns ascending next to it – read back as drafted.
+    /// </summary>
+    [Fact]
+    public async Task Tablespaces_and_descending_columns_run_and_read_back_as_drafted()
+    {
+        await using var connection = await OpenAsync("Design tablespaces");
+        var table = Ref("TD_SORT");
+        var tablespaces = await connection.Schema.GetTablespacesAsync(Ref("TD_AUFTRAG"), Ct);
+        var tablespace = Assert.IsType<string>(tablespaces.Default); // the session's own schema
+        Assert.Contains(tablespace, tablespaces.Names);
+        Assert.Contains(tablespaces.TableIndexes, u => u.Name == tablespace); // TD_AUFTRAG's key
+        Assert.NotEmpty(tablespaces.SchemaIndexes);
+        Assert.NotEmpty(tablespaces.SchemaTables);
+
+        var kunde = await connection.Schema.GetDetailsAsync(new TableSummary(table.Owner, "TD_KUNDE", TableKind.Table), Ct);
+        ColumnInfo Column(string name, string type, bool nullable) => new(name, type, null, false, type == "NUMBER" ? 10 : null, type == "NUMBER" ? 0 : null, nullable, false, null, 0);
+        var draft = new TableDraft([new(null, Column("ID", "NUMBER", false)), new(null, Column("KUNDE_ID", "NUMBER", true)), new(null, Column("DATUM", "DATE", true))])
+        {
+            AddedConstraints =
+            [
+                new ConstraintDraft("PK_TD_SORT", ConstraintType.PrimaryKey, ["ID"]),
+                new ConstraintDraft("FK_TD_SORT_KUNDE", ConstraintType.ForeignKey, ["KUNDE_ID"], References: kunde.Table.Ref, ReferencedColumns: ["ID"]),
+            ],
+            IndexTablespace = tablespace,
+        };
+        var plan = TableDesign.PlanNew(new NewTable(table.Owner, table.Name, Tablespace: tablespace), draft,
+            new Dictionary<TableRef, TableDetails> { [kunde.Table.Ref] = kunde }, [], tablespaces);
+        Assert.True(plan.CanRun, string.Join(" ", plan.Problems));
+        foreach (var sql in plan.Statements)
+        {
+            await connection.Editor.ExecuteDdlAsync(sql, Ct);
+        }
+
+        try
+        {
+            Assert.Equal(tablespace, (await connection.Schema.GetObjectInfoAsync(new TableSummary(table.Owner, table.Name, TableKind.Table), Ct)).Tablespace);
+            var indexes = await connection.Schema.GetIndexesAsync(table, Ct);
+            Assert.Equal(["IX_TD_SORT_KUNDE_ID", "PK_TD_SORT"], indexes.Select(i => i.Name).Order());
+            Assert.All(indexes, i => Assert.Equal(tablespace, i.Tablespace));
+
+            var details = await connection.Schema.GetDetailsAsync(new TableSummary(table.Owner, table.Name, TableKind.Table), Ct);
+            var sorted = new IndexDraft("IX_TD_SORT_DATUM_KUNDE", ["DATUM", "KUNDE_ID"]) { Descending = new HashSet<string> { "DATUM" }, Tablespace = tablespace };
+            Assert.True(IndexDesign.Check(sorted, details, indexes, tablespaces: tablespaces).CanRun);
+            await connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(sorted, table), Ct);
+
+            var created = Assert.Single(await connection.Schema.GetIndexesAsync(table, Ct), i => i.Name == sorted.Name);
+            Assert.Equal([new IndexColumn("DATUM", false, true), new IndexColumn("KUNDE_ID", false, false)], created.Columns);
+            Assert.Equal(tablespace, created.Tablespace);
+
+            // The same columns ascending are another index to Oracle – as the check says.
+            var ascending = sorted with { Name = "IX_TD_SORT_DATUM_KUNDE_2", Descending = new HashSet<string>() };
+            Assert.True(IndexDesign.Check(ascending, details, [.. indexes, created]).CanRun);
+            await connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(ascending, table), Ct);
+        }
+        finally
+        {
+            await connection.Editor.ExecuteDdlAsync($"DROP TABLE \"{table.Owner}\".\"{table.Name}\"", Ct);
+        }
+    }
 }
