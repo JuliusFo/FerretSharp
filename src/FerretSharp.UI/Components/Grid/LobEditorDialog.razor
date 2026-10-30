@@ -29,7 +29,7 @@
         else
         {
             <div class="lob-info">
-                <span class="@(Current is null ? "fs-null" : "")">@LobContent.Describe(Current)</span>
+                <span class="@(Current is null ? "fs-null" : "")">@(Current is string && _editedLength is { } length ? LobContent.CharacterCount(length) : LobContent.Describe(Current))</span>
                 @if (Changed)
                 {
                     <span class="lob-changed">@GridText.Lob_Changed</span>
@@ -55,7 +55,7 @@
                     @if (_format == LobTextFormat.Json)
                     {
                         <button class="btn ghost small" title="@(CanEdit ? GridText.Lob_IndentTitle : GridText.Lob_IndentViewTitle)"
-                                @onclick="IndentAsync">@GridText.Lob_Indent</button>
+                                disabled="@_indenting" @onclick="IndentAsync">@GridText.Lob_Indent</button>
                     }
                     <button class="btn ghost small @(_wrap ? "active" : "")" aria-pressed="@(_wrap ? "true" : "false")"
                             title="@GridText.Lob_WordWrapTitle" @onclick="ToggleWrapAsync">@GridText.Lob_WordWrap</button>
@@ -88,7 +88,7 @@
                    not need itself (no selection, no find box) reaches the dialog. *@
                 <MonacoEditor @ref="_editor" @key="_editorVersion" Class="lob-text" Text="@_editorText" Language="@LanguageOf(_format)"
                               ReadOnly="@(!CanEdit)" ReadOnlyMessage="@(ReadOnlyReason ?? GridText.Lob_ReadOnly)" WordWrap="_wrap" LineFeed="true"
-                              OnChange="OnTextChanged" />
+                              OnEdit="OnEdited" />
             }
         }
     </div>
@@ -129,7 +129,7 @@
     private string? _error;
     private string? _notice;
     private object? _loaded; // as in the database (the workspace's transaction): reference for the concurrency check
-    private string? _text; // the value as the dialog knows it: from the editor, at the latest before each decision
+    private string? _text; // the value as the dialog knows it: the editor's text once edited, taken before each decision
     private byte[]? _bytes;
     private bool _isNull;
 
@@ -138,7 +138,16 @@
 
     private MonacoEditor? _editor;
     private int _editorVersion;
-    private string _editorText = ""; // what the current editor started with: typing back to it is no change
+    private string _editorText = ""; // what the current editor started with: the value while it is not edited
+
+    /// <summary>
+    /// Edited in the editor since it was created (undo back to the start is not) – as the editor reports it, and taken
+    /// before each decision. Not a comparison of texts: Monaco rewrites line ends and drops a BOM when it takes the text.
+    /// </summary>
+    private bool _edited;
+
+    private int? _editedLength; // the editor's length after an edit, for the character count
+    private bool _indenting;
     private LobTextFormat _format;
     private bool _wrap;
 
@@ -183,7 +192,7 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    private bool Changed => _replaced || (!_isNull && CanEdit && _text != _editorText);
+    private bool Changed => _replaced || (!_isNull && CanEdit && _edited);
 
     private bool ShowsEditor => !_loading && _error is null && !IsBlob && !_isNull && _text is not null && !_tooLarge;
 
@@ -202,13 +211,16 @@
 
     /// <summary>
     /// The text as the editor has it: it reports typing only after a short pause, and Escape, Apply or Save may come
-    /// sooner. A read-only editor may show the indented view – the value stays the loaded one.
+    /// sooner. Not edited (or undone back to the start): the text the editor started with, exactly – not Monaco's copy.
+    /// A read-only editor may show the indented view – the value stays the loaded one.
     /// </summary>
     private async Task TakeTextAsync()
     {
-        if (CanEdit && ShowsEditor && _editor is not null && await _editor.GetTextAsync() is { } text)
+        if (CanEdit && ShowsEditor && _editor is not null)
         {
-            _text = text;
+            var edited = await _editor.GetEditedTextAsync();
+            _edited = edited is not null;
+            _text = edited ?? _editorText;
         }
     }
 
@@ -286,9 +298,15 @@
     {
         _editorText = text;
         _editorVersion++;
+        _edited = false;
+        _editedLength = null;
     }
 
-    private void OnTextChanged(string text) => _text = text;
+    private void OnEdited(MonacoEditor.EditState state)
+    {
+        _edited = state.Edited;
+        _editedLength = state.Edited ? state.Length : null; // undone: the value's own count, not Monaco's copy
+    }
 
     private void StartText()
     {
@@ -317,9 +335,28 @@
 
     /// <summary>
     /// JSON one member per line. Editable: an edit in the editor (undo takes it back), so the value changes only with
-    /// Apply. Read-only: a view – a new editor with the indented text, the value stays the loaded one.
+    /// Apply. Read-only: a view – a new editor with the indented text, the value stays the loaded one. Runs off the UI
+    /// thread (megabytes take a second) and stops at the edit limit.
     /// </summary>
     private async Task IndentAsync()
+    {
+        if (_indenting)
+        {
+            return;
+        }
+
+        _indenting = true;
+        try
+        {
+            await IndentShownAsync();
+        }
+        finally
+        {
+            _indenting = false;
+        }
+    }
+
+    private async Task IndentShownAsync()
     {
         string shown;
         if (CanEdit)
@@ -332,7 +369,13 @@
             shown = _editorText;
         }
 
-        var result = LobContent.IndentJson(shown);
+        var result = await Task.Run(() => LobContent.IndentJson(shown));
+        if (result.TooLarge)
+        {
+            _notice = TextFormat.Format(GridText.Lob_TooLargeToIndent, LobContent.Size(LobLimits.MaxEditLength));
+            return;
+        }
+
         if (result.Text is not { } indented)
         {
             _notice = TextFormat.Format(GridText.Lob_InvalidJson, result.Line, result.Column);
@@ -347,8 +390,11 @@
 
         if (CanEdit && _editor is not null)
         {
-            await _editor.SetTextAsync(indented);
+            // Monaco keeps a BOM apart from the text and adds it back in GetEditedTextAsync: not a second one.
+            await _editor.SetTextAsync(indented.StartsWith('﻿') ? indented[1..] : indented);
             _text = indented;
+            _edited = true;
+            _editedLength = indented.Length;
         }
         else
         {

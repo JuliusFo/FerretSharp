@@ -582,6 +582,10 @@
     <value>Not valid JSON – line {0}, position {1}.</value>
     <comment>{0}: line, {1}: position in the line (1-based)</comment>
   </data>
+  <data name="Lob_TooLargeToIndent" xml:space="preserve">
+    <value>Too large to indent (over {0}).</value>
+    <comment>{0}: size limit of the editor, e.g. "10.0 MB"</comment>
+  </data>
   <data name="Lob_WordWrap" xml:space="preserve">
     <value>Wrap lines</value>
     <comment>Switch: long lines wrap at the edge of the text box</comment>

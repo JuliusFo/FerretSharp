@@ -6,6 +6,7 @@
 const base = './_content/FerretSharp.UI/lib/monaco/vs';
 const editors = new Map();
 const pendingTexts = new Map(); // element id → sends the text if a change is still waiting for the debounce
+const startVersions = new Map(); // element id → the model's version when created (edited or not, reportEdits)
 const completions = new Map(); // model uri → { id, dotnet } of editors that ask .NET for completion items
 const providers = new Set(); // languages with a registered completion provider
 const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -139,7 +140,9 @@ media.addEventListener('change', () => { if (window.monaco) window.monaco.editor
 /**
  * Creates an editor in the element. options: { language, minimal (no line numbers/minimap, for the variables),
  * placeholder, readOnly (view only), readOnlyMessage (the hint when typing in it), wordWrap (long lines wrap at the
- * edge), lineFeed (new line breaks are \n unless the text has \r\n), uiLanguage (Monaco's own texts, see load) }. Text changes reach .NET through OnTextChanged(id, text), debounced.
+ * edge), lineFeed (new line breaks are \n unless the text has \r\n), reportEdits (see below), uiLanguage (Monaco's own
+ * texts, see load) }. Text changes reach .NET through OnTextChanged(id, text), debounced; with reportEdits only
+ * OnEdited(id, edited, length) – a value editor (LOB) takes the text itself before a decision (getEditedText).
  */
 export async function create(elementId, dotnet, text, options) {
   const monaco = await load(options.uiLanguage);
@@ -170,13 +173,20 @@ export async function create(elementId, dotnet, text, options) {
     wordWrap: options.wordWrap ? 'on' : 'off',
     fixedOverflowWidgets: true,
     placeholder: options.placeholder ?? undefined,
+    // 'prompt' asked with a native English dialog and removed U+2028/U+2029 on OK – they are text like any other here.
+    unusualLineTerminators: 'off',
   });
   // A text without line breaks gets the platform's \r\n for new ones; a text with \n keeps it, one with \r\n as well.
   if (options.lineFeed && !(text ?? '').includes('\r\n')) editor.getModel().setEOL(monaco.editor.EndOfLineSequence.LF);
+  // Creating the model already rewrites the text (one kind of line end, no BOM): only an edit after this counts.
+  startVersions.set(elementId, editor.getModel().getAlternativeVersionId());
   let timer = null;
   const send = () => {
     timer = null;
-    dotnet.invokeMethodAsync('OnTextChanged', elementId, editor.getValue()).catch(err => console.error('Text not sent', err));
+    const sent = options.reportEdits
+      ? dotnet.invokeMethodAsync('OnEdited', elementId, isEdited(elementId, editor), editor.getModel().getValueLength())
+      : dotnet.invokeMethodAsync('OnTextChanged', elementId, editor.getValue());
+    sent.catch(err => console.error('Text not sent', err));
   };
   editor.onDidChangeModelContent(() => {
     clearTimeout(timer);
@@ -321,6 +331,17 @@ export function getText(elementId) {
   return editors.get(elementId)?.getValue() ?? null;
 }
 
+/** Undo back to the start counts as not edited, as Monaco's own version id does. */
+function isEdited(elementId, editor) {
+  return editor.getModel().getAlternativeVersionId() !== startVersions.get(elementId);
+}
+
+/** The text if it was edited since the editor was created, with a BOM it had; null if not (or no editor). */
+export function getEditedText(elementId) {
+  const editor = editors.get(elementId);
+  return editor && isEdited(elementId, editor) ? editor.getModel().getValue(undefined, true) : null;
+}
+
 /** Diagnostics: [{ line, column, endLine, endColumn, severity: 'error'|'warning', message }] (1-based). */
 export function setMarkers(elementId, markers) {
   const editor = editors.get(elementId);
@@ -366,6 +387,7 @@ export function find(elementId) {
 export function destroy(elementId) {
   pendingTexts.get(elementId)?.();
   pendingTexts.delete(elementId);
+  startVersions.delete(elementId);
   const editor = editors.get(elementId);
   if (editor) {
     const model = editor.getModel();

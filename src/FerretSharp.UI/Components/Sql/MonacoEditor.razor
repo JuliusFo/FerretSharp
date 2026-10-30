@@ -28,6 +28,17 @@
     [Parameter]
     public EventCallback<string> OnChange { get; set; }
 
+    /// <summary>
+    /// Instead of <see cref="OnChange"/>: only whether the text was edited since the editor was created, and its length.
+    /// For a value (LOB): the text stays in the editor until <see cref="GetEditedTextAsync"/>, and Monaco's own rewriting
+    /// when it takes the text (line ends, BOM) is no edit.
+    /// </summary>
+    [Parameter]
+    public EventCallback<EditState> OnEdit { get; set; }
+
+    /// <param name="Length">Characters as the editor has them (without a BOM).</param>
+    public sealed record EditState(bool Edited, int Length);
+
     /// <summary>No line numbers, no folding: for the few lines of variables.</summary>
     [Parameter]
     public bool Minimal { get; set; }
@@ -91,7 +102,7 @@
                 new
                 {
                     language = Language, minimal = Minimal, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly,
-                    readOnlyMessage = ReadOnlyMessage, wordWrap = WordWrap, lineFeed = LineFeed,
+                    readOnlyMessage = ReadOnlyMessage, wordWrap = WordWrap, lineFeed = LineFeed, reportEdits = OnEdit.HasDelegate,
                     uiLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
                 });
             _created = true;
@@ -131,6 +142,9 @@
     [JSInvokable]
     public Task OnTextChanged(string elementId, string text) => GuardAsync(() => OnChange.InvokeAsync(text));
 
+    [JSInvokable]
+    public Task OnEdited(string elementId, bool edited, int length) => GuardAsync(() => OnEdit.InvokeAsync(new EditState(edited, length)));
+
     /// <summary>Monaco's completion provider asks; the kind goes as text (Table, Column …) for the icon.</summary>
     [JSInvokable]
     public Task<object[]> OnComplete(string elementId, string text, int offset) => GuardAsync<object[]>(async () =>
@@ -164,6 +178,9 @@
 
     /// <summary>The current text, also what the debounce has not reported yet (run right after typing).</summary>
     public Task<string?> GetTextAsync() => CallAsync<string?>("getText", _id);
+
+    /// <summary>The current text if it was edited since the editor was created (with a BOM it had); null if not.</summary>
+    public Task<string?> GetEditedTextAsync() => CallAsync<string?>("getEditedText", _id);
 
     /// <summary>Cursor to a position, shown and focused; asked before the editor exists, it happens once it is created.</summary>
     public Task RevealAsync(int line, int column)

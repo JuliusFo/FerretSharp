@@ -456,6 +456,9 @@
   <data name="Lob_InvalidJson" xml:space="preserve">
     <value>Kein gültiges JSON – Zeile {0}, Position {1}.</value>
   </data>
+  <data name="Lob_TooLargeToIndent" xml:space="preserve">
+    <value>Zu groß zum Einrücken (über {0}).</value>
+  </data>
   <data name="Lob_WordWrap" xml:space="preserve">
     <value>Zeilen umbrechen</value>
   </data>
