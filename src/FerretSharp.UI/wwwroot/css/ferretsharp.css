@@ -1629,6 +1629,14 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .index-draft-column { display: inline-flex; align-items: center; gap: 3px; padding: 2px 3px 2px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
 .index-draft-column .icon-btn { width: 22px; height: 22px; border: 0; background: transparent; font-size: 12px; }
 .index-draft-column .icon-btn:disabled { opacity: .35; }
+/* WP-67: ASC/DESC of a column in the index draft; the tablespace with its suggestion. */
+.sort-toggle { height: 20px; padding: 0 6px; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--faint); font-size: 10.5px; font-weight: 600; cursor: pointer; }
+.sort-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+.sort-toggle.desc { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.tablespace-picker { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.tablespace-picker select.field { width: auto; min-width: 220px; }
+.tablespace-picker .link-btn { padding-left: 4px; }
+.designer-tablespace { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 4px 0 12px; font-size: 12.5px; }
 .ddl-draft { display: flex; flex-direction: column; gap: 8px; }
 .ddl-draft .hint.small, .ddl-problems { margin: 0; }
 .ddl-problems { padding-left: 18px; color: var(--danger); font-size: 12.5px; }

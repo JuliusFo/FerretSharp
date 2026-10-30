@@ -5,7 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Each column of a new index can be sorted descending ("ASC"/"DESC" next to the column), for queries that order by several columns in different directions. The draft warns if all columns are descending: an ascending index serves the same orders and also backs foreign keys.
+- Tablespaces in the designer: a new table, a new index and the indexes that new primary keys, unique keys and foreign keys bring along can go into a tablespace of their own. The choice starts at the schema's default; a suggestion names where most of the table's indexes (or the schema's indexes and tables) lie, "Take" chooses it. The field for the indexes appears below the new constraints once the draft creates an index, and names them. A key that an existing index already backs keeps using it – Oracle would refuse the tablespace there – and the designer says so. A new audit table goes into the tablespace of its table. Temporary tables keep their indexes in the temporary tablespace and are offered none.
+
 ### Fixed
+- An index whose first column is descending no longer counts as the index of a foreign key: Oracle still locks the whole child table when a parent row is deleted. The Indexes view now suggests an index for such a foreign key, and the designer creates one with a new foreign key.
 - The ✕ and other symbols on small buttons sit in the middle again instead of slightly to the right – in the table designer's rows, the menu of a connection, the filter presets and the list of changes.
 
 ## [3.56.1] - 2026-10-30

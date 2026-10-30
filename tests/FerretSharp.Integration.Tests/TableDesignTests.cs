@@ -271,4 +271,126 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
         await connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(draft, Ref("TD_AUFTRAG")), Ct);
         await connection.Editor.ExecuteDdlAsync($"DROP INDEX \"{Ref("TD_AUFTRAG").Owner}\".\"IX_TD_AUFTRAG_DATUM\"", Ct);
     }
+
+    /// <summary>
+    /// WP-67: a new table, its key's and foreign key's indexes in the chosen tablespaces, then an index with a descending
+    /// column, and the same columns ascending next to it – read back as drafted.
+    /// </summary>
+    [Fact]
+    public async Task Tablespaces_and_descending_columns_run_and_read_back_as_drafted()
+    {
+        await using var connection = await OpenAsync("Design tablespaces");
+        var table = Ref("TD_SORT");
+        var tablespaces = await connection.Schema.GetTablespacesAsync(Ref("TD_AUFTRAG"), Ct);
+        var tablespace = Assert.IsType<string>(tablespaces.Default); // the session's own schema
+        Assert.Contains(tablespace, tablespaces.Names);
+        Assert.Contains(tablespaces.TableIndexes, u => u.Name == tablespace); // TD_AUFTRAG's key
+        Assert.NotEmpty(tablespaces.SchemaIndexes);
+        Assert.NotEmpty(tablespaces.SchemaTables);
+
+        var kunde = await connection.Schema.GetDetailsAsync(new TableSummary(table.Owner, "TD_KUNDE", TableKind.Table), Ct);
+        ColumnInfo Column(string name, string type, bool nullable) => new(name, type, null, false, type == "NUMBER" ? 10 : null, type == "NUMBER" ? 0 : null, nullable, false, null, 0);
+        var draft = new TableDraft([new(null, Column("ID", "NUMBER", false)), new(null, Column("KUNDE_ID", "NUMBER", true)), new(null, Column("DATUM", "DATE", true))])
+        {
+            AddedConstraints =
+            [
+                new ConstraintDraft("PK_TD_SORT", ConstraintType.PrimaryKey, ["ID"]),
+                new ConstraintDraft("FK_TD_SORT_KUNDE", ConstraintType.ForeignKey, ["KUNDE_ID"], References: kunde.Table.Ref, ReferencedColumns: ["ID"]),
+            ],
+            IndexTablespace = tablespace,
+        };
+        var plan = TableDesign.PlanNew(new NewTable(table.Owner, table.Name, Tablespace: tablespace), draft,
+            new Dictionary<TableRef, TableDetails> { [kunde.Table.Ref] = kunde }, [], tablespaces);
+        Assert.True(plan.CanRun, string.Join(" ", plan.Problems));
+        foreach (var sql in plan.Statements)
+        {
+            await connection.Editor.ExecuteDdlAsync(sql, Ct);
+        }
+
+        try
+        {
+            Assert.Equal(tablespace, (await connection.Schema.GetObjectInfoAsync(new TableSummary(table.Owner, table.Name, TableKind.Table), Ct)).Tablespace);
+            Assert.Equal(tablespace, (await connection.Schema.GetTablespacesAsync(table, Ct)).TableTablespace); // where its audit table would go
+            var indexes = await connection.Schema.GetIndexesAsync(table, Ct);
+            Assert.Equal(["IX_TD_SORT_KUNDE_ID", "PK_TD_SORT"], indexes.Select(i => i.Name).Order());
+            Assert.All(indexes, i => Assert.Equal(tablespace, i.Tablespace));
+
+            var details = await connection.Schema.GetDetailsAsync(new TableSummary(table.Owner, table.Name, TableKind.Table), Ct);
+            var sorted = new IndexDraft("IX_TD_SORT_DATUM_KUNDE", ["DATUM", "KUNDE_ID"]) { Descending = new HashSet<string> { "DATUM" }, Tablespace = tablespace };
+            Assert.True(IndexDesign.Check(sorted, details, indexes, tablespaces: tablespaces).CanRun);
+            await connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(sorted, table), Ct);
+
+            var created = Assert.Single(await connection.Schema.GetIndexesAsync(table, Ct), i => i.Name == sorted.Name);
+            Assert.Equal([new IndexColumn("DATUM", false, true), new IndexColumn("KUNDE_ID", false, false)], created.Columns);
+            Assert.Equal(tablespace, created.Tablespace);
+
+            // The same columns ascending are another index to Oracle – as the check says.
+            var ascending = sorted with { Name = "IX_TD_SORT_DATUM_KUNDE_2", Descending = new HashSet<string>() };
+            Assert.True(IndexDesign.Check(ascending, details, [.. indexes, created]).CanRun);
+            await connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(ascending, table), Ct);
+        }
+        finally
+        {
+            await connection.Editor.ExecuteDdlAsync($"DROP TABLE \"{table.Owner}\".\"{table.Name}\"", Ct);
+        }
+    }
+
+    /// <summary>
+    /// Review of WP-67: a key whose index was created before it (as SQL Developer and DBMS_METADATA write it) leaves the index
+    /// behind when dropped – the designer's new key on the same columns takes it instead of failing with ORA-01408 after the
+    /// old key is gone. A temporary table is told apart: its indexes get no tablespace.
+    /// </summary>
+    [Fact]
+    public async Task A_new_key_takes_the_index_a_dropped_key_left_and_a_temporary_table_is_known()
+    {
+        await using var connection = await OpenAsync("Design key swap");
+        var table = Ref("TD_SWAP");
+        var temporary = Ref("TD_TEMP");
+        foreach (var sql in new[]
+        {
+            $"CREATE TABLE \"{table.Owner}\".\"TD_SWAP\" (A NUMBER(10), B NUMBER(10))",
+            $"CREATE UNIQUE INDEX \"{table.Owner}\".\"UK_TD_SWAP\" ON \"{table.Owner}\".\"TD_SWAP\" (A)",
+            $"ALTER TABLE \"{table.Owner}\".\"TD_SWAP\" ADD CONSTRAINT UK_TD_SWAP UNIQUE (A) USING INDEX \"{table.Owner}\".\"UK_TD_SWAP\"",
+            $"CREATE GLOBAL TEMPORARY TABLE \"{temporary.Owner}\".\"TD_TEMP\" (A NUMBER(10))",
+        })
+        {
+            await connection.Editor.ExecuteDdlAsync(sql, Ct);
+        }
+
+        try
+        {
+            var details = await connection.Schema.GetDetailsAsync(new TableSummary(table.Owner, table.Name, TableKind.Table), Ct);
+            var tablespaces = await connection.Schema.GetTablespacesAsync(table, Ct);
+            var context = new DesignContext(details, await connection.Schema.GetConstraintsAsync(table, Ct), await connection.Schema.GetIndexesAsync(table, Ct), [])
+            {
+                Tablespaces = tablespaces,
+            };
+            var draft = TableDraft.Of(details) with
+            {
+                DroppedConstraints = ["UK_TD_SWAP"],
+                AddedConstraints = [new ConstraintDraft("PK_TD_SWAP", ConstraintType.PrimaryKey, ["A"])],
+                IndexTablespace = Assert.IsType<string>(tablespaces.Default),
+            };
+            var plan = TableDesign.Plan(context, draft, new DataFacts(new Dictionary<DataQuestion, long> { [new DataQuestion(DataQuestionKind.Rows)] = 0 }));
+            Assert.True(plan.CanRun, string.Join(" ", plan.Problems));
+            Assert.DoesNotContain(plan.Statements, s => s.Contains("TABLESPACE", StringComparison.Ordinal));
+            foreach (var sql in plan.Statements)
+            {
+                await connection.Editor.ExecuteDdlAsync(sql, Ct);
+            }
+
+            var key = Assert.Single(await connection.Schema.GetConstraintsAsync(table, Ct), c => c.Type == ConstraintType.PrimaryKey);
+            Assert.Equal(["A"], key.Columns);
+
+            var temp = await connection.Schema.GetTablespacesAsync(temporary, Ct);
+            Assert.True(temp.TemporaryTable);
+            Assert.Null(temp.TableTablespace);
+            Assert.False(tablespaces.TemporaryTable);
+        }
+        finally
+        {
+            await connection.Editor.ExecuteDdlAsync($"DROP TABLE \"{table.Owner}\".\"TD_SWAP\"", Ct);
+            await connection.Editor.ExecuteDdlAsync($"DROP TABLE \"{temporary.Owner}\".\"TD_TEMP\"", Ct);
+        }
+    }
 }

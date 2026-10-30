@@ -367,6 +367,19 @@ public sealed class TableDesignerDraftTests
         Assert.Equal([new ConstraintEdit("FK_KUNDE_LAND", "FK_KUNDE_LAND", DeleteRule: "SET NULL")], rest.ToDraft().Draft.ChangedConstraints);
     }
 
+    [Fact]
+    public void The_index_tablespace_and_what_was_read_survive_a_rebase_and_empty_is_the_default()
+    {
+        var read = Tablespaces.None with { Names = ["INDX", "USERS"] };
+        var designer = new TableDesignerDraft(Kunde, []) { IndexTablespace = "INDX", Tablespaces = read };
+
+        var rest = designer.Rebase(Kunde, []);
+
+        Assert.Equal("INDX", rest.ToDraft().Draft.IndexTablespace);
+        Assert.Same(read, rest.Tablespaces);
+        Assert.Null(new TableDesignerDraft(Kunde, []).ToDraft().Draft.IndexTablespace);
+    }
+
     // ---- the draft of a new index (R4b, out of IndexesView) ----
 
     private static readonly IndexInfo IxName = new("SHOP", "IX_KUNDE_NAME", "NORMAL", false, "VALID", [new IndexColumn("NAME", false, false)], null, false, true);
@@ -394,6 +407,28 @@ public sealed class TableDesignerDraftTests
         editor.TypeName("");
         editor.SuggestName(); // leaving the cleared field
         Assert.Equal("IX_KUNDE_NAME_2", editor.Name);
+    }
+
+    [Fact]
+    public void An_index_draft_sorts_a_column_descending_until_it_is_taken_out_and_takes_the_tablespace()
+    {
+        var editor = IndexDraftEditor.Start(Kunde.Table.Ref, [IxName], null);
+        editor.Add("KUERZEL");
+        editor.Add("NAME");
+        editor.ToggleDescending("NAME");
+        editor.Tablespace = "INDX";
+
+        Assert.Equal("""CREATE INDEX "SHOP"."IX_KUNDE_KUERZEL_NAME" ON "SHOP"."KUNDE" ("KUERZEL", "NAME" DESC) TABLESPACE "INDX" """.TrimEnd(),
+            Assert.Single(editor.Steps()).Sql);
+
+        editor.Tablespace = "IN\"DX"; // a name that would not quote: no statement (the check names the problem)
+        Assert.Empty(editor.Steps());
+        editor.Tablespace = "INDX";
+
+        editor.Remove(1);
+        editor.Add("NAME"); // back again: ascending, as a new column
+        editor.ToggleDescending("BETRAG"); // not in the index: nothing
+        Assert.Empty(editor.Draft.Descending);
     }
 
     [Fact]

@@ -56,6 +56,12 @@ public sealed record TableDraft(IReadOnlyList<ColumnDraft> Columns)
     /// <summary>Existing constraints renamed or changed (a check's condition, a foreign key's delete rule).</summary>
     public IReadOnlyList<ConstraintEdit> ChangedConstraints { get; init; } = [];
 
+    /// <summary>
+    /// The tablespace of every index this draft creates (WP-67, dictionary form): those of new primary and unique keys and
+    /// of new foreign keys. Null for the owner's default.
+    /// </summary>
+    public string? IndexTablespace { get; init; }
+
     /// <summary>The table as it is: nothing changed yet.</summary>
     public static TableDraft Of(TableDetails table)
     {
@@ -67,7 +73,8 @@ public sealed record TableDraft(IReadOnlyList<ColumnDraft> Columns)
 /// <summary>A table the designer creates (WP-23, stage 3).</summary>
 /// <param name="Name">Its name in dictionary form.</param>
 /// <param name="Comment">The table's comment; null or empty for none.</param>
-public sealed record NewTable(string Owner, string Name, string? Comment = null)
+/// <param name="Tablespace">The tablespace to create it in (WP-67, dictionary form); null for the owner's default.</param>
+public sealed record NewTable(string Owner, string Name, string? Comment = null, string? Tablespace = null)
 {
     public TableRef Ref => new(Owner, Name);
 }
@@ -83,6 +90,9 @@ public sealed record DesignContext(TableDetails Table, IReadOnlyList<ConstraintI
 
     /// <summary>Names other tables of the owner hold (review 3.54.0, A14); none known by default.</summary>
     public SchemaNames Elsewhere { get; init; } = SchemaNames.None;
+
+    /// <summary>The owner's quotas for a chosen tablespace (WP-67); none known by default.</summary>
+    public Tablespaces Tablespaces { get; init; } = Tablespaces.None;
 
     /// <summary>Only the table: no constraints, indexes or references known.</summary>
     public static DesignContext Of(TableDetails table) => new(table, [], [], []);
@@ -128,7 +138,18 @@ public sealed record DesignPlan(IReadOnlyList<DdlStep> Steps, IReadOnlyList<stri
 
     /// <summary>The <see cref="Problems"/> about constraints (the designer marks its constraints tab); the rest are the columns'.</summary>
     public IReadOnlyList<string> ConstraintProblems { get; init; } = [];
+
+    /// <summary>
+    /// The indexes the plan creates (WP-67): those of new keys no index of the table backs, and those of new foreign keys –
+    /// where <see cref="TableDraft.IndexTablespace"/> applies. In the order of the constraints.
+    /// </summary>
+    public IReadOnlyList<NewIndex> NewIndexes { get; init; } = [];
 }
+
+/// <summary>An index a design plan creates.</summary>
+/// <param name="Name">Its name – a new key's index is named after the key (its kind and columns while Oracle names it).</param>
+/// <param name="ForeignKey">The foreign key it is for; null for the index of a key.</param>
+public sealed record NewIndex(string Name, string? ForeignKey = null);
 
 /// <summary>
 /// The column designer for an existing table (WP-23, stage 2): turns a <see cref="TableDraft"/> into the DDL that makes
@@ -229,12 +250,14 @@ public static partial class TableDesign
     /// </summary>
     /// <param name="referenced">Tables the new foreign keys reference, for their keys and column types.</param>
     /// <param name="taken">Names of the schema's objects (tables, views, synonyms …): one of them cannot be the new table's (ORA-00955).</param>
-    public static DesignPlan PlanNew(NewTable table, TableDraft draft, IReadOnlyDictionary<TableRef, TableDetails> referenced, IEnumerable<string> taken)
+    /// <param name="tablespaces">The owner's quotas for the chosen tablespaces (WP-67); null while not read.</param>
+    public static DesignPlan PlanNew(NewTable table, TableDraft draft, IReadOnlyDictionary<TableRef, TableDetails> referenced, IEnumerable<string> taken,
+        Tablespaces? tablespaces = null)
     {
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(draft);
         var empty = new TableDetails(new TableSummary(table.Owner, table.Name, TableKind.Table), [], [], [], false);
-        var context = new DesignContext(empty, [], [], []) { Referenced = referenced };
+        var context = new DesignContext(empty, [], [], []) { Referenced = referenced, Tablespaces = tablespaces ?? Tablespaces.None };
         var writer = new Writer(context, new DataFacts(new Dictionary<DataQuestion, long> { [new DataQuestion(DataQuestionKind.Rows)] = 0 }), table);
         writer.CheckTableName(taken);
         if (writer.Problems.Count == 0)
@@ -328,10 +351,13 @@ public static partial class TableDesign
                 }
             }
 
+            var tablespace = Usable(creating?.Tablespace);
             if (creating is not null && _definitions.Count > 0)
             {
-                Keep(DdlStepKind.CreateTable, OracleDdl.CreateTable(Table, _definitions));
+                Keep(DdlStepKind.CreateTable, OracleDdl.CreateTable(Table, _definitions, tablespace: tablespace));
             }
+
+            IndexDesign.CheckTablespace(tablespace, Table.Owner, context.Tablespaces, Problems, Warnings);
 
             problems = Problems.Count;
             AddConstraints(draft, kept);
@@ -398,7 +424,11 @@ public static partial class TableDesign
                     .Select(s => TextFormat.Format(DesignText.StatementNotDdl, s.Length <= 80 ? s : s[..79] + "…")));
             }
 
-            return new DesignPlan(steps, Problems.Distinct().ToList(), Warnings.Distinct().ToList()) { ConstraintProblems = _constraintProblems.Distinct().ToList() };
+            return new DesignPlan(steps, Problems.Distinct().ToList(), Warnings.Distinct().ToList())
+            {
+                ConstraintProblems = _constraintProblems.Distinct().ToList(),
+                NewIndexes = _newIndexes,
+            };
         }
 
         /// <summary>

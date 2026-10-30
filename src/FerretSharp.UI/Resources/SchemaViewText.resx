@@ -1455,4 +1455,70 @@
   <data name="Constraints_EditTitle" xml:space="preserve">
     <value>Rename, change, drop or add constraints of the table</value>
   </data>
+  <data name="Tablespace_Label" xml:space="preserve">
+    <value>Tablespace</value>
+  </data>
+  <data name="Tablespace_IndexLabel" xml:space="preserve">
+    <value>Tablespace of the new indexes</value>
+    <comment>Designer: tablespace of the indexes the draft creates</comment>
+  </data>
+  <data name="Tablespace_IndexTitle" xml:space="preserve">
+    <value>For the indexes of new primary and unique keys and of new foreign keys</value>
+  </data>
+  <data name="Tablespace_Default" xml:space="preserve">
+    <value>Default ({0})</value>
+    <comment>{0}: the default tablespace of the schema</comment>
+  </data>
+  <data name="Tablespace_DefaultUnknown" xml:space="preserve">
+    <value>Default of the schema</value>
+    <comment>Option when the default tablespace of another schema is unknown</comment>
+  </data>
+  <data name="Tablespace_Take" xml:space="preserve">
+    <value>Take</value>
+    <comment>Link: take the suggested tablespace</comment>
+  </data>
+  <data name="Tablespace_SuggestTableIndexesOne" xml:space="preserve">
+    <value>Suggestion: {1} – where the table's index lies</value>
+    <comment>{1}: tablespace</comment>
+  </data>
+  <data name="Tablespace_SuggestTableIndexesOther" xml:space="preserve">
+    <value>Suggestion: {1} – where {2} of the table's {0} indexes lie</value>
+    <comment>{0}: indexes counted, {1}: tablespace, {2}: indexes in it</comment>
+  </data>
+  <data name="Tablespace_SuggestSchemaIndexesOne" xml:space="preserve">
+    <value>Suggestion: {1} – where the schema's index lies</value>
+    <comment>{1}: tablespace</comment>
+  </data>
+  <data name="Tablespace_SuggestSchemaIndexesOther" xml:space="preserve">
+    <value>Suggestion: {1} – where {2} of the schema's {0} indexes lie</value>
+    <comment>{0}: indexes counted, {1}: tablespace, {2}: indexes in it</comment>
+  </data>
+  <data name="Tablespace_SuggestSchemaTablesOne" xml:space="preserve">
+    <value>Suggestion: {1} – where the schema's table lies</value>
+    <comment>{1}: tablespace</comment>
+  </data>
+  <data name="Tablespace_SuggestSchemaTablesOther" xml:space="preserve">
+    <value>Suggestion: {1} – where {2} of the schema's {0} tables lie</value>
+    <comment>{0}: tables counted, {1}: tablespace, {2}: tables in it</comment>
+  </data>
+  <data name="Indexes_AscendingTitle" xml:space="preserve">
+    <value>Ascending – click for descending</value>
+    <comment>Toggle of a column in the index draft</comment>
+  </data>
+  <data name="Indexes_DescendingTitle" xml:space="preserve">
+    <value>Descending – click for ascending</value>
+    <comment>Toggle of a column in the index draft</comment>
+  </data>
+  <data name="Tablespace_IndexesFor" xml:space="preserve">
+    <value>for {0}</value>
+    <comment>{0}: the indexes the draft creates, comma-separated</comment>
+  </data>
+  <data name="Tablespace_IndexForForeignKey" xml:space="preserve">
+    <value>{0} (index for {1})</value>
+    <comment>{0}: index name, {1}: foreign key</comment>
+  </data>
+  <data name="Audit_TablespaceUnknown" xml:space="preserve">
+    <value>The table's tablespace could not be read – the new audit table goes into the schema's default tablespace.</value>
+    <comment>Designer: reading the tablespaces failed, a new audit table is planned</comment>
+  </data>
 </root>

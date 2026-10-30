@@ -146,7 +146,9 @@ developer works with an Oracle database day to day:
     </td>
     <td width="50%">
       <b>Table designer</b><br><br>
-      Change the columns, keys, checks and foreign keys of a table in tabs, add indexes or create a new table. Rename
+      Change the columns, keys, checks and foreign keys of a table in tabs, add indexes (each column ascending or
+      descending) or create a new table. Choose the tablespace of a new table, of a new index and of the indexes new keys
+      and foreign keys bring along – suggested from where the table's or schema's others lie. Rename
       existing constraints (a key takes its index along), give a check a new condition – added before the old one goes –
       or a foreign key another delete rule. You see the DDL before it runs – and the property and configuration lines
       for your entity – and what Oracle would refuse with the data at hand is reported up front. Run, Save and Close stay

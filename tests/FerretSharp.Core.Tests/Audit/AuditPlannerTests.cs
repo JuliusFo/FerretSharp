@@ -46,6 +46,11 @@ public sealed class AuditPlannerTests
         Assert.Equal(DdlStepKind.PlSqlObject, plan.Steps[^1].Kind);
         Assert.StartsWith("CREATE OR REPLACE TRIGGER APP.KUNDE_AUDIT", plan.Steps[^1].Sql);
         Assert.All(plan.Steps, s => Assert.True(OracleSession.IsDdlStatement(s.Sql), s.Sql));
+        Assert.DoesNotContain("TABLESPACE", plan.Steps[0].Sql, StringComparison.Ordinal);
+
+        // A new audit table goes where its table lies (WP-67, decision of the user).
+        var inData = AuditPlanner.Plan(Template, Kunde, Columns, AuditState.None, DataFacts.None, taken: ["KUNDE"], tablespace: "DATA");
+        Assert.EndsWith(""") TABLESPACE "DATA" """.TrimEnd(), inData.Steps[0].Sql, StringComparison.Ordinal);
     }
 
     [Fact]
