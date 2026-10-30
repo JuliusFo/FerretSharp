@@ -64,17 +64,17 @@ public class LobContentTests
     [Fact]
     public void Json_is_indented_without_touching_strings_and_numbers()
     {
-        const string json = """{"Group":"MES, \"0210\" {x}","Values":[{"Name":"Kst","Value":1.50E+3},{}],"Empty":[ ],"Ä":"äö"}""";
+        const string json = """{"Group":"North, \"0210\" {x}","Values":[{"Name":"Cost","Value":1.50E+3},{}],"Empty":[ ],"Ä":"äö"}""";
 
         var result = LobContent.IndentJson(json);
 
         Assert.Equal(
             """
             {
-              "Group": "MES, \"0210\" {x}",
+              "Group": "North, \"0210\" {x}",
               "Values": [
                 {
-                  "Name": "Kst",
+                  "Name": "Cost",
                   "Value": 1.50E+3
                 },
                 {}
@@ -86,13 +86,34 @@ public class LobContentTests
             result.Text);
     }
 
-    [Fact]
-    public void Invalid_json_gives_the_position_of_the_error_instead()
+    // The column counts characters as the editor does, not the UTF-8 bytes of the parser (Ä, ä, ö, ü are two each).
+    [Theory]
+    [InlineData("{\"a\":1,}", 1, 8)]
+    [InlineData("{\"Ä\":1,}", 1, 8)]
+    [InlineData("[\n\"äöü\",]", 2, 7)]
+    public void Invalid_json_gives_the_position_of_the_error_instead(string json, long line, long column)
     {
-        var result = LobContent.IndentJson("{\"a\":1,}");
+        var result = LobContent.IndentJson(json);
 
         Assert.Null(result.Text);
-        Assert.Equal(1, result.Line);
-        Assert.Equal(8, result.Column);
+        Assert.Equal(line, result.Line);
+        Assert.Equal(column, result.Column);
+    }
+
+    [Fact]
+    public void Json_deeper_than_64_levels_is_indented()
+    {
+        var json = new string('[', 100) + "1" + new string(']', 100);
+
+        Assert.NotNull(LobContent.IndentJson(json).Text);
+    }
+
+    [Fact]
+    public void Indenting_stops_once_the_result_is_longer_than_the_limit()
+    {
+        var result = LobContent.IndentJson("[[[1,2,3]]]", maxLength: 20);
+
+        Assert.True(result.TooLarge);
+        Assert.Null(result.Text);
     }
 }

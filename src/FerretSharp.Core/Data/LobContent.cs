@@ -136,23 +136,30 @@ public static class LobContent
     /// <summary>
     /// Valid JSON indented by two spaces per level, one member or element per line. Strings and numbers stay exactly as
     /// written (no re-escaping, no number formatting) – only the white space between the tokens changes. Invalid JSON
-    /// (also with comments or trailing commas) gives the position of the first error instead.
+    /// (also with comments or trailing commas) gives the position of the first error instead. Stops once the result is
+    /// longer than <paramref name="maxLength"/>: deep JSON with many short elements grows many times over.
     /// </summary>
-    public static JsonIndentResult IndentJson(string text)
+    public static JsonIndentResult IndentJson(string text, long maxLength = LobLimits.MaxEditLength)
     {
         try
         {
-            using var _ = JsonDocument.Parse(text);
+            using var _ = JsonDocument.Parse(text, IndentOptions);
         }
         catch (JsonException ex)
         {
-            return new JsonIndentResult(null, (ex.LineNumber ?? 0) + 1, (ex.BytePositionInLine ?? 0) + 1);
+            var line = ex.LineNumber ?? 0;
+            return new JsonIndentResult(null, line + 1, CharacterColumn(text, line, ex.BytePositionInLine ?? 0));
         }
 
         var builder = new StringBuilder(text.Length + text.Length / 4);
         var depth = 0;
         for (var i = 0; i < text.Length; i++)
         {
+            if (builder.Length > maxLength)
+            {
+                return new JsonIndentResult(null, null, null, TooLarge: true);
+            }
+
             var c = text[i];
             switch (c)
             {
@@ -196,7 +203,40 @@ public static class LobContent
             }
         }
 
-        return new JsonIndentResult(builder.ToString(), null, null);
+        return builder.Length > maxLength
+            ? new JsonIndentResult(null, null, null, TooLarge: true)
+            : new JsonIndentResult(builder.ToString(), null, null);
+    }
+
+    /// <summary>Indenting walks the text without recursion: any depth is fine (the default stops at 64).</summary>
+    private static readonly JsonDocumentOptions IndentOptions = new() { MaxDepth = 100_000 };
+
+    /// <summary>
+    /// The 1-based character column (UTF-16, as the editor counts) of a position that <see cref="JsonException"/> gives in
+    /// UTF-8 bytes from the start of a line (lines end at <c>\n</c>).
+    /// </summary>
+    private static long CharacterColumn(string text, long line, long bytes)
+    {
+        var i = 0;
+        for (var seen = 0L; seen < line && i < text.Length; i++)
+        {
+            if (text[i] == '\n')
+            {
+                seen++;
+            }
+        }
+
+        var column = 1L;
+        while (bytes > 0 && i < text.Length)
+        {
+            // An unpaired surrogate becomes U+FFFD (3 bytes) when the parser transcodes, as here.
+            Rune.DecodeFromUtf16(text.AsSpan(i), out var rune, out var used);
+            bytes -= rune.Utf8SequenceLength;
+            column += used;
+            i += used;
+        }
+
+        return column;
     }
 
     /// <summary>Index of the quote that ends the string starting at <paramref name="start"/> (valid JSON: there is one).</summary>
@@ -262,7 +302,8 @@ public enum LobTextFormat
     Xml,
 }
 
-/// <summary>Result of <see cref="LobContent.IndentJson"/>: the indented text, or where the JSON is invalid (1-based).</summary>
-/// <param name="Column">Position in the line counted in UTF-8 bytes (as <see cref="JsonException"/> reports it); the
-/// same as the character for ASCII.</param>
-public sealed record JsonIndentResult(string? Text, long? Line, long? Column);
+/// <summary>
+/// Result of <see cref="LobContent.IndentJson"/>: the indented text, where the JSON is invalid (1-based, the column in
+/// characters as the editor counts them), or that the indented text would be too long.
+/// </summary>
+public sealed record JsonIndentResult(string? Text, long? Line, long? Column, bool TooLarge = false);
