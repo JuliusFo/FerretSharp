@@ -56,4 +56,4 @@ Eigener Reviewer-Agent über `56f8c466..f77cbafe`, zweiter Durchgang über die F
 7. (K) Ganzer Text nach jeder Tipp-Pause über Interop – **behoben** mit 1 (nur „bearbeitet“ und Länge).
 - Im E2E dazu gefunden und behoben: JSON mit BOM galt als Text, Einrücken meldete Position 1 (`DetectFormat`/`IndentJson` überspringen das BOM, es bleibt vorn); nach Rückgängig zeigte die Zeichenzahl Monacos Länge.
 - Zweiter Durchgang: N1 (nach Einrücken und Rückgängig zeigte die Zahl die eingerückte Länge) und N2 (BOM als unsichtbares Zeichen im Quelltext, jetzt `\uFEFF` bzw. `LobContent.Bom`) behoben; N3 (Regel und Protokoll) mit diesem Nachtrag und `ui-monaco.md`.
-- Vorher schon da: Strg+Enter ist im LOB-Editor „Filter anwenden“ (galt auch für die Textbox) – Frage an den Nutzer, ob in den Backlog.
+- Vorher schon da: Strg+Enter war im LOB-Editor „Filter anwenden“ (galt auch für die Textbox) und tat dort nichts, weil .NET Kürzel hinter einem Dialog ignoriert. Entscheidung des Nutzers: gleich mitnehmen statt Backlog – `ctrl+enter` steht in `editorKeys`, im Dialog-Monaco fügt es eine Zeile darunter ein (im E2E geprüft, im Grid wendet Strg+Enter weiter den Filter an).
