@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- In the table designer the head row of the columns (and of the constraints) stays in view again while scrolling, right below the designer's head with its actions – it scrolled away since the designer got its tabs.
+
 ## [3.56.0] - 2026-10-30
 
 The LOB dialog edits text in the code editor.
