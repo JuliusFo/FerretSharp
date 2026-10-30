@@ -189,6 +189,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IAppUpdater>(new VelopackUpdater(args));
         builder.Services.AddSingleton<UpdateState>();
         builder.Services.AddSingleton<MainWindow>();
+        builder.Services.AddSingleton<WebViewCapture>();
         builder.Services.AddSingleton(sp => new UiStallMonitor(
             Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>(), paths.LogsDirectory, sp.GetRequiredService<AppSettingsService>()));
 
@@ -215,7 +216,7 @@ public partial class App : Application
         }
 
         _host.Services.GetRequiredService<UiStallMonitor>().Start();
-        WatchSleep(_host.Services.GetRequiredService<ConnectionKeepAlive>());
+        WatchSleep(_host.Services.GetRequiredService<ConnectionKeepAlive>(), _host.Services.GetRequiredService<WebViewCapture>());
         _ = _host.Services.GetRequiredService<UpdateState>().StartAsync(); // never throws: a failed check is a note in the settings
     }
 
@@ -229,8 +230,9 @@ public partial class App : Application
     /// <summary>
     /// After sleep the sessions are usually gone (the VPN dropped, the database timed them out): check them a few seconds after
     /// waking instead of up to two minutes later, so the banner – or reconnecting by itself – comes before the next click.
+    /// The WebView's picture could stay frozen after waking (<see cref="WebViewCapture"/>): its capture is restarted too.
     /// </summary>
-    private void WatchSleep(ConnectionKeepAlive keepAlive)
+    private void WatchSleep(ConnectionKeepAlive keepAlive, WebViewCapture capture)
     {
         _powerModeChanged = (_, args) =>
         {
@@ -238,6 +240,7 @@ public partial class App : Application
             if (args.Mode == PowerModes.Resume)
             {
                 keepAlive.CheckSoon();
+                capture.RestartSoon("after sleep");
             }
         };
         SystemEvents.PowerModeChanged += _powerModeChanged;
