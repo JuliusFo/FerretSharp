@@ -1,0 +1,5 @@
+# Fix: Symbole kleiner Knöpfe mittig
+Fund des Nutzers (2026-10-30): Im Designer, Reiter Constraints, saß das ✕ der Zeilen sichtbar rechts von der Mitte. Branch `fix/icon-button-center`.
+- **Ursache:** `.icon-btn` setzte kein `padding`, es galt das Standardpadding des Browsers (1px 6px). Mit `box-sizing: border-box` bleiben einem 24px-Knopf 10px Inhalt für ein 14px-Icon; die einzige Spur des Grids ist so breit wie das Icon, steht am Inhaltsanfang (`justify-content: normal`) und läuft rechts über – `place-items: center` zentriert nur in der Spur. Bei 28px (Standard) passen genau 14px, deshalb fiel es nur bei kleineren Knöpfen auf.
+- **Fix:** `.icon-btn { padding: 0 }`. Alle `.icon-btn` haben feste Breiten, keiner braucht das Padding.
+- Gemessen mit der echten `ferretsharp.css` (Abstand Icon-Mitte zu Knopf-Mitte, vorher → jetzt): Designer-Zeilen und neue Constraints (24px) 2 → 0, `.icon-btn.small` (22px, Änderungsliste) 2 → 0, Spalten eines neuen Constraints/Index (22px) 1 → 0, Mehr-Menü und Filter-Presets (26px) 1 → 0; senkrecht überall 0.

@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- The ✕ and other symbols on small buttons sit in the middle again instead of slightly to the right – in the table designer's rows, the menu of a connection, the filter presets and the list of changes.
+
 ## [3.56.1] - 2026-10-30
 
 The window no longer freezes after sleep or stops at an intermediate picture, and the table designer keeps its column head in view.
