@@ -112,14 +112,14 @@ public static class LobContent
     }
 
     /// <summary>
-    /// What a CLOB holds, by its first character after leading white space: <c>{</c> or <c>[</c> JSON, <c>&lt;</c> XML,
-    /// anything else text. Only picks the colouring – whether the JSON is valid shows when it is indented.
+    /// What a CLOB holds, by its first character after leading white space and a BOM: <c>{</c> or <c>[</c> JSON,
+    /// <c>&lt;</c> XML, anything else text. Only picks the colouring – whether the JSON is valid shows when it is indented.
     /// </summary>
     public static LobTextFormat DetectFormat(string text)
     {
         foreach (var c in text)
         {
-            if (!char.IsWhiteSpace(c))
+            if (!char.IsWhiteSpace(c) && c != Bom)
             {
                 return c switch
                 {
@@ -141,6 +141,13 @@ public static class LobContent
     /// </summary>
     public static JsonIndentResult IndentJson(string text, long maxLength = LobLimits.MaxEditLength)
     {
+        if (text.StartsWith(Bom))
+        {
+            // The BOM stays in front; the editor does not show it, so positions count without it.
+            var inner = IndentJson(text[1..], maxLength);
+            return inner.Text is { } indented ? inner with { Text = Bom + indented } : inner;
+        }
+
         try
         {
             using var _ = JsonDocument.Parse(text, IndentOptions);
@@ -207,6 +214,8 @@ public static class LobContent
             ? new JsonIndentResult(null, null, null, TooLarge: true)
             : new JsonIndentResult(builder.ToString(), null, null);
     }
+
+    private const char Bom = '﻿';
 
     /// <summary>Indenting walks the text without recursion: any depth is fine (the default stops at 64).</summary>
     private static readonly JsonDocumentOptions IndentOptions = new() { MaxDepth = 100_000 };
