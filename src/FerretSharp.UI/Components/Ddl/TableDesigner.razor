@@ -284,6 +284,7 @@ else
     {
         if (_disposed || _designer is not { } designer || Active.Schema is not { } schema)
         {
+            _tablespacesRead ??= false; // nothing to read with: a new audit table must not wait for ever
             return;
         }
 

@@ -555,9 +555,11 @@ public class TableDesignTests
         Assert.EndsWith("""USING INDEX TABLESPACE "INDX" """.TrimEnd(), Clause(bitmap, "UK_STATUS"), StringComparison.Ordinal);
 
         var uk = new ConstraintInfo("UK_KUNDE_NAME", ConstraintType.Unique, ["NAME"], null, null, [], null, true, true, false, false, false);
-        var swapped = TableDesign.Plan(new DesignContext(Kunde, [uk], [Index("UK_KUNDE_NAME", "NORMAL", true, "NAME")], []),
-            Draft() with { DroppedConstraints = ["UK_KUNDE_NAME"], AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"])], IndexTablespace = "INDX" },
-            Facts((Rows, 0)));
+        var fk = new ConstraintDraft("FK_KUNDE_LAND", ConstraintType.ForeignKey, ["STATUS"], References: Land.Table.Ref, ReferencedColumns: ["CODE"]);
+        var swap = Draft() with { DroppedConstraints = ["UK_KUNDE_NAME"], AddedConstraints = [new ConstraintDraft("UK_NAME", ConstraintType.Unique, ["NAME"]), fk], IndexTablespace = "INDX" };
+        DesignPlan Swapped(params IndexInfo[] indexes) =>
+            TableDesign.Plan(new DesignContext(Kunde, [uk], indexes, []) { Referenced = new Dictionary<TableRef, TableDetails> { [Land.Table.Ref] = Land } }, swap, Facts((Rows, 0)));
+        var swapped = Swapped(Index("UK_KUNDE_NAME", "NORMAL", true, "NAME")); // the foreign key's index comes too: the notes are shown
         Assert.Empty(swapped.Problems);
         Assert.Equal($"""ALTER TABLE {T} ADD CONSTRAINT "UK_NAME" UNIQUE ("NAME")""", Clause(swapped, "UK_NAME"));
 
@@ -566,6 +568,14 @@ public class TableDesignTests
         Assert.Contains("UK_NAME nutzt den Index UK_KUNDE_NAME, falls er beim Löschen von UK_KUNDE_NAME bleibt (vorher eigens angelegt) – sonst legt Oracle einen neuen im Standard-Tablespace an, nicht im Index-Tablespace.",
             swapped.Warnings);
         Assert.DoesNotContain(swapped.Warnings, w => w.Contains("nutzt den vorhandenen Index", StringComparison.Ordinal));
+
+        // Another index that backs the key stays for sure, whatever comes first: Oracle takes it (third review pass).
+        foreach (var order in new[] { new[] { "IX_NAME_STATUS", "UK_KUNDE_NAME" }, ["UK_KUNDE_NAME", "IX_NAME_STATUS"] })
+        {
+            var both = Swapped([.. order.Select(n => n == "IX_NAME_STATUS" ? Index(n, "NORMAL", false, "NAME", "STATUS") : Index(n, "NORMAL", true, "NAME"))]);
+            Assert.Contains("UK_NAME nutzt den vorhandenen Index IX_NAME_STATUS – der Index-Tablespace gilt für ihn nicht.", both.Warnings);
+            Assert.DoesNotContain(both.Warnings, w => w.Contains("falls er beim Löschen", StringComparison.Ordinal));
+        }
     }
 
     [Fact]

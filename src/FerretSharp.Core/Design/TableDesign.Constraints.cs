@@ -354,18 +354,21 @@ public static partial class TableDesign
         /// </summary>
         private string? KeyIndexTablespace(ConstraintDraft added)
         {
-            if (context.Indexes.FirstOrDefault(i => IndexAdvice.BacksKey(i, added.Columns)) is not { } backing)
+            // An index named like a key this plan drops is that key's own: it stays only if it was created before the key
+            // (Oracle does not say which; an implicit one goes with the key). Any other backing index stays for sure.
+            bool OfDroppedKey(IndexInfo index) => _dropped.Contains(index.Name)
+                && context.Constraints.Any(c => c.Name == index.Name && c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique);
+            var backing = context.Indexes.Where(i => IndexAdvice.BacksKey(i, added.Columns)).OrderBy(OfDroppedKey).FirstOrDefault();
+            if (backing is null)
             {
                 Created(new NewIndex(Label(added))); // Oracle names the key's index after it
                 return _indexTablespace;
             }
 
-            // The index of a key this plan drops stays only if it was created before the key; Oracle does not say which. Said
-            // also while no other index comes: the chosen tablespace may not apply (review of WP-67).
-            if (_indexTablespace is not null && context.Constraints.FirstOrDefault(c => _dropped.Contains(c.Name)
-                    && c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && IndexAdvice.BacksKey(backing, c.Columns)) is { } dropped)
+            // Said also while no other index comes: the chosen tablespace may not apply (review of WP-67).
+            if (_indexTablespace is not null && OfDroppedKey(backing))
             {
-                Warnings.Add(TextFormat.Format(DesignText.KeyMayUseDroppedIndex, Label(added), backing.Name, dropped.Name));
+                Warnings.Add(TextFormat.Format(DesignText.KeyMayUseDroppedIndex, Label(added), backing.Name, backing.Name));
             }
             else if (_indexTablespace is not null)
             {
