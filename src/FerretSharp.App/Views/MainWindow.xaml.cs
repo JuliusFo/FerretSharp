@@ -10,7 +10,7 @@ public partial class MainWindow : Window
 {
     private bool _exitApproved;
 
-    public MainWindow(IServiceProvider services, WindowTheme theme, ExitGuard exitGuard, ILogger<MainWindow> logger)
+    public MainWindow(IServiceProvider services, WindowTheme theme, WebViewCapture capture, ExitGuard exitGuard, ILogger<MainWindow> logger)
     {
         theme.PrepareWebViewBackground();
         InitializeComponent();
@@ -21,6 +21,18 @@ public partial class MainWindow : Window
         {
             theme.AttachWebView(e.WebView.CoreWebView2);
             HoldMouseWhileDragging(e.WebView);
+            capture.Attach(e.WebView);
+        };
+        // Back from minimized, the picture is captured anew: the way out should it have frozen after all (2026-10-30).
+        var minimized = false;
+        StateChanged += (_, _) =>
+        {
+            if (minimized && WindowState != WindowState.Minimized)
+            {
+                capture.Restart("back from minimized");
+            }
+
+            minimized = WindowState == WindowState.Minimized;
         };
 
         // Only web links leave the app (release notes, GitHub): BlazorWebView opens every other URL with the system's default

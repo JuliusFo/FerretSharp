@@ -8,7 +8,7 @@ Rückmeldung eines Kollegen des Nutzers zum CLOB-Dialog (WP-10), mit Screenshot 
 2. JSON-Anzeige mit Färbung, „vielleicht mehr“.
 3. Doppelklick markiert den ganzen Text statt eines Worts (wie früher im SQL-Editor).
 4. Esc schließt den Dialog nicht, solange der Fokus im Textfeld ist.
-5. Bei großen CLOBs bleibt „Lädt …“ stehen, bis man klickt; ebenso leere Ergebniszeilen nach einem FK-Sprung (siehe „Offen“).
+5. Bei großen CLOBs bleibt „Lädt …“ stehen, bis man klickt; ebenso leere Ergebniszeilen nach einem FK-Sprung (siehe „Offen“; Ursache und Fix: `fix-webview-frozen-after-sleep.md`, ADR 0038).
 
 Vorgabe des Nutzers: zuerst ohne E2E-Lauf (er arbeitete selbst mit der App), der E2E-Lauf folgte am 2026-10-30.
 
