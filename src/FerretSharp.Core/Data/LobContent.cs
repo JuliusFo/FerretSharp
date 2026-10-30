@@ -1,10 +1,14 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Data;
 
-/// <summary>Helpers of the LOB editor (WP-10): hex view of a BLOB, file type by content, text files to CLOB text.</summary>
+/// <summary>
+/// Helpers of the LOB editor (WP-10): hex view of a BLOB, file type by content, text files to CLOB text, JSON or XML
+/// in a CLOB (colouring, indenting).
+/// </summary>
 public static class LobContent
 {
     private const int BytesPerLine = 16;
@@ -107,6 +111,124 @@ public static class LobContent
         }
     }
 
+    /// <summary>
+    /// What a CLOB holds, by its first character after leading white space: <c>{</c> or <c>[</c> JSON, <c>&lt;</c> XML,
+    /// anything else text. Only picks the colouring – whether the JSON is valid shows when it is indented.
+    /// </summary>
+    public static LobTextFormat DetectFormat(string text)
+    {
+        foreach (var c in text)
+        {
+            if (!char.IsWhiteSpace(c))
+            {
+                return c switch
+                {
+                    '{' or '[' => LobTextFormat.Json,
+                    '<' => LobTextFormat.Xml,
+                    _ => LobTextFormat.Text,
+                };
+            }
+        }
+
+        return LobTextFormat.Text;
+    }
+
+    /// <summary>
+    /// Valid JSON indented by two spaces per level, one member or element per line. Strings and numbers stay exactly as
+    /// written (no re-escaping, no number formatting) – only the white space between the tokens changes. Invalid JSON
+    /// (also with comments or trailing commas) gives the position of the first error instead.
+    /// </summary>
+    public static JsonIndentResult IndentJson(string text)
+    {
+        try
+        {
+            using var _ = JsonDocument.Parse(text);
+        }
+        catch (JsonException ex)
+        {
+            return new JsonIndentResult(null, (ex.LineNumber ?? 0) + 1, (ex.BytePositionInLine ?? 0) + 1);
+        }
+
+        var builder = new StringBuilder(text.Length + text.Length / 4);
+        var depth = 0;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            switch (c)
+            {
+                case '"':
+                    var end = StringEnd(text, i);
+                    builder.Append(text, i, end - i + 1);
+                    i = end;
+                    break;
+                case '{' or '[':
+                    var next = NextToken(text, i + 1);
+                    if (next < text.Length && text[next] == (c == '{' ? '}' : ']'))
+                    {
+                        builder.Append(c).Append(text[next]); // {} and [] stay on one line
+                        i = next;
+                    }
+                    else
+                    {
+                        builder.Append(c);
+                        NewLine(builder, ++depth);
+                    }
+
+                    break;
+                case '}' or ']':
+                    NewLine(builder, --depth);
+                    builder.Append(c);
+                    break;
+                case ',':
+                    builder.Append(c);
+                    NewLine(builder, depth);
+                    break;
+                case ':':
+                    builder.Append(": ");
+                    break;
+                default:
+                    if (!char.IsWhiteSpace(c))
+                    {
+                        builder.Append(c);
+                    }
+
+                    break;
+            }
+        }
+
+        return new JsonIndentResult(builder.ToString(), null, null);
+    }
+
+    /// <summary>Index of the quote that ends the string starting at <paramref name="start"/> (valid JSON: there is one).</summary>
+    private static int StringEnd(string text, int start)
+    {
+        for (var i = start + 1; i < text.Length; i++)
+        {
+            if (text[i] == '\\')
+            {
+                i++;
+            }
+            else if (text[i] == '"')
+            {
+                return i;
+            }
+        }
+
+        return text.Length - 1;
+    }
+
+    private static int NextToken(string text, int from)
+    {
+        while (from < text.Length && char.IsWhiteSpace(text[from]))
+        {
+            from++;
+        }
+
+        return from;
+    }
+
+    private static void NewLine(StringBuilder builder, int depth) => builder.Append('\n').Append(' ', depth * 2);
+
     /// <summary>"12.345 characters" / "1,2 MB" for the dialog.</summary>
     public static string Describe(object? value) => value switch
     {
@@ -131,3 +253,16 @@ public static class LobContent
     public static string ByteCount(long count) =>
         TextFormat.Plural(ValueCulture.German, count, DataText.ByteCountOne, DataText.ByteCountOther);
 }
+
+/// <summary>What a CLOB holds, for the colouring in the LOB editor.</summary>
+public enum LobTextFormat
+{
+    Text,
+    Json,
+    Xml,
+}
+
+/// <summary>Result of <see cref="LobContent.IndentJson"/>: the indented text, or where the JSON is invalid (1-based).</summary>
+/// <param name="Column">Position in the line counted in UTF-8 bytes (as <see cref="JsonException"/> reports it); the
+/// same as the character for ASCII.</param>
+public sealed record JsonIndentResult(string? Text, long? Line, long? Column);

@@ -51,4 +51,48 @@ public class LobContentTests
         Assert.Equal("2,0 MB", LobContent.Size(2 * 1024 * 1024));
         Assert.Equal("NULL", LobContent.Describe(null));
     }
+
+    [Theory]
+    [InlineData("  {\"a\":1}", LobTextFormat.Json)]
+    [InlineData("\n[1,2]", LobTextFormat.Json)]
+    [InlineData("<?xml version=\"1.0\"?><a/>", LobTextFormat.Xml)]
+    [InlineData("Hallo {x}", LobTextFormat.Text)]
+    [InlineData("   ", LobTextFormat.Text)]
+    public void The_format_follows_the_first_character_that_is_not_white_space(string text, LobTextFormat expected) =>
+        Assert.Equal(expected, LobContent.DetectFormat(text));
+
+    [Fact]
+    public void Json_is_indented_without_touching_strings_and_numbers()
+    {
+        const string json = """{"Group":"MES, \"0210\" {x}","Values":[{"Name":"Kst","Value":1.50E+3},{}],"Empty":[ ],"Ä":"äö"}""";
+
+        var result = LobContent.IndentJson(json);
+
+        Assert.Equal(
+            """
+            {
+              "Group": "MES, \"0210\" {x}",
+              "Values": [
+                {
+                  "Name": "Kst",
+                  "Value": 1.50E+3
+                },
+                {}
+              ],
+              "Empty": [],
+              "Ä": "äö"
+            }
+            """.ReplaceLineEndings("\n"),
+            result.Text);
+    }
+
+    [Fact]
+    public void Invalid_json_gives_the_position_of_the_error_instead()
+    {
+        var result = LobContent.IndentJson("{\"a\":1,}");
+
+        Assert.Null(result.Text);
+        Assert.Equal(1, result.Line);
+        Assert.Equal(8, result.Column);
+    }
 }
