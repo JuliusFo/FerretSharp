@@ -310,6 +310,7 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
         try
         {
             Assert.Equal(tablespace, (await connection.Schema.GetObjectInfoAsync(new TableSummary(table.Owner, table.Name, TableKind.Table), Ct)).Tablespace);
+            Assert.Equal(tablespace, (await connection.Schema.GetTablespacesAsync(table, Ct)).TableTablespace); // where its audit table would go
             var indexes = await connection.Schema.GetIndexesAsync(table, Ct);
             Assert.Equal(["IX_TD_SORT_KUNDE_ID", "PK_TD_SORT"], indexes.Select(i => i.Name).Order());
             Assert.All(indexes, i => Assert.Equal(tablespace, i.Tablespace));
@@ -331,6 +332,65 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
         finally
         {
             await connection.Editor.ExecuteDdlAsync($"DROP TABLE \"{table.Owner}\".\"{table.Name}\"", Ct);
+        }
+    }
+
+    /// <summary>
+    /// Review of WP-67: a key whose index was created before it (as SQL Developer and DBMS_METADATA write it) leaves the index
+    /// behind when dropped – the designer's new key on the same columns takes it instead of failing with ORA-01408 after the
+    /// old key is gone. A temporary table is told apart: its indexes get no tablespace.
+    /// </summary>
+    [Fact]
+    public async Task A_new_key_takes_the_index_a_dropped_key_left_and_a_temporary_table_is_known()
+    {
+        await using var connection = await OpenAsync("Design key swap");
+        var table = Ref("TD_SWAP");
+        var temporary = Ref("TD_TEMP");
+        foreach (var sql in new[]
+        {
+            $"CREATE TABLE \"{table.Owner}\".\"TD_SWAP\" (A NUMBER(10), B NUMBER(10))",
+            $"CREATE UNIQUE INDEX \"{table.Owner}\".\"UK_TD_SWAP\" ON \"{table.Owner}\".\"TD_SWAP\" (A)",
+            $"ALTER TABLE \"{table.Owner}\".\"TD_SWAP\" ADD CONSTRAINT UK_TD_SWAP UNIQUE (A) USING INDEX \"{table.Owner}\".\"UK_TD_SWAP\"",
+            $"CREATE GLOBAL TEMPORARY TABLE \"{temporary.Owner}\".\"TD_TEMP\" (A NUMBER(10))",
+        })
+        {
+            await connection.Editor.ExecuteDdlAsync(sql, Ct);
+        }
+
+        try
+        {
+            var details = await connection.Schema.GetDetailsAsync(new TableSummary(table.Owner, table.Name, TableKind.Table), Ct);
+            var tablespaces = await connection.Schema.GetTablespacesAsync(table, Ct);
+            var context = new DesignContext(details, await connection.Schema.GetConstraintsAsync(table, Ct), await connection.Schema.GetIndexesAsync(table, Ct), [])
+            {
+                Tablespaces = tablespaces,
+            };
+            var draft = TableDraft.Of(details) with
+            {
+                DroppedConstraints = ["UK_TD_SWAP"],
+                AddedConstraints = [new ConstraintDraft("PK_TD_SWAP", ConstraintType.PrimaryKey, ["A"])],
+                IndexTablespace = Assert.IsType<string>(tablespaces.Default),
+            };
+            var plan = TableDesign.Plan(context, draft, new DataFacts(new Dictionary<DataQuestion, long> { [new DataQuestion(DataQuestionKind.Rows)] = 0 }));
+            Assert.True(plan.CanRun, string.Join(" ", plan.Problems));
+            Assert.DoesNotContain(plan.Statements, s => s.Contains("TABLESPACE", StringComparison.Ordinal));
+            foreach (var sql in plan.Statements)
+            {
+                await connection.Editor.ExecuteDdlAsync(sql, Ct);
+            }
+
+            var key = Assert.Single(await connection.Schema.GetConstraintsAsync(table, Ct), c => c.Type == ConstraintType.PrimaryKey);
+            Assert.Equal(["A"], key.Columns);
+
+            var temp = await connection.Schema.GetTablespacesAsync(temporary, Ct);
+            Assert.True(temp.TemporaryTable);
+            Assert.Null(temp.TableTablespace);
+            Assert.False(tablespaces.TemporaryTable);
+        }
+        finally
+        {
+            await connection.Editor.ExecuteDdlAsync($"DROP TABLE \"{table.Owner}\".\"TD_SWAP\"", Ct);
+            await connection.Editor.ExecuteDdlAsync($"DROP TABLE \"{temporary.Owner}\".\"TD_TEMP\"", Ct);
         }
     }
 }
