@@ -196,7 +196,6 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 - Aus R8 offen: die Rechtsklick-Menüs der Spaltenansicht und der Tab-Leiste als `ContextMenuHost` – er bräuchte Zugriff auf das Element des offenen Menüs und einen Hook beim Schließen (B2); ein Bild eines Diagramms im README (D1).
 - Aus R8 offen (C12): mit echter Maus noch nicht geprüft – Zellmarkierung über den Fensterrand, Filterzeilen ziehen, Breite von Formular/Änderungsübersicht (A27), Spaltenwahl Klick/Ctrl/Shift, Sortierköpfe, `ValuePicker`, Datensatzdiagramm, Kopie in eine andere Verbindung mit Fortschritt (A2).
 
-- E2E-Hilfsskripte ins Repo (`tools/e2e/`, Gesamt-Review 3.31.0): `realclick.ps1` (`SendInput`, Vordergrund-Prüfung, 40-Byte-`INPUT`), CDP-Aufruf per `node` (Target `https://0.0.0.1/`, `Runtime.evaluate`, `Input.dispatch*`, `Page.captureScreenshot`) und App-Start mit `--data-dir`/Debug-Port – heute schreibt jede Session sie neu im Scratchpad (`docs/e2e-testing.md`).
 - E2E für den DDL-Vorschlag des Schema-Vergleichs: Die Beispiel-DB hat nur ein Schema; ein zweiter Benutzer im Testcontainer (`New-SampleDb.ps1` mit Option) gäbe zwei vergleichbare Seiten.
 - Web-Host (`FerretSharp.DevHost`, Blazor Server) mit Fake-Daten, um die UI im Browser mit Hot Reload zu entwickeln und automatisiert zu prüfen.
 - bUnit-Tests für UI-Komponenten.
