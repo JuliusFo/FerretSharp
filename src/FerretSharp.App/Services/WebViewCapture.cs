@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -38,9 +39,17 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     /// <summary>The control's <c>GraphicsItemD3DImage</c>; created when the control is loaded.</summary>
     private static readonly FieldInfo? ImageField = typeof(WebView2CompositionControl).GetField("_d3dImage", Private);
 
-    /// <summary>Its handlers of the display change: the first drops the back buffer, the second rebuilds (with retries).</summary>
+    /// <summary>
+    /// Its handlers of the display change: the first marks the change and drops the back buffer, the second rebuilds with
+    /// retries after a <c>COMException</c>. The rebuild itself is called here first (any other exception would reach the
+    /// "unexpected error" dialog and leave the change marked, every frame dropped) – the second only for its retries.
+    /// </summary>
     private static readonly MethodInfo? DisplayChanging = ImageField?.FieldType.GetMethod("OnDisplaySettingsChanging", Private, HandlerParameters);
     private static readonly MethodInfo? DisplayChanged = ImageField?.FieldType.GetMethod("OnDisplaySettingsChanged", Private, HandlerParameters);
+    private static readonly MethodInfo? Rebuild = ImageField?.FieldType.GetMethod("RecoverAfterDisplayChange", Private, Type.EmptyTypes);
+    private static readonly FieldInfo? ChangePending = ImageField?.FieldType.GetField("_displayChangePending", Private);
+
+    private static bool CanRestart => DisplayChanging is not null && DisplayChanged is not null && Rebuild is not null && ChangePending is not null;
 
     /// <summary>Its frame pool (new with every rebuild), its handler of a frame and the copy of the next frame into the image.</summary>
     private static readonly FieldInfo? PoolField = ImageField?.FieldType.GetField("_framePool", Private);
@@ -48,6 +57,14 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     private static readonly MethodInfo? RequestRender = ImageField?.FieldType.GetMethod("RequestRender", BindingFlags.Instance | BindingFlags.Public, Type.EmptyTypes);
 
     private static readonly TimeSpan AfterWaking = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Dropping the back buffer locks the image without a limit (<c>D3DImage.Lock</c>): only WPF's render thread frees it,
+    /// by presenting the last copy. Should it have failed (waking at a dock), that would hang the UI thread for good – so a
+    /// restart waits, without blocking, at most this long for the lock to be free, and is left out otherwise.
+    /// </summary>
+    private static readonly TimeSpan RestartWait = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan RestartStep = TimeSpan.FromMilliseconds(50);
 
     /// <summary>How often a frame that waits checks the image again, and for how long at most (then copied or dropped as before).</summary>
     private static readonly TimeSpan HoldStep = TimeSpan.FromMilliseconds(4);
@@ -62,10 +79,15 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     private WebView2CompositionControl? _control;
     private D3DImage? _watched;
 
+    private DispatcherTimer? _restart;
+    private string _restartReason = "";
+    private long _restartSince;
+
     private Direct3D11CaptureFramePool? _pool;
     private DispatcherTimer? _hold;
     private long _heldSince;
     private int _held;
+    private int _dropped;
     private TimeSpan _longestHold;
     private long _lastNote;
 
@@ -73,12 +95,14 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     public void Attach(WebView2CompositionControl control)
     {
         _control = control;
-        if (ImageField is null || DisplayChanging is null || DisplayChanged is null)
+        if (ImageField is null || !CanRestart)
         {
             logger.LogWarning("The WebView's capture cannot be restarted with this WebView2 version (members not found)");
         }
         else
         {
+            _restart = new DispatcherTimer(DispatcherPriority.Render, control.Dispatcher) { Interval = RestartStep };
+            _restart.Tick += (_, _) => RestartWhenFree();
             WatchFrontBuffer();
         }
 
@@ -116,10 +140,51 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
         });
     }
 
-    /// <summary>Rebuilds devices and capture as after a change of the display settings (on the UI thread).</summary>
+    /// <summary>
+    /// Rebuilds devices and capture as after a change of the display settings (on the UI thread) – once the image's lock is
+    /// free (<see cref="RestartWait"/>); a restart asked for while one waits joins it.
+    /// </summary>
     public void Restart(string reason)
     {
-        if (_control is null || ImageField?.GetValue(_control) is not { } image || DisplayChanging is null || DisplayChanged is null)
+        if (_restart is not { } timer)
+        {
+            return;
+        }
+
+        _restartReason = reason;
+        if (timer.IsEnabled)
+        {
+            return;
+        }
+
+        _restartSince = Stopwatch.GetTimestamp();
+        RestartWhenFree();
+    }
+
+    private void RestartWhenFree()
+    {
+        if (CanWrite())
+        {
+            _restart!.Stop();
+            RestartNow(_restartReason);
+            return;
+        }
+
+        if (Stopwatch.GetElapsedTime(_restartSince) < RestartWait)
+        {
+            _restart!.Start();
+            return;
+        }
+
+        _restart!.Stop();
+        logger.LogWarning("Restarting the WebView's capture ({Reason}) left out: the image stayed locked for {Seconds} s, WPF's render thread does not present",
+            _restartReason, RestartWait.TotalSeconds);
+    }
+
+    /// <summary>The lock is free and nothing on this thread takes it before the back buffer is dropped: no wait in there.</summary>
+    private void RestartNow(string reason)
+    {
+        if (_control is not { } control || ImageField?.GetValue(control) is not { } image)
         {
             return;
         }
@@ -128,13 +193,52 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
         logger.LogInformation("Restarting the WebView's capture ({Reason})", reason);
         try
         {
-            DisplayChanging.Invoke(image, [null, EventArgs.Empty]);
-            DisplayChanged.Invoke(image, [null, EventArgs.Empty]);
+            DisplayChanging!.Invoke(image, [null, EventArgs.Empty]);
         }
         catch (TargetInvocationException ex)
         {
             logger.LogWarning(ex.InnerException, "Restarting the WebView's capture failed");
+            return;
         }
+
+        // Like the control after a display change: rebuilt once the dropped back buffer has been committed.
+        control.Dispatcher.BeginInvoke(DispatcherPriority.Normal, () => RebuildNow(image));
+    }
+
+    private void RebuildNow(object image)
+    {
+        if (ChangePending!.GetValue(image) is not true)
+        {
+            return; // rebuilt meanwhile (a change of the display settings) or the control is gone
+        }
+
+        try
+        {
+            Rebuild!.Invoke(image, null);
+            TakeOverPool(); // the rebuild made a new pool, with the control's handler on it
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException is COMException)
+        {
+            try
+            {
+                DisplayChanged!.Invoke(image, [null, EventArgs.Empty]); // the device is not back yet: the control's retries
+            }
+            catch (TargetInvocationException again)
+            {
+                Unmark(image, again);
+            }
+        }
+        catch (TargetInvocationException ex)
+        {
+            Unmark(image, ex);
+        }
+    }
+
+    /// <summary>Left marked, the control would drop every frame; unmarked, the next restart (restore from minimized) tries again.</summary>
+    private void Unmark(object image, TargetInvocationException ex)
+    {
+        ChangePending!.SetValue(image, false);
+        logger.LogWarning(ex.InnerException, "Rebuilding the WebView's capture failed");
     }
 
     /// <summary>The image exists only after the control has loaded: watched from the first chance on, once.</summary>
@@ -176,7 +280,7 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
             _pool = pool;
             logger.LogDebug("Frames of the WebView's capture taken over");
         }
-        catch (Exception ex) when (ex is ObjectDisposedException or System.Runtime.InteropServices.COMException)
+        catch (Exception ex) when (ex is ObjectDisposedException or COMException)
         {
             logger.LogDebug("Taking over the WebView's frame pool failed: {Message}", ex.Message); // disposed by a rebuild: the next check
         }
@@ -186,7 +290,9 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     {
         if (!ReferenceEquals(pool, _pool) || _hold is not { } hold || hold.IsEnabled)
         {
-            return; // an old pool; or a frame already waits – the copy then takes the newest frame of the pool
+            // An old pool; or a frame already waits. The pool has one buffer, so nothing new comes while it is held: what
+            // changed meanwhile came as the next frame once the buffer was free (observed under load, not documented).
+            return;
         }
 
         if (CanWrite())
@@ -202,14 +308,15 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     private void DeliverHeld()
     {
         var waited = Stopwatch.GetElapsedTime(_heldSince);
-        if (!CanWrite() && waited < HoldLimit)
+        var free = CanWrite();
+        if (!free && waited < HoldLimit)
         {
             return;
         }
 
         _hold!.Stop();
         Render(); // past the limit (front buffer gone): the control drops it as it would have
-        NoteHeld(waited);
+        NoteHeld(waited, dropped: !free);
     }
 
     /// <summary>
@@ -245,10 +352,21 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
         }
     }
 
-    /// <summary>A held frame is normal under load; the log gets how often and how long, at most once a minute.</summary>
-    private void NoteHeld(TimeSpan waited)
+    /// <summary>
+    /// A held frame is normal under load; the log gets how often and how long, at most once a minute – and how many were
+    /// still dropped after the limit (those are lost as before the fix).
+    /// </summary>
+    private void NoteHeld(TimeSpan waited, bool dropped)
     {
-        _held++;
+        if (dropped)
+        {
+            _dropped++;
+        }
+        else
+        {
+            _held++;
+        }
+
         if (waited > _longestHold)
         {
             _longestHold = waited;
@@ -259,8 +377,10 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
             return;
         }
 
-        logger.LogDebug("WebView frames held until the image was free: {Count}, longest {Longest} ms", _held, (int)_longestHold.TotalMilliseconds);
+        logger.LogDebug("WebView frames held until the image was free: {Count}, longest {Longest} ms; dropped after {Limit} s: {Dropped}",
+            _held, (int)_longestHold.TotalMilliseconds, HoldLimit.TotalSeconds, _dropped);
         _held = 0;
+        _dropped = 0;
         _longestHold = TimeSpan.Zero;
         _lastNote = Stopwatch.GetTimestamp();
     }
