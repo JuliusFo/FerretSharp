@@ -24,3 +24,17 @@ Erneuter Test beim Kollegen (2026-10-30): Ein Klick irgendwo auf den LOB-Dialog 
 - Gebaut: `WebViewCapture` übernimmt die Bilder des Bildpuffers (Handler des Controls ab, eigener an), wartet bei belegter Sperre und kopiert dann (`RequestRender`), höchstens 1 s; ein neuer Bildpuffer nach einem Wiederaufbau wird übernommen (Prüfung alle 2 s). Debug-Zeilen: „Frames of the WebView's capture taken over“, „WebView frames held until the image was free: N, longest X ms“ (höchstens einmal je Minute).
 - E2E: Stresstest im Scratchpad (CDP: Serien von 2–240 Bildwechseln per `requestAnimationFrame`, danach Fensterbild per `PrintWindow` prüfen) – vor und nach dem Fix kein verlorenes Bild, die Sperre war auf diesem Rechner nie belegt (keine „held“-Zeile). Gegenprobe mit einem Handler, der nichts tut: Das Bild blieb stehen, der Handler des Controls war also ab. Nach Minimieren/Wiederherstellen neuer Bildpuffer übernommen, danach wieder kein verlorenes Bild; echter Klick wirkt sichtbar.
 - Beim Kollegen (Test-Build 3.56.1-test.1, 2026-10-30): Die Abläufe oben zeigen das Ergebnis ohne Klick. Log: „held … 1, longest 47 ms“, eine Minute später „134, longest 301 ms“ – auf seinem Rechner ist die Sperre oft und teils lange belegt, also genau die verworfenen Bilder von vorher.
+
+## Nachtrag: Code-Review (2026-10-30)
+Review per eigenem Agenten, Befunde nachgeprüft. Entscheidung des Nutzers: „Alle beheben“ (zu 1: Neustart auslassen statt blockierend warten; zu 6: nur Doku, kein Testprojekt – beides wie vorgeschlagen).
+
+1. S – `Restart` → `OnDisplaySettingsChanging` → `ClearBackBuffer` sperrt mit `Lock()` ohne Grenze; bei ausgefallenem Render-Thread hinge der UI-Thread für immer: behoben, Neustart erst bei freier Sperre (`TryLock(0)` alle 50 ms, höchstens 1 s), sonst Warnung. Der Hänger selbst ist nicht nachzustellen; per Versuchsschalter (Sperre als belegt gemeldet, danach entfernt) geprüft: Warnung nach 1 s, App bleibt bedienbar.
+2. K – Neuer Bildpuffer nach einem Neustart erst bis zu 2 s später übernommen: behoben, Übernahme direkt nach dem Wiederaufbau (E2E: 50–70 ms nach jedem Neustart).
+3. K – Kommentar „newest frame of the pool“ falsch (ein Puffer): korrigiert, Verhalten im ADR als beobachtet vermerkt.
+4. K – Nach 1 s verworfene Bilder zählten als „held“: behoben, eigene Zahl „dropped after 1 s“ in der Debug-Zeile.
+5. K – Andere Ausnahme als `COMException` beim Wiederaufbau ergäbe Fehlerdialog und markierte Änderung (jedes Bild verworfen): behoben, `RecoverAfterDisplayChange` wird selbst aufgerufen, `COMException` geht an die Wiederholungen des Controls, alles andere wird geloggt und die Markierung zurückgesetzt. Nicht nachgestellt (keine solche Ausnahme auslösbar).
+6. K – Kein Test sichert die privaten Member bzw. das Abhängen des Handlers: nur dokumentiert (ADR 0038, Gegenprobe bei jedem Heben); fehlendes App-Testprojekt im Backlog.
+
+Zweiter Durchgang des Reviewers: 1–5 abgedeckt, nichts anderes kaputt (Reentranz von Neustart/Wiederaufbau/Halten, echter Display-Wechsel parallel geprüft). Neu: K – Kommentar behauptete, der Wiederaufbau laufe nach dem Commit des freigegebenen Back Buffers (`BeginInvoke` mit Normal läuft vor dem Render-Durchgang): Kommentar korrigiert, Verhalten wie beim Control.
+
+Ohne Unit-Test (kein Testprojekt für `FerretSharp.App`); Build, Tests und E2E (Neustarts, Stresstest, echter Klick) grün.
