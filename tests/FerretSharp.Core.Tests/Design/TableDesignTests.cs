@@ -493,6 +493,7 @@ public class TableDesignTests
     {
         var noIndex = PlanWith(WithLand(new ConstraintDraft("FK", ConstraintType.ForeignKey, ["LAND"], References: Land.Table.Ref, ReferencedColumns: ["CODE"], WithIndex: false)));
         Assert.Equal(2, noIndex.Statements.Count);
+        Assert.Empty(noIndex.NewIndexes); // nothing for the index tablespace to apply to
         Assert.Contains("FK bekommt keinen Index: Löschen oder Ändern eines referenzierten Schlüssels sperrt dann diese ganze Tabelle und durchsucht sie.", noIndex.Warnings);
         Assert.Contains("Neue Constraints prüfen die vorhandenen Zeilen: Duplikate, NULLs, Zeilen gegen einen Check oder ohne Elternzeile lassen sie scheitern (ORA-02437, ORA-02299, ORA-02293, ORA-02298).", noIndex.Warnings);
 
@@ -524,6 +525,7 @@ public class TableDesignTests
             $"""ALTER TABLE {T} ADD CONSTRAINT "UK_STATUS" UNIQUE ("STATUS") USING INDEX TABLESPACE "INDX" """.TrimEnd(),
         ], plan.Statements);
         Assert.Equal(["UK_NAME nutzt den vorhandenen Index IX_NAME – der Index-Tablespace gilt für ihn nicht."], plan.Warnings);
+        Assert.Equal([new NewIndex("UK_STATUS")], plan.NewIndexes);
         Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
     }
 
@@ -742,6 +744,7 @@ public class TableDesignTests
             """CREATE INDEX "SHOP"."IX_ORT_LAND" ON "SHOP"."ORT" ("LAND") TABLESPACE "INDX" """.TrimEnd(),
         ], plan.Statements);
         Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
+        Assert.Equal([new NewIndex("PK_ORT"), new NewIndex("IX_ORT_LAND", "FK_ORT_LAND")], plan.NewIndexes);
         Assert.Equal(["SHOP hat im Tablespace INDX kein Kontingent: Oracle lehnt die erste Zeile ab (ORA-01950), bei einer leeren Tabelle erst, wenn sie eine bekommt."],
             plan.Warnings); // once for both indexes, none for DATA
     }

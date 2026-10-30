@@ -102,7 +102,7 @@ else
                             @ColumnsTab(designer)
                             break;
                         case DesignerSection.Constraints:
-                            @ConstraintsTab(designer)
+                            @ConstraintsTab(designer, tablePlan.NewIndexes)
                             break;
                         case DesignerSection.Audit:
                             @AuditTab(designer, audit)
@@ -128,6 +128,9 @@ else
 
 @code {
     private TableDesignerDraft? _designer;
+
+    private static string IndexLabel(NewIndex index) =>
+        index.ForeignKey is { } foreignKey ? TextFormat.Format(SchemaViewText.Tablespace_IndexForForeignKey, index.Name, foreignKey) : index.Name;
     private readonly string _indexTablespaceId = $"designer-index-tablespace-{Guid.NewGuid():N}";
 
     /// <summary>How the last run failed: shown in the panel until it runs again.</summary>
@@ -666,13 +669,7 @@ else
     /// The table's constraints – each renamed in place, a check's condition and a foreign key's delete rule changed, a
     /// renamed key's index of its name along – then the new ones.
     /// </summary>
-    private RenderFragment ConstraintsTab(TableDesignerDraft designer) => @<text>
-        <div class="designer-tablespace" title="@SchemaViewText.Tablespace_IndexTitle">
-            <label for="@_indexTablespaceId">@SchemaViewText.Tablespace_IndexLabel</label>
-            <TablespacePicker Id="@_indexTablespaceId" Value="@designer.IndexTablespace" ValueChanged="value => designer.IndexTablespace = value"
-                              Tablespaces="designer.Tablespaces" Suggestion="designer.Tablespaces.ForIndexes()" Label="@SchemaViewText.Tablespace_IndexLabel"
-                              Title="@SchemaViewText.Tablespace_IndexTitle" />
-        </div>
+    private RenderFragment ConstraintsTab(TableDesignerDraft designer, IReadOnlyList<NewIndex> newIndexes) => @<text>
         @if (designer.Existing.Count > 0)
         {
             <table class="columns designer-columns designer-existing">
@@ -801,6 +798,17 @@ else
                     </span>
                 }
                 <button class="icon-btn" title="@SchemaViewText.Designer_Drop" @onclick="() => designer.AddedConstraints.Remove(a)">@Icons.Close</button>
+            </div>
+        }
+        @* WP-67: only where the draft creates indexes – a key's own (no index of the table backs it) and a foreign key's "with index". *@
+        @if (newIndexes.Count > 0)
+        {
+            <div class="designer-tablespace" title="@SchemaViewText.Tablespace_IndexTitle">
+                <label for="@_indexTablespaceId">@SchemaViewText.Tablespace_IndexLabel</label>
+                <TablespacePicker Id="@_indexTablespaceId" Value="@designer.IndexTablespace" ValueChanged="value => designer.IndexTablespace = value"
+                                  Tablespaces="designer.Tablespaces" Suggestion="designer.Tablespaces.ForIndexes()" Label="@SchemaViewText.Tablespace_IndexLabel"
+                                  Title="@SchemaViewText.Tablespace_IndexTitle" />
+                <span class="muted small">@TextFormat.Format(SchemaViewText.Tablespace_IndexesFor, string.Join(", ", newIndexes.Select(IndexLabel)))</span>
             </div>
         }
         <div class="designer-add">

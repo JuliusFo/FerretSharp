@@ -138,7 +138,18 @@ public sealed record DesignPlan(IReadOnlyList<DdlStep> Steps, IReadOnlyList<stri
 
     /// <summary>The <see cref="Problems"/> about constraints (the designer marks its constraints tab); the rest are the columns'.</summary>
     public IReadOnlyList<string> ConstraintProblems { get; init; } = [];
+
+    /// <summary>
+    /// The indexes the plan creates (WP-67): those of new keys no index of the table backs, and those of new foreign keys –
+    /// where <see cref="TableDraft.IndexTablespace"/> applies. In the order of the constraints.
+    /// </summary>
+    public IReadOnlyList<NewIndex> NewIndexes { get; init; } = [];
 }
+
+/// <summary>An index a design plan creates.</summary>
+/// <param name="Name">Its name – a new key's index is named after the key (its kind and columns while Oracle names it).</param>
+/// <param name="ForeignKey">The foreign key it is for; null for the index of a key.</param>
+public sealed record NewIndex(string Name, string? ForeignKey = null);
 
 /// <summary>
 /// The column designer for an existing table (WP-23, stage 2): turns a <see cref="TableDraft"/> into the DDL that makes
@@ -412,7 +423,11 @@ public static partial class TableDesign
                     .Select(s => TextFormat.Format(DesignText.StatementNotDdl, s.Length <= 80 ? s : s[..79] + "…")));
             }
 
-            return new DesignPlan(steps, Problems.Distinct().ToList(), Warnings.Distinct().ToList()) { ConstraintProblems = _constraintProblems.Distinct().ToList() };
+            return new DesignPlan(steps, Problems.Distinct().ToList(), Warnings.Distinct().ToList())
+            {
+                ConstraintProblems = _constraintProblems.Distinct().ToList(),
+                NewIndexes = _newIndexes,
+            };
         }
 
         /// <summary>

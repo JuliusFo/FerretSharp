@@ -1636,7 +1636,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .tablespace-picker { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .tablespace-picker select.field { width: auto; min-width: 220px; }
 .tablespace-picker .link-btn { padding-left: 4px; }
-.designer-tablespace { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 12px; font-size: 12.5px; }
+.designer-tablespace { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 4px 0 12px; font-size: 12.5px; }
 .ddl-draft { display: flex; flex-direction: column; gap: 8px; }
 .ddl-draft .hint.small, .ddl-problems { margin: 0; }
 .ddl-problems { padding-left: 18px; color: var(--danger); font-size: 12.5px; }

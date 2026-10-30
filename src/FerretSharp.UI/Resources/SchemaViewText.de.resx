@@ -1189,7 +1189,7 @@
     <value>Tablespace</value>
   </data>
   <data name="Tablespace_IndexLabel" xml:space="preserve">
-    <value>Index-Tablespace</value>
+    <value>Tablespace der neuen Indizes</value>
   </data>
   <data name="Tablespace_IndexTitle" xml:space="preserve">
     <value>Für die Indizes neuer Primär- und Unique-Schlüssel und neuer Fremdschlüssel</value>
@@ -1226,5 +1226,11 @@
   </data>
   <data name="Indexes_DescendingTitle" xml:space="preserve">
     <value>Absteigend – Klick für aufsteigend</value>
+  </data>
+  <data name="Tablespace_IndexesFor" xml:space="preserve">
+    <value>für {0}</value>
+  </data>
+  <data name="Tablespace_IndexForForeignKey" xml:space="preserve">
+    <value>{0} (Index für {1})</value>
   </data>
 </root>

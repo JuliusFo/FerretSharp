@@ -52,8 +52,8 @@ public static partial class TableDesign
     {
         private bool PrimaryKeyDropped => context.Constraints.Any(c => c.Type == ConstraintType.PrimaryKey && _dropped.Contains(c.Name));
 
-        /// <summary>An index this plan creates goes into <see cref="TableDraft.IndexTablespace"/>: its name is checked once.</summary>
-        private bool _indexTablespaceUsed;
+        /// <summary>The indexes this plan creates, in <see cref="TableDraft.IndexTablespace"/> (<see cref="DesignPlan.NewIndexes"/>).</summary>
+        private readonly List<NewIndex> _newIndexes = [];
 
         /// <summary>Names existing constraints get by renaming: taken for new ones, like the names they have now.</summary>
         private readonly HashSet<string> _renamedTo = new(StringComparer.Ordinal);
@@ -291,7 +291,7 @@ public static partial class TableDesign
                     {
                         var name = IndexDesign.SuggestName(current.Table.Name, added.Columns, indexNames);
                         indexNames.Add(name);
-                        _indexTablespaceUsed |= !string.IsNullOrEmpty(draft.IndexTablespace);
+                        _newIndexes.Add(new NewIndex(name, Label(added)));
                         Keep(DdlStepKind.CreateIndex, IndexDesign.Ddl(new IndexDraft(name, added.Columns) { Tablespace = draft.IndexTablespace }, current.Table.Ref));
                     }
                     else
@@ -301,7 +301,7 @@ public static partial class TableDesign
                 }
             }
 
-            if (_indexTablespaceUsed)
+            if (_newIndexes.Count > 0)
             {
                 IndexDesign.CheckTablespace(draft.IndexTablespace, Table.Owner, context.Tablespaces, Problems, Warnings);
             }
@@ -314,20 +314,19 @@ public static partial class TableDesign
         /// </summary>
         private string? KeyIndexTablespace(TableDraft draft, ConstraintDraft added, IReadOnlyList<ConstraintInfo> keys)
         {
-            if (string.IsNullOrEmpty(draft.IndexTablespace))
-            {
-                return null;
-            }
-
             var backing = context.Indexes.FirstOrDefault(i => !_dropped.Contains(i.Name) && IndexAdvice.Backs(i, added.Columns))?.Name
                           ?? keys.FirstOrDefault(k => !_dropped.Contains(k.Name) && BacksKey(k.Columns, added.Columns))?.Name;
             if (backing is null)
             {
-                _indexTablespaceUsed = true;
+                _newIndexes.Add(new NewIndex(Label(added))); // Oracle names the key's index after it
                 return draft.IndexTablespace;
             }
 
-            Warnings.Add(TextFormat.Format(DesignText.KeyUsesIndex, Label(added), backing));
+            if (!string.IsNullOrEmpty(draft.IndexTablespace))
+            {
+                Warnings.Add(TextFormat.Format(DesignText.KeyUsesIndex, Label(added), backing));
+            }
+
             return null;
         }
 

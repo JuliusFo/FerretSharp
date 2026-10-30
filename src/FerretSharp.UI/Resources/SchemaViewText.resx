@@ -1459,7 +1459,7 @@
     <value>Tablespace</value>
   </data>
   <data name="Tablespace_IndexLabel" xml:space="preserve">
-    <value>Index tablespace</value>
+    <value>Tablespace of the new indexes</value>
     <comment>Designer: tablespace of the indexes the draft creates</comment>
   </data>
   <data name="Tablespace_IndexTitle" xml:space="preserve">
@@ -1508,5 +1508,13 @@
   <data name="Indexes_DescendingTitle" xml:space="preserve">
     <value>Descending – click for ascending</value>
     <comment>Toggle of a column in the index draft</comment>
+  </data>
+  <data name="Tablespace_IndexesFor" xml:space="preserve">
+    <value>for {0}</value>
+    <comment>{0}: the indexes the draft creates, comma-separated</comment>
+  </data>
+  <data name="Tablespace_IndexForForeignKey" xml:space="preserve">
+    <value>{0} (index for {1})</value>
+    <comment>{0}: index name, {1}: foreign key</comment>
   </data>
 </root>
