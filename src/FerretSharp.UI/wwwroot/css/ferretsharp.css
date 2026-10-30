@@ -1666,7 +1666,9 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .tab-dot.bad { background: var(--danger); }
 .tab-dot.warn { background: var(--warn); }
 .designer-body { display: flex; flex-direction: column; gap: 10px; }
-.designer table.columns th { top: calc(var(--designer-head-h, 0px) - var(--structure-top, 0px)); }
+/* 1px under the head (it lies above, z-index 3): at 125 %/150 % a head of fractional height and the head row snap to device
+   pixels apart, and a row showed through between them (E2E, review). */
+.designer table.columns th { top: calc(var(--designer-head-h, 0px) - var(--structure-top, 0px) - 1px); }
 .designer-was { margin-top: 2px; font-size: 11.5px; color: var(--faint); }
 .designer-existing td.name-cell { min-width: 220px; }
 .designer-existing td.definition-cell { width: 45%; }

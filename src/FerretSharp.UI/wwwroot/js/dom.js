@@ -362,7 +362,8 @@ export function shareHeight(element, property) {
   }
 
   const update = () => element.parentElement?.style.setProperty(property, `${element.getBoundingClientRect().height}px`);
-  new ResizeObserver(update).observe(element);
+  // The border box is what is measured: the content box alone misses a change of padding or border.
+  new ResizeObserver(update).observe(element, { box: 'border-box' });
   element._shareHeight = true;
   update();
 }
