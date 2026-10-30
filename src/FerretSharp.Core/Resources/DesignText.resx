@@ -266,4 +266,8 @@
   <data name="TablespaceTemporaryTable" xml:space="preserve">
     <value>A temporary table keeps its indexes in the temporary tablespace – Oracle would ignore the choice.</value>
   </data>
+  <data name="KeyMayUseDroppedIndex" xml:space="preserve">
+    <value>{0} uses the index {1} if it stays when {2} is dropped (created before the key) – otherwise Oracle creates a new one in the default tablespace, not in the index tablespace.</value>
+    <comment>{0}: new key, {1}: index name, {2}: dropped key</comment>
+  </data>
 </root>

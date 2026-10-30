@@ -1233,4 +1233,7 @@
   <data name="Tablespace_IndexForForeignKey" xml:space="preserve">
     <value>{0} (Index für {1})</value>
   </data>
+  <data name="Audit_TablespaceUnknown" xml:space="preserve">
+    <value>Der Tablespace der Tabelle ließ sich nicht lesen – die neue Audit-Tabelle kommt in den Standard-Tablespace des Schemas.</value>
+  </data>
 </root>

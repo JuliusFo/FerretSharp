@@ -39,7 +39,7 @@ else
     // audit state not read: the script brings nothing up to date, not blocking (code review 2026-10-28)
     string? auditWarning = AuditUnread(audit) ? SchemaViewText.Audit_DesignerUnreadWarning : null;
     // while the audit objects are read, there is no script to run without them (code review 2026-10-28)
-    var reading = NewTab is null && _auditRead.Reading;
+    var reading = NewTab is null && (_auditRead.Reading || WaitsForTablespace(designer, audit));
     var columnProblems = inputProblems.Count > 0 || tablePlan.Problems.Except(tablePlan.ConstraintProblems).Any();
     var counting = _counting.Count > 0 || _auditCounting.Count > 0 || reading;
     var usageNotes = UsageNotes(designer);
@@ -282,26 +282,45 @@ else
     /// </summary>
     private async Task LoadTablespacesAsync(TableRef table)
     {
-        if (_disposed || _designer is not { } designer || !ReferenceEquals(designer.Tablespaces, Tablespaces.None) || Active.Schema is not { } schema)
+        if (_disposed || _designer is not { } designer || Active.Schema is not { } schema)
         {
+            return;
+        }
+
+        if (!ReferenceEquals(designer.Tablespaces, Tablespaces.None))
+        {
+            _tablespacesRead = true; // kept over a rebase
             return;
         }
 
         var token = _cts.Token;
         var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetTablespacesAsync(table, token), token);
-        if (!_disposed && read.Value is { } tablespaces)
+        if (_disposed)
         {
-            designer.Tablespaces = tablespaces;
-            if (NewTab is not null)
-            {
-                Shell.NotifyChanged(); // the new table's head offers them too
-            }
-            else
-            {
-                StateHasChanged();
-            }
+            return;
+        }
+
+        _tablespacesRead = read.Value is not null;
+        designer.Tablespaces = read.Value ?? Tablespaces.None;
+        if (NewTab is not null)
+        {
+            Shell.NotifyChanged(); // the new table's head offers them too
+        }
+        else
+        {
+            StateHasChanged();
         }
     }
+
+    /// <summary>
+    /// Whether the tablespaces of an existing table were read (WP-67): null while reading – a new audit table waits for its
+    /// table's tablespace –, false if the read failed: the audit table goes to the default, and the designer says so.
+    /// </summary>
+    private bool? _tablespacesRead;
+
+    /// <summary>An existing table gets a new audit table, whose tablespace is still being read: no script until it is there (review of WP-67).</summary>
+    private bool WaitsForTablespace(TableDesignerDraft designer, AuditTemplateLoad audit) =>
+        NewTab is null && _tablespacesRead is null && AuditTakesPart(designer, audit) && HasAuditTable(audit) == false;
 
     /// <summary>
     /// The table's audit table and trigger by the template's names (WP-26). The box starts as <see cref="AuditDesignRules.AuditAtStart"/>
@@ -393,6 +412,11 @@ else
         var tablespace = NewTab is { } created ? created.Table.Tablespace : designer.Tablespaces.TableTablespace;
         var auditPlan = AuditPlanner.Plan(template, table, columns, _auditRead.State ?? AuditState.None, new DataFacts(_auditFacts), renamed, taken,
             tablespace: tablespace);
+        if (NewTab is null && _tablespacesRead == false && HasAuditTable(audit) == false)
+        {
+            auditPlan = auditPlan with { Warnings = [.. auditPlan.Warnings, SchemaViewText.Audit_TablespaceUnknown] };
+        }
+
         return AuditPlanner.Combine(plan, auditPlan);
     }
 

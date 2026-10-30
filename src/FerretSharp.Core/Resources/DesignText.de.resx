@@ -210,4 +210,7 @@
   <data name="TablespaceTemporaryTable" xml:space="preserve">
     <value>Eine temporäre Tabelle hält ihre Indizes im temporären Tablespace – Oracle würde die Wahl ignorieren.</value>
   </data>
+  <data name="KeyMayUseDroppedIndex" xml:space="preserve">
+    <value>{0} nutzt den Index {1}, falls er beim Löschen von {2} bleibt (vorher eigens angelegt) – sonst legt Oracle einen neuen im Standard-Tablespace an, nicht im Index-Tablespace.</value>
+  </data>
 </root>

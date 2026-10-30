@@ -360,7 +360,14 @@ public static partial class TableDesign
                 return _indexTablespace;
             }
 
-            if (_indexTablespace is not null)
+            // The index of a key this plan drops stays only if it was created before the key; Oracle does not say which. Said
+            // also while no other index comes: the chosen tablespace may not apply (review of WP-67).
+            if (_indexTablespace is not null && context.Constraints.FirstOrDefault(c => _dropped.Contains(c.Name)
+                    && c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && IndexAdvice.BacksKey(backing, c.Columns)) is { } dropped)
+            {
+                Warnings.Add(TextFormat.Format(DesignText.KeyMayUseDroppedIndex, Label(added), backing.Name, dropped.Name));
+            }
+            else if (_indexTablespace is not null)
             {
                 _keyNotes.Add(TextFormat.Format(DesignText.KeyUsesIndex, Label(added), backing.Name));
             }

@@ -1517,4 +1517,8 @@
     <value>{0} (index for {1})</value>
     <comment>{0}: index name, {1}: foreign key</comment>
   </data>
+  <data name="Audit_TablespaceUnknown" xml:space="preserve">
+    <value>The table's tablespace could not be read – the new audit table goes into the schema's default tablespace.</value>
+    <comment>Designer: reading the tablespaces failed, a new audit table is planned</comment>
+  </data>
 </root>

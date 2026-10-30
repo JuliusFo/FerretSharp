@@ -560,6 +560,12 @@ public class TableDesignTests
             Facts((Rows, 0)));
         Assert.Empty(swapped.Problems);
         Assert.Equal($"""ALTER TABLE {T} ADD CONSTRAINT "UK_NAME" UNIQUE ("NAME")""", Clause(swapped, "UK_NAME"));
+
+        // Whether the index stays is not in the dictionary: an implicit one goes with its key, Oracle then creates one in the
+        // default – said even though no other index comes (second review pass).
+        Assert.Contains("UK_NAME nutzt den Index UK_KUNDE_NAME, falls er beim Löschen von UK_KUNDE_NAME bleibt (vorher eigens angelegt) – sonst legt Oracle einen neuen im Standard-Tablespace an, nicht im Index-Tablespace.",
+            swapped.Warnings);
+        Assert.DoesNotContain(swapped.Warnings, w => w.Contains("nutzt den vorhandenen Index", StringComparison.Ordinal));
     }
 
     [Fact]
