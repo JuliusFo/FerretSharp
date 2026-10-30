@@ -306,6 +306,10 @@
     {
         _edited = state.Edited;
         _editedLength = state.Edited ? state.Length : null; // undone: the value's own count, not Monaco's copy
+        if (!state.Edited)
+        {
+            _text = _editorText; // undone after Indent: the value is the start text again
+        }
     }
 
     private void StartText()
@@ -391,7 +395,7 @@
         if (CanEdit && _editor is not null)
         {
             // Monaco keeps a BOM apart from the text and adds it back in GetEditedTextAsync: not a second one.
-            await _editor.SetTextAsync(indented.StartsWith('﻿') ? indented[1..] : indented);
+            await _editor.SetTextAsync(indented.StartsWith(LobContent.Bom) ? indented[1..] : indented);
             _text = indented;
             _edited = true;
             _editedLength = indented.Length;

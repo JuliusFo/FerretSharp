@@ -55,7 +55,7 @@ public class LobContentTests
     [Theory]
     [InlineData("  {\"a\":1}", LobTextFormat.Json)]
     [InlineData("\n[1,2]", LobTextFormat.Json)]
-    [InlineData("﻿{\"a\":1}", LobTextFormat.Json)]
+    [InlineData("\uFEFF{\"a\":1}", LobTextFormat.Json)]
     [InlineData("<?xml version=\"1.0\"?><a/>", LobTextFormat.Xml)]
     [InlineData("Hallo {x}", LobTextFormat.Text)]
     [InlineData("   ", LobTextFormat.Text)]
@@ -104,8 +104,8 @@ public class LobContentTests
     [Fact]
     public void A_bom_stays_in_front_of_the_indented_json()
     {
-        Assert.Equal("﻿[\n  1\n]", LobContent.IndentJson("﻿[1]").Text);
-        Assert.Equal(6, LobContent.IndentJson("﻿[1,2,]").Column); // as the editor counts: without the BOM
+        Assert.Equal("\uFEFF[\n  1\n]", LobContent.IndentJson("\uFEFF[1]").Text);
+        Assert.Equal(6, LobContent.IndentJson("\uFEFF[1,2,]").Column); // as the editor counts: without the BOM
     }
 
     [Fact]

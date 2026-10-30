@@ -215,7 +215,8 @@ public static class LobContent
             : new JsonIndentResult(builder.ToString(), null, null);
     }
 
-    private const char Bom = '﻿';
+    /// <summary>Byte order mark; Monaco keeps it apart from the text.</summary>
+    public const char Bom = '\uFEFF';
 
     /// <summary>Indenting walks the text without recursion: any depth is fine (the default stops at 64).</summary>
     private static readonly JsonDocumentOptions IndentOptions = new() { MaxDepth = 100_000 };
