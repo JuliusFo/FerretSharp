@@ -8,7 +8,8 @@ namespace FerretSharp.UI.State;
 
 /// <summary>
 /// A tab of a workspace: a table (<see cref="TableTab"/>), a LINQ console (<see cref="LinqTab"/>), a SQL editor
-/// (<see cref="SqlTab"/>), a PL/SQL unit (<see cref="PlSqlTab"/>) or a record diagram (<see cref="RecordTab"/>).
+/// (<see cref="SqlTab"/>), a PL/SQL unit (<see cref="PlSqlTab"/>), a record diagram (<see cref="RecordTab"/>) or the
+/// schema's synonyms (<see cref="SynonymListTab"/>).
 /// </summary>
 public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
 {
@@ -49,6 +50,7 @@ public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
         NewTableTab draft => draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable,
         PlSqlTab plSql => plSql.Unit.DisplayName,
         RecordTab records => records.Title,
+        SynonymListTab => SchemaViewText.SynonymList_Title,
         ITitledTab titled => titled.Title,
         _ => "",
     };
@@ -155,11 +157,23 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
 /// A PL/SQL tab (WP-28, view only): a package, procedure, function or trigger with its source, parameters, compile errors
 /// and dependencies. Read on the explorer session like the detail views of a table.
 /// </summary>
-public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary unit) : WorkspaceTab(workspaceId, "plsql-")
+public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary unit) : WorkspaceTab(workspaceId, "plsql-"), ISynonymTab
 {
     public Core.Schema.PlSqlObjectSummary Unit { get; } = unit;
 
-    public PlSqlView View { get; set; } = PlSqlView.Source;
+    /// <summary>The view shown; another one than "Synonyms" gives up a requested drop (as <see cref="TableTab.Mode"/>).</summary>
+    public PlSqlView View
+    {
+        get;
+        set
+        {
+            field = value;
+            if (value != PlSqlView.Synonyms)
+            {
+                DropRequested = null;
+            }
+        }
+    } = PlSqlView.Source;
 
     /// <summary>A line to show once the source of the part is there (a compile error, a search hit); taken by the source view.</summary>
     public SourcePosition? Reveal { get; set; }
@@ -170,10 +184,13 @@ public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary un
     /// <summary>The views a kind of unit has (<see cref="Views"/>; the object menu offers them before a tab is open, WP-70).</summary>
     public static IReadOnlyList<PlSqlView> ViewsOf(Core.Schema.PlSqlKind kind) => kind switch
     {
-        Core.Schema.PlSqlKind.Package => [PlSqlView.Source, PlSqlView.Body, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies],
+        Core.Schema.PlSqlKind.Package => [PlSqlView.Source, PlSqlView.Body, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies, PlSqlView.Synonyms],
         Core.Schema.PlSqlKind.Trigger => [PlSqlView.Source, PlSqlView.Errors, PlSqlView.Dependencies],
-        _ => [PlSqlView.Source, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies],
+        _ => [PlSqlView.Source, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies, PlSqlView.Synonyms],
     };
+
+    /// <summary>A synonym the object menu asked to drop (WP-68); the "Synonyms" view takes it. Not saved.</summary>
+    public Core.Schema.SynonymInfo? DropRequested { get; set; }
 
     /// <summary>Shows a part's source at a line: switches to that view and leaves the position for the source view.</summary>
     public void ShowSource(Core.Schema.PlSqlPart part, int line, int column = 1)
@@ -225,6 +242,30 @@ public sealed class RecordTab(Guid workspaceId, TableSummary table, RecordDiagra
     /// </summary>
     public static RecordTab Restore(Guid workspaceId, TableSummary table, RecordTabState state) =>
         new(workspaceId, table, new RecordDiagramState(table.Ref, state.RowIds, state.Keys, state.Steps.Count == 0 ? null : state.Steps, state.Depth));
+}
+
+/// <summary>A tab whose object has the view "Synonyms" (WP-68): a table, view or PL/SQL unit.</summary>
+public interface ISynonymTab
+{
+    /// <summary>
+    /// A synonym the object menu asked to drop ("Synonym löschen" on an entry reached through it); the view shows the drop
+    /// with its confirmation and clears this. Not saved.
+    /// </summary>
+    Core.Schema.SynonymInfo? DropRequested { get; set; }
+}
+
+/// <summary>
+/// The private synonyms of the schema with where they point (WP-68), to find and drop those that lead nowhere. Read on the
+/// explorer session; one per workspace.
+/// </summary>
+public sealed class SynonymListTab(Guid workspaceId) : WorkspaceTab(workspaceId, "synonyms-")
+{
+    /// <summary>Only the synonyms whose target is missing or not visible (not those over a database link).</summary>
+    public bool OnlyBroken { get; set; }
+
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) => TabState.OfSynonymList(new SynonymListTabState(OnlyBroken));
+
+    public static SynonymListTab Restore(Guid workspaceId, SynonymListTabState state) => new(workspaceId) { OnlyBroken = state.OnlyBroken };
 }
 
 /// <summary>

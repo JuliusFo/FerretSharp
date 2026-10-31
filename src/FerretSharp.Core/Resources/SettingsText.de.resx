@@ -357,4 +357,10 @@
   <data name="HintRevealInExplorer" xml:space="preserve">
     <value>Scrollt die Liste des Explorers zur Tabelle oder zum PL/SQL-Objekt des aktiven Tabs und hebt es hervor.</value>
   </data>
+  <data name="ActionSchemaSynonyms" xml:space="preserve">
+    <value>Synonyme des Schemas</value>
+  </data>
+  <data name="HintSchemaSynonyms" xml:space="preserve">
+    <value>Listet die privaten Synonyme des Schemas mit ihren Zielen – zum Finden und Löschen der ins Leere zeigenden.</value>
+  </data>
 </root>

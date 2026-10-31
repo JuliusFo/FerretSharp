@@ -11,7 +11,7 @@ public static class DdlScript
     /// constraints and their indexes next (their old names become free), then dropped and renamed columns (their names
     /// become free), new tables, changed columns (by their new names), new columns, keys before checks before foreign keys
     /// (one may reference a key added just before), checks they replace, indexes, comments (all names exist by then), PL/SQL
-    /// objects (they may use any of it), notes last. Steps of one stage keep the order they were written in – a column's
+    /// objects (they may use any of it) and synonyms (they point at any of it), notes last. Steps of one stage keep the order they were written in – a column's
     /// type, default and NULL steps belong together.
     /// </summary>
     public static int Stage(DdlStepKind kind) => kind switch
@@ -29,7 +29,7 @@ public static class DdlScript
         DdlStepKind.ReplaceConstraint => 10,
         DdlStepKind.DropIndex or DdlStepKind.CreateIndex => 11,
         DdlStepKind.Comment => 12,
-        DdlStepKind.PlSqlObject => 13,
+        DdlStepKind.PlSqlObject or DdlStepKind.Synonym => 13,
         _ => 14,
     };
 

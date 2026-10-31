@@ -436,4 +436,11 @@
   <data name="HintRevealInExplorer" xml:space="preserve">
     <value>Scrolls the explorer list to the table or PL/SQL object of the active tab and marks it.</value>
   </data>
+  <data name="ActionSchemaSynonyms" xml:space="preserve">
+    <value>Synonyms of the schema</value>
+    <comment>Shortcut action (WP-68): opens the tab with the schema's private synonyms</comment>
+  </data>
+  <data name="HintSchemaSynonyms" xml:space="preserve">
+    <value>Lists the schema's private synonyms with their targets, to find and drop those leading nowhere.</value>
+  </data>
 </root>

@@ -36,6 +36,14 @@
     </div>
 </div>
 
+@* The synonym as the schema knows it now: a tab keeps the one it was opened through, also once that is dropped. *@
+@if (Active.Schema?.FindPlSql(Unit.Ref)?.Synonym is { } synonym)
+{
+    <div class="menu-sep"></div>
+    <MenuEntry Label="@TextFormat.Format(SchemaViewText.ObjectMenu_DropSynonym, synonym.Name)" Title="@SchemaViewText.ObjectMenu_DropSynonymTitle"
+               OnClick="() => RunAsync(() => Shell.RequestSynonymDrop(Unit, synonym))" />
+}
+
 @if (Unit.Kind == PlSqlKind.Trigger)
 {
     <div class="menu-sep"></div>
@@ -46,6 +54,9 @@
 @code {
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public Core.Connections.ActiveConnection Active { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public PlSqlObjectSummary Unit { get; set; } = null!;

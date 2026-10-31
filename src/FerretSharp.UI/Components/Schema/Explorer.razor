@@ -211,13 +211,15 @@
     private string? _shellKey;
 
     /// <summary>
-    /// What the list shows of the shell: the active tab and the open tabs, marked in the list. The shell changes far more
-    /// often – every cell edit updates the counts of the status bar –, and the explorer of every open connection rendered
-    /// its whole list for it (R4b, measured: one render of each open connection's list per cell edit).
+    /// What the list shows of the shell: the active tab and the open tabs, marked in the list – and when the schema was read:
+    /// DDL that opens or closes no tab (a synonym, a view from the SQL editor) left the list as it was (E2E of WP-68). The
+    /// shell changes far more often – every cell edit updates the counts of the status bar –, and the explorer of every open
+    /// connection rendered its whole list for it (R4b, measured: one render of each open connection's list per cell edit).
     /// </summary>
     private string ShellKey()
     {
         var key = new System.Text.StringBuilder();
+        key.Append(Active.Schema?.LoadedAt?.UtcTicks).Append('|');
         Append(Shell.ActiveTab);
         foreach (var tab in Shell.Tabs)
         {

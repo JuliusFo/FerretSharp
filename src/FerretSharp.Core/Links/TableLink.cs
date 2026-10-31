@@ -61,11 +61,12 @@ public sealed record TableLink(
     /// The link to a view of <paramref name="table"/> on <paramref name="profile"/>. Only the rows that filter go in: a
     /// disabled row, or one of a disabled group, filters nothing. "Usage" (WP-40) is left out like the data view: it needs
     /// the sender's linked project, and an older FerretSharp would refuse the whole link for the unknown view – so is
-    /// "Relations" (WP-46, review): its diagram shows what the sender had expanded, which the link does not carry either.
+    /// "Relations" (WP-46, review): its diagram shows what the sender had expanded, which the link does not carry either –,
+    /// and "Synonyms" (WP-68), unknown to versions before it.
     /// </summary>
     public static TableLink For(ConnectionProfile profile, TableRef table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, TabMode mode) =>
         new(profile.Name, profile.Address, table.Owner, table.Name, FilterGroups.Normalize(FilterGroups.Active(filters).ToList()), sorts,
-            mode is TabMode.Data or TabMode.Usage or TabMode.Relations ? null : mode);
+            mode is TabMode.Data or TabMode.Usage or TabMode.Relations or TabMode.Synonyms ? null : mode);
 
     /// <summary>
     /// The link to <paramref name="rows"/> of <paramref name="table"/>: a filter on the primary key – equality for one row,

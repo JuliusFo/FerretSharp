@@ -12,6 +12,9 @@ public enum TabMode
     Indexes,
     Dependencies,
 
+    /// <summary>The private and public synonyms on the object, to create and drop them (WP-68). Stored by name, so its place here is free.</summary>
+    Synonyms,
+
     /// <summary>Diagram of the tables it references and that reference it (WP-46). Stored by name, so its place here is free.</summary>
     Relations,
     Ddl,
@@ -82,7 +85,16 @@ public sealed record TabState(
 
     /// <summary>A record diagram tab in the file format of table tabs.</summary>
     public static TabState OfRecords(RecordTabState records) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Records = records };
+
+    /// <summary>Set for the tab of the schema's synonyms (WP-68); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
+    public SynonymListTabState? SynonymList { get; init; }
+
+    /// <summary>The tab of the schema's synonyms in the file format of table tabs.</summary>
+    public static TabState OfSynonymList(SynonymListTabState list) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { SynonymList = list };
 }
+
+/// <summary>The tab of the schema's private synonyms (WP-68): whether it shows only those whose target is not there.</summary>
+public sealed record SynonymListTabState(bool OnlyBroken = false);
 
 /// <summary>
 /// A record diagram tab (WP-60): the table of the start rows (the real object), their keys as text
@@ -109,6 +121,9 @@ public enum PlSqlView
     Parameters,
     Errors,
     Dependencies,
+
+    /// <summary>The synonyms on the unit (WP-68); not for triggers, nothing reaches a trigger by name.</summary>
+    Synonyms,
 }
 
 /// <summary>A PL/SQL tab: the unit (the real object; a synonym is resolved again on restore) and the view shown.</summary>

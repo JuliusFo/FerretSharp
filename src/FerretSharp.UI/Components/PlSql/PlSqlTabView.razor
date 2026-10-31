@@ -66,6 +66,9 @@
                         case PlSqlView.Dependencies:
                             <PlSqlDependenciesView Unit="Tab.Unit" Version="_version" />
                             break;
+                        case PlSqlView.Synonyms:
+                            <SynonymsView Target="new(Tab.Unit.Owner, Tab.Unit.Name)" Tab="Tab" WorkspaceId="Tab.WorkspaceId" Version="_version" OnSchemaChanged="Reload" />
+                            break;
                     }
                 </div>
             }

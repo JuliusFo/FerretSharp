@@ -182,6 +182,10 @@ internal static class Icons
     public static readonly MarkupString Records = Svg(
         """<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>""");
 
+    /// <summary>Lucide <c>signpost</c>: the synonyms of the schema (WP-68).</summary>
+    public static readonly MarkupString Synonyms = Svg(
+        """<path d="M12 13v8"/><path d="M12 3v3"/><path d="M2.354 10.354a1.207 1.207 0 0 1 0-1.708l2.06-2.06A2 2 0 0 1 5.828 6h12.344a2 2 0 0 1 1.414.586l2.06 2.06a1.207 1.207 0 0 1 0 1.708l-2.06 2.06a2 2 0 0 1-1.414.586H5.828a2 2 0 0 1-1.414-.586z"/>""");
+
     /// <summary>Lucide <c>braces</c>: copy a value as C# (WP-61, quick bar of the cell menu).</summary>
     public static readonly MarkupString Braces = Svg(
         """<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>""");

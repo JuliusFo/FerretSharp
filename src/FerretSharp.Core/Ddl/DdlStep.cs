@@ -43,6 +43,9 @@ public enum DdlStepKind
     /// </summary>
     PlSqlObject,
 
+    /// <summary>CREATE or DROP [PUBLIC] SYNONYM (WP-68).</summary>
+    Synonym,
+
     /// <summary>A note for the user, no statement (a different organization, the definition of a view …); never runs.</summary>
     Hint,
 }

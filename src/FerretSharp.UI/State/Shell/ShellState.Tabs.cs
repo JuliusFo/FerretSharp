@@ -201,6 +201,54 @@ public sealed partial class ShellState
         return InsertAfterActive(workspace, tab);
     }
 
+    /// <summary>Activates the tab of the schema's synonyms in the active workspace or opens it after the active tab (WP-68).</summary>
+    public SynonymListTab? OpenSynonymList()
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        if (workspace.Tabs.OfType<SynonymListTab>().FirstOrDefault() is { } open)
+        {
+            ShowTab(open);
+            return open;
+        }
+
+        return InsertAfterActive(workspace, new SynonymListTab(workspace.WorkspaceId) { Visited = true });
+    }
+
+    /// <summary>
+    /// "Synonym löschen" in the object menu (WP-68): the object's tab in its "Synonyms" view, which shows the drop with its
+    /// confirmation. A PL/SQL unit opens on that view as well.
+    /// </summary>
+    public void RequestSynonymDrop(TableSummary table, SynonymInfo synonym)
+    {
+        if (OpenTable(table, TabMode.Synonyms) is { } tab)
+        {
+            Set(() => tab.DropRequested = synonym);
+        }
+    }
+
+    /// <summary>
+    /// The same from the head of a table tab: that tab, not the first one of its table – a second tab of it (FK jump,
+    /// duplicate) keeps its own (review of WP-68).
+    /// </summary>
+    public void RequestSynonymDrop(TableTab tab, SynonymInfo synonym)
+    {
+        ShowTab(tab, TabMode.Synonyms);
+        Set(() => tab.DropRequested = synonym);
+    }
+
+    /// <inheritdoc cref="RequestSynonymDrop(TableSummary, SynonymInfo)"/>
+    public void RequestSynonymDrop(PlSqlObjectSummary unit, SynonymInfo synonym)
+    {
+        if (OpenPlSql(unit, PlSqlView.Synonyms) is { } tab)
+        {
+            Set(() => tab.DropRequested = synonym);
+        }
+    }
+
     /// <summary>A tab for a new table in the designer (WP-23, stage 3), after the active tab; the table goes into <paramref name="owner"/>.</summary>
     public NewTableTab? OpenNewTable(string owner)
     {
@@ -483,12 +531,13 @@ public sealed partial class ShellState
 
     /// <summary>
     /// After a schema refresh: drops the table and PL/SQL tabs of the connection whose object is gone – in the workspaces of
-    /// that connection only, another connection's schema may well have the object.
+    /// that connection only, another connection's schema may well have the object. A unit of another schema stays like a
+    /// table there: dropping its last synonym (WP-68) closed the very tab that had just dropped it (review of WP-68).
     /// </summary>
     public void RemoveVanishedTabs(Guid connectionId, SchemaCache schema) => RemoveWhere(connectionId, tab => tab switch
     {
         TableTab table => Vanished(table, schema),
-        PlSqlTab plSql => schema.FindPlSql(plSql.Unit.Ref) is null,
+        PlSqlTab plSql => schema.FindPlSql(plSql.Unit.Ref) is null && string.Equals(plSql.Unit.Owner, schema.Owner, StringComparison.Ordinal),
         RecordTab records => schema.Find(records.Table.Ref) is null && string.Equals(records.Table.Owner, schema.Owner, StringComparison.Ordinal),
         _ => false,
     });
@@ -571,6 +620,10 @@ public sealed partial class ShellState
                 }
 
                 tab = RecordTab.Restore(workspace.Id, table, records);
+            }
+            else if (state.SynonymList is { } synonyms)
+            {
+                tab = SynonymListTab.Restore(workspace.Id, synonyms);
             }
             else if (state.PlSql is { } plSql)
             {

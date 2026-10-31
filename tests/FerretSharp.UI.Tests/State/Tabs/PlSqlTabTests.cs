@@ -66,11 +66,16 @@ public sealed class PlSqlTabTests : IAsyncDisposable
         Assert.Equal((TestApp.Rechnung.Ref, PlSqlView.Body), (restored.Unit.Ref, restored.View));
     }
 
+    /// <summary>
+    /// Review of WP-68: a unit of another schema stays like a table there – dropping its last synonym closed the tab that
+    /// had just dropped it.
+    /// </summary>
     [Fact]
-    public async Task A_schema_refresh_drops_tabs_of_units_that_are_gone()
+    public async Task A_schema_refresh_drops_tabs_of_units_that_are_gone_from_the_browsed_schema()
     {
         var scope = await _app.OpenAsync(TestApp.Profile("Test"));
         var tab = _app.Shell.OpenPlSql(TestApp.Rechnung)!;
+        var foreign = _app.Shell.OpenPlSql(new PlSqlObjectSummary("STAMMDATEN", "PKG_LAENDER", PlSqlKind.Package, "VALID"))!;
         var table = _app.Shell.OpenTable(TestApp.Kunden)!;
 
         _app.PlSqlObjects = [];
@@ -78,6 +83,7 @@ public sealed class PlSqlTabTests : IAsyncDisposable
         _app.Shell.RemoveVanishedTabs(scope.Id, scope.Active.Schema!);
 
         Assert.DoesNotContain(tab, _app.Shell.Tabs);
+        Assert.Contains(foreign, _app.Shell.Tabs);
         Assert.Contains(table, _app.Shell.Tabs);
     }
 

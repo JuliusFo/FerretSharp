@@ -117,6 +117,15 @@ else
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    /// <summary>
+    /// Asks for the confirmation as soon as the panel appears, if it may run (WP-68: "Synonym löschen" in the object menu
+    /// leads straight to it; cancelling leaves the panel with the statement).
+    /// </summary>
+    [Parameter]
+    public bool ConfirmAtOnce { get; set; }
+
+    protected override void OnInitialized() => _confirm = ConfirmAtOnce && CanRun;
+
     /// <summary>Lays the panel out as the head of the table designer: this beside the actions (designer tabs).</summary>
     [Parameter]
     public RenderFragment? Head { get; set; }

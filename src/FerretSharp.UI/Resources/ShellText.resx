@@ -1208,4 +1208,8 @@
     <value>{0} is not in the explorer: an object of another schema without synonym, or one that is gone.</value>
     <comment>Notice of "Show in explorer" (WP-70); {0} = table name</comment>
   </data>
+  <data name="TabBar_SynonymsTitle" xml:space="preserve">
+    <value>Private synonyms of schema {0}</value>
+    <comment>Tooltip of the tab with the schema's synonyms (WP-68)</comment>
+  </data>
 </root>

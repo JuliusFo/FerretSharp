@@ -1,0 +1,197 @@
+@* The tab with the schema's private synonyms (WP-68): each with its target and whether that is there, to find and drop those
+   leading nowhere – the view of one object never shows a synonym whose target is gone. Public synonyms stay out (often
+   thousands). Read on the explorer session; F5 reloads; a drop runs through DdlDraftPanel like every schema change. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+@inherits FerretComponent
+@implements IDisposable
+@inject ILogger<SynonymListView> Logger
+@inject ShortcutService Shortcuts
+
+<div class="tabview synonym-list-tab">
+    <div class="tab-toolbar">
+        <label class="check" title="@SchemaViewText.SynonymList_OnlyBrokenTitle">
+            <input type="checkbox" checked="@Tab.OnlyBroken" @onchange="e => SetOnlyBroken(e.Value is true)" />
+            @SchemaViewText.SynonymList_OnlyBroken
+        </label>
+        <span class="toolbar-title">@Owner</span>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="@(CommonText.Reload + Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="LoadAsync">@Icons.Refresh</button>
+    </div>
+
+    <div class="tab-details">
+        <div class="details-body">
+            <div class="structure">
+                <DetailStatus Loading="_loading && _synonyms is null" Error="_error" Text="@SchemaViewText.SynonymList_Loading" />
+
+                @if (_drop is { } synonym)
+                {
+                    <section class="index-draft">
+                        <h2>@SchemaViewText.Synonyms_DropHeading</h2>
+                        <DdlDraftPanel @key="synonym" WorkspaceId="Tab.WorkspaceId" Steps="[SynonymDdl.Drop(synonym)]"
+                                       FileName="@($"{DateTime.Now:yyyy-MM-dd}_DROP_{synonym.Name}.sql")"
+                                       OnRan="OnRanAsync" OnFailed="r => OnFailed(r, synonym)" OnClose="() => (_drop, _missingPrivilege) = (null, null)" />
+                        @if (_missingPrivilege is { } privilege)
+                        {
+                            <p class="hint">@Icons.Warning @TextFormat.Format(SchemaViewText.Synonyms_MissingPrivilege, privilege)</p>
+                        }
+                    </section>
+                }
+
+                @if (_synonyms is { } all)
+                {
+                    var shown = Tab.OnlyBroken ? all.Where(IsBroken).ToList() : all;
+                    <section>
+                        <div class="structure-columns-head">
+                            <h2>@TextFormat.Format(SchemaViewText.SynonymList_Heading, Owner) <span class="count">@shown.Count</span></h2>
+                        </div>
+                        @if (shown.Count == 0)
+                        {
+                            <p class="muted">@(all.Count == 0 ? SchemaViewText.SynonymList_None : SchemaViewText.SynonymList_NoneBroken)</p>
+                        }
+                        else
+                        {
+                            <table class="columns">
+                                <thead>
+                                    <tr><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Target</th><th>@SchemaViewText.Head_Type</th><th>@SchemaViewText.Head_Status</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in shown)
+                                    {
+                                        var s = row;
+                                        <tr class="@(s.Synonym == _drop ? "selected" : "")">
+                                            <td class="mono">@s.Name</td>
+                                            <td class="mono">@s.Target</td>
+                                            <td>@s.TargetType</td>
+                                            <td class="state @(IsBroken(s) ? "bad" : "")" title="@StateTitle(s.State)">@StateLabel(s.State)</td>
+                                            <td>
+                                                <button class="link-btn" title="@TextFormat.Format(SchemaViewText.Synonyms_DropTitle, $"{s.Owner}.{s.Name}")"
+                                                        @onclick="() => (_drop, _missingPrivilege) = (s.Synonym, null)">@SchemaViewText.Synonyms_Drop</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        <p class="hint small">@SchemaViewText.SynonymList_PublicNote</p>
+                        @if (OtherSchema)
+                        {
+                            <p class="hint small">@Icons.Info @SchemaViewText.SynonymList_OtherSchema</p>
+                        }
+                    </section>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SynonymListTab Tab { get; set; } = null!;
+
+    private IReadOnlyList<SchemaSynonym>? _synonyms;
+    private DatabaseException? _error;
+    private bool _loading;
+    private bool _loaded;
+    private SynonymInfo? _drop;
+    private string? _missingPrivilege;
+    private CancellationTokenSource? _cts;
+
+    private string Owner => Active.Schema?.Owner ?? "";
+
+    /// <summary>The browsed schema is not the login user's: Oracle hides that schema's synonyms whose target the session cannot read.</summary>
+    private bool OtherSchema => Active.Profile is { } profile && Owner.Length > 0 && Owner != OracleIdentifier.Normalize(profile.User);
+
+    private static bool IsBroken(SchemaSynonym synonym) => synonym.State is SynonymTargetState.Missing or SynonymTargetState.MissingOrNoAccess;
+
+    private static string StateLabel(SynonymTargetState state) => state switch
+    {
+        SynonymTargetState.Ok => SchemaViewText.SynonymState_Ok,
+        SynonymTargetState.Missing => SchemaViewText.SynonymState_Missing,
+        SynonymTargetState.MissingOrNoAccess => SchemaViewText.SynonymState_MissingOrNoAccess,
+        _ => SchemaViewText.SynonymState_DbLink,
+    };
+
+    private static string? StateTitle(SynonymTargetState state) => state switch
+    {
+        SynonymTargetState.Missing => SchemaViewText.SynonymState_MissingTitle,
+        SynonymTargetState.MissingOrNoAccess => SchemaViewText.SynonymState_MissingOrNoAccessTitle,
+        SynonymTargetState.DbLink => SchemaViewText.SynonymState_DbLinkTitle,
+        _ => null,
+    };
+
+    protected override void OnInitialized() => Shell.TabCommandRequested += OnTabCommand;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_loaded)
+        {
+            _loaded = true;
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+        var cts = _cts = new CancellationTokenSource();
+        (_loading, _error) = (true, null);
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSchemaSynonymsAsync(cts.Token), cts.Token);
+        if (cts.IsCancellationRequested)
+        {
+            return; // a newer load took over, or the tab closed
+        }
+
+        (_synonyms, _error, _loading) = result.Succeeded ? (result.Value, null, false) : (_synonyms, result.Error, false);
+    }
+
+    private void SetOnlyBroken(bool only)
+    {
+        Tab.OnlyBroken = only;
+        Shell.MarkDirty();
+    }
+
+    private async Task OnRanAsync()
+    {
+        (_drop, _missingPrivilege) = (null, null);
+        await LoadAsync();
+    }
+
+    private void OnFailed(DdlRunResult result, SynonymInfo synonym) =>
+        _missingPrivilege = result.Error?.ErrorCode == "ORA-01031" && Active.Profile is { } profile
+            ? SynonymDdl.RequiredPrivilege(synonym, create: false, OracleIdentifier.Normalize(profile.User))
+            : null;
+
+    private void OnTabCommand(WorkspaceTab tab, TabCommand command)
+    {
+        if (tab == Tab && command == TabCommand.Refresh)
+        {
+            Fire(async () =>
+            {
+                await LoadAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    public void Dispose()
+    {
+        Shell.TabCommandRequested -= OnTabCommand;
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

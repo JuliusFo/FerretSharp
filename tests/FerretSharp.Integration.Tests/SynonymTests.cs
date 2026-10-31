@@ -69,6 +69,58 @@ public class SynonymTests(OracleContainerFixture oracle) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Synonyms_on_an_object_come_private_first_then_public()
+    {
+        var synonyms = await Reader.GetSynonymsAsync(new TableRef(Other, "V_PRODUKT"), Ct);
+
+        Assert.Equal([new SynonymInfo(_owner, "S_V_PRODUKT"), new SynonymInfo("PUBLIC", "FERRET_V_PRODUKT")], synonyms);
+    }
+
+    /// <summary>WP-68, measured against Oracle 23: a dropped target leaves the synonym INVALID, one without a grant VALID.</summary>
+    [Fact]
+    public async Task Schema_synonyms_say_whether_their_target_is_there()
+    {
+        var synonyms = (await Reader.GetSchemaSynonymsAsync(_owner, Ct)).ToDictionary(s => s.Name);
+
+        Assert.Equal(new SchemaSynonym(_owner, "S_PRODUKT", Other, "PRODUKT", null, "TABLE", SynonymTargetState.Ok), synonyms["S_PRODUKT"]);
+        Assert.Equal(SynonymTargetState.Missing, synonyms["S_WEG"].State);
+        Assert.Equal(SynonymTargetState.Missing, synonyms["S_NIEMAND"].State);
+        Assert.Equal(SynonymTargetState.MissingOrNoAccess, synonyms["S_GEHEIM"].State);
+        Assert.Equal((SynonymTargetState.DbLink, $"{Other}.PRODUKT@FERRET_LINK"), (synonyms["S_LINK"].State, synonyms["S_LINK"].Target));
+        Assert.DoesNotContain("FERRET_KATEGORIE", synonyms.Keys); // public
+        if (SampleSchema.HasMaterializedView)
+        {
+            Assert.Equal(("MATERIALIZED VIEW", SynonymTargetState.Ok), (synonyms["S_MV_UMSATZ"].TargetType, synonyms["S_MV_UMSATZ"].State));
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "KUNDEN", "TABLE")]
+    [InlineData(null, "S_PRODUKT", "SYNONYM")]
+    [InlineData(null, "FS_FREIER_NAME", null)]
+    [InlineData("PUBLIC", "FERRET_KATEGORIE", "SYNONYM")]
+    [InlineData("PUBLIC", "KUNDEN", null)] // a public synonym may be named like a table
+    public async Task A_name_is_taken_by_any_object_of_the_synonym_s_namespace(string? owner, string name, string? taken) =>
+        Assert.Equal(taken, await Reader.GetNameTakenAsync(owner ?? _owner, name, Ct));
+
+    [Fact]
+    public async Task A_synonym_is_created_and_dropped_through_the_schema_path_and_a_missing_privilege_is_ORA_01031()
+    {
+        var synonym = new SynonymInfo(_owner, "S_WP68_KATEGORIE");
+        var target = new TableRef(Other, "KATEGORIE");
+
+        await _session!.ExecuteDdlAsync(Core.Ddl.SynonymDdl.Create(synonym, target).Sql, Ct);
+        Assert.Contains(synonym, await Reader.GetSynonymsAsync(target, Ct));
+
+        await _session.ExecuteDdlAsync(Core.Ddl.SynonymDdl.Drop(synonym).Sql, Ct);
+        Assert.DoesNotContain(synonym, await Reader.GetSynonymsAsync(target, Ct));
+
+        var refused = await Assert.ThrowsAsync<Core.Connections.DatabaseException>(() =>
+            _session.ExecuteDdlAsync(Core.Ddl.SynonymDdl.Create(new SynonymInfo("PUBLIC", "FS_WP68"), target).Sql, Ct));
+        Assert.Equal("ORA-01031", refused.ErrorCode);
+    }
+
+    [Fact]
     public async Task Details_and_data_are_read_from_the_real_object()
     {
         var produkt = new TableSummary(Other, "PRODUKT", TableKind.Table, new SynonymInfo(_owner, "S_PRODUKT"));

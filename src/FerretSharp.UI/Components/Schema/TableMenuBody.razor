@@ -77,6 +77,14 @@
     </div>
 </div>
 
+@* The synonym as the schema knows it now: a tab keeps the one it was opened through, also once that is dropped. *@
+@if (Active.Schema?.Find(Table.Ref)?.Synonym is { } synonym)
+{
+    <div class="menu-sep"></div>
+    <MenuEntry Label="@TextFormat.Format(SchemaViewText.ObjectMenu_DropSynonym, synonym.Name)" Title="@SchemaViewText.ObjectMenu_DropSynonymTitle"
+               OnClick="() => RunAsync(() => { if (Tab is { } tab) Shell.RequestSynonymDrop(tab, synonym); else Shell.RequestSynonymDrop(Table, synonym); })" />
+}
+
 @code {
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;

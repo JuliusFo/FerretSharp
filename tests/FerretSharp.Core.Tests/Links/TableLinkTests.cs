@@ -39,6 +39,7 @@ public class TableLinkTests
     [Theory]
     [InlineData(TabMode.Usage)]
     [InlineData(TabMode.Relations)]
+    [InlineData(TabMode.Synonyms)]
     public void Views_an_older_FerretSharp_does_not_know_are_left_out_of_a_link(TabMode mode)
     {
         var link = TableLink.For(ErpTest, new TableRef("ERP", "AUFTRAG"), [], [], mode);

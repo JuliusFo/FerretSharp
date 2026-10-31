@@ -67,6 +67,15 @@ public static class SynonymSchema
                 $"CREATE PUBLIC SYNONYM FERRET_KUNDEN FOR {appUser}.KUNDEN",
                 // no SELECT grant → invisible
                 $"CREATE PUBLIC SYNONYM FERRET_GEHEIM FOR {OtherOwner}.GEHEIM",
+                // WP-68, the states of the schema's synonyms: no grant, target dropped, owner gone, over a database link
+                $"CREATE SYNONYM {appUser}.S_GEHEIM FOR {OtherOwner}.GEHEIM",
+                $"CREATE TABLE {OtherOwner}.WEG (ID NUMBER)",
+                $"CREATE SYNONYM {appUser}.S_WEG FOR {OtherOwner}.WEG",
+                $"DROP TABLE {OtherOwner}.WEG PURGE",
+                $"CREATE SYNONYM {appUser}.S_NIEMAND FOR NIEMAND.X",
+                $"CREATE SYNONYM {appUser}.S_LINK FOR {OtherOwner}.PRODUKT@FERRET_LINK",
+                // review of WP-68: a materialized view is a TABLE too in ALL_OBJECTS (MV_UMSATZ only if the user may create one)
+                $"CREATE SYNONYM {appUser}.S_MV_UMSATZ FOR {appUser}.MV_UMSATZ",
             ];
 
             foreach (var sql in statements)

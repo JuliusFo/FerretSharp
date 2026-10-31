@@ -64,11 +64,28 @@ public sealed class FilterRowGroup
 }
 
 /// <summary>An open table in the content area of a workspace.</summary>
-public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTab(workspaceId, "grid-"), IFormTab
+public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTab(workspaceId, "grid-"), IFormTab, ISynonymTab
 {
     public TableSummary Table { get; } = table;
 
-    public TabMode Mode { get; set; } = TabMode.Data;
+    /// <summary>
+    /// The view shown. Another one than "Synonyms" gives up a drop the object menu asked for (<see cref="DropRequested"/>) –
+    /// whichever way it is set: the view switch, the menu's chips, the explorer (review of WP-68).
+    /// </summary>
+    public TabMode Mode
+    {
+        get;
+        set
+        {
+            field = value;
+            if (value != TabMode.Synonyms)
+            {
+                DropRequested = null;
+            }
+        }
+    } = TabMode.Data;
+
+    public SynonymInfo? DropRequested { get; set; }
 
     /// <summary>Rough scroll position: first visible row, only if it was loaded.</summary>
     public int? FirstVisibleRow { get; set; }
