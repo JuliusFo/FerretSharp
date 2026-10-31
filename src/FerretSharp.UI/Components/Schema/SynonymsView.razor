@@ -40,7 +40,7 @@ else if (_drop is { } synonym)
     var warnings = synonym.IsPublic ? new[] { SchemaViewText.Synonyms_PublicWarning } : [];
     <section class="index-draft">
         <h2>@SchemaViewText.Synonyms_DropHeading</h2>
-        <DdlDraftPanel @key="synonym" WorkspaceId="WorkspaceId" Steps="[SynonymDdl.Drop(synonym)]" Warnings="warnings" ConfirmNotes="warnings"
+        <DdlDraftPanel @key="(synonym, _dropRequests)" WorkspaceId="WorkspaceId" Steps="[SynonymDdl.Drop(synonym)]" Warnings="warnings" ConfirmNotes="warnings"
                        ConfirmAtOnce="_confirmDrop" FileName="@($"{DateTime.Now:yyyy-MM-dd}_DROP_{synonym.Name}.sql")"
                        OnRan="OnRanAsync" OnFailed="r => OnFailed(r, synonym, create: false)" OnClose="Close" />
         @PrivilegeHint()
@@ -95,6 +95,15 @@ else if (_drop is { } synonym)
     private SynonymDraft? _create;
     private SynonymInfo? _drop;
     private bool _confirmDrop;
+
+    /// <summary>
+    /// Counts the drops asked for, part of the panel's key: asking again for the same synonym after cancelling builds a new
+    /// panel, which confirms at once again (review of WP-68).
+    /// </summary>
+    private int _dropRequests;
+
+    /// <summary>The tab may close while DDL runs (a PL/SQL unit no longer reached); then nothing more is asked of it.</summary>
+    private bool _disposed;
     private CancellationTokenSource? _check;
 
     /// <summary>The privilege Oracle missed (ORA-01031) for the last run; null if none.</summary>
@@ -153,6 +162,7 @@ else if (_drop is { } synonym)
     {
         CancelCheck();
         (_create, _drop, _confirmDrop, _missingPrivilege) = (null, synonym, confirm, null);
+        _dropRequests++;
     }
 
     /// <summary>Takes what was typed; the check of an earlier change gives up.</summary>
@@ -192,7 +202,10 @@ else if (_drop is { } synonym)
     private async Task OnRanAsync()
     {
         Close();
-        await OnSchemaChanged.InvokeAsync();
+        if (!_disposed)
+        {
+            await OnSchemaChanged.InvokeAsync();
+        }
     }
 
     /// <summary>After ORA-01031 the system privilege the statement needs, by whose synonym it is.</summary>
@@ -210,6 +223,7 @@ else if (_drop is { } synonym)
 
     public override void Dispose()
     {
+        _disposed = true;
         CancelCheck();
         base.Dispose();
     }
