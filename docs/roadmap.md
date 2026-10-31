@@ -95,6 +95,19 @@ Branch `wp/47-since-last-visit`.
 - **Weitergabe** (Entscheidung, 2026-10-31): Kopieren und „In LINQ-Konsole öffnen“ (zeigt das SQL von EF und die Zeilen – Probe ohne Build). Nicht ins Projekt schreiben; das kommt frühestens mit dem Unterbau aus WP-41.
 - **Zustand mit dem Tab gespeichert** (Entscheidung, 2026-10-31): gewählte Kanten, Spalten, Filter (samt „als Parameter“), Namen und ob der Modus an ist – eine Abfrage entsteht oft über mehrere Tage. Das Aufklappen des Diagramms bleibt wie in WP-46 nur im Speicher. Fehlt beim Wiederherstellen eine Spalte oder Beziehung (Schema geändert), fällt sie mit Hinweis heraus, wie Tabs auf gelöschten Tabellen.
 
+### WP-70 Kontextmenüs im Explorer und an Tabs
+(Wunsch des Nutzers, als Paket eingeplant am 2026-10-31; im Backlog als „Kontextmenü im Explorer“ aus WP-68.) Branch `wp/70-explorer-tab-menus`. Heute hat der Explorer kein Kontextmenü, der Tab-Kopf eine schlichte Liste (Anheften, Link kopieren bei Tabellen, vier Arten zu schließen).
+- **Ein Objektmenü an zwei Orten:** Rechtsklick auf einen Eintrag im Explorer und auf den Kopf eines Tabs mit Tabelle, View oder PL/SQL zeigt dieselben Objektaktionen – je Art ein Menü-Rumpf (Tabelle/View/MView/Synonym, PL/SQL), aus den Bausteinen von WP-61/66 (`ContextMenuHost`, Kopf, `QuickBar`/`QuickAction`, `MenuEntry`, Chips), Tastatur über `KeyNavigation`.
+- **Kopf:** Art (Tabelle, View, MView, Synonym mit Ziel und Owner), Entity-Name, Kommentar, ungültig bzw. deaktiviert.
+- **Tabelle/View – Leiste:** Öffnen, Link kopieren, „Im SQL-Editor öffnen“ (`SELECT * FROM …`, der Text kommt aus `Core/Query`), „In LINQ-Konsole öffnen“ (`db.Kunden`, wie `LinqFilter.Source`), „Im Designer bearbeiten“ (nur Tabellen des eigenen Schemas).
+- **Ansicht direkt öffnen:** Chips für Struktur, Constraints, Indizes, Abhängigkeiten, Beziehungen, DDL und Verwendung (nur mit Code-Index) – `ShellState.OpenTable(table, mode)`.
+- **Kopieren:** Chips für Name, `OWNER.NAME` (gequotet, wo nötig), Entity-Name und `db.<DbSet>` (nur mit C#-Modell).
+- **Andere Verbindung:** Chips der verbundenen Verbindungen, öffnet die Tabelle dort (Weg aus `small-link-choose-connection`, `ShellState.OpenLinkIn`).
+- **PL/SQL:** Öffnen mit Chips für Spezifikation, Body, Unterprogramme und Abhängigkeiten; Name kopieren; bei Triggern aktivieren/deaktivieren über den Schemaweg (`TriggerDdl`, mit Bestätigung wie jedes DDL).
+- **Tab-Kopf:** Über dem Objektmenü der Teil des Tabs: Anheften, **„Im Explorer zeigen“** (Abschnitt wechseln, Suche leeren, Eintrag ins Bild scrollen und markieren), **„Tab duplizieren“** (neuer Tab derselben Tabelle mit denselben Filtern, Weg der FK-Sprünge `OpenFiltered`), darunter die Arten zu schließen wie heute. SQL-, LINQ- und andere Tabs bekommen nur den Teil des Tabs.
+- **Spätere Pakete tragen ein:** WP-68 „Synonyme“ bzw. „Synonym löschen“, WP-69 „Abfrage bauen“ – je nachdem, welches Paket nach diesem kommt.
+- **Entscheidungen des Nutzers (2026-10-31):** kein Filterfeld (das Menü bleibt kurz, wie Spalten- und Verbindungsmenü); Leiste mit Beschriftung wie im Spaltenmenü; Tabellen und Views löschen oder umbenennen nicht in diesem Paket (Backlog); „Tab duplizieren“ und „Im Explorer zeigen“ ohne Standardtaste (`docs/architecture.md` 3), aber in der Befehlspalette.
+
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
 - Verwendung im Code, „kein Index“ (small-usage-filter-without-index): die Markierung auch in der Spaltenansicht und im Hinweis des Designers? Ein Knopf „Index anlegen“ (Entwurf in der Index-Ansicht wie bei Fremdschlüsseln ohne Index)?
