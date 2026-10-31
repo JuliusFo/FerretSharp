@@ -88,6 +88,10 @@ public class SynonymTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.Equal(SynonymTargetState.MissingOrNoAccess, synonyms["S_GEHEIM"].State);
         Assert.Equal((SynonymTargetState.DbLink, $"{Other}.PRODUKT@FERRET_LINK"), (synonyms["S_LINK"].State, synonyms["S_LINK"].Target));
         Assert.DoesNotContain("FERRET_KATEGORIE", synonyms.Keys); // public
+        if (SampleSchema.HasMaterializedView)
+        {
+            Assert.Equal(("MATERIALIZED VIEW", SynonymTargetState.Ok), (synonyms["S_MV_UMSATZ"].TargetType, synonyms["S_MV_UMSATZ"].State));
+        }
     }
 
     [Theory]

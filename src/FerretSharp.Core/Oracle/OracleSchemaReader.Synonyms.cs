@@ -6,7 +6,10 @@ namespace FerretSharp.Core.Oracle;
 /// <summary>Synonyms on an object, the private synonyms of a schema and the names a new one cannot take (WP-68).</summary>
 public sealed partial class OracleSchemaReader
 {
-    // Private ones first, then the public ones; a synonym over a database link points at another database's object.
+    // Private ones first, then the public ones; a synonym over a database link points at another database's object. Filtered
+    // by the target, not by OWNER (the rule of the ALL_* views): the private synonyms of every schema are wanted. Oracle has no
+    // index on a synonym's target, so this reads all synonyms of the database – tens of thousands of public ones are a few
+    // milliseconds, as when the explorer reads the public synonyms on connecting (review of WP-68).
     private const string SynonymsOnSql = """
         SELECT owner, synonym_name
           FROM all_synonyms
@@ -14,18 +17,22 @@ public sealed partial class OracleSchemaReader
          ORDER BY CASE owner WHEN 'PUBLIC' THEN 1 ELSE 0 END, owner, synonym_name
         """;
 
-    // Namespace 1 holds what a synonym can point at (a package body has its own); one row per synonym. The synonym's own row
-    // in ALL_OBJECTS turns INVALID when its target is dropped – a target that never existed leaves it VALID (WP-68, measured
-    // against Oracle 23). For another schema, ALL_SYNONYMS shows only synonyms whose target the session may access.
+    // The kinds of object a synonym can point at (not a package body, index or trigger of the same name); one row per
+    // synonym. A materialized view is a TABLE and a MATERIALIZED VIEW in ALL_OBJECTS – the latter names it (review of WP-68:
+    // the type showed TABLE). The synonym's own row in ALL_OBJECTS turns INVALID when its target is dropped – a target that
+    // never existed leaves it VALID (WP-68, measured against Oracle 23). For another schema, ALL_SYNONYMS shows only synonyms
+    // whose target the session may access.
     private const string SchemaSynonymsSql = """
         SELECT s.synonym_name, s.table_owner, s.table_name, s.db_link,
-               MAX(o.object_type) AS target_type,
+               NVL(MAX(CASE o.object_type WHEN 'MATERIALIZED VIEW' THEN o.object_type END), MAX(o.object_type)) AS target_type,
                MAX(CASE so.status WHEN 'INVALID' THEN 1 ELSE 0 END) AS invalid,
                MAX(CASE WHEN u.username IS NULL THEN 0 ELSE 1 END) AS owner_exists,
                MAX(CASE WHEN s.table_owner = USER THEN 1 ELSE 0 END) AS own_target
           FROM all_synonyms s
           LEFT JOIN all_objects o
-            ON s.db_link IS NULL AND o.owner = s.table_owner AND o.object_name = s.table_name AND o.namespace = 1
+            ON s.db_link IS NULL AND o.owner = s.table_owner AND o.object_name = s.table_name
+           AND o.object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW', 'SEQUENCE', 'SYNONYM', 'PACKAGE', 'PROCEDURE', 'FUNCTION',
+                                 'TYPE', 'OPERATOR', 'JAVA CLASS')
           LEFT JOIN all_objects so
             ON so.owner = s.owner AND so.object_name = s.synonym_name AND so.object_type = 'SYNONYM'
           LEFT JOIN all_users u
