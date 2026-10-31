@@ -45,3 +45,19 @@ Eigener Container `ferret-wp70` (Port 1540, danach entfernt), eigene Instanz üb
 - **Per CDP:** SQL (`SELECT *\n  FROM ARTIKEL;` im neuen SQL-Tab), LINQ (`db.Artikel`), Designer (Spaltenansicht im Bearbeiten-Modus); View ohne Designer; Trigger AUFTRAG_AD (deaktiviert) mit „Im SQL-Editor aktivieren“ → `ALTER TRIGGER "FERRET"."AUFTRAG_AD" ENABLE;`; Package mit INVALID und seinen fünf Ansichten; Tab-Menü einer Tabelle (Kopf, Anheften, Duplizieren, Zeigen, Objektteil, Schließen) und eines SQL-Tabs (nur Tab-Teil); Duplizieren eines nicht aktiven Tabs landet direkt dahinter; „Im Explorer zeigen“ aus dem PL/SQL-Abschnitt mit Suche „PKG“ wechselt zu Tabellen, leert die Suche, AUFTRAG im Bild; „WP70 Dev“ fragt das Passwort, verbindet und zeigt ARTIKEL dort.
 - Log beider Läufe ohne `[ERR]`/`[WRN]`.
 - **Nicht geprüft:** Tastatur im Menü (↑ ↓, Enter – Baustein unverändert), „Im Explorer zeigen“ über eine selbst vergebene Taste und aus der Befehlspalette (Unit-Tests für die Regel), Prod-Verbindung als Ziel von „In Verbindung öffnen“.
+
+## Nachtrag: Code-Review (2026-10-31)
+Unabhängiger Reviewer (eigener Agent) über `d6be978b..de0bb702`, zweiter Durchgang über die Fixes. Entscheidung des Nutzers: „Passt.“ – alle Befunde beheben, #2 nur als Warnung, #9 mit den Filtern des Tabs; die zwei Befunde des zweiten Durchgangs: „Jop“.
+1. **M – SELECT ohne Owner bei eingetragenem Schema:** FerretSharp setzt kein `CURRENT_SCHEMA`, Oracle löst unqualifizierte Namen im Schema des Login-Users auf – „Im SQL-Editor öffnen“ las bei User `TECH` mit Schema `APP` eine andere Tabelle oder scheiterte. Behoben: `SelectStarText` nimmt das Schema der Session (`ObjectMenuFacts.SessionSchema` = Login-User), private Synonyme anderer Schemas mit Owner. Mein Satz zu WP-68 in der Roadmap („ein Schema im Profil setzt `CURRENT_SCHEMA`“) war falsch und ist korrigiert.
+2. **M – Ungültigen Trigger aktivieren:** ließ jede DML auf der Tabelle mit ORA-04098 scheitern. Behoben als Warnung im Tooltip (Eintrag bleibt klickbar, keine Bevormundung).
+3. **K – „Im Explorer zeigen“ nach dem Neuverbinden noch einmal:** Der neu gebaute Explorer nahm den alten Auftrag. Behoben: beim Start nur die Id merken; das Aufleuchten setzt `dom.js flashById` einmal, statt einer Klasse im Markup, die bei jedem Neuzeichnen wieder aufleuchtete.
+4. **K – `INVALID`/`DISABLED` fest auf Englisch:** behoben mit den Ressourcen des PL/SQL-Kopfs (Spezifikation und Body getrennt).
+5. **K – Tab-Menü mit dem Stand vom Öffnen:** behoben, die TabBar schlägt Tabelle bzw. Einheit im Schema-Cache nach.
+6. **K – Hinweis „Tabelle eines anderen Schemas“ auch bei PL/SQL und Gelöschtem:** neutral formuliert.
+7. **K – `$` in den Namens-Regexen passte vor einem abschließenden Zeilenumbruch:** `\z` statt `$`, mit Test.
+8. **K – Test-Summary verrutscht:** behoben.
+9. **K – SQL und LINQ aus dem Tab-Menü ohne die Filter des Tabs:** behoben (`ObjectMenuFacts.SqlOf`/`LinqOf`: angewendete Filter, bei SQL auch die Sortierung, sobald die Struktur geladen ist; im Explorer ungefiltert).
+10. **K – Duplikat ohne Filter-Vorlage:** `Preset` geht mit.
+11. **K (zweiter Durchgang) – öffentliches Synonym bei eingetragenem Schema:** Ein eigenes Objekt des Login-Users mit demselben Namen ginge vor. Behoben: dann das echte Objekt mit Owner.
+12. **K (zweiter Durchgang) – LINQ-Tooltip ungefiltert:** zeigt jetzt die Abfrage, die die Aktion öffnet.
+- E2E nach den Fixes (eigener Container `ferret-wp70`, danach entfernt; Log ohne `[ERR]`/`[WRN]`): #2 mit einem in der Test-DB angelegten ungültigen, deaktivierten Trigger; #3 mit „Im Explorer zeigen“, Trennen und Neuverbinden; #4 deutsch im Kopf; #5 Trigger von außen aktiviert, Schema neu geladen, Tab-Menü bietet „deaktivieren“; #9 Tab per echter Maus sortiert, SQL aus dem Tab-Menü mit `ORDER BY`. #11 und #12 nur per Unit-Test bzw. ohne E2E (Tooltip).
