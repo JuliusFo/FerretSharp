@@ -345,4 +345,16 @@
   <data name="HintInCellEditor" xml:space="preserve">
     <value>Während eine Zelle im Grid bearbeitet wird.</value>
   </data>
+  <data name="ActionDuplicateTab" xml:space="preserve">
+    <value>Tab duplizieren</value>
+  </data>
+  <data name="HintDuplicateTab" xml:space="preserve">
+    <value>Ein neuer Tab derselben Tabelle mit denselben Filtern, derselben Sortierung und Ansicht.</value>
+  </data>
+  <data name="ActionRevealInExplorer" xml:space="preserve">
+    <value>Im Explorer zeigen</value>
+  </data>
+  <data name="HintRevealInExplorer" xml:space="preserve">
+    <value>Scrollt die Liste des Explorers zur Tabelle oder zum PL/SQL-Objekt des aktiven Tabs und hebt es hervor.</value>
+  </data>
 </root>

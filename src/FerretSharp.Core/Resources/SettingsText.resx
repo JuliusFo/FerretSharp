@@ -422,4 +422,18 @@
   <data name="HintInCellEditor" xml:space="preserve">
     <value>While a cell is being edited in the grid.</value>
   </data>
+  <data name="ActionDuplicateTab" xml:space="preserve">
+    <value>Duplicate tab</value>
+    <comment>Shortcut action (WP-70): a second tab of the active table tab with its filters</comment>
+  </data>
+  <data name="HintDuplicateTab" xml:space="preserve">
+    <value>A new tab of the same table with the same filters, sort order and view.</value>
+  </data>
+  <data name="ActionRevealInExplorer" xml:space="preserve">
+    <value>Show in explorer</value>
+    <comment>Shortcut action (WP-70): selects the table or PL/SQL object of the active tab in the explorer list</comment>
+  </data>
+  <data name="HintRevealInExplorer" xml:space="preserve">
+    <value>Scrolls the explorer list to the table or PL/SQL object of the active tab and marks it.</value>
+  </data>
 </root>

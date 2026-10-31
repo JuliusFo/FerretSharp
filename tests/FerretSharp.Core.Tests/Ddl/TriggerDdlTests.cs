@@ -84,6 +84,14 @@ public sealed class TriggerDdlTests
     }
 
     [Fact]
+    public void Enable_and_disable_name_the_trigger_with_its_owner()
+    {
+        Assert.Equal("ALTER TRIGGER \"APP\".\"KUNDE_AUD\" ENABLE", TriggerDdl.Enable("APP", "KUNDE_AUD"));
+        Assert.Equal("ALTER TRIGGER \"APP\".\"Kunde_Aud\" DISABLE", TriggerDdl.Disable("APP", "Kunde_Aud"));
+        Assert.True(FerretSharp.Core.Oracle.StatementGuard.IsDdl(TriggerDdl.Disable("APP", "KUNDE_AUD")));
+    }
+
+    [Fact]
     public void Text_inside_the_body_does_not_count_as_the_header()
     {
         const string sql = "CREATE TRIGGER t1 BEFORE INSERT ON kunde FOR EACH ROW BEGIN EXECUTE IMMEDIATE 'ALTER TRIGGER x ENABLE'; END;";

@@ -137,6 +137,19 @@ public static class QueryBuilder
     }
 
     /// <summary>
+    /// A table to read on in the SQL editor ("Open in the SQL editor" of the explorer menu, WP-70): <c>SELECT *</c> by the
+    /// name the user knows it by, as code reads it – the synonym, the name in <paramref name="schemaOwner"/> (the schema the
+    /// sessions work in), otherwise owner and name.
+    /// </summary>
+    public static string SelectStarText(TableSummary table, string schemaOwner)
+    {
+        var from = table.Synonym is { } synonym ? OracleIdentifier.QuoteIfNeeded(synonym.Name)
+            : table.Owner == schemaOwner ? OracleIdentifier.QuoteIfNeeded(table.Name)
+            : OracleIdentifier.QualifyIfNeeded(table.Owner, table.Name);
+        return $"SELECT *\n  FROM {from}";
+    }
+
+    /// <summary>
     /// The values of columns for every row of <see cref="BuildSelectAll"/> (copy the values of a column, WP-57, or of marked
     /// columns, WP-58): in the grid's order, or each value once (<paramref name="distinct"/>, for an IN list – one column only)
     /// ordered by the value – with DISTINCT, Oracle only sorts by what is selected. Only columns read as they are

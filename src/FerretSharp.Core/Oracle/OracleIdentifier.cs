@@ -96,6 +96,9 @@ public static partial class OracleIdentifier
     /// </summary>
     public static string QuoteIfNeeded(string name) => IsPlain(name) ? name : Quote(name);
 
+    /// <summary>Owner and name as code a user reads (<see cref="QuoteIfNeeded"/>): <c>APP.KUNDEN</c>, <c>APP."Kunden"</c>.</summary>
+    public static string QualifyIfNeeded(string owner, string name) => $"{QuoteIfNeeded(owner)}.{QuoteIfNeeded(name)}";
+
     /// <summary>
     /// Converts a name as a user would type it into the dictionary form: unquoted names are upper-cased
     /// (<c>erp</c> → <c>ERP</c>), quoted names keep their case (<c>"Erp"</c> → <c>Erp</c>).

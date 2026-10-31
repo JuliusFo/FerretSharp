@@ -118,6 +118,18 @@ public partial class QueryBuilderTests
     /// The SQL editor reads later pages by running the statement again: a table without key keeps ROWID as the last term of
     /// the order (not in the select list), or rows would repeat or go missing between pages.
     /// </summary>
+    /// <summary>WP-70: "Open in the SQL editor" in the explorer menu names the table as the user knows it.</summary>
+    [Fact]
+    public void Select_star_text_names_the_table_by_synonym_own_name_or_owner_and_name()
+    {
+        Assert.Equal("SELECT *\n  FROM KUNDEN", QueryBuilder.SelectStarText(new TableSummary("APP", "KUNDEN", TableKind.Table), "APP"));
+        Assert.Equal("SELECT *\n  FROM \"Kunden\"", QueryBuilder.SelectStarText(new TableSummary("APP", "Kunden", TableKind.Table), "APP"));
+        Assert.Equal("SELECT *\n  FROM STAMM.PRODUKT", QueryBuilder.SelectStarText(new TableSummary("STAMM", "PRODUKT", TableKind.Table), "APP"));
+        var viaSynonym = new TableSummary("STAMM", "PRODUKT", TableKind.View, new SynonymInfo(SynonymInfo.PublicOwner, "S_PRODUKT"));
+        Assert.Equal("SELECT *\n  FROM S_PRODUKT", QueryBuilder.SelectStarText(viaSynonym, "APP"));
+        Assert.True(StatementGuard.IsQuery(QueryBuilder.SelectStarText(viaSynonym, "APP")));
+    }
+
     [Fact]
     public void Select_star_without_key_ends_the_order_with_rowid_a_view_without_key_has_only_the_sorts()
     {

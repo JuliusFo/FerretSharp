@@ -23,13 +23,14 @@ public static class LinqFilter
     /// <summary>
     /// The query source for the LINQ console: <c>db.Kunden</c>, or <c>db.Set&lt;Kunde&gt;()</c> without a DbSet property.
     /// </summary>
-    public static string Source(TablePresentation presentation, string context = "db")
-    {
-        var entity = presentation.Entity ?? throw new InvalidOperationException("The table has no entity.");
-        return entity.Entity.DbSet is { } dbSet
+    public static string Source(TablePresentation presentation, string context = "db") =>
+        Source((presentation.Entity ?? throw new InvalidOperationException("The table has no entity.")).Entity, context);
+
+    /// <summary>The query source of an entity (<see cref="Source(TablePresentation, string)"/>), without the table's columns (WP-70, explorer menu).</summary>
+    public static string Source(EntityExport entity, string context = "db") =>
+        entity.DbSet is { } dbSet
             ? $"{context}.{CSharpCode.Identifier(dbSet)}"
-            : $"{context}.Set<{ClrModelMapping.ShortName(entity.Entity.ClrType)}>()";
-    }
+            : $"{context}.Set<{ClrModelMapping.ShortName(entity.ClrType)}>()";
 
     /// <summary>
     /// <c>.Where(x => …)</c> for the enabled filters, or – with <paramref name="source"/> – a whole query

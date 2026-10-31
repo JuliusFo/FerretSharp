@@ -13,6 +13,12 @@ public enum ShortcutAction
     CloseOtherTabs,
     CloseAllTabs,
     PinTab,
+
+    /// <summary>A second tab of the active table tab's table with its filters (WP-70); no default key. Stored by name: the place is free.</summary>
+    DuplicateTab,
+
+    /// <summary>The active tab's table or PL/SQL unit in the explorer list (WP-70); no default key.</summary>
+    RevealInExplorer,
     QuickOpen,
     CommandPalette,
     ApplyFilters,
@@ -99,6 +105,8 @@ public sealed class ShortcutMap
         new(ShortcutAction.CloseOtherTabs, SettingsText.GroupNavigation, SettingsText.ActionCloseOtherTabs, null, ShortcutScope.Global, SettingsText.HintCloseTabs),
         new(ShortcutAction.CloseAllTabs, SettingsText.GroupNavigation, SettingsText.ActionCloseAllTabs, null, ShortcutScope.Global, SettingsText.HintCloseTabs),
         new(ShortcutAction.PinTab, SettingsText.GroupNavigation, SettingsText.ActionPinTab, null, ShortcutScope.Global, SettingsText.HintPinTab),
+        new(ShortcutAction.DuplicateTab, SettingsText.GroupNavigation, SettingsText.ActionDuplicateTab, null, ShortcutScope.Global, SettingsText.HintDuplicateTab),
+        new(ShortcutAction.RevealInExplorer, SettingsText.GroupNavigation, SettingsText.ActionRevealInExplorer, null, ShortcutScope.Global, SettingsText.HintRevealInExplorer),
         new(ShortcutAction.QuickOpen, SettingsText.GroupNavigation, SettingsText.ActionQuickOpen, null, ShortcutScope.Global, SettingsText.HintQuickOpen),
         new(ShortcutAction.CommandPalette, SettingsText.GroupNavigation, SettingsText.ActionCommandPalette, null, ShortcutScope.Global, SettingsText.HintCommandPalette),
         new(ShortcutAction.ApplyFilters, SettingsText.GroupData, SettingsText.ActionApplyFilters, "ctrl+enter", ShortcutScope.Global, SettingsText.HintRunInEditors),

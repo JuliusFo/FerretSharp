@@ -40,6 +40,14 @@ public class OracleIdentifierTests
         Assert.Equal(expected == name, OracleIdentifier.IsPlain(name));
     }
 
+    [Fact]
+    public void QualifyIfNeeded_quotes_each_part_on_its_own()
+    {
+        Assert.Equal("APP.KUNDEN", OracleIdentifier.QualifyIfNeeded("APP", "KUNDEN"));
+        Assert.Equal("APP.\"Kunden\"", OracleIdentifier.QualifyIfNeeded("APP", "Kunden"));
+        Assert.Equal("\"app\".\"DATE\"", OracleIdentifier.QualifyIfNeeded("app", "DATE"));
+    }
+
     /// <summary>R5b (review 3.31.0, B3): one check for typed names – designer, indexes, constraints, audit templates.</summary>
     [Theory]
     [InlineData("KUNDE", null)]

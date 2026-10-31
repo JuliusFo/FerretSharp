@@ -148,6 +148,7 @@ public sealed class LinqFilterTests
             LinqFilter.Build(presentation, filters, LinqFilter.Source(presentation)).Text);
         Assert.Equal("db.Kunden", LinqFilter.Build(presentation, [], "db.Kunden").Text);
         Assert.Equal("db.Set<Kunde>()", LinqFilter.Source(await CodeGenerationModel.PresentationAsync(dbSet: null)));
+        Assert.Equal("db.Kunden", LinqFilter.Source(presentation.Entity!.Entity)); // the explorer menu knows only the entity (WP-70)
     }
 
     [Fact]

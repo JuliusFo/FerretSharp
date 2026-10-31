@@ -62,6 +62,9 @@ public static class TriggerDdl
     /// <summary><c>ALTER TRIGGER "OWNER"."NAME" ENABLE</c>: switches on a trigger that compiled.</summary>
     public static string Enable(string owner, string name) => OracleDdl.EnableTrigger(owner, name);
 
+    /// <summary><c>ALTER TRIGGER "OWNER"."NAME" DISABLE</c>: the trigger stays, but no longer fires (WP-70, explorer menu).</summary>
+    public static string Disable(string owner, string name) => OracleDdl.DisableTrigger(owner, name);
+
     /// <summary>The trigger's name (and owner) and the index of the first token after it; null if this is no trigger.</summary>
     private static (string? Owner, string Name, int Next)? NameAt(List<SqlToken> tokens)
     {
