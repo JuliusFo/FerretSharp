@@ -19,20 +19,25 @@
             }
             @if (table.IsInvalid)
             {
-                <span class="ctx-fact bad" title="@InvalidStatusText.For(ObjectMenuFacts.ObjectType(table.Kind))">INVALID</span>
+                <span class="ctx-fact bad" title="@InvalidStatusText.For(ObjectMenuFacts.ObjectType(table.Kind))">@SchemaViewText.InvalidChip</span>
             }
         }
         else if (Unit is { } unit)
         {
             <span class="ctx-fact">@ExplorerList.KindLabel(unit.Kind)</span>
             @Origin(unit.Owner, unit.Name, unit.Synonym, ExplorerList.KindLabel(unit.Kind))
-            @if (unit.IsInvalid)
+            @* As the head of the PL/SQL tab (PlSqlHeader): a package's specification and body apart. *@
+            @if (unit.Status == "INVALID")
             {
-                <span class="ctx-fact bad" title="@InvalidStatusText.For(unit.ObjectType(unit.Status == "INVALID" ? PlSqlPart.Spec : PlSqlPart.Body))">INVALID</span>
+                <span class="ctx-fact bad" title="@InvalidStatusText.For(unit.ObjectType())">@(unit.Kind == PlSqlKind.Package ? SchemaViewText.PlSql_SpecInvalidChip : SchemaViewText.InvalidChip)</span>
+            }
+            @if (unit.Kind == PlSqlKind.Package && unit.BodyStatus == "INVALID")
+            {
+                <span class="ctx-fact bad" title="@InvalidStatusText.For("PACKAGE BODY")">@SchemaViewText.PlSql_BodyInvalidChip</span>
             }
             @if (unit.IsDisabled)
             {
-                <span class="ctx-fact" title="@SchemaViewText.Explorer_TriggerDisabled">DISABLED</span>
+                <span class="ctx-fact" title="@SchemaViewText.PlSql_TriggerDisabledTitle">@SchemaViewText.PlSql_DisabledChip</span>
             }
         }
     </div>

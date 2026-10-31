@@ -39,10 +39,10 @@
         @switch (menu.Tab)
         {
             case TableTab table:
-                <ObjectMenuHead Table="table.Table" />
+                <ObjectMenuHead Table="CurrentOf(table)" />
                 break;
             case PlSqlTab unit:
-                <ObjectMenuHead Unit="unit.Unit" />
+                <ObjectMenuHead Unit="CurrentOf(unit)" />
                 break;
         }
         <div class="tab-menu">
@@ -67,11 +67,11 @@
         {
             case TableTab table:
                 <div class="menu-sep"></div>
-                <TableMenuBody Table="table.Table" Tab="table" OnClose="CloseMenu" />
+                <TableMenuBody Table="CurrentOf(table)" Tab="table" OnClose="CloseMenu" />
                 break;
             case PlSqlTab unit:
                 <div class="menu-sep"></div>
-                <PlSqlMenuBody Unit="unit.Unit" InTab="true" Shown="unit.View" OnClose="CloseMenu" />
+                <PlSqlMenuBody Unit="CurrentOf(unit)" InTab="true" Shown="unit.View" OnClose="CloseMenu" />
                 break;
         }
         <div class="tab-menu">
@@ -282,6 +282,17 @@
         _menu = null;
         Lifecycle.CloseTabs(menu.Tab, scope);
     }
+
+    [CascadingParameter]
+    public Core.Connections.ActiveConnection Active { get; set; } = null!;
+
+    /// <summary>
+    /// The tab's object as the schema knows it now – the tab keeps the one from its opening (a trigger switched off since,
+    /// a package compiled); the opening's if the schema has none (another schema without synonym). Review of WP-70.
+    /// </summary>
+    private Core.Schema.TableSummary CurrentOf(TableTab tab) => Active.Schema?.Find(tab.Table.Ref) ?? tab.Table;
+
+    private Core.Schema.PlSqlObjectSummary CurrentOf(PlSqlTab tab) => Active.Schema?.FindPlSql(tab.Unit.Ref) ?? tab.Unit;
 
     private void DuplicateFromMenu()
     {
