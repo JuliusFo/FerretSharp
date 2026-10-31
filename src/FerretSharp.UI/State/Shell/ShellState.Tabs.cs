@@ -330,8 +330,8 @@ public sealed partial class ShellState
     });
 
     /// <summary>
-    /// A second tab of <paramref name="source"/>'s table right after it (WP-70): the applied filters with their groups, the
-    /// sort order, the view and the pinned columns. Edited but not applied filter rows stay with the source. Not pinned.
+    /// A second tab of <paramref name="source"/>'s table right after it (WP-70): the applied filters with their groups and
+    /// preset, the sort order, the view and the pinned columns. Edited but not applied filter rows stay with the source. Not pinned.
     /// </summary>
     public TableTab? DuplicateTab(TableTab source)
     {
@@ -344,6 +344,7 @@ public sealed partial class ShellState
         {
             AppliedFilters = source.AppliedFilters,
             Sorts = source.Sorts,
+            Preset = source.Preset,
             Mode = source.Mode,
             PinnedColumns = source.PinnedColumns,
             Visited = true,

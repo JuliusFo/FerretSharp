@@ -976,6 +976,6 @@
     <value>Modell aus einer Datei, exportiert {0}.</value>
   </data>
   <data name="Reveal_NotListed" xml:space="preserve">
-    <value>{0} steht nicht im Explorer: eine Tabelle eines anderen Schemas, erreicht ohne Synonym.</value>
+    <value>{0} steht nicht im Explorer: ein Objekt eines anderen Schemas ohne Synonym oder eines, das es nicht mehr gibt.</value>
   </data>
 </root>

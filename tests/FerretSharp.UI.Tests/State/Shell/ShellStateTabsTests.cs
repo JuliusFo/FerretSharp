@@ -126,6 +126,7 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         var source = _app.Shell.OpenTable(TestApp.Kunden)!;
         var applied = new[] { FilterCondition.Of("NAME", FilterOperator.Contains, "Meier") };
         (source.AppliedFilters, source.Sorts, source.Mode) = (applied, [new SortSpec("NAME", true)], TabMode.Structure);
+        source.Preset = Guid.NewGuid();
         source.SetFilterRows([.. applied, FilterCondition.Of("ORT", FilterOperator.Equals, "Kiel")]);
         var sql = _app.Shell.OpenSql()!;
 
@@ -137,6 +138,7 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         Assert.Equal(["NAME"], copy.FilterRows.Select(r => r.Column));
         Assert.Equal(source.Sorts, copy.Sorts);
         Assert.Equal(TabMode.Structure, copy.Mode);
+        Assert.Equal(source.Preset, copy.Preset); // review of WP-70: the filter bar names the preset
         Assert.False(copy.Pinned);
     }
 
@@ -150,7 +152,7 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
 
         Assert.False(_app.Shell.RevealInExplorer(foreign));
         Assert.Null(_app.Shell.Reveal);
-        Assert.Equal("LAENDER steht nicht im Explorer: eine Tabelle eines anderen Schemas, erreicht ohne Synonym.", _app.Shell.Notice?.Text);
+        Assert.Equal("LAENDER steht nicht im Explorer: ein Objekt eines anderen Schemas ohne Synonym oder eines, das es nicht mehr gibt.", _app.Shell.Notice?.Text);
 
         _app.Shell.ActivateTab(foreign);
         Assert.True(_app.Shell.RevealInExplorer(listed));
