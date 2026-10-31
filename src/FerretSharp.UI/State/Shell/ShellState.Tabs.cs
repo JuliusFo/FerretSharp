@@ -230,6 +230,16 @@ public sealed partial class ShellState
         }
     }
 
+    /// <summary>
+    /// The same from the head of a table tab: that tab, not the first one of its table – a second tab of it (FK jump,
+    /// duplicate) keeps its own (review of WP-68).
+    /// </summary>
+    public void RequestSynonymDrop(TableTab tab, SynonymInfo synonym)
+    {
+        ShowTab(tab, TabMode.Synonyms);
+        Set(() => tab.DropRequested = synonym);
+    }
+
     /// <inheritdoc cref="RequestSynonymDrop(TableSummary, SynonymInfo)"/>
     public void RequestSynonymDrop(PlSqlObjectSummary unit, SynonymInfo synonym)
     {
@@ -521,12 +531,13 @@ public sealed partial class ShellState
 
     /// <summary>
     /// After a schema refresh: drops the table and PL/SQL tabs of the connection whose object is gone – in the workspaces of
-    /// that connection only, another connection's schema may well have the object.
+    /// that connection only, another connection's schema may well have the object. A unit of another schema stays like a
+    /// table there: dropping its last synonym (WP-68) closed the very tab that had just dropped it (review of WP-68).
     /// </summary>
     public void RemoveVanishedTabs(Guid connectionId, SchemaCache schema) => RemoveWhere(connectionId, tab => tab switch
     {
         TableTab table => Vanished(table, schema),
-        PlSqlTab plSql => schema.FindPlSql(plSql.Unit.Ref) is null,
+        PlSqlTab plSql => schema.FindPlSql(plSql.Unit.Ref) is null && string.Equals(plSql.Unit.Owner, schema.Owner, StringComparison.Ordinal),
         RecordTab records => schema.Find(records.Table.Ref) is null && string.Equals(records.Table.Owner, schema.Owner, StringComparison.Ordinal),
         _ => false,
     });

@@ -44,6 +44,23 @@ public sealed class SynonymListTabTests : IAsyncDisposable
         Assert.Equal((TabMode.Synonyms, synonym), (tab.Mode, tab.DropRequested));
     }
 
+    /// <summary>Review of WP-68: from the head of a second tab of the table, the first one took the drop.</summary>
+    [Fact]
+    public async Task Dropping_from_a_tab_s_head_shows_that_tab()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        var synonym = new SynonymInfo("PUBLIC", "KUNDEN_ALT");
+        var first = _app.Shell.OpenTable(TestApp.Kunden with { Synonym = synonym })!;
+        var second = _app.Shell.DuplicateTab(first)!;
+        _app.Shell.ActivateTab(first);
+
+        _app.Shell.RequestSynonymDrop(second, synonym);
+
+        Assert.Same(second, _app.Shell.ActiveTab);
+        Assert.Equal((TabMode.Synonyms, synonym), (second.Mode, second.DropRequested));
+        Assert.Equal((TabMode.Data, null), (first.Mode, first.DropRequested));
+    }
+
     [Fact]
     public void The_list_reloads_with_f5_and_a_trigger_has_no_synonyms()
     {
