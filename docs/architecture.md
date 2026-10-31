@@ -242,6 +242,7 @@ Eine Aktion im Grid (`ShortcutScope.Grid`, `GridAndForm`) bekommt nie Ctrl+C –
 | – (frei belegbar) | Arbeits-Klon der Verbindungsgruppe wechseln (wie „⎇“ in der Statusleiste) | WP-40 |
 | – (frei belegbar) | Aktiven Tabellen-Tab duplizieren: neuer Tab derselben Tabelle mit den angewendeten Filtern, Sortierung und Ansicht; auch im Kontextmenü eines Tabs | WP-70 |
 | – (frei belegbar) | Tabelle oder PL/SQL des aktiven Tabs im Explorer zeigen; auch im Kontextmenü eines Tabs | WP-70 |
+| – (frei belegbar) | Synonyme des Schemas: Tab mit den privaten Synonymen, ihren Zielen und ihrem Zustand | WP-68 |
 | – (je Verbindung, im Verbindungsdialog) | Diese Verbindung zeigen, vorher verbinden, wenn nötig. Gleiche Regeln wie globale Aktionen; eine Aktion mit derselben Taste gewinnt, wer eine Taste übernimmt, nimmt sie dem anderen (Aktion oder Verbindung) weg | WP-66 |
 | Ctrl+S | Ausstehende Änderungen schreiben (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |

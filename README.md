@@ -71,7 +71,11 @@ developer works with an Oracle database day to day:
   `4711 · PetersPizza`; a name can join several columns (`Müller - Hans`) and follow one more foreign key; a value
   without a referenced row says "not found". The display columns live in one file you
   can share with your team through your repository.
-- Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies, DDL.
+- Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies,
+  synonyms, DDL.
+- **Synonyms**: every table, view and PL/SQL unit lists the private and public synonyms on it – create one (private in
+  the schema or public) or drop one, after the confirmation every schema change gets. "Synonyms of the schema" in the
+  command palette lists the schema's private synonyms with their targets and marks those leading nowhere, to clean up.
 - PL/SQL to look at: packages, procedures, functions and triggers with their source (read-only, coloured, compile
   errors marked), parameters per subprogram and overload, compile errors and dependencies – and a search through all
   PL/SQL of the schema. Nothing is run or compiled.

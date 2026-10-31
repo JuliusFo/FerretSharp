@@ -38,6 +38,8 @@ Drei Stufen, von schwach nach stark:
 - Die Suche nach DBeaver und SQL Developer schaut sonst in den echten `%APPDATA%` des Nutzers → immer `--import-appdata=<scratch>` mit erfundenen Dateien (`DBeaverData\workspace6\<Projekt>\.dbeaver\data-sources.json`, `SQL Developer\system<Version>\o.jdeveloper.db.connection\connections.json`). „Datei wählen…“ öffnet einen nativen Dialog – nicht bedienen.
 - Nie eine echte `credentials-config.json` des Nutzers entschlüsseln oder in den Scratchpad kopieren; eine DBeaver-Datei ohne Credentials testet den Weg „User von Hand“.
 - Passwortabfrage mit „Im Credential Manager speichern“ **abgewählt** testen – dann entsteht kein Eintrag, den man wieder löschen müsste.
+- `cdp.mjs eval` läuft im globalen Scope der Seite: Ein `const` aus einem früheren Aufruf blockiert denselben Namen in jedem weiteren (`Identifier … has already been declared`). Hilfsfunktionen deshalb je Aufruf in einen Block `{ … }` packen (WP-68).
+- Die Befehlspalette per CDP: Lupe in der Kopfleiste (Titel „Gehe zu Tabelle, View oder PL/SQL“), dann `>` und Suchtext ins Feld (WP-68).
 
 ## Zwischenablage und native Dialoge
 - Die Zwischenablage über `Get-Clipboard` prüfen. **Kein `navigator.clipboard.readText()`** im WebView aufrufen: Es öffnet eine Berechtigungsabfrage, die als zusätzliches CDP-Target (`edge://permission-request-dialog/`) vor der App-Seite in `/json` steht; das CDP-Skript wählt deshalb das Target mit der URL `https://0.0.0.1/`.
