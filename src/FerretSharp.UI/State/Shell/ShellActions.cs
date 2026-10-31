@@ -47,13 +47,13 @@ public static class ShellActions
         ShortcutAction.CloseTab or ShortcutAction.CloseOtherTabs or ShortcutAction.CloseAllTabs or ShortcutAction.PinTab => WithTab(context),
         ShortcutAction.ApplyFilters => WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.Refresh =>
-            WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab or PlSqlTab or RecordTab ? null : ShellText.Palette_NotInThisTab),
+            WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab or PlSqlTab or RecordTab or SynonymListTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.FindColumn =>
             WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.RunScript => WithTab(context) ?? (context.ActiveTab is SqlTab ? null : ShellText.Palette_OnlyInSqlTab),
         ShortcutAction.DuplicateTab => WithTab(context) ?? (context.ActiveTab is TableTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.RevealInExplorer => WithTab(context) ?? (context.ActiveTab is TableTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
-        ShortcutAction.NewSql or ShortcutAction.ToggleChanges => InExplorer(context),
+        ShortcutAction.NewSql or ShortcutAction.ToggleChanges or ShortcutAction.SchemaSynonyms => InExplorer(context),
         ShortcutAction.NewLinq => InExplorer(context) ?? (context.LinkedProject ? null : ShellText.Palette_NoLinkedProject),
         ShortcutAction.SwitchWorkClone => !context.Connected ? WorkspaceText.NoActiveConnection : context.LinkedProject ? null : ShellText.Palette_NoLinkedProject,
         ShortcutAction.Flush or ShortcutAction.Commit => InExplorer(context) ?? (context.Writable ? null : ShellText.Palette_ReadOnly),

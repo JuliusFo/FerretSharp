@@ -14,6 +14,7 @@ public static class PlSqlViewLabels
         PlSqlView.Body => SchemaViewText.PlSql_ViewBody,
         PlSqlView.Parameters => SchemaViewText.PlSql_ViewParameters,
         PlSqlView.Errors => SchemaViewText.PlSql_ViewErrors,
+        PlSqlView.Synonyms => SchemaViewText.Tab_ViewSynonyms,
         _ => SchemaViewText.PlSql_ViewDependencies,
     };
 }

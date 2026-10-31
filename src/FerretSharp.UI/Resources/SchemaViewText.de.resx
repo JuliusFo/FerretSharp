@@ -1284,4 +1284,127 @@
   <data name="ObjectMenu_TriggerInvalidTitle" xml:space="preserve">
     <value>Der Trigger ist ungültig: Aktiviert lässt er jede Änderung an seiner Tabelle scheitern (ORA-04098), für alle Sessions. Erst fehlerfrei kompilieren.</value>
   </data>
+  <data name="Tab_ViewSynonyms" xml:space="preserve">
+    <value>Synonyme</value>
+  </data>
+  <data name="Head_Owner" xml:space="preserve">
+    <value>Owner</value>
+  </data>
+  <data name="Head_Target" xml:space="preserve">
+    <value>Ziel</value>
+  </data>
+  <data name="Synonyms_Loading" xml:space="preserve">
+    <value>Synonyme werden geladen …</value>
+  </data>
+  <data name="Synonyms_Heading" xml:space="preserve">
+    <value>Synonyme</value>
+  </data>
+  <data name="Synonyms_None" xml:space="preserve">
+    <value>Kein Synonym zeigt auf dieses Objekt.</value>
+  </data>
+  <data name="Synonyms_Hint" xml:space="preserve">
+    <value>Synonyme über einen DB-Link und solche, die die Session nicht sehen darf, fehlen hier.</value>
+  </data>
+  <data name="Synonyms_Create" xml:space="preserve">
+    <value>Synonym anlegen</value>
+  </data>
+  <data name="Synonyms_NewHeading" xml:space="preserve">
+    <value>Neues Synonym</value>
+  </data>
+  <data name="Synonyms_DropHeading" xml:space="preserve">
+    <value>Synonym löschen</value>
+  </data>
+  <data name="Synonyms_Kind" xml:space="preserve">
+    <value>Art</value>
+  </data>
+  <data name="Synonyms_PrivateIn" xml:space="preserve">
+    <value>Privat in {0}</value>
+  </data>
+  <data name="Synonyms_PublicOption" xml:space="preserve">
+    <value>Öffentlich – für alle Benutzer der Datenbank</value>
+  </data>
+  <data name="Synonyms_Private" xml:space="preserve">
+    <value>privat</value>
+  </data>
+  <data name="Synonyms_Public" xml:space="preserve">
+    <value>öffentlich</value>
+  </data>
+  <data name="Synonyms_Drop" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
+  <data name="Synonyms_DropTitle" xml:space="preserve">
+    <value>Synonym {0} löschen</value>
+  </data>
+  <data name="Synonyms_NameMissing" xml:space="preserve">
+    <value>Das Synonym braucht einen Namen.</value>
+  </data>
+  <data name="Synonyms_Checking" xml:space="preserve">
+    <value>Prüfe, ob der Name frei ist …</value>
+  </data>
+  <data name="Synonyms_Taken" xml:space="preserve">
+    <value>{0} ist im Schema {2} schon vergeben: Es gibt ein Objekt dieses Namens ({1}).</value>
+  </data>
+  <data name="Synonyms_TakenPublic" xml:space="preserve">
+    <value>Ein öffentliches Synonym {0} gibt es schon.</value>
+  </data>
+  <data name="Synonyms_PublicWarning" xml:space="preserve">
+    <value>Ein öffentliches Synonym gilt für alle Benutzer der Datenbank.</value>
+  </data>
+  <data name="Synonyms_MissingPrivilege" xml:space="preserve">
+    <value>Dafür braucht es das Recht {0}.</value>
+  </data>
+  <data name="SynonymList_Title" xml:space="preserve">
+    <value>Synonyme</value>
+  </data>
+  <data name="SynonymList_Loading" xml:space="preserve">
+    <value>Synonyme des Schemas werden geladen …</value>
+  </data>
+  <data name="SynonymList_Heading" xml:space="preserve">
+    <value>Private Synonyme von {0}</value>
+  </data>
+  <data name="SynonymList_None" xml:space="preserve">
+    <value>Das Schema hat keine privaten Synonyme.</value>
+  </data>
+  <data name="SynonymList_NoneBroken" xml:space="preserve">
+    <value>Jedes Synonym führt zu seinem Ziel.</value>
+  </data>
+  <data name="SynonymList_OnlyBroken" xml:space="preserve">
+    <value>Nur ohne Ziel</value>
+  </data>
+  <data name="SynonymList_OnlyBrokenTitle" xml:space="preserve">
+    <value>Nur Synonyme, deren Ziel fehlt oder nicht sichtbar ist</value>
+  </data>
+  <data name="SynonymList_PublicNote" xml:space="preserve">
+    <value>Öffentliche Synonyme stehen nicht in der Liste – oft sind es Tausende. Jedes Objekt zeigt seine in der Ansicht Synonyme.</value>
+  </data>
+  <data name="SynonymList_OtherSchema" xml:space="preserve">
+    <value>Bei einem anderen Schema als dem des Login-Benutzers zeigt Oracle nur Synonyme, deren Ziel du lesen darfst: Ins Leere zeigende fehlen hier.</value>
+  </data>
+  <data name="SynonymState_Ok" xml:space="preserve">
+    <value>ok</value>
+  </data>
+  <data name="SynonymState_Missing" xml:space="preserve">
+    <value>Ziel fehlt</value>
+  </data>
+  <data name="SynonymState_MissingTitle" xml:space="preserve">
+    <value>Das Ziel wurde gelöscht, sein Owner existiert nicht mehr, oder es läge im eigenen Schema des Login-Benutzers.</value>
+  </data>
+  <data name="SynonymState_MissingOrNoAccess" xml:space="preserve">
+    <value>fehlt oder kein Zugriff</value>
+  </data>
+  <data name="SynonymState_MissingOrNoAccessTitle" xml:space="preserve">
+    <value>Oracle zeigt das Ziel nicht: Es fehlt, wurde nie angelegt, oder dir fehlt ein Recht darauf – welches davon, verrät das Dictionary nicht.</value>
+  </data>
+  <data name="SynonymState_DbLink" xml:space="preserve">
+    <value>über DB-Link</value>
+  </data>
+  <data name="SynonymState_DbLinkTitle" xml:space="preserve">
+    <value>Das Ziel liegt in einer anderen Datenbank und wird nicht geprüft.</value>
+  </data>
+  <data name="ObjectMenu_DropSynonym" xml:space="preserve">
+    <value>Synonym {0} löschen</value>
+  </data>
+  <data name="ObjectMenu_DropSynonymTitle" xml:space="preserve">
+    <value>Öffnet die Ansicht Synonyme mit DROP SYNONYM zum Bestätigen.</value>
+  </data>
 </root>

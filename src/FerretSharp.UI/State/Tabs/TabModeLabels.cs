@@ -14,6 +14,7 @@ public static class TabModeLabels
         (TabMode.Constraints, SchemaViewText.Tab_ViewConstraints),
         (TabMode.Indexes, SchemaViewText.Tab_ViewIndexes),
         (TabMode.Dependencies, SchemaViewText.Tab_ViewDependencies),
+        (TabMode.Synonyms, SchemaViewText.Tab_ViewSynonyms),
         (TabMode.Relations, SchemaViewText.Tab_ViewRelations),
         (TabMode.Ddl, SchemaViewText.Tab_ViewDdl),
         (TabMode.Usage, SchemaViewText.Tab_ViewUsage),

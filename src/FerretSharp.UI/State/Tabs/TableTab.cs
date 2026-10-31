@@ -64,11 +64,13 @@ public sealed class FilterRowGroup
 }
 
 /// <summary>An open table in the content area of a workspace.</summary>
-public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTab(workspaceId, "grid-"), IFormTab
+public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTab(workspaceId, "grid-"), IFormTab, ISynonymTab
 {
     public TableSummary Table { get; } = table;
 
     public TabMode Mode { get; set; } = TabMode.Data;
+
+    public SynonymInfo? DropRequested { get; set; }
 
     /// <summary>Rough scroll position: first visible row, only if it was loaded.</summary>
     public int? FirstVisibleRow { get; set; }

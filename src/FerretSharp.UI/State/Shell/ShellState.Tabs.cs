@@ -201,6 +201,44 @@ public sealed partial class ShellState
         return InsertAfterActive(workspace, tab);
     }
 
+    /// <summary>Activates the tab of the schema's synonyms in the active workspace or opens it after the active tab (WP-68).</summary>
+    public SynonymListTab? OpenSynonymList()
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        if (workspace.Tabs.OfType<SynonymListTab>().FirstOrDefault() is { } open)
+        {
+            ShowTab(open);
+            return open;
+        }
+
+        return InsertAfterActive(workspace, new SynonymListTab(workspace.WorkspaceId) { Visited = true });
+    }
+
+    /// <summary>
+    /// "Synonym löschen" in the object menu (WP-68): the object's tab in its "Synonyms" view, which shows the drop with its
+    /// confirmation. A PL/SQL unit opens on that view as well.
+    /// </summary>
+    public void RequestSynonymDrop(TableSummary table, SynonymInfo synonym)
+    {
+        if (OpenTable(table, TabMode.Synonyms) is { } tab)
+        {
+            Set(() => tab.DropRequested = synonym);
+        }
+    }
+
+    /// <inheritdoc cref="RequestSynonymDrop(TableSummary, SynonymInfo)"/>
+    public void RequestSynonymDrop(PlSqlObjectSummary unit, SynonymInfo synonym)
+    {
+        if (OpenPlSql(unit, PlSqlView.Synonyms) is { } tab)
+        {
+            Set(() => tab.DropRequested = synonym);
+        }
+    }
+
     /// <summary>A tab for a new table in the designer (WP-23, stage 3), after the active tab; the table goes into <paramref name="owner"/>.</summary>
     public NewTableTab? OpenNewTable(string owner)
     {
@@ -571,6 +609,10 @@ public sealed partial class ShellState
                 }
 
                 tab = RecordTab.Restore(workspace.Id, table, records);
+            }
+            else if (state.SynonymList is { } synonyms)
+            {
+                tab = SynonymListTab.Restore(workspace.Id, synonyms);
             }
             else if (state.PlSql is { } plSql)
             {

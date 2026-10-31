@@ -112,6 +112,10 @@
                                                     {
                                                         <RecordDiagramView Tab="recordTab" />
                                                     }
+                                                    else if (tab is SynonymListTab synonymTab)
+                                                    {
+                                                        <SynonymListView Tab="synonymTab" />
+                                                    }
                                                 </TabFrame>
                                             </div>
                                         }
@@ -497,6 +501,9 @@
                 break;
             case ShortcutAction.NewSql:
                 _state.OpenSql();
+                break;
+            case ShortcutAction.SchemaSynonyms:
+                _state.OpenSynonymList();
                 break;
             case ShortcutAction.NewLinq:
                 _state.OpenLinq();

@@ -100,6 +100,7 @@
             NewTableTab => ShellText.TabBar_NewTableTitle,
             RecordTab records => TextFormat.Plural(records.Diagram.Keys.Count, ShellText.TabBar_RecordsTitleOne, ShellText.TabBar_RecordsTitleOther,
                 $"{records.Table.Owner}.{records.Table.Name}"),
+            SynonymListTab => TextFormat.Format(ShellText.TabBar_SynonymsTitle, Active.Schema?.Owner ?? ""),
             _ when _renaming == tab => null,
             LinqTab => WithTitle(tab, ShellText.TabBar_LinqTitle),
             _ => WithTitle(tab, ShellText.TabBar_SqlTitle),
@@ -136,6 +137,10 @@
                     break;
                 case RecordTab:
                     @Icons.Records
+                    <span class="tab-name">@tab.Caption</span>
+                    break;
+                case SynonymListTab:
+                    @Icons.Synonyms
                     <span class="tab-name">@tab.Caption</span>
                     break;
                 case PlSqlTab plSql:
@@ -220,6 +225,7 @@
         SqlTab => "sql",
         PlSqlTab => "plsql",
         RecordTab => "records",
+        SynonymListTab => "synonyms",
         _ => "",
     };
 

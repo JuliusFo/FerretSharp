@@ -36,6 +36,13 @@
     </div>
 </div>
 
+@if (Unit.Synonym is { } synonym)
+{
+    <div class="menu-sep"></div>
+    <MenuEntry Label="@TextFormat.Format(SchemaViewText.ObjectMenu_DropSynonym, synonym.Name)" Title="@SchemaViewText.ObjectMenu_DropSynonymTitle"
+               OnClick="() => RunAsync(() => Shell.RequestSynonymDrop(Unit, synonym))" />
+}
+
 @if (Unit.Kind == PlSqlKind.Trigger)
 {
     <div class="menu-sep"></div>

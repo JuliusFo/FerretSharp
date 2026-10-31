@@ -1,0 +1,216 @@
+@* "Synonyms" view of a table, view or PL/SQL unit (WP-68): the private and public synonyms on the object. "Create synonym"
+   opens a draft above the list, "Drop" on a row the DROP; both run through DdlDraftPanel like every schema change (confirmed,
+   an open transaction rolled back only after asking, Prod only unlocked) and can go to the SQL editor instead. *@
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+@inherits LoadingViewBase<IReadOnlyList<SynonymInfo>>
+@inject ILogger<SynonymsView> Logger
+
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Synonyms_Loading" />
+
+@if (_create is { } draft && Active.Schema is { } schema)
+{
+    <section class="index-draft">
+        <h2>@SchemaViewText.Synonyms_NewHeading</h2>
+        <div class="index-draft-form">
+            <label for="@_nameId">@SchemaViewText.Head_Name</label>
+            <input id="@_nameId" class="field mono" spellcheck="false" value="@draft.Name" @oninput="e => SetAsync(draft, (string?)e.Value ?? string.Empty, draft.Public)" />
+
+            <span class="label">@SchemaViewText.Synonyms_Kind</span>
+            <div class="synonym-kind">
+                <label class="check">
+                    <input type="radio" name="@_kindName" checked="@(!draft.Public)" @onchange="() => SetAsync(draft, draft.Name, false)" />
+                    @TextFormat.Format(SchemaViewText.Synonyms_PrivateIn, schema.Owner)
+                </label>
+                <label class="check">
+                    <input type="radio" name="@_kindName" checked="@draft.Public" @onchange="() => SetAsync(draft, draft.Name, true)" />
+                    @SchemaViewText.Synonyms_PublicOption
+                </label>
+            </div>
+        </div>
+        <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="draft.Steps" Problems="draft.Problems" Warnings="draft.Warnings" ConfirmNotes="draft.Warnings"
+                       FileName="@($"{DateTime.Now:yyyy-MM-dd}_{draft.Synonym?.Name ?? "SYNONYM"}.sql")"
+                       OnRan="OnRanAsync" OnFailed="r => OnFailed(r, draft.Synonym, create: true)" OnClose="Close" />
+        @PrivilegeHint()
+    </section>
+}
+else if (_drop is { } synonym)
+{
+    var warnings = synonym.IsPublic ? new[] { SchemaViewText.Synonyms_PublicWarning } : [];
+    <section class="index-draft">
+        <h2>@SchemaViewText.Synonyms_DropHeading</h2>
+        <DdlDraftPanel @key="synonym" WorkspaceId="WorkspaceId" Steps="[SynonymDdl.Drop(synonym)]" Warnings="warnings" ConfirmNotes="warnings"
+                       ConfirmAtOnce="_confirmDrop" FileName="@($"{DateTime.Now:yyyy-MM-dd}_DROP_{synonym.Name}.sql")"
+                       OnRan="OnRanAsync" OnFailed="r => OnFailed(r, synonym, create: false)" OnClose="Close" />
+        @PrivilegeHint()
+    </section>
+}
+
+@if (Data is { } synonyms)
+{
+    <section>
+        <div class="structure-columns-head">
+            <h2>@SchemaViewText.Synonyms_Heading <span class="count">@synonyms.Count</span></h2>
+            @if (_create is null && _drop is null)
+            {
+                <button class="btn" @onclick="StartCreateAsync"><span class="plus">+</span> @SchemaViewText.Synonyms_Create</button>
+            }
+        </div>
+        @if (synonyms.Count == 0)
+        {
+            <p class="muted">@SchemaViewText.Synonyms_None</p>
+        }
+        else
+        {
+            <table class="columns">
+                <thead>
+                    <tr><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Owner</th><th>@SchemaViewText.Synonyms_Kind</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in synonyms)
+                    {
+                        var s = row;
+                        <tr class="@(s == _drop ? "selected" : "")">
+                            <td class="mono">@s.Name</td>
+                            <td class="mono">@(s.IsPublic ? "" : s.Owner)</td>
+                            <td>@(s.IsPublic ? SchemaViewText.Synonyms_Public : SchemaViewText.Synonyms_Private)</td>
+                            <td>
+                                <button class="link-btn" title="@TextFormat.Format(SchemaViewText.Synonyms_DropTitle, Qualified(s))"
+                                        @onclick="() => StartDrop(s, confirm: false)">@SchemaViewText.Synonyms_Drop</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        <p class="hint small">@SchemaViewText.Synonyms_Hint</p>
+    </section>
+}
+
+@code {
+    private readonly string _nameId = $"synonym-name-{Guid.NewGuid():N}";
+    private readonly string _kindName = $"synonym-kind-{Guid.NewGuid():N}";
+
+    private SynonymDraft? _create;
+    private SynonymInfo? _drop;
+    private bool _confirmDrop;
+    private CancellationTokenSource? _check;
+
+    /// <summary>The privilege Oracle missed (ORA-01031) for the last run; null if none.</summary>
+    private string? _missingPrivilege;
+
+    /// <summary>The object the synonyms point at: the real one, never a synonym of it.</summary>
+    [Parameter, EditorRequired]
+    public TableRef Target { get; set; } = null!;
+
+    /// <summary>The tab's workspace: DDL runs in its session.</summary>
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>The tab, whose <see cref="ISynonymTab.DropRequested"/> the object menu sets.</summary>
+    [Parameter, EditorRequired]
+    public ISynonymTab Tab { get; set; } = null!;
+
+    /// <summary>DDL ran: the tab reloads its views (this list among them).</summary>
+    [Parameter]
+    public EventCallback OnSchemaChanged { get; set; }
+
+    protected override Task<IReadOnlyList<SynonymInfo>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetSynonymsAsync(Target, cancellationToken);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Tab.DropRequested is { } requested)
+        {
+            Tab.DropRequested = null;
+            StartDrop(requested, confirm: true);
+        }
+
+        await base.OnParametersSetAsync();
+    }
+
+    private static string Qualified(SynonymInfo synonym) =>
+        synonym.IsPublic ? $"PUBLIC {synonym.Name}" : $"{synonym.Owner}.{synonym.Name}";
+
+    private async Task StartCreateAsync()
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        var logger = Logger;
+        var active = Active;
+        _drop = null;
+        _missingPrivilege = null;
+        _create = new SynonymDraft(Target, schema.Owner, async (owner, name, token) =>
+            (await Shell.RunDbAsync(logger, active, () => schema.GetNameTakenAsync(owner, name, token), token)).Value);
+        await SetAsync(_create, _create.Name, isPublic: false);
+    }
+
+    private void StartDrop(SynonymInfo synonym, bool confirm)
+    {
+        CancelCheck();
+        (_create, _drop, _confirmDrop, _missingPrivilege) = (null, synonym, confirm, null);
+    }
+
+    /// <summary>Takes what was typed; the check of an earlier change gives up.</summary>
+    private async Task SetAsync(SynonymDraft draft, string name, bool isPublic)
+    {
+        CancelCheck();
+        using var check = _check = new CancellationTokenSource();
+        try
+        {
+            await draft.SetAsync(name, isPublic, check.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // typed again or closed
+        }
+        finally
+        {
+            if (_check == check)
+            {
+                _check = null;
+            }
+        }
+    }
+
+    private void CancelCheck()
+    {
+        _check?.Cancel();
+        _check = null;
+    }
+
+    private void Close()
+    {
+        CancelCheck();
+        (_create, _drop, _missingPrivilege) = (null, null, null);
+    }
+
+    private async Task OnRanAsync()
+    {
+        Close();
+        await OnSchemaChanged.InvokeAsync();
+    }
+
+    /// <summary>After ORA-01031 the system privilege the statement needs, by whose synonym it is.</summary>
+    private void OnFailed(DdlRunResult result, SynonymInfo? synonym, bool create) =>
+        _missingPrivilege = result.Error?.ErrorCode == "ORA-01031" && synonym is not null && Active.Profile is { } profile
+            ? SynonymDdl.RequiredPrivilege(synonym, create, OracleIdentifier.Normalize(profile.User))
+            : null;
+
+    private RenderFragment PrivilegeHint() => @<text>
+        @if (_missingPrivilege is { } privilege)
+        {
+            <p class="hint">@Icons.Warning @TextFormat.Format(SchemaViewText.Synonyms_MissingPrivilege, privilege)</p>
+        }
+    </text>;
+
+    public override void Dispose()
+    {
+        CancelCheck();
+        base.Dispose();
+    }
+}

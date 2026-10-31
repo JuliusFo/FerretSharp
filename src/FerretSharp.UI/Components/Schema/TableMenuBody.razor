@@ -77,6 +77,13 @@
     </div>
 </div>
 
+@if (Table.Synonym is { } synonym)
+{
+    <div class="menu-sep"></div>
+    <MenuEntry Label="@TextFormat.Format(SchemaViewText.ObjectMenu_DropSynonym, synonym.Name)" Title="@SchemaViewText.ObjectMenu_DropSynonymTitle"
+               OnClick="() => RunAsync(() => Shell.RequestSynonymDrop(Table, synonym))" />
+}
+
 @code {
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;

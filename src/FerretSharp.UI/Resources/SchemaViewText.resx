@@ -1584,4 +1584,136 @@
     <value>The trigger is invalid: enabled, it makes every change to its table fail (ORA-04098) for all sessions. Compile it without errors first.</value>
     <comment>Object menu: tooltip of "Enable in the SQL editor" for an invalid, disabled trigger (review of WP-70)</comment>
   </data>
+  <data name="Tab_ViewSynonyms" xml:space="preserve">
+    <value>Synonyms</value>
+    <comment>View of a table or PL/SQL tab (WP-68): the synonyms on the object</comment>
+  </data>
+  <data name="Head_Owner" xml:space="preserve">
+    <value>Owner</value>
+    <comment>Column head</comment>
+  </data>
+  <data name="Head_Target" xml:space="preserve">
+    <value>Target</value>
+    <comment>Column head: where a synonym points (WP-68)</comment>
+  </data>
+  <data name="Synonyms_Loading" xml:space="preserve">
+    <value>Loading synonyms …</value>
+  </data>
+  <data name="Synonyms_Heading" xml:space="preserve">
+    <value>Synonyms</value>
+  </data>
+  <data name="Synonyms_None" xml:space="preserve">
+    <value>No synonym points at this object.</value>
+  </data>
+  <data name="Synonyms_Hint" xml:space="preserve">
+    <value>Synonyms over a database link and those the session may not see are not listed.</value>
+  </data>
+  <data name="Synonyms_Create" xml:space="preserve">
+    <value>Create synonym</value>
+  </data>
+  <data name="Synonyms_NewHeading" xml:space="preserve">
+    <value>New synonym</value>
+  </data>
+  <data name="Synonyms_DropHeading" xml:space="preserve">
+    <value>Drop synonym</value>
+  </data>
+  <data name="Synonyms_Kind" xml:space="preserve">
+    <value>Kind</value>
+  </data>
+  <data name="Synonyms_PrivateIn" xml:space="preserve">
+    <value>Private in {0}</value>
+    <comment>{0}: the browsed schema, where a private synonym goes</comment>
+  </data>
+  <data name="Synonyms_PublicOption" xml:space="preserve">
+    <value>Public – for every user of the database</value>
+  </data>
+  <data name="Synonyms_Private" xml:space="preserve">
+    <value>private</value>
+  </data>
+  <data name="Synonyms_Public" xml:space="preserve">
+    <value>public</value>
+  </data>
+  <data name="Synonyms_Drop" xml:space="preserve">
+    <value>Drop</value>
+  </data>
+  <data name="Synonyms_DropTitle" xml:space="preserve">
+    <value>Drop synonym {0}</value>
+  </data>
+  <data name="Synonyms_NameMissing" xml:space="preserve">
+    <value>The synonym needs a name.</value>
+  </data>
+  <data name="Synonyms_Checking" xml:space="preserve">
+    <value>Checking whether the name is free …</value>
+  </data>
+  <data name="Synonyms_Taken" xml:space="preserve">
+    <value>{0} is taken in schema {2}: an object of that name exists ({1}).</value>
+    <comment>{0} name, {1} object type, {2} schema</comment>
+  </data>
+  <data name="Synonyms_TakenPublic" xml:space="preserve">
+    <value>There is a public synonym {0} already.</value>
+    <comment>{0} name; {1} (type) and {2} (schema) unused</comment>
+  </data>
+  <data name="Synonyms_PublicWarning" xml:space="preserve">
+    <value>A public synonym applies to every user of the database.</value>
+  </data>
+  <data name="Synonyms_MissingPrivilege" xml:space="preserve">
+    <value>This needs the privilege {0}.</value>
+    <comment>After ORA-01031; {0}: e.g. CREATE PUBLIC SYNONYM</comment>
+  </data>
+  <data name="SynonymList_Title" xml:space="preserve">
+    <value>Synonyms</value>
+    <comment>Caption of the tab with the schema's synonyms (WP-68)</comment>
+  </data>
+  <data name="SynonymList_Loading" xml:space="preserve">
+    <value>Loading the schema's synonyms …</value>
+  </data>
+  <data name="SynonymList_Heading" xml:space="preserve">
+    <value>Private synonyms of {0}</value>
+  </data>
+  <data name="SynonymList_None" xml:space="preserve">
+    <value>The schema has no private synonyms.</value>
+  </data>
+  <data name="SynonymList_NoneBroken" xml:space="preserve">
+    <value>Every synonym leads to its target.</value>
+  </data>
+  <data name="SynonymList_OnlyBroken" xml:space="preserve">
+    <value>Only without target</value>
+  </data>
+  <data name="SynonymList_OnlyBrokenTitle" xml:space="preserve">
+    <value>Only synonyms whose target is missing or not visible</value>
+  </data>
+  <data name="SynonymList_PublicNote" xml:space="preserve">
+    <value>Public synonyms are not listed – there are often thousands. Each object shows its own in the view Synonyms.</value>
+  </data>
+  <data name="SynonymList_OtherSchema" xml:space="preserve">
+    <value>For a schema other than the login user's, Oracle lists only synonyms whose target you may read: those leading nowhere are missing here.</value>
+  </data>
+  <data name="SynonymState_Ok" xml:space="preserve">
+    <value>ok</value>
+  </data>
+  <data name="SynonymState_Missing" xml:space="preserve">
+    <value>target missing</value>
+  </data>
+  <data name="SynonymState_MissingTitle" xml:space="preserve">
+    <value>The target was dropped, its owner is gone, or it would lie in the login user's own schema.</value>
+  </data>
+  <data name="SynonymState_MissingOrNoAccess" xml:space="preserve">
+    <value>missing or no access</value>
+  </data>
+  <data name="SynonymState_MissingOrNoAccessTitle" xml:space="preserve">
+    <value>Oracle does not show the target: it is gone, was never created, or you have no privilege on it – the dictionary does not say which.</value>
+  </data>
+  <data name="SynonymState_DbLink" xml:space="preserve">
+    <value>over DB link</value>
+  </data>
+  <data name="SynonymState_DbLinkTitle" xml:space="preserve">
+    <value>The target lies in another database and is not checked.</value>
+  </data>
+  <data name="ObjectMenu_DropSynonym" xml:space="preserve">
+    <value>Drop synonym {0}</value>
+    <comment>Object menu of an entry reached through a synonym (WP-68)</comment>
+  </data>
+  <data name="ObjectMenu_DropSynonymTitle" xml:space="preserve">
+    <value>Opens the view Synonyms with DROP SYNONYM to confirm.</value>
+  </data>
 </root>
