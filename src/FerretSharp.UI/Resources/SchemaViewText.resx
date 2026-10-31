@@ -1716,4 +1716,8 @@
   <data name="ObjectMenu_DropSynonymTitle" xml:space="preserve">
     <value>Opens the view Synonyms with DROP SYNONYM to confirm.</value>
   </data>
+  <data name="Synonyms_NeedsQuotes" xml:space="preserve">
+    <value>The name is not a plain Oracle name (upper case letters, digits, _ $ #, starting with a letter); SQL and code must write the synonym in double quotes.</value>
+    <comment>Warning in the draft of a new synonym (review of WP-68)</comment>
+  </data>
 </root>

@@ -1407,4 +1407,7 @@
   <data name="ObjectMenu_DropSynonymTitle" xml:space="preserve">
     <value>Öffnet die Ansicht Synonyme mit DROP SYNONYM zum Bestätigen.</value>
   </data>
+  <data name="Synonyms_NeedsQuotes" xml:space="preserve">
+    <value>Der Name ist kein einfacher Oracle-Name (Großbuchstaben, Ziffern, _ $ #, vorne ein Buchstabe); SQL und Code müssen das Synonym in doppelten Anführungszeichen schreiben.</value>
+  </data>
 </root>

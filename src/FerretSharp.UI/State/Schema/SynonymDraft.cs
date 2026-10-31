@@ -29,8 +29,11 @@ public sealed class SynonymDraft(TableRef target, string schemaOwner, Func<strin
 
     public TableRef Target { get; } = target;
 
-    /// <summary>The name as typed; without quotes it is upper-cased (<see cref="OracleIdentifier.Normalize"/>).</summary>
-    public string Name { get; private set; } = target.Name;
+    /// <summary>
+    /// The name as typed; without quotes it is upper-cased (<see cref="OracleIdentifier.Normalize"/>). It starts as the
+    /// object's name, quoted where Oracle needs it – <c>"Kunde Alt"</c> stays that, not <c>KUNDE ALT</c> (review of WP-68).
+    /// </summary>
+    public string Name { get; private set; } = OracleIdentifier.QuoteIfNeeded(target.Name);
 
     public bool Public { get; private set; }
 
@@ -64,8 +67,15 @@ public sealed class SynonymDraft(TableRef target, string schemaOwner, Func<strin
         }
     }
 
-    /// <summary>A public synonym is there for every user of the database.</summary>
-    public IReadOnlyList<string> Warnings => Public ? [SchemaViewText.Synonyms_PublicWarning] : [];
+    /// <summary>
+    /// A name SQL and code must write in double quotes (as the designers warn); a public synonym is there for every user of
+    /// the database.
+    /// </summary>
+    public IReadOnlyList<string> Warnings =>
+    [
+        .. Synonym is { } synonym && OracleIdentifier.NeedsQuotes(synonym.Name) ? [SchemaViewText.Synonyms_NeedsQuotes] : Array.Empty<string>(),
+        .. Public ? [SchemaViewText.Synonyms_PublicWarning] : Array.Empty<string>(),
+    ];
 
     /// <summary>Takes what was typed and checks the name once typing rests; a newer change makes an older check give up.</summary>
     public async Task SetAsync(string name, bool isPublic, CancellationToken cancellationToken)

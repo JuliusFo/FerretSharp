@@ -73,6 +73,18 @@ public sealed class SynonymDraftTests
         Assert.Empty(draft.Problems);
     }
 
+    /// <summary>Review of WP-68: the suggestion was the raw name – <c>Kunde Alt</c> became the synonym <c>"KUNDE ALT"</c>.</summary>
+    [Fact]
+    public void A_name_that_needs_quotes_is_suggested_quoted_and_warned_about()
+    {
+        var draft = new SynonymDraft(new TableRef("OTHER", "Kunde Alt"), "APP", (_, _, _) => Task.FromResult<string?>(null), _time);
+
+        Assert.Equal("\"Kunde Alt\"", draft.Name);
+        Assert.Equal(new SynonymInfo("APP", "Kunde Alt"), draft.Synonym);
+        Assert.Equal(["Der Name ist kein einfacher Oracle-Name (Großbuchstaben, Ziffern, _ $ #, vorne ein Buchstabe); SQL und Code müssen das Synonym in doppelten Anführungszeichen schreiben."],
+            draft.Warnings);
+    }
+
     [Theory]
     [InlineData("", "Das Synonym braucht einen Namen.")]
     [InlineData("\"A\"B\"", "A\"B: Ein Name darf keine doppelten Anführungszeichen enthalten.")]
