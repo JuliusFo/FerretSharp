@@ -249,7 +249,7 @@
     private ContextMenuHost<TableSummary>? _tableMenu;
     private ContextMenuHost<PlSqlObjectSummary>? _unitMenu;
 
-    /// <summary>The entry "Show in explorer" asked for (WP-70): marked until the next one, scrolled to after the render.</summary>
+    /// <summary>The entry "Show in explorer" asked for (WP-70): carries the id it is scrolled to and lit up by after the render.</summary>
     private ExplorerReveal? _revealed;
 
     private int _handledReveal;
@@ -281,12 +281,16 @@
         {
             _scrollToReveal = false;
             await Dom.InvokeVoidAsync("scrollIntoViewById", RevealId, "center");
+            // Lit up once in dom.js, not by a class in the markup: that would light up again whenever the entry is drawn
+            // anew (the search typed and cleared, another section and back – review of WP-70).
+            await Dom.InvokeVoidAsync("flashById", RevealId, "revealed");
         }
     }
 
     protected override void OnInitialized()
     {
-        TakeReveal();
+        // A request from before this explorer existed (it is built anew on every connect) is not for it (review of WP-70).
+        _handledReveal = Shell.Reveal?.Id ?? 0;
         Active.Changed += OnChanged;
         Shell.Changed += OnShellChanged;
         _presentationWatch = new PresentationWatch(Presentation);
@@ -320,7 +324,7 @@
         var entity = Presentation.ShownEntityNameOf(t.Ref);
         var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
         var revealed = _revealed is { Table: { } r } && r == t.Ref;
-        return @<button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "") @(revealed ? "revealed" : "")"
+        return @<button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")"
                         id="@(revealed ? RevealId : null)" title="@Tooltip(t, entity)"
                         @onclick="() => Shell.OpenTable(t)" @oncontextmenu="e => _tableMenu!.OpenAsync(e, t)" @oncontextmenu:preventDefault="true">
                     <ObjectItemContent Table="t" Entity="@entity" EntityFirst="front" />
@@ -330,7 +334,7 @@
     private RenderFragment PlSqlItem(PlSqlObjectSummary u)
     {
         var revealed = _revealed is { Unit: { } r } && r == u.Ref;
-        return @<button class="table-item @((Shell.ActiveTab as PlSqlTab)?.Unit.Ref == u.Ref ? "active" : "") @(IsOpen(u) ? "open" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "") @(revealed ? "revealed" : "")"
+        return @<button class="table-item @((Shell.ActiveTab as PlSqlTab)?.Unit.Ref == u.Ref ? "active" : "") @(IsOpen(u) ? "open" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
                  id="@(revealed ? RevealId : null)" title="@Tooltip(u)"
                  @onclick="() => Shell.OpenPlSql(u)" @oncontextmenu="e => _unitMenu!.OpenAsync(e, u)" @oncontextmenu:preventDefault="true">
             <ObjectItemContent Unit="u" />
