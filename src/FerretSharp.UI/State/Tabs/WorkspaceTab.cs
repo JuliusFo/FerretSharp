@@ -165,7 +165,10 @@ public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary un
     public SourcePosition? Reveal { get; set; }
 
     /// <summary>The views this kind of unit has, in toolbar order: packages have a body, triggers no parameters.</summary>
-    public IReadOnlyList<PlSqlView> Views => Unit.Kind switch
+    public IReadOnlyList<PlSqlView> Views => ViewsOf(Unit.Kind);
+
+    /// <summary>The views a kind of unit has (<see cref="Views"/>; the object menu offers them before a tab is open, WP-70).</summary>
+    public static IReadOnlyList<PlSqlView> ViewsOf(Core.Schema.PlSqlKind kind) => kind switch
     {
         Core.Schema.PlSqlKind.Package => [PlSqlView.Source, PlSqlView.Body, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies],
         Core.Schema.PlSqlKind.Trigger => [PlSqlView.Source, PlSqlView.Errors, PlSqlView.Dependencies],

@@ -96,6 +96,9 @@ public static partial class OracleIdentifier
     /// </summary>
     public static string QuoteIfNeeded(string name) => IsPlain(name) ? name : Quote(name);
 
+    /// <summary>Owner and name as code a user reads (<see cref="QuoteIfNeeded"/>): <c>APP.KUNDEN</c>, <c>APP."Kunden"</c>.</summary>
+    public static string QualifyIfNeeded(string owner, string name) => $"{QuoteIfNeeded(owner)}.{QuoteIfNeeded(name)}";
+
     /// <summary>
     /// Converts a name as a user would type it into the dictionary form: unquoted names are upper-cased
     /// (<c>erp</c> → <c>ERP</c>), quoted names keep their case (<c>"Erp"</c> → <c>Erp</c>).
@@ -108,10 +111,11 @@ public static partial class OracleIdentifier
             : trimmed.ToUpperInvariant();
     }
 
-    [GeneratedRegex("^[A-Z][A-Z0-9_$#]*$", RegexOptions.CultureInvariant)]
+    // \z, not $: $ also matches before a final line break – "KUNDEN\n" (a quoted name) would count as plain (review of WP-70).
+    [GeneratedRegex(@"^[A-Z][A-Z0-9_$#]*\z", RegexOptions.CultureInvariant)]
     private static partial Regex PlainName();
 
     /// <summary>A name Oracle takes without quotes: a letter, then letters, digits, _, $ and #, upper case (any script).</summary>
-    [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*$")]
+    [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*\z")]
     private static partial Regex PlainForOracle();
 }

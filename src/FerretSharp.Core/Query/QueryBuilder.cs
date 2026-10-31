@@ -137,6 +137,23 @@ public static class QueryBuilder
     }
 
     /// <summary>
+    /// A table to read on in the SQL editor ("Open in the SQL editor" of the explorer menu, WP-70): <c>SELECT *</c> by the
+    /// name the user knows it by, as code reads it – a public synonym or a name in <paramref name="sessionSchema"/> without
+    /// owner, anything else with it. <paramref name="sessionSchema"/> is the login user's schema: a schema in the profile
+    /// only changes what the explorer shows, Oracle still resolves unqualified names in the user's own (review of WP-70).
+    /// A public synonym the explorer found for another <paramref name="shownSchema"/> is written as its real object: an
+    /// object of the login user with the same name would come first.
+    /// </summary>
+    public static string SelectStarText(TableSummary table, string sessionSchema, string? shownSchema = null)
+    {
+        var (owner, name) = table.Synonym is { IsPublic: false } synonym ? (synonym.Owner, synonym.Name)
+            : table.Synonym is { } publicSynonym && (shownSchema ?? sessionSchema) == sessionSchema ? (sessionSchema, publicSynonym.Name)
+            : (table.Owner, table.Name);
+        var from = owner == sessionSchema ? OracleIdentifier.QuoteIfNeeded(name) : OracleIdentifier.QualifyIfNeeded(owner, name);
+        return $"SELECT *\n  FROM {from}";
+    }
+
+    /// <summary>
     /// The values of columns for every row of <see cref="BuildSelectAll"/> (copy the values of a column, WP-57, or of marked
     /// columns, WP-58): in the grid's order, or each value once (<paramref name="distinct"/>, for an IN list – one column only)
     /// ordered by the value – with DISTINCT, Oracle only sorts by what is selected. Only columns read as they are

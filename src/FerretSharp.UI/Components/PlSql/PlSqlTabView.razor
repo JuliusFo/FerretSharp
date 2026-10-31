@@ -91,14 +91,7 @@
     private PlSqlSourceView? _spec;
     private PlSqlSourceView? _body;
 
-    private string Label(PlSqlView view) => view switch
-    {
-        PlSqlView.Source => Tab.Unit.Kind == PlSqlKind.Package ? SchemaViewText.PlSql_ViewSpecification : SchemaViewText.PlSql_ViewSource,
-        PlSqlView.Body => SchemaViewText.PlSql_ViewBody,
-        PlSqlView.Parameters => SchemaViewText.PlSql_ViewParameters,
-        PlSqlView.Errors => SchemaViewText.PlSql_ViewErrors,
-        _ => SchemaViewText.PlSql_ViewDependencies,
-    };
+    private string Label(PlSqlView view) => PlSqlViewLabels.Of(view, Tab.Unit.Kind);
 
     protected override void OnInitialized() => Shell.TabCommandRequested += OnTabCommand;
 

@@ -102,6 +102,16 @@
             </div>
         </div>
     }
+
+    @* WP-70: the object menu on a right-click of an entry. *@
+    <ContextMenuHost @ref="_tableMenu" TItem="TableSummary" Width="MenuWidth" EstimatedHeight="330">
+        <ObjectMenuHead Table="context" />
+        <TableMenuBody Table="context" OnClose="() => _tableMenu!.Close()" />
+    </ContextMenuHost>
+    <ContextMenuHost @ref="_unitMenu" TItem="PlSqlObjectSummary" Width="MenuWidth" EstimatedHeight="220">
+        <ObjectMenuHead Unit="context" />
+        <PlSqlMenuBody Unit="context" OnClose="() => _unitMenu!.Close()" />
+    </ContextMenuHost>
 </aside>
 
 @code {
@@ -224,17 +234,63 @@
         }).Append('|');
     }
 
-    /// <summary>The shell changed: rendered again only if it changed what the list shows of it.</summary>
+    /// <summary>The shell changed: rendered again only if it changed what the list shows of it, or asks to show an entry.</summary>
     private void OnShellChanged() => InvokeAsync(() =>
     {
-        if (ShellKey() != _shellKey)
+        if (TakeReveal() || ShellKey() != _shellKey)
         {
             StateHasChanged();
         }
     });
 
+    /// <summary>Width of the object menu (WP-70): room for the quick bar with captions and a few chips per line.</summary>
+    private const double MenuWidth = 340;
+
+    private ContextMenuHost<TableSummary>? _tableMenu;
+    private ContextMenuHost<PlSqlObjectSummary>? _unitMenu;
+
+    /// <summary>The entry "Show in explorer" asked for (WP-70): carries the id it is scrolled to and lit up by after the render.</summary>
+    private ExplorerReveal? _revealed;
+
+    private int _handledReveal;
+    private bool _scrollToReveal;
+
+    private string RevealId => _groupPrefix + "reveal";
+
+    /// <summary>
+    /// Takes a new "Show in explorer" for this connection: its section, no search, the entry marked. True if there was one.
+    /// </summary>
+    private bool TakeReveal()
+    {
+        if (Shell.Reveal is not { } reveal || reveal.Id == _handledReveal || reveal.ConnectionId != Active.Profile?.Id)
+        {
+            return false;
+        }
+
+        _handledReveal = reveal.Id;
+        _section = reveal.Unit is not null ? ExplorerSection.PlSql
+            : Schema?.Find(reveal.Table!) is { Kind: not TableKind.Table } && SeparateViews ? ExplorerSection.Views
+            : ExplorerSection.Tables;
+        (_query, _inSource, _revealed, _scrollToReveal) = ("", false, reveal, true);
+        return true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToReveal)
+        {
+            _scrollToReveal = false;
+            await Dom.InvokeVoidAsync("scrollIntoViewById", RevealId, "center");
+            // Lit up once in dom.js, not by a class in the markup: that would light up again whenever the entry is drawn
+            // anew (the search typed and cleared, another section and back – review of WP-70).
+            await Dom.InvokeVoidAsync("flashById", RevealId, "revealed");
+        }
+    }
+
     protected override void OnInitialized()
     {
+        // A request from before this explorer existed (it is built anew on every connect) is not for it (review of WP-70).
+        _handledReveal = Shell.Reveal?.Id ?? 0;
         Active.Changed += OnChanged;
         Shell.Changed += OnShellChanged;
         _presentationWatch = new PresentationWatch(Presentation);
@@ -267,17 +323,23 @@
     {
         var entity = Presentation.ShownEntityNameOf(t.Ref);
         var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
-        return @<button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")" title="@Tooltip(t, entity)"
-                        @onclick="() => Shell.OpenTable(t)">
+        var revealed = _revealed is { Table: { } r } && r == t.Ref;
+        return @<button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")"
+                        id="@(revealed ? RevealId : null)" title="@Tooltip(t, entity)"
+                        @onclick="() => Shell.OpenTable(t)" @oncontextmenu="e => _tableMenu!.OpenAsync(e, t)" @oncontextmenu:preventDefault="true">
                     <ObjectItemContent Table="t" Entity="@entity" EntityFirst="front" />
                 </button>;
     }
 
-    private RenderFragment PlSqlItem(PlSqlObjectSummary u) =>
-        @<button class="table-item @((Shell.ActiveTab as PlSqlTab)?.Unit.Ref == u.Ref ? "active" : "") @(IsOpen(u) ? "open" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
-                 title="@Tooltip(u)" @onclick="() => Shell.OpenPlSql(u)">
+    private RenderFragment PlSqlItem(PlSqlObjectSummary u)
+    {
+        var revealed = _revealed is { Unit: { } r } && r == u.Ref;
+        return @<button class="table-item @((Shell.ActiveTab as PlSqlTab)?.Unit.Ref == u.Ref ? "active" : "") @(IsOpen(u) ? "open" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
+                 id="@(revealed ? RevealId : null)" title="@Tooltip(u)"
+                 @onclick="() => Shell.OpenPlSql(u)" @oncontextmenu="e => _unitMenu!.OpenAsync(e, u)" @oncontextmenu:preventDefault="true">
             <ObjectItemContent Unit="u" />
         </button>;
+    }
 
     private RenderFragment SourceResults() => __builder =>
     {
@@ -463,20 +525,15 @@
 
     private static string Tooltip(TableSummary table)
     {
-        var kind = table.Kind switch
-        {
-            TableKind.View => SchemaViewText.Explorer_KindView,
-            TableKind.MaterializedView => SchemaViewText.Explorer_KindMaterializedView,
-            _ => SchemaViewText.Explorer_KindTable,
-        };
-        var text = table.Synonym is { } synonym ? SynonymTooltip(synonym, $"{table.Owner}.{table.Name}", kind) : kind;
-        return table.IsInvalid ? text + Environment.NewLine + InvalidStatusText.For(ObjectType(table.Kind)) : text;
+        var kind = ObjectMenuFacts.KindLabel(table.Kind);
+        var text = table.Synonym is { } synonym ? ObjectMenuFacts.SynonymTooltip(synonym, table.Owner, table.Name, kind) : kind;
+        return table.IsInvalid ? text + Environment.NewLine + InvalidStatusText.For(ObjectMenuFacts.ObjectType(table.Kind)) : text;
     }
 
     private static string Tooltip(PlSqlObjectSummary unit)
     {
         var kind = ExplorerList.KindLabel(unit.Kind);
-        var text = unit.Synonym is { } synonym ? SynonymTooltip(synonym, $"{unit.Owner}.{unit.Name}", kind) : kind;
+        var text = unit.Synonym is { } synonym ? ObjectMenuFacts.SynonymTooltip(synonym, unit.Owner, unit.Name, kind) : kind;
         if (unit.IsDisabled)
         {
             text += Environment.NewLine + SchemaViewText.Explorer_TriggerDisabled;
@@ -493,16 +550,6 @@
 
         return text;
     }
-
-    private static string SynonymTooltip(SynonymInfo synonym, string target, string kind) =>
-        TextFormat.Format(synonym.IsPublic ? SchemaViewText.Explorer_PublicSynonymTooltip : SchemaViewText.Explorer_SynonymTooltip, target, kind);
-
-    private static string ObjectType(TableKind kind) => kind switch
-    {
-        TableKind.View => "VIEW",
-        TableKind.MaterializedView => "MATERIALIZED VIEW",
-        _ => "TABLE",
-    };
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 

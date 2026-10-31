@@ -7,6 +7,16 @@ export function scrollIntoViewById(id, block = 'nearest') {
   document.getElementById(id)?.scrollIntoView({ block });
 }
 
+/** Lights an element up once by a class with a CSS animation ("Show in explorer", WP-70); the class goes when it ends. */
+export function flashById(id, className) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  element.classList.remove(className);
+  void element.offsetWidth; // restarts the animation if the same element is shown again
+  element.classList.add(className);
+  element.addEventListener('animationend', () => element.classList.remove(className), { once: true });
+}
+
 /** Scrolls an element by a distance: keeps what was clicked in place while content grows to the left of or above it. */
 export function scrollByPx(id, dx, dy) {
   document.getElementById(id)?.scrollBy(dx, dy);

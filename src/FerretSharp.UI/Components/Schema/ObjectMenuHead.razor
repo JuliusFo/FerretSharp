@@ -1,0 +1,72 @@
+@* The head of the object menu (WP-70): the name the user knows the table or PL/SQL unit by, then what it is – its kind, the
+   real object behind a synonym or of another schema, its entity, invalid or disabled. In the explorer and on a tab head. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+
+<div class="ctx-head-block">
+    <div class="ctx-head">
+        @(Table is { } t ? Icons.For(t.Kind) : Icons.For(Unit!.Kind))
+        <span class="ctx-object-name">@(Table?.DisplayName ?? Unit!.DisplayName)</span>
+    </div>
+    <div class="ctx-facts">
+        @if (Table is { } table)
+        {
+            <span class="ctx-fact">@ObjectMenuFacts.KindLabel(table.Kind)</span>
+            @Origin(table.Owner, table.Name, table.Synonym, ObjectMenuFacts.KindLabel(table.Kind))
+            @if (Presentation.EntityNameOf(table.Ref) is { } entity)
+            {
+                <span class="ctx-fact clr" title="@TextFormat.Format(SchemaViewText.Explorer_EntityTooltip, entity)">C# @entity</span>
+            }
+            @if (table.IsInvalid)
+            {
+                <span class="ctx-fact bad" title="@InvalidStatusText.For(ObjectMenuFacts.ObjectType(table.Kind))">@SchemaViewText.InvalidChip</span>
+            }
+        }
+        else if (Unit is { } unit)
+        {
+            <span class="ctx-fact">@ExplorerList.KindLabel(unit.Kind)</span>
+            @Origin(unit.Owner, unit.Name, unit.Synonym, ExplorerList.KindLabel(unit.Kind))
+            @* As the head of the PL/SQL tab (PlSqlHeader): a package's specification and body apart. *@
+            @if (unit.Status == "INVALID")
+            {
+                <span class="ctx-fact bad" title="@InvalidStatusText.For(unit.ObjectType())">@(unit.Kind == PlSqlKind.Package ? SchemaViewText.PlSql_SpecInvalidChip : SchemaViewText.InvalidChip)</span>
+            }
+            @if (unit.Kind == PlSqlKind.Package && unit.BodyStatus == "INVALID")
+            {
+                <span class="ctx-fact bad" title="@InvalidStatusText.For("PACKAGE BODY")">@SchemaViewText.PlSql_BodyInvalidChip</span>
+            }
+            @if (unit.IsDisabled)
+            {
+                <span class="ctx-fact" title="@SchemaViewText.PlSql_TriggerDisabledTitle">@SchemaViewText.PlSql_DisabledChip</span>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentation { get; set; } = null!;
+
+    /// <summary>The table, view or materialized view; or <see cref="Unit"/>.</summary>
+    [Parameter]
+    public TableSummary? Table { get; set; }
+
+    [Parameter]
+    public PlSqlObjectSummary? Unit { get; set; }
+
+    /// <summary>Where the object really is: behind its synonym, or in another schema; nothing for one of the shown schema.</summary>
+    private RenderFragment Origin(string owner, string name, SynonymInfo? synonym, string kind) => __builder =>
+    {
+        if (synonym is not null)
+        {
+            <span class="ctx-fact fk" title="@ObjectMenuFacts.SynonymTooltip(synonym, owner, name, kind)">→ @owner.@name</span>
+        }
+        else if (Active.Schema is { } schema && owner != schema.Owner)
+        {
+            <span class="ctx-fact">@owner</span>
+        }
+    };
+}

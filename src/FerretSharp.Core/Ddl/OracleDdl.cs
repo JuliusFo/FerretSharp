@@ -224,6 +224,8 @@ internal static class OracleDdl
 
     public static string EnableTrigger(string owner, string name) => $"ALTER TRIGGER {OracleIdentifier.Qualify(owner, name)} ENABLE";
 
+    public static string DisableTrigger(string owner, string name) => $"ALTER TRIGGER {OracleIdentifier.Qualify(owner, name)} DISABLE";
+
     // ---- expressions and literals ----
 
     /// <summary>

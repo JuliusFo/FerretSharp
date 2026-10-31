@@ -1521,4 +1521,67 @@
     <value>The table's tablespace could not be read – the new audit table goes into the schema's default tablespace.</value>
     <comment>Designer: reading the tablespaces failed, a new audit table is planned</comment>
   </data>
+  <data name="ObjectMenu_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>Object menu of the explorer (WP-70): opens or activates the tab of the table or PL/SQL unit</comment>
+  </data>
+  <data name="ObjectMenu_LinkCaption" xml:space="preserve">
+    <value>Link</value>
+    <comment>Object menu: caption below the icon of "Copy link"</comment>
+  </data>
+  <data name="ObjectMenu_Sql" xml:space="preserve">
+    <value>Open in the SQL editor</value>
+    <comment>Object menu: SELECT * FROM the table in a new SQL tab</comment>
+  </data>
+  <data name="ObjectMenu_Linq" xml:space="preserve">
+    <value>Open in the LINQ console</value>
+    <comment>Object menu: the entity's DbSet in a new LINQ tab</comment>
+  </data>
+  <data name="ObjectMenu_Designer" xml:space="preserve">
+    <value>Edit in the designer</value>
+    <comment>Object menu: the "Columns" view in its edit mode</comment>
+  </data>
+  <data name="ObjectMenu_DesignerCaption" xml:space="preserve">
+    <value>Designer</value>
+    <comment>Object menu: caption below the icon of "Edit in the designer"</comment>
+  </data>
+  <data name="ObjectMenu_Views" xml:space="preserve">
+    <value>Open in view</value>
+    <comment>Object menu: heading of the chips with the views of a tab</comment>
+  </data>
+  <data name="ObjectMenu_Copy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>Object menu: heading of the chips with names to copy</comment>
+  </data>
+  <data name="ObjectMenu_CopyTitle" xml:space="preserve">
+    <value>Copy {0}</value>
+    <comment>Object menu: tooltip of a chip; {0} = the text it copies</comment>
+  </data>
+  <data name="ObjectMenu_Copied" xml:space="preserve">
+    <value>{0} copied.</value>
+    <comment>Notice after copying from the object menu; {0} = the text</comment>
+  </data>
+  <data name="ObjectMenu_OpenIn" xml:space="preserve">
+    <value>Open in connection</value>
+    <comment>Object menu: heading of the chips with the other connections</comment>
+  </data>
+  <data name="ObjectMenu_OpenInTitle" xml:space="preserve">
+    <value>Open {1} in {0}, connecting if need be</value>
+    <comment>Object menu: tooltip of a connection chip; {0} = connection, {1} = table</comment>
+  </data>
+  <data name="ObjectMenu_TriggerEnable" xml:space="preserve">
+    <value>Enable in the SQL editor</value>
+    <comment>Object menu of a disabled trigger</comment>
+  </data>
+  <data name="ObjectMenu_TriggerDisable" xml:space="preserve">
+    <value>Disable in the SQL editor</value>
+    <comment>Object menu of an enabled trigger</comment>
+  </data>
+  <data name="ObjectMenu_TriggerTitle" xml:space="preserve">
+    <value>Opens ALTER TRIGGER … in a new SQL tab; it runs there with the confirmation of every schema change.</value>
+  </data>
+  <data name="ObjectMenu_TriggerInvalidTitle" xml:space="preserve">
+    <value>The trigger is invalid: enabled, it makes every change to its table fail (ORA-04098) for all sessions. Compile it without errors first.</value>
+    <comment>Object menu: tooltip of "Enable in the SQL editor" for an invalid, disabled trigger (review of WP-70)</comment>
+  </data>
 </root>

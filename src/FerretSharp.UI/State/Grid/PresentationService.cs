@@ -80,6 +80,9 @@ public sealed class PresentationService : IDisposable
     public string? EntityNameOf(TableRef table) =>
         _mapping?.EntityOf(table) is { } entity ? ClrModelMapping.ShortName(entity.Entity.ClrType) : null;
 
+    /// <summary>The LINQ query source of the table's entity (<c>db.Kunden</c>); null without one (WP-70, object menu).</summary>
+    public string? LinqSourceOf(TableRef table) => _mapping?.EntityOf(table) is { } entity ? LinqFilter.Source(entity.Entity) : null;
+
     /// <summary>The entity's name if C# names are shown at all (explorer, tab tooltip).</summary>
     public string? ShownEntityNameOf(TableRef table) => _names == ClrNameDisplay.Off ? null : EntityNameOf(table);
 

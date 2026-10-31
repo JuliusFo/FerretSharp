@@ -1000,6 +1000,16 @@ table.binds td { font-family: var(--mono); overflow-wrap: anywhere; }
 .ctx-head-block .ctx-head { border-bottom: 0; margin-bottom: 0; }
 .ctx-open { flex: none; font-size: 11.5px; color: var(--faint); }
 .menu-chip.conn .kind-badge { font-size: 9.5px; }
+/* WP-70: the object menu of the explorer and the tab head – the object's name, names to copy, the tab's own view, invalid. */
+.ctx-head .ctx-object-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12.5px var(--mono); }
+.ctx-head > .icon { flex: none; align-self: center; color: var(--muted); }
+.ctx-fact.bad { color: var(--danger); background: var(--danger-weak); }
+/* Up to five actions (open, link, SQL, LINQ, designer): one row, each as wide as the others. */
+.object-menu-bar .quick-bar.with-captions { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.menu-chip.mono { font-family: var(--mono); font-size: 11.5px; }
+.menu-chip.active { border-color: var(--accent); color: var(--accent); }
+/* "Show in explorer" (WP-70): the entry flashes once where the list scrolled to. */
+.table-item.revealed { animation: fs-flash 1.6s ease-out; }
 .btn.danger-solid { background: var(--danger); border-color: var(--danger); color: var(--danger-text); font-weight: 600; }
 .btn.danger-solid:hover:not(:disabled) { background: var(--danger); filter: brightness(1.07); }
 .dialog.confirm { width: min(460px, 94vw); }

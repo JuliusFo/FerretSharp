@@ -1,0 +1,203 @@
+@* The object menu of a table, view or materialized view (WP-70), built like the menus of WP-61/66: its single actions as
+   icons with a caption, the views of a table tab, what to copy and the other connections as chips. In the explorer it acts
+   on the table (opens or activates its tab); on a tab head (Tab set) on that tab – a second tab of the table (FK jump,
+   duplicate) keeps its own filters. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.Core.Workspaces
+@implements IAsyncDisposable
+@inject ConnectionManager Connections
+@inject AppSettingsService Settings
+@inject IJSRuntime JS
+
+@{
+    var linqSource = Presentation.LinqSourceOf(Table.Ref);
+    var sql = Sql;
+    var linq = ObjectMenuFacts.LinqOf(Presentation, Table.Ref, Tab);
+    var entity = Presentation.EntityNameOf(Table.Ref);
+    var targets = AddColumnsTargets.Of(Connections.Profiles, Active.Profile?.Id ?? Guid.Empty);
+}
+<div class="object-menu-bar">
+    <QuickBar Captions="true">
+        @if (Tab is null)
+        {
+            <QuickAction Icon="Icons.For(Table.Kind)" Label="@SchemaViewText.ObjectMenu_Open" Caption="@SchemaViewText.ObjectMenu_Open" Primary="true"
+                         OnClick="() => RunAsync(() => Shell.OpenTable(Table))" />
+        }
+        <QuickAction Icon="Icons.LinkView" Label="@ShellText.TabMenu_CopyLink" Caption="@SchemaViewText.ObjectMenu_LinkCaption"
+                     Title="@ShellText.TabMenu_CopyLinkTitle" Unavailable="@(Active.Profile is null ? WorkspaceText.NoActiveConnection : null)" OnClick="CopyLinkAsync" />
+        <QuickAction Icon="Icons.Database" Label="@SchemaViewText.ObjectMenu_Sql" Caption="SQL" Title="@sql?.Sql"
+                     Unavailable="@(sql is null ? WorkspaceText.NoActiveConnection : null)"
+                     OnClick="OpenSqlAsync" />
+        <QuickAction Icon="Icons.Code" Label="@SchemaViewText.ObjectMenu_Linq" Caption="LINQ" Title="@linq?.Text"
+                     Unavailable="@(Models.State.Link is null ? ShellText.Palette_NoLinkedProject : linq is null ? ClrModelText.NoEntity : null)"
+                     OnClick="OpenLinqAsync" />
+        @if (Table.Kind == TableKind.Table)
+        {
+            <QuickAction Icon="Icons.Edit" Label="@SchemaViewText.ObjectMenu_Designer" Caption="@SchemaViewText.ObjectMenu_DesignerCaption"
+                         Title="@SchemaViewText.Designer_EditTitle" OnClick="() => ShowAsync(TabMode.Structure, DesignerSection.Columns)" />
+        }
+    </QuickBar>
+</div>
+
+<div class="ctx-section">
+    <div class="group-head-btn static">@SchemaViewText.ObjectMenu_Views</div>
+    <div class="chips menu-chips">
+        @foreach (var (mode, label) in Modes)
+        {
+            var m = mode;
+            <button type="button" class="menu-chip @(Tab?.Mode == m ? "active" : "")" @onclick="() => ShowAsync(m)">@label</button>
+        }
+    </div>
+    <div class="group-head-btn static">@SchemaViewText.ObjectMenu_Copy</div>
+    <div class="chips menu-chips">
+        @foreach (var text in ObjectMenuFacts.CopyTexts(Table.Owner, Table.Name, Table.DisplayName, entity, linqSource))
+        {
+            <button type="button" class="menu-chip mono" title="@TextFormat.Format(SchemaViewText.ObjectMenu_CopyTitle, text)" @onclick="() => CopyAsync(text)">
+                @Icons.Copy @text
+            </button>
+        }
+    </div>
+    <div class="group-head-btn static">@SchemaViewText.ObjectMenu_OpenIn</div>
+    <div class="chips menu-chips">
+        @foreach (var target in targets)
+        {
+            var profile = target;
+            <button type="button" class="menu-chip conn kind-@profile.Kind.ToString().ToLowerInvariant()" @onclick="() => OpenInAsync(profile)"
+                    title="@TextFormat.Format(SchemaViewText.ObjectMenu_OpenInTitle, ConnectionLabel.Of(profile, Settings.Current), Table.DisplayName)">
+                <span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @ConnectionLabel.Of(profile, Settings.Current)
+            </button>
+        }
+        @if (targets.Count == 0)
+        {
+            <span class="ctx-empty">@SchemaViewText.Columns_NoOtherConnection</span>
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentation { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableSummary Table { get; set; } = null!;
+
+    /// <summary>The tab whose head was right-clicked; null in the explorer.</summary>
+    [Parameter]
+    public TableTab? Tab { get; set; }
+
+    /// <summary>Closes the menu before an entry acts.</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    /// <summary>The statement "SQL" opens; null before the connection is there.</summary>
+    private (string Sql, IReadOnlyList<SqlVariable> Variables)? Sql =>
+        Active.Profile is { } profile ? ObjectMenuFacts.SqlOf(Table, profile, Tab) : null;
+
+    /// <summary>The views of the tab's switch; "Usage" only with a linked project, as there (WP-40).</summary>
+    private IEnumerable<(TabMode Mode, string Label)> Modes =>
+        TabModeLabels.All.Where(m => m.Mode != TabMode.Usage || Models.State.Link is not null);
+
+    private Task OpenSqlAsync() => RunAsync(() =>
+    {
+        if (Sql is { } sql)
+        {
+            Shell.OpenSql(sql.Sql, sql.Variables);
+        }
+    });
+
+    /// <summary>As "Open in the LINQ console" of the filter bar: what it could not take over is named in a notice.</summary>
+    private Task OpenLinqAsync() => RunAsync(() =>
+    {
+        if (ObjectMenuFacts.LinqOf(Presentation, Table.Ref, Tab) is not { } linq)
+        {
+            return;
+        }
+
+        Shell.OpenLinq(linq.Text);
+        if (linq.Warnings.Count > 0)
+        {
+            Shell.Notify(TextFormat.Plural(linq.Rows, SqlEditorText.LinqMenu_AdoptedOne, SqlEditorText.LinqMenu_AdoptedOther), linq.Warnings);
+        }
+    });
+
+    private async Task RunAsync(Action action)
+    {
+        await OnClose.InvokeAsync();
+        action();
+    }
+
+    /// <summary>The tab of the menu in a view – or the table's tab, opened if need be.</summary>
+    private Task ShowAsync(TabMode mode, DesignerSection? designer = null) => RunAsync(() =>
+    {
+        if ((Tab ?? Shell.OpenTable(Table)) is { } tab)
+        {
+            Shell.ShowTab(tab, mode, designer);
+        }
+    });
+
+    /// <summary>Copied before closing: dom.js goes with the menu.</summary>
+    private async Task CopyAsync(string text)
+    {
+        if (await Dom.CopyTextAsync(Shell, text))
+        {
+            Shell.Notify(TextFormat.Format(SchemaViewText.ObjectMenu_Copied, text));
+        }
+
+        await OnClose.InvokeAsync();
+    }
+
+    /// <summary>The link to the table (WP-37) – from a tab with its applied filters, sort order and view.</summary>
+    private async Task CopyLinkAsync()
+    {
+        if (Active.Profile is not { } profile)
+        {
+            return;
+        }
+
+        await LinkCopy.CopyAsync(Shell, Dom, profile, Link(profile));
+        await OnClose.InvokeAsync();
+    }
+
+    private Core.Links.TableLink Link(ConnectionProfile profile) =>
+        Tab is { } tab
+            ? Core.Links.TableLink.For(profile, tab.Table.Ref, tab.AppliedFilters, tab.Sorts, tab.Mode)
+            : Core.Links.TableLink.For(profile, Table.Ref, [], [], TabMode.Data);
+
+    /// <summary>
+    /// The table on <paramref name="target"/>, shown and connected if need be – the way of a link opened there
+    /// (small-link-choose-connection): the same table found by name, from a tab with its filters.
+    /// </summary>
+    private async Task OpenInAsync(ConnectionProfile target)
+    {
+        if (Active.Profile is not { } profile)
+        {
+            return;
+        }
+
+        var link = Link(profile);
+        await OnClose.InvokeAsync();
+        Shell.OpenLinkIn(target.Id, link);
+        await Lifecycle.ConnectAsync(target);
+    }
+
+    public ValueTask DisposeAsync() => _dom?.DisposeAsync() ?? ValueTask.CompletedTask;
+}

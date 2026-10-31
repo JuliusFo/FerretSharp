@@ -51,6 +51,8 @@ public static class ShellActions
         ShortcutAction.FindColumn =>
             WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.RunScript => WithTab(context) ?? (context.ActiveTab is SqlTab ? null : ShellText.Palette_OnlyInSqlTab),
+        ShortcutAction.DuplicateTab => WithTab(context) ?? (context.ActiveTab is TableTab ? null : ShellText.Palette_NotInThisTab),
+        ShortcutAction.RevealInExplorer => WithTab(context) ?? (context.ActiveTab is TableTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.NewSql or ShortcutAction.ToggleChanges => InExplorer(context),
         ShortcutAction.NewLinq => InExplorer(context) ?? (context.LinkedProject ? null : ShellText.Palette_NoLinkedProject),
         ShortcutAction.SwitchWorkClone => !context.Connected ? WorkspaceText.NoActiveConnection : context.LinkedProject ? null : ShellText.Palette_NoLinkedProject,

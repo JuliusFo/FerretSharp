@@ -1204,4 +1204,8 @@
     <value>Model from a file, exported {0}.</value>
     <comment>{0} = date and Git branch</comment>
   </data>
+  <data name="Reveal_NotListed" xml:space="preserve">
+    <value>{0} is not in the explorer: an object of another schema without synonym, or one that is gone.</value>
+    <comment>Notice of "Show in explorer" (WP-70); {0} = table name</comment>
+  </data>
 </root>

@@ -4,7 +4,6 @@
 @implements IAsyncDisposable
 @inject ShortcutService Shortcuts
 @inject IJSRuntime JS
-@inject ConnectionHub Hub
 
 <nav class="tabs" @ref="_bar">
     @if (Shell.Tabs.Any(t => t.Pinned))
@@ -33,16 +32,49 @@
 @if (_menu is { } menu && Shell.Tabs.Contains(menu.Tab))
 {
     var index = Shell.Tabs.ToList().IndexOf(menu.Tab);
-    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="250" EstimatedHeight="140"
-                 OnClose="CloseMenu">
+    var objectTab = menu.Tab is TableTab or PlSqlTab;
+    @* WP-70: a table or PL/SQL tab has the object menu of the explorer between its own lines and the ways to close. *@
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="@(objectTab ? 340 : 250)"
+                 EstimatedHeight="@(objectTab ? 420 : 140)" KeyNavigation="true" OnClose="CloseMenu">
+        @switch (menu.Tab)
+        {
+            case TableTab table:
+                <ObjectMenuHead Table="CurrentOf(table)" />
+                break;
+            case PlSqlTab unit:
+                <ObjectMenuHead Unit="CurrentOf(unit)" />
+                break;
+        }
         <div class="tab-menu">
             <button class="menu-item" @onclick="TogglePinFromMenu">
                 @(menu.Tab.Pinned ? ShellText.TabMenu_Unpin : ShellText.TabMenu_Pin) <Kbd Action="ShortcutAction.PinTab" />
             </button>
             @if (menu.Tab is TableTab)
             {
-                <button class="menu-item" title="@ShellText.TabMenu_CopyLinkTitle" @onclick="CopyLinkFromMenuAsync">@ShellText.TabMenu_CopyLink</button>
+                <button class="menu-item" title="@SettingsText.HintDuplicateTab" @onclick="DuplicateFromMenu">
+                    @SettingsText.ActionDuplicateTab <Kbd Action="ShortcutAction.DuplicateTab" />
+                </button>
             }
+            @if (objectTab)
+            {
+                var unavailable = Shell.RevealUnavailable(menu.Tab);
+                <button class="menu-item" disabled="@(unavailable is not null)" title="@(unavailable ?? SettingsText.HintRevealInExplorer)" @onclick="RevealFromMenu">
+                    @SettingsText.ActionRevealInExplorer <Kbd Action="ShortcutAction.RevealInExplorer" />
+                </button>
+            }
+        </div>
+        @switch (menu.Tab)
+        {
+            case TableTab table:
+                <div class="menu-sep"></div>
+                <TableMenuBody Table="CurrentOf(table)" Tab="table" OnClose="CloseMenu" />
+                break;
+            case PlSqlTab unit:
+                <div class="menu-sep"></div>
+                <PlSqlMenuBody Unit="CurrentOf(unit)" InTab="true" Shown="unit.View" OnClose="CloseMenu" />
+                break;
+        }
+        <div class="tab-menu">
             <div class="menu-sep"></div>
             <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@CommonText.Close <Kbd Action="ShortcutAction.CloseTab" /></button>
             @* Pinned tabs stay open (WP-34): a scope that would close nothing is disabled. *@
@@ -251,17 +283,33 @@
         Lifecycle.CloseTabs(menu.Tab, scope);
     }
 
-    /// <summary>The link to the tab's view (WP-37): the applied filters, the sort order and the view.</summary>
-    private async Task CopyLinkFromMenuAsync()
-    {
-        if (_menu is not { Tab: TableTab tab } || Hub.OwnerOf(tab.WorkspaceId)?.Profile is not { } profile)
-        {
-            return;
-        }
+    [CascadingParameter]
+    public Core.Connections.ActiveConnection Active { get; set; } = null!;
 
-        _menu = null;
-        var link = Core.Links.TableLink.For(profile, tab.Table.Ref, tab.AppliedFilters, tab.Sorts, tab.Mode);
-        await LinkCopy.CopyAsync(Shell, Dom, profile, link);
+    /// <summary>
+    /// The tab's object as the schema knows it now – the tab keeps the one from its opening (a trigger switched off since,
+    /// a package compiled); the opening's if the schema has none (another schema without synonym). Review of WP-70.
+    /// </summary>
+    private Core.Schema.TableSummary CurrentOf(TableTab tab) => Active.Schema?.Find(tab.Table.Ref) ?? tab.Table;
+
+    private Core.Schema.PlSqlObjectSummary CurrentOf(PlSqlTab tab) => Active.Schema?.FindPlSql(tab.Unit.Ref) ?? tab.Unit;
+
+    private void DuplicateFromMenu()
+    {
+        if (_menu is { Tab: TableTab tab })
+        {
+            _menu = null;
+            Shell.DuplicateTab(tab);
+        }
+    }
+
+    private void RevealFromMenu()
+    {
+        if (_menu is { } menu)
+        {
+            _menu = null;
+            Shell.RevealInExplorer(menu.Tab);
+        }
     }
 
     private void TogglePinFromMenu()
