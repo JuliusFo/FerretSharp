@@ -185,6 +185,18 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken) =>
         reader.GetDdlAsync(table, cancellationToken);
 
+    // Synonyms (WP-68), not cached: the views read them again after each change.
+
+    public Task<IReadOnlyList<SynonymInfo>> GetSynonymsAsync(TableRef target, CancellationToken cancellationToken) =>
+        reader.GetSynonymsAsync(target, cancellationToken);
+
+    /// <summary>The private synonyms of this schema (<see cref="Owner"/>).</summary>
+    public Task<IReadOnlyList<SchemaSynonym>> GetSchemaSynonymsAsync(CancellationToken cancellationToken) =>
+        reader.GetSchemaSynonymsAsync(Owner, cancellationToken);
+
+    public Task<string?> GetNameTakenAsync(string owner, string name, CancellationToken cancellationToken) =>
+        reader.GetNameTakenAsync(owner, name, cancellationToken);
+
     // PL/SQL views (WP-28), not cached either.
 
     public Task<PlSqlObjectInfo> GetPlSqlInfoAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>

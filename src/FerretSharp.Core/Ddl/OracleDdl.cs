@@ -226,6 +226,16 @@ internal static class OracleDdl
 
     public static string DisableTrigger(string owner, string name) => $"ALTER TRIGGER {OracleIdentifier.Qualify(owner, name)} DISABLE";
 
+    // ---- synonyms (WP-68) ----
+
+    /// <summary>A public synonym has no owner in its name: <c>PUBLIC</c> is a keyword there, not a schema.</summary>
+    private static string Synonym(SynonymInfo synonym) =>
+        synonym.IsPublic ? $"PUBLIC SYNONYM {Q(synonym.Name)}" : $"SYNONYM {OracleIdentifier.Qualify(synonym.Owner, synonym.Name)}";
+
+    public static string CreateSynonym(SynonymInfo synonym, TableRef target) => $"CREATE {Synonym(synonym)} FOR {T(target)}";
+
+    public static string DropSynonym(SynonymInfo synonym) => $"DROP {Synonym(synonym)}";
+
     // ---- expressions and literals ----
 
     /// <summary>

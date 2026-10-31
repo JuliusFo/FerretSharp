@@ -232,6 +232,25 @@ public interface ISchemaReader
     Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The private and public synonyms on an object (table, view, PL/SQL unit; WP-68), private ones first, without those over
+    /// a database link. Only those the session may see.
+    /// </summary>
+    Task<IReadOnlyList<SynonymInfo>> GetSynonymsAsync(TableRef target, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The private synonyms of <paramref name="owner"/> with their targets and whether those are there (WP-68), by name. For
+    /// another schema than the login user's, Oracle shows only those whose target the session may access.
+    /// </summary>
+    Task<IReadOnlyList<SchemaSynonym>> GetSchemaSynonymsAsync(string owner, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The type of the object that already has <paramref name="name"/> where a synonym of <paramref name="owner"/> would go
+    /// (<c>PUBLIC</c> for a public one) – tables, views, sequences, PL/SQL, types and synonyms share that namespace
+    /// (ORA-00955); null if the name is free as far as the session can see.
+    /// </summary>
+    Task<string?> GetNameTakenAsync(string owner, string name, CancellationToken cancellationToken);
+
+    /// <summary>
     /// DDL from <c>DBMS_METADATA.GET_DDL</c>. Other schemas need <c>SELECT_CATALOG_ROLE</c>; without it Oracle
     /// answers ORA-31603 (object not found).
     /// </summary>

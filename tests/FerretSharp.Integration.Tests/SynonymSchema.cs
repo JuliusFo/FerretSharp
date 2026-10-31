@@ -67,6 +67,13 @@ public static class SynonymSchema
                 $"CREATE PUBLIC SYNONYM FERRET_KUNDEN FOR {appUser}.KUNDEN",
                 // no SELECT grant → invisible
                 $"CREATE PUBLIC SYNONYM FERRET_GEHEIM FOR {OtherOwner}.GEHEIM",
+                // WP-68, the states of the schema's synonyms: no grant, target dropped, owner gone, over a database link
+                $"CREATE SYNONYM {appUser}.S_GEHEIM FOR {OtherOwner}.GEHEIM",
+                $"CREATE TABLE {OtherOwner}.WEG (ID NUMBER)",
+                $"CREATE SYNONYM {appUser}.S_WEG FOR {OtherOwner}.WEG",
+                $"DROP TABLE {OtherOwner}.WEG PURGE",
+                $"CREATE SYNONYM {appUser}.S_NIEMAND FOR NIEMAND.X",
+                $"CREATE SYNONYM {appUser}.S_LINK FOR {OtherOwner}.PRODUKT@FERRET_LINK",
             ];
 
             foreach (var sql in statements)
