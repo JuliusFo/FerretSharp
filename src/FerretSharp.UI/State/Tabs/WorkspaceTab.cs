@@ -161,7 +161,19 @@ public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary un
 {
     public Core.Schema.PlSqlObjectSummary Unit { get; } = unit;
 
-    public PlSqlView View { get; set; } = PlSqlView.Source;
+    /// <summary>The view shown; another one than "Synonyms" gives up a requested drop (as <see cref="TableTab.Mode"/>).</summary>
+    public PlSqlView View
+    {
+        get;
+        set
+        {
+            field = value;
+            if (value != PlSqlView.Synonyms)
+            {
+                DropRequested = null;
+            }
+        }
+    } = PlSqlView.Source;
 
     /// <summary>A line to show once the source of the part is there (a compile error, a search hit); taken by the source view.</summary>
     public SourcePosition? Reveal { get; set; }

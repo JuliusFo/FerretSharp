@@ -42,6 +42,10 @@ public sealed class SynonymListTabTests : IAsyncDisposable
 
         var tab = Assert.IsType<TableTab>(_app.Shell.ActiveTab);
         Assert.Equal((TabMode.Synonyms, synonym), (tab.Mode, tab.DropRequested));
+
+        // Review of WP-68: another view by any way gives the request up – it confirmed unasked once the view came back.
+        _app.Shell.ShowTab(tab, TabMode.Structure);
+        Assert.Null(tab.DropRequested);
     }
 
     /// <summary>Review of WP-68: from the head of a second tab of the table, the first one took the drop.</summary>

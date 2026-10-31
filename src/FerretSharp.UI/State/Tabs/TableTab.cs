@@ -68,7 +68,22 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 {
     public TableSummary Table { get; } = table;
 
-    public TabMode Mode { get; set; } = TabMode.Data;
+    /// <summary>
+    /// The view shown. Another one than "Synonyms" gives up a drop the object menu asked for (<see cref="DropRequested"/>) –
+    /// whichever way it is set: the view switch, the menu's chips, the explorer (review of WP-68).
+    /// </summary>
+    public TabMode Mode
+    {
+        get;
+        set
+        {
+            field = value;
+            if (value != TabMode.Synonyms)
+            {
+                DropRequested = null;
+            }
+        }
+    } = TabMode.Data;
 
     public SynonymInfo? DropRequested { get; set; }
 

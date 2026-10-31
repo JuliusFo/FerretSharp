@@ -381,11 +381,6 @@
     private void SetMode(TabMode mode)
     {
         Tab.Mode = mode;
-        if (mode != TabMode.Synonyms)
-        {
-            Tab.DropRequested = null; // a drop the view could not take yet (the structure failed to load) is given up
-        }
-
         _visited.Add(mode);
         Shell.NotifyChanged();
     }

@@ -123,11 +123,6 @@
     private void SetView(PlSqlView view)
     {
         Tab.View = view;
-        if (view != PlSqlView.Synonyms)
-        {
-            Tab.DropRequested = null; // a drop the view did not take is given up
-        }
-
         _visited.Add(view);
         Shell.NotifyChanged();
     }
