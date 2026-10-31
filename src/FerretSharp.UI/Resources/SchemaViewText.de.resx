@@ -1236,4 +1236,49 @@
   <data name="Audit_TablespaceUnknown" xml:space="preserve">
     <value>Der Tablespace der Tabelle ließ sich nicht lesen – die neue Audit-Tabelle kommt in den Standard-Tablespace des Schemas.</value>
   </data>
+  <data name="ObjectMenu_Open" xml:space="preserve">
+    <value>Öffnen</value>
+  </data>
+  <data name="ObjectMenu_LinkCaption" xml:space="preserve">
+    <value>Link</value>
+  </data>
+  <data name="ObjectMenu_Sql" xml:space="preserve">
+    <value>Im SQL-Editor öffnen</value>
+  </data>
+  <data name="ObjectMenu_Linq" xml:space="preserve">
+    <value>In der LINQ-Konsole öffnen</value>
+  </data>
+  <data name="ObjectMenu_Designer" xml:space="preserve">
+    <value>Im Designer bearbeiten</value>
+  </data>
+  <data name="ObjectMenu_DesignerCaption" xml:space="preserve">
+    <value>Designer</value>
+  </data>
+  <data name="ObjectMenu_Views" xml:space="preserve">
+    <value>In Ansicht öffnen</value>
+  </data>
+  <data name="ObjectMenu_Copy" xml:space="preserve">
+    <value>Kopieren</value>
+  </data>
+  <data name="ObjectMenu_CopyTitle" xml:space="preserve">
+    <value>{0} kopieren</value>
+  </data>
+  <data name="ObjectMenu_Copied" xml:space="preserve">
+    <value>{0} kopiert.</value>
+  </data>
+  <data name="ObjectMenu_OpenIn" xml:space="preserve">
+    <value>In Verbindung öffnen</value>
+  </data>
+  <data name="ObjectMenu_OpenInTitle" xml:space="preserve">
+    <value>{1} in {0} öffnen, bei Bedarf verbinden</value>
+  </data>
+  <data name="ObjectMenu_TriggerEnable" xml:space="preserve">
+    <value>Im SQL-Editor aktivieren</value>
+  </data>
+  <data name="ObjectMenu_TriggerDisable" xml:space="preserve">
+    <value>Im SQL-Editor deaktivieren</value>
+  </data>
+  <data name="ObjectMenu_TriggerTitle" xml:space="preserve">
+    <value>Öffnet ALTER TRIGGER … in einem neuen SQL-Tab; dort läuft es mit der Bestätigung jeder Schemaänderung.</value>
+  </data>
 </root>

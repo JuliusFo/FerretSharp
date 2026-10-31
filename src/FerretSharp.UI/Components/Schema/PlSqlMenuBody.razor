@@ -1,0 +1,89 @@
+@* The object menu of a PL/SQL unit (WP-70): open it, its views and what to copy as chips; a trigger can be switched on or
+   off – as ALTER TRIGGER in a new SQL tab, which runs it with the confirmation of every schema change. *@
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Schema
+@using FerretSharp.Core.Workspaces
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@if (!InTab)
+{
+    <QuickBar Captions="true">
+        <QuickAction Icon="Icons.For(Unit.Kind)" Label="@SchemaViewText.ObjectMenu_Open" Caption="@SchemaViewText.ObjectMenu_Open" Primary="true"
+                     OnClick="() => RunAsync(() => Shell.OpenPlSql(Unit))" />
+    </QuickBar>
+}
+
+<div class="ctx-section">
+    <div class="group-head-btn static">@SchemaViewText.ObjectMenu_Views</div>
+    <div class="chips menu-chips">
+        @foreach (var view in PlSqlTab.ViewsOf(Unit.Kind))
+        {
+            var v = view;
+            <button type="button" class="menu-chip @(InTab && Shown == v ? "active" : "")" @onclick="() => RunAsync(() => Shell.OpenPlSql(Unit, v))">
+                @PlSqlViewLabels.Of(v, Unit.Kind)
+            </button>
+        }
+    </div>
+    <div class="group-head-btn static">@SchemaViewText.ObjectMenu_Copy</div>
+    <div class="chips menu-chips">
+        @foreach (var text in ObjectMenuFacts.CopyTexts(Unit.Owner, Unit.Name, Unit.DisplayName))
+        {
+            <button type="button" class="menu-chip mono" title="@TextFormat.Format(SchemaViewText.ObjectMenu_CopyTitle, text)" @onclick="() => CopyAsync(text)">
+                @Icons.Copy @text
+            </button>
+        }
+    </div>
+</div>
+
+@if (Unit.Kind == PlSqlKind.Trigger)
+{
+    <div class="menu-sep"></div>
+    <MenuEntry Label="@(Unit.IsDisabled ? SchemaViewText.ObjectMenu_TriggerEnable : SchemaViewText.ObjectMenu_TriggerDisable)"
+               Title="@SchemaViewText.ObjectMenu_TriggerTitle" OnClick="SwitchTriggerAsync" />
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public PlSqlObjectSummary Unit { get; set; } = null!;
+
+    /// <summary>On a tab head: the tab's view is marked, no "Open".</summary>
+    [Parameter]
+    public bool InTab { get; set; }
+
+    /// <summary>The view the tab shows (<see cref="InTab"/>).</summary>
+    [Parameter]
+    public PlSqlView? Shown { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    private async Task RunAsync(Action action)
+    {
+        await OnClose.InvokeAsync();
+        action();
+    }
+
+    private async Task CopyAsync(string text)
+    {
+        if (await Dom.CopyTextAsync(Shell, text))
+        {
+            Shell.Notify(TextFormat.Format(SchemaViewText.ObjectMenu_Copied, text));
+        }
+
+        await OnClose.InvokeAsync();
+    }
+
+    /// <summary>The trigger's own owner and name: a synonym does not lead to a trigger.</summary>
+    private Task SwitchTriggerAsync() => RunAsync(() =>
+        Shell.OpenSql((Unit.IsDisabled ? TriggerDdl.Enable(Unit.Owner, Unit.Name) : TriggerDdl.Disable(Unit.Owner, Unit.Name)) + ";\n"));
+
+    public ValueTask DisposeAsync() => _dom?.DisposeAsync() ?? ValueTask.CompletedTask;
+}

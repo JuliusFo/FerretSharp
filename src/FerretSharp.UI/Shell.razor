@@ -486,6 +486,12 @@
             case ShortcutAction.PinTab when _state.ActiveTab is { } tab:
                 _state.SetPinned(tab, !tab.Pinned);
                 break;
+            case ShortcutAction.DuplicateTab when _state.ActiveTab is TableTab tab:
+                _state.DuplicateTab(tab);
+                break;
+            case ShortcutAction.RevealInExplorer when _state.ActiveTab is { } tab:
+                _state.RevealInExplorer(tab);
+                break;
             case ShortcutAction.RunScript:
                 _state.RequestTabCommand(TabCommand.RunScript);
                 break;
