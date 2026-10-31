@@ -31,4 +31,5 @@ Seit WebView2 1.0.4258 baut das Control Geräte, Aufnahme und Back Buffer nach e
 - Das verlorene Bild ließ sich auf dem Entwicklungsrechner nicht auslösen (Sperre nie belegt). Beim Kollegen bestätigt: 134 zurückgehaltene Bilder in einer Minute, längstes 301 ms, die Anzeige bleibt nicht mehr stehen.
 - 1.0.4258 sperrt bei einem echten Display-Wechsel (`WM_DISPLAYCHANGE`, `DisplaySettingsChanging`) selbst blockierend (`ClearBackBuffer` → `Lock()`). Hängt die App nach einem Dock-Wechsel, in den Stacks von „UI-Hänger protokollieren“ nach `D3DImage.Lock`/`ClearBackBuffer` sehen.
 - Der Bildpuffer fasst ein Bild: Solange eines gehalten wird, liefert die Aufnahme nichts Neues. Dass eine Änderung aus dieser Zeit danach als nächstes Bild kommt, ist beobachtet (Kollege, unter Last), nicht dokumentiert.
+- Ein dritter Fehler desselben Wegs (WPF präsentiert vor dem Ende der GPU-Kopie) steht in ADR 0039; `WebViewCapture.Render` wartet seitdem auf die Kopie.
 - Seit dem eigenen Handler hängt jedes Bild der WebView an diesem Code: Fällt er aus, steht das Bild. Gegenprobe im E2E: Ein Handler, der nichts tut, ließ das Bild stehen – der des Controls war also wirklich ab.

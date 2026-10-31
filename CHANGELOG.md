@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - Tablespaces in the designer: a new table, a new index and the indexes that new primary keys, unique keys and foreign keys bring along can go into a tablespace of their own. The choice starts at the schema's default; a suggestion names where most of the table's indexes (or the schema's indexes and tables) lie, "Take" chooses it. The field for the indexes appears below the new constraints once the draft creates an index, and names them. A key that an existing index already backs keeps using it – Oracle would refuse the tablespace there – and the designer says so. A new audit table goes into the tablespace of its table. Temporary tables keep their indexes in the temporary tablespace and are offered none.
 
 ### Fixed
+- Typed characters often showed up only with the next key or caret blink, up to two seconds late, and the caret blinked unevenly – mostly in a large window. The window could show a picture of the page before it was completely drawn; it now waits for it.
 - An index whose first column is descending no longer counts as the index of a foreign key: Oracle still locks the whole child table when a parent row is deleted. The Indexes view now suggests an index for such a foreign key, and the designer creates one with a new foreign key.
 - The ✕ and other symbols on small buttons sit in the middle again instead of slightly to the right – in the table designer's rows, the menu of a connection, the filter presets and the list of changes.
 

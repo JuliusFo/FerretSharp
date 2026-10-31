@@ -56,6 +56,10 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     private static readonly MethodInfo? FrameArrived = ImageField?.FieldType.GetMethod("OnFrameArrived", Private, [typeof(Direct3D11CaptureFramePool), typeof(object)]);
     private static readonly MethodInfo? RequestRender = ImageField?.FieldType.GetMethod("RequestRender", BindingFlags.Instance | BindingFlags.Public, Type.EmptyTypes);
 
+    /// <summary>Its Direct3D 11 device and context (new with every rebuild), which do the copy (ADR 0039).</summary>
+    private static readonly FieldInfo? DeviceField = ImageField?.FieldType.GetField("_d3d11Device", Private);
+    private static readonly FieldInfo? ContextField = ImageField?.FieldType.GetField("_d3d11DeviceContext", Private);
+
     private static readonly TimeSpan AfterWaking = TimeSpan.FromSeconds(3);
 
     /// <summary>
@@ -73,7 +77,14 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     /// <summary>A rebuild creates a new pool, at a time of the control's choosing (retries): looked for this often.</summary>
     private static readonly TimeSpan PoolCheck = TimeSpan.FromSeconds(2);
 
-    /// <summary>Held frames are noted in the log at most this often.</summary>
+    /// <summary>
+    /// How long the UI thread waits at most for the GPU's copy of a frame (then WPF may show the previous picture, as
+    /// before); and from how long on a wait is noted in the log.
+    /// </summary>
+    private static readonly TimeSpan CopyLimit = TimeSpan.FromMilliseconds(50);
+    private static readonly TimeSpan CopyNoted = TimeSpan.FromMilliseconds(2);
+
+    /// <summary>Held frames and long copies are noted in the log at most this often.</summary>
     private static readonly TimeSpan NoteEvery = TimeSpan.FromMinutes(1);
 
     private WebView2CompositionControl? _control;
@@ -90,6 +101,13 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     private int _dropped;
     private TimeSpan _longestHold;
     private long _lastNote;
+
+    private readonly CopyFence _fence = new();
+    private bool _fenceUnsupported;
+    private int _longCopies;
+    private int _lateCopies;
+    private TimeSpan _longestCopy;
+    private long _lastCopyNote;
 
     /// <summary>Takes the control once the WebView has started (on the UI thread).</summary>
     public void Attach(WebView2CompositionControl control)
@@ -110,6 +128,12 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
         {
             logger.LogWarning("The WebView's frames cannot be held with this WebView2 version (members not found)");
             return;
+        }
+
+        if (DeviceField is null || ContextField is null)
+        {
+            _fenceUnsupported = true;
+            logger.LogWarning("The WebView's copies cannot be waited for with this WebView2 version (members not found)");
         }
 
         _hold = new DispatcherTimer(DispatcherPriority.Render, control.Dispatcher) { Interval = HoldStep };
@@ -350,7 +374,71 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
         catch (TargetInvocationException ex)
         {
             logger.LogDebug("Copying a WebView frame failed: {Message}", ex.InnerException?.Message); // device lost: the rebuild follows
+            return;
         }
+
+        WaitForCopy(image);
+    }
+
+    /// <summary>
+    /// The copy runs on the GPU and WPF presents the texture from its own device, without waiting for it: waited for here,
+    /// before this thread commits the frame to WPF's render thread (ADR 0039). Also when nothing was copied – then the
+    /// queue is empty and the wait ends at once.
+    /// </summary>
+    private void WaitForCopy(object image)
+    {
+        if (_fenceUnsupported || DeviceField!.GetValue(image) is not { } device || ContextField!.GetValue(image) is not { } context)
+        {
+            return;
+        }
+
+        try
+        {
+            NoteCopy(_fence.Wait(device, context, CopyLimit));
+        }
+        catch (InvalidCastException ex)
+        {
+            _fenceUnsupported = true;
+            logger.LogWarning(ex, "The WebView's copies cannot be waited for (Direct3D interfaces not found)");
+        }
+        catch (COMException ex)
+        {
+            _fence.Release(); // device lost: the rebuild brings new devices, the next frame a new query
+            logger.LogDebug("Waiting for the copy of a WebView frame failed: {Message}", ex.Message);
+        }
+    }
+
+    /// <summary>Copies that kept the UI thread waiting, at most once a minute in the log – and how many were still not done.</summary>
+    private void NoteCopy(TimeSpan? waited)
+    {
+        if (waited is null)
+        {
+            _lateCopies++;
+        }
+        else if (waited >= CopyNoted)
+        {
+            _longCopies++;
+            if (waited > _longestCopy)
+            {
+                _longestCopy = waited.Value;
+            }
+        }
+        else
+        {
+            return;
+        }
+
+        if (_lastCopyNote != 0 && Stopwatch.GetElapsedTime(_lastCopyNote) < NoteEvery)
+        {
+            return;
+        }
+
+        logger.LogDebug("WebView copies waited for on the GPU: {Count} over {Noted} ms, longest {Longest} ms; not done after {Limit} ms: {Late}",
+            _longCopies, (int)CopyNoted.TotalMilliseconds, (int)_longestCopy.TotalMilliseconds, (int)CopyLimit.TotalMilliseconds, _lateCopies);
+        _longCopies = 0;
+        _lateCopies = 0;
+        _longestCopy = TimeSpan.Zero;
+        _lastCopyNote = Stopwatch.GetTimestamp();
     }
 
     /// <summary>
