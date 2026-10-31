@@ -46,6 +46,8 @@ public class OracleIdentifierTests
         Assert.Equal("APP.KUNDEN", OracleIdentifier.QualifyIfNeeded("APP", "KUNDEN"));
         Assert.Equal("APP.\"Kunden\"", OracleIdentifier.QualifyIfNeeded("APP", "Kunden"));
         Assert.Equal("\"app\".\"DATE\"", OracleIdentifier.QualifyIfNeeded("app", "DATE"));
+        Assert.Equal("\"KUNDEN\n\"", OracleIdentifier.QuoteIfNeeded("KUNDEN\n")); // review of WP-70: $ matched before the line break
+        Assert.True(OracleIdentifier.NeedsQuotes("KUNDEN\n"));
     }
 
     /// <summary>R5b (review 3.31.0, B3): one check for typed names – designer, indexes, constraints, audit templates.</summary>

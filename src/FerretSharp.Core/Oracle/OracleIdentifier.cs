@@ -111,10 +111,11 @@ public static partial class OracleIdentifier
             : trimmed.ToUpperInvariant();
     }
 
-    [GeneratedRegex("^[A-Z][A-Z0-9_$#]*$", RegexOptions.CultureInvariant)]
+    // \z, not $: $ also matches before a final line break – "KUNDEN\n" (a quoted name) would count as plain (review of WP-70).
+    [GeneratedRegex(@"^[A-Z][A-Z0-9_$#]*\z", RegexOptions.CultureInvariant)]
     private static partial Regex PlainName();
 
     /// <summary>A name Oracle takes without quotes: a letter, then letters, digits, _, $ and #, upper case (any script).</summary>
-    [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*$")]
+    [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*\z")]
     private static partial Regex PlainForOracle();
 }
