@@ -50,9 +50,9 @@ public static class ObjectMenuFacts
     /// <summary>
     /// "Open in the SQL editor": from a tab with applied filters or a sort order the statement of its filter bar
     /// (<c>SELECT t.*</c>, values as variables) once its structure is loaded – the menu acts on the tab (review of WP-70);
-    /// otherwise <c>SELECT *</c> by the name the session finds (<see cref="QueryBuilder.SelectStarText"/>).
+    /// otherwise <c>SELECT *</c> by the name the login user's session finds (<see cref="QueryBuilder.SelectStarText"/>).
     /// </summary>
-    public static (string Sql, IReadOnlyList<SqlVariable> Variables) SqlOf(TableSummary table, string sessionSchema, TableTab? tab = null)
+    public static (string Sql, IReadOnlyList<SqlVariable> Variables) SqlOf(TableSummary table, ConnectionProfile profile, TableTab? tab = null)
     {
         if (tab is { Details: { } details } && (tab.ActiveFilterCount > 0 || tab.Sorts.Count > 0))
         {
@@ -67,7 +67,7 @@ public static class ObjectMenuFacts
             }
         }
 
-        return (QueryBuilder.SelectStarText(table, sessionSchema) + ";\n", []);
+        return (QueryBuilder.SelectStarText(table, SessionSchema(profile), profile.EffectiveSchema) + ";\n", []);
     }
 
     /// <summary>

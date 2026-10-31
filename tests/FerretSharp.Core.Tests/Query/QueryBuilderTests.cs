@@ -134,6 +134,8 @@ public partial class QueryBuilderTests
         Assert.Equal("SELECT *\n  FROM APP.S_PRODUKT", QueryBuilder.SelectStarText(viaPrivate, "TECH"));
         Assert.Equal("SELECT *\n  FROM S_PRODUKT", QueryBuilder.SelectStarText(viaPrivate, "APP"));
         Assert.Equal("SELECT *\n  FROM S_PRODUKT", QueryBuilder.SelectStarText(viaPublic, "TECH"));
+        Assert.Equal("SELECT *\n  FROM STAMM.PRODUKT", QueryBuilder.SelectStarText(viaPublic, "TECH", shownSchema: "APP")); // TECH's own S_PRODUKT would win
+        Assert.Equal("SELECT *\n  FROM S_PRODUKT", QueryBuilder.SelectStarText(viaPublic, "APP", shownSchema: "APP"));
     }
 
     /// <summary>

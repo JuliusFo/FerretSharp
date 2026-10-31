@@ -10,6 +10,8 @@ public sealed class ObjectMenuFactsTests
 {
     private static readonly TableSummary Kunden = new("APP", "KUNDEN", TableKind.Table);
 
+    private static readonly ConnectionProfile App = new(Guid.NewGuid(), "Test", ConnectionKind.Test, new HostPortAddress("db", 1521, "S", null), "app", null, false);
+
     [Fact]
     public void Copy_offers_the_known_name_the_real_object_and_the_csharp_names_once_each()
     {
@@ -26,7 +28,9 @@ public sealed class ObjectMenuFactsTests
         var profile = new ConnectionProfile(Guid.NewGuid(), "Test", ConnectionKind.Test, new HostPortAddress("db", 1521, "S", null), "tech", "APP", false);
 
         Assert.Equal("TECH", ObjectMenuFacts.SessionSchema(profile));
-        Assert.Equal(("SELECT *\n  FROM APP.KUNDEN;\n", []), ObjectMenuFacts.SqlOf(Kunden, ObjectMenuFacts.SessionSchema(profile)));
+        Assert.Equal(("SELECT *\n  FROM APP.KUNDEN;\n", []), ObjectMenuFacts.SqlOf(Kunden, profile));
+        var viaPublic = new TableSummary("STAMM", "PRODUKT", TableKind.Table, new SynonymInfo(SynonymInfo.PublicOwner, "S_PRODUKT"));
+        Assert.Equal("SELECT *\n  FROM STAMM.PRODUKT;\n", ObjectMenuFacts.SqlOf(viaPublic, profile).Sql); // TECH could have its own S_PRODUKT
     }
 
     /// <summary>Review of WP-70: from a tab the menu acts on the tab – its filters and sort order, as "SQL" of its filter bar.</summary>
@@ -34,14 +38,14 @@ public sealed class ObjectMenuFactsTests
     public void Sql_of_a_tab_takes_its_filters_once_its_structure_is_known()
     {
         var tab = new TableTab(Guid.NewGuid(), Kunden) { AppliedFilters = [FilterCondition.Of("ID", FilterOperator.Equals, "4711")] };
-        Assert.Equal("SELECT *\n  FROM KUNDEN;\n", ObjectMenuFacts.SqlOf(Kunden, "APP", tab).Sql); // structure not loaded yet
+        Assert.Equal("SELECT *\n  FROM KUNDEN;\n", ObjectMenuFacts.SqlOf(Kunden, App, tab).Sql); // structure not loaded yet
 
         tab.Details = new TableDetails(Kunden, [new ColumnInfo("ID", "NUMBER", null, false, 10, 0, false, false, null, 1)], ["ID"], [], false);
-        var (sql, variables) = ObjectMenuFacts.SqlOf(Kunden, "APP", tab);
+        var (sql, variables) = ObjectMenuFacts.SqlOf(Kunden, App, tab);
 
         Assert.StartsWith("SELECT t.*\n  FROM \"APP\".\"KUNDEN\" t\n WHERE ", sql);
         Assert.Single(variables);
         tab.AppliedFilters = [];
-        Assert.Equal("SELECT *\n  FROM KUNDEN;\n", ObjectMenuFacts.SqlOf(Kunden, "APP", tab).Sql); // nothing of the tab's own
+        Assert.Equal("SELECT *\n  FROM KUNDEN;\n", ObjectMenuFacts.SqlOf(Kunden, App, tab).Sql); // nothing of the tab's own
     }
 }

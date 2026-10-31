@@ -141,10 +141,14 @@ public static class QueryBuilder
     /// name the user knows it by, as code reads it – a public synonym or a name in <paramref name="sessionSchema"/> without
     /// owner, anything else with it. <paramref name="sessionSchema"/> is the login user's schema: a schema in the profile
     /// only changes what the explorer shows, Oracle still resolves unqualified names in the user's own (review of WP-70).
+    /// A public synonym the explorer found for another <paramref name="shownSchema"/> is written as its real object: an
+    /// object of the login user with the same name would come first.
     /// </summary>
-    public static string SelectStarText(TableSummary table, string sessionSchema)
+    public static string SelectStarText(TableSummary table, string sessionSchema, string? shownSchema = null)
     {
-        var (owner, name) = table.Synonym is { } synonym ? (synonym.IsPublic ? sessionSchema : synonym.Owner, synonym.Name) : (table.Owner, table.Name);
+        var (owner, name) = table.Synonym is { IsPublic: false } synonym ? (synonym.Owner, synonym.Name)
+            : table.Synonym is { } publicSynonym && (shownSchema ?? sessionSchema) == sessionSchema ? (sessionSchema, publicSynonym.Name)
+            : (table.Owner, table.Name);
         var from = owner == sessionSchema ? OracleIdentifier.QuoteIfNeeded(name) : OracleIdentifier.QualifyIfNeeded(owner, name);
         return $"SELECT *\n  FROM {from}";
     }
