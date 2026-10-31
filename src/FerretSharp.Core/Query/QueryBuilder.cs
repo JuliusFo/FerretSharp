@@ -138,14 +138,14 @@ public static class QueryBuilder
 
     /// <summary>
     /// A table to read on in the SQL editor ("Open in the SQL editor" of the explorer menu, WP-70): <c>SELECT *</c> by the
-    /// name the user knows it by, as code reads it – the synonym, the name in <paramref name="schemaOwner"/> (the schema the
-    /// sessions work in), otherwise owner and name.
+    /// name the user knows it by, as code reads it – a public synonym or a name in <paramref name="sessionSchema"/> without
+    /// owner, anything else with it. <paramref name="sessionSchema"/> is the login user's schema: a schema in the profile
+    /// only changes what the explorer shows, Oracle still resolves unqualified names in the user's own (review of WP-70).
     /// </summary>
-    public static string SelectStarText(TableSummary table, string schemaOwner)
+    public static string SelectStarText(TableSummary table, string sessionSchema)
     {
-        var from = table.Synonym is { } synonym ? OracleIdentifier.QuoteIfNeeded(synonym.Name)
-            : table.Owner == schemaOwner ? OracleIdentifier.QuoteIfNeeded(table.Name)
-            : OracleIdentifier.QualifyIfNeeded(table.Owner, table.Name);
+        var (owner, name) = table.Synonym is { } synonym ? (synonym.IsPublic ? sessionSchema : synonym.Owner, synonym.Name) : (table.Owner, table.Name);
+        var from = owner == sessionSchema ? OracleIdentifier.QuoteIfNeeded(name) : OracleIdentifier.QualifyIfNeeded(owner, name);
         return $"SELECT *\n  FROM {from}";
     }
 
