@@ -40,7 +40,7 @@
 {
     <div class="menu-sep"></div>
     <MenuEntry Label="@(Unit.IsDisabled ? SchemaViewText.ObjectMenu_TriggerEnable : SchemaViewText.ObjectMenu_TriggerDisable)"
-               Title="@SchemaViewText.ObjectMenu_TriggerTitle" OnClick="SwitchTriggerAsync" />
+               Title="@(Unit.IsDisabled && Unit.IsInvalid ? SchemaViewText.ObjectMenu_TriggerInvalidTitle : SchemaViewText.ObjectMenu_TriggerTitle)" OnClick="SwitchTriggerAsync" />
 }
 
 @code {

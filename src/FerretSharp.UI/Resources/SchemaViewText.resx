@@ -1580,4 +1580,8 @@
   <data name="ObjectMenu_TriggerTitle" xml:space="preserve">
     <value>Opens ALTER TRIGGER … in a new SQL tab; it runs there with the confirmation of every schema change.</value>
   </data>
+  <data name="ObjectMenu_TriggerInvalidTitle" xml:space="preserve">
+    <value>The trigger is invalid: enabled, it makes every change to its table fail (ORA-04098) for all sessions. Compile it without errors first.</value>
+    <comment>Object menu: tooltip of "Enable in the SQL editor" for an invalid, disabled trigger (review of WP-70)</comment>
+  </data>
 </root>

@@ -1281,4 +1281,7 @@
   <data name="ObjectMenu_TriggerTitle" xml:space="preserve">
     <value>Öffnet ALTER TRIGGER … in einem neuen SQL-Tab; dort läuft es mit der Bestätigung jeder Schemaänderung.</value>
   </data>
+  <data name="ObjectMenu_TriggerInvalidTitle" xml:space="preserve">
+    <value>Der Trigger ist ungültig: Aktiviert lässt er jede Änderung an seiner Tabelle scheitern (ORA-04098), für alle Sessions. Erst fehlerfrei kompilieren.</value>
+  </data>
 </root>
