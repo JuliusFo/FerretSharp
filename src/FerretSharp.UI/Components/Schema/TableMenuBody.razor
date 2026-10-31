@@ -14,6 +14,7 @@
 
 @{
     var linqSource = Presentation.LinqSourceOf(Table.Ref);
+    var sql = Sql;
     var entity = Presentation.EntityNameOf(Table.Ref);
     var targets = AddColumnsTargets.Of(Connections.Profiles, Active.Profile?.Id ?? Guid.Empty);
 }
@@ -26,12 +27,12 @@
         }
         <QuickAction Icon="Icons.LinkView" Label="@ShellText.TabMenu_CopyLink" Caption="@SchemaViewText.ObjectMenu_LinkCaption"
                      Title="@ShellText.TabMenu_CopyLinkTitle" Unavailable="@(Active.Profile is null ? WorkspaceText.NoActiveConnection : null)" OnClick="CopyLinkAsync" />
-        <QuickAction Icon="Icons.Database" Label="@SchemaViewText.ObjectMenu_Sql" Caption="SQL" Title="@SelectStar"
-                     Unavailable="@(Active.Schema is null ? WorkspaceText.NoActiveConnection : null)"
+        <QuickAction Icon="Icons.Database" Label="@SchemaViewText.ObjectMenu_Sql" Caption="SQL" Title="@sql?.Sql"
+                     Unavailable="@(sql is null ? WorkspaceText.NoActiveConnection : null)"
                      OnClick="OpenSqlAsync" />
         <QuickAction Icon="Icons.Code" Label="@SchemaViewText.ObjectMenu_Linq" Caption="LINQ" Title="@linqSource"
                      Unavailable="@(Models.State.Link is null ? ShellText.Palette_NoLinkedProject : linqSource is null ? ClrModelText.NoEntity : null)"
-                     OnClick="() => RunAsync(() => Shell.OpenLinq(linqSource))" />
+                     OnClick="OpenLinqAsync" />
         @if (Table.Kind == TableKind.Table)
         {
             <QuickAction Icon="Icons.Edit" Label="@SchemaViewText.ObjectMenu_Designer" Caption="@SchemaViewText.ObjectMenu_DesignerCaption"
@@ -106,13 +107,36 @@
 
     private DomModule Dom => _dom ??= new(JS);
 
-    private string SelectStar => QueryBuilder.SelectStarText(Table, Active.Schema?.Owner ?? Table.Owner);
+    /// <summary>The statement "SQL" opens; null before the connection is there.</summary>
+    private (string Sql, IReadOnlyList<SqlVariable> Variables)? Sql =>
+        Active.Profile is { } profile ? ObjectMenuFacts.SqlOf(Table, ObjectMenuFacts.SessionSchema(profile), Tab) : null;
 
     /// <summary>The views of the tab's switch; "Usage" only with a linked project, as there (WP-40).</summary>
     private IEnumerable<(TabMode Mode, string Label)> Modes =>
         TabModeLabels.All.Where(m => m.Mode != TabMode.Usage || Models.State.Link is not null);
 
-    private Task OpenSqlAsync() => RunAsync(() => Shell.OpenSql(SelectStar + ";\n"));
+    private Task OpenSqlAsync() => RunAsync(() =>
+    {
+        if (Sql is { } sql)
+        {
+            Shell.OpenSql(sql.Sql, sql.Variables);
+        }
+    });
+
+    /// <summary>As "Open in the LINQ console" of the filter bar: what it could not take over is named in a notice.</summary>
+    private Task OpenLinqAsync() => RunAsync(() =>
+    {
+        if (ObjectMenuFacts.LinqOf(Presentation, Table.Ref, Tab) is not { } linq)
+        {
+            return;
+        }
+
+        Shell.OpenLinq(linq.Text);
+        if (linq.Warnings.Count > 0)
+        {
+            Shell.Notify(TextFormat.Plural(linq.Rows, SqlEditorText.LinqMenu_AdoptedOne, SqlEditorText.LinqMenu_AdoptedOther), linq.Warnings);
+        }
+    });
 
     private async Task RunAsync(Action action)
     {
