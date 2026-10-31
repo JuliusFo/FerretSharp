@@ -8,8 +8,9 @@ public sealed partial class OracleSchemaReader
 {
     // Private ones first, then the public ones; a synonym over a database link points at another database's object. Filtered
     // by the target, not by OWNER (the rule of the ALL_* views): the private synonyms of every schema are wanted. Oracle has no
-    // index on a synonym's target, so this reads all synonyms of the database – tens of thousands of public ones are a few
-    // milliseconds, as when the explorer reads the public synonyms on connecting (review of WP-68).
+    // index on a synonym's target, so this reads all synonyms of the database, once per opening of the view. Not measured on a
+    // large database: reading the public synonyms on connecting took 0.5–0.8 s warm with 27,889 of them (docs/architecture.md
+    // 1.3) – the closest figure (review of WP-68).
     private const string SynonymsOnSql = """
         SELECT owner, synonym_name
           FROM all_synonyms

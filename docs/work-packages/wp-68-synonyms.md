@@ -52,3 +52,18 @@ Eigener Container `ferret-wp68` (Port 1533, Beispielschema plus Messobjekte), ei
 - Log: nur die erwartete Warnung zu ORA-01031.
 - **Nicht geprüft:** Prod-Verbindung (gesperrter Workspace: Panel zeigt die Sperre, keine sofortige Bestätigung – Logik wie im Designer), englische Oberfläche und helles Theme, Profil mit fremdem Schema (Hinweis in der Liste nur per Code).
 - **Bekannt:** Ein Tab, der über ein gelöschtes Synonym geöffnet war, heißt bis zum nächsten Verbinden weiter wie das Synonym (Backlog).
+
+## Nachtrag: Code-Review (2026-10-31)
+Unabhängiger Reviewer (eigener Agent) über `128856b2..5a44d2b6`, zweiter Durchgang über die Fixes. Entscheidung des Nutzers: „Setze deine Vorschläge um.“ – alle Befunde beheben, 3a mit „offen lassen“, die zwei alten Punkte in den Backlog; die drei Befunde des zweiten Durchgangs: „jop“.
+1. **M – „Synonym löschen“ am Kopf eines zweiten Tabs derselben Tabelle** (FK-Sprung, Duplikat) sprang in den ersten Tab. Behoben: `ShellState.RequestSynonymDrop(TableTab, …)` über `ShowTab`; Test mit zwei Tabs.
+2. **K – Zweites „Synonym löschen“ nach Abbrechen** zeigte keine Bestätigung (Panel auf das Synonym gekeyt, `ConfirmAtOnce` nur beim Anlegen gelesen). Behoben: ein Zähler je Anforderung im Schlüssel.
+3. **K – Folgen des gelöschten Synonyms für offene Tabs:** (a) Der PL/SQL-Tab eines fremden Schemas schloss sich – bleibt jetzt offen wie eine Tabelle dort (`RemoveVanishedTabs`; Test). **Grenze:** nach einem Neustart verwirft die Wiederherstellung einen fremden PL/SQL-Tab ohne Synonym weiterhin (eine Tabelle stellt `OpenedByName` her) – unverändert, „wie eine Tabelle“ gilt bis zum nächsten Verbinden. (b) Eine während des DDL abgebaute Ansicht lädt ihren Tab nicht mehr neu. (c) Das Menü bot ein schon gelöschtes Synonym weiter an (ORA-01434) – fragt jetzt den Schema-Cache.
+4. **K – Namensvorschlag roh:** `OTHER."Kunde Alt"` wurde zum Synonym `"KUNDE ALT"`. Behoben: Vorschlag über `QuoteIfNeeded`, Warnung über `NeedsQuotes` wie in den Designern; Test.
+5. **K – Typ einer MView als Ziel zeigte TABLE** (Namensraum 1 enthält nur ihre Tabelle), Synonyme auf Java-Klassen liefen als „fehlt“. Behoben: Ziel nach den Arten, auf die ein Synonym zeigen kann, die MView zuerst; Integrationstest.
+6. **K – `docs/architecture.md`** nannte die neue Tab-Art in der Workspace-Datei nicht. Ergänzt.
+7. **K – Ansicht „Synonyme“ liest alle Synonyme der Datenbank** (Filter auf das Ziel, kein Index). Begründung im Kommentar; **offen:** nicht gegen eine große DB gemessen – nächster Vergleichswert 0,5–0,8 s beim Verbinden mit 27.889 öffentlichen Synonymen (`docs/architecture.md` 1.3), hier einmal je Öffnen der Ansicht. Beim Nutzer beobachten.
+8. **K (zweiter Durchgang) – Hängende Löschanforderung** verfiel nur über den Umschalter, nicht über die Chips von Menü und Explorer. Behoben: der Setter von `TableTab.Mode`/`PlSqlTab.View` verwirft sie; Test über `ShowTab`.
+9. **K (zweiter Durchgang) – Kommentar zu 7** nannte eine ungemessene Laufzeit. Korrigiert (siehe 7).
+10. **K (zweiter Durchgang) – dieser Nachtrag.**
+- Vorher schon da, in den Backlog: Tab einer neuen Art in einer älteren Version (leerer Tabellen-Tab über `OpenedByName`), Namen im vorgeschlagenen Dateinamen von „Speichern …“.
+- E2E nach den Fixes (eigener Container `ferret-wp68`, Log ohne neue Warnung): #1 Tab dupliziert, „Synonym löschen“ vom Kopf des zweiten → zweiter aktiv, erster bleibt in „Daten“; #2 zweimal aus dem Explorer, beide Male Bestätigung; #3a/c fremdes Package `M_OTHER.PKG_FREMD` über sein einziges Synonym, Synonym gelöscht → Tab bleibt, Menü bietet es nicht mehr an; #4 Tabelle `"Kunde Alt"` → Vorschlag `"Kunde Alt"` mit Warnung. #5 nur per Integrationstest, #8 per Unit-Test.
