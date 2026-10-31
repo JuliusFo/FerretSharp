@@ -34,12 +34,14 @@ public sealed class ShellActionsTests
         Assert.Equal(ShortcutMap.Definitions.Select(d => d.Action).Where(actions.Contains), actions); // settings order
     }
 
+    /// <summary>With the tab it needs: a SQL tab to run a script, a table tab to duplicate (WP-70).</summary>
     [Fact]
     public void Every_listed_action_has_a_rule_and_runs_when_everything_is_there()
     {
-        var all = Ready with { LinkedProject = true, CanGoBack = true, CanGoForward = true, PreviousConnection = true, ActiveTab = new SqlTab(Workspace, "SQL 1") };
+        var all = Ready with { LinkedProject = true, CanGoBack = true, CanGoForward = true, PreviousConnection = true };
+        WorkspaceTab[] tabs = [Table, new SqlTab(Workspace, "SQL 1")];
 
-        Assert.All(ShellActions.InPalette, d => Assert.Null(ShellActions.Unavailable(d.Action, all)));
+        Assert.All(ShellActions.InPalette, d => Assert.Contains(tabs, tab => ShellActions.Unavailable(d.Action, all with { ActiveTab = tab }) is null));
     }
 
     [Theory]
@@ -70,6 +72,20 @@ public sealed class ShellActionsTests
     {
         Assert.Equal("Nur in einem SQL-Tab.", ShellActions.Unavailable(ShortcutAction.RunScript, Ready));
         Assert.Null(ShellActions.Unavailable(ShortcutAction.RunScript, Ready with { ActiveTab = new SqlTab(Workspace, "SQL 1") }));
+    }
+
+    /// <summary>WP-70: a second tab of a table tab; the explorer lists tables and PL/SQL units, nothing else.</summary>
+    [Fact]
+    public void Duplicating_needs_a_table_tab_showing_in_the_explorer_a_table_or_plsql_tab()
+    {
+        var plSql = Ready with { ActiveTab = new PlSqlTab(Workspace, new PlSqlObjectSummary("APP", "PKG_KUNDE", PlSqlKind.Package, "VALID")) };
+        var sql = Ready with { ActiveTab = new SqlTab(Workspace, "SQL 1") };
+
+        Assert.Null(ShellActions.Unavailable(ShortcutAction.DuplicateTab, Ready));
+        Assert.Equal("Nicht in diesem Tab.", ShellActions.Unavailable(ShortcutAction.DuplicateTab, plSql));
+        Assert.Null(ShellActions.Unavailable(ShortcutAction.RevealInExplorer, Ready));
+        Assert.Null(ShellActions.Unavailable(ShortcutAction.RevealInExplorer, plSql));
+        Assert.Equal("Nicht in diesem Tab.", ShellActions.Unavailable(ShortcutAction.RevealInExplorer, sql));
     }
 
     [Fact]

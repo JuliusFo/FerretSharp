@@ -313,6 +313,102 @@ public sealed partial class ShellState
         }
     });
 
+    /// <summary>
+    /// Shows a table tab in one of its views (the views of the right-click menu, WP-70) – that tab, not the first one of its
+    /// table; with <paramref name="designer"/> the "Columns" view opens its edit mode (<see cref="TableTab.OpenDesignerAt"/>).
+    /// </summary>
+    public void ShowTab(TableTab tab, TabMode mode, DesignerSection? designer = null) => Set(() =>
+    {
+        if (ActiveWorkspace is { } workspace && workspace.Tabs.Contains(tab))
+        {
+            tab.Mode = designer is null ? mode : TabMode.Structure;
+            tab.OpenDesignerAt = designer ?? tab.OpenDesignerAt;
+            tab.Visited = true;
+            workspace.ActiveTab = tab;
+            Page = ShellPage.Explorer;
+        }
+    });
+
+    /// <summary>
+    /// A second tab of <paramref name="source"/>'s table right after it (WP-70): the applied filters with their groups, the
+    /// sort order, the view and the pinned columns. Edited but not applied filter rows stay with the source. Not pinned.
+    /// </summary>
+    public TableTab? DuplicateTab(TableTab source)
+    {
+        if (FindWorkspace(source.WorkspaceId) is not { } workspace || !workspace.Tabs.Contains(source))
+        {
+            return null;
+        }
+
+        var copy = new TableTab(workspace.WorkspaceId, source.Table)
+        {
+            AppliedFilters = source.AppliedFilters,
+            Sorts = source.Sorts,
+            Mode = source.Mode,
+            PinnedColumns = source.PinnedColumns,
+            Visited = true,
+        };
+        copy.SetFilterRows(source.AppliedFilters);
+        Set(() =>
+        {
+            workspace.Tabs.Insert(Math.Max(workspace.Tabs.IndexOf(source) + 1, workspace.PinnedCount), copy);
+            workspace.ActiveTab = copy;
+            Page = ShellPage.Explorer;
+        });
+        return copy;
+    }
+
+    /// <summary>The last "Show in explorer" (WP-70): the explorer of <see cref="ExplorerReveal.ConnectionId"/> takes it once, by its id.</summary>
+    public ExplorerReveal? Reveal { get; private set; }
+
+    /// <summary>
+    /// "Show in explorer" (WP-70): activates the tab and asks the explorer of its connection to show its table or PL/SQL
+    /// unit. A table the explorer does not list (another schema without synonym, reached by an FK jump) is only named in
+    /// a notice; false then.
+    /// </summary>
+    public bool RevealInExplorer(WorkspaceTab tab)
+    {
+        if (FindWorkspace(tab.WorkspaceId) is not { } workspace || ListedIn(tab) is not { } listed)
+        {
+            return false;
+        }
+
+        if (listed.Table is null && listed.Unit is null)
+        {
+            Notify(RevealUnavailable(tab)!);
+            return false;
+        }
+
+        var (table, unit) = (listed.Table, listed.Unit);
+        Set(() =>
+        {
+            if (workspace.Tabs.Contains(tab))
+            {
+                tab.Visited = true;
+                workspace.ActiveTab = tab;
+            }
+
+            Page = ShellPage.Explorer;
+            Reveal = new ExplorerReveal((Reveal?.Id ?? 0) + 1, workspace.ConnectionId, table?.Ref, unit?.Ref);
+        });
+        return true;
+    }
+
+    /// <summary>Why "Show in explorer" cannot show the tab's object (the tab menu greys it out); null if it can.</summary>
+    public string? RevealUnavailable(WorkspaceTab tab) =>
+        ListedIn(tab) is { Table: null, Unit: null } ? TextFormat.Format(ShellText.Reveal_NotListed, tab is TableTab t ? t.Table.DisplayName : tab.Caption) : null;
+
+    /// <summary>The explorer's entry of the tab's table or unit (none of either if it lists neither); null without a schema.</summary>
+    private (TableSummary? Table, PlSqlObjectSummary? Unit)? ListedIn(WorkspaceTab tab) =>
+        FindWorkspace(tab.WorkspaceId) is { } workspace && _schemas.TryGetValue(workspace.ConnectionId, out var schema)
+            ? tab switch
+            {
+                TableTab t => (schema.Tables.FirstOrDefault(s => s.Ref == t.Table.Ref), null),
+                PlSqlTab p => (null, schema.FindPlSql(p.Unit.Ref)),
+                _ => (null, null),
+            }
+            : null;
+
     public void ActivateTab(WorkspaceTab tab) => Set(() =>
     {
         if (ActiveWorkspace is { } workspace && workspace.Tabs.Contains(tab))

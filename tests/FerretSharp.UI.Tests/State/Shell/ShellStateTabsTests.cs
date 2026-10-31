@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
@@ -112,6 +113,51 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
 
         Assert.Same(second, _app.Shell.ActiveTab);
         Assert.Equal(ShellPage.Explorer, _app.Shell.Page);
+    }
+
+    /// <summary>
+    /// WP-70: the copy sits right after the tab it came from (not after the active one) and takes what the grid applied –
+    /// rows still being edited stay with the source.
+    /// </summary>
+    [Fact]
+    public async Task A_duplicate_follows_its_tab_with_the_applied_filters_sort_and_view()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        var source = _app.Shell.OpenTable(TestApp.Kunden)!;
+        var applied = new[] { FilterCondition.Of("NAME", FilterOperator.Contains, "Meier") };
+        (source.AppliedFilters, source.Sorts, source.Mode) = (applied, [new SortSpec("NAME", true)], TabMode.Structure);
+        source.SetFilterRows([.. applied, FilterCondition.Of("ORT", FilterOperator.Equals, "Kiel")]);
+        var sql = _app.Shell.OpenSql()!;
+
+        var copy = _app.Shell.DuplicateTab(source)!;
+
+        Assert.Equal([source, copy, sql], _app.Shell.Tabs.ToList<WorkspaceTab>());
+        Assert.Same(copy, _app.Shell.ActiveTab);
+        Assert.Equal(applied, copy.AppliedFilters);
+        Assert.Equal(["NAME"], copy.FilterRows.Select(r => r.Column));
+        Assert.Equal(source.Sorts, copy.Sorts);
+        Assert.Equal(TabMode.Structure, copy.Mode);
+        Assert.False(copy.Pinned);
+    }
+
+    /// <summary>WP-70: the explorer of the tab's connection takes the request; a table it does not list gets a notice instead.</summary>
+    [Fact]
+    public async Task Show_in_explorer_asks_the_tabs_connection_or_names_a_table_it_does_not_list()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var listed = _app.Shell.OpenTable(TestApp.Kunden)!;
+        var foreign = AddTab(scope, new TableSummary("STAMMDATEN", "LAENDER", TableKind.Table));
+
+        Assert.False(_app.Shell.RevealInExplorer(foreign));
+        Assert.Null(_app.Shell.Reveal);
+        Assert.Equal("LAENDER steht nicht im Explorer: eine Tabelle eines anderen Schemas, erreicht ohne Synonym.", _app.Shell.Notice?.Text);
+
+        _app.Shell.ActivateTab(foreign);
+        Assert.True(_app.Shell.RevealInExplorer(listed));
+        Assert.Same(listed, _app.Shell.ActiveTab);
+        Assert.Equal(new ExplorerReveal(1, scope.Id, TestApp.Kunden.Ref, null), _app.Shell.Reveal);
+        Assert.True(_app.Shell.RevealInExplorer(listed));
+        Assert.Equal(2, _app.Shell.Reveal!.Id); // the same again scrolls again
     }
 
     private TableTab AddTab(ConnectionScope scope, TableSummary table)
