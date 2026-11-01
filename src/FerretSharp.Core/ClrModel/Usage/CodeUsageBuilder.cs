@@ -177,12 +177,17 @@ public partial class CodeUsageBuilder(string cacheDirectory, TimeProvider? time 
     /// <summary>
     /// <c>Assembly.mvid.set.json</c>: a result holds only the uses of the solution's types, so it is valid for this set of
     /// solution assemblies alone – two solutions on the same build kept overwriting each other's file (review 3.44.0, A27).
+    /// The assembly name comes from the project file and may hold anything: with <c>..\</c> the file went outside the
+    /// cache folder, with <c>:</c> or <c>NUL</c> it could not be written (review of <c>fix-suggested-file-names</c>). It
+    /// goes through <see cref="SuggestedFileName"/>, which leaves usual names (<c>MyApp.Data</c>) as they are – existing
+    /// files stay valid – and is cut so that the whole name stays a valid file name.
     /// </summary>
     internal static string CacheFileName(string assemblyName, Guid mvid, IReadOnlyCollection<string> solutionAssemblies)
     {
         var set = string.Join('|', solutionAssemblies.Select(a => a.ToUpperInvariant()).Order(StringComparer.Ordinal));
         var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(set)))[..8];
-        return $"{assemblyName}.{mvid:N}.{hash}.json";
+        var suffix = $".{mvid:N}.{hash}.json";
+        return SuggestedFileName.Of(assemblyName, SuggestedFileName.MaxLength - suffix.Length) + suffix;
     }
 
     /// <summary>The assembly a cache file belongs to; null for a file of another form.</summary>
