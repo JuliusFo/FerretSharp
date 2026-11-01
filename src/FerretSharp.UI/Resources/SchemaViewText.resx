@@ -1720,4 +1720,244 @@
     <value>The name is not a plain Oracle name (upper case letters, digits, _ $ #, starting with a letter); SQL and code must write the synonym in double quotes.</value>
     <comment>Warning in the draft of a new synonym (review of WP-68)</comment>
   </data>
+  <data name="Tab_ViewGrants" xml:space="preserve">
+    <value>Privileges</value>
+    <comment>View of a table or PL/SQL tab (WP-71): the object privileges on the object</comment>
+  </data>
+  <data name="GrantList_Title" xml:space="preserve">
+    <value>Privileges</value>
+    <comment>Caption of the tab with the schema's object privileges (WP-71)</comment>
+  </data>
+  <data name="Head_Grantee" xml:space="preserve">
+    <value>Grantee</value>
+    <comment>Column head: who got a privilege (WP-71)</comment>
+  </data>
+  <data name="Head_Privilege" xml:space="preserve">
+    <value>Privilege</value>
+    <comment>Column head (WP-71)</comment>
+  </data>
+  <data name="Head_Grantor" xml:space="preserve">
+    <value>Granted by</value>
+    <comment>Column head (WP-71)</comment>
+  </data>
+  <data name="Head_GrantOption" xml:space="preserve">
+    <value>Grant option</value>
+    <comment>Column head: granted WITH GRANT OPTION (WP-71)</comment>
+  </data>
+  <data name="Head_Object" xml:space="preserve">
+    <value>Object</value>
+    <comment>Column head (WP-71)</comment>
+  </data>
+  <data name="Grants_Loading" xml:space="preserve">
+    <value>Reading privileges …</value>
+    <comment>WP-71</comment>
+  </data>
+  <data name="Grants_Heading" xml:space="preserve">
+    <value>Privileges</value>
+    <comment>Heading of the view Privileges (WP-71)</comment>
+  </data>
+  <data name="Grants_None" xml:space="preserve">
+    <value>No privileges on this object that the session can see.</value>
+    <comment>WP-71</comment>
+  </data>
+  <data name="Grants_Grant" xml:space="preserve">
+    <value>Grant privilege</value>
+    <comment>Button (WP-71)</comment>
+  </data>
+  <data name="Grants_NewHeading" xml:space="preserve">
+    <value>Grant a privilege</value>
+    <comment>Heading of the grant draft (WP-71)</comment>
+  </data>
+  <data name="Grants_RevokeHeading" xml:space="preserve">
+    <value>Revoke a privilege</value>
+    <comment>Heading of the revoke draft (WP-71)</comment>
+  </data>
+  <data name="Grants_Revoke" xml:space="preserve">
+    <value>Revoke</value>
+    <comment>Link button on a row (WP-71)</comment>
+  </data>
+  <data name="Grants_RevokeTitle" xml:space="preserve">
+    <value>Revoke {0} from {1}</value>
+    <comment>{0} privilege, {1} grantee (WP-71)</comment>
+  </data>
+  <data name="Grants_Privileges" xml:space="preserve">
+    <value>Privileges</value>
+    <comment>Label of the privilege checkboxes (WP-71)</comment>
+  </data>
+  <data name="Grants_GranteePlaceholder" xml:space="preserve">
+    <value>User, role or PUBLIC</value>
+    <comment>Placeholder of the grantee input (WP-71)</comment>
+  </data>
+  <data name="Grants_GrantOption" xml:space="preserve">
+    <value>WITH GRANT OPTION – the grantee may pass it on</value>
+    <comment>Checkbox (WP-71)</comment>
+  </data>
+  <data name="Grants_ColumnsLabel" xml:space="preserve">
+    <value>Only on these columns (INSERT, UPDATE, REFERENCES; none chosen: the whole object)</value>
+    <comment>Label of the column checkboxes (WP-71)</comment>
+  </data>
+  <data name="Grants_GranteeMissing" xml:space="preserve">
+    <value>Name the grantee: a user, a role or PUBLIC.</value>
+    <comment>Problem in the grant draft (WP-71)</comment>
+  </data>
+  <data name="Grants_OwnerHasAll" xml:space="preserve">
+    <value>{0} owns the object and has every privilege on it.</value>
+    <comment>Problem in the grant draft (WP-71)</comment>
+  </data>
+  <data name="Grants_PrivilegeMissing" xml:space="preserve">
+    <value>Choose at least one privilege.</value>
+    <comment>Problem in the grant draft (WP-71)</comment>
+  </data>
+  <data name="Grants_RoleNoGrantOption" xml:space="preserve">
+    <value>{0} is no user: a role gets no privilege WITH GRANT OPTION (ORA-01926).</value>
+    <comment>Problem in the grant draft (WP-71)</comment>
+  </data>
+  <data name="Grants_PublicWarning" xml:space="preserve">
+    <value>PUBLIC is every user of the database.</value>
+    <comment>Warning in the grant and revoke drafts (WP-71)</comment>
+  </data>
+  <data name="Grants_UnknownGrantee" xml:space="preserve">
+    <value>{0} is no user and no role seen on this object. Unless a role has that name, Oracle refuses with ORA-01917.</value>
+    <comment>Warning in the grant draft (WP-71)</comment>
+  </data>
+  <data name="Grants_RevokeAllColumns" xml:space="preserve">
+    <value>Oracle revokes {0} only for the whole object: {1} loses it on every column.</value>
+    <comment>Note before revoking (WP-71, ORA-01750)</comment>
+  </data>
+  <data name="Grants_RevokeCascades" xml:space="preserve">
+    <value>Granted WITH GRANT OPTION: whoever got it from {0} loses it as well.</value>
+    <comment>Note before revoking (WP-71)</comment>
+  </data>
+  <data name="Grants_RevokePublic" xml:space="preserve">
+    <value>Everyone who has it only through PUBLIC loses it.</value>
+    <comment>Note before revoking (WP-71)</comment>
+  </data>
+  <data name="Grants_RevokeOtherGrantor" xml:space="preserve">
+    <value>Granted by {0}: only {0} can revoke it (or a user with GRANT ANY OBJECT PRIVILEGE if {0} owns the object).</value>
+    <comment>Note before revoking (WP-71)</comment>
+  </data>
+  <data name="Grants_RevokeReferences" xml:space="preserve">
+    <value>If {0} has foreign keys through it, Oracle refuses (ORA-01981); REVOKE … CASCADE CONSTRAINTS would drop them – only in the SQL editor.</value>
+    <comment>Note before revoking REFERENCES (WP-71)</comment>
+  </data>
+  <data name="Grants_HintNoPrivilege" xml:space="preserve">
+    <value>Granting on another schema's object takes the privilege WITH GRANT OPTION or the system privilege GRANT ANY OBJECT PRIVILEGE.</value>
+    <comment>After ORA-01031 (WP-71)</comment>
+  </data>
+  <data name="Grants_HintViewGrantOption" xml:space="preserve">
+    <value>The view's owner needs the privileges on the tables behind it WITH GRANT OPTION.</value>
+    <comment>After ORA-01720 (WP-71)</comment>
+  </data>
+  <data name="Grants_HintOtherGrantor" xml:space="preserve">
+    <value>Only {0} can revoke it – or it is gone already.</value>
+    <comment>After ORA-01927 (WP-71)</comment>
+  </data>
+  <data name="Grants_HintCascadeConstraints" xml:space="preserve">
+    <value>{0} has foreign keys through REFERENCES. REVOKE … CASCADE CONSTRAINTS would drop them; write that in the SQL editor if you mean it.</value>
+    <comment>After ORA-01981 (WP-71)</comment>
+  </data>
+  <data name="Grants_HintRoleGrantOption" xml:space="preserve">
+    <value>A role gets no privilege WITH GRANT OPTION – grant it without.</value>
+    <comment>After ORA-01926 (WP-71)</comment>
+  </data>
+  <data name="Grants_OtherSchema" xml:space="preserve">
+    <value>On another schema's objects Oracle shows only the privileges your session takes part in: its own, those of its roles and of PUBLIC, and those it granted.</value>
+    <comment>Note in the views of privileges (WP-71)</comment>
+  </data>
+  <data name="Grants_RolesNote" xml:space="preserve">
+    <value>Privileges through roles are not resolved: the role stands as the grantee.</value>
+    <comment>Note below the list of privileges (WP-71)</comment>
+  </data>
+  <data name="Grants_ScriptHeading" xml:space="preserve">
+    <value>Grants</value>
+    <comment>Section of the DDL view (WP-71)</comment>
+  </data>
+  <data name="Grants_ScriptNone" xml:space="preserve">
+    <value>No grants the session can see.</value>
+    <comment>DDL view (WP-71)</comment>
+  </data>
+  <data name="GrantList_Loading" xml:space="preserve">
+    <value>Reading the privileges of the schema …</value>
+    <comment>WP-71</comment>
+  </data>
+  <data name="GrantList_Heading" xml:space="preserve">
+    <value>Privileges in schema {0}</value>
+    <comment>WP-71</comment>
+  </data>
+  <data name="GrantList_WithoutHeading" xml:space="preserve">
+    <value>Objects of {0} without a privilege for {1}</value>
+    <comment>WP-71</comment>
+  </data>
+  <data name="GrantList_AllGrantees" xml:space="preserve">
+    <value>all grantees</value>
+    <comment>Placeholder of the grantee filter (WP-71)</comment>
+  </data>
+  <data name="GrantList_OnlyWithout" xml:space="preserve">
+    <value>Only objects without a privilege for it</value>
+    <comment>Checkbox in the toolbar (WP-71)</comment>
+  </data>
+  <data name="GrantList_OnlyWithoutTitle" xml:space="preserve">
+    <value>Objects of the schema the grantee has no privilege on – directly or through PUBLIC. Privileges through a role do not count; choose a grantee first.</value>
+    <comment>Tooltip (WP-71)</comment>
+  </data>
+  <data name="GrantList_None" xml:space="preserve">
+    <value>No privileges in this schema that the session can see.</value>
+    <comment>WP-71</comment>
+  </data>
+  <data name="GrantList_NoneForGrantee" xml:space="preserve">
+    <value>{0} has no privilege on an object of this schema.</value>
+    <comment>WP-71</comment>
+  </data>
+  <data name="GrantList_AllReached" xml:space="preserve">
+    <value>{0} has a privilege on every object of this schema.</value>
+    <comment>WP-71</comment>
+  </data>
+  <data name="GrantList_OpenTitle" xml:space="preserve">
+    <value>Open {0} in its view Privileges</value>
+    <comment>Tooltip of an object name (WP-71)</comment>
+  </data>
+  <data name="GrantList_GrantTitle" xml:space="preserve">
+    <value>Grant a privilege on {0}</value>
+    <comment>Tooltip (WP-71)</comment>
+  </data>
+  <data name="GrantList_ColumnsInView" xml:space="preserve">
+    <value>Privileges on single columns: in the object's view Privileges.</value>
+    <comment>Note in the grant draft of the list (WP-71)</comment>
+  </data>
+  <data name="Grants_GrantableYes" xml:space="preserve">
+    <value>yes</value>
+    <comment>Cell of the column Grant option (WP-71)</comment>
+  </data>
+  <data name="Grants_RevokeHitsOwn" xml:space="preserve">
+    <value>{0} has {1} from you as well. This REVOKE would take yours, not the one {2} granted – only {2} can revoke this row.</value>
+    <comment>Problem before revoking someone else's grant (review of WP-71): {0} grantee, {1} privilege, {2} grantor</comment>
+  </data>
+  <data name="Grants_CreateSynonym" xml:space="preserve">
+    <value>Also create a synonym in {0}'s schema</value>
+    <comment>Checkbox in the grant draft: {0} grantee</comment>
+  </data>
+  <data name="Grants_CreateSynonymTitle" xml:space="preserve">
+    <value>So that {0} can name the object without its schema. Takes the privilege {1}; without it, let {0} run the CREATE SYNONYM (CREATE SYNONYM is enough there) – after a failed run, copying takes it alone.</value>
+    <comment>Tooltip: {0} grantee, {1} privilege</comment>
+  </data>
+  <data name="Grants_SynonymExists" xml:space="preserve">
+    <value>{0} already has the synonym {1} on this object.</value>
+    <comment>Note in the grant draft</comment>
+  </data>
+  <data name="Grants_SynonymNeedsPrivilege" xml:space="preserve">
+    <value>The privilege is granted, the synonym is not: creating it in {0}'s schema takes the privilege {1}. Copy the CREATE SYNONYM or open it in the SQL editor and let {0} run it – CREATE SYNONYM is enough there.</value>
+    <comment>After ORA-01031 on the synonym of a grant: {0} grantee, {1} privilege</comment>
+  </data>
+  <data name="Grants_SynonymNameTaken" xml:space="preserve">
+    <value>The privilege is granted, the synonym is not: an object of {0} has that name already – choose another name.</value>
+    <comment>After ORA-00955 on the synonym of a grant: {0} grantee</comment>
+  </data>
+  <data name="Grants_RevokeLeavesSynonym" xml:space="preserve">
+    <value>{0} keeps the synonym {1}; without another privilege (also none through a role) it leads nowhere – drop it in the view Synonyms.</value>
+    <comment>Note before revoking a grantee's last privilege: {0} grantee, {1} synonym</comment>
+  </data>
+  <data name="Grants_SynonymName" xml:space="preserve">
+    <value>Synonym name</value>
+    <comment>Label of the grantee synonym's name in the grant draft (WP-71)</comment>
+  </data>
 </root>

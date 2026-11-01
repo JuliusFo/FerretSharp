@@ -22,6 +22,9 @@ public enum ShortcutAction
 
     /// <summary>The tab with the schema's private synonyms (WP-68); no default key.</summary>
     SchemaSynonyms,
+
+    /// <summary>The tab with the object privileges of the schema (WP-71); no default key.</summary>
+    SchemaGrants,
     QuickOpen,
     CommandPalette,
     ApplyFilters,
@@ -111,6 +114,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.DuplicateTab, SettingsText.GroupNavigation, SettingsText.ActionDuplicateTab, null, ShortcutScope.Global, SettingsText.HintDuplicateTab),
         new(ShortcutAction.RevealInExplorer, SettingsText.GroupNavigation, SettingsText.ActionRevealInExplorer, null, ShortcutScope.Global, SettingsText.HintRevealInExplorer),
         new(ShortcutAction.SchemaSynonyms, SettingsText.GroupNavigation, SettingsText.ActionSchemaSynonyms, null, ShortcutScope.Global, SettingsText.HintSchemaSynonyms),
+        new(ShortcutAction.SchemaGrants, SettingsText.GroupNavigation, SettingsText.ActionSchemaGrants, null, ShortcutScope.Global, SettingsText.HintSchemaGrants),
         new(ShortcutAction.QuickOpen, SettingsText.GroupNavigation, SettingsText.ActionQuickOpen, null, ShortcutScope.Global, SettingsText.HintQuickOpen),
         new(ShortcutAction.CommandPalette, SettingsText.GroupNavigation, SettingsText.ActionCommandPalette, null, ShortcutScope.Global, SettingsText.HintCommandPalette),
         new(ShortcutAction.ApplyFilters, SettingsText.GroupData, SettingsText.ActionApplyFilters, "ctrl+enter", ShortcutScope.Global, SettingsText.HintRunInEditors),

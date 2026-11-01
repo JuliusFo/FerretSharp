@@ -46,6 +46,9 @@ public enum DdlStepKind
     /// <summary>CREATE or DROP [PUBLIC] SYNONYM (WP-68).</summary>
     Synonym,
 
+    /// <summary>GRANT or REVOKE of object privileges (WP-71).</summary>
+    Grant,
+
     /// <summary>A note for the user, no statement (a different organization, the definition of a view …); never runs.</summary>
     Hint,
 }

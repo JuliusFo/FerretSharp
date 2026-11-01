@@ -14,6 +14,9 @@
     </section>
 }
 
+@* The grants as the view "Privileges" reads them (WP-71), also where GET_DDL needs a role the user lacks. *@
+<GrantScript Target="Table.Ref" Version="Version" />
+
 @code {
     protected override Task<string> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         schema.GetDdlAsync(Table, cancellationToken);

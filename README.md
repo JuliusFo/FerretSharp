@@ -76,6 +76,11 @@ developer works with an Oracle database day to day:
 - **Synonyms**: every table, view and PL/SQL unit lists the private and public synonyms on it – create one (private in
   the schema or public) or drop one, after the confirmation every schema change gets. "Synonyms of the schema" in the
   command palette lists the schema's private synonyms with their targets and marks those leading nowhere, to clean up.
+- **Privileges**: every table, view and PL/SQL unit lists the object privileges on it – who has which, on which columns,
+  granted by whom and whether with grant option. Grant one (to a user, a role or PUBLIC, on the whole object or on columns,
+  optionally with a synonym in the user's schema) or revoke one; before a revoke it says what goes along (all columns, what was passed on). The DDL view adds the GRANT
+  statements. "Privileges in the schema" in the command palette lists them for all objects, by grantee – and the objects
+  a user has no privilege on yet, to grant it right there.
 - PL/SQL to look at: packages, procedures, functions and triggers with their source (read-only, coloured, compile
   errors marked), parameters per subprogram and overload, compile errors and dependencies – and a search through all
   PL/SQL of the schema. Nothing is run or compiled.

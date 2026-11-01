@@ -1,0 +1,35 @@
+@* The grants of the DDL view (WP-71): GRANT statements built from the privileges the view "Privileges" reads – not from
+   DBMS_METADATA, which needs SELECT_CATALOG_ROLE for other schemas and fails on an object without grants (ORA-31608). *@
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+@inherits LoadingViewBase<IReadOnlyList<ObjectGrant>>
+
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Grants_Loading" />
+
+@if (Data is { } grants)
+{
+    <section>
+        <h2>@SchemaViewText.Grants_ScriptHeading</h2>
+        @if (grants.Count == 0)
+        {
+            <p class="muted">@SchemaViewText.Grants_ScriptNone</p>
+        }
+        else
+        {
+            <SqlCode Sql="@string.Concat(GrantDdl.Script(Target, grants).Select(s => s + ";\n"))" Class="ddl" />
+        }
+        @if (Active.Profile is { } profile && Target.Owner != OracleIdentifier.Normalize(profile.User))
+        {
+            <p class="hint small">@Icons.Info @SchemaViewText.Grants_OtherSchema</p>
+        }
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public TableRef Target { get; set; } = null!;
+
+    protected override Task<IReadOnlyList<ObjectGrant>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetGrantsAsync(Target, cancellationToken);
+}

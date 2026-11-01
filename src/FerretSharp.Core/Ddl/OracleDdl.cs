@@ -236,6 +236,39 @@ internal static class OracleDdl
 
     public static string DropSynonym(SynonymInfo synonym) => $"DROP {Synonym(synonym)}";
 
+    // ---- object privileges (WP-71) ----
+
+    /// <summary><c>PUBLIC</c> is a keyword there: quoted it would be a user of that name (ORA-01917).</summary>
+    private static string Grantee(string grantee) => grantee == ObjectGrant.PublicGrantee ? "PUBLIC" : Q(grantee);
+
+    /// <summary>
+    /// A privilege goes into the statement as written – keywords only (<c>SELECT</c>, <c>MERGE VIEW</c>): it comes from the
+    /// fixed list or the dictionary, never typed, and anything else is refused rather than run.
+    /// </summary>
+    private static string Privilege(string privilege) =>
+        privilege.Split(' ').All(word => word.Length > 0 && word.All(char.IsAsciiLetterUpper))
+            ? privilege
+            : throw new ArgumentException($"Not an object privilege: {privilege}", nameof(privilege));
+
+    /// <summary>
+    /// <c>GRANT SELECT, UPDATE ("A", "B") ON "O"."T" TO "U" [WITH HIERARCHY OPTION] [WITH GRANT OPTION]</c>: <paramref name="columns"/>
+    /// go to the privileges Oracle grants per column (<see cref="GrantPrivileges.TakesColumns"/>), the others are on the whole
+    /// object. The options in this order only (the other is ORA-03048; review of WP-71).
+    /// </summary>
+    public static string Grant(TableRef target, IEnumerable<string> privileges, IReadOnlyList<string> columns, string grantee, bool grantOption, bool hierarchyOption = false)
+    {
+        var columnList = columns.Count == 0 ? "" : $" ({string.Join(", ", columns.Select(Q))})";
+        var list = string.Join(", ", privileges.Select(p => GrantPrivileges.TakesColumns(p) ? Privilege(p) + columnList : Privilege(p)));
+        return $"GRANT {list} ON {T(target)} TO {Grantee(grantee)}"
+            + (hierarchyOption ? " WITH HIERARCHY OPTION" : "") + (grantOption ? " WITH GRANT OPTION" : "");
+    }
+
+    /// <summary>
+    /// <c>REVOKE UPDATE ON "O"."T" FROM "U"</c>: Oracle revokes per object only (ORA-01750), which takes the privilege on all
+    /// columns as well.
+    /// </summary>
+    public static string Revoke(TableRef target, string privilege, string grantee) => $"REVOKE {Privilege(privilege)} ON {T(target)} FROM {Grantee(grantee)}";
+
     // ---- expressions and literals ----
 
     /// <summary>

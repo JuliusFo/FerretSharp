@@ -1,0 +1,66 @@
+@* The REVOKE of one privilege (WP-71) with what it takes along (all columns, what was passed on, PUBLIC, another grantor,
+   foreign keys over REFERENCES) in the panel and the confirmation; a refused revoke gets a hint by its Oracle code. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+
+@{
+    var notes = GrantDraft.RevokeNotes(Grant, Grants, LoginUser, Synonyms);
+    var problems = GrantDraft.RevokeProblems(Grant, Grants, LoginUser);
+}
+<section class="index-draft">
+    <h2>@SchemaViewText.Grants_RevokeHeading <span class="muted mono small">@Target.Owner.@Target.Name</span></h2>
+    <DdlDraftPanel @key="(Target, Grant)" WorkspaceId="WorkspaceId" Steps="[GrantDdl.Revoke(Target, Grant)]" Problems="problems" Warnings="notes" ConfirmNotes="notes"
+                   FileName="@($"{DateTime.Now:yyyy-MM-dd}_REVOKE_{Target.Name}.sql")"
+                   OnRan="() => OnRan.InvokeAsync()" OnFailed="r => _hint = GrantDraft.ErrorHint(r.Error?.ErrorCode, Grant)" OnClose="OnClose" />
+    @if (_hint is { } hint)
+    {
+        <p class="hint">@Icons.Warning @hint</p>
+    }
+</section>
+
+@code {
+    private string? _hint;
+    private (TableRef, ObjectGrant)? _shown;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableRef Target { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ObjectGrant Grant { get; set; } = null!;
+
+    /// <summary>All grants on the object: a revoke takes the privilege's other rows along.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ObjectGrant> Grants { get; set; } = [];
+
+    /// <summary>The synonyms on the object: the note when the grantee's last privilege goes and its synonym stays.</summary>
+    [Parameter]
+    public IReadOnlyList<SynonymInfo> Synonyms { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    [Parameter]
+    public EventCallback OnRan { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string LoginUser => Active.Profile is { } profile ? OracleIdentifier.Normalize(profile.User) : "";
+
+    /// <summary>
+    /// Another row chosen – also the same grant on another object of the schema list (review of WP-71): the hint of the
+    /// earlier one goes.
+    /// </summary>
+    protected override void OnParametersSet()
+    {
+        if (_shown != (Target, Grant))
+        {
+            (_shown, _hint) = ((Target, Grant), null);
+        }
+    }
+}

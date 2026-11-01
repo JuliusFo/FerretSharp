@@ -1,0 +1,429 @@
+@* The tab with the object privileges of the schema (WP-71): the objects with their privileges, filtered by grantee – or the
+   objects a grantee has no privilege on (directly or through PUBLIC; roles are not resolved), to grant it there. Grant and
+   revoke run through the same drafts as the view of one object; a grant here is on the whole object (columns in the object's
+   view). Read on the explorer session; F5 reloads. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+@using FerretSharp.Core.Workspaces
+@inherits FerretComponent
+@implements IDisposable
+@inject ILogger<GrantListView> Logger
+@inject ShortcutService Shortcuts
+
+<div class="tabview grant-list-tab">
+    <div class="tab-toolbar">
+        <input class="field mono grant-filter" spellcheck="false" list="@_listId" placeholder="@SchemaViewText.GrantList_AllGrantees"
+               title="@SchemaViewText.Head_Grantee" value="@(_typed ?? (Tab.Grantee is { } applied ? GrantDraft.Typed(applied) : null))" @oninput="e => OnGranteeInput((string?)e.Value)"
+               @onchange="e => SetGrantee((string?)e.Value)" @onkeydown="OnGranteeKey" />
+        <datalist id="@_listId">
+            @foreach (var name in Grantees)
+            {
+                <option value="@GrantDraft.Typed(name)"></option>
+            }
+        </datalist>
+        <label class="check" title="@SchemaViewText.GrantList_OnlyWithoutTitle">
+            <input type="checkbox" checked="@Tab.OnlyWithout" disabled="@(Tab.Grantee is null)" @onchange="e => SetOnlyWithout(e.Value is true)" />
+            @SchemaViewText.GrantList_OnlyWithout
+        </label>
+        <span class="toolbar-title">@Owner</span>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="@(CommonText.Reload + Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="LoadAsync">@Icons.Refresh</button>
+    </div>
+
+    <div class="tab-details">
+        <div class="details-body">
+            <div class="structure">
+                <DetailStatus Loading="_loading && _objects is null" Error="_error" Text="@SchemaViewText.GrantList_Loading" />
+
+                @if (_draft is { } draft)
+                {
+                    <GrantDraftForm @key="draft" Draft="draft" WorkspaceId="Tab.WorkspaceId" Note="@ColumnsNote(draft)" OnRan="OnRanAsync" OnPartlyRan="LoadAsync" OnClose="Close" />
+                }
+                else if (_revoke is { } revoke)
+                {
+                    <GrantRevokeSection Target="revoke.Object.Object" Grant="revoke.Grant" Grants="revoke.Object.Grants" Synonyms="_synonyms" WorkspaceId="Tab.WorkspaceId"
+                                        OnRan="OnRanAsync" OnClose="Close" />
+                }
+
+                @if (_objects is { } all)
+                {
+                    <section>
+                        @if (Tab is { OnlyWithout: true, Grantee: { } without })
+                        {
+                            var shown = all.Where(o => !o.Reaches(without)).ToList();
+                            <div class="structure-columns-head">
+                                <h2>@TextFormat.Format(SchemaViewText.GrantList_WithoutHeading, Owner, without) <span class="count">@shown.Count</span></h2>
+                            </div>
+                            @if (shown.Count == 0)
+                            {
+                                <p class="muted">@TextFormat.Format(SchemaViewText.GrantList_AllReached, without)</p>
+                            }
+                            else
+                            {
+                                <table class="columns">
+                                    <thead>
+                                        <tr><th>@SchemaViewText.Head_Object</th><th>@SchemaViewText.Head_Type</th><th></th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var row in shown)
+                                        {
+                                            var o = row;
+                                            <tr class="@(_draft?.Target == o.Object ? "selected" : "")">
+                                                <td class="mono">@ObjectName(o)</td>
+                                                <td>@KindName(o.Kind)</td>
+                                                <td>
+                                                    <button class="link-btn" title="@TextFormat.Format(SchemaViewText.GrantList_GrantTitle, o.Object.Name)"
+                                                            disabled="@_reading" @onclick="() => StartGrantAsync(o)">@SchemaViewText.Grants_Grant</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        }
+                        else
+                        {
+                            var rows = all.SelectMany(o => o.Grants.Where(g => Tab.Grantee is null || g.Grantee == Tab.Grantee).Select(g => (Object: o, Grant: g))).ToList();
+                            <div class="structure-columns-head">
+                                <h2>@TextFormat.Format(SchemaViewText.GrantList_Heading, Owner) <span class="count">@rows.Count</span></h2>
+                            </div>
+                            @if (rows.Count == 0)
+                            {
+                                <p class="muted">@(Tab.Grantee is { } grantee ? TextFormat.Format(SchemaViewText.GrantList_NoneForGrantee, grantee) : SchemaViewText.GrantList_None)</p>
+                            }
+                            else
+                            {
+                                <table class="columns">
+                                    <thead>
+                                        <tr>
+                                            <th>@SchemaViewText.Head_Object</th><th>@SchemaViewText.Head_Type</th>
+                                            <th>@SchemaViewText.Head_Grantee</th><th>@SchemaViewText.Head_Privilege</th><th>@SchemaViewText.Head_Columns</th>
+                                            <th>@SchemaViewText.Head_Grantor</th><th>@SchemaViewText.Head_GrantOption</th><th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var row in rows)
+                                        {
+                                            var (o, g) = row;
+                                            <GrantRow Grant="g" Selected="_revoke is { } r && r.Object == o && r.Grant == g" OnRevoke="x => StartRevokeAsync(o, x)">
+                                                <Leading>
+                                                    <td class="mono">@ObjectName(o)</td>
+                                                    <td>@KindName(o.Kind)</td>
+                                                </Leading>
+                                            </GrantRow>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        }
+                        <p class="hint small">@SchemaViewText.Grants_RolesNote</p>
+                        @if (OtherSchema)
+                        {
+                            <p class="hint small">@Icons.Info @SchemaViewText.Grants_OtherSchema</p>
+                        }
+                    </section>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public GrantListTab Tab { get; set; } = null!;
+
+    private readonly string _listId = $"grant-filter-{Guid.NewGuid():N}";
+
+    /// <summary>The grantee filter as typed, until it is applied; null shows the applied one.</summary>
+    private string? _typed;
+    private IReadOnlyList<SchemaObjectGrants>? _objects;
+    private IReadOnlyList<string> _users = [];
+    private DatabaseException? _error;
+    private bool _loading;
+    private bool _loaded;
+    private GrantDraft? _draft;
+    private (SchemaObjectGrants Object, ObjectGrant Grant)? _revoke;
+
+    /// <summary>The synonyms on the object of the open grant or revoke, read when it opens (the query reads all synonyms, WP-68).</summary>
+    private IReadOnlyList<SynonymInfo> _synonyms = [];
+
+    private bool _reading;
+    private readonly CancellationTokenSource _closing = new();
+
+    /// <summary>The grant or revoke opened last: a newer one, closing or the tab closing gives up its read.</summary>
+    private CancellationTokenSource? _action;
+    private CancellationTokenSource? _cts;
+
+    /// <summary>
+    /// The tab closed: a schema change that ends later (OnRan of the panel) loads nothing – the token source is disposed
+    /// (review of WP-71).
+    /// </summary>
+    private bool _disposed;
+
+    private string Owner => Active.Schema?.Owner ?? "";
+
+    /// <summary>The browsed schema is not the login user's: Oracle shows only the grants the session takes part in.</summary>
+    private bool OtherSchema => Active.Profile is { } profile && Owner.Length > 0 && Owner != OracleIdentifier.Normalize(profile.User);
+
+    /// <summary>For the filter: PUBLIC, the grantees seen in the schema (roles among them), the users – as the dictionary names them.</summary>
+    private IEnumerable<string> Grantees =>
+        new[] { ObjectGrant.PublicGrantee }
+            .Concat((_objects ?? []).SelectMany(o => o.Grants).Select(g => g.Grantee).Order(StringComparer.Ordinal))
+            .Concat(_users)
+            .Distinct(StringComparer.Ordinal);
+
+    protected override void OnInitialized() => Shell.TabCommandRequested += OnTabCommand;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_loaded)
+        {
+            _loaded = true;
+            await LoadAsync();
+        }
+    }
+
+    /// <summary>The schema's objects with their grants, then the users (suggestions; the list works without them).</summary>
+    private async Task LoadAsync()
+    {
+        if (_disposed || Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+        var cts = _cts = new CancellationTokenSource();
+        (_loading, _error) = (true, null);
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSchemaGrantsAsync(cts.Token), cts.Token);
+        if (cts.IsCancellationRequested)
+        {
+            return; // a newer load took over, or the tab closed
+        }
+
+        (_objects, _error, _loading) = result.Succeeded ? (result.Value, null, false) : (_objects, result.Error, false);
+        // With every load (F5, after a grant): a user created since would count as a role (second pass of the review).
+        if (result.Succeeded)
+        {
+            var users = await Shell.RunDbAsync(Logger, Active, () => schema.GetUserNamesAsync(cts.Token), cts.Token);
+            if (!cts.IsCancellationRequested && users.Succeeded)
+            {
+                _users = users.Value!;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Typing filters once the name is a known grantee (also one picked from the suggestions) or the field is empty; Enter
+    /// and leaving the field take any name – a role no grant here names yet.
+    /// </summary>
+    private void OnGranteeInput(string? typed)
+    {
+        _typed = typed ?? "";
+        var name = OracleIdentifier.Normalize(_typed);
+        if (name.Length == 0 || Grantees.Contains(name, StringComparer.Ordinal))
+        {
+            SetGrantee(_typed);
+        }
+    }
+
+    private void OnGranteeKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && _typed is { } typed)
+        {
+            SetGrantee(typed);
+        }
+    }
+
+    /// <summary>
+    /// A grantee as typed, normalized like Oracle names it; empty for every grantee. A name no grantee can have (an unclosed
+    /// quote) stays in the field and filters nothing.
+    /// </summary>
+    private void SetGrantee(string? typed)
+    {
+        var name = OracleIdentifier.Normalize(typed ?? "");
+        if (name.Length > 0 && OracleIdentifier.Problem(name) is not null)
+        {
+            _typed = typed;
+            return;
+        }
+
+        _typed = null;
+        Tab.Grantee = name.Length > 0 ? name : null;
+        if (Tab.Grantee is null)
+        {
+            Tab.OnlyWithout = false;
+        }
+
+        Shell.MarkDirty();
+    }
+
+    private void SetOnlyWithout(bool only)
+    {
+        Tab.OnlyWithout = only;
+        Shell.MarkDirty();
+    }
+
+    /// <summary>
+    /// A grant or revoke opens: the read of the one before gives up and its result no longer applies – the synonyms of one
+    /// object came late and stood under the revoke of another (fix check of the third pass).
+    /// </summary>
+    private CancellationToken NextAction()
+    {
+        if (_disposed)
+        {
+            return new CancellationToken(canceled: true); // OnRan of a run that ended after the tab closed
+        }
+
+        _action?.Cancel();
+        _action?.Dispose();
+        _action = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        _reading = false;
+        return _action.Token;
+    }
+
+    /// <summary>
+    /// The synonyms on <paramref name="target"/> – for the grantee's synonym and the note before a revoke; none if they cannot
+    /// be read. Null if the action was given up meanwhile (<see cref="NextAction"/>, closing the draft or the tab).
+    /// </summary>
+    private async Task<IReadOnlyList<SynonymInfo>?> ReadSynonymsAsync(SchemaObjectGrants target, CancellationToken token)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return null;
+        }
+
+        _reading = true;
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSynonymsAsync(target.Object, token), token);
+        if (token.IsCancellationRequested)
+        {
+            return null;
+        }
+
+        _reading = false;
+        return result.Succeeded ? result.Value! : [];
+    }
+
+    private async Task StartGrantAsync(SchemaObjectGrants target)
+    {
+        var token = NextAction();
+        (_draft, _revoke) = (null, null);
+        if (await ReadSynonymsAsync(target, token) is { } synonyms)
+        {
+            _synonyms = synonyms;
+            _draft = new GrantDraft(target.Object, target.Kind, [], _users, GrantDraft.RolesOf(target.Grants, _users), synonyms)
+            {
+                Grantee = Tab.Grantee is { } grantee ? GrantDraft.Typed(grantee) : "",
+            };
+        }
+    }
+
+    /// <summary>Opens at once; the note on the grantee's synonym follows once the synonyms are read (third pass of the review).</summary>
+    private async Task StartRevokeAsync(SchemaObjectGrants target, ObjectGrant grant)
+    {
+        var token = NextAction();
+        (_draft, _revoke, _synonyms) = (null, (target, grant), []);
+        if (await ReadSynonymsAsync(target, token) is { } synonyms)
+        {
+            _synonyms = synonyms;
+        }
+    }
+
+    /// <summary>Also a grant still reading the synonyms gives up: it would open after the close.</summary>
+    private void Close()
+    {
+        NextAction();
+        (_draft, _revoke) = (null, null);
+    }
+
+    private async Task OnRanAsync()
+    {
+        Close();
+        await LoadAsync();
+    }
+
+    /// <summary>Grants on single columns are made in the object's own view, which knows the columns.</summary>
+    private static string? ColumnsNote(GrantDraft draft) =>
+        draft.Kind is GrantObjectKind.Table or GrantObjectKind.View ? SchemaViewText.GrantList_ColumnsInView : null;
+
+    /// <summary>The object's name, a link to its view "Privileges" where it has a tab (not a sequence).</summary>
+    private RenderFragment ObjectName(SchemaObjectGrants o) => @<text>
+        @if (o.Kind != GrantObjectKind.Sequence)
+        {
+            <button class="link-btn mono" title="@TextFormat.Format(SchemaViewText.GrantList_OpenTitle, o.Object.Name)" @onclick="() => Open(o)">@o.Object.Name</button>
+        }
+        else
+        {
+            @o.Object.Name
+        }
+    </text>;
+
+    /// <summary>The object's tab on its view "Privileges"; nothing if the schema does not know it (any more).</summary>
+    private void Open(SchemaObjectGrants o)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        if (o.Kind is GrantObjectKind.Package or GrantObjectKind.Procedure or GrantObjectKind.Function)
+        {
+            var kind = o.Kind switch
+            {
+                GrantObjectKind.Package => PlSqlKind.Package,
+                GrantObjectKind.Function => PlSqlKind.Function,
+                _ => PlSqlKind.Procedure,
+            };
+            if (schema.FindPlSql(new PlSqlRef(o.Object.Owner, o.Object.Name, kind)) is { } unit)
+            {
+                Shell.OpenPlSql(unit, PlSqlView.Grants);
+            }
+        }
+        else if (schema.Find(o.Object) is { } table)
+        {
+            Shell.OpenTable(table, TabMode.Grants);
+        }
+    }
+
+    /// <summary>The kind as Oracle names it.</summary>
+    private static string KindName(GrantObjectKind kind) => kind switch
+    {
+        GrantObjectKind.View => "VIEW",
+        GrantObjectKind.MaterializedView => "MATERIALIZED VIEW",
+        GrantObjectKind.Sequence => "SEQUENCE",
+        GrantObjectKind.Package => "PACKAGE",
+        GrantObjectKind.Procedure => "PROCEDURE",
+        GrantObjectKind.Function => "FUNCTION",
+        _ => "TABLE",
+    };
+
+    private void OnTabCommand(WorkspaceTab tab, TabCommand command)
+    {
+        if (tab == Tab && command == TabCommand.Refresh)
+        {
+            Fire(async () =>
+            {
+                await LoadAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _closing.Cancel();
+        _action?.Dispose();
+        _closing.Dispose();
+        Shell.TabCommandRequested -= OnTabCommand;
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

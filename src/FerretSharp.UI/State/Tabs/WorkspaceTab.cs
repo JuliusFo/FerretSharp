@@ -8,8 +8,8 @@ namespace FerretSharp.UI.State;
 
 /// <summary>
 /// A tab of a workspace: a table (<see cref="TableTab"/>), a LINQ console (<see cref="LinqTab"/>), a SQL editor
-/// (<see cref="SqlTab"/>), a PL/SQL unit (<see cref="PlSqlTab"/>), a record diagram (<see cref="RecordTab"/>) or the
-/// schema's synonyms (<see cref="SynonymListTab"/>).
+/// (<see cref="SqlTab"/>), a PL/SQL unit (<see cref="PlSqlTab"/>), a record diagram (<see cref="RecordTab"/>), the
+/// schema's synonyms (<see cref="SynonymListTab"/>) or the schema's object privileges (<see cref="GrantListTab"/>).
 /// </summary>
 public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
 {
@@ -51,6 +51,7 @@ public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
         PlSqlTab plSql => plSql.Unit.DisplayName,
         RecordTab records => records.Title,
         SynonymListTab => SchemaViewText.SynonymList_Title,
+        GrantListTab => SchemaViewText.GrantList_Title,
         ITitledTab titled => titled.Title,
         _ => "",
     };
@@ -184,9 +185,9 @@ public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary un
     /// <summary>The views a kind of unit has (<see cref="Views"/>; the object menu offers them before a tab is open, WP-70).</summary>
     public static IReadOnlyList<PlSqlView> ViewsOf(Core.Schema.PlSqlKind kind) => kind switch
     {
-        Core.Schema.PlSqlKind.Package => [PlSqlView.Source, PlSqlView.Body, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies, PlSqlView.Synonyms],
+        Core.Schema.PlSqlKind.Package => [PlSqlView.Source, PlSqlView.Body, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies, PlSqlView.Synonyms, PlSqlView.Grants],
         Core.Schema.PlSqlKind.Trigger => [PlSqlView.Source, PlSqlView.Errors, PlSqlView.Dependencies],
-        _ => [PlSqlView.Source, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies, PlSqlView.Synonyms],
+        _ => [PlSqlView.Source, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies, PlSqlView.Synonyms, PlSqlView.Grants],
     };
 
     /// <summary>A synonym the object menu asked to drop (WP-68); the "Synonyms" view takes it. Not saved.</summary>
@@ -266,6 +267,24 @@ public sealed class SynonymListTab(Guid workspaceId) : WorkspaceTab(workspaceId,
     public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) => TabState.OfSynonymList(new SynonymListTabState(OnlyBroken));
 
     public static SynonymListTab Restore(Guid workspaceId, SynonymListTabState state) => new(workspaceId) { OnlyBroken = state.OnlyBroken };
+}
+
+/// <summary>
+/// The object privileges on the schema's objects (WP-71), by grantee, and the objects a grantee has no privilege on – to grant
+/// it there. Read on the explorer session; one per workspace.
+/// </summary>
+public sealed class GrantListTab(Guid workspaceId) : WorkspaceTab(workspaceId, "grants-")
+{
+    /// <summary>The grantee the list is filtered by, as in the dictionary; null for every grantee.</summary>
+    public string? Grantee { get; set; }
+
+    /// <summary>The objects <see cref="Grantee"/> has no privilege on (directly or through PUBLIC) instead of its privileges.</summary>
+    public bool OnlyWithout { get; set; }
+
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) => TabState.OfGrantList(new GrantListTabState(Grantee, OnlyWithout));
+
+    public static GrantListTab Restore(Guid workspaceId, GrantListTabState state) =>
+        new(workspaceId) { Grantee = state.Grantee, OnlyWithout = state.OnlyWithout };
 }
 
 /// <summary>

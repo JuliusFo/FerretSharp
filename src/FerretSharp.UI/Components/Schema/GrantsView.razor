@@ -1,0 +1,213 @@
+@* "Privileges" view of a table, view or PL/SQL unit (WP-71): the object privileges on the object, the column grants of one
+   privilege in one row. "Grant privilege" opens a draft above the list, "Revoke" on a row the REVOKE with what it takes
+   along; both run through DdlDraftPanel like every schema change (confirmed, an open transaction rolled back only after
+   asking, Prod only unlocked) and can go to the SQL editor instead. *@
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+@inherits LoadingViewBase<IReadOnlyList<ObjectGrant>>
+@inject ILogger<GrantsView> Logger
+
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Grants_Loading" />
+
+@if (_draft is { } draft)
+{
+    <GrantDraftForm Draft="draft" WorkspaceId="WorkspaceId" OnRan="OnRanAsync" OnPartlyRan="PartlyRanAsync" OnClose="Close" />
+}
+else if (_revoke is { } revoke)
+{
+    <GrantRevokeSection Target="Target" Grant="revoke" Grants="Data ?? []" Synonyms="_synonyms ?? []" WorkspaceId="WorkspaceId" OnRan="OnRanAsync" OnClose="Close" />
+}
+
+@if (Data is { } grants)
+{
+    <section>
+        <div class="structure-columns-head">
+            <h2>@SchemaViewText.Grants_Heading <span class="count">@grants.Count</span></h2>
+            @if (_draft is null && _revoke is null)
+            {
+                <button class="btn" disabled="@_reading" @onclick="StartGrantAsync"><span class="plus">+</span> @SchemaViewText.Grants_Grant</button>
+            }
+        </div>
+        @if (grants.Count == 0)
+        {
+            <p class="muted">@SchemaViewText.Grants_None</p>
+        }
+        else
+        {
+            <GrantTable Grants="grants" Selected="_revoke" OnRevoke="StartRevokeAsync" />
+        }
+        <p class="hint small">@SchemaViewText.Grants_RolesNote</p>
+        @if (OtherSchema)
+        {
+            <p class="hint small">@Icons.Info @SchemaViewText.Grants_OtherSchema</p>
+        }
+    </section>
+}
+
+@code {
+    private GrantDraft? _draft;
+    private ObjectGrant? _revoke;
+
+    /// <summary>The tab may close while DDL runs; then nothing more is asked of it.</summary>
+    private bool _disposed;
+
+    /// <summary>
+    /// The users, read for the first grant after each load (review of WP-71: every click read them again; second pass: once
+    /// per view made a user created since a role until the tab closed); null before.
+    /// </summary>
+    private IReadOnlyList<string>? _users;
+
+    /// <summary>
+    /// The synonyms on the object, for the grantee's synonym and the note before a revoke – read when first needed after each
+    /// load, not with the list: the query reads all synonyms of the database (WP-68).
+    /// </summary>
+    private IReadOnlyList<SynonymInfo>? _synonyms;
+
+    private bool _reading;
+    private readonly CancellationTokenSource _closing = new();
+
+    /// <summary>The grant or revoke opened last: a newer one, closing or the tab closing gives up its read.</summary>
+    private CancellationTokenSource? _action;
+
+    /// <summary>The object: the real one, never a synonym of it.</summary>
+    [Parameter, EditorRequired]
+    public TableRef Target { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public GrantObjectKind Kind { get; set; }
+
+    /// <summary>The object's columns for grants per column; empty for PL/SQL.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Columns { get; set; } = [];
+
+    /// <summary>The tab's workspace: DDL runs in its session.</summary>
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>DDL ran: the tab reloads its views (this list among them).</summary>
+    [Parameter]
+    public EventCallback OnSchemaChanged { get; set; }
+
+    /// <summary>Not the login user's object: Oracle shows only the grants the session takes part in.</summary>
+    private bool OtherSchema => Active.Profile is { } profile && Target.Owner != OracleIdentifier.Normalize(profile.User);
+
+    protected override Task<IReadOnlyList<ObjectGrant>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetGrantsAsync(Target, cancellationToken);
+
+    /// <summary>F5 or a schema change: the next grant or revoke reads the users and synonyms again.</summary>
+    protected override void OnLoaded(IReadOnlyList<ObjectGrant> data) => (_users, _synonyms) = (null, null);
+
+    /// <summary>
+    /// A grant or revoke opens: the read of the one before gives up and its result no longer applies – it came late over the
+    /// VPN and replaced what was opened since (fix check of the third pass).
+    /// </summary>
+    private CancellationToken NextAction()
+    {
+        if (_disposed)
+        {
+            return new CancellationToken(canceled: true); // OnRan of a run that ended after the tab closed
+        }
+
+        _action?.Cancel();
+        _action?.Dispose();
+        _action = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        _reading = false;
+        return _action.Token;
+    }
+
+    /// <summary>
+    /// The users for the grantee's suggestions and checks and the synonyms on the object, each read once after a load; what
+    /// cannot be read stays unknown (nothing is checked against it, the next try reads again). False if the action was
+    /// given up meanwhile (<see cref="NextAction"/>, closing the draft or the tab).
+    /// </summary>
+    private async Task<bool> ReadAsync(bool users, CancellationToken token)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return false;
+        }
+
+        _reading = true;
+        if (users && _users is null)
+        {
+            var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetUserNamesAsync(token), token);
+            if (token.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            _users = result.Succeeded ? result.Value : null;
+        }
+
+        if (_synonyms is null)
+        {
+            var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSynonymsAsync(Target, token), token);
+            if (token.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            _synonyms = result.Succeeded ? result.Value : null;
+        }
+
+        _reading = false;
+        return true;
+    }
+
+    private async Task StartGrantAsync()
+    {
+        var token = NextAction();
+        (_draft, _revoke) = (null, null);
+        if (await ReadAsync(users: true, token))
+        {
+            var users = _users ?? [];
+            _draft = new GrantDraft(Target, Kind, Columns, users, GrantDraft.RolesOf(Data ?? [], users), _synonyms ?? []);
+        }
+    }
+
+    /// <summary>
+    /// Opens at once; the note on the grantee's synonym follows once the synonyms are read (the query is heavy; third pass of
+    /// the review: the click showed nothing meanwhile).
+    /// </summary>
+    private async Task StartRevokeAsync(ObjectGrant grant)
+    {
+        var token = NextAction();
+        (_draft, _revoke) = (null, grant);
+        await ReadAsync(users: false, token);
+    }
+
+    /// <summary>The GRANT ran, its synonym did not: the list shows the grant, the draft stays with the hint.</summary>
+    private async Task PartlyRanAsync()
+    {
+        if (!_disposed)
+        {
+            await OnSchemaChanged.InvokeAsync();
+        }
+    }
+
+    /// <summary>Also a grant still reading its users gives up: it would open after the close.</summary>
+    private void Close()
+    {
+        NextAction();
+        (_draft, _revoke) = (null, null);
+    }
+
+    private async Task OnRanAsync()
+    {
+        Close();
+        if (!_disposed)
+        {
+            await OnSchemaChanged.InvokeAsync();
+        }
+    }
+
+    public override void Dispose()
+    {
+        _disposed = true;
+        _closing.Cancel();
+        _action?.Dispose();
+        _closing.Dispose();
+        base.Dispose();
+    }
+}

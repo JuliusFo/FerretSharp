@@ -443,4 +443,11 @@
   <data name="HintSchemaSynonyms" xml:space="preserve">
     <value>Lists the schema's private synonyms with their targets, to find and drop those leading nowhere.</value>
   </data>
+  <data name="ActionSchemaGrants" xml:space="preserve">
+    <value>Privileges in the schema</value>
+    <comment>Shortcut action (WP-71): opens the tab with the object privileges of the schema</comment>
+  </data>
+  <data name="HintSchemaGrants" xml:space="preserve">
+    <value>Lists the privileges on the schema's objects, by grantee, and the objects a user has no privilege on.</value>
+  </data>
 </root>

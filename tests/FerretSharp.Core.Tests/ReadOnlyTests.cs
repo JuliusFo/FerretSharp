@@ -175,9 +175,9 @@ public class ReadOnlyTests
         {
             typeof(ISchemaReader), [
                 "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetDdlAsync", "GetDependenciesAsync",
-                "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetNameTakenAsync", "GetNamesElsewhereAsync", "GetObjectInfoAsync",
-                "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetPrimaryKeysAsync", "GetSchemaSynonymsAsync", "GetSessionActivityAsync", "GetSourceAsync", "GetSubprogramsAsync",
-                "GetSynonymTargetsAsync", "GetSynonymsAsync", "GetTableTriggersAsync", "GetTablesAsync", "GetTablespacesAsync", "GetTriggerColumnsAsync", "ReadSnapshotAsync", "SearchSourceAsync",
+                "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetGrantsAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetNameTakenAsync", "GetNamesElsewhereAsync", "GetObjectInfoAsync",
+                "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetPrimaryKeysAsync", "GetSchemaGrantsAsync", "GetSchemaSynonymsAsync", "GetSessionActivityAsync", "GetSourceAsync", "GetSubprogramsAsync",
+                "GetSynonymTargetsAsync", "GetSynonymsAsync", "GetTableTriggersAsync", "GetTablesAsync", "GetTablespacesAsync", "GetTriggerColumnsAsync", "GetUserNamesAsync", "ReadSnapshotAsync", "SearchSourceAsync",
             ]
         },
         { typeof(IDatabaseConnection), ["PingIfIdleAsync", "SetActionAsync", "StopReadOnlySnapshotsAsync", "UseReadOnlySnapshotsAsync"] },

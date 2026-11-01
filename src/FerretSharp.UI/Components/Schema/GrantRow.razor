@@ -1,0 +1,30 @@
+@* One privilege as a table row (WP-71): the cells of GrantTable, after an optional leading cell (the schema list's object). *@
+@using FerretSharp.Core.Schema
+
+<tr class="@(Selected ? "selected" : "")">
+    @Leading
+    <td class="mono">@Grant.Grantee</td>
+    <td class="mono">@Grant.Privilege@(Grant.Hierarchy ? " (HIERARCHY)" : "")</td>
+    <td class="mono">@string.Join(", ", Grant.Columns)</td>
+    <td class="mono">@Grant.Grantor</td>
+    <td>@(Grant.Grantable ? SchemaViewText.Grants_GrantableYes : "")</td>
+    <td>
+        <button class="link-btn" title="@TextFormat.Format(SchemaViewText.Grants_RevokeTitle, Grant.Privilege, Grant.Grantee)"
+                @onclick="() => OnRevoke.InvokeAsync(Grant)">@SchemaViewText.Grants_Revoke</button>
+    </td>
+</tr>
+
+@code {
+    [Parameter, EditorRequired]
+    public ObjectGrant Grant { get; set; } = null!;
+
+    [Parameter]
+    public bool Selected { get; set; }
+
+    /// <summary>Cells before the grant's own (the object in the schema list).</summary>
+    [Parameter]
+    public RenderFragment? Leading { get; set; }
+
+    [Parameter]
+    public EventCallback<ObjectGrant> OnRevoke { get; set; }
+}

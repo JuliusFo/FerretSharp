@@ -363,4 +363,10 @@
   <data name="HintSchemaSynonyms" xml:space="preserve">
     <value>Listet die privaten Synonyme des Schemas mit ihren Zielen – zum Finden und Löschen der ins Leere zeigenden.</value>
   </data>
+  <data name="ActionSchemaGrants" xml:space="preserve">
+    <value>Berechtigungen im Schema</value>
+  </data>
+  <data name="HintSchemaGrants" xml:space="preserve">
+    <value>Listet die Rechte an den Objekten des Schemas, nach Empfänger, und die Objekte, an denen ein User kein Recht hat.</value>
+  </data>
 </root>
