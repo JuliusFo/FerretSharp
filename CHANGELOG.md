@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Security
+- The file name a "Save as" dialog suggests no longer picks the folder. It comes from names in the database – a table, column, synonym or grantee –, and a quoted name with `\`, `/` or `..` made the dialog start in another folder. Such characters now become `_`, and a device name like `NUL` gets a leading `_`.
+
 ## [3.57.0] - 2026-11-01
 
 Object privileges and synonyms in the explorer, right-click menus on objects and tabs, tablespaces in the designer, and typing without delay.
