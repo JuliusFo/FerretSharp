@@ -251,6 +251,21 @@ public interface ISchemaReader
     Task<string?> GetNameTakenAsync(string owner, string name, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The object privileges on a table, view, sequence or PL/SQL unit (WP-71), the column grants of one privilege as one
+    /// entry. On another schema's object only those the session takes part in (grantor, grantee, enabled role, PUBLIC).
+    /// </summary>
+    Task<IReadOnlyList<ObjectGrant>> GetGrantsAsync(TableRef target, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every object of <paramref name="owner"/> a privilege can be granted on (tables, views, materialized views,
+    /// sequences, packages, procedures, functions) with its privileges as in <see cref="GetGrantsAsync"/>, by name.
+    /// </summary>
+    Task<IReadOnlyList<SchemaObjectGrants>> GetSchemaGrantsAsync(string owner, CancellationToken cancellationToken);
+
+    /// <summary>The users of the database by name (WP-71: whom a privilege can go to); roles are not among them.</summary>
+    Task<IReadOnlyList<string>> GetUserNamesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// DDL from <c>DBMS_METADATA.GET_DDL</c>. Other schemas need <c>SELECT_CATALOG_ROLE</c>; without it Oracle
     /// answers ORA-31603 (object not found).
     /// </summary>

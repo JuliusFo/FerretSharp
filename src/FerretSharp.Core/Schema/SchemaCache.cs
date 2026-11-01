@@ -197,6 +197,18 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<string?> GetNameTakenAsync(string owner, string name, CancellationToken cancellationToken) =>
         reader.GetNameTakenAsync(owner, name, cancellationToken);
 
+    // Object privileges (WP-71), not cached: the views read them again after each change.
+
+    public Task<IReadOnlyList<ObjectGrant>> GetGrantsAsync(TableRef target, CancellationToken cancellationToken) =>
+        reader.GetGrantsAsync(target, cancellationToken);
+
+    /// <summary>The objects of this schema (<see cref="Owner"/>) with their privileges.</summary>
+    public Task<IReadOnlyList<SchemaObjectGrants>> GetSchemaGrantsAsync(CancellationToken cancellationToken) =>
+        reader.GetSchemaGrantsAsync(Owner, cancellationToken);
+
+    public Task<IReadOnlyList<string>> GetUserNamesAsync(CancellationToken cancellationToken) =>
+        reader.GetUserNamesAsync(cancellationToken);
+
     // PL/SQL views (WP-28), not cached either.
 
     public Task<PlSqlObjectInfo> GetPlSqlInfoAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>
