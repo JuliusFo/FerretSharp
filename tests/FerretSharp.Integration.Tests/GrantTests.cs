@@ -138,6 +138,26 @@ public class GrantTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.DoesNotContain(await Reader.GetGrantsAsync(table, Ct), g => g.Grantee == Scratch);
     }
 
+    /// <summary>
+    /// Review of WP-71: with the same privilege from two grantors, REVOKE takes the executing user's grant and leaves the
+    /// other – the reason the view blocks revoking someone else's row then (<c>GrantDraft.RevokeProblems</c>).
+    /// </summary>
+    [Fact]
+    public async Task A_revoke_takes_the_executing_user_s_grant_and_leaves_another_grantor_s()
+    {
+        var sequence = Own("GR_TWO");
+        string[] grantors = [_owner, Other];
+        var before = (await Reader.GetGrantsAsync(sequence, Ct)).Where(g => g.Grantee == Grantee).Select(g => g.Grantor);
+        Assert.Equal(grantors.Order(StringComparer.Ordinal), before.Order(StringComparer.Ordinal));
+
+        var theirs = new ObjectGrant(Grantee, "SELECT", [], Other, false, false);
+        await _session!.ExecuteDdlAsync(GrantDdl.Revoke(sequence, theirs).Sql, Ct);
+
+        var after = Assert.Single(await Reader.GetGrantsAsync(sequence, Ct), g => g.Grantee == Grantee);
+        Assert.Equal(Other, after.Grantor);
+        await _session.ExecuteDdlAsync(GrantDdl.Grant(sequence, ["SELECT"], [], Grantee, grantOption: false).Sql, Ct); // as it was
+    }
+
     [Theory]
     [InlineData("other", "T_PLAIN", "SELECT", Scratch, false, "ORA-01031")]       // no grant option on another's object
     [InlineData("own", "GR_VIEW_PLAIN", "SELECT", Scratch, false, "ORA-01720")]   // the view's table may not be passed on

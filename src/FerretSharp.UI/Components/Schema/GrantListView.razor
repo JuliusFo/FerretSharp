@@ -200,7 +200,8 @@
         }
 
         (_objects, _error, _loading) = result.Succeeded ? (result.Value, null, false) : (_objects, result.Error, false);
-        if (result.Succeeded && _users.Count == 0)
+        // With every load (F5, after a grant): a user created since would count as a role (second pass of the review).
+        if (result.Succeeded)
         {
             var users = await Shell.RunDbAsync(Logger, Active, () => schema.GetUserNamesAsync(cts.Token), cts.Token);
             if (!cts.IsCancellationRequested && users.Succeeded)
@@ -232,11 +233,21 @@
         }
     }
 
-    /// <summary>A grantee as typed, normalized like Oracle names it; empty for every grantee.</summary>
+    /// <summary>
+    /// A grantee as typed, normalized like Oracle names it; empty for every grantee. A name no grantee can have (an unclosed
+    /// quote) stays in the field and filters nothing.
+    /// </summary>
     private void SetGrantee(string? typed)
     {
+        var name = OracleIdentifier.Normalize(typed ?? "");
+        if (name.Length > 0 && OracleIdentifier.Problem(name) is not null)
+        {
+            _typed = typed;
+            return;
+        }
+
         _typed = null;
-        Tab.Grantee = OracleIdentifier.Normalize(typed ?? "") is { Length: > 0 } name ? name : null;
+        Tab.Grantee = name.Length > 0 ? name : null;
         if (Tab.Grantee is null)
         {
             Tab.OnlyWithout = false;

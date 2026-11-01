@@ -52,7 +52,10 @@ else if (_revoke is { } revoke)
     /// <summary>The tab may close while DDL runs; then nothing more is asked of it.</summary>
     private bool _disposed;
 
-    /// <summary>The users, read once for the first grant (review of WP-71: every click read them again); null before.</summary>
+    /// <summary>
+    /// The users, read for the first grant after each load (review of WP-71: every click read them again; second pass: once
+    /// per view made a user created since a role until the tab closed); null before.
+    /// </summary>
     private IReadOnlyList<string>? _users;
 
     private bool _readingUsers;
@@ -82,6 +85,9 @@ else if (_revoke is { } revoke)
 
     protected override Task<IReadOnlyList<ObjectGrant>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         schema.GetGrantsAsync(Target, cancellationToken);
+
+    /// <summary>F5 or a schema change: the next grant reads the users again.</summary>
+    protected override void OnLoaded(IReadOnlyList<ObjectGrant> data) => _users = null;
 
     /// <summary>
     /// The users for the grantee's suggestions and checks, read once and cancelled when the tab closes; none if they cannot

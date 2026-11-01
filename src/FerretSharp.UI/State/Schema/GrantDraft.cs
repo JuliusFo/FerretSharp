@@ -50,9 +50,13 @@ public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyL
     /// <summary>
     /// A grantee as the dictionary names it, written as one types it: quoted unless Oracle would read it back the same
     /// without (a role <c>app_ro</c> created in quotes would become <c>APP_RO</c> – another grantee; review of WP-71).
-    /// PUBLIC stays the keyword.
+    /// PUBLIC stays the keyword. A name no grantee can have (a double quote, too long – typed or from a workspace file) stays as
+    /// it is: quoting would throw while rendering (second pass of the review).
     /// </summary>
-    public static string Typed(string grantee) => grantee == ObjectGrant.PublicGrantee ? grantee : OracleIdentifier.QuoteIfNeeded(grantee);
+    public static string Typed(string grantee) =>
+        grantee.Length == 0 || grantee == ObjectGrant.PublicGrantee || OracleIdentifier.Problem(grantee) is not null
+            ? grantee
+            : OracleIdentifier.QuoteIfNeeded(grantee);
 
     /// <summary>The grantee as Oracle names it; null while none is typed.</summary>
     public string? GranteeName => OracleIdentifier.Normalize(Grantee) is { Length: > 0 } name ? name : null;

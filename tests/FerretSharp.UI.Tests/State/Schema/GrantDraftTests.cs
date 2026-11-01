@@ -81,6 +81,10 @@ public sealed class GrantDraftTests
         draft.Choose("SELECT", true);
         Assert.Equal("GRANT SELECT ON \"APP\".\"KUNDEN\" TO \"app_ro\"", Assert.Single(draft.Steps).Sql);
         Assert.Equal(("PUBLIC", "U1"), (GrantDraft.Typed("PUBLIC"), GrantDraft.Typed("U1")));
+
+        // second pass: an unclosed quote ("app_ro without the end) is no grantee – shown as it is, never thrown while rendering
+        Assert.Equal("\"APP_RO", GrantDraft.Typed("\"APP_RO"));
+        Assert.Equal("", GrantDraft.Typed(""));
     }
 
     [Fact]

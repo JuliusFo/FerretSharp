@@ -87,6 +87,12 @@ public static class GrantSchema
                 $"GRANT UPDATE (NAME) ON {OtherOwner}.T_SHARED TO {Grantee}",   // hidden as well
                 $"GRANT DELETE ON {OtherOwner}.T_SHARED TO {OtherRole}",        // a role the app user does not have: hidden
 
+                // review of WP-71: the grantee gets SELECT on GR_TWO from the app user and from OtherOwner (granted below as it)
+                $"CREATE SEQUENCE {appUser}.GR_TWO",
+                $"GRANT SELECT ON {appUser}.GR_TWO TO {Grantee}",
+                $"GRANT SELECT ON {appUser}.GR_TWO TO {OtherOwner} WITH GRANT OPTION",
+                $"GRANT CREATE SESSION TO {OtherOwner}",
+
                 // a view over a table the app user may not pass on (ORA-01720 on granting it)
                 $"CREATE VIEW {appUser}.GR_VIEW_PLAIN AS SELECT ID FROM {OtherOwner}.T_PLAIN",
             ];
@@ -95,6 +101,16 @@ public static class GrantSchema
             {
                 await using var command = connection.CreateCommand();
                 command.CommandText = sql;
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            // As OtherOwner itself: a grant of SYSTEM through GRANT ANY OBJECT PRIVILEGE would name the owner as grantor.
+            var other = new OracleConnectionStringBuilder(appConnectionString) { UserID = OtherOwner, Password = "Other_2026" };
+            await using (var otherConnection = new OracleConnection(other.ConnectionString))
+            {
+                await otherConnection.OpenAsync(cancellationToken);
+                await using var command = otherConnection.CreateCommand();
+                command.CommandText = $"GRANT SELECT ON {appUser}.GR_TWO TO {Grantee}";
                 await command.ExecuteNonQueryAsync(cancellationToken);
             }
 
