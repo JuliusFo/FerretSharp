@@ -9,3 +9,4 @@ disable-model-invocation: true
 4. Push, open the PR and enable auto-fix.
 5. Run `/branch-code-review` (separate agent, findings by severity, wait for approval, fix, second pass).
 6. Push and watch CI to green.
+7. Remove the test DB container this session created, by its name (`docker rm -f <name>`) – never `ferret-sample` or another session's container. Ask first if more E2E may follow.
