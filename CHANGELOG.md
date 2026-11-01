@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Security
 - The file name a "Save as" dialog suggests no longer picks the folder. It comes from names in the database – a table, column, synonym or grantee –, and a quoted name with `\`, `/` or `..` made the dialog start in another folder; one with `%APPDATA%` was saved into that folder, as the dialog expands environment variables. Such characters now become `_`, as do characters that show a name reversed, and a device name like `NUL` gets a leading `_`.
+- The cache file of the code usage no longer takes its folder from the assembly name of the linked project: a name with `..\` wrote it outside the cache folder, one with `:` or a device name like `NUL` kept it from being written. Usual names stay as they are, so existing cache files stay valid.
 
 ## [3.57.0] - 2026-11-01
 
