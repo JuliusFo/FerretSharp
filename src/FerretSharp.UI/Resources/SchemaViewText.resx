@@ -1937,7 +1937,7 @@
     <comment>Checkbox in the grant draft: {0} grantee</comment>
   </data>
   <data name="Grants_CreateSynonymTitle" xml:space="preserve">
-    <value>So that {0} can name the object without its schema. Takes the privilege {1}; without it, copy the statement and let {0} run it (CREATE SYNONYM is enough there).</value>
+    <value>So that {0} can name the object without its schema. Takes the privilege {1}; without it, let {0} run the CREATE SYNONYM (CREATE SYNONYM is enough there) – after a failed run, copying takes it alone.</value>
     <comment>Tooltip: {0} grantee, {1} privilege</comment>
   </data>
   <data name="Grants_SynonymExists" xml:space="preserve">
@@ -1945,7 +1945,7 @@
     <comment>Note in the grant draft</comment>
   </data>
   <data name="Grants_SynonymNeedsPrivilege" xml:space="preserve">
-    <value>The privilege is granted, the synonym is not: creating it in {0}'s schema takes the privilege {1}. Copy the statement or open it in the SQL editor and let {0} run it – CREATE SYNONYM is enough there.</value>
+    <value>The privilege is granted, the synonym is not: creating it in {0}'s schema takes the privilege {1}. Copy the CREATE SYNONYM or open it in the SQL editor and let {0} run it – CREATE SYNONYM is enough there.</value>
     <comment>After ORA-01031 on the synonym of a grant: {0} grantee, {1} privilege</comment>
   </data>
   <data name="Grants_SynonymNameTaken" xml:space="preserve">
@@ -1953,7 +1953,7 @@
     <comment>After ORA-00955 on the synonym of a grant: {0} grantee</comment>
   </data>
   <data name="Grants_RevokeLeavesSynonym" xml:space="preserve">
-    <value>{0} keeps the synonym {1}; without a privilege it leads nowhere – drop it in the view Synonyms.</value>
+    <value>{0} keeps the synonym {1}; without another privilege (also none through a role) it leads nowhere – drop it in the view Synonyms.</value>
     <comment>Note before revoking a grantee's last privilege: {0} grantee, {1} synonym</comment>
   </data>
   <data name="Grants_SynonymName" xml:space="preserve">

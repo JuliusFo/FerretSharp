@@ -115,6 +115,28 @@ public sealed class GrantDraftTests
         Assert.Contains("GRANT ANY OBJECT PRIVILEGE", draft.FailureHint("ORA-01031", draft.Steps[0].Sql, "APP"), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Third pass of the review: after the synonym failed, the draft runs, copies and opens the synonym alone – the grantee
+    /// who is to run it could not grant –, and the hint follows the statement that ran even if the name changed meanwhile.
+    /// </summary>
+    [Fact]
+    public void After_the_grant_ran_the_synonym_stands_alone_and_its_failure_is_told_by_what_ran()
+    {
+        var draft = Draft("U1");
+        draft.Choose("SELECT", true);
+        draft.CreateSynonym = true;
+        var (grant, synonym) = (draft.Steps[0].Sql, draft.Steps[1].Sql);
+
+        draft.SynonymName = "KUNDE"; // typed while the run took its time
+        Assert.Contains("CREATE ANY SYNONYM", draft.FailureHint("ORA-01031", synonym, "APP"), StringComparison.Ordinal);
+
+        draft.Ran([grant]);
+        Assert.Equal(["CREATE SYNONYM \"U1\".\"KUNDE\" FOR \"APP\".\"KUNDEN\""], draft.Steps.Select(s => s.Sql));
+
+        draft.Choose("INSERT", true); // another grant comes back
+        Assert.Equal(2, draft.Steps.Count);
+    }
+
     [Theory]
     [InlineData("PUBLIC")]   // would be a public synonym
     [InlineData("APP")]      // the owner
@@ -168,9 +190,10 @@ public sealed class GrantDraftTests
         // the grantee's last privilege goes, its synonym stays and leads nowhere; with another privilege left it still works
         var select = new ObjectGrant("U1", "SELECT", [], "APP", false, false);
         SynonymInfo[] synonyms = [new("U1", "KUNDEN")];
-        Assert.Equal(["U1 behält das Synonym KUNDEN; ohne Recht zeigt es ins Leere – in der Ansicht „Synonyme“ löschen."],
+        Assert.Equal(["U1 behält das Synonym KUNDEN; ohne weiteres Recht (auch keines über eine Rolle) zeigt es ins Leere – in der Ansicht „Synonyme“ löschen."],
             GrantDraft.RevokeNotes(select, [select], "APP", synonyms));
         Assert.Empty(GrantDraft.RevokeNotes(select, [select, select with { Privilege = "INSERT" }], "APP", synonyms));
+        Assert.Empty(GrantDraft.RevokeNotes(select, [select, select with { Grantee = "PUBLIC" }], "APP", synonyms)); // third pass
     }
 
     /// <summary>

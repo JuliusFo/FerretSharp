@@ -303,13 +303,11 @@
         }
     }
 
+    /// <summary>Opens at once; the note on the grantee's synonym follows once the synonyms are read (third pass of the review).</summary>
     private async Task StartRevokeAsync(SchemaObjectGrants target, ObjectGrant grant)
     {
-        (_draft, _revoke) = (null, null);
-        if (await ReadSynonymsAsync(target))
-        {
-            _revoke = (target, grant);
-        }
+        (_draft, _revoke, _synonyms) = (null, (target, grant), []);
+        await ReadSynonymsAsync(target);
     }
 
     private void Close() => (_draft, _revoke) = (null, null);

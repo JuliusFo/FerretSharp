@@ -145,13 +145,14 @@ else if (_revoke is { } revoke)
         }
     }
 
+    /// <summary>
+    /// Opens at once; the note on the grantee's synonym follows once the synonyms are read (the query is heavy; third pass of
+    /// the review: the click showed nothing meanwhile).
+    /// </summary>
     private async Task StartRevokeAsync(ObjectGrant grant)
     {
-        _draft = null;
-        if (await ReadAsync(users: false))
-        {
-            _revoke = grant;
-        }
+        (_draft, _revoke) = (null, grant);
+        await ReadAsync(users: false);
     }
 
     /// <summary>The GRANT ran, its synonym did not: the list shows the grant, the draft stays with the hint.</summary>

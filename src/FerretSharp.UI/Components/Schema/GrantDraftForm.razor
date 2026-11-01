@@ -127,6 +127,7 @@
     private async Task OnFailedAsync(DdlRunResult result)
     {
         _hint = Draft.FailureHint(result.Error?.ErrorCode, result.Failed, LoginUser);
+        Draft.Ran(result.Ran);
         if (result.Ran.Count > 0)
         {
             await OnPartlyRan.InvokeAsync();

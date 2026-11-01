@@ -28,6 +28,15 @@ public sealed class GrantDraft(
     private readonly HashSet<string> _privileges = [];
     private readonly HashSet<string> _columns = [];
 
+    /// <summary>Statements that ran already (<see cref="Ran"/>): a GRANT among them is left out of <see cref="Steps"/>.</summary>
+    private readonly HashSet<string> _ran = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Every CREATE SYNONYM the draft wrote, with its synonym: a failure is told by the statement that ran, not by the draft
+    /// as it is now – it can change while a run takes its time over the VPN (third pass of the review).
+    /// </summary>
+    private readonly Dictionary<string, SynonymInfo> _synonymStatements = new(StringComparer.Ordinal);
+
     public TableRef Target { get; } = target;
 
     public GrantObjectKind Kind { get; } = kind;
@@ -124,15 +133,35 @@ public sealed class GrantDraft(
         }
     }
 
-    /// <summary>The GRANT, then the synonym: it runs only once the grantee may use the object.</summary>
-    public IReadOnlyList<DdlStep> Steps =>
-        GranteeName is { } grantee && OracleIdentifier.Problem(grantee) is null && Privileges.Count > 0
-            ?
-            [
-                GrantDdl.Grant(Target, Privileges, Columns, grantee, GrantOption),
-                .. Synonym is { } synonym ? [SynonymDdl.Create(synonym, Target)] : Array.Empty<DdlStep>(),
-            ]
-            : [];
+    /// <summary>
+    /// The GRANT, then the synonym: it runs only once the grantee may use the object. A GRANT that ran already – the synonym
+    /// failed after it – is left out, so running again, copying and the SQL editor take the synonym alone: the grantee who
+    /// is to run it could not grant (third pass of the review). Changing the grant brings it back.
+    /// </summary>
+    public IReadOnlyList<DdlStep> Steps
+    {
+        get
+        {
+            if (GranteeName is not { } grantee || OracleIdentifier.Problem(grantee) is not null || Privileges.Count == 0)
+            {
+                return [];
+            }
+
+            var grant = GrantDdl.Grant(Target, Privileges, Columns, grantee, GrantOption);
+            var steps = _ran.Contains(grant.Sql) ? new List<DdlStep>() : [grant];
+            if (Synonym is { } synonym)
+            {
+                var create = SynonymDdl.Create(synonym, Target);
+                _synonymStatements[create.Sql] = synonym;
+                steps.Add(create);
+            }
+
+            return steps;
+        }
+    }
+
+    /// <summary>Statements of a run that ran before one failed (<c>DdlRunResult.Ran</c>).</summary>
+    public void Ran(IEnumerable<string> statements) => _ran.UnionWith(statements);
 
     /// <summary>
     /// What keeps it from running: no grantee or one Oracle cannot take, the owner (who has every privilege), no privilege, a
@@ -190,7 +219,7 @@ public sealed class GrantDraft(
     /// <param name="failed">The statement that failed (<c>DdlRunResult.Failed</c>).</param>
     /// <param name="loginUser">The user the session logged in as, in dictionary form.</param>
     public string? FailureHint(string? code, string? failed, string loginUser) =>
-        Synonym is { } synonym && failed == SynonymDdl.Create(synonym, Target).Sql
+        failed is not null && _synonymStatements.TryGetValue(failed, out var synonym)
             ? code switch
             {
                 "ORA-01031" => TextFormat.Format(SchemaViewText.Grants_SynonymNeedsPrivilege, synonym.Owner,
@@ -244,8 +273,10 @@ public sealed class GrantDraft(
             notes.Add(TextFormat.Format(SchemaViewText.Grants_RevokeReferences, grant.Grantee));
         }
 
-        // The REVOKE takes every row of this privilege and grantor; another privilege of the grantee keeps the synonym useful.
-        var remains = all.Any(g => g.Grantee == grant.Grantee && (g.Privilege != grant.Privilege || g.Grantor != grant.Grantor));
+        // The REVOKE takes every row of this privilege and grantor; another privilege of the grantee – or any of PUBLIC (third
+        // pass of the review) – keeps the synonym useful. One through a role the dictionary does not show; the note says so.
+        var remains = all.Any(g => (g.IsPublic && !grant.IsPublic)
+            || (g.Grantee == grant.Grantee && (g.Privilege != grant.Privilege || g.Grantor != grant.Grantor)));
         if (!remains && (synonyms ?? []).FirstOrDefault(s => s.Owner == grant.Grantee) is { } synonym)
         {
             notes.Add(TextFormat.Format(SchemaViewText.Grants_RevokeLeavesSynonym, grant.Grantee, synonym.Name));
