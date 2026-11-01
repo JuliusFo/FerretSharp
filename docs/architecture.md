@@ -46,6 +46,7 @@ record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts,
 - PL/SQL-Tabs (WP-28) stehen als `TabState.PlSql` (`PlSqlTabState`: Owner, Name, Art, Ansicht) in der Datei, `Table` ist wie bei SQL/LINQ leer; nicht mehr vorhandene Objekte werden beim Wiederherstellen still verworfen.
 - Datensatz-Diagramme (WP-60, ADR 0034) stehen als `TabState.Records` (`RecordTabState`: Owner und Name der Starttabelle, Schlüssel der Startzeilen als Text über `RecordKeys`, die Schritte `RecordStep`), `Table` ist leer. Die Zeilen selbst stehen nicht in der Datei; der Tab liest sie beim Zeigen neu und spielt die Schritte ab.
 - Der Tab der Synonyme des Schemas (WP-68) steht als `TabState.SynonymList` (`SynonymListTabState`: nur „Nur ohne Ziel“), `Table` ist leer; einer je Workspace, die Liste liest er beim Zeigen neu.
+- Der Tab der Berechtigungen im Schema (WP-71) steht als `TabState.GrantList` (`GrantListTabState`: Empfänger-Filter und „Nur Objekte ohne Recht dafür“), `Table` ist leer; einer je Workspace, die Liste liest er beim Zeigen neu.
 - Zur Laufzeit hält jeder offene Workspace eine **eigene** Session (eigene Connection, ab v2 eigene Transaktion), geöffnet beim ersten Datenzugriff (`WorkspaceManager.GetDataAsync`). Das Schema lädt eine separate Explorer-Session (ADR 0005).
 - Connection-String mit `Pooling=false`: Die Sessions leben lange, und eine Connection mit offener Transaktion darf nie in einen Pool zurückgehen.
 - Beim Öffnen `ModuleName = "FerretSharp"`, `ActionName = <Workspace-Name>` setzen → in `V$SESSION` ist erkennbar, welcher Workspace eine Sperre hält. Umbenennen setzt ACTION neu. `CLIENT_INFO` ist seit WP-52 (ADR 0027) die **Session-Kennung** (`OracleSessionDefaults.NewSessionTag`, `IDatabaseConnection.SessionTag`), an der die Explorer-Session die laufende Session und eigene Workspaces als Sperrhalter erkennt – nie mit etwas anderem belegen. Werte werden nach ASCII transliteriert (`.claude/rules/oracle.md`).
@@ -244,6 +245,7 @@ Eine Aktion im Grid (`ShortcutScope.Grid`, `GridAndForm`) bekommt nie Ctrl+C –
 | – (frei belegbar) | Aktiven Tabellen-Tab duplizieren: neuer Tab derselben Tabelle mit den angewendeten Filtern, Sortierung und Ansicht; auch im Kontextmenü eines Tabs | WP-70 |
 | – (frei belegbar) | Tabelle oder PL/SQL des aktiven Tabs im Explorer zeigen; auch im Kontextmenü eines Tabs | WP-70 |
 | – (frei belegbar) | Synonyme des Schemas: Tab mit den privaten Synonymen, ihren Zielen und ihrem Zustand | WP-68 |
+| – (frei belegbar) | Berechtigungen im Schema: Tab mit den Rechten an den Objekten des Schemas, nach Empfänger, und den Objekten ohne Recht für einen Empfänger | WP-71 |
 | – (je Verbindung, im Verbindungsdialog) | Diese Verbindung zeigen, vorher verbinden, wenn nötig. Gleiche Regeln wie globale Aktionen; eine Aktion mit derselben Taste gewinnt, wer eine Taste übernimmt, nimmt sie dem anderen (Aktion oder Verbindung) weg | WP-66 |
 | Ctrl+S | Ausstehende Änderungen schreiben (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
