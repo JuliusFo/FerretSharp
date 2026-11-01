@@ -20,6 +20,9 @@ public class SuggestedFileNameTests
     [InlineData(@"\\server\share\x.csv", "__server_share_x.csv")]
     [InlineData("A<B>C:D\"E|F?G*H.txt", "A_B_C_D_E_F_G_H.txt")]
     [InlineData("TAB\tNAME\n.sql", "TAB_NAME_.sql")]
+    [InlineData("%APPDATA%_x.csv", "_APPDATA__x.csv")] // the dialog expands %VAR% – its value holds separators (review)
+    [InlineData("‮txt.exe.csv", "_txt.exe.csv")] // shown reversed, as if it ended in .txt (review)
+    [InlineData("A‎B⁦C.csv", "A_B_C.csv")]
     public void No_folder_and_no_character_Windows_refuses(string name, string file) =>
         Assert.Equal(file, SuggestedFileName.Of(name));
 
@@ -55,5 +58,24 @@ public class SuggestedFileNameTests
 
         Assert.Equal(255, file.Length);
         Assert.EndsWith("C.txt", file);
+    }
+
+    /// <summary>Review of the fix: a cut between the halves of an emoji left half of it; a cut name ended in a dot.</summary>
+    [Theory]
+    [InlineData(250, ".txt", 250)] // 251 left beside the extension, the emoji's first half is the 251st
+    [InlineData(254, "", 254)] // 255 left, the emoji's first half is the 255th
+    public void A_cut_keeps_surrogate_pairs_whole(int before, string extension, int stem)
+    {
+        var file = SuggestedFileName.Of(new string('T', before) + "😀" + new string('T', 10) + extension);
+
+        Assert.Equal(new string('T', stem) + extension, file);
+    }
+
+    [Fact]
+    public void A_name_without_extension_is_cut_without_a_trailing_dot()
+    {
+        var file = SuggestedFileName.Of(new string('T', 254) + ". " + new string('T', 20)); // over 16: no extension
+
+        Assert.Equal(new string('T', 254), file);
     }
 }
