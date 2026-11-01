@@ -218,6 +218,23 @@ public sealed partial class ShellState
         return InsertAfterActive(workspace, new SynonymListTab(workspace.WorkspaceId) { Visited = true });
     }
 
+    /// <summary>Activates the tab of the schema's object privileges in the active workspace or opens it after the active tab (WP-71).</summary>
+    public GrantListTab? OpenGrantList()
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        if (workspace.Tabs.OfType<GrantListTab>().FirstOrDefault() is { } open)
+        {
+            ShowTab(open);
+            return open;
+        }
+
+        return InsertAfterActive(workspace, new GrantListTab(workspace.WorkspaceId) { Visited = true });
+    }
+
     /// <summary>
     /// "Synonym löschen" in the object menu (WP-68): the object's tab in its "Synonyms" view, which shows the drop with its
     /// confirmation. A PL/SQL unit opens on that view as well.
@@ -624,6 +641,10 @@ public sealed partial class ShellState
             else if (state.SynonymList is { } synonyms)
             {
                 tab = SynonymListTab.Restore(workspace.Id, synonyms);
+            }
+            else if (state.GrantList is { } grants)
+            {
+                tab = GrantListTab.Restore(workspace.Id, grants);
             }
             else if (state.PlSql is { } plSql)
             {

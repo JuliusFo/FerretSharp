@@ -1,0 +1,88 @@
+@* The draft of a grant (WP-71) in the view "Privileges" and the list of the schema's privileges: grantee with suggestions,
+   the privileges of the kind of object, the grant option and – for INSERT, UPDATE and REFERENCES – columns. Runs through
+   DdlDraftPanel like every schema change; a refused grant gets a hint by its Oracle code below. *@
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Schema
+
+<section class="index-draft">
+    <h2>@SchemaViewText.Grants_NewHeading <span class="muted mono small">@Draft.Target.Owner.@Draft.Target.Name</span></h2>
+    <div class="index-draft-form">
+        <label for="@_granteeId">@SchemaViewText.Head_Grantee</label>
+        <input id="@_granteeId" class="field mono" spellcheck="false" list="@_listId" placeholder="@SchemaViewText.Grants_GranteePlaceholder"
+               value="@Draft.Grantee" @oninput="e => Draft.Grantee = (string?)e.Value ?? string.Empty" />
+        <datalist id="@_listId">
+            @foreach (var name in Draft.Suggestions)
+            {
+                <option value="@name"></option>
+            }
+        </datalist>
+
+        <span class="label">@SchemaViewText.Grants_Privileges</span>
+        <div class="grant-choices">
+            @foreach (var privilege in Draft.Offered)
+            {
+                var p = privilege;
+                <label class="check mono">
+                    <input type="checkbox" checked="@Draft.IsChosen(p)" @onchange="e => Draft.Choose(p, e.Value is true)" /> @p
+                </label>
+            }
+        </div>
+
+        @if (Draft.ColumnsApply)
+        {
+            <span class="label">@SchemaViewText.Head_Columns</span>
+            <div>
+                <p class="hint small">@SchemaViewText.Grants_ColumnsLabel</p>
+                <div class="grant-choices">
+                    @foreach (var column in Draft.OfferedColumns)
+                    {
+                        var c = column;
+                        <label class="check mono">
+                            <input type="checkbox" checked="@Draft.IsColumnChosen(c)" @onchange="e => Draft.ChooseColumn(c, e.Value is true)" /> @c
+                        </label>
+                    }
+                </div>
+            </div>
+        }
+
+        <span></span>
+        <label class="check">
+            <input type="checkbox" checked="@Draft.GrantOption" @onchange="e => Draft.GrantOption = e.Value is true" />
+            @SchemaViewText.Grants_GrantOption
+        </label>
+    </div>
+    @if (Note is { } note)
+    {
+        <p class="hint small">@Icons.Info @note</p>
+    }
+    <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="Draft.Steps" Problems="Draft.Problems" Warnings="Draft.Warnings" ConfirmNotes="Draft.Warnings"
+                   FileName="@($"{DateTime.Now:yyyy-MM-dd}_GRANT_{Draft.Target.Name}.sql")"
+                   OnRan="() => OnRan.InvokeAsync()" OnFailed="r => _hint = GrantDraft.ErrorHint(r.Error?.ErrorCode, revoked: null)" OnClose="OnClose" />
+    @if (_hint is { } hint)
+    {
+        <p class="hint">@Icons.Warning @hint</p>
+    }
+</section>
+
+@code {
+    private readonly string _granteeId = $"grantee-{Guid.NewGuid():N}";
+    private readonly string _listId = $"grantees-{Guid.NewGuid():N}";
+    private string? _hint;
+
+    [Parameter, EditorRequired]
+    public GrantDraft Draft { get; set; } = null!;
+
+    /// <summary>The tab's workspace: DDL runs in its session.</summary>
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>A note below the form (the list: columns only in the object's view).</summary>
+    [Parameter]
+    public string? Note { get; set; }
+
+    [Parameter]
+    public EventCallback OnRan { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+}

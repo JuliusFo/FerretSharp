@@ -1410,4 +1410,160 @@
   <data name="Synonyms_NeedsQuotes" xml:space="preserve">
     <value>Der Name ist kein einfacher Oracle-Name (Großbuchstaben, Ziffern, _ $ #, vorne ein Buchstabe); SQL und Code müssen das Synonym in doppelten Anführungszeichen schreiben.</value>
   </data>
+  <data name="Tab_ViewGrants" xml:space="preserve">
+    <value>Berechtigungen</value>
+  </data>
+  <data name="GrantList_Title" xml:space="preserve">
+    <value>Berechtigungen</value>
+  </data>
+  <data name="Head_Grantee" xml:space="preserve">
+    <value>Empfänger</value>
+  </data>
+  <data name="Head_Privilege" xml:space="preserve">
+    <value>Recht</value>
+  </data>
+  <data name="Head_Grantor" xml:space="preserve">
+    <value>Vergeben von</value>
+  </data>
+  <data name="Head_GrantOption" xml:space="preserve">
+    <value>Grant Option</value>
+  </data>
+  <data name="Head_Object" xml:space="preserve">
+    <value>Objekt</value>
+  </data>
+  <data name="Grants_Loading" xml:space="preserve">
+    <value>Lese Berechtigungen …</value>
+  </data>
+  <data name="Grants_Heading" xml:space="preserve">
+    <value>Rechte</value>
+  </data>
+  <data name="Grants_None" xml:space="preserve">
+    <value>Keine Rechte an diesem Objekt, die die Session sieht.</value>
+  </data>
+  <data name="Grants_Grant" xml:space="preserve">
+    <value>Recht vergeben</value>
+  </data>
+  <data name="Grants_NewHeading" xml:space="preserve">
+    <value>Recht vergeben</value>
+  </data>
+  <data name="Grants_RevokeHeading" xml:space="preserve">
+    <value>Recht entziehen</value>
+  </data>
+  <data name="Grants_Revoke" xml:space="preserve">
+    <value>Entziehen</value>
+  </data>
+  <data name="Grants_RevokeTitle" xml:space="preserve">
+    <value>{0} von {1} entziehen</value>
+  </data>
+  <data name="Grants_Privileges" xml:space="preserve">
+    <value>Rechte</value>
+  </data>
+  <data name="Grants_GranteePlaceholder" xml:space="preserve">
+    <value>User, Rolle oder PUBLIC</value>
+  </data>
+  <data name="Grants_GrantOption" xml:space="preserve">
+    <value>WITH GRANT OPTION – der Empfänger darf es weitergeben</value>
+  </data>
+  <data name="Grants_ColumnsLabel" xml:space="preserve">
+    <value>Nur auf diese Spalten (INSERT, UPDATE, REFERENCES; keine gewählt: ganzes Objekt)</value>
+  </data>
+  <data name="Grants_GranteeMissing" xml:space="preserve">
+    <value>Empfänger fehlt: ein User, eine Rolle oder PUBLIC.</value>
+  </data>
+  <data name="Grants_OwnerHasAll" xml:space="preserve">
+    <value>{0} ist Owner des Objekts und hat alle Rechte daran.</value>
+  </data>
+  <data name="Grants_PrivilegeMissing" xml:space="preserve">
+    <value>Mindestens ein Recht wählen.</value>
+  </data>
+  <data name="Grants_RoleNoGrantOption" xml:space="preserve">
+    <value>{0} ist kein User: Eine Rolle bekommt kein Recht WITH GRANT OPTION (ORA-01926).</value>
+  </data>
+  <data name="Grants_PublicWarning" xml:space="preserve">
+    <value>PUBLIC sind alle Benutzer der Datenbank.</value>
+  </data>
+  <data name="Grants_UnknownGrantee" xml:space="preserve">
+    <value>{0} ist weder ein User noch eine Rolle, die an diesem Objekt vorkommt. Gibt es auch keine Rolle dieses Namens, lehnt Oracle mit ORA-01917 ab.</value>
+  </data>
+  <data name="Grants_RevokeAllColumns" xml:space="preserve">
+    <value>Oracle entzieht {0} nur für das ganze Objekt: {1} verliert es auf allen Spalten.</value>
+  </data>
+  <data name="Grants_RevokeCascades" xml:space="preserve">
+    <value>Mit GRANT OPTION vergeben: Wer es von {0} bekommen hat, verliert es mit.</value>
+  </data>
+  <data name="Grants_RevokePublic" xml:space="preserve">
+    <value>Alle, die es nur über PUBLIC haben, verlieren es.</value>
+  </data>
+  <data name="Grants_RevokeOtherGrantor" xml:space="preserve">
+    <value>Vergeben von {0}: Entziehen kann es nur {0} (oder wer GRANT ANY OBJECT PRIVILEGE hat, wenn {0} Owner des Objekts ist).</value>
+  </data>
+  <data name="Grants_RevokeReferences" xml:space="preserve">
+    <value>Hat {0} Fremdschlüssel darüber, lehnt Oracle ab (ORA-01981); REVOKE … CASCADE CONSTRAINTS würde sie löschen – nur im SQL-Editor.</value>
+  </data>
+  <data name="Grants_HintNoPrivilege" xml:space="preserve">
+    <value>Rechte an Objekten eines anderen Schemas vergibt nur, wer das Recht WITH GRANT OPTION hat oder das Systemrecht GRANT ANY OBJECT PRIVILEGE.</value>
+  </data>
+  <data name="Grants_HintViewGrantOption" xml:space="preserve">
+    <value>Der Owner der View braucht die Rechte auf die Tabellen dahinter WITH GRANT OPTION.</value>
+  </data>
+  <data name="Grants_HintOtherGrantor" xml:space="preserve">
+    <value>Entziehen kann es nur {0} – oder es ist schon weg.</value>
+  </data>
+  <data name="Grants_HintCascadeConstraints" xml:space="preserve">
+    <value>{0} hat Fremdschlüssel über REFERENCES. REVOKE … CASCADE CONSTRAINTS würde sie löschen; das im SQL-Editor schreiben, wenn es so gemeint ist.</value>
+  </data>
+  <data name="Grants_HintRoleGrantOption" xml:space="preserve">
+    <value>Eine Rolle bekommt kein Recht WITH GRANT OPTION – ohne vergeben.</value>
+  </data>
+  <data name="Grants_OtherSchema" xml:space="preserve">
+    <value>Bei Objekten eines anderen Schemas zeigt Oracle nur die Rechte, an denen deine Session beteiligt ist: ihre eigenen, die ihrer Rollen und von PUBLIC und die, die sie vergeben hat.</value>
+  </data>
+  <data name="Grants_RolesNote" xml:space="preserve">
+    <value>Rechte über Rollen werden nicht aufgelöst: Die Rolle steht als Empfänger.</value>
+  </data>
+  <data name="Grants_ScriptHeading" xml:space="preserve">
+    <value>Grants</value>
+  </data>
+  <data name="Grants_ScriptNone" xml:space="preserve">
+    <value>Keine Grants, die die Session sieht.</value>
+  </data>
+  <data name="GrantList_Loading" xml:space="preserve">
+    <value>Lese die Berechtigungen des Schemas …</value>
+  </data>
+  <data name="GrantList_Heading" xml:space="preserve">
+    <value>Berechtigungen im Schema {0}</value>
+  </data>
+  <data name="GrantList_WithoutHeading" xml:space="preserve">
+    <value>Objekte von {0} ohne Recht für {1}</value>
+  </data>
+  <data name="GrantList_AllGrantees" xml:space="preserve">
+    <value>alle Empfänger</value>
+  </data>
+  <data name="GrantList_OnlyWithout" xml:space="preserve">
+    <value>Nur Objekte ohne Recht dafür</value>
+  </data>
+  <data name="GrantList_OnlyWithoutTitle" xml:space="preserve">
+    <value>Objekte des Schemas, an denen der Empfänger kein Recht hat – weder direkt noch über PUBLIC. Rechte über eine Rolle zählen nicht; erst einen Empfänger wählen.</value>
+  </data>
+  <data name="GrantList_None" xml:space="preserve">
+    <value>Keine Rechte in diesem Schema, die die Session sieht.</value>
+  </data>
+  <data name="GrantList_NoneForGrantee" xml:space="preserve">
+    <value>{0} hat an keinem Objekt dieses Schemas ein Recht.</value>
+  </data>
+  <data name="GrantList_AllReached" xml:space="preserve">
+    <value>{0} hat an jedem Objekt dieses Schemas ein Recht.</value>
+  </data>
+  <data name="GrantList_OpenTitle" xml:space="preserve">
+    <value>{0} in der Ansicht „Berechtigungen“ öffnen</value>
+  </data>
+  <data name="GrantList_GrantTitle" xml:space="preserve">
+    <value>Ein Recht an {0} vergeben</value>
+  </data>
+  <data name="GrantList_ColumnsInView" xml:space="preserve">
+    <value>Rechte auf einzelne Spalten: in der Ansicht „Berechtigungen“ des Objekts.</value>
+  </data>
+  <data name="Grants_GrantableYes" xml:space="preserve">
+    <value>ja</value>
+  </data>
 </root>

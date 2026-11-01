@@ -1,0 +1,115 @@
+@* "Privileges" view of a table, view or PL/SQL unit (WP-71): the object privileges on the object, the column grants of one
+   privilege in one row. "Grant privilege" opens a draft above the list, "Revoke" on a row the REVOKE with what it takes
+   along; both run through DdlDraftPanel like every schema change (confirmed, an open transaction rolled back only after
+   asking, Prod only unlocked) and can go to the SQL editor instead. *@
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+@inherits LoadingViewBase<IReadOnlyList<ObjectGrant>>
+@inject ILogger<GrantsView> Logger
+
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Grants_Loading" />
+
+@if (_draft is { } draft)
+{
+    <GrantDraftForm Draft="draft" WorkspaceId="WorkspaceId" OnRan="OnRanAsync" OnClose="Close" />
+}
+else if (_revoke is { } revoke)
+{
+    <GrantRevokeSection Target="Target" Grant="revoke" Grants="Data ?? []" WorkspaceId="WorkspaceId" OnRan="OnRanAsync" OnClose="Close" />
+}
+
+@if (Data is { } grants)
+{
+    <section>
+        <div class="structure-columns-head">
+            <h2>@SchemaViewText.Grants_Heading <span class="count">@grants.Count</span></h2>
+            @if (_draft is null && _revoke is null)
+            {
+                <button class="btn" @onclick="StartGrantAsync"><span class="plus">+</span> @SchemaViewText.Grants_Grant</button>
+            }
+        </div>
+        @if (grants.Count == 0)
+        {
+            <p class="muted">@SchemaViewText.Grants_None</p>
+        }
+        else
+        {
+            <GrantTable Grants="grants" Selected="_revoke" OnRevoke="StartRevoke" />
+        }
+        <p class="hint small">@SchemaViewText.Grants_RolesNote</p>
+        @if (OtherSchema)
+        {
+            <p class="hint small">@Icons.Info @SchemaViewText.Grants_OtherSchema</p>
+        }
+    </section>
+}
+
+@code {
+    private GrantDraft? _draft;
+    private ObjectGrant? _revoke;
+
+    /// <summary>The tab may close while DDL runs; then nothing more is asked of it.</summary>
+    private bool _disposed;
+
+    /// <summary>The object: the real one, never a synonym of it.</summary>
+    [Parameter, EditorRequired]
+    public TableRef Target { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public GrantObjectKind Kind { get; set; }
+
+    /// <summary>The object's columns for grants per column; empty for PL/SQL.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Columns { get; set; } = [];
+
+    /// <summary>The tab's workspace: DDL runs in its session.</summary>
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>DDL ran: the tab reloads its views (this list among them).</summary>
+    [Parameter]
+    public EventCallback OnSchemaChanged { get; set; }
+
+    /// <summary>Not the login user's object: Oracle shows only the grants the session takes part in.</summary>
+    private bool OtherSchema => Active.Profile is { } profile && Target.Owner != OracleIdentifier.Normalize(profile.User);
+
+    protected override Task<IReadOnlyList<ObjectGrant>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetGrantsAsync(Target, cancellationToken);
+
+    /// <summary>The users for the grantee's suggestions and checks; none if they cannot be read (nothing is checked then).</summary>
+    private async Task StartGrantAsync()
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        _revoke = null;
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetUserNamesAsync(CancellationToken.None), CancellationToken.None);
+        var users = result.Succeeded ? result.Value! : [];
+        if (!_disposed)
+        {
+            _draft = new GrantDraft(Target, Kind, Columns, users, GrantDraft.RolesOf(Data ?? [], users));
+        }
+    }
+
+    private void StartRevoke(ObjectGrant grant) => (_draft, _revoke) = (null, grant);
+
+    private void Close() => (_draft, _revoke) = (null, null);
+
+    private async Task OnRanAsync()
+    {
+        Close();
+        if (!_disposed)
+        {
+            await OnSchemaChanged.InvokeAsync();
+        }
+    }
+
+    public override void Dispose()
+    {
+        _disposed = true;
+        base.Dispose();
+    }
+}

@@ -124,6 +124,10 @@
                                 case TabMode.Synonyms:
                                     <SynonymsView Target="_details.Table.Ref" Tab="Tab" WorkspaceId="Tab.WorkspaceId" Version="_version" OnSchemaChanged="() => _version++" />
                                     break;
+                                case TabMode.Grants:
+                                    <GrantsView Target="_details.Table.Ref" Kind="GrantPrivileges.KindOf(_details.Table.Kind)" Columns="_details.Columns.Select(c => c.Name).ToList()"
+                                                WorkspaceId="Tab.WorkspaceId" Version="_version" OnSchemaChanged="() => _version++" />
+                                    break;
                                 case TabMode.Relations:
                                     <RelationsView Details="_details" Version="_version" Shown="IsShown(TabMode.Relations)" />
                                     break;

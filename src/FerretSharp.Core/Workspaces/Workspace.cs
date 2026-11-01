@@ -15,6 +15,9 @@ public enum TabMode
     /// <summary>The private and public synonyms on the object, to create and drop them (WP-68). Stored by name, so its place here is free.</summary>
     Synonyms,
 
+    /// <summary>The object privileges on the object, to grant and revoke them (WP-71). Stored by name, so its place here is free.</summary>
+    Grants,
+
     /// <summary>Diagram of the tables it references and that reference it (WP-46). Stored by name, so its place here is free.</summary>
     Relations,
     Ddl,
@@ -91,10 +94,22 @@ public sealed record TabState(
 
     /// <summary>The tab of the schema's synonyms in the file format of table tabs.</summary>
     public static TabState OfSynonymList(SynonymListTabState list) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { SynonymList = list };
+
+    /// <summary>Set for the tab of the schema's privileges (WP-71); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
+    public GrantListTabState? GrantList { get; init; }
+
+    /// <summary>The tab of the schema's privileges in the file format of table tabs.</summary>
+    public static TabState OfGrantList(GrantListTabState list) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { GrantList = list };
 }
 
 /// <summary>The tab of the schema's private synonyms (WP-68): whether it shows only those whose target is not there.</summary>
 public sealed record SynonymListTabState(bool OnlyBroken = false);
+
+/// <summary>
+/// The tab of the schema's object privileges (WP-71): the grantee it is filtered by (as in the dictionary; null for all) and
+/// whether it shows the objects that grantee has no privilege on instead of the grantee's privileges.
+/// </summary>
+public sealed record GrantListTabState(string? Grantee = null, bool OnlyWithout = false);
 
 /// <summary>
 /// A record diagram tab (WP-60): the table of the start rows (the real object), their keys as text
@@ -124,6 +139,9 @@ public enum PlSqlView
 
     /// <summary>The synonyms on the unit (WP-68); not for triggers, nothing reaches a trigger by name.</summary>
     Synonyms,
+
+    /// <summary>The object privileges on the unit (WP-71); not for triggers, they have none.</summary>
+    Grants,
 }
 
 /// <summary>A PL/SQL tab: the unit (the real object; a synonym is resolved again on restore) and the view shown.</summary>

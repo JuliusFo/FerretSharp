@@ -116,6 +116,10 @@
                                                     {
                                                         <SynonymListView Tab="synonymTab" />
                                                     }
+                                                    else if (tab is GrantListTab grantTab)
+                                                    {
+                                                        <GrantListView Tab="grantTab" />
+                                                    }
                                                 </TabFrame>
                                             </div>
                                         }
@@ -504,6 +508,9 @@
                 break;
             case ShortcutAction.SchemaSynonyms:
                 _state.OpenSynonymList();
+                break;
+            case ShortcutAction.SchemaGrants:
+                _state.OpenGrantList();
                 break;
             case ShortcutAction.NewLinq:
                 _state.OpenLinq();

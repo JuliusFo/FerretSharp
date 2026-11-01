@@ -1,0 +1,31 @@
+@* The privileges on one object (WP-71): grantee, privilege, columns, who granted it and whether with grant option, with
+   "Revoke" per row. *@
+@using FerretSharp.Core.Schema
+
+<table class="columns">
+    <thead>
+        <tr>
+            <th>@SchemaViewText.Head_Grantee</th><th>@SchemaViewText.Head_Privilege</th><th>@SchemaViewText.Head_Columns</th>
+            <th>@SchemaViewText.Head_Grantor</th><th>@SchemaViewText.Head_GrantOption</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in Grants)
+        {
+            var g = row;
+            <GrantRow Grant="g" Selected="g == Selected" OnRevoke="OnRevoke" />
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ObjectGrant> Grants { get; set; } = [];
+
+    /// <summary>The row whose revoke is open.</summary>
+    [Parameter]
+    public ObjectGrant? Selected { get; set; }
+
+    [Parameter]
+    public EventCallback<ObjectGrant> OnRevoke { get; set; }
+}

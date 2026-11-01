@@ -69,6 +69,9 @@
                         case PlSqlView.Synonyms:
                             <SynonymsView Target="new(Tab.Unit.Owner, Tab.Unit.Name)" Tab="Tab" WorkspaceId="Tab.WorkspaceId" Version="_version" OnSchemaChanged="Reload" />
                             break;
+                        case PlSqlView.Grants:
+                            <GrantsView Target="new(Tab.Unit.Owner, Tab.Unit.Name)" Kind="GrantPrivileges.KindOf(Tab.Unit.Kind)" WorkspaceId="Tab.WorkspaceId" Version="_version" OnSchemaChanged="Reload" />
+                            break;
                     }
                 </div>
             }

@@ -1212,4 +1212,8 @@
     <value>Private synonyms of schema {0}</value>
     <comment>Tooltip of the tab with the schema's synonyms (WP-68)</comment>
   </data>
+  <data name="TabBar_GrantsTitle" xml:space="preserve">
+    <value>Object privileges in schema {0}</value>
+    <comment>Tooltip of the tab with the schema's privileges (WP-71)</comment>
+  </data>
 </root>
