@@ -39,6 +39,16 @@ Branch `wp/71-object-grants`, 2026-11-01. Frage des Nutzers („Kann man für Ta
 - **Links** lassen die Ansicht „Berechtigungen“ weg wie „Synonyme“ (eine ältere Version lehnte den Link sonst ab).
 - Kein ADR: kein neuer Weg zur Datenbank (Lese- und Schemaweg wie bisher; `GRANT`/`REVOKE` liefen dort schon, jetzt mit Test).
 
+## Nachtrag: Synonym beim Vergeben (2026-11-01)
+Idee eines Kollegen, nach dem ersten Review eingebracht: beim Vergeben gleich das SQL für das Synonym im Schema des Empfängers erzeugen. Entscheidungen des Nutzers („Deine Vorschläge passen gut, nimm das gerne noch mit.“):
+- In WP-71, solange der PR offen ist. Checkbox „Auch ein Synonym im Schema von X anlegen“ im Formular „Recht vergeben“ (Ansicht und Liste), **standardmäßig aus**; sie hängt `CREATE SYNONYM "X"."NAME" FOR "OWNER"."OBJEKT"` (`SynonymDdl` aus WP-68) **hinter** das GRANT – scheitert das GRANT, kommt das Synonym nicht. „Kopieren“ und „Im SQL-Editor öffnen“ nehmen beide mit: Darf man es selbst nicht ausführen, lässt man es X ausführen.
+- Nur für User außer dem Owner: keine Rolle (kein Schema), kein PUBLIC (öffentliche Synonyme gibt es beim Nutzer zu Zehntausenden). Name vorbelegt mit dem Objektnamen, änderbar, geprüft wie im Synonym-Entwurf.
+- Hat X schon ein privates Synonym auf das Objekt (sichtbar, weil das Ziel lesbar ist), steht statt der Checkbox ein Hinweis.
+- Scheitert nur das Synonym (ORA-01031: im fremden Schema braucht es `CREATE ANY SYNONYM`; ORA-00955: Name belegt), sagt ein Hinweis, dass das Recht vergeben ist und was fehlt; die Liste der Rechte lädt neu, der Entwurf bleibt.
+- Beim Entziehen des **letzten** Rechts eines Empfängers mit Synonym auf das Objekt: Hinweis, dass das Synonym bleibt und ins Leere zeigt (nicht automatisch löschen).
+- Die Synonyme des Objekts liest die Ansicht erst beim Vergeben oder Entziehen (die Abfrage liest alle Synonyme der Datenbank, WP-68), danach bis zum nächsten Laden gemerkt; die Liste liest sie je Objekt beim Öffnen des Entwurfs.
+- E2E (neuer Container, echte Klicks für Formular und Checkbox): `G_THIRD` mit SELECT und Synonym – ohne `CREATE ANY SYNONYM` lief das GRANT, das Synonym scheiterte mit ORA-01031 und dem Hinweis, die Liste zeigte das neue Recht, der Entwurf blieb; mit dem Recht liefen beide (das GRANT erneut ohne Fehler); danach „G_THIRD hat schon das Synonym …“; für Rolle und PUBLIC keine Checkbox; Entziehen des letzten Rechts nennt das verbleibende Synonym. Log: nur die erwartete ORA-01031.
+
 ## Gebaut
 - **Core:** `GrantDdl` (Grant, Revoke, Script), `OracleDdl.Grant`/`Revoke`, `DdlStepKind.Grant`; `ISchemaReader.GetGrantsAsync`/`GetSchemaGrantsAsync`/`GetUserNamesAsync` in `OracleSchemaReader.Grants.cs`, durchgereicht im `SchemaCache`; `ObjectGrant`, `SchemaObjectGrants`, `GrantObjectKind`, `GrantPrivileges`; `TabMode.Grants`, `PlSqlView.Grants`, `TabState.GrantList`; `ShortcutAction.SchemaGrants`; `TableLink` ohne die neue Ansicht.
 - **UI-State:** `GrantDraft` (Entwurf, `RevokeNotes`, `ErrorHint`, `RolesOf`), `GrantListTab`, `ShellState.OpenGrantList`, `ShellActions`.
