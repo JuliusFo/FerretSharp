@@ -1932,4 +1932,32 @@
     <value>{0} has {1} from you as well. This REVOKE would take yours, not the one {2} granted – only {2} can revoke this row.</value>
     <comment>Problem before revoking someone else's grant (review of WP-71): {0} grantee, {1} privilege, {2} grantor</comment>
   </data>
+  <data name="Grants_CreateSynonym" xml:space="preserve">
+    <value>Also create a synonym in {0}'s schema</value>
+    <comment>Checkbox in the grant draft: {0} grantee</comment>
+  </data>
+  <data name="Grants_CreateSynonymTitle" xml:space="preserve">
+    <value>So that {0} can name the object without its schema. Takes the privilege {1}; without it, copy the statement and let {0} run it (CREATE SYNONYM is enough there).</value>
+    <comment>Tooltip: {0} grantee, {1} privilege</comment>
+  </data>
+  <data name="Grants_SynonymExists" xml:space="preserve">
+    <value>{0} already has the synonym {1} on this object.</value>
+    <comment>Note in the grant draft</comment>
+  </data>
+  <data name="Grants_SynonymNeedsPrivilege" xml:space="preserve">
+    <value>The privilege is granted, the synonym is not: creating it in {0}'s schema takes the privilege {1}. Copy the statement or open it in the SQL editor and let {0} run it – CREATE SYNONYM is enough there.</value>
+    <comment>After ORA-01031 on the synonym of a grant: {0} grantee, {1} privilege</comment>
+  </data>
+  <data name="Grants_SynonymNameTaken" xml:space="preserve">
+    <value>The privilege is granted, the synonym is not: an object of {0} has that name already – choose another name.</value>
+    <comment>After ORA-00955 on the synonym of a grant: {0} grantee</comment>
+  </data>
+  <data name="Grants_RevokeLeavesSynonym" xml:space="preserve">
+    <value>{0} keeps the synonym {1}; without a privilege it leads nowhere – drop it in the view Synonyms.</value>
+    <comment>Note before revoking a grantee's last privilege: {0} grantee, {1} synonym</comment>
+  </data>
+  <data name="Grants_SynonymName" xml:space="preserve">
+    <value>Synonym name</value>
+    <comment>Label of the grantee synonym's name in the grant draft (WP-71)</comment>
+  </data>
 </root>

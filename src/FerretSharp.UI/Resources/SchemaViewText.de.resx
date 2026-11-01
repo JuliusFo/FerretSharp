@@ -1569,4 +1569,25 @@
   <data name="Grants_RevokeHitsOwn" xml:space="preserve">
     <value>{0} hat {1} auch von dir. Dieses REVOKE entzöge dein Recht, nicht das von {2} – diese Zeile kann nur {2} entziehen.</value>
   </data>
+  <data name="Grants_CreateSynonym" xml:space="preserve">
+    <value>Auch ein Synonym im Schema von {0} anlegen</value>
+  </data>
+  <data name="Grants_CreateSynonymTitle" xml:space="preserve">
+    <value>Damit {0} das Objekt ohne Schema ansprechen kann. Braucht das Recht {1}; ohne das Statement kopieren und von {0} ausführen lassen (dort reicht CREATE SYNONYM).</value>
+  </data>
+  <data name="Grants_SynonymExists" xml:space="preserve">
+    <value>{0} hat schon das Synonym {1} auf dieses Objekt.</value>
+  </data>
+  <data name="Grants_SynonymNeedsPrivilege" xml:space="preserve">
+    <value>Das Recht ist vergeben, das Synonym nicht: Im Schema von {0} braucht es das Recht {1}. Das Statement kopieren oder im SQL-Editor öffnen und von {0} ausführen lassen – dort reicht CREATE SYNONYM.</value>
+  </data>
+  <data name="Grants_SynonymNameTaken" xml:space="preserve">
+    <value>Das Recht ist vergeben, das Synonym nicht: Ein Objekt von {0} hat den Namen schon – einen anderen wählen.</value>
+  </data>
+  <data name="Grants_RevokeLeavesSynonym" xml:space="preserve">
+    <value>{0} behält das Synonym {1}; ohne Recht zeigt es ins Leere – in der Ansicht „Synonyme“ löschen.</value>
+  </data>
+  <data name="Grants_SynonymName" xml:space="preserve">
+    <value>Name des Synonyms</value>
+  </data>
 </root>

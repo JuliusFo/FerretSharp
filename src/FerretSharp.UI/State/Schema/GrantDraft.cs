@@ -8,13 +8,21 @@ namespace FerretSharp.UI.State;
 
 /// <summary>
 /// A grant in the views "Berechtigungen" and "Berechtigungen im Schema" (WP-71): grantee as typed, privileges from the list
-/// for the kind of object, optionally columns and the grant option. One GRANT to one grantee. Roles cannot be listed without
-/// DBA rights, so a grantee is a role when the object's grants name it or it is not a user (<paramref name="users"/>).
+/// for the kind of object, optionally columns and the grant option. One GRANT to one grantee – and, if asked for, a private
+/// synonym of the grantee on the object, so it can name the object without its schema (idea of a colleague, decided by the
+/// user on 2026-11-01). Roles cannot be listed without DBA rights, so a grantee is a role when the object's grants name it or
+/// it is not a user (<paramref name="users"/>).
 /// </summary>
 /// <param name="columns">The object's columns to grant INSERT, UPDATE and REFERENCES on; empty where that is not offered.</param>
 /// <param name="users">The users of the database; empty if they could not be read – then nothing is checked against them.</param>
 /// <param name="roles">Grantees of the object's grants that are no users: roles as far as the session can see.</param>
-public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyList<string> columns, IReadOnlyList<string> users, IReadOnlyCollection<string> roles)
+/// <param name="synonyms">
+/// The synonyms on the object (<see cref="SchemaCache.GetSynonymsAsync"/>): a grantee's own one is visible, the object being
+/// readable. Empty if they could not be read – then none is known.
+/// </param>
+public sealed class GrantDraft(
+    TableRef target, GrantObjectKind kind, IReadOnlyList<string> columns, IReadOnlyList<string> users, IReadOnlyCollection<string> roles,
+    IReadOnlyList<SynonymInfo>? synonyms = null)
 {
     private readonly HashSet<string> _users = users.ToHashSet(StringComparer.Ordinal);
     private readonly HashSet<string> _privileges = [];
@@ -33,6 +41,33 @@ public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyL
     public string Grantee { get; set; } = "";
 
     public bool GrantOption { get; set; }
+
+    /// <summary>Also create <see cref="Synonym"/>; off unless chosen (decision of the user, 2026-11-01).</summary>
+    public bool CreateSynonym { get; set; }
+
+    /// <summary>The synonym's name as typed; it starts as the object's name, quoted where Oracle needs it.</summary>
+    public string SynonymName { get; set; } = OracleIdentifier.QuoteIfNeeded(target.Name);
+
+    /// <summary>
+    /// A synonym is offered for a user other than the object's owner – a role has no schema, and PUBLIC would be a public
+    /// synonym, which is not offered (the user's database has tens of thousands).
+    /// </summary>
+    public bool SynonymOffered =>
+        GranteeName is { } grantee && OracleIdentifier.Problem(grantee) is null && grantee != ObjectGrant.PublicGrantee
+        && grantee != Target.Owner && !IsRole(grantee);
+
+    /// <summary>The grantee's private synonym on the object, if it has one already; then none is created.</summary>
+    public SynonymInfo? ExistingSynonym => GranteeName is { } grantee ? (synonyms ?? []).FirstOrDefault(s => s.Owner == grantee) : null;
+
+    /// <summary>The synonym to create with the grant; null unless chosen, offered, not there yet and named as Oracle takes it.</summary>
+    public SynonymInfo? Synonym =>
+        CreateSynonym && SynonymOffered && ExistingSynonym is null
+        && OracleIdentifier.Normalize(SynonymName) is { Length: > 0 } name && OracleIdentifier.Problem(name) is null
+            ? new SynonymInfo(GranteeName!, name)
+            : null;
+
+    /// <summary>Whether the synonym's name is a problem right now (chosen, offered and not there yet).</summary>
+    private bool SynonymWanted => CreateSynonym && SynonymOffered && ExistingSynonym is null;
 
     /// <summary>The chosen privileges in the order of <see cref="Offered"/>.</summary>
     public IReadOnlyList<string> Privileges => [.. Offered.Where(_privileges.Contains)];
@@ -89,14 +124,19 @@ public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyL
         }
     }
 
+    /// <summary>The GRANT, then the synonym: it runs only once the grantee may use the object.</summary>
     public IReadOnlyList<DdlStep> Steps =>
         GranteeName is { } grantee && OracleIdentifier.Problem(grantee) is null && Privileges.Count > 0
-            ? [GrantDdl.Grant(Target, Privileges, Columns, grantee, GrantOption)]
+            ?
+            [
+                GrantDdl.Grant(Target, Privileges, Columns, grantee, GrantOption),
+                .. Synonym is { } synonym ? [SynonymDdl.Create(synonym, Target)] : Array.Empty<DdlStep>(),
+            ]
             : [];
 
     /// <summary>
     /// What keeps it from running: no grantee or one Oracle cannot take, the owner (who has every privilege), no privilege, a
-    /// role with the grant option (ORA-01926).
+    /// role with the grant option (ORA-01926), a synonym without a name Oracle takes.
     /// </summary>
     public IReadOnlyList<string> Problems
     {
@@ -117,18 +157,48 @@ public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyL
                 .. grantee == Target.Owner ? [TextFormat.Format(SchemaViewText.Grants_OwnerHasAll, grantee)] : Array.Empty<string>(),
                 .. Privileges.Count == 0 ? [SchemaViewText.Grants_PrivilegeMissing] : Array.Empty<string>(),
                 .. GrantOption && IsRole(grantee) ? [TextFormat.Format(SchemaViewText.Grants_RoleNoGrantOption, grantee)] : Array.Empty<string>(),
+                .. SynonymWanted ? SynonymNameProblems() : [],
             ];
         }
     }
 
-    /// <summary>A grant to PUBLIC is one to every user; a grantee neither a user nor a role seen here may not exist (ORA-01917).</summary>
-    public IReadOnlyList<string> Warnings => GranteeName switch
-    {
-        ObjectGrant.PublicGrantee => [SchemaViewText.Grants_PublicWarning],
-        { } grantee when _users.Count > 0 && !_users.Contains(grantee) && !roles.Contains(grantee) =>
-            [TextFormat.Format(SchemaViewText.Grants_UnknownGrantee, grantee)],
-        _ => [],
-    };
+    private IReadOnlyList<string> SynonymNameProblems() =>
+        OracleIdentifier.Normalize(SynonymName) is not { Length: > 0 } name ? [SchemaViewText.Synonyms_NameMissing]
+        : OracleIdentifier.Problem(name) is { } problem ? [problem]
+        : [];
+
+    /// <summary>
+    /// A grant to PUBLIC is one to every user; a grantee neither a user nor a role seen here may not exist (ORA-01917); a
+    /// synonym name SQL must write in quotes.
+    /// </summary>
+    public IReadOnlyList<string> Warnings =>
+    [
+        .. GranteeName switch
+        {
+            ObjectGrant.PublicGrantee => [SchemaViewText.Grants_PublicWarning],
+            { } grantee when _users.Count > 0 && !_users.Contains(grantee) && !roles.Contains(grantee) =>
+                [TextFormat.Format(SchemaViewText.Grants_UnknownGrantee, grantee)],
+            _ => Array.Empty<string>(),
+        },
+        .. Synonym is { } synonym && OracleIdentifier.NeedsQuotes(synonym.Name) ? [SchemaViewText.Synonyms_NeedsQuotes] : Array.Empty<string>(),
+    ];
+
+    /// <summary>
+    /// What a failed run needs: the synonym refused after the grant ran – the privilege to create it in the grantee's schema
+    /// (ORA-01031) or its name taken there (ORA-00955) –, else <see cref="ErrorHint"/> for the GRANT.
+    /// </summary>
+    /// <param name="failed">The statement that failed (<c>DdlRunResult.Failed</c>).</param>
+    /// <param name="loginUser">The user the session logged in as, in dictionary form.</param>
+    public string? FailureHint(string? code, string? failed, string loginUser) =>
+        Synonym is { } synonym && failed == SynonymDdl.Create(synonym, Target).Sql
+            ? code switch
+            {
+                "ORA-01031" => TextFormat.Format(SchemaViewText.Grants_SynonymNeedsPrivilege, synonym.Owner,
+                    SynonymDdl.RequiredPrivilege(synonym, create: true, loginUser) ?? "CREATE SYNONYM"),
+                "ORA-00955" => TextFormat.Format(SchemaViewText.Grants_SynonymNameTaken, synonym.Owner),
+                _ => null,
+            }
+            : ErrorHint(code, revoked: null);
 
     private bool IsRole(string grantee) =>
         grantee != ObjectGrant.PublicGrantee && (roles.Contains(grantee) || (_users.Count > 0 && !_users.Contains(grantee)));
@@ -144,7 +214,8 @@ public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyL
     /// </summary>
     /// <param name="all">The grants on the object (the row's siblings).</param>
     /// <param name="loginUser">The user the session logged in as, in dictionary form.</param>
-    public static IReadOnlyList<string> RevokeNotes(ObjectGrant grant, IReadOnlyList<ObjectGrant> all, string loginUser)
+    /// <param name="synonyms">The synonyms on the object: one of the grantee leads nowhere once its last privilege goes.</param>
+    public static IReadOnlyList<string> RevokeNotes(ObjectGrant grant, IReadOnlyList<ObjectGrant> all, string loginUser, IReadOnlyList<SynonymInfo>? synonyms = null)
     {
         var notes = new List<string>();
         var siblings = all.Count(g => g.Grantee == grant.Grantee && g.Privilege == grant.Privilege && g.Grantor == grant.Grantor);
@@ -171,6 +242,13 @@ public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyL
         if (grant.Privilege == "REFERENCES")
         {
             notes.Add(TextFormat.Format(SchemaViewText.Grants_RevokeReferences, grant.Grantee));
+        }
+
+        // The REVOKE takes every row of this privilege and grantor; another privilege of the grantee keeps the synonym useful.
+        var remains = all.Any(g => g.Grantee == grant.Grantee && (g.Privilege != grant.Privilege || g.Grantor != grant.Grantor));
+        if (!remains && (synonyms ?? []).FirstOrDefault(s => s.Owner == grant.Grantee) is { } synonym)
+        {
+            notes.Add(TextFormat.Format(SchemaViewText.Grants_RevokeLeavesSynonym, grant.Grantee, synonym.Name));
         }
 
         return notes;

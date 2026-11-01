@@ -1,7 +1,9 @@
 @* The draft of a grant (WP-71) in the view "Privileges" and the list of the schema's privileges: grantee with suggestions,
    the privileges of the kind of object, the grant option and – for INSERT, UPDATE and REFERENCES – columns. Runs through
    DdlDraftPanel like every schema change; a refused grant gets a hint by its Oracle code below. *@
+@using FerretSharp.Core.Connections
 @using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Schema
 
 <section class="index-draft">
@@ -50,6 +52,28 @@
             <input type="checkbox" checked="@Draft.GrantOption" @onchange="e => Draft.GrantOption = e.Value is true" />
             @SchemaViewText.Grants_GrantOption
         </label>
+
+        @if (Draft.SynonymOffered && Draft.GranteeName is { } grantee)
+        {
+            <span></span>
+            @if (Draft.ExistingSynonym is { } existing)
+            {
+                <p class="hint small">@Icons.Info @TextFormat.Format(SchemaViewText.Grants_SynonymExists, grantee, $"{existing.Owner}.{existing.Name}")</p>
+            }
+            else
+            {
+                <label class="check" title="@TextFormat.Format(SchemaViewText.Grants_CreateSynonymTitle, grantee, SynonymPrivilege(grantee))">
+                    <input type="checkbox" checked="@Draft.CreateSynonym" @onchange="e => Draft.CreateSynonym = e.Value is true" />
+                    @TextFormat.Format(SchemaViewText.Grants_CreateSynonym, grantee)
+                </label>
+                @if (Draft.CreateSynonym)
+                {
+                    <label for="@_synonymId">@SchemaViewText.Grants_SynonymName</label>
+                    <input id="@_synonymId" class="field mono" spellcheck="false" value="@Draft.SynonymName"
+                           @oninput="e => Draft.SynonymName = (string?)e.Value ?? string.Empty" />
+                }
+            }
+        }
     </div>
     @if (Note is { } note)
     {
@@ -57,7 +81,7 @@
     }
     <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="Draft.Steps" Problems="Draft.Problems" Warnings="Draft.Warnings" ConfirmNotes="Draft.Warnings"
                    FileName="@($"{DateTime.Now:yyyy-MM-dd}_GRANT_{Draft.Target.Name}.sql")"
-                   OnRan="() => OnRan.InvokeAsync()" OnFailed="r => _hint = GrantDraft.ErrorHint(r.Error?.ErrorCode, revoked: null)" OnClose="OnClose" />
+                   OnRan="() => OnRan.InvokeAsync()" OnFailed="OnFailedAsync" OnClose="OnClose" />
     @if (_hint is { } hint)
     {
         <p class="hint">@Icons.Warning @hint</p>
@@ -67,7 +91,11 @@
 @code {
     private readonly string _granteeId = $"grantee-{Guid.NewGuid():N}";
     private readonly string _listId = $"grantees-{Guid.NewGuid():N}";
+    private readonly string _synonymId = $"grant-synonym-{Guid.NewGuid():N}";
     private string? _hint;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public GrantDraft Draft { get; set; } = null!;
@@ -85,4 +113,23 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    /// <summary>The GRANT ran and its synonym failed: the caller shows the grant, the draft stays with the hint.</summary>
+    [Parameter]
+    public EventCallback OnPartlyRan { get; set; }
+
+    private string LoginUser => Active.Profile is { } profile ? OracleIdentifier.Normalize(profile.User) : "";
+
+    /// <summary>The privilege a synonym in the grantee's schema takes (CREATE ANY SYNONYM unless it is the login user's).</summary>
+    private string SynonymPrivilege(string grantee) =>
+        SynonymDdl.RequiredPrivilege(new SynonymInfo(grantee, "X"), create: true, LoginUser) ?? "CREATE SYNONYM";
+
+    private async Task OnFailedAsync(DdlRunResult result)
+    {
+        _hint = Draft.FailureHint(result.Error?.ErrorCode, result.Failed, LoginUser);
+        if (result.Ran.Count > 0)
+        {
+            await OnPartlyRan.InvokeAsync();
+        }
+    }
 }

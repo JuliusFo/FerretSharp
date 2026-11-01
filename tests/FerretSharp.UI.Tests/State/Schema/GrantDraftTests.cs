@@ -87,6 +87,62 @@ public sealed class GrantDraftTests
         Assert.Equal("", GrantDraft.Typed(""));
     }
 
+    /// <summary>
+    /// The grantee's synonym (idea of a colleague, 2026-11-01): off unless chosen, only for a user other than the owner, not
+    /// when it has one on the object already, after the GRANT; a failure of the synonym alone gets its own hint.
+    /// </summary>
+    [Fact]
+    public void A_synonym_of_the_grantee_follows_the_grant_when_chosen()
+    {
+        var draft = Draft("u1");
+        draft.Choose("SELECT", true);
+        Assert.Single(draft.Steps); // off by default
+
+        draft.CreateSynonym = true;
+        Assert.Equal(
+            ["GRANT SELECT ON \"APP\".\"KUNDEN\" TO \"U1\"", "CREATE SYNONYM \"U1\".\"KUNDEN\" FOR \"APP\".\"KUNDEN\""],
+            draft.Steps.Select(s => s.Sql));
+
+        draft.SynonymName = "";
+        Assert.Equal(["Das Synonym braucht einen Namen."], draft.Problems);
+        draft.SynonymName = "\"Kunden\"";
+        Assert.Contains(draft.Warnings, w => w.Contains("Anführungszeichen", StringComparison.Ordinal));
+
+        // what Oracle says about the synonym alone: the grant ran
+        var synonymSql = draft.Steps[1].Sql;
+        Assert.Contains("CREATE ANY SYNONYM", draft.FailureHint("ORA-01031", synonymSql, loginUser: "APP"), StringComparison.Ordinal);
+        Assert.Contains("hat den Namen schon", draft.FailureHint("ORA-00955", synonymSql, "APP"), StringComparison.Ordinal);
+        Assert.Contains("GRANT ANY OBJECT PRIVILEGE", draft.FailureHint("ORA-01031", draft.Steps[0].Sql, "APP"), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("PUBLIC")]   // would be a public synonym
+    [InlineData("APP")]      // the owner
+    [InlineData("APP_ROLE")] // a role has no schema
+    public void No_synonym_is_offered_where_there_is_no_schema_of_the_grantee_for_it(string grantee)
+    {
+        var draft = Draft(grantee);
+        draft.Choose("SELECT", true);
+        draft.CreateSynonym = true;
+
+        Assert.False(draft.SynonymOffered);
+        Assert.DoesNotContain(draft.Steps, s => s.Kind == Core.Ddl.DdlStepKind.Synonym);
+    }
+
+    [Fact]
+    public void A_grantee_with_a_synonym_on_the_object_gets_none_more()
+    {
+        var draft = new GrantDraft(Table, GrantObjectKind.Table, [], ["U1"], [], [new SynonymInfo("U1", "KUNDE"), new SynonymInfo("PUBLIC", "KUNDEN")])
+        {
+            Grantee = "U1",
+            CreateSynonym = true,
+        };
+        draft.Choose("SELECT", true);
+
+        Assert.Equal(new SynonymInfo("U1", "KUNDE"), draft.ExistingSynonym);
+        Assert.Single(draft.Steps);
+    }
+
     [Fact]
     public void A_revoke_names_what_it_takes_along()
     {
@@ -108,6 +164,13 @@ public sealed class GrantDraftTests
         // a privilege on the whole object and on columns from the same grantor: both go
         var whole = update with { Columns = [], Grantable = false };
         Assert.Contains(GrantDraft.RevokeNotes(whole, [whole, update], "APP"), n => n.Contains("allen Spalten", StringComparison.Ordinal));
+
+        // the grantee's last privilege goes, its synonym stays and leads nowhere; with another privilege left it still works
+        var select = new ObjectGrant("U1", "SELECT", [], "APP", false, false);
+        SynonymInfo[] synonyms = [new("U1", "KUNDEN")];
+        Assert.Equal(["U1 behält das Synonym KUNDEN; ohne Recht zeigt es ins Leere – in der Ansicht „Synonyme“ löschen."],
+            GrantDraft.RevokeNotes(select, [select], "APP", synonyms));
+        Assert.Empty(GrantDraft.RevokeNotes(select, [select, select with { Privilege = "INSERT" }], "APP", synonyms));
     }
 
     /// <summary>

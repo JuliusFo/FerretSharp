@@ -6,7 +6,7 @@
 @using FerretSharp.Core.Schema
 
 @{
-    var notes = GrantDraft.RevokeNotes(Grant, Grants, LoginUser);
+    var notes = GrantDraft.RevokeNotes(Grant, Grants, LoginUser, Synonyms);
     var problems = GrantDraft.RevokeProblems(Grant, Grants, LoginUser);
 }
 <section class="index-draft">
@@ -36,6 +36,10 @@
     /// <summary>All grants on the object: a revoke takes the privilege's other rows along.</summary>
     [Parameter, EditorRequired]
     public IReadOnlyList<ObjectGrant> Grants { get; set; } = [];
+
+    /// <summary>The synonyms on the object: the note when the grantee's last privilege goes and its synonym stays.</summary>
+    [Parameter]
+    public IReadOnlyList<SynonymInfo> Synonyms { get; set; } = [];
 
     [Parameter, EditorRequired]
     public Guid WorkspaceId { get; set; }

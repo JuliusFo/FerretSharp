@@ -12,11 +12,11 @@
 
 @if (_draft is { } draft)
 {
-    <GrantDraftForm Draft="draft" WorkspaceId="WorkspaceId" OnRan="OnRanAsync" OnClose="Close" />
+    <GrantDraftForm Draft="draft" WorkspaceId="WorkspaceId" OnRan="OnRanAsync" OnPartlyRan="PartlyRanAsync" OnClose="Close" />
 }
 else if (_revoke is { } revoke)
 {
-    <GrantRevokeSection Target="Target" Grant="revoke" Grants="Data ?? []" WorkspaceId="WorkspaceId" OnRan="OnRanAsync" OnClose="Close" />
+    <GrantRevokeSection Target="Target" Grant="revoke" Grants="Data ?? []" Synonyms="_synonyms ?? []" WorkspaceId="WorkspaceId" OnRan="OnRanAsync" OnClose="Close" />
 }
 
 @if (Data is { } grants)
@@ -26,7 +26,7 @@ else if (_revoke is { } revoke)
             <h2>@SchemaViewText.Grants_Heading <span class="count">@grants.Count</span></h2>
             @if (_draft is null && _revoke is null)
             {
-                <button class="btn" disabled="@_readingUsers" @onclick="StartGrantAsync"><span class="plus">+</span> @SchemaViewText.Grants_Grant</button>
+                <button class="btn" disabled="@_reading" @onclick="StartGrantAsync"><span class="plus">+</span> @SchemaViewText.Grants_Grant</button>
             }
         </div>
         @if (grants.Count == 0)
@@ -35,7 +35,7 @@ else if (_revoke is { } revoke)
         }
         else
         {
-            <GrantTable Grants="grants" Selected="_revoke" OnRevoke="StartRevoke" />
+            <GrantTable Grants="grants" Selected="_revoke" OnRevoke="StartRevokeAsync" />
         }
         <p class="hint small">@SchemaViewText.Grants_RolesNote</p>
         @if (OtherSchema)
@@ -58,7 +58,13 @@ else if (_revoke is { } revoke)
     /// </summary>
     private IReadOnlyList<string>? _users;
 
-    private bool _readingUsers;
+    /// <summary>
+    /// The synonyms on the object, for the grantee's synonym and the note before a revoke – read when first needed after each
+    /// load, not with the list: the query reads all synonyms of the database (WP-68).
+    /// </summary>
+    private IReadOnlyList<SynonymInfo>? _synonyms;
+
+    private bool _reading;
     private readonly CancellationTokenSource _closing = new();
 
     /// <summary>The object: the real one, never a synonym of it.</summary>
@@ -86,40 +92,76 @@ else if (_revoke is { } revoke)
     protected override Task<IReadOnlyList<ObjectGrant>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         schema.GetGrantsAsync(Target, cancellationToken);
 
-    /// <summary>F5 or a schema change: the next grant reads the users again.</summary>
-    protected override void OnLoaded(IReadOnlyList<ObjectGrant> data) => _users = null;
+    /// <summary>F5 or a schema change: the next grant or revoke reads the users and synonyms again.</summary>
+    protected override void OnLoaded(IReadOnlyList<ObjectGrant> data) => (_users, _synonyms) = (null, null);
 
     /// <summary>
-    /// The users for the grantee's suggestions and checks, read once and cancelled when the tab closes; none if they cannot
-    /// be read (nothing is checked then, and the next grant tries again).
+    /// The users for the grantee's suggestions and checks and the synonyms on the object, each read once after a load and
+    /// cancelled when the tab closes; what cannot be read stays unknown (nothing is checked against it, the next try reads
+    /// again). False if the tab closed meanwhile or a read is running.
     /// </summary>
-    private async Task StartGrantAsync()
+    private async Task<bool> ReadAsync(bool users)
     {
-        if (Active.Schema is not { } schema || _readingUsers)
+        if (Active.Schema is not { } schema || _reading)
         {
-            return;
+            return false;
         }
 
-        _revoke = null;
-        var users = _users;
-        if (users is null)
+        _reading = true;
+        var token = _closing.Token;
+        if (users && _users is null)
         {
-            _readingUsers = true;
-            var token = _closing.Token;
             var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetUserNamesAsync(token), token);
             if (_disposed)
             {
-                return;
+                return false;
             }
 
-            _readingUsers = false;
-            users = result.Succeeded ? _users = result.Value! : [];
+            _users = result.Succeeded ? result.Value : null;
         }
 
-        _draft = new GrantDraft(Target, Kind, Columns, users, GrantDraft.RolesOf(Data ?? [], users));
+        if (_synonyms is null)
+        {
+            var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSynonymsAsync(Target, token), token);
+            if (_disposed)
+            {
+                return false;
+            }
+
+            _synonyms = result.Succeeded ? result.Value : null;
+        }
+
+        _reading = false;
+        return true;
     }
 
-    private void StartRevoke(ObjectGrant grant) => (_draft, _revoke) = (null, grant);
+    private async Task StartGrantAsync()
+    {
+        _revoke = null;
+        if (await ReadAsync(users: true))
+        {
+            var users = _users ?? [];
+            _draft = new GrantDraft(Target, Kind, Columns, users, GrantDraft.RolesOf(Data ?? [], users), _synonyms ?? []);
+        }
+    }
+
+    private async Task StartRevokeAsync(ObjectGrant grant)
+    {
+        _draft = null;
+        if (await ReadAsync(users: false))
+        {
+            _revoke = grant;
+        }
+    }
+
+    /// <summary>The GRANT ran, its synonym did not: the list shows the grant, the draft stays with the hint.</summary>
+    private async Task PartlyRanAsync()
+    {
+        if (!_disposed)
+        {
+            await OnSchemaChanged.InvokeAsync();
+        }
+    }
 
     private void Close() => (_draft, _revoke) = (null, null);
 

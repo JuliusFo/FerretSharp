@@ -38,11 +38,11 @@
 
                 @if (_draft is { } draft)
                 {
-                    <GrantDraftForm @key="draft" Draft="draft" WorkspaceId="Tab.WorkspaceId" Note="@ColumnsNote(draft)" OnRan="OnRanAsync" OnClose="Close" />
+                    <GrantDraftForm @key="draft" Draft="draft" WorkspaceId="Tab.WorkspaceId" Note="@ColumnsNote(draft)" OnRan="OnRanAsync" OnPartlyRan="LoadAsync" OnClose="Close" />
                 }
                 else if (_revoke is { } revoke)
                 {
-                    <GrantRevokeSection Target="revoke.Object.Object" Grant="revoke.Grant" Grants="revoke.Object.Grants" WorkspaceId="Tab.WorkspaceId"
+                    <GrantRevokeSection Target="revoke.Object.Object" Grant="revoke.Grant" Grants="revoke.Object.Grants" Synonyms="_synonyms" WorkspaceId="Tab.WorkspaceId"
                                         OnRan="OnRanAsync" OnClose="Close" />
                 }
 
@@ -74,7 +74,7 @@
                                                 <td>@KindName(o.Kind)</td>
                                                 <td>
                                                     <button class="link-btn" title="@TextFormat.Format(SchemaViewText.GrantList_GrantTitle, o.Object.Name)"
-                                                            @onclick="() => StartGrant(o)">@SchemaViewText.Grants_Grant</button>
+                                                            disabled="@_reading" @onclick="() => StartGrantAsync(o)">@SchemaViewText.Grants_Grant</button>
                                                 </td>
                                             </tr>
                                         }
@@ -106,7 +106,7 @@
                                         @foreach (var row in rows)
                                         {
                                             var (o, g) = row;
-                                            <GrantRow Grant="g" Selected="_revoke is { } r && r.Object == o && r.Grant == g" OnRevoke="x => StartRevoke(o, x)">
+                                            <GrantRow Grant="g" Selected="_revoke is { } r && r.Object == o && r.Grant == g" OnRevoke="x => StartRevokeAsync(o, x)">
                                                 <Leading>
                                                     <td class="mono">@ObjectName(o)</td>
                                                     <td>@KindName(o.Kind)</td>
@@ -150,6 +150,12 @@
     private bool _loaded;
     private GrantDraft? _draft;
     private (SchemaObjectGrants Object, ObjectGrant Grant)? _revoke;
+
+    /// <summary>The synonyms on the object of the open grant or revoke, read when it opens (the query reads all synonyms, WP-68).</summary>
+    private IReadOnlyList<SynonymInfo> _synonyms = [];
+
+    private bool _reading;
+    private readonly CancellationTokenSource _closing = new();
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -262,16 +268,49 @@
         Shell.MarkDirty();
     }
 
-    private void StartGrant(SchemaObjectGrants target)
+    /// <summary>
+    /// The synonyms on <paramref name="target"/> – for the grantee's synonym and the note before a revoke; none if they cannot
+    /// be read. False if the tab closed meanwhile or a read is running.
+    /// </summary>
+    private async Task<bool> ReadSynonymsAsync(SchemaObjectGrants target)
     {
-        _revoke = null;
-        _draft = new GrantDraft(target.Object, target.Kind, [], _users, GrantDraft.RolesOf(target.Grants, _users))
+        if (Active.Schema is not { } schema || _reading)
         {
-            Grantee = Tab.Grantee is { } grantee ? GrantDraft.Typed(grantee) : "",
-        };
+            return false;
+        }
+
+        _reading = true;
+        var token = _closing.Token;
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSynonymsAsync(target.Object, token), token);
+        if (_disposed)
+        {
+            return false;
+        }
+
+        (_synonyms, _reading) = (result.Succeeded ? result.Value! : [], false);
+        return true;
     }
 
-    private void StartRevoke(SchemaObjectGrants target, ObjectGrant grant) => (_draft, _revoke) = (null, (target, grant));
+    private async Task StartGrantAsync(SchemaObjectGrants target)
+    {
+        (_draft, _revoke) = (null, null);
+        if (await ReadSynonymsAsync(target))
+        {
+            _draft = new GrantDraft(target.Object, target.Kind, [], _users, GrantDraft.RolesOf(target.Grants, _users), _synonyms)
+            {
+                Grantee = Tab.Grantee is { } grantee ? GrantDraft.Typed(grantee) : "",
+            };
+        }
+    }
+
+    private async Task StartRevokeAsync(SchemaObjectGrants target, ObjectGrant grant)
+    {
+        (_draft, _revoke) = (null, null);
+        if (await ReadSynonymsAsync(target))
+        {
+            _revoke = (target, grant);
+        }
+    }
 
     private void Close() => (_draft, _revoke) = (null, null);
 
@@ -351,6 +390,8 @@
     public void Dispose()
     {
         _disposed = true;
+        _closing.Cancel();
+        _closing.Dispose();
         Shell.TabCommandRequested -= OnTabCommand;
         _cts?.Cancel();
         _cts?.Dispose();
