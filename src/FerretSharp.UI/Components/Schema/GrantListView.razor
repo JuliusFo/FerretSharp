@@ -156,6 +156,9 @@
 
     private bool _reading;
     private readonly CancellationTokenSource _closing = new();
+
+    /// <summary>The grant or revoke opened last: a newer one, closing or the tab closing gives up its read.</summary>
+    private CancellationTokenSource? _action;
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -269,34 +272,53 @@
     }
 
     /// <summary>
-    /// The synonyms on <paramref name="target"/> – for the grantee's synonym and the note before a revoke; none if they cannot
-    /// be read. False if the tab closed meanwhile or a read is running.
+    /// A grant or revoke opens: the read of the one before gives up and its result no longer applies – the synonyms of one
+    /// object came late and stood under the revoke of another (fix check of the third pass).
     /// </summary>
-    private async Task<bool> ReadSynonymsAsync(SchemaObjectGrants target)
+    private CancellationToken NextAction()
     {
-        if (Active.Schema is not { } schema || _reading)
+        if (_disposed)
         {
-            return false;
+            return new CancellationToken(canceled: true); // OnRan of a run that ended after the tab closed
+        }
+
+        _action?.Cancel();
+        _action?.Dispose();
+        _action = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        _reading = false;
+        return _action.Token;
+    }
+
+    /// <summary>
+    /// The synonyms on <paramref name="target"/> – for the grantee's synonym and the note before a revoke; none if they cannot
+    /// be read. Null if the action was given up meanwhile (<see cref="NextAction"/>, closing the draft or the tab).
+    /// </summary>
+    private async Task<IReadOnlyList<SynonymInfo>?> ReadSynonymsAsync(SchemaObjectGrants target, CancellationToken token)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return null;
         }
 
         _reading = true;
-        var token = _closing.Token;
         var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSynonymsAsync(target.Object, token), token);
-        if (_disposed)
+        if (token.IsCancellationRequested)
         {
-            return false;
+            return null;
         }
 
-        (_synonyms, _reading) = (result.Succeeded ? result.Value! : [], false);
-        return true;
+        _reading = false;
+        return result.Succeeded ? result.Value! : [];
     }
 
     private async Task StartGrantAsync(SchemaObjectGrants target)
     {
+        var token = NextAction();
         (_draft, _revoke) = (null, null);
-        if (await ReadSynonymsAsync(target))
+        if (await ReadSynonymsAsync(target, token) is { } synonyms)
         {
-            _draft = new GrantDraft(target.Object, target.Kind, [], _users, GrantDraft.RolesOf(target.Grants, _users), _synonyms)
+            _synonyms = synonyms;
+            _draft = new GrantDraft(target.Object, target.Kind, [], _users, GrantDraft.RolesOf(target.Grants, _users), synonyms)
             {
                 Grantee = Tab.Grantee is { } grantee ? GrantDraft.Typed(grantee) : "",
             };
@@ -306,11 +328,20 @@
     /// <summary>Opens at once; the note on the grantee's synonym follows once the synonyms are read (third pass of the review).</summary>
     private async Task StartRevokeAsync(SchemaObjectGrants target, ObjectGrant grant)
     {
+        var token = NextAction();
         (_draft, _revoke, _synonyms) = (null, (target, grant), []);
-        await ReadSynonymsAsync(target);
+        if (await ReadSynonymsAsync(target, token) is { } synonyms)
+        {
+            _synonyms = synonyms;
+        }
     }
 
-    private void Close() => (_draft, _revoke) = (null, null);
+    /// <summary>Also a grant still reading the synonyms gives up: it would open after the close.</summary>
+    private void Close()
+    {
+        NextAction();
+        (_draft, _revoke) = (null, null);
+    }
 
     private async Task OnRanAsync()
     {
@@ -389,6 +420,7 @@
     {
         _disposed = true;
         _closing.Cancel();
+        _action?.Dispose();
         _closing.Dispose();
         Shell.TabCommandRequested -= OnTabCommand;
         _cts?.Cancel();

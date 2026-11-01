@@ -67,6 +67,9 @@ else if (_revoke is { } revoke)
     private bool _reading;
     private readonly CancellationTokenSource _closing = new();
 
+    /// <summary>The grant or revoke opened last: a newer one, closing or the tab closing gives up its read.</summary>
+    private CancellationTokenSource? _action;
+
     /// <summary>The object: the real one, never a synonym of it.</summary>
     [Parameter, EditorRequired]
     public TableRef Target { get; set; } = null!;
@@ -96,23 +99,40 @@ else if (_revoke is { } revoke)
     protected override void OnLoaded(IReadOnlyList<ObjectGrant> data) => (_users, _synonyms) = (null, null);
 
     /// <summary>
-    /// The users for the grantee's suggestions and checks and the synonyms on the object, each read once after a load and
-    /// cancelled when the tab closes; what cannot be read stays unknown (nothing is checked against it, the next try reads
-    /// again). False if the tab closed meanwhile or a read is running.
+    /// A grant or revoke opens: the read of the one before gives up and its result no longer applies – it came late over the
+    /// VPN and replaced what was opened since (fix check of the third pass).
     /// </summary>
-    private async Task<bool> ReadAsync(bool users)
+    private CancellationToken NextAction()
     {
-        if (Active.Schema is not { } schema || _reading)
+        if (_disposed)
+        {
+            return new CancellationToken(canceled: true); // OnRan of a run that ended after the tab closed
+        }
+
+        _action?.Cancel();
+        _action?.Dispose();
+        _action = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        _reading = false;
+        return _action.Token;
+    }
+
+    /// <summary>
+    /// The users for the grantee's suggestions and checks and the synonyms on the object, each read once after a load; what
+    /// cannot be read stays unknown (nothing is checked against it, the next try reads again). False if the action was
+    /// given up meanwhile (<see cref="NextAction"/>, closing the draft or the tab).
+    /// </summary>
+    private async Task<bool> ReadAsync(bool users, CancellationToken token)
+    {
+        if (Active.Schema is not { } schema)
         {
             return false;
         }
 
         _reading = true;
-        var token = _closing.Token;
         if (users && _users is null)
         {
             var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetUserNamesAsync(token), token);
-            if (_disposed)
+            if (token.IsCancellationRequested)
             {
                 return false;
             }
@@ -123,7 +143,7 @@ else if (_revoke is { } revoke)
         if (_synonyms is null)
         {
             var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSynonymsAsync(Target, token), token);
-            if (_disposed)
+            if (token.IsCancellationRequested)
             {
                 return false;
             }
@@ -137,8 +157,9 @@ else if (_revoke is { } revoke)
 
     private async Task StartGrantAsync()
     {
-        _revoke = null;
-        if (await ReadAsync(users: true))
+        var token = NextAction();
+        (_draft, _revoke) = (null, null);
+        if (await ReadAsync(users: true, token))
         {
             var users = _users ?? [];
             _draft = new GrantDraft(Target, Kind, Columns, users, GrantDraft.RolesOf(Data ?? [], users), _synonyms ?? []);
@@ -151,8 +172,9 @@ else if (_revoke is { } revoke)
     /// </summary>
     private async Task StartRevokeAsync(ObjectGrant grant)
     {
+        var token = NextAction();
         (_draft, _revoke) = (null, grant);
-        await ReadAsync(users: false);
+        await ReadAsync(users: false, token);
     }
 
     /// <summary>The GRANT ran, its synonym did not: the list shows the grant, the draft stays with the hint.</summary>
@@ -164,7 +186,12 @@ else if (_revoke is { } revoke)
         }
     }
 
-    private void Close() => (_draft, _revoke) = (null, null);
+    /// <summary>Also a grant still reading its users gives up: it would open after the close.</summary>
+    private void Close()
+    {
+        NextAction();
+        (_draft, _revoke) = (null, null);
+    }
 
     private async Task OnRanAsync()
     {
@@ -179,6 +206,7 @@ else if (_revoke is { } revoke)
     {
         _disposed = true;
         _closing.Cancel();
+        _action?.Dispose();
         _closing.Dispose();
         base.Dispose();
     }
