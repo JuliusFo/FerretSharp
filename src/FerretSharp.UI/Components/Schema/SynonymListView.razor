@@ -105,6 +105,12 @@
     private string? _missingPrivilege;
     private CancellationTokenSource? _cts;
 
+    /// <summary>
+    /// The tab closed: a schema change that ends later (OnRan of the panel) loads nothing – the token source is disposed
+    /// (review of WP-71).
+    /// </summary>
+    private bool _disposed;
+
     private string Owner => Active.Schema?.Owner ?? "";
 
     /// <summary>The browsed schema is not the login user's: Oracle hides that schema's synonyms whose target the session cannot read.</summary>
@@ -141,7 +147,7 @@
 
     private async Task LoadAsync()
     {
-        if (Active.Schema is not { } schema)
+        if (_disposed || Active.Schema is not { } schema)
         {
             return;
         }
@@ -190,6 +196,7 @@
 
     public void Dispose()
     {
+        _disposed = true;
         Shell.TabCommandRequested -= OnTabCommand;
         _cts?.Cancel();
         _cts?.Dispose();
