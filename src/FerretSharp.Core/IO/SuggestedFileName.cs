@@ -15,7 +15,7 @@ public static class SuggestedFileName
     private const int MaxLength = 255;
 
     private static readonly SearchValues<char> Invalid = SearchValues.Create(
-        "<>:\"/\\|?*%‎‏‪‫‬‭‮⁦⁧⁨⁩");
+        "<>:\"/\\|?*%\u061C\u200E\u200F\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069");
 
     private static readonly HashSet<string> Devices = new(
         ["CON", "PRN", "AUX", "NUL",
@@ -41,26 +41,26 @@ public static class SuggestedFileName
             }
         }
 
-        var file = new string(chars).TrimEnd('.', ' ');
+        // Checked on the name as it ends up: a cut can leave only dots or blanks, or a device name (review of the fix).
+        var file = Fit(new string(chars));
         if (file.Length == 0)
         {
             return "_";
         }
 
-        if (Devices.Contains(file.Split('.')[0].TrimEnd(' ')))
-        {
-            file = "_" + file;
-        }
+        return Devices.Contains(file.Split('.')[0].TrimEnd(' ')) ? Fit("_" + file) : file;
+    }
 
+    /// <summary>At most 255 characters, cut before the extension and never inside a surrogate pair; no trailing dots or blanks.</summary>
+    private static string Fit(string file)
+    {
         if (file.Length > MaxLength)
         {
             var extension = Path.GetExtension(file);
-            file = extension.Length is > 0 and <= 16
-                ? Cut(file, MaxLength - extension.Length) + extension
-                : Cut(file, MaxLength).TrimEnd('.', ' ');
+            file = extension.Length is > 0 and <= 16 ? Cut(file, MaxLength - extension.Length) + extension : Cut(file, MaxLength);
         }
 
-        return file;
+        return file.TrimEnd('.', ' ');
     }
 
     private static string Cut(string text, int length) =>

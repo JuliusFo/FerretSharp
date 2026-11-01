@@ -21,8 +21,8 @@ public class SuggestedFileNameTests
     [InlineData("A<B>C:D\"E|F?G*H.txt", "A_B_C_D_E_F_G_H.txt")]
     [InlineData("TAB\tNAME\n.sql", "TAB_NAME_.sql")]
     [InlineData("%APPDATA%_x.csv", "_APPDATA__x.csv")] // the dialog expands %VAR% – its value holds separators (review)
-    [InlineData("‮txt.exe.csv", "_txt.exe.csv")] // shown reversed, as if it ended in .txt (review)
-    [InlineData("A‎B⁦C.csv", "A_B_C.csv")]
+    [InlineData("\u202Etxt.exe.csv", "_txt.exe.csv")] // shown reversed, as if it ended in .txt (review)
+    [InlineData("A\u200EB\u2066C.csv", "A_B_C.csv")]
     public void No_folder_and_no_character_Windows_refuses(string name, string file) =>
         Assert.Equal(file, SuggestedFileName.Of(name));
 
@@ -71,11 +71,18 @@ public class SuggestedFileNameTests
         Assert.Equal(new string('T', stem) + extension, file);
     }
 
-    [Fact]
-    public void A_name_without_extension_is_cut_without_a_trailing_dot()
-    {
-        var file = SuggestedFileName.Of(new string('T', 254) + ". " + new string('T', 20)); // over 16: no extension
+    /// <summary>Review of the fix: the rules hold for the cut name – it ended in a dot, was empty or a device name.</summary>
+    [Theory]
+    [MemberData(nameof(CutNames))]
+    public void The_cut_name_follows_the_rules(string name, string file) =>
+        Assert.Equal(file, SuggestedFileName.Of(name));
 
-        Assert.Equal(new string('T', 254), file);
-    }
+    // An "extension" over 16 characters counts as none.
+    public static TheoryData<string, string> CutNames => new()
+    {
+        { new string('T', 254) + ". " + new string('T', 20), new string('T', 254) },
+        { new string('.', 300) + new string('T', 21), "_" },
+        { "NUL" + new string(' ', 252) + new string('T', 24), "_NUL" },
+        { "NUL" + new string(' ', 252) + "x.csv", "_NUL" + new string(' ', 247) + ".csv" },
+    };
 }
