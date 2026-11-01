@@ -14,7 +14,8 @@
 <div class="tabview grant-list-tab">
     <div class="tab-toolbar">
         <input class="field mono grant-filter" spellcheck="false" list="@_listId" placeholder="@SchemaViewText.GrantList_AllGrantees"
-               title="@SchemaViewText.Head_Grantee" value="@Tab.Grantee" @onchange="e => SetGrantee((string?)e.Value)" />
+               title="@SchemaViewText.Head_Grantee" value="@(_typed ?? Tab.Grantee)" @oninput="e => OnGranteeInput((string?)e.Value)"
+               @onchange="e => SetGrantee((string?)e.Value)" @onkeydown="OnGranteeKey" />
         <datalist id="@_listId">
             @foreach (var name in Grantees)
             {
@@ -139,6 +140,9 @@
     public GrantListTab Tab { get; set; } = null!;
 
     private readonly string _listId = $"grant-filter-{Guid.NewGuid():N}";
+
+    /// <summary>The grantee filter as typed, until it is applied; null shows the applied one.</summary>
+    private string? _typed;
     private IReadOnlyList<SchemaObjectGrants>? _objects;
     private IReadOnlyList<string> _users = [];
     private DatabaseException? _error;
@@ -200,9 +204,32 @@
         }
     }
 
+    /// <summary>
+    /// Typing filters once the name is a known grantee (also one picked from the suggestions) or the field is empty; Enter
+    /// and leaving the field take any name – a role no grant here names yet.
+    /// </summary>
+    private void OnGranteeInput(string? typed)
+    {
+        _typed = typed ?? "";
+        var name = OracleIdentifier.Normalize(_typed);
+        if (name.Length == 0 || Grantees.Contains(name, StringComparer.Ordinal))
+        {
+            SetGrantee(_typed);
+        }
+    }
+
+    private void OnGranteeKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && _typed is { } typed)
+        {
+            SetGrantee(typed);
+        }
+    }
+
     /// <summary>A grantee as typed, normalized like Oracle names it; empty for every grantee.</summary>
     private void SetGrantee(string? typed)
     {
+        _typed = null;
         Tab.Grantee = OracleIdentifier.Normalize(typed ?? "") is { Length: > 0 } name ? name : null;
         if (Tab.Grantee is null)
         {

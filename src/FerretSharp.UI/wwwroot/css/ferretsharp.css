@@ -1644,6 +1644,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 /* WP-71: the privileges and columns of a grant side by side; the grantee filter of the schema's privileges. */
 .grant-choices { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .grant-filter { width: 220px; }
+.grant-list-tab td > .link-btn.mono { padding: 0; }
 /* WP-67: ASC/DESC of a column in the index draft; the tablespace with its suggestion. */
 .sort-toggle { height: 20px; padding: 0 6px; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--faint); font-size: 10.5px; font-weight: 600; cursor: pointer; }
 .sort-toggle:hover { color: var(--text); border-color: var(--border-strong); }

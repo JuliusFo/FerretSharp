@@ -32,7 +32,6 @@
         {
             <span class="label">@SchemaViewText.Head_Columns</span>
             <div>
-                <p class="hint small">@SchemaViewText.Grants_ColumnsLabel</p>
                 <div class="grant-choices">
                     @foreach (var column in Draft.OfferedColumns)
                     {
@@ -42,6 +41,7 @@
                         </label>
                     }
                 </div>
+                <p class="hint small">@SchemaViewText.Grants_ColumnsLabel</p>
             </div>
         }
 
