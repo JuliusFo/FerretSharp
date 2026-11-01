@@ -84,5 +84,6 @@ public class SuggestedFileNameTests
         { new string('.', 300) + new string('T', 21), "_" },
         { "NUL" + new string(' ', 252) + new string('T', 24), "_NUL" },
         { "NUL" + new string(' ', 252) + "x.csv", "_NUL" + new string(' ', 247) + ".csv" },
+        { new string('A', 260) + ".csv.", new string('A', 251) + ".csv" },
     };
 }

@@ -54,6 +54,7 @@ public static class SuggestedFileName
     /// <summary>At most 255 characters, cut before the extension and never inside a surrogate pair; no trailing dots or blanks.</summary>
     private static string Fit(string file)
     {
+        file = file.TrimEnd('.', ' '); // before the extension is read: "x.csv." has none
         if (file.Length > MaxLength)
         {
             var extension = Path.GetExtension(file);
