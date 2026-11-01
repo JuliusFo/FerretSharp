@@ -63,6 +63,7 @@ public sealed class GrantDdlTests
             Grant("U1", "REFERENCES", ["ID"]),
             Grant("PUBLIC", "SELECT"),
             Grant("U1", "DELETE", grantable: true),
+            new("U2", "SELECT", [], "APP", Grantable: true, Hierarchy: true),
         ];
 
         Assert.Equal(
@@ -72,6 +73,8 @@ public sealed class GrantDdlTests
             "GRANT DELETE ON \"APP\".\"Kunde Alt\" TO \"U1\" WITH GRANT OPTION",
             "GRANT REFERENCES (\"ID\") ON \"APP\".\"Kunde Alt\" TO \"U1\"",
             "GRANT UPDATE (\"NAME\", \"NOTE\") ON \"APP\".\"Kunde Alt\" TO \"U1\" WITH GRANT OPTION",
+            // review of WP-71: the other order is ORA-03048
+            "GRANT SELECT ON \"APP\".\"Kunde Alt\" TO \"U2\" WITH HIERARCHY OPTION WITH GRANT OPTION",
         ], GrantDdl.Script(Target, grants));
     }
 

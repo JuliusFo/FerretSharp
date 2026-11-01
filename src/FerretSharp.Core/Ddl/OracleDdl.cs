@@ -251,15 +251,16 @@ internal static class OracleDdl
             : throw new ArgumentException($"Not an object privilege: {privilege}", nameof(privilege));
 
     /// <summary>
-    /// <c>GRANT SELECT, UPDATE ("A", "B") ON "O"."T" TO "U" [WITH GRANT OPTION]</c>: <paramref name="columns"/> go to the
-    /// privileges Oracle grants per column (<see cref="GrantPrivileges.TakesColumns"/>), the others are on the whole object.
+    /// <c>GRANT SELECT, UPDATE ("A", "B") ON "O"."T" TO "U" [WITH HIERARCHY OPTION] [WITH GRANT OPTION]</c>: <paramref name="columns"/>
+    /// go to the privileges Oracle grants per column (<see cref="GrantPrivileges.TakesColumns"/>), the others are on the whole
+    /// object. The options in this order only (the other is ORA-03048; review of WP-71).
     /// </summary>
     public static string Grant(TableRef target, IEnumerable<string> privileges, IReadOnlyList<string> columns, string grantee, bool grantOption, bool hierarchyOption = false)
     {
         var columnList = columns.Count == 0 ? "" : $" ({string.Join(", ", columns.Select(Q))})";
         var list = string.Join(", ", privileges.Select(p => GrantPrivileges.TakesColumns(p) ? Privilege(p) + columnList : Privilege(p)));
         return $"GRANT {list} ON {T(target)} TO {Grantee(grantee)}"
-            + (grantOption ? " WITH GRANT OPTION" : "") + (hierarchyOption ? " WITH HIERARCHY OPTION" : "");
+            + (hierarchyOption ? " WITH HIERARCHY OPTION" : "") + (grantOption ? " WITH GRANT OPTION" : "");
     }
 
     /// <summary>
