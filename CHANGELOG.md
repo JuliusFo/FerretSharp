@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.57.0] - 2026-11-01
+
+Object privileges and synonyms in the explorer, right-click menus on objects and tabs, tablespaces in the designer, and typing without delay.
+
 ### Added
 - Synonyms: tables, views, materialized views, packages, procedures and functions have a view "Synonyms" with the private and public synonyms on them. "Create synonym" suggests the object's name, says at once if the name is taken (a table, view, sequence, PL/SQL unit or synonym of the schema has it) and creates a private synonym in the browsed schema or a public one; a row's "Drop" removes it. Both run after the confirmation every schema change gets (a public synonym is for every user of the database, it says), can go to the SQL editor instead, and name the missing privilege when Oracle refuses (`CREATE PUBLIC SYNONYM` …).
 - "Synonyms of the schema" in the command palette: the schema's private synonyms with their targets and whether those are there – "target missing" (dropped, owner gone), "missing or no access" (Oracle does not tell which), "over DB link" – to find and drop those leading nowhere; "Only without target" narrows the list.
