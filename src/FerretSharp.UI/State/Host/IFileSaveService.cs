@@ -3,7 +3,10 @@ namespace FerretSharp.UI.State;
 /// <summary>Native "Save as" dialog; implemented by the host (WPF), the UI stays platform-neutral.</summary>
 public interface IFileSaveService
 {
-    /// <param name="fileName">Suggested file name, e.g. <c>KUNDEN.csv</c>.</param>
+    /// <param name="fileName">
+    /// Suggested file name, e.g. <c>KUNDEN.csv</c> – built from names of the database, so an implementation offers it
+    /// through <see cref="Core.IO.SuggestedFileName.Of"/> (a separator or <c>%VAR%</c> in it must not pick the folder).
+    /// </param>
     /// <param name="filter">Dialog filter label, e.g. <c>CSV (semicolon)</c>.</param>
     /// <param name="utf8Bom">Write a byte order mark (Excel needs it to read UTF-8 CSV).</param>
     /// <param name="folder">Folder the dialog starts in (WP-23: the last script folder of the connection); null = the system's choice.</param>
