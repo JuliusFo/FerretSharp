@@ -69,6 +69,20 @@ public sealed class GrantDraftTests
         Assert.Empty(unchecked_.Warnings);
     }
 
+    /// <summary>Review of WP-71: a grantee created in quotes became the upper-case name – another grantee, or ORA-01917.</summary>
+    [Fact]
+    public void A_grantee_created_in_quotes_is_suggested_and_granted_as_it_is()
+    {
+        var draft = Draft(users: ["U1", "app_ro"], roles: ["Leser"]);
+
+        Assert.Equal(["PUBLIC", "\"Leser\"", "U1", "\"app_ro\""], draft.Suggestions);
+
+        draft.Grantee = GrantDraft.Typed("app_ro");
+        draft.Choose("SELECT", true);
+        Assert.Equal("GRANT SELECT ON \"APP\".\"KUNDEN\" TO \"app_ro\"", Assert.Single(draft.Steps).Sql);
+        Assert.Equal(("PUBLIC", "U1"), (GrantDraft.Typed("PUBLIC"), GrantDraft.Typed("U1")));
+    }
+
     [Fact]
     public void A_revoke_names_what_it_takes_along()
     {
@@ -90,6 +104,22 @@ public sealed class GrantDraftTests
         // a privilege on the whole object and on columns from the same grantor: both go
         var whole = update with { Columns = [], Grantable = false };
         Assert.Contains(GrantDraft.RevokeNotes(whole, [whole, update], "APP"), n => n.Contains("allen Spalten", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Review of WP-71, measured against Oracle 23: REVOKE takes only the executing user's grant – on someone else's row it
+    /// took the login user's grant of the same privilege and left the chosen row.
+    /// </summary>
+    [Fact]
+    public void Someone_else_s_grant_is_not_revoked_while_the_login_user_gave_the_same()
+    {
+        var theirs = new ObjectGrant("U1", "SELECT", [], "OTHER", false, false);
+        var mine = theirs with { Grantor = "APP" };
+
+        Assert.Equal(["U1 hat SELECT auch von dir. Dieses REVOKE entzöge dein Recht, nicht das von OTHER – diese Zeile kann nur OTHER entziehen."],
+            GrantDraft.RevokeProblems(theirs, [theirs, mine], loginUser: "APP"));
+        Assert.Empty(GrantDraft.RevokeProblems(theirs, [theirs], "APP")); // Oracle refuses it itself (ORA-01927)
+        Assert.Empty(GrantDraft.RevokeProblems(mine, [theirs, mine], "APP"));
     }
 
     [Theory]

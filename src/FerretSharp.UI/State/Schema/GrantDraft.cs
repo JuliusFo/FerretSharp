@@ -43,9 +43,16 @@ public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyL
     /// <summary>A chosen privilege Oracle grants per column, and the object has columns to choose.</summary>
     public bool ColumnsApply => OfferedColumns.Count > 0 && _privileges.Any(GrantPrivileges.TakesColumns);
 
-    /// <summary>For the input's list: PUBLIC, the roles seen, then the users.</summary>
+    /// <summary>For the input's list, as typed (<see cref="Typed"/>): PUBLIC, the roles seen, then the users.</summary>
     public IReadOnlyList<string> Suggestions =>
-        [ObjectGrant.PublicGrantee, .. roles.Order(StringComparer.Ordinal), .. users.Where(u => !roles.Contains(u))];
+        [ObjectGrant.PublicGrantee, .. roles.Order(StringComparer.Ordinal).Select(Typed), .. users.Where(u => !roles.Contains(u)).Select(Typed)];
+
+    /// <summary>
+    /// A grantee as the dictionary names it, written as one types it: quoted unless Oracle would read it back the same
+    /// without (a role <c>app_ro</c> created in quotes would become <c>APP_RO</c> – another grantee; review of WP-71).
+    /// PUBLIC stays the keyword.
+    /// </summary>
+    public static string Typed(string grantee) => grantee == ObjectGrant.PublicGrantee ? grantee : OracleIdentifier.QuoteIfNeeded(grantee);
 
     /// <summary>The grantee as Oracle names it; null while none is typed.</summary>
     public string? GranteeName => OracleIdentifier.Normalize(Grantee) is { Length: > 0 } name ? name : null;
@@ -164,6 +171,16 @@ public sealed class GrantDraft(TableRef target, GrantObjectKind kind, IReadOnlyL
 
         return notes;
     }
+
+    /// <summary>
+    /// What keeps a revoke from running: the grant is someone else's and the login user gave the grantee the same privilege
+    /// too – Oracle revokes only the executing user's grants, so the REVOKE would take that one and leave the chosen row
+    /// (measured against Oracle 23; review of WP-71).
+    /// </summary>
+    public static IReadOnlyList<string> RevokeProblems(ObjectGrant grant, IReadOnlyList<ObjectGrant> all, string loginUser) =>
+        grant.Grantor != loginUser && all.Any(g => g.Grantee == grant.Grantee && g.Privilege == grant.Privilege && g.Grantor == loginUser)
+            ? [TextFormat.Format(SchemaViewText.Grants_RevokeHitsOwn, grant.Grantee, grant.Privilege, grant.Grantor)]
+            : [];
 
     /// <summary>
     /// What a refused GRANT or REVOKE needs, by its Oracle code; null for codes whose message says it all.

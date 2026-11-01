@@ -1928,4 +1928,8 @@
     <value>yes</value>
     <comment>Cell of the column Grant option (WP-71)</comment>
   </data>
+  <data name="Grants_RevokeHitsOwn" xml:space="preserve">
+    <value>{0} has {1} from you as well. This REVOKE would take yours, not the one {2} granted – only {2} can revoke this row.</value>
+    <comment>Problem before revoking someone else's grant (review of WP-71): {0} grantee, {1} privilege, {2} grantor</comment>
+  </data>
 </root>

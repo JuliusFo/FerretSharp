@@ -1566,4 +1566,7 @@
   <data name="Grants_GrantableYes" xml:space="preserve">
     <value>ja</value>
   </data>
+  <data name="Grants_RevokeHitsOwn" xml:space="preserve">
+    <value>{0} hat {1} auch von dir. Dieses REVOKE entzöge dein Recht, nicht das von {2} – diese Zeile kann nur {2} entziehen.</value>
+  </data>
 </root>

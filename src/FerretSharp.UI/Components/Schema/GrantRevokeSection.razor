@@ -7,10 +7,11 @@
 
 @{
     var notes = GrantDraft.RevokeNotes(Grant, Grants, LoginUser);
+    var problems = GrantDraft.RevokeProblems(Grant, Grants, LoginUser);
 }
 <section class="index-draft">
     <h2>@SchemaViewText.Grants_RevokeHeading <span class="muted mono small">@Target.Owner.@Target.Name</span></h2>
-    <DdlDraftPanel @key="Grant" WorkspaceId="WorkspaceId" Steps="[GrantDdl.Revoke(Target, Grant)]" Warnings="notes" ConfirmNotes="notes"
+    <DdlDraftPanel @key="(Target, Grant)" WorkspaceId="WorkspaceId" Steps="[GrantDdl.Revoke(Target, Grant)]" Problems="problems" Warnings="notes" ConfirmNotes="notes"
                    FileName="@($"{DateTime.Now:yyyy-MM-dd}_REVOKE_{Target.Name}.sql")"
                    OnRan="() => OnRan.InvokeAsync()" OnFailed="r => _hint = GrantDraft.ErrorHint(r.Error?.ErrorCode, Grant)" OnClose="OnClose" />
     @if (_hint is { } hint)
@@ -21,7 +22,7 @@
 
 @code {
     private string? _hint;
-    private ObjectGrant? _shown;
+    private (TableRef, ObjectGrant)? _shown;
 
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
@@ -47,12 +48,15 @@
 
     private string LoginUser => Active.Profile is { } profile ? OracleIdentifier.Normalize(profile.User) : "";
 
-    /// <summary>Another row chosen: the hint of the earlier one goes.</summary>
+    /// <summary>
+    /// Another row chosen – also the same grant on another object of the schema list (review of WP-71): the hint of the
+    /// earlier one goes.
+    /// </summary>
     protected override void OnParametersSet()
     {
-        if (!Equals(_shown, Grant))
+        if (_shown != (Target, Grant))
         {
-            (_shown, _hint) = (Grant, null);
+            (_shown, _hint) = ((Target, Grant), null);
         }
     }
 }

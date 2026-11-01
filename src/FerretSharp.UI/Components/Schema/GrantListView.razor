@@ -14,12 +14,12 @@
 <div class="tabview grant-list-tab">
     <div class="tab-toolbar">
         <input class="field mono grant-filter" spellcheck="false" list="@_listId" placeholder="@SchemaViewText.GrantList_AllGrantees"
-               title="@SchemaViewText.Head_Grantee" value="@(_typed ?? Tab.Grantee)" @oninput="e => OnGranteeInput((string?)e.Value)"
+               title="@SchemaViewText.Head_Grantee" value="@(_typed ?? (Tab.Grantee is { } applied ? GrantDraft.Typed(applied) : null))" @oninput="e => OnGranteeInput((string?)e.Value)"
                @onchange="e => SetGrantee((string?)e.Value)" @onkeydown="OnGranteeKey" />
         <datalist id="@_listId">
             @foreach (var name in Grantees)
             {
-                <option value="@name"></option>
+                <option value="@GrantDraft.Typed(name)"></option>
             }
         </datalist>
         <label class="check" title="@SchemaViewText.GrantList_OnlyWithoutTitle">
@@ -152,12 +152,18 @@
     private (SchemaObjectGrants Object, ObjectGrant Grant)? _revoke;
     private CancellationTokenSource? _cts;
 
+    /// <summary>
+    /// The tab closed: a schema change that ends later (OnRan of the panel) loads nothing – the token source is disposed
+    /// (review of WP-71).
+    /// </summary>
+    private bool _disposed;
+
     private string Owner => Active.Schema?.Owner ?? "";
 
     /// <summary>The browsed schema is not the login user's: Oracle shows only the grants the session takes part in.</summary>
     private bool OtherSchema => Active.Profile is { } profile && Owner.Length > 0 && Owner != OracleIdentifier.Normalize(profile.User);
 
-    /// <summary>For the filter: PUBLIC, the grantees seen in the schema (roles among them), the users.</summary>
+    /// <summary>For the filter: PUBLIC, the grantees seen in the schema (roles among them), the users – as the dictionary names them.</summary>
     private IEnumerable<string> Grantees =>
         new[] { ObjectGrant.PublicGrantee }
             .Concat((_objects ?? []).SelectMany(o => o.Grants).Select(g => g.Grantee).Order(StringComparer.Ordinal))
@@ -178,7 +184,7 @@
     /// <summary>The schema's objects with their grants, then the users (suggestions; the list works without them).</summary>
     private async Task LoadAsync()
     {
-        if (Active.Schema is not { } schema)
+        if (_disposed || Active.Schema is not { } schema)
         {
             return;
         }
@@ -250,7 +256,7 @@
         _revoke = null;
         _draft = new GrantDraft(target.Object, target.Kind, [], _users, GrantDraft.RolesOf(target.Grants, _users))
         {
-            Grantee = Tab.Grantee ?? "",
+            Grantee = Tab.Grantee is { } grantee ? GrantDraft.Typed(grantee) : "",
         };
     }
 
@@ -333,6 +339,7 @@
 
     public void Dispose()
     {
+        _disposed = true;
         Shell.TabCommandRequested -= OnTabCommand;
         _cts?.Cancel();
         _cts?.Dispose();
