@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Windows;
+using FerretSharp.Core.IO;
 using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using Microsoft.Win32;
@@ -38,6 +39,8 @@ public sealed class FileSaveService : IFileSaveService
         // A remembered folder that is gone (renamed repository, other machine, a share behind a lost VPN) is no reason to
         // fail or to freeze: the dialog picks one.
         var initial = folder is null ? null : (await PathProbe.StartOfAsync(folder)).Folder;
+        // Names of the database or a project can hold anything once quoted: a separator in them must not pick the folder.
+        fileName = SuggestedFileName.Of(fileName);
         var extension = Path.GetExtension(fileName);
         return await Application.Current.Dispatcher.InvokeAsync(() =>
         {
