@@ -77,6 +77,12 @@ public sealed record TabState(
     /// <summary>Set for a record diagram tab (WP-60); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
     public RecordTabState? Records { get; init; }
 
+    /// <summary>
+    /// The query built in the relationship view of a table tab (WP-69); null if none was started. Kept when the tab shows
+    /// another view – a query often grows over several days.
+    /// </summary>
+    public Relations.QueryDesignState? Design { get; init; }
+
     /// <summary>A LINQ console tab in the file format of table tabs.</summary>
     public static TabState OfLinq(LinqTabState linq) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Linq = linq };
 
@@ -204,6 +210,7 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
                     .Select(s => s with { Nodes = (s.Nodes ?? []).OfType<string>().ToList(), Depth = Relations.RecordDiagram.ClampDepth(s.Depth) }).ToList(),
                 Depth = Relations.RecordDiagram.ClampDepth(records.Depth),
             } : null,
+            Design = tab.Design?.Normalized(),
         }).ToList(),
     };
 

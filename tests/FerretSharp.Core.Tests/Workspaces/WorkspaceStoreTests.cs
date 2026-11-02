@@ -239,6 +239,32 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal(3, Assert.Single(records.Steps).Depth);
     }
 
+    [Fact]
+    public async Task A_query_built_in_the_diagram_is_kept_with_its_tab()
+    {
+        var position = new QueryStep("APP\0POSITION\0FK_POSITION_AUFTRAG\0Declared", true);
+        var design = QueryDesignState.Empty.Add([], position).Update([position], n => n with
+        {
+            Columns = [new QueryColumn("MENGE", "ErsteMenge")],
+            Filters = [new QueryFilter(FilterCondition.Of("MENGE", FilterOperator.Gt, "0") with { Group = new FilterGroup(1, FilterGroupKind.Any) }, "mindestens")],
+            Sorts = [new SortSpec("POS_NR", true)],
+        }) with { Active = true };
+        var workspace = Sample() with { Tabs = [new TabState(new TableRef("APP", "AUFTRAG"), TabMode.Relations, [], [], []) { Design = design }] };
+
+        await _store.SaveAsync(workspace, Ct);
+        var loaded = Assert.Single(Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Workspaces).Tabs).Design!;
+
+        Assert.True(loaded.Active);
+        Assert.Equal([[], [position]], loaded.Nodes.Select(n => n.Path));
+        var node = loaded.Nodes[1];
+        Assert.Equal(design.Nodes[1].Columns, node.Columns);
+        var filter = Assert.Single(node.Filters);
+        Assert.Equal("mindestens", filter.Parameter);
+        Assert.Equal(["0"], filter.Condition.Values);
+        Assert.Equal(new FilterGroup(1, FilterGroupKind.Any), filter.Condition.Group);
+        Assert.Equal(design.Nodes[1].Sorts, node.Sorts);
+    }
+
     /// <summary>R5b: a newer file whose shape this version cannot read was reported as broken; now as newer, for its own connection only.</summary>
     [Fact]
     public async Task A_newer_file_with_an_unknown_shape_is_newer()

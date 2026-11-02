@@ -1,0 +1,98 @@
+# WP-69 Abfrage aus dem Beziehungsdiagramm → Release offen
+
+Branch `wp/69-diagram-query`, begonnen am 2026-11-02. ADR 0040. Baut auf dem Beziehungsdiagramm (WP-46), dem Graphen (WP-42), den C#-Namen und Navigations (WP-12), der LINQ-Erzeugung (WP-15) und der LINQ-Konsole (WP-13).
+
+## Planung (aus `docs/roadmap.md`)
+(Idee des Nutzers, als Paket eingeplant am 2026-10-31; Zuschnitt und Ausgabe überarbeitet am 2026-11-02 an einem typischen Ausdruck aus dem Projekt des Nutzers.) Branch `wp/69-diagram-query`. Baut auf dem Beziehungsdiagramm (WP-46), dem Graphen (WP-42), den C#-Namen und Navigations (WP-12), der LINQ-Erzeugung (WP-15) und der LINQ-Konsole (WP-13).
+- **Einstieg:** im Beziehungsdiagramm ein Modus „Abfrage bauen“, außerdem im Objektmenü (WP-70, `TableMenuBody`) „Abfrage bauen“, das die Ansicht „Beziehungen“ im Modus öffnet.
+- **Modus „Abfrage bauen“:** Die Fokus-Tabelle ist die Wurzel. Gewählt werden **Kanten**, nicht Tabellen. Ein Knoten der Abfrage ist ein **Pfad aus Kanten** ab der Wurzel (`RelationGraph.PathKey`), keine Tabelle (Entscheidung, 2026-11-02): Dieselbe Tabelle kann über zwei Wege vorkommen (Rechnungs- und Lieferkunde, ein Selbstbezug, dieselbe Tabelle über zwei verschiedene Ketten). Im Diagramm bleibt sie ein Knoten mit mehreren markierten Kanten; in der Seitenleiste und im SQL (eigenes Kürzel) sind es getrennte Zweige. Spalten werden nicht in den Knoten angehakt (verschieden hohe Knoten brächten das Layout aus WP-46 durcheinander), sondern in einer Seitenleiste als Baum (`Position → Auftrag → Kunde → Name`); darunter die Ausgabe in Reitern LINQ | SQL | Vorschau.
+- **Erste Stufe** (Entscheidung, 2026-11-02; vorher nur Eltern):
+  - **Eltern** (n:1), auch über mehrere Ebenen (`Position → Auftrag → Kunde`) – je Zeile der Wurzel höchstens eine Zeile, die Zeilenzahl bleibt. In LINQ eine Navigation (`p.Auftrag!.Kunde!.Name`, EF wählt den Join nach required/optional), im SQL ein INNER JOIN nur bei FK-Spalten NOT NULL mit durchgesetztem Constraint (ENABLED und VALIDATED – `ForeignKeyInfo` kennt den Status dafür noch nicht), sonst LEFT JOIN (Beziehungen aus dem C#-Modell, manuell oder per Konvention garantieren nichts).
+  - **Ein Kind wählen** (1:n auf genau eine Zeile): Filter und Sortierung am Kind-Knoten, davon die erste Zeile (`a.Positionen.Where(…).OrderBy(…).FirstOrDefault()`), von dort weiter zu dessen Eltern. Die Zeilenzahl der Wurzel bleibt. Ohne gewählte Sortierung nach dem Primärschlüssel (sonst ist „die erste“ zufällig). In LINQ ein eigener Ausdruck für das gewählte Kind, den die Werte per LinqKit `Invoke` benutzen; im SQL `OUTER APPLY (… FETCH FIRST 1 ROW ONLY)` (ab 12c).
+  - Später (zweite Stufe): Kinder als verschachtelte Liste (`Positionen = a.Positionen.Select(…).ToList()`, im SQL ein LEFT JOIN, der die Zeilen vervielfacht) und Kind-Filter, die die Wurzel einschränken (`Any`/`EXISTS`). Handarbeit bleiben `SelectMany`/`Concat` über zwei Wege und `??` zwischen zwei Pfaden.
+- **Filter an Knoten:** je Knoten Bedingungen im vorhandenen Filtermodell (Spalte, Operator, Werte, Gruppen seit WP-50), übersetzt mit derselben Semantik wie das Grid (`LinqFilter` – muss dafür Parameter, Pfad und Quelle frei nehmen, heute `x`, `x.Property` und `db.…`). An der Wurzel und an Eltern-Knoten schränkt die Bedingung die Zeilen der Wurzel ein (`p.Auftrag!.Kunde!.Land == …`; im SQL im `WHERE`). Eine Zeile ohne Elternteil bleibt dabei nach den NULL-Regeln des Grids drin, wo der Operator NULL einschließt („≠“, „ist NULL“), sonst fällt sie heraus – in LINQ und SQL gleich. Am gewählten Kind bestimmt die Bedingung, welches Kind gewählt wird.
+- **Ausgabe LINQ** (Entscheidung, 2026-11-02; ersetzt „ein Prädikat und eine Projektion“): im Stil der Extensions des Nutzers ein Ausdruck **je Wert**, LinqKit zum Zusammensetzen.
+  - Eine Spalte der Wurzel steht direkt in der Projektion bzw. Zuordnung (`a => a.Nummer`). Jeder Wert über einen Pfad bekommt ein Feld: `internal static readonly Expression<Func<Auftrag, string?>> KundeName = a => a.Kunde!.Name;`. Optionale Navigations mit `!`, Werttypen über einen optionalen Pfad nullbar gecastet (`(long?)a.Kunde!.Nummer`).
+  - Das gewählte Kind als Hilfsausdruck (`private static readonly Expression<Func<Auftrag, Position?>> ErstePosition = a => a.Positionen.Where(…).OrderBy(…).FirstOrDefault();`), Werte darüber mit `Linq.Expr((Auftrag a) => ErstePosition.Invoke(a)!.Artikel.Name).Expand()` – durch `Expand()` bei der Definition braucht der Aufrufer kein `AsExpandable()`.
+  - **Gewähltes Kind in mehreren Werten** (Messung 2026-11-02, EF Core 8 mit dem Oracle-Provider, `ToQueryString`): Mit einem Ausdruck je Wert steht die Unterabfrage für das Kind **je Wert** im SQL (`(SELECT … FETCH FIRST 1 ROWS ONLY)` dreimal für drei Werte); eine zweistufige Projektion (`Select(a => new { a, P = Erste.Invoke(a) }).Select(…)`) und `let` ändern daran nichts. Nur `SelectMany(a => a.Positionen.Where(…).OrderBy(…).Take(1).DefaultIfEmpty(), (a, p) => new { a, p })` ergibt **einen** LEFT JOIN (`ROW_NUMBER() OVER (PARTITION BY …)`), aus dem alle Werte lesen. Schneller ist das nicht von selbst: Der Join nummeriert die passenden Kinder aller Zeilen, die Unterabfragen lesen je Zeile über den FK-Index – bei wenigen Zeilen der Wurzel gewinnen eher die Unterabfragen. Deshalb: Wird das gewählte Kind in mehr als einem Wert benutzt, sagt der LINQ-Reiter das und bietet die Form mit `SelectMany` als zweite Ausgabe („Kind einmal lesen“, eine Abfrage statt Ausdrücken je Wert); den Plan beider zeigt die LINQ-Konsole. Klassen, Records und Ausdrucksfelder lassen sich in der Konsole (Roslyn-Scripting) deklarieren und von EF übersetzen.
+  - Filter der Wurzel und der Eltern-Knoten als Prädikat `Expression<Func<Auftrag, bool>> OffeneAuftraege = a => …;` (entfällt ohne Filter).
+  - Standard: die Projektion `a => new AuftragUebersicht { Nummer = a.Nummer, KundeName = KundeName.Invoke(a), … }` mit `.Expand()`; ohne LinqKit im Projekt stehen die Pfade direkt in der Projektion. Nutzung: `db.Auftraege.Where(OffeneAuftraege).Select(Uebersicht)`.
+  - **Zeilenvorlage je verknüpftem Projekt** (optional): Projekte mit eigener Mapping-Bibliothek geben Kopf, eine Zeile je Wert und Fuß mit Platzhaltern vor (`{Entity}`, `{Dto}`, `{Expression}`, `{Property}`); FerretSharp setzt nur Text ein, wie bei den Audit-Vorlagen. Mit Vorlage ersetzt die Liste der Zuordnungen die Projektion.
+  - **DTO:** Schalter „DTO mit erzeugen“ (Standard an; aus, wenn es das DTO schon gibt). `record` oder `class`; Namen der Properties aus dem Pfad (`KundeName`), in der Vorschau änderbar.
+  - Beziehungen ohne Navigation (Constraint, den das Modell nicht abbildet, manuell oder per Konvention) gehen nur in die SQL-Ausgabe; der LINQ-Reiter nennt die Kante (Entscheidung, 2026-11-02 – in einen Ausdruck über eine Entity passt kein Join ohne Navigation).
+- **Filterwerte** (Entscheidung, 2026-10-31): fest im Ausdruck, je Bedingung ein Schalter „als Parameter“ – ob ein Wert fest ist (`Status == Offen`) oder wechselt (Datum, ID), entscheidet der Nutzer, nicht eine Regel. Mit Parametern wird das Prädikat eine Methode: `public static Expression<Func<Auftrag, bool>> OffeneAuftraege(DateTime ab) => a => a.Datum >= ab && …;`, Parametername aus der Property, änderbar. In der LINQ-Konsole stehen Parameter als lokale Variablen mit dem Wert aus dem Filter, damit die Probe sofort läuft.
+- **Stil fest vorgegeben** (Entscheidung, 2026-10-31): In der Vorschau Name der statischen Klasse, Namen der Ausdrücke, Name des DTO, `record` oder `class`, Namespace, „DTO mit erzeugen“; die letzte Wahl wird je verknüpftem Projekt gemerkt. Den Stil am Projekt lernen (Code-Index WP-40) steht im Backlog.
+- **Ausgabe SQL:** erst eine `SELECT`-Vorschau über den Leseweg (echte Zeilen, mit Binds), dann Kopieren, „Im SQL-Editor öffnen“ oder `CREATE VIEW` über den Schemaweg mit dem DDL-Baustein aus WP-23. Joins entstehen in `Core/Query` (der `QueryBuilder` kennt heute nur eine Tabelle mit festem Kürzel), der DDL-Text in `Core/Ddl`.
+  - Eine View kennt keine Binds: Werte als Literale (`OracleLiteral`). Bedingungen „als Parameter“ bleiben aus der View draußen, ein Hinweis über dem DDL nennt sie (Entscheidung, 2026-11-02).
+  - `CREATE VIEW` ohne `OR REPLACE`; ist der Name vergeben, ein Hinweis (Prüfung aus WP-68).
+  - LOB-Spalten sind in der ersten Stufe nicht wählbar.
+- **Weitergabe** (Entscheidung, 2026-10-31): Kopieren und „In LINQ-Konsole öffnen“ (zeigt das SQL von EF und die Zeilen – Probe ohne Build). Nicht ins Projekt schreiben; das kommt frühestens mit dem Unterbau aus WP-41.
+- **Zustand mit dem Tab gespeichert** (Entscheidung, 2026-10-31): gewählte Kanten (als Pfade), Spalten, Filter und Sortierung (samt „als Parameter“), Namen und ob der Modus an ist – eine Abfrage entsteht oft über mehrere Tage. Das Aufklappen des Diagramms bleibt wie in WP-46 nur im Speicher. Fehlt beim Wiederherstellen eine Spalte oder Beziehung (Schema geändert), fällt sie mit Hinweis heraus, wie Tabs auf gelöschten Tabellen.
+
+## Entscheidungen des Nutzers (2026-11-02)
+An einem typischen Ausdruck aus seinem Projekt (nur Kontext, Namen nicht im Repo):
+1. **Erste Stufe:** Eltern **und** „ein Kind wählen“ – die wichtigen Ausdrücke laufen über das erste passende Kind. Verschachtelte Listen und „Wurzel einschränken“ kommen später.
+2. **Ein Knoten ist ein Pfad**, dieselbe Tabelle darf über zwei Wege vorkommen.
+3. **Beziehungen ohne Navigation** nur im SQL, mit Hinweis.
+4. **Ausdruck je Wert** statt einer Projektion; die eigene Mapping-Bibliothek ist nicht öffentlich → **Zeilenvorlage** je Projekt, Standard ist die Projektion.
+5. **DTO:** Schalter „DTO mit erzeugen“, Standard an.
+6. **„Als Parameter“ in der View:** weglassen mit Hinweis.
+7. Frage des Nutzers: Wird eine mehrfach benutzte Expression mehrfach ausgeführt? Gemessen (EF Core 8, Oracle-Provider): kein zweiter Roundtrip, aber die Unterabfrage steht je Wert im SQL; zweistufige Projektion und `let` helfen nicht, nur `SelectMany … Take(1).DefaultIfEmpty()`. Deshalb die zusätzliche Ausgabe „Kind einmal lesen“ (ADR 0040).
+
+## Gebaut
+- **Core:**
+  - `QueryDesignState`/`QueryNodeState`/`QueryStep`/`QueryColumn`/`QueryFilter`/`QueryNames` (Core/Relations, mit dem Tab gespeichert, `TabState.Design`), `QueryDesign.Resolve` (Baumreihenfolge, Hinweise für verschwundene Beziehungen), `WithColumnsOf` (verschwundene Spalten), `StepFrom`, `NextSteps`.
+  - `ForeignKeyInfo.Enforced` aus `ALL_CONSTRAINTS.STATUS`/`VALIDATED`.
+  - `QueryBuilder.BuildDesign` (`QueryBuilder.Design.cs`): JOIN/LEFT JOIN nach `JoinsInner`, `OUTER APPLY … FETCH FIRST 1 ROW ONLY` je gewähltem Kind mit seinen Eltern darin, Namen der Ergebnisspalten (`DesignColumnNames`: Pfad aus FK-Spalten bzw. Tabellen, eigener Name in Großschreibung mit `_`, eindeutig), Modus `Statement` (Binds, ORDER BY Schlüssel der Wurzel) und `View` (Literale, Parameter-Bedingungen draußen). Der innere Builder nimmt Kürzel, gemeinsame Binds und Literale.
+  - `ViewDdl`, `OracleDdl.CreateView`, `DdlStepKind.CreateView` (Stufe wie PL/SQL-Objekte).
+  - `LinqFilter.Terms` über einen beliebigen Member-Pfad, mit Parametern (`LinqParameter`) und Wächter für optionale Navigations in NICHT-Gruppen.
+  - `QueryCodeBuilder` (`QueryCode.cs`): Ausdrücke je Wert, Hilfsausdruck je gewähltem Kind, Prädikat (Methode mit Parametern), Projektion oder `QueryLineTemplate`, DTO, Script für die Konsole, `SingleRead`; `QueryCodeStyle` je Projekt in `AppSettings.QueryCodeStyles`.
+- **ModelHost:** `LinqConsole.HoistUsings` – `using`-Zeilen am Anfang des Codes kommen vor die automatischen Zeilen.
+- **UI:** `QueryDesignEditor` (State/Schema), `QueryDesignPanel` (Baum, Reiter LINQ | SQL | Vorschau, Stil, View), `QueryNodeEditor` (Spalten mit Namen, Bedingungen mit „als Parameter“, Reihenfolge), `RelationsView` (Umschalter, klickbare und markierte Kanten, Laden der Spalten), `DiagramCanvas.OnEdgeClick`, „Abfrage bauen“ im Objektmenü, `ShellState.OpenLinq(code, variables)`, `TableTab.Design`, CSS `.query-*`.
+- **Tests:** Core `QueryDesignTests`, `QueryBuilderDesignTests`, `QueryCodeTests`, `QueryCodeStyleTests`, `WorkspaceStoreTests` (Speichern); UI `QueryDesignEditorTests`; Integration `QueryDesignTests` (erzeugter Code in der Konsole des Beispielprojekts und erzeugtes SQL gegen Oracle, dieselben Zeilen; auch „Kind einmal lesen“), `ObjectDetailsTests` (`Enforced` bei ENABLE NOVALIDATE).
+
+## E2E (2026-11-02)
+Eigener Container mit der Beispiel-DB (`ferret-wp69-e2e`), verknüpftes `samples`-Projekt, Oberfläche auf Deutsch.
+- **Geprüft:**
+  - Kanten AUFTRAG → KUNDEN und → MITARBEITER per Klick (CDP und echte Windows-Eingabe: aus der Abfrage und wieder hinein). Eine Kante, die den gewählten Knoten nicht berührt, geht von der Wurzel aus.
+  - Spalten an vier Knoten, gewähltes Kind AUFTRAG_POSITION mit `MENGE > 0` und absteigender Reihenfolge, dessen Eltern ARTIKEL; ein gewähltes Kind unter einem Elternknoten (RECHNUNG über KUNDEN).
+  - LINQ wie erwartet (Ausdrücke je Wert, `Invoke`, `!`, `(int?)`, Projektion, DTO, „Kind einmal lesen“). SQL mit JOIN für KUNDEN (durchgesetzt, NOT NULL), LEFT JOIN für MITARBEITER (nur C#-Modell), OUTER APPLY mit ARTIKEL darin.
+  - Vorschau: die ersten 100 von 50 000 Aufträgen. „View anlegen…“: `CREATE VIEW` mit Literal, Bestätigung, Hinweis „angelegt“, View im Explorer; danach meldet derselbe Name „gibt es schon (VIEW)“.
+  - LinqKit im Stil aus (das Beispielprojekt hat keins), „In LINQ-Konsole öffnen“, Ausführen: dieselben Werte wie die Vorschau.
+  - Neustart: die Abfrage steht wieder im Tab. Objektmenü „Abfrage bauen“ öffnet KUNDEN in „Beziehungen“ mit der Seitenleiste. Log ohne `[ERR]`/`[WRN]`.
+- **Befunde, behoben:**
+  1. „Beziehung hinzufügen…“ zeigte nach dem Hinzufügen weiter die gewählte Beziehung – die `<select>`-Falle aus `ui.md`; jetzt auf den Zustand der Abfrage gekeyt.
+  2. Vom gewählten Kind wurde der Rückweg über dieselbe Beziehung angeboten (zurück zum Auftrag) – `NextSteps` lässt ihn aus.
+  3. Die Konsole warnte bei jedem `string?` (CS8632): Ein Script hat keine Projekteinstellung für Nullable – das Script beginnt jetzt mit `#nullable enable`; der Integrationstest verlangt keine Meldungen mehr.
+- **Nicht geprüft:** die Pläne beider LINQ-Formen auf großen Daten (welche schneller ist, hängt von den Daten ab).
+
+## Offen
+- Filtergruppen (WP-50) in der Seitenleiste: Die Bedingungen eines Knotens werden dort mit UND verbunden; das Modell trägt Gruppen schon.
+- Ein Klick auf einen Knoten im Diagramm öffnet weiter die Tabelle; gewählt wird ein Knoten in der Seitenleiste.
+- Der Weg mit LinqKit (`Invoke`/`Expand`) ist nur per Messung mit einem Testprojekt belegt, der Integrationstest läuft ohne (das Beispielprojekt hat kein LinqKit).
+
+## Nachtrag: Code-Review (2026-11-02)
+Review des Branches durch einen eigenen Agenten (15 Befunde), jeder am Code nachgeprüft. Entscheidung des Nutzers: „Alle beheben, deine Vorschläge bei den Fragen passen.“ – also bei #1 nicht Auflösbares immer im Tab behalten (ausgeblendet mit Hinweis und Knopf „Aus der Abfrage entfernen“), bei #14 ein Satz im ADR und ein Hinweis unter der Reihenfolge.
+1. **S – Schritte über Beziehungen des C#-Modells gingen verloren**, wenn der Tab vor dem Laden des Modells aufgelöst wurde (`Load` schrieb das Ergebnis in `tab.Design` zurück). Behoben: Die Auflösung schreibt nie zurück; was fehlt, bleibt im Tab, wird mit Hinweis ausgelassen und nur über „Aus der Abfrage entfernen“ (`DropMissing`) entfernt. Hinweistexte sagen „fehlt (oder das C#-Modell lädt noch) – vorerst nicht in der Abfrage“.
+2. **M – Zweiter Klick auf die gerade gewählte Kante** hängte den Rückweg an statt sie herauszunehmen. Behoben: Kam der gewählte Knoten über die Kante, geht er heraus; ein Schritt beginnt nie über den Rückweg (wie `NextSteps`).
+3. **M – Doppelte Parameternamen** (Zeitraum auf einer Spalte, Name wie der Lambda-Parameter) ergaben nicht kompilierbaren Code. Behoben: Namen werden beim Erzeugen eindeutig (`LinqFilter.Terms(…, unique)`, vorbelegt mit Lambda, Klasse, DTO, Prädikat, Projektion und Werten); der Vorschlag im Editor ist frei in der Abfrage (`QueryDesignEditor.DefaultParameter`).
+4. **M – „In“ als Parameter auf nullbarer Property**: `int[]` ohne `Contains(int?)`. Behoben: Elementtyp wie der Member.
+5. **M – `.Where(Filter)` ohne Filter**, wenn jede Bedingung übersprungen wurde. Behoben: hängt am erzeugten Prädikat.
+6. **M – Completion in der Konsole verschoben** nach gehobenen `using`-Zeilen. Behoben: Sie bleiben als Leerzeichen gleicher Länge stehen; Integrationstest mit Kommentar hinter dem Cursor (ohne Fix leer).
+7. **M – Vorschau ohne Abbrechen**. Behoben: `RunProgress` mit Zeit, Abbrechen (auf einem Pool-Thread) und „Session trennen“; Verlassen des Modus bricht ab.
+8. **M – Ausnahme beim Rendern**, wenn eine gewählte Spalte keinen Wert mehr hat oder eine Sortierspalte nicht sortierbar ist. Behoben: `Problem` meldet beides, SQL und C# warten.
+9. **M – Zeilenvorlage**: Kopf ohne Zeile ging verloren, Felder ließen sich nicht leeren. Behoben: je Feld gespeichert, leer ist leer; der Code nimmt die Vorlage nur mit Zeile.
+10. **K – `var` in der Konsole** passte nicht zu `short`-Parametern. Behoben: Variablen mit Typ.
+11. **K – Ganzer Tag auf `DateTimeOffset` als Parameter** verglich in C# den Zeitpunkt. Behoben: wie beim „In“ kein Parameter, Hinweis (`ParameterNotForDays`, Text allgemeiner).
+12. **K – Namen**: Schlüsselwörter galten als Namen, ungültiger Parametername und Namespace fielen still weg, ein Wert hieß wie seine Klasse. Behoben: `IsName` lehnt Schlüsselwörter ab, Hinweise für Parameter und Namespace, Klassen- und DTO-Name vorbelegt.
+13. **K – Operator-Auswahl ohne `@key`** (Falle aus `ui.md`). Behoben: gekeyt auf die Kategorie der Spalte.
+14. **K – „Das erste Kind“ kann zwischen Vorschau und App abweichen** (ROWID gegen Entity-Schlüssel, `NLS_SORT`). Dokumentiert: ADR 0040, Hinweis unter der Reihenfolge.
+15. **K – Spalten laden ohne Wiederholung**. Behoben: Hinweis mit „Erneut versuchen“.
+
+**Zweiter Durchgang** (derselbe Reviewer über die Fix-Commits): 14 von 15 abgedeckt.
+- A (Lücke in #1): Bearbeiten einer Bedingung oder Reihenfolge schrieb die Liste ohne die Einträge auf fehlenden Spalten zurück. Behoben: `SetFilters`/`SetSorts` behalten sie, Test ergänzt (scheitert ohne Fix).
+- B (Wortlaut zu #14): Die binäre Sortierung ordnet auch verschiedene Werte anders, nicht nur gleiche. Hinweis und ADR umformuliert.
+- C (neu, K): Eine laufende Vorschau zeigte nach einer Änderung der Abfrage das alte Ergebnis. Entscheidung des Nutzers: „Ja, C beheben“. Behoben: Eine Änderung bricht die laufende Vorschau ab und verwirft ihr Ergebnis. Nur Build und Tests – in der Oberfläche nicht nachgestellt (die Vorschau der Beispiel-DB ist zu schnell, um währenddessen zu ändern).
+- Rest zu #12, nicht behoben: Gibt der Nutzer Klasse und DTO denselben Namen, kompiliert der Code nicht.
+
+**E2E** (eigener Container `ferret-wp69-e2e`, Testinstanz mit Daten aus dem ersten Lauf, Modell-Cache beiseitegelegt): Neustart – der Schritt über `Auftrag.Bearbeiter` (nur C#-Modell) steht weiter in der Abfrage; dreimal dieselbe Kante: heraus, hinein (gewählt), heraus; Vorlage: nur der Kopf bleibt in den Einstellungen (Code weiter mit Projektion), Leeren entfernt ihn; Vorschau zeigt „Abfrage läuft · Abbrechen“ und 100 Zeilen; Operator „in Liste“ bleibt nach dem Wechsel auf eine Textspalte richtig angezeigt. Log ohne `[ERR]`/`[WRN]`. Klicks per CDP-Eingabe (Stufe 2): Die Probe `Test-InjectedInput.ps1` meldete gefilterte Windows-Eingabe. Nicht geprüft: Abbrechen einer langsamen Vorschau, „Aus der Abfrage entfernen“ und „Erneut versuchen“ in der Oberfläche (beides nur über Unit-Tests).

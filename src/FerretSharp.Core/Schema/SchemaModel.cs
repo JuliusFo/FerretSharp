@@ -138,6 +138,12 @@ public sealed record ForeignKeyInfo(
     /// index advice, no code –, and only from the audit table, never into it.
     /// </summary>
     public AuditRelation? Audit { get; init; }
+
+    /// <summary>
+    /// A declared constraint that is ENABLED and VALIDATED: every row with values in <see cref="FromColumns"/> has its parent
+    /// (WP-69, an INNER JOIN loses no row). False for every other source – they guarantee nothing.
+    /// </summary>
+    public bool Enforced { get; init; }
 }
 
 /// <summary>The primary key of a table (enabled or not): its columns in key order.</summary>

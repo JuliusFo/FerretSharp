@@ -49,6 +49,9 @@ public enum DdlStepKind
     /// <summary>GRANT or REVOKE of object privileges (WP-71).</summary>
     Grant,
 
+    /// <summary>CREATE VIEW over a query built in the relationship diagram (WP-69).</summary>
+    CreateView,
+
     /// <summary>A note for the user, no statement (a different organization, the definition of a view …); never runs.</summary>
     Hint,
 }

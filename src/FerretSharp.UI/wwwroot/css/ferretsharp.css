@@ -1827,8 +1827,43 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-swatch { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--rel-color); }
 .relations-swatch:not(.declared) { border-top-style: dashed; }
 .relations-zoom { min-width: 58px; font-variant-numeric: tabular-nums; }
+.relations-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.relations-body.with-query { flex-direction: row; }
+.relations-body > .relations-canvas, .relations-body > .relations-empty { flex: 1; min-width: 0; }
 .relations-empty { position: relative; flex: 1; min-height: 0; }
 .relations-canvas { position: relative; flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--border); background: var(--bg); }
+
+/* "Abfrage bauen" (WP-69): edges can be clicked, those of the query and their tables stand out; the panel beside the
+   canvas scrolls on its own. */
+.relations-edge.clickable { cursor: pointer; }
+.relations-edge.clickable:hover .line { stroke-width: 2.6; }
+.relations-edge.in-query .line { stroke-width: 3.2; stroke-dasharray: none; }
+.relations-node.in-query { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.query-panel { flex: none; width: 460px; max-width: 50%; min-height: 0; overflow: auto; border-top: 1px solid var(--border); border-left: 1px solid var(--border);
+    background: var(--surface); padding: 10px 14px 24px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.query-panel h3 { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.query-panel h4 { margin: 8px 0 2px; font-size: 12px; font-weight: 600; }
+.query-tree { list-style: none; margin: 0; padding: 0; }
+.query-node { display: flex; align-items: center; gap: 6px; min-height: 26px; border-radius: 4px; }
+.query-node.selected { background: var(--accent-weak); }
+.query-node .query-node-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-family: var(--mono); }
+.query-columns { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 2px; }
+.query-columns li { display: flex; align-items: center; gap: 8px; }
+.query-columns .field { flex: 1; min-width: 0; }
+.query-panel .check { display: inline-flex; align-items: center; gap: 6px; }
+.query-panel .check input { margin: 0; accent-color: var(--accent); }
+.query-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
+.query-filter .field { min-width: 0; max-width: 150px; }
+.query-filter .error { flex-basis: 100%; color: var(--danger); }
+.query-output { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.query-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.query-style summary { cursor: pointer; color: var(--muted); }
+.query-style-form { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 6px 0; }
+.query-style-form label:not(.check) { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; }
+.query-preview { overflow: auto; max-height: 360px; border: 1px solid var(--border); }
+.query-preview td.null { font-style: italic; color: var(--muted); }
+.query-view { display: flex; flex-direction: column; gap: 6px; }
+.query-view > label { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; }
 .relations-size { position: relative; }
 .relations-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .relations-edges { position: absolute; left: 0; top: 0; overflow: visible; }

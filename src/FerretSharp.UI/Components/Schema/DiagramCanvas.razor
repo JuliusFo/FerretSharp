@@ -11,11 +11,23 @@
                 @foreach (var edge in Placement.Edges)
                 {
                     var end = edge.Points[^1];
-                    <g class="relations-edge @EdgeClass(edge)" title="@EdgeTitle?.Invoke(edge)">
-                        <path class="hit" d="@edge.Svg" />
-                        <path class="line" d="@edge.Svg" />
-                        <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
-                    </g>
+                    var e = edge;
+                    @if (OnEdgeClick.HasDelegate)
+                    {
+                        <g class="relations-edge clickable @EdgeClass(edge)" title="@EdgeTitle?.Invoke(edge)" @onclick="() => OnEdgeClick.InvokeAsync(e)">
+                            <path class="hit" d="@edge.Svg" />
+                            <path class="line" d="@edge.Svg" />
+                            <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
+                        </g>
+                    }
+                    else
+                    {
+                        <g class="relations-edge @EdgeClass(edge)" title="@EdgeTitle?.Invoke(edge)">
+                            <path class="hit" d="@edge.Svg" />
+                            <path class="line" d="@edge.Svg" />
+                            <circle cx="@DiagramStyle.Px(end.X)" cy="@DiagramStyle.Px(end.Y)" r="3" />
+                        </g>
+                    }
                 }
             </svg>
             @ChildContent
@@ -45,6 +57,10 @@
 
     [Parameter]
     public EventCallback OnMouseLeave { get; set; }
+
+    /// <summary>A click on an edge (the query of the relationship view, WP-69); edges are not clickable without it.</summary>
+    [Parameter]
+    public EventCallback<EdgePath> OnEdgeClick { get; set; }
 
     /// <summary>The nodes, placed by <see cref="DiagramStyle.Box"/>.</summary>
     [Parameter]

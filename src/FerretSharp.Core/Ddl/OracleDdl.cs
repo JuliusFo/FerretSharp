@@ -236,6 +236,9 @@ internal static class OracleDdl
 
     public static string DropSynonym(SynonymInfo synonym) => $"DROP {Synonym(synonym)}";
 
+    /// <summary><c>CREATE VIEW "OWNER"."NAME" AS</c> and the select below it; never <c>OR REPLACE</c> (WP-69).</summary>
+    public static string CreateView(TableRef view, string select) => $"CREATE VIEW {T(view)} AS\n{select}";
+
     // ---- object privileges (WP-71) ----
 
     /// <summary><c>PUBLIC</c> is a keyword there: quoted it would be a user of that name (ORA-01917).</summary>

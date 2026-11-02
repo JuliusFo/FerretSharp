@@ -124,8 +124,12 @@ public sealed class ObjectDetailsTests(OracleContainerFixture oracle) : IAsyncLi
         var auftrag = await Reader.GetIndexesAsync(new TableRef(_owner, "OD_AUFTRAG"), Ct);
         Assert.DoesNotContain(auftrag, i => i.IndexType == "LOB");
 
-        var foreignKeys = (await Reader.GetForeignKeysAsync([_owner], Ct)).Where(f => f.From.Name == "OD_AUFTRAG");
+        var foreignKeys = (await Reader.GetForeignKeysAsync([_owner], Ct)).Where(f => f.From.Name == "OD_AUFTRAG").ToList();
         Assert.Equal(["FK_OD_AUFTRAG_VERK"], IndexAdvice.UnindexedForeignKeys(foreignKeys, auftrag).Select(f => f.Name));
+
+        // WP-69: only an enabled and validated constraint guarantees the parent (an INNER JOIN loses no row).
+        Assert.True(Assert.Single(foreignKeys, f => f.Name == "FK_OD_AUFTRAG_KUNDE").Enforced);
+        Assert.False(Assert.Single(foreignKeys, f => f.Name == "FK_OD_AUFTRAG_VERK").Enforced);
     }
 
     /// <summary>
