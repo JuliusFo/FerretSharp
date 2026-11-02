@@ -108,6 +108,9 @@
   <data name="FixedCopyValue" xml:space="preserve">
     <value>Wert kopieren, mehrere markierte Zeilen als Tabelle</value>
   </data>
+  <data name="FixedPasteValue" xml:space="preserve">
+    <value>Einen Wert in die markierten Zellen, die markierten Zeilen oder die Zelle einfügen</value>
+  </data>
   <data name="FixedMarkForDeletion" xml:space="preserve">
     <value>Markierte Zeilen zum Löschen vormerken</value>
   </data>

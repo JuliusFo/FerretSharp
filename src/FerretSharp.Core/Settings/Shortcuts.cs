@@ -139,6 +139,7 @@ public sealed class ShortcutMap
     public static IReadOnlyList<FixedShortcut> Fixed =>
     [
         new(SettingsText.GroupData, SettingsText.FixedCopyValue, "Ctrl+C", SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedPasteValue, Labels("ctrl+v"), SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedMarkForDeletion, KeyChord.Parse("delete")!.Label, SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedClearMarkedCells, KeyChord.Parse("delete")!.Label, SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedFillDown, Labels("ctrl+d"), SettingsText.HintInGrid),
@@ -206,6 +207,7 @@ public sealed class ShortcutMap
     {
         "ctrl+a" => SettingsText.FixedSelectAllRows,
         "ctrl+d" => SettingsText.GridFillDown,
+        "ctrl+v" => SettingsText.EditorPaste, // a value into the cells (fix-grid-paste)
         "ctrl+space" => SettingsText.FixedToggleRow,
         "ctrl+shift+arrowup" or "ctrl+shift+arrowdown" => SettingsText.FixedSelectToEdge,
         "ctrl+arrowup" or "ctrl+arrowdown" or "ctrl+home" or "ctrl+end" => SettingsText.GridJumpToEdge,

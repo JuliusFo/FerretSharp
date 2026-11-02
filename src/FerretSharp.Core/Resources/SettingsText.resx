@@ -131,6 +131,10 @@
     <value>Copy value, several selected rows as a table</value>
     <comment>Fixed shortcut</comment>
   </data>
+  <data name="FixedPasteValue" xml:space="preserve">
+    <value>Paste one value into the marked cells, the selected rows or the cell</value>
+    <comment>Fixed key: Ctrl+V on a cell that is not being edited</comment>
+  </data>
   <data name="FixedMarkForDeletion" xml:space="preserve">
     <value>Mark selected rows for deletion</value>
     <comment>Fixed shortcut</comment>
