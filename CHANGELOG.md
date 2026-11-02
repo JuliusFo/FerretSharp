@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Fixed
-- Ctrl+V on a cell that is not being edited pastes the copied value – before, it did nothing unless a double click had opened the editor. With marked cells it goes into all of them, with several selected rows into the focused column of each, as Ctrl+Enter does; checked like a typed value and one step for Ctrl+Z. A value copied from Excel loses its line break and quotes. Several cells or a text over several lines are not pasted this way yet; a notice says so (paste such a text in the cell editor).
+- Ctrl+V on a cell that is not being edited pastes the copied value – before, it did nothing unless a double click had opened the editor. With marked cells it goes into all of them, with several selected rows into the focused column of each, as Ctrl+Enter does; checked like a typed value and one step for Ctrl+Z. A value copied from Excel loses its line break and quotes; a cell copied here with Ctrl+C or "Copy value" comes back whole, line breaks and NULL included. Ctrl+C on one marked cell now copies it like Ctrl+C on the cell – its value, not the enum member shown and not in quotes. Several cells or other text over several lines are not pasted this way yet, and a clipboard without text (a picture) sets nothing; a notice says so.
 
 ## [3.57.1] - 2026-11-02
 

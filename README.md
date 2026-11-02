@@ -140,7 +140,8 @@ developer works with an Oracle database day to day:
   (text in the code editor with line wrap, JSON/XML coloring and JSON indenting).
 - **One value for many cells**: type it into one of the marked cells and press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, or
   paste a copied value with <kbd>Ctrl</kbd>+<kbd>V</kbd> – into the marked cells, the selected rows or just the focused
-  cell, no double click needed; <kbd>Del</kbd> sets marked cells to NULL, <kbd>Ctrl</kbd>+<kbd>D</kbd> fills them down –
+  cell, no double click needed (a cell copied with <kbd>Ctrl</kbd>+<kbd>C</kbd> pastes back whole, line breaks and
+  NULL included); <kbd>Del</kbd> sets marked cells to NULL, <kbd>Ctrl</kbd>+<kbd>D</kbd> fills them down –
   checked per column, pending like any edit, and one step for <kbd>Ctrl</kbd>+<kbd>Z</kbd>.
 - **Read-only connections** (default for production) run in `SET TRANSACTION READ ONLY` – Oracle rejects DML. Unlock a
   single workspace on purpose by typing the connection's name.
