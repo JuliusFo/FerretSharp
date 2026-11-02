@@ -157,11 +157,11 @@
     <comment>{0}: name of the relationship; {1}: the limit of rows in a record diagram</comment>
   </data>
   <data name="QueryRelationGone" xml:space="preserve">
-    <value>{0}: relationship {1} no longer exists – left out of the query.</value>
+    <value>{0}: relationship {1} is missing (or the C# model is still loading) – left out of the query for now.</value>
     <comment>{0}: the tables along the path, e.g. AUFTRAG → KUNDE; {1}: name of the relationship. A note when a saved query is restored</comment>
   </data>
   <data name="QueryColumnGone" xml:space="preserve">
-    <value>{0}: column {1} no longer exists – left out of the query.</value>
+    <value>{0}: column {1} is missing – left out of the query for now.</value>
     <comment>{0}: the tables along the path, e.g. AUFTRAG → KUNDE; {1}: column name. A note when a saved query is restored</comment>
   </data>
 </root>

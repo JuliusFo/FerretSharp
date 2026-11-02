@@ -300,4 +300,7 @@
   <data name="DesignNodeProblem" xml:space="preserve">
     <value>{0}: {1}</value>
   </data>
+  <data name="DesignColumnNoValue" xml:space="preserve">
+    <value>Die Spalte {0} ({1}) hat keinen Wert im Ergebnis – bitte aus den Werten nehmen.</value>
+  </data>
 </root>

@@ -1,6 +1,7 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Relations;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.UI.State;
@@ -8,7 +9,9 @@ namespace FerretSharp.UI.State;
 /// <summary>
 /// The mode "Abfrage bauen" of a table tab's relationship view (WP-69): the query of the tab (<see cref="TableTab.Design"/>,
 /// saved with it), resolved against the schema's relationships, the node the side panel shows, and the columns of the
-/// query's tables as far as they are loaded. Every change goes into the tab at once – a query grows over days.
+/// query's tables as far as they are loaded. Every change goes into the tab at once – a query grows over days. What the
+/// schema does not have (now) stays in the tab and is only left out: the C# model brings its relationships later, and a
+/// query restored before must not lose its steps over them (review). <see cref="DropMissing"/> takes it out.
 /// </summary>
 public sealed class QueryDesignEditor(TableTab tab)
 {
@@ -23,8 +26,8 @@ public sealed class QueryDesignEditor(TableTab tab)
     /// <summary>The query as the schema has it now; null before <see cref="Load"/>.</summary>
     public QueryDesign? Design { get; private set; }
 
-    /// <summary>What fell out of the saved query since (a relationship, a column) – shown until the next change.</summary>
-    public IReadOnlyList<string> Notes { get; private set; } = [];
+    /// <summary>What of the saved query the schema does not have (a relationship, a column) and is left out.</summary>
+    public IReadOnlyList<string> Notes => Design?.Notes ?? [];
 
     public bool Active => State.Active;
 
@@ -35,7 +38,7 @@ public sealed class QueryDesignEditor(TableTab tab)
     public void Load(RelationGraph graph)
     {
         _graph = graph;
-        Resolve(keepNotes: false);
+        Resolve();
     }
 
     public void SetActive(bool active) => Set(State with { Active = active });
@@ -43,8 +46,10 @@ public sealed class QueryDesignEditor(TableTab tab)
     public void Select(QueryNode node) => _selected = node.Path;
 
     /// <summary>
-    /// A click on an edge of the diagram: from the selected node if the relationship touches its table, else from the first
-    /// node that it touches. A step the query has already is taken out (with what hangs on it), a new one is added and selected.
+    /// A click on an edge of the diagram: the selected node goes out if it came over it; otherwise the step from the
+    /// selected node if the relationship touches its table, else from the first node that it touches – never back over the
+    /// relationship a node came over. A step the query has already is taken out (with what hangs on it), a new one is added
+    /// and selected.
     /// </summary>
     /// <returns>Whether the query changed (the relationship touches none of its tables otherwise).</returns>
     public bool ToggleEdge(ForeignKeyInfo relation)
@@ -54,15 +59,23 @@ public sealed class QueryDesignEditor(TableTab tab)
             return false;
         }
 
-        var from = Selected is { } selected && QueryDesign.StepFrom(selected.Table, relation) is not null
-            ? selected
-            : design.Nodes.FirstOrDefault(n => QueryDesign.StepFrom(n.Table, relation) is not null);
+        // The selected node came over this edge: a second click takes it out again (review: it added the way back).
+        var key = RelationGraph.KeyOf(relation);
+        if (Selected is { Step: { } incoming } current && incoming.Relation == key)
+        {
+            Remove(current);
+            return true;
+        }
+
+        // From a node the edge touches, but never back over the relationship that led to it (as NextSteps).
+        bool From(QueryNode node) =>
+            QueryDesign.StepFrom(node.Table, relation) is { } s && !(node.Step is { } back && back.Relation == key && back.ToChild != s.ToChild);
+        var from = Selected is { } selected && From(selected) ? selected : design.Nodes.FirstOrDefault(From);
         if (from is null || QueryDesign.StepFrom(from.Table, relation) is not { } step)
         {
             return false;
         }
 
-        // A self reference from a node that reached its table through it would only lead back.
         var existing = design.ChildrenOf(from).FirstOrDefault(n => n.Relation is { } r && RelationGraph.KeyOf(r) == step.Relation);
         if (existing is not null)
         {
@@ -126,11 +139,20 @@ public sealed class QueryDesignEditor(TableTab tab)
 
     public TableDetails? DetailsOf(TableRef table) => _details.GetValueOrDefault(table);
 
-    /// <summary>Columns of a table came: what the saved query names and the table no longer has falls out (with a note).</summary>
+    /// <summary>Columns of a table came: what the saved query names and the table does not have is left out (with a note).</summary>
     public void Loaded(TableDetails details)
     {
         _details[details.Table.Ref] = details;
-        Resolve(keepNotes: true);
+        Resolve();
+    }
+
+    /// <summary>Takes what is left out (<see cref="Notes"/>) out of the tab's query.</summary>
+    public void DropMissing()
+    {
+        if (Design is { Notes.Count: > 0 } design)
+        {
+            Set(design.State with { Active = State.Active, Names = State.Names });
+        }
     }
 
     /// <summary>Every table of the query has its columns – the SQL and the C# can be written.</summary>
@@ -146,12 +168,32 @@ public sealed class QueryDesignEditor(TableTab tab)
     /// named with its node; null if none. The panel marks the row itself.
     /// </summary>
     public string? Problem =>
-        Design?.Nodes.Select(n => DetailsOf(n.Table) is { } details
-                ? QueryBuilder.Validate(details, [.. n.State.Filters.Select(f => f.Condition)]).Values.FirstOrDefault() is { } error
-                    ? $"{QueryDesign.Label(n)}: {error}"
-                    : null
+        Design?.Nodes.Select(n => DetailsOf(n.Table) is { } details && NodeProblem(n, details) is { } error
+                ? TextFormat.Format(QueryText.DesignNodeProblem, QueryDesign.Label(n), error)
                 : null)
             .FirstOrDefault(p => p is not null);
+
+    /// <summary>
+    /// A condition the grid would refuse, or a value or order the column no longer allows – its type changed since, or the
+    /// workspace file was edited (review: the SQL threw while the panel rendered, and the tab with it).
+    /// </summary>
+    private static string? NodeProblem(QueryNode node, TableDetails details)
+    {
+        if (QueryBuilder.Validate(details, [.. node.State.Filters.Select(f => f.Condition)]).Values.FirstOrDefault() is { } error)
+        {
+            return error;
+        }
+
+        ColumnInfo? Column(string name) => details.Columns.FirstOrDefault(c => c.Name == name);
+        if (node.State.Columns.Select(c => Column(c.Column)).FirstOrDefault(c => c is not null && !Selectable(c)) is { } value)
+        {
+            return TextFormat.Format(QueryText.DesignColumnNoValue, value.Name, OracleTypes.DisplayType(value));
+        }
+
+        return node.State.Sorts.FirstOrDefault(s => Column(s.Column) is { } c && !ColumnCategories.IsSortable(ColumnCategories.Of(c))) is { } sort
+            ? TextFormat.Format(QueryText.ColumnNotSortable, sort.Column)
+            : null;
+    }
 
     /// <summary>The query's SQL; null while columns are missing, none is chosen or a condition is invalid.</summary>
     public DesignSql? Sql(DesignSqlMode mode) =>
@@ -192,23 +234,14 @@ public sealed class QueryDesignEditor(TableTab tab)
     private void Set(QueryDesignState state)
     {
         tab.Design = state;
-        Resolve(keepNotes: false);
+        Resolve();
     }
 
-    private void Resolve(bool keepNotes)
+    private void Resolve()
     {
-        if (_graph is null)
+        if (_graph is not null)
         {
-            return;
+            Design = QueryDesign.Resolve(Root, State, _graph).WithColumnsOf(DetailsOf);
         }
-
-        var design = QueryDesign.Resolve(Root, State, _graph).WithColumnsOf(DetailsOf);
-        if (!ReferenceEquals(tab.Design, null) || design.Notes.Count > 0)
-        {
-            tab.Design = design.State with { Active = State.Active, Names = State.Names };
-        }
-
-        Notes = keepNotes ? [.. Notes.Concat(design.Notes).Distinct()] : design.Notes;
-        Design = design;
     }
 }

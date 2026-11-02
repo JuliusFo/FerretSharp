@@ -383,4 +383,8 @@
     <value>{0}: {1}</value>
     <comment>{0}: the tables along the path of a node of a query built in the relationship diagram, e.g. AUFTRAG → KUNDE; {1}: what is wrong with its condition or order</comment>
   </data>
+  <data name="DesignColumnNoValue" xml:space="preserve">
+    <value>Column {0} ({1}) has no value in the result – take it out of the values.</value>
+    <comment>{0}: column name; {1}: its type, e.g. CLOB. A value of a query built in the relationship diagram whose type changed since</comment>
+  </data>
 </root>

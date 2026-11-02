@@ -1620,6 +1620,9 @@
   <data name="Query_Remove" xml:space="preserve">
     <value>Aus der Abfrage nehmen (mit allem, was daran hängt)</value>
   </data>
+  <data name="Query_DropMissing" xml:space="preserve">
+    <value>Aus der Abfrage entfernen</value>
+  </data>
   <data name="Query_Columns" xml:space="preserve">
     <value>Spalten</value>
   </data>

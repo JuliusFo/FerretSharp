@@ -40,6 +40,12 @@
         {
             <p class="hint small warn">@note</p>
         }
+        @if (Editor.Notes.Count > 0)
+        {
+            <div class="query-actions">
+                <button class="btn" @onclick="() => Change(Editor.DropMissing)">@SchemaViewText.Query_DropMissing</button>
+            </div>
+        }
 
         @if (Editor.Selected is { } selected)
         {

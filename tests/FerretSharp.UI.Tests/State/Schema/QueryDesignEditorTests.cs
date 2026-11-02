@@ -17,7 +17,7 @@ public class QueryDesignEditorTests
 
     private static readonly TableDetails Auftrag = Table("AUFTRAG", Col("ID", nullable: false), Col("NR"), Col("KUNDE_ID", nullable: false), Col("NOTIZ", "CLOB"));
     private static readonly TableDetails Kunde = Table("KUNDE", Col("ID", nullable: false), Col("NAME", "VARCHAR2"));
-    private static readonly TableDetails Position = Table("POSITION", Col("ID", nullable: false), Col("AUFTRAG_ID", nullable: false), Col("MENGE"));
+    private static readonly TableDetails Position = Table("POSITION", Col("ID", nullable: false), Col("AUFTRAG_ID", nullable: false), Col("MENGE"), Col("TEXT", "CLOB"));
 
     private static readonly ForeignKeyInfo AuftragKunde = new("FK_AUFTRAG_KUNDE", Auftrag.Table.Ref, ["KUNDE_ID"], Kunde.Table.Ref, ["ID"], FkSource.Declared) { Enforced = true };
     private static readonly ForeignKeyInfo PositionAuftrag = new("FK_POSITION_AUFTRAG", Position.Table.Ref, ["AUFTRAG_ID"], Auftrag.Table.Ref, ["ID"], FkSource.Declared);
@@ -59,6 +59,19 @@ public class QueryDesignEditorTests
     }
 
     [Fact]
+    public void A_second_click_on_the_edge_just_added_takes_it_out_instead_of_going_back_over_it()
+    {
+        var (tab, editor) = Open();
+
+        editor.ToggleEdge(AuftragKunde);
+        Assert.Equal(Kunde.Table.Ref, editor.Selected!.Table);
+        Assert.True(editor.ToggleEdge(AuftragKunde)); // no Select between: the review found AUFTRAG → KUNDE → AUFTRAG
+
+        Assert.Single(tab.Design!.Nodes);
+        Assert.True(editor.Selected!.IsRoot);
+    }
+
+    [Fact]
     public void The_sql_waits_for_the_columns_of_every_table_a_column_and_valid_conditions()
     {
         var (_, editor) = Open();
@@ -81,7 +94,26 @@ public class QueryDesignEditorTests
     }
 
     [Fact]
-    public void A_saved_column_the_table_no_longer_has_falls_out_of_the_tab_s_query_with_a_note()
+    public void A_value_or_order_the_column_no_longer_allows_is_a_problem_instead_of_an_error_while_rendering()
+    {
+        // Review: a value that became a CLOB (or a hand-edited file) made BuildDesign throw while the panel rendered.
+        var (_, editor) = Open();
+        editor.ToggleEdge(PositionAuftrag);
+        LoadAll(editor);
+        editor.ToggleColumn(editor.Selected!, "MENGE");
+        editor.SetSorts(editor.Selected!, [new SortSpec("TEXT", true)]);
+
+        Assert.StartsWith("AUFTRAG → POSITION: ", editor.Problem, StringComparison.Ordinal);
+        Assert.Null(editor.Sql(DesignSqlMode.Statement));
+
+        editor.SetSorts(editor.Selected!, []);
+        editor.ToggleColumn(editor.Design!.Nodes[0], "NOTIZ");
+        Assert.Contains("NOTIZ", editor.Problem, StringComparison.Ordinal);
+        Assert.Null(editor.Sql(DesignSqlMode.Statement));
+    }
+
+    [Fact]
+    public void A_saved_column_the_table_does_not_have_is_left_out_with_a_note_and_stays_in_the_tab_until_removed()
     {
         var tab = new TableTab(Guid.NewGuid(), Auftrag.Table)
         {
@@ -92,9 +124,37 @@ public class QueryDesignEditorTests
 
         LoadAll(editor);
 
+        Assert.Equal(["NR"], editor.Design!.Nodes[0].State.Columns.Select(c => c.Column));
+        Assert.Equal(["NR", "WEG"], tab.Design!.Nodes[0].Columns.Select(c => c.Column));
+        Assert.Single(editor.Notes);
+
+        editor.DropMissing();
         Assert.Equal(["NR"], tab.Design!.Nodes[0].Columns.Select(c => c.Column));
         Assert.True(tab.Design.Active);
-        Assert.Single(editor.Notes);
+        Assert.Empty(editor.Notes);
         Assert.False(QueryDesignEditor.Selectable(Auftrag.Columns[3])); // a CLOB has no value in the result
+    }
+
+    [Fact]
+    public void A_step_over_a_relationship_the_c_sharp_model_brings_later_survives_loading_without_it()
+    {
+        // Review: restored before the model was loaded, the step and what hangs on it were dropped from the tab for good.
+        var model = new ForeignKeyInfo("AUFTRAG.Kunde", Auftrag.Table.Ref, ["KUNDE_ID"], Kunde.Table.Ref, ["ID"], FkSource.ClrModel);
+        var tab = new TableTab(Guid.NewGuid(), Auftrag.Table);
+        var editor = new QueryDesignEditor(tab);
+        editor.Load(new RelationGraph([model, PositionAuftrag]));
+        editor.ToggleEdge(model);
+        editor.ToggleColumn(editor.Selected!, "NAME");
+
+        editor.Load(new RelationGraph([PositionAuftrag])); // the schema without the model
+        Assert.Single(editor.Design!.Nodes);
+        Assert.Single(editor.Notes);
+        editor.ToggleColumn(editor.Design.Nodes[0], "NR"); // a change meanwhile keeps it too
+        Assert.Equal(2, tab.Design!.Nodes.Count);
+
+        editor.Load(new RelationGraph([model, PositionAuftrag])); // the model came
+        Assert.Equal([Auftrag.Table.Ref, Kunde.Table.Ref], editor.Design!.Nodes.Select(n => n.Table));
+        Assert.Equal(["NAME"], editor.Design.Nodes[1].State.Columns.Select(c => c.Column));
+        Assert.Empty(editor.Notes);
     }
 }
