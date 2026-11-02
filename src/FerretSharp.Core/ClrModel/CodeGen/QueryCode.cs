@@ -45,8 +45,11 @@ public sealed record QueryLineTemplate(string Head, string Line, string Foot);
 public sealed record QueryCode(
     string Code, string Usage, string Script, string? SingleRead, IReadOnlyList<LinqParameter> Parameters, IReadOnlyList<string> Notes)
 {
-    /// <summary>The parameters as variables of the LINQ console: <c>var ab = new DateTime(2026, 10, 1);</c>.</summary>
-    public string Variables => string.Join("\r\n", Parameters.Select(p => $"var {CSharpCode.Identifier(p.Name)} = {p.Value};"));
+    /// <summary>
+    /// The parameters as variables of the LINQ console: <c>DateTime ab = new DateTime(2026, 10, 1);</c> – typed, as
+    /// <c>var nr = 5;</c> is an int a short parameter does not take (review).
+    /// </summary>
+    public string Variables => string.Join("\r\n", Parameters.Select(p => $"{p.Type} {CSharpCode.Identifier(p.Name)} = {p.Value};"));
 }
 
 /// <summary>
@@ -75,9 +78,10 @@ public static class QueryCodeBuilder
         return new Writer(design, mapping, detailsOf, options).Write();
     }
 
-    /// <summary>A C# name the user typed: letters, digits and <c>_</c>, not starting with a digit.</summary>
+    /// <summary>A C# name the user typed: letters, digits and <c>_</c>, not starting with a digit, no keyword.</summary>
     public static bool IsName(string? name) =>
-        name is { Length: > 0 } && (char.IsLetter(name[0]) || name[0] == '_') && name.All(c => char.IsLetterOrDigit(c) || c == '_');
+        name is { Length: > 0 } && (char.IsLetter(name[0]) || name[0] == '_') && name.All(c => char.IsLetterOrDigit(c) || c == '_')
+        && CSharpCode.Identifier(name) == name;
 
     private sealed class Writer
     {
@@ -96,6 +100,7 @@ public static class QueryCodeBuilder
         private readonly HashSet<string> _names = new(StringComparer.Ordinal);
         private readonly string _root;
         private readonly string _rootParameter;
+        private bool _filtered;
 
         public Writer(QueryDesign design, ClrModelMapping mapping, Func<TableRef, TableDetails> detailsOf, QueryCodeOptions options)
         {
@@ -111,7 +116,9 @@ public static class QueryCodeBuilder
             };
             _root = EntityName(design.Nodes[0]);
             _rootParameter = LambdaName(_root, []);
-            _names.UnionWith([_options.PredicateName, _options.ProjectionName]);
+
+            // A member named as its class does not compile (CS0542), a parameter named as the lambda's neither (CS0136).
+            _names.UnionWith([_options.PredicateName, _options.ProjectionName, _options.ClassName, _options.DtoName, _rootParameter]);
             foreach (var node in design.Nodes)
             {
                 Resolve(node);
@@ -122,6 +129,7 @@ public static class QueryCodeBuilder
         {
             var values = Values();
             var (predicate, parameters) = Predicate();
+            _filtered = predicate is not null;
             var helpers = _design.Nodes.Where(n => n.IsChosenChild && _nodes[n].Available && UsedByValues(n, values)).ToList();
 
             var members = new List<string>();
@@ -146,6 +154,10 @@ public static class QueryCodeBuilder
             if (_options.Namespace is { Length: > 0 } ns && IsNamespace(ns))
             {
                 code.Append("namespace ").Append(ns).Append(";\r\n\r\n");
+            }
+            else if (_options.Namespace is { Length: > 0 } invalid)
+            {
+                Note(TextFormat.Format(ClrModelText.QueryNamespaceInvalid, invalid));
             }
 
             code.Append(Class(copyMembers));
@@ -453,6 +465,10 @@ public static class QueryCodeBuilder
             if (parameters)
             {
                 names = [.. filters.Select(f => f.Parameter is { } p && IsName(p) ? p : null)];
+                foreach (var invalid in filters.Select(f => f.Parameter).Where(p => p is not null && !IsName(p)))
+                {
+                    Note(TextFormat.Format(ClrModelText.QueryParameterNameInvalid, QueryDesign.Label(node), invalid));
+                }
             }
             else if (filters.Any(f => f.Parameter is not null))
             {
@@ -460,7 +476,7 @@ public static class QueryCodeBuilder
             }
 
             var terms = LinqFilter.Terms(code.Presentation!, [.. filters.Select(f => f.Condition)],
-                property => LinqFilter.Member(nullable ? target + "!" : target, property), nullable ? target : null, names);
+                property => LinqFilter.Member(nullable ? target + "!" : target, property), nullable ? target : null, names, parameters ? Unique : null);
             foreach (var skipped in terms.Skipped)
             {
                 Note(TextFormat.Format(QueryText.DesignNodeProblem, QueryDesign.Label(node), TextFormat.Format(ClrModelText.FilterSkipped, skipped)));
@@ -478,12 +494,7 @@ public static class QueryCodeBuilder
             {
                 var terms = Conditions(node, RootAnchor, parameters: true);
                 conditions.AddRange(terms.Conditions);
-                foreach (var parameter in terms.Parameters)
-                {
-                    parameters.Add(parameters.Any(p => p.Name == parameter.Name)
-                        ? parameter with { Name = Unique(parameter.Name) }
-                        : parameter);
-                }
+                parameters.AddRange(terms.Parameters);
             }
 
             if (conditions.Count == 0)
@@ -502,8 +513,9 @@ public static class QueryCodeBuilder
 
         private string Source() => LinqFilter.Source(_nodes[_design.Nodes[0]].Entity!.Entity);
 
+        /// <summary>The filter where there is one – not where every condition was left out (review: CS0117).</summary>
         private string Where(IReadOnlyList<LinqParameter> parameters) =>
-            !_design.Nodes.Any(n => _nodes[n].Available && ZoneOf(n).IsRoot && n.State.Filters.Count > 0) ? ""
+            !_filtered ? ""
             : parameters.Count == 0 ? $"\r\n{Indent}.Where({_options.ClassName}.{_options.PredicateName})"
             : $"\r\n{Indent}.Where({_options.ClassName}.{_options.PredicateName}({string.Join(", ", parameters.Select(p => CSharpCode.Identifier(p.Name)))}))";
 

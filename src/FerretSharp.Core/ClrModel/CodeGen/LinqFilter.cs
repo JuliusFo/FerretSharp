@@ -85,9 +85,13 @@ public static class LinqFilter
     /// condition on a property that is not nullable itself – the row without parent stays, as in the grid.
     /// </param>
     /// <param name="parameters">Per filter the name of its parameter ("als Parameter"), or null for a value in the code.</param>
+    /// <param name="unique">
+    /// Makes a parameter's name unique among the names of the code around it (two conditions on one column, review); the
+    /// name as it is without.
+    /// </param>
     internal static LinqTerms Terms(
         TablePresentation presentation, IReadOnlyList<FilterCondition> filters, Func<PropertyExport, string> memberOf, string? optionalGuard,
-        IReadOnlyList<string?>? parameters)
+        IReadOnlyList<string?>? parameters, Func<string, string>? unique = null)
     {
         var conditions = new List<string>();
         var skipped = new List<string>();
@@ -100,7 +104,7 @@ public static class LinqFilter
             var results = term.Indexes.Select(i =>
             {
                 var own = new List<LinqParameter>();
-                var result = Condition(presentation, filters[i], memberOf, optionalGuard, notGroup, parameters?[i], own);
+                var result = Condition(presentation, filters[i], memberOf, optionalGuard, notGroup, parameters?[i], own, unique);
                 return (Filter: filters[i], Result: result, Parameters: own);
             }).ToList();
             if (term.Group is not { } group)
@@ -211,7 +215,7 @@ public static class LinqFilter
     /// <param name="declared">Receives the parameters the condition uses.</param>
     private static CSharpValue Condition(
         TablePresentation presentation, FilterCondition filter, Func<PropertyExport, string> memberOf, string? optionalGuard, bool inNotGroup,
-        string? parameter, List<LinqParameter> declared)
+        string? parameter, List<LinqParameter> declared, Func<string, string>? unique)
     {
         var index = presentation.Details.IndexOf(filter.Column);
         if (index < 0)
@@ -231,13 +235,14 @@ public static class LinqFilter
 
         var column = presentation.Details.Columns[index];
         var values = presentation.ValuesOf(index);
-        var builder = new ConditionBuilder(property, values, column, memberOf(property), parameter, declared);
+        var builder = new ConditionBuilder(property, values, column, memberOf(property), parameter, declared, unique);
         return builder.Build(filter, inNotGroup, optionalGuard);
     }
 
     /// <param name="parameter">Writes the value as this parameter instead of a literal (WP-69).</param>
     private sealed class ConditionBuilder(
-        PropertyExport property, ValueTable? values, ColumnInfo column, string m, string? parameter = null, List<LinqParameter>? declared = null)
+        PropertyExport property, ValueTable? values, ColumnInfo column, string m, string? parameter = null, List<LinqParameter>? declared = null,
+        Func<string, string>? unique = null)
     {
         private readonly ColumnCategory _category = ColumnCategories.Of(column);
 
@@ -364,11 +369,18 @@ public static class LinqFilter
             var type = TablePresentation.ClrTypeText(property with { Nullable = false });
             string Declare(string parameterName, string valueType, string value)
             {
-                declared!.Add(new LinqParameter(parameterName, valueType, value));
-                return CSharpCode.Identifier(parameterName);
+                var declaredName = unique?.Invoke(parameterName) ?? parameterName;
+                declared!.Add(new LinqParameter(declaredName, valueType, value));
+                return CSharpCode.Identifier(declaredName);
             }
 
-            var day = ByDay && property.ClrType == "DateTime" && Date(filter.Values[0]).DateOnly;
+            // A whole day goes through .Date of a DateTime; a DateTimeOffset would compare instants (review).
+            if (ByDay && property.ClrType != "DateTime" && filter.Values.Any(v => Date(v).DateOnly))
+            {
+                return CSharpValue.Fails(ClrModelText.ParameterNotForDays);
+            }
+
+            var day = ByDay && Date(filter.Values[0]).DateOnly;
             switch (filter.Op)
             {
                 case FilterOperator.Contains or FilterOperator.StartsWith or FilterOperator.EndsWith:
@@ -386,12 +398,14 @@ public static class LinqFilter
                         return CSharpValue.Fails(ClrModelText.ParameterNotForDays);
                     }
 
-                    var list = Declare(name, type + "[]", $"new {type}[] {{ {string.Join(", ", filter.Values.Select(Literal))} }}");
+                    // The element type as the member's: int[] has no Contains for an int? (review, CS1929).
+                    var element = TablePresentation.ClrTypeText(property);
+                    var list = Declare(name, element + "[]", $"new {element}[] {{ {string.Join(", ", filter.Values.Select(Literal))} }}");
                     return new CSharpValue($"{list}.Contains({m})");
                 case FilterOperator.Between:
                     var from = Declare(name + "From", type, Literal(filter.Values[0]));
                     var to = Declare(name + "To", type, Literal(filter.Values[1]));
-                    return new CSharpValue(ByDay && property.ClrType == "DateTime" && Date(filter.Values[1]).DateOnly
+                    return new CSharpValue(ByDay && Date(filter.Values[1]).DateOnly
                         ? $"{m} >= {from} && {m} < {to}.Date.AddDays(1)"
                         : $"{CompareCode(">=", from)} && {CompareCode("<=", to)}");
             }

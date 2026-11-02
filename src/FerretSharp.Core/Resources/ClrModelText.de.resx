@@ -361,7 +361,7 @@
     <value>Die Modelldatei ist größer als {0} MB und wird nicht gelesen.</value>
   </data>
   <data name="ParameterNotForDays" xml:space="preserve">
-    <value>Eine Liste ganzer Tage kann kein Parameter sein.</value>
+    <value>Ein Datum ohne Uhrzeit kann hier kein Parameter sein – „als Parameter“ abwählen oder eine Uhrzeit angeben.</value>
   </data>
   <data name="QueryNodeNoEntity" xml:space="preserve">
     <value>{0}: keine Entity im C#-Modell – nur im SQL.</value>
@@ -377,5 +377,11 @@
   </data>
   <data name="QueryNameInvalid" xml:space="preserve">
     <value>„{0}“ ist kein C#-Name – stattdessen {1}.</value>
+  </data>
+  <data name="QueryNamespaceInvalid" xml:space="preserve">
+    <value>Der Namespace „{0}“ ist kein C#-Namespace – weggelassen.</value>
+  </data>
+  <data name="QueryParameterNameInvalid" xml:space="preserve">
+    <value>{0}: „{1}“ ist kein C#-Name – die Bedingung nimmt den Wert statt eines Parameters.</value>
   </data>
 </root>

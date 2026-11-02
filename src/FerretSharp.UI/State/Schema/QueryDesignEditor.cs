@@ -132,6 +132,25 @@ public sealed class QueryDesignEditor(TableTab tab)
 
     public void SetNames(QueryNames names) => Set(State with { Names = names });
 
+    /// <summary>
+    /// A parameter named after the column (<c>KUNDE_ID</c> → <c>kundeId</c>), with a digit if a condition of the query has
+    /// that name already – two conditions on one column are a range (review: <c>Filter(DateTime datum, DateTime datum)</c>).
+    /// </summary>
+    public string DefaultParameter(string column)
+    {
+        var parts = column.Split('_', StringSplitOptions.RemoveEmptyEntries).Select(p => p.ToLowerInvariant()).ToList();
+        var name = string.Concat(parts.Select((p, i) => i == 0 ? p : char.ToUpperInvariant(p[0]) + p[1..]));
+        name = QueryCodeBuilder.IsName(name) ? name : "value";
+        var taken = State.Nodes.SelectMany(n => n.Filters).Select(f => f.Parameter).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var unique = name;
+        for (var n = 2; taken.Contains(unique); n++)
+        {
+            unique = name + n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return unique;
+    }
+
     // --- Columns of the query's tables ------------------------------------------------------------------------------------
 
     /// <summary>The query's tables whose columns are not loaded yet.</summary>

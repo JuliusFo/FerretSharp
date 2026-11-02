@@ -45,7 +45,8 @@
             </select>
             @if (column is not null)
             {
-                <select class="field small" value="@row.Op" @onchange="e => SetRow(at, r => r.Op = Enum.Parse<FilterOperator>(e.Value as string ?? r.Op.ToString()))">
+                @* Keyed on the category: other options with the same value would leave the browser showing another one (ui.md). *@
+                <select @key="ColumnCategories.Of(column)" class="field small" value="@row.Op" @onchange="e => SetRow(at, r => r.Op = Enum.Parse<FilterOperator>(e.Value as string ?? r.Op.ToString()))">
                     @foreach (var op in FilterRules.OperatorsFor(ColumnCategories.Of(column)))
                     {
                         <option value="@op">@OperatorLabels.Label(op)</option>
@@ -63,7 +64,7 @@
             @if (!Node.IsChosenChild && QueryBuilder.PartOf(Node).IsRoot && FilterRules.ValueCount(row.Op) != 0)
             {
                 <label class="check" title="@SchemaViewText.Query_AsParameterTitle">
-                    <input type="checkbox" checked="@(filter.Parameter is not null)" @onchange="() => SetParameter(at, filter.Parameter is null ? DefaultParameter(row.Column) : null)" />
+                    <input type="checkbox" checked="@(filter.Parameter is not null)" @onchange="() => SetParameter(at, filter.Parameter is null ? Editor.DefaultParameter(row.Column) : null)" />
                     @SchemaViewText.Query_AsParameter
                 </label>
                 @if (filter.Parameter is { } parameter)
@@ -103,6 +104,7 @@
             </div>
         }
         <button class="btn ghost small" @onclick="AddSort">+ @SchemaViewText.Query_AddOrder</button>
+        <p class="hint small">@SchemaViewText.Query_OrderTies</p>
     }
 </section>
 
@@ -163,13 +165,5 @@
     {
         var column = Details.Columns.First(c => ColumnCategories.IsSortable(ColumnCategories.Of(c)));
         return SetSorts([.. Node.State.Sorts, new SortSpec(column.Name, false)]);
-    }
-
-    /// <summary>A parameter named after the column: <c>KUNDE_ID</c> → <c>kundeId</c>.</summary>
-    private static string DefaultParameter(string column)
-    {
-        var parts = column.Split('_', StringSplitOptions.RemoveEmptyEntries).Select(p => p.ToLowerInvariant()).ToList();
-        var name = string.Concat(parts.Select((p, i) => i == 0 ? p : char.ToUpperInvariant(p[0]) + p[1..]));
-        return name.Length > 0 && char.IsLetter(name[0]) ? name : "value";
     }
 }

@@ -458,8 +458,8 @@
     <comment>{0} = limit in MB</comment>
   </data>
   <data name="ParameterNotForDays" xml:space="preserve">
-    <value>A list of whole days cannot be a parameter.</value>
-    <comment>Why a filter "in" with dates without time cannot become a parameter of generated LINQ code</comment>
+    <value>A date without time cannot be a parameter here – untick "as parameter" or give a time.</value>
+    <comment>Why a condition with a date without time (a list of days, or on a DateTimeOffset) cannot become a parameter of generated LINQ code</comment>
   </data>
   <data name="QueryNodeNoEntity" xml:space="preserve">
     <value>{0}: no entity of the C# model – only in the SQL.</value>
@@ -480,5 +480,13 @@
   <data name="QueryNameInvalid" xml:space="preserve">
     <value>“{0}” is not a C# name – {1} is used instead.</value>
     <comment>{0}: the name the user typed; {1}: the name used instead</comment>
+  </data>
+  <data name="QueryNamespaceInvalid" xml:space="preserve">
+    <value>Namespace “{0}” is not a C# namespace – left out.</value>
+    <comment>{0}: the namespace as typed for the code of a query built in the relationship diagram</comment>
+  </data>
+  <data name="QueryParameterNameInvalid" xml:space="preserve">
+    <value>{0}: “{1}” is not a C# name – the condition takes its value instead of a parameter.</value>
+    <comment>{0}: the tables along the path, e.g. AUFTRAG → KUNDE; {1}: the parameter name as typed</comment>
   </data>
 </root>

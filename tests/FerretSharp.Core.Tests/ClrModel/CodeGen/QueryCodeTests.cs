@@ -18,7 +18,8 @@ public class QueryCodeTests
         new(new TableSummary(Owner, name, TableKind.Table), columns, key, [], false);
 
     private static readonly TableDetails Auftrag = Table("AUFTRAG", ["ID"],
-        Col("ID", nullable: false), Col("NR", nullable: false), Col("DATUM", "DATE"), Col("KUNDE_ID", nullable: false), Col("BEARBEITER_ID"));
+        Col("ID", nullable: false), Col("NR", nullable: false), Col("DATUM", "DATE"), Col("KUNDE_ID", nullable: false), Col("BEARBEITER_ID"),
+        Col("GEAENDERT", "TIMESTAMP(6) WITH TIME ZONE"), Col("INTERN"));
     private static readonly TableDetails Kunde = Table("KUNDE", ["ID"], Col("ID", nullable: false), Col("NAME", "VARCHAR2", nullable: false), Col("UMSATZ"));
     private static readonly TableDetails Mitarbeiter = Table("MITARBEITER", ["ID"], Col("ID", nullable: false), Col("NR", nullable: false), Col("NAME", "VARCHAR2"));
     private static readonly TableDetails Position = Table("POSITION", ["AUFTRAG_ID", "POS_NR"],
@@ -65,7 +66,8 @@ public class QueryCodeTests
         {
             Entity("Auftrag", "AUFTRAG", "Auftraege",
                 [Property("Id", "int", "ID"), Property("Nr", "int", "NR"), Property("Datum", "DateTime", "DATUM", nullable: true),
-                 Property("KundeId", "int", "KUNDE_ID"), Property("BearbeiterId", "int", "BEARBEITER_ID", nullable: true)],
+                 Property("KundeId", "int", "KUNDE_ID"), Property("BearbeiterId", "int", "BEARBEITER_ID", nullable: true),
+                 Property("Geaendert", "DateTimeOffset", "GEAENDERT", nullable: true)],
                 ["Id"], [Key("KundeId", "Shop.Kunde", "Kunde", "Auftraege"), Key("BearbeiterId", "Shop.Mitarbeiter", "Bearbeiter", null)]),
             Entity("Kunde", "KUNDE", "Kunden", [Property("Id", "int", "ID"), Property("Name", "string", "NAME"), Property("Umsatz", "decimal", "UMSATZ", nullable: true)], ["Id"], []),
             Entity("Mitarbeiter", "MITARBEITER", null, [Property("Id", "int", "ID"), Property("Nr", "int", "NR"), Property("Name", "string", "NAME", nullable: true)], ["Id"], []),
@@ -202,9 +204,88 @@ public class QueryCodeTests
         Assert.Contains(
             "public static Expression<Func<Auftrag, bool>> Filter(DateTime tag, int nrFrom, int nrTo) => a =>\r\n"
             + "        a.Datum >= tag.Date && a.Datum < tag.Date.AddDays(1)\r\n        && a.Nr >= nrFrom && a.Nr <= nrTo;", code.Code, StringComparison.Ordinal);
-        Assert.Equal("var tag = new DateTime(2026, 10, 1);\r\nvar nrFrom = 1;\r\nvar nrTo = 9;", code.Variables);
+        Assert.Equal("DateTime tag = new DateTime(2026, 10, 1);\r\nint nrFrom = 1;\r\nint nrTo = 9;", code.Variables);
         Assert.Contains(".Where(AuftragQueries.Filter(tag, nrFrom, nrTo))", code.Usage, StringComparison.Ordinal);
         Assert.Null(code.SingleRead);
+    }
+
+    [Fact]
+    public async Task Parameters_get_names_unique_in_the_code_and_a_list_takes_the_member_s_nullable_type()
+    {
+        // Review: a range on one column gave Filter(DateTime datum, DateTime datum) (CS0100), a parameter named as the
+        // lambda's CS0136, and a list for an int? was an int[] without Contains for it (CS1929).
+        var state = QueryDesignState.Empty.Update([], n => Columns(n, "NR") with
+        {
+            Filters =
+            [
+                new QueryFilter(FilterCondition.Of("DATUM", FilterOperator.Gte, "1.10.2026 08:00"), "datum"),
+                new QueryFilter(FilterCondition.Of("DATUM", FilterOperator.Lt, "1.11.2026 08:00"), "datum"),
+                new QueryFilter(FilterCondition.Of("NR", FilterOperator.Equals, "5"), "a"),
+                new QueryFilter(FilterCondition.Of("BEARBEITER_ID", FilterOperator.In, "1", "2"), "Nr"),
+            ],
+        });
+
+        var code = await BuildAsync(state);
+
+        Assert.Contains(
+            "Filter(DateTime datum, DateTime datum2, int a2, int?[] Nr2) => a =>\r\n"
+            + "        a.Datum >= datum\r\n        && a.Datum < datum2\r\n        && a.Nr == a2\r\n        && Nr2.Contains(a.BearbeiterId);",
+            code.Code, StringComparison.Ordinal);
+        Assert.Equal(
+            "DateTime datum = new DateTime(2026, 10, 1, 8, 0, 0);\r\nDateTime datum2 = new DateTime(2026, 11, 1, 8, 0, 0);\r\nint a2 = 5;\r\nint?[] Nr2 = new int?[] { 1, 2 };",
+            code.Variables);
+        Assert.Contains(".Where(AuftragQueries.Filter(datum, datum2, a2, Nr2))", code.Usage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Without_a_condition_left_there_is_no_filter_to_call_and_a_whole_day_on_a_date_time_offset_is_no_parameter()
+    {
+        // Review: the usage called AuftragQueries.Filter although every condition was left out (CS0117), and a day on a
+        // DateTimeOffset compared the instant in C# but the whole day in SQL.
+        var state = QueryDesignState.Empty.Update([], n => Columns(n, "NR") with
+        {
+            Filters =
+            [
+                new QueryFilter(FilterCondition.Of("INTERN", FilterOperator.Equals, "1")),
+                new QueryFilter(FilterCondition.Of("GEAENDERT", FilterOperator.Equals, "1.10.2026"), "tag"),
+            ],
+        });
+
+        using (UiCulture.Use("en"))
+        {
+            var code = await BuildAsync(state);
+
+            Assert.DoesNotContain("Filter", code.Code, StringComparison.Ordinal);
+            Assert.Equal("db.Auftraege\r\n    .Select(AuftragQueries.Projection)", code.Usage);
+            Assert.Contains(code.Notes, n => n.Contains("A date without time cannot be a parameter here", StringComparison.Ordinal));
+            Assert.Equal(2, code.Notes.Count);
+        }
+    }
+
+    [Fact]
+    public async Task Keywords_names_of_the_class_or_dto_and_invalid_parameter_or_namespace_names_are_caught()
+    {
+        var state = QueryDesignState.Empty.Update([], n => n with
+        {
+            Columns = [new QueryColumn("NR", "AuftragRow"), new QueryColumn("DATUM", "class")],
+            Filters = [new QueryFilter(FilterCondition.Of("NR", FilterOperator.Equals, "5"), "nicht gültig")],
+        });
+
+        using (UiCulture.Use("en"))
+        {
+            var code = await BuildAsync(state, QueryCodeOptions.For("Auftrag") with { Namespace = "Shop.1x" });
+
+            Assert.Contains("    AuftragRow2 = a.Nr,", code.Code, StringComparison.Ordinal); // CS0542 as a member of AuftragRow
+            Assert.Contains("    Datum = a.Datum,", code.Code, StringComparison.Ordinal);
+            Assert.Contains("Filter = a =>\r\n        a.Nr == 5;", code.Code, StringComparison.Ordinal);
+            Assert.DoesNotContain("namespace", code.Code, StringComparison.Ordinal);
+            Assert.Equal(
+            [
+                "“class” is not a C# name – Datum is used instead.",
+                "AUFTRAG: “nicht gültig” is not a C# name – the condition takes its value instead of a parameter.",
+                "Namespace “Shop.1x” is not a C# namespace – left out.",
+            ], code.Notes);
+        }
     }
 
     [Fact]

@@ -72,6 +72,18 @@ public class QueryDesignEditorTests
     }
 
     [Fact]
+    public void A_parameter_s_suggested_name_follows_the_column_and_is_free_in_the_query()
+    {
+        var (_, editor) = Open();
+        Assert.Equal("kundeId", editor.DefaultParameter("KUNDE_ID"));
+
+        // A range on one column: the second condition gets its own name (review: CS0100 in the generated code).
+        editor.SetFilters(editor.Design!.Nodes[0], [new QueryFilter(FilterCondition.Of("KUNDE_ID", FilterOperator.Gte, "1"), "kundeId")]);
+        Assert.Equal("kundeId2", editor.DefaultParameter("KUNDE_ID"));
+        Assert.Equal("value", editor.DefaultParameter("CLASS")); // a keyword is no name
+    }
+
+    [Fact]
     public void The_sql_waits_for_the_columns_of_every_table_a_column_and_valid_conditions()
     {
         var (_, editor) = Open();
