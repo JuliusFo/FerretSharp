@@ -70,3 +70,29 @@ Eigener Container mit der Beispiel-DB (`ferret-wp69-e2e`), verknüpftes `samples
 - Filtergruppen (WP-50) in der Seitenleiste: Die Bedingungen eines Knotens werden dort mit UND verbunden; das Modell trägt Gruppen schon.
 - Ein Klick auf einen Knoten im Diagramm öffnet weiter die Tabelle; gewählt wird ein Knoten in der Seitenleiste.
 - Der Weg mit LinqKit (`Invoke`/`Expand`) ist nur per Messung mit einem Testprojekt belegt, der Integrationstest läuft ohne (das Beispielprojekt hat kein LinqKit).
+
+## Nachtrag: Code-Review (2026-11-02)
+Review des Branches durch einen eigenen Agenten (15 Befunde), jeder am Code nachgeprüft. Entscheidung des Nutzers: „Alle beheben, deine Vorschläge bei den Fragen passen.“ – also bei #1 nicht Auflösbares immer im Tab behalten (ausgeblendet mit Hinweis und Knopf „Aus der Abfrage entfernen“), bei #14 ein Satz im ADR und ein Hinweis unter der Reihenfolge.
+1. **S – Schritte über Beziehungen des C#-Modells gingen verloren**, wenn der Tab vor dem Laden des Modells aufgelöst wurde (`Load` schrieb das Ergebnis in `tab.Design` zurück). Behoben: Die Auflösung schreibt nie zurück; was fehlt, bleibt im Tab, wird mit Hinweis ausgelassen und nur über „Aus der Abfrage entfernen“ (`DropMissing`) entfernt. Hinweistexte sagen „fehlt (oder das C#-Modell lädt noch) – vorerst nicht in der Abfrage“.
+2. **M – Zweiter Klick auf die gerade gewählte Kante** hängte den Rückweg an statt sie herauszunehmen. Behoben: Kam der gewählte Knoten über die Kante, geht er heraus; ein Schritt beginnt nie über den Rückweg (wie `NextSteps`).
+3. **M – Doppelte Parameternamen** (Zeitraum auf einer Spalte, Name wie der Lambda-Parameter) ergaben nicht kompilierbaren Code. Behoben: Namen werden beim Erzeugen eindeutig (`LinqFilter.Terms(…, unique)`, vorbelegt mit Lambda, Klasse, DTO, Prädikat, Projektion und Werten); der Vorschlag im Editor ist frei in der Abfrage (`QueryDesignEditor.DefaultParameter`).
+4. **M – „In“ als Parameter auf nullbarer Property**: `int[]` ohne `Contains(int?)`. Behoben: Elementtyp wie der Member.
+5. **M – `.Where(Filter)` ohne Filter**, wenn jede Bedingung übersprungen wurde. Behoben: hängt am erzeugten Prädikat.
+6. **M – Completion in der Konsole verschoben** nach gehobenen `using`-Zeilen. Behoben: Sie bleiben als Leerzeichen gleicher Länge stehen; Integrationstest mit Kommentar hinter dem Cursor (ohne Fix leer).
+7. **M – Vorschau ohne Abbrechen**. Behoben: `RunProgress` mit Zeit, Abbrechen (auf einem Pool-Thread) und „Session trennen“; Verlassen des Modus bricht ab.
+8. **M – Ausnahme beim Rendern**, wenn eine gewählte Spalte keinen Wert mehr hat oder eine Sortierspalte nicht sortierbar ist. Behoben: `Problem` meldet beides, SQL und C# warten.
+9. **M – Zeilenvorlage**: Kopf ohne Zeile ging verloren, Felder ließen sich nicht leeren. Behoben: je Feld gespeichert, leer ist leer; der Code nimmt die Vorlage nur mit Zeile.
+10. **K – `var` in der Konsole** passte nicht zu `short`-Parametern. Behoben: Variablen mit Typ.
+11. **K – Ganzer Tag auf `DateTimeOffset` als Parameter** verglich in C# den Zeitpunkt. Behoben: wie beim „In“ kein Parameter, Hinweis (`ParameterNotForDays`, Text allgemeiner).
+12. **K – Namen**: Schlüsselwörter galten als Namen, ungültiger Parametername und Namespace fielen still weg, ein Wert hieß wie seine Klasse. Behoben: `IsName` lehnt Schlüsselwörter ab, Hinweise für Parameter und Namespace, Klassen- und DTO-Name vorbelegt.
+13. **K – Operator-Auswahl ohne `@key`** (Falle aus `ui.md`). Behoben: gekeyt auf die Kategorie der Spalte.
+14. **K – „Das erste Kind“ kann zwischen Vorschau und App abweichen** (ROWID gegen Entity-Schlüssel, `NLS_SORT`). Dokumentiert: ADR 0040, Hinweis unter der Reihenfolge.
+15. **K – Spalten laden ohne Wiederholung**. Behoben: Hinweis mit „Erneut versuchen“.
+
+**Zweiter Durchgang** (derselbe Reviewer über die Fix-Commits): 14 von 15 abgedeckt.
+- A (Lücke in #1): Bearbeiten einer Bedingung oder Reihenfolge schrieb die Liste ohne die Einträge auf fehlenden Spalten zurück. Behoben: `SetFilters`/`SetSorts` behalten sie, Test ergänzt (scheitert ohne Fix).
+- B (Wortlaut zu #14): Die binäre Sortierung ordnet auch verschiedene Werte anders, nicht nur gleiche. Hinweis und ADR umformuliert.
+- C (neu, K): Eine laufende Vorschau zeigt nach einer Änderung der Abfrage das alte Ergebnis – dem Nutzer vorgelegt.
+- Rest zu #12, nicht behoben: Gibt der Nutzer Klasse und DTO denselben Namen, kompiliert der Code nicht.
+
+**E2E** (eigener Container `ferret-wp69-e2e`, Testinstanz mit Daten aus dem ersten Lauf, Modell-Cache beiseitegelegt): Neustart – der Schritt über `Auftrag.Bearbeiter` (nur C#-Modell) steht weiter in der Abfrage; dreimal dieselbe Kante: heraus, hinein (gewählt), heraus; Vorlage: nur der Kopf bleibt in den Einstellungen (Code weiter mit Projektion), Leeren entfernt ihn; Vorschau zeigt „Abfrage läuft · Abbrechen“ und 100 Zeilen; Operator „in Liste“ bleibt nach dem Wechsel auf eine Textspalte richtig angezeigt. Log ohne `[ERR]`/`[WRN]`. Klicks per CDP-Eingabe (Stufe 2): Die Probe `Test-InjectedInput.ps1` meldete gefilterte Windows-Eingabe. Nicht geprüft: Abbrechen einer langsamen Vorschau, „Aus der Abfrage entfernen“ und „Erneut versuchen“ in der Oberfläche (beides nur über Unit-Tests).
