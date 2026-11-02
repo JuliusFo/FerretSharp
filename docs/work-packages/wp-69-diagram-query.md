@@ -51,6 +51,21 @@ An einem typischen Ausdruck aus seinem Projekt (nur Kontext, Namen nicht im Repo
 - **UI:** `QueryDesignEditor` (State/Schema), `QueryDesignPanel` (Baum, Reiter LINQ | SQL | Vorschau, Stil, View), `QueryNodeEditor` (Spalten mit Namen, Bedingungen mit „als Parameter“, Reihenfolge), `RelationsView` (Umschalter, klickbare und markierte Kanten, Laden der Spalten), `DiagramCanvas.OnEdgeClick`, „Abfrage bauen“ im Objektmenü, `ShellState.OpenLinq(code, variables)`, `TableTab.Design`, CSS `.query-*`.
 - **Tests:** Core `QueryDesignTests`, `QueryBuilderDesignTests`, `QueryCodeTests`, `QueryCodeStyleTests`, `WorkspaceStoreTests` (Speichern); UI `QueryDesignEditorTests`; Integration `QueryDesignTests` (erzeugter Code in der Konsole des Beispielprojekts und erzeugtes SQL gegen Oracle, dieselben Zeilen; auch „Kind einmal lesen“), `ObjectDetailsTests` (`Enforced` bei ENABLE NOVALIDATE).
 
+## E2E (2026-11-02)
+Eigener Container mit der Beispiel-DB (`ferret-wp69-e2e`), verknüpftes `samples`-Projekt, Oberfläche auf Deutsch.
+- **Geprüft:**
+  - Kanten AUFTRAG → KUNDEN und → MITARBEITER per Klick (CDP und echte Windows-Eingabe: aus der Abfrage und wieder hinein). Eine Kante, die den gewählten Knoten nicht berührt, geht von der Wurzel aus.
+  - Spalten an vier Knoten, gewähltes Kind AUFTRAG_POSITION mit `MENGE > 0` und absteigender Reihenfolge, dessen Eltern ARTIKEL; ein gewähltes Kind unter einem Elternknoten (RECHNUNG über KUNDEN).
+  - LINQ wie erwartet (Ausdrücke je Wert, `Invoke`, `!`, `(int?)`, Projektion, DTO, „Kind einmal lesen“). SQL mit JOIN für KUNDEN (durchgesetzt, NOT NULL), LEFT JOIN für MITARBEITER (nur C#-Modell), OUTER APPLY mit ARTIKEL darin.
+  - Vorschau: die ersten 100 von 50 000 Aufträgen. „View anlegen…“: `CREATE VIEW` mit Literal, Bestätigung, Hinweis „angelegt“, View im Explorer; danach meldet derselbe Name „gibt es schon (VIEW)“.
+  - LinqKit im Stil aus (das Beispielprojekt hat keins), „In LINQ-Konsole öffnen“, Ausführen: dieselben Werte wie die Vorschau.
+  - Neustart: die Abfrage steht wieder im Tab. Objektmenü „Abfrage bauen“ öffnet KUNDEN in „Beziehungen“ mit der Seitenleiste. Log ohne `[ERR]`/`[WRN]`.
+- **Befunde, behoben:**
+  1. „Beziehung hinzufügen…“ zeigte nach dem Hinzufügen weiter die gewählte Beziehung – die `<select>`-Falle aus `ui.md`; jetzt auf den Zustand der Abfrage gekeyt.
+  2. Vom gewählten Kind wurde der Rückweg über dieselbe Beziehung angeboten (zurück zum Auftrag) – `NextSteps` lässt ihn aus.
+  3. Die Konsole warnte bei jedem `string?` (CS8632): Ein Script hat keine Projekteinstellung für Nullable – das Script beginnt jetzt mit `#nullable enable`; der Integrationstest verlangt keine Meldungen mehr.
+- **Nicht geprüft:** die Pläne beider LINQ-Formen auf großen Daten (welche schneller ist, hängt von den Daten ab).
+
 ## Offen
 - Filtergruppen (WP-50) in der Seitenleiste: Die Bedingungen eines Knotens werden dort mit UND verbunden; das Modell trägt Gruppen schon.
 - Ein Klick auf einen Knoten im Diagramm öffnet weiter die Tabelle; gewählt wird ein Knoten in der Seitenleiste.

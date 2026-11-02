@@ -154,7 +154,8 @@ public static class QueryCodeBuilder
                 code.Append("\r\n\r\n").Append(dto);
             }
 
-            var script = new StringBuilder(Usings()).Append("\r\n").Append(Class(scriptMembers));
+            // A script has no project setting for nullable reference types: without it, string? warns (CS8632, E2E).
+            var script = new StringBuilder(Usings()).Append("\r\n#nullable enable\r\n\r\n").Append(Class(scriptMembers));
             if (dto is not null)
             {
                 script.Append("\r\n\r\n").Append(dto);

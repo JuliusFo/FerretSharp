@@ -119,6 +119,7 @@ public sealed class QueryDesignTests(OracleContainerFixture oracle) : IAsyncLife
     {
         var result = await _console!.RunAsync(script, "", Ct);
         Assert.False(result.HasErrors, string.Join("\n", result.Diagnostics) + "\n" + script);
+        Assert.Empty(result.Diagnostics); // E2E: without #nullable enable every string? warned (CS8632)
         Assert.Null(result.Exception);
         var query = LinqStatements.ToQuery(Assert.Single(result.Commands));
         return Rows(await _data.ReadSqlAsync(query with { Sql = OnOwnTables(query.Sql) }, 0, 100, Ct));

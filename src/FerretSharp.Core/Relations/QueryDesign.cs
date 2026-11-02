@@ -263,11 +263,17 @@ public sealed class QueryDesign
 
     /// <summary>
     /// The steps a node can take: its parents, then its children (a self reference both ways), without those the query
-    /// takes already.
+    /// takes already and without the way back over the relationship that led to the node (E2E: from a chosen position
+    /// back to its order).
     /// </summary>
     public IReadOnlyList<(QueryStep Step, ForeignKeyInfo Relation)> NextSteps(QueryNode node, RelationGraph graph)
     {
         var taken = ChildrenOf(node).Select(n => n.Step!).ToHashSet();
+        if (node.Step is { } incoming)
+        {
+            taken.Add(incoming with { ToChild = !incoming.ToChild });
+        }
+
         return
         [
             .. graph.ParentsOf(node.Table).Select(r => (Step: new QueryStep(RelationGraph.KeyOf(r), false), Relation: r))

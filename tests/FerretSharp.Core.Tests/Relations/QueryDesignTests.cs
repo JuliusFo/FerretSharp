@@ -46,6 +46,7 @@ public class QueryDesignTests
         Assert.Same(design.Nodes[3], design.Nodes[4].From);
         Assert.Equal("AUFTRAG → POSITION → ARTIKEL", QueryDesign.Label(design.Nodes[4]));
         Assert.Empty(design.Notes);
+        Assert.Empty(design.NextSteps(design.Nodes[3], Graph)); // the article is taken, the way back to the order is none
     }
 
     [Fact]

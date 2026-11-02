@@ -46,7 +46,8 @@
             var next = Editor.NextSteps(selected);
             @if (next.Count > 0)
             {
-                <select class="field query-add" value="" @onchange="e => AddStep(selected, next, e.Value as string)">
+                @* Keyed on the query: the same value "" again would not reset the choice the browser shows (ui.md). *@
+                <select @key="Editor.State" class="field query-add" value="" @onchange="e => AddStep(selected, next, e.Value as string)">
                     <option value="">@SchemaViewText.Query_AddStep</option>
                     @for (var i = 0; i < next.Count; i++)
                     {
