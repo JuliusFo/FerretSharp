@@ -40,6 +40,9 @@ public interface IEditableGrid
     /// <summary>"Row no longer loaded – F5 loads it again."</summary>
     string RowNotLoaded { get; }
 
+    /// <summary>The text Ctrl+C last copied from one cell (<see cref="ShellState.CopiedCell"/>): pasted again, it is one value.</summary>
+    string? CopiedCell { get; }
+
     /// <summary>How many rows the query has, once all of them are loaded; null while more may follow (WP-59: whole columns).</summary>
     int? AllRows { get; }
 
@@ -277,6 +280,62 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
 
         var rows = Loaded(rowIndexes);
         return rows.Count < rowIndexes.Count ? GridFill.Refused(grid.RowNotLoaded) : Fill(rows, [column], fill);
+    }
+
+    /// <summary>
+    /// Ctrl+V on a cell that is not being edited: one pasted value (<see cref="ClipboardCell"/>) for the marked cells, the
+    /// focused column of the selected rows, or the focused cell – as Ctrl+Enter with the value typed in. Why nothing was
+    /// set goes to the status bar.
+    /// </summary>
+    /// <param name="text">
+    /// The clipboard's text; empty if the clipboard is empty, null if it holds something else (a picture, files).
+    /// </param>
+    /// <param name="selectedRows">The selected rows if the focused row is one of several, else empty.</param>
+    /// <returns>The loaded rows to redraw (grid.js draws them itself); new rows are set again here.</returns>
+    public async Task<GridRowUpdate[]> PasteAsync(int rowIndex, string? newId, int column, string? text, GridMarks? marks, IReadOnlyList<int> selectedRows)
+    {
+        // Ctrl+C on NULL leaves the clipboard empty: right after that copy it is NULL, otherwise there is nothing to paste.
+        if (text is null || (text.Length == 0 && grid.CopiedCell is not ""))
+        {
+            grid.Notify(GridText.Fill_PasteNoText);
+            return [];
+        }
+
+        if (ClipboardCell.ValueOf(text, grid.CopiedCell) is not { } value)
+        {
+            grid.Notify(GridText.Fill_PasteSeveral);
+            return [];
+        }
+
+        if (marks is not null || selectedRows.Count > 1)
+        {
+            var fill = marks is not null ? await FillAsync(marks, CellFill.Value(value)) : FillRows(selectedRows, column, CellFill.Value(value));
+            if (fill.Error is { Length: > 0 } error)
+            {
+                grid.Notify(error);
+            }
+
+            return fill.Rows;
+        }
+
+        var edit = Edit(rowIndex, newId, column, value);
+        if (edit.Error is not null)
+        {
+            grid.Notify(edit.Error);
+        }
+
+        if (edit.Row is not { } row)
+        {
+            return [];
+        }
+
+        if (newId is not null)
+        {
+            await grid.SetNewRowsAsync();
+            return [];
+        }
+
+        return [new GridRowUpdate(rowIndex, row)];
     }
 
     /// <summary>Why a command for so many rows cannot run now; null if it can.</summary>

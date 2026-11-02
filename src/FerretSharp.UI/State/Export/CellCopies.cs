@@ -123,9 +123,32 @@ public static class CellCopies
             return;
         }
 
+        if (kind == MarksCopy.Cells && rows.Count == 1 && columns.Count == 1)
+        {
+            await CopyOneAsync(shell, copy, grid.ColumnOf(columns[0]), rows[0], marks);
+            return;
+        }
+
         var cells = new CellValues([.. columns.Select(grid.ColumnOf)], kind == MarksCopy.Table);
         cells.AddRows(rows.Select(r => r.Values));
         await FinishAsync(shell, copy, cells, marks, kind, []);
+    }
+
+    /// <summary>
+    /// One marked cell, copied like Ctrl+C on it (fix-grid-paste): its value, not as presented (an enum's member would be
+    /// pasted back as text) and not quoted, and remembered – Ctrl+V gives it back whole, line breaks and NULL included.
+    /// </summary>
+    private static async Task CopyOneAsync(ShellState shell, Func<string, Task<bool>> copy, ExportColumn column, RowData row, GridMarks marks)
+    {
+        var cell = DelimitedExport.CellText(column.Column, row.Values[column.Source]);
+        if (!await copy(cell.Text))
+        {
+            shell.Notify(CommonText.ClipboardUnavailable);
+            return;
+        }
+
+        shell.CellCopied(cell.Warnings.Count == 0 ? cell.Text : null);
+        shell.Notify(TextFormat.Format(GridText.Marks_Copied, marks.Text), cell.Warnings);
     }
 
     /// <summary>
@@ -248,11 +271,14 @@ public static class CellCopies
         }
         else if (marks.Whole)
         {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
+
             shell.Notify(TextFormat.Format(kind == MarksCopy.Table ? GridText.Marks_ColumnsCopiedAsTable : GridText.Marks_ColumnsCopied,
                 marks.Text, ExportActions.RowsText(text.Rows)), warnings);
         }
         else
         {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
             shell.Notify(TextFormat.Format(kind == MarksCopy.Table ? GridText.Marks_CopiedAsTable : GridText.Marks_Copied, marks.Text), warnings);
         }
     }

@@ -99,6 +99,18 @@ public sealed partial class ShellState
     /// </summary>
     public bool ErrorMasked { get; private set; }
 
+    /// <summary>
+    /// The text Ctrl+C or "Copy value" last put on the clipboard for one cell, as it is: Ctrl+V on a cell takes exactly this
+    /// text as one value, line breaks and all (<see cref="ClipboardCell"/>, fix-grid-paste). In memory only.
+    /// It counts only while the clipboard holds that text – or holds nothing, for "" (Ctrl+C on NULL leaves it empty). So a
+    /// new way of copying forgets it (null) after copying only if it copies cells (rows, marks, column values: their text
+    /// could equal it) or may leave the clipboard empty; one that copies one cell's value sets it like Ctrl+C.
+    /// </summary>
+    public string? CopiedCell { get; private set; }
+
+    /// <param name="text">The copied text; null forgets it – another copy, or a value not copied whole (a LOB preview).</param>
+    public void CellCopied(string? text) => CopiedCell = text;
+
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
 

@@ -41,9 +41,9 @@ public sealed class GridEditingTests
     {
         _grid.Rows[0] = Row(1, "Peter");
 
-        var edit = Editing.Edit(0, null, 1, "eins");
+        var edit = Editing.Edit(0, null, 2, new string('x', 31)); // NAME VARCHAR2(30), not the key: the value itself is refused
 
-        Assert.NotNull(edit.Error);
+        Assert.StartsWith("Zu lang", edit.Error);
         Assert.Null(edit.Row);
         Assert.Empty(_grid.Queued);
     }
@@ -212,6 +212,75 @@ public sealed class GridEditingTests
     }
 
     [Fact]
+    public async Task A_pasted_value_goes_into_the_marks_the_selected_rows_or_the_focused_cell()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.Rows[1] = Row(2, "Paul");
+        _grid.Rows[2] = Row(3, "Mary");
+        var added = _grid.Changes!.AddRow();
+
+        var marked = await Editing.PasteAsync(0, null, 1, "A\r\n", new GridMarks(0, 1, ["c2"], false), []);
+        var rows = await Editing.PasteAsync(2, null, 2, "B", null, [1, 2]);
+        var cell = await Editing.PasteAsync(0, null, 2, "C", null, []);
+        var newRow = await Editing.PasteAsync(-1, GridRows.NewRowId(added), 2, "D", null, []);
+
+        Assert.Equal([0, 1], marked.Select(u => u.RowIndex)); // the marks' column, not the focused one
+        Assert.Equal([1, 2], rows.Select(u => u.RowIndex));
+        Assert.Equal([0], cell.Select(u => u.RowIndex));
+        Assert.Empty(newRow);
+        Assert.Equal(1, _grid.NewRowsSet);
+        Assert.Equal(["C", "B", "B"], new decimal[] { 1, 2, 3 }.Select(id => _grid.Changes.Find(new RowKey.PrimaryKey([id]))!.ValueOf(2)));
+        Assert.Equal("D", added.ValueOf(2));
+        Assert.Same(added, Assert.Single(_grid.Changes.UndoEdit())); // each paste one step
+    }
+
+    [Fact]
+    public async Task Several_cells_or_an_invalid_value_set_nothing_and_say_why()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+
+        var several = await Editing.PasteAsync(0, null, 2, "A\tB", null, []);
+        var invalid = await Editing.PasteAsync(0, null, 2, new string('x', 31), null, []); // NAME VARCHAR2(30)
+        var noText = await Editing.PasteAsync(0, null, 2, null, new GridMarks(0, 0, ["c2"], false), []); // a picture: not NULL
+
+        Assert.Empty(several);
+        Assert.Empty(invalid);
+        Assert.Empty(noText);
+        Assert.False(_grid.Changes!.HasChanges);
+        Assert.Equal(3, _grid.Notices.Count);
+        Assert.StartsWith("Mehrere Zellen", _grid.Notices[0]);
+        Assert.StartsWith("Zu lang", _grid.Notices[1]);
+        Assert.StartsWith("In der Zwischenablage liegt kein Text", _grid.Notices[2]);
+    }
+
+    [Fact]
+    public async Task A_value_copied_here_pastes_back_with_its_line_breaks()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.CopiedCell = "Zeile 1\nZeile 2"; // Ctrl+C copies it raw; the clipboard gives CRLF
+
+        await Editing.PasteAsync(0, null, 2, "Zeile 1\r\nZeile 2", null, []);
+
+        Assert.Equal("Zeile 1\nZeile 2", _grid.Changes!.Find(new RowKey.PrimaryKey([1m]))!.ValueOf(2));
+    }
+
+    [Fact]
+    public async Task An_empty_clipboard_is_null_only_right_after_copying_null()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.Rows[1] = Row(2, "Paul");
+
+        _grid.CopiedCell = "Petra";
+        await Editing.PasteAsync(1, null, 2, "", null, []); // emptied elsewhere: nothing to paste
+        _grid.CopiedCell = ""; // Ctrl+C on NULL leaves the clipboard empty
+        await Editing.PasteAsync(0, null, 2, "", null, []);
+
+        Assert.Null(_grid.Changes!.Find(new RowKey.PrimaryKey([2m])));
+        Assert.Null(_grid.Changes.Find(new RowKey.PrimaryKey([1m]))!.ValueOf(2));
+        Assert.StartsWith("In der Zwischenablage liegt kein Text", Assert.Single(_grid.Notices));
+    }
+
+    [Fact]
     public async Task Del_on_several_rows_is_one_step()
     {
         _grid.Rows[0] = Row(1, "Peter");
@@ -330,5 +399,7 @@ public sealed class GridEditingTests
         public void Notify(string text) => Notices.Add(text);
 
         public string RowNotLoaded => "Zeile nicht geladen";
+
+        public string? CopiedCell { get; set; }
     }
 }

@@ -558,6 +558,8 @@
 
     Task IEditableGrid.SetNewRowsAsync() => SetNewRowsAsync();
 
+    string? IEditableGrid.CopiedCell => Shell.CopiedCell;
+
     void IEditableGrid.QueueDisplayNames(IReadOnlyList<object?> values) => DisplayNamesOf.Queue([values]);
 
     void IEditableGrid.ChangesMade() => ChangesMade();
@@ -904,6 +906,7 @@
         var cell = DelimitedExport.CellText(column, value);
         if (await CopyTextAsync(cell.Text))
         {
+            Shell.CellCopied(cell.Warnings.Count == 0 ? cell.Text : null);
             Shell.Notify(cell.Warnings.Count > 0 ? GridText.Grid_ValueNotCopied : TextFormat.Format(GridText.Grid_ColumnCopied, column.Name), cell.Warnings);
         }
     }
@@ -933,6 +936,15 @@
     /// <summary>Del on marked cells: NULL (WP-59). The grid redraws the rows; a refusal goes to the status bar.</summary>
     [JSInvokable]
     public Task<GridRowUpdate[]> OnClearMarks(GridMarks marks) => GuardAsync(() => FillCoreAsync(marks, CellFill.Null), []);
+
+    /// <summary>
+    /// Ctrl+V on a cell that is not being edited: one value for the marked cells, the focused column of the selected rows
+    /// (<paramref name="selectedRows"/> only if the focused row is one of them), or the focused cell. The grid redraws the
+    /// loaded rows; why nothing was set goes to the status bar.
+    /// </summary>
+    [JSInvokable]
+    public Task<GridRowUpdate[]> OnPaste(int rowIndex, string? newId, string colId, string? text, GridMarks? marks, int[] selectedRows) =>
+        GuardAsync(() => Editing.PasteAsync(rowIndex, newId, ColumnIndex(colId), text, marks, [.. selectedRows.Order()]), []);
 
     /// <summary>Ctrl+D on marked cells: the top row's values into the rows below (WP-59).</summary>
     [JSInvokable]
