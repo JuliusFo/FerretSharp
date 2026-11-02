@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - The query as SQL: parents join INNER where an enabled and validated constraint on NOT NULL columns guarantees them, LEFT otherwise; a chosen child is an `OUTER APPLY … FETCH FIRST 1 ROW ONLY`. Conditions keep the grid's NULL rules, so LINQ and SQL find the same rows. A preview shows the first rows; the SQL opens in the SQL editor, or "Create view…" creates a view after the usual confirmation (values written into it, conditions marked as parameters left out with a note, never `OR REPLACE`).
 - The LINQ console takes `using` lines at the start of the code.
 
+## [3.57.2] - 2026-11-02
+
+Ctrl+V pastes a value into grid cells without opening the editor.
+
 ### Fixed
 - Ctrl+V on a cell that is not being edited pastes the copied value – before, it did nothing unless a double click had opened the editor. With marked cells it goes into all of them, with several selected rows into the focused column of each, as Ctrl+Enter does; checked like a typed value and one step for Ctrl+Z. A value copied from Excel loses its line break and quotes; a cell copied here with Ctrl+C or "Copy value" comes back whole, line breaks and NULL included. Ctrl+C on one marked cell now copies it like Ctrl+C on the cell – its value, not the enum member shown and not in quotes. Several cells or other text over several lines are not pasted this way yet, and a clipboard without text (a picture) sets nothing; a notice says so.
 
