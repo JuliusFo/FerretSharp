@@ -58,6 +58,7 @@ public sealed class ExportActions(
             : [.. export.Warnings, TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
         if (await grid.CopyTextAsync(shell, export.Text))
         {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
             shell.Notify(CopiedText(ExportCopy.Table, rows.Count), warnings);
         }
     }
@@ -66,7 +67,14 @@ public sealed class ExportActions(
     public static async Task CopyCellAsync(ShellState shell, GridBridge grid, ColumnInfo column, object? value)
     {
         var cell = DelimitedExport.CellText(column, value);
-        if (await grid.CopyTextAsync(shell, cell.Text) && cell.Warnings.Count > 0)
+        if (!await grid.CopyTextAsync(shell, cell.Text))
+        {
+            return;
+        }
+
+        // A value not copied (a LOB preview) left the clipboard empty: Ctrl+V must not take that for NULL.
+        shell.CellCopied(cell.Warnings.Count == 0 ? cell.Text : null);
+        if (cell.Warnings.Count > 0)
         {
             shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings);
         }
@@ -81,8 +89,11 @@ public sealed class ExportActions(
         if (!copied)
         {
             shell.Notify(CommonText.ClipboardUnavailable);
+            return;
         }
-        else if (cell.Warnings.Count > 0)
+
+        shell.CellCopied(cell.Warnings.Count == 0 ? cell.Text : null);
+        if (cell.Warnings.Count > 0)
         {
             shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings); // a LOB with only its preview loaded, a type that is not exported
         }
@@ -96,7 +107,10 @@ public sealed class ExportActions(
         if (!copied)
         {
             shell.Notify(CommonText.ClipboardUnavailable);
+            return;
         }
+
+        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
     }
 
     /// <param name="kind">How the rows were copied: picks the notice.</param>
@@ -104,6 +118,11 @@ public sealed class ExportActions(
     {
         var copied = await dom.CopyTextAsync(export.Text);
         await close();
+        if (copied)
+        {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
+        }
+
         shell.Notify(copied ? CopiedText(kind, export.Rows) : CommonText.ClipboardUnavailable, Warnings(export.Warnings));
     }
 

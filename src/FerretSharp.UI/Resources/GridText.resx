@@ -1487,6 +1487,14 @@
   <data name="Fill_ColumnsNotLoaded" xml:space="preserve">
     <value>Whole columns can only be changed once all their rows are loaded – mark the cells instead.</value>
   </data>
+  <data name="Fill_PasteNoText" xml:space="preserve">
+    <value>There is no text on the clipboard to paste.</value>
+    <comment>Ctrl+V on a cell while the clipboard holds a picture or files.</comment>
+  </data>
+  <data name="Fill_PasteSeveral" xml:space="preserve">
+    <value>Several cells or a text over several lines cannot be pasted into the grid yet – paste a text with line breaks in the cell editor.</value>
+    <comment>Ctrl+V on a cell that is not being edited takes one value.</comment>
+  </data>
   <data name="GridMenu_SetValue" xml:space="preserve">
     <value>Set value…</value>
     <comment>WP-59, cell menu of marked cells: opens a dialog for one value for all of them</comment>

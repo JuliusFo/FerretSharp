@@ -161,6 +161,7 @@ public static class ColumnValueCopies
         }
         else if (await copy(text.Text))
         {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
             shell.Notify(values.Format switch
             {
                 ColumnValuesFormat.InList => TextFormat.Plural(text.Values, GridText.ColumnValues_CopiedInListOne, GridText.ColumnValues_CopiedInListOther, columnName),
