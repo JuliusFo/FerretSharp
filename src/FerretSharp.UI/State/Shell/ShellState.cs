@@ -99,6 +99,14 @@ public sealed partial class ShellState
     /// </summary>
     public bool ErrorMasked { get; private set; }
 
+    /// <summary>
+    /// The text Ctrl+C or "Copy value" last put on the clipboard for one cell, as it is: Ctrl+V on a cell takes exactly this
+    /// text as one value, line breaks and all (<see cref="ClipboardCell"/>, fix-grid-paste). In memory only.
+    /// </summary>
+    public string? CopiedCell { get; private set; }
+
+    public void CellCopied(string text) => CopiedCell = text;
+
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
 

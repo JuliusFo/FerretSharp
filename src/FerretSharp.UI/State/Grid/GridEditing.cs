@@ -40,6 +40,9 @@ public interface IEditableGrid
     /// <summary>"Row no longer loaded – F5 loads it again."</summary>
     string RowNotLoaded { get; }
 
+    /// <summary>The text Ctrl+C last copied from one cell (<see cref="ShellState.CopiedCell"/>): pasted again, it is one value.</summary>
+    string? CopiedCell { get; }
+
     /// <summary>How many rows the query has, once all of them are loaded; null while more may follow (WP-59: whole columns).</summary>
     int? AllRows { get; }
 
@@ -295,7 +298,7 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
             return [];
         }
 
-        if (ClipboardCell.ValueOf(text) is not { } value)
+        if (ClipboardCell.ValueOf(text, grid.CopiedCell) is not { } value)
         {
             grid.Notify(GridText.Fill_PasteSeveral);
             return [];

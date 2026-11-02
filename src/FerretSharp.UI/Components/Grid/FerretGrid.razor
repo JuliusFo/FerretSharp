@@ -558,6 +558,8 @@
 
     Task IEditableGrid.SetNewRowsAsync() => SetNewRowsAsync();
 
+    string? IEditableGrid.CopiedCell => Shell.CopiedCell;
+
     void IEditableGrid.QueueDisplayNames(IReadOnlyList<object?> values) => DisplayNamesOf.Queue([values]);
 
     void IEditableGrid.ChangesMade() => ChangesMade();
@@ -901,9 +903,10 @@
     /// <summary>Copies the full value of a cell, like Ctrl+C (the form's "Copy value").</summary>
     public async Task CopyValueAsync(ColumnInfo column, object? value)
     {
-        var cell = ClipboardCell.Copied(column, value);
+        var cell = DelimitedExport.CellText(column, value);
         if (await CopyTextAsync(cell.Text))
         {
+            Shell.CellCopied(cell.Text);
             Shell.Notify(cell.Warnings.Count > 0 ? GridText.Grid_ValueNotCopied : TextFormat.Format(GridText.Grid_ColumnCopied, column.Name), cell.Warnings);
         }
     }

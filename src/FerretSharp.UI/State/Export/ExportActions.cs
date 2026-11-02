@@ -65,8 +65,14 @@ public sealed class ExportActions(
     /// <summary>Ctrl+C on one cell, in either grid: its full value, and what it lacks (a LOB with only its preview loaded).</summary>
     public static async Task CopyCellAsync(ShellState shell, GridBridge grid, ColumnInfo column, object? value)
     {
-        var cell = ClipboardCell.Copied(column, value);
-        if (await grid.CopyTextAsync(shell, cell.Text) && cell.Warnings.Count > 0)
+        var cell = DelimitedExport.CellText(column, value);
+        if (!await grid.CopyTextAsync(shell, cell.Text))
+        {
+            return;
+        }
+
+        shell.CellCopied(cell.Text);
+        if (cell.Warnings.Count > 0)
         {
             shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings);
         }
@@ -75,14 +81,17 @@ public sealed class ExportActions(
     /// <summary>The full value (like Ctrl+C), not the shortened display text.</summary>
     public async Task CopyValueAsync(ColumnInfo column, object? value)
     {
-        var cell = ClipboardCell.Copied(column, value);
+        var cell = DelimitedExport.CellText(column, value);
         var copied = await dom.CopyTextAsync(cell.Text);
         await close();
         if (!copied)
         {
             shell.Notify(CommonText.ClipboardUnavailable);
+            return;
         }
-        else if (cell.Warnings.Count > 0)
+
+        shell.CellCopied(cell.Text);
+        if (cell.Warnings.Count > 0)
         {
             shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings); // a LOB with only its preview loaded, a type that is not exported
         }

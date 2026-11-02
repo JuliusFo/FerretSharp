@@ -254,6 +254,17 @@ public sealed class GridEditingTests
     }
 
     [Fact]
+    public async Task A_value_copied_here_pastes_back_with_its_line_breaks()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.CopiedCell = "Zeile 1\nZeile 2"; // Ctrl+C copies it raw; the clipboard gives CRLF
+
+        await Editing.PasteAsync(0, null, 2, "Zeile 1\r\nZeile 2", null, []);
+
+        Assert.Equal("Zeile 1\nZeile 2", _grid.Changes!.Find(new RowKey.PrimaryKey([1m]))!.ValueOf(2));
+    }
+
+    [Fact]
     public async Task Del_on_several_rows_is_one_step()
     {
         _grid.Rows[0] = Row(1, "Peter");
@@ -372,5 +383,7 @@ public sealed class GridEditingTests
         public void Notify(string text) => Notices.Add(text);
 
         public string RowNotLoaded => "Zeile nicht geladen";
+
+        public string? CopiedCell { get; set; }
     }
 }

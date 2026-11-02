@@ -42,8 +42,7 @@ public static class DelimitedExport
     }
 
     /// <summary>
-    /// One cell as text (Ctrl+C and "Copy value" quote it, <see cref="ClipboardCell.Copied"/>; the cell editor, xlsx):
-    /// same notation as the table export and the full value –
+    /// One cell for the clipboard (Ctrl+C, "Copy value"): same notation as the table export and the full value –
     /// unlike the grid's display text, which shortens long texts, shows line breaks as ⏎ and groups thousands.
     /// NULL is an empty text; a LOB that was only loaded as preview is left out with a warning.
     /// </summary>

@@ -1,13 +1,10 @@
 using FerretSharp.Core.Data;
-using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Tests.Data;
 
-/// <summary>One cell on the clipboard: the text Ctrl+C gives, the one value Ctrl+V takes from a text.</summary>
+/// <summary>Ctrl+V on a cell that is not being edited: the one value of the pasted text.</summary>
 public class ClipboardCellTests
 {
-    private static readonly ColumnInfo Text = new("T", "VARCHAR2", null, false, null, null, true, false, null, 0);
-
     [Theory]
     [InlineData("Müller", "Müller")]
     [InlineData("1234,5", "1234,5")]
@@ -43,21 +40,18 @@ public class ClipboardCellTests
         Assert.Null(ClipboardCell.ValueOf(pasted));
 
     [Theory]
-    [InlineData("Müller", "Müller")]
-    [InlineData("sagt \"hallo\"", "sagt \"hallo\"")] // quotes alone need none (as Excel)
-    [InlineData("\"abc\"", "\"abc\"")]
-    [InlineData("Zeile 1\nZeile 2", "\"Zeile 1\nZeile 2\"")]
-    [InlineData("Text\r\n", "\"Text\r\n\"")] // a line break at the end stays
-    [InlineData("a\tb", "\"a\tb\"")]
-    [InlineData("\"x\ny\"", "\"\"\"x\ny\"\"\"")]
-    [InlineData("\"A\"\"B\"", "\"\"\"A\"\"\"\"B\"\"\"")] // would pass for Excel's quotes: quoted itself
-    public void Ctrl_C_quotes_a_value_as_Excel_where_pasting_would_change_it(string value, string copied)
+    [InlineData("Zeile 1\nZeile 2", "Zeile 1\nZeile 2")]
+    [InlineData("Zeile 1\nZeile 2", "Zeile 1\r\nZeile 2")] // the clipboard made CRLF of it
+    [InlineData("Text\r\n", "Text\r\n")] // a line break at the end stays
+    [InlineData("a\tb", "a\tb")]
+    [InlineData("\"A\"\"B\"", "\"A\"\"B\"")] // not taken for Excel's quotes
+    public void Text_copied_from_a_cell_here_comes_back_whole(string value, string pasted)
     {
-        Assert.Equal(copied, ClipboardCell.Copied(Text, value).Text);
-        Assert.Equal(value, ClipboardCell.ValueOf(copied)); // pasted back whole
+        Assert.Equal(value, ClipboardCell.ValueOf(pasted, copied: value));
+        Assert.NotEqual(value, ClipboardCell.ValueOf(pasted)); // without the memory it would not
     }
 
     [Fact]
-    public void Ctrl_C_of_null_is_empty_and_pastes_back_as_null() =>
-        Assert.Equal("", ClipboardCell.ValueOf(ClipboardCell.Copied(Text, null).Text));
+    public void Other_text_than_the_copied_is_read_as_before() =>
+        Assert.Null(ClipboardCell.ValueOf("A\r\nB\r\n", copied: "A"));
 }

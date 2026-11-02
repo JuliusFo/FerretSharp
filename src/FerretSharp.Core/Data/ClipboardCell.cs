@@ -1,29 +1,24 @@
-using FerretSharp.Core.Schema;
-
 namespace FerretSharp.Core.Data;
 
 /// <summary>
-/// One cell on the clipboard, both ways. Ctrl+C on one cell gives the value as Excel does: quoted (inner quotes doubled)
-/// if it holds a line break or tab, so that pasting it – here or in Excel – gives it back whole. Ctrl+V on a cell that
-/// is not being edited takes one value: the line break Excel adds to a single cell and its quotes go. Several cells – a
-/// tab, a line break between values – are not one value: pasting them cell by cell is still to come.
+/// Text pasted with Ctrl+V on a cell that is not being edited: one value for the focused cell, the marked cells or the
+/// selected rows. Ctrl+C on one cell copies the value as it is (other programs get it unchanged); the app remembers it, and
+/// that text comes back whole, line breaks and all. Excel adds a line break to a single cell and quotes a value holding a
+/// line break, tab or quote (as <see cref="DelimitedExport"/> does): both go. Several cells – a tab, a line break between
+/// values – are not one value: pasting them cell by cell is still to come.
 /// </summary>
 public static class ClipboardCell
 {
-    /// <summary>
-    /// The text Ctrl+C puts on the clipboard for one cell: the full value of <see cref="DelimitedExport.CellText"/>, in
-    /// quotes where <see cref="ValueOf"/> would not give it back as it is (a line break or tab, or quotes it would take
-    /// for Excel's).
-    /// </summary>
-    public static ExportText Copied(ColumnInfo column, object? value)
-    {
-        var cell = DelimitedExport.CellText(column, value);
-        return cell with { Text = Quoted(cell.Text) };
-    }
-
     /// <summary>The value of pasted text; null if it holds several cells or lines.</summary>
-    public static string? ValueOf(string text)
+    /// <param name="copied">The text Ctrl+C last copied from one cell here; pasted again, it is that value.</param>
+    public static string? ValueOf(string text, string? copied = null)
     {
+        // The clipboard may turn line breaks into CRLF on the way: the copied value is what comes back.
+        if (copied is not null && text.ReplaceLineEndings("\n") == copied.ReplaceLineEndings("\n"))
+        {
+            return copied;
+        }
+
         var value = text.EndsWith("\r\n", StringComparison.Ordinal) ? text[..^2]
             : text.EndsWith('\n') ? text[..^1]
             : text;
@@ -34,11 +29,6 @@ public static class ClipboardCell
 
         return value.AsSpan().IndexOfAny('\t', '\r', '\n') >= 0 ? null : value;
     }
-
-    private static string Quoted(string value) =>
-        value.AsSpan().IndexOfAny('\t', '\r', '\n') >= 0 || Unquoted(value) is not null
-            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
-            : value;
 
     /// <summary>
     /// A value Excel quoted: in quotes, every quote inside doubled, and something inside that needed the quotes. Null
