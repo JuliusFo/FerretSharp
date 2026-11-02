@@ -1660,7 +1660,7 @@
     <value>Ohne Reihenfolge nach dem Primärschlüssel.</value>
   </data>
   <data name="Query_OrderTies" xml:space="preserve">
-    <value>Bei gleichen Werten kann die App ein anderes Kind wählen als die Vorschau: FerretSharp sortiert Text binär (NLS_SORT=BINARY), deine App unter Umständen nach ihrer Sprache; ohne Primärschlüssel nimmt das SQL die ROWID, C# den Entity-Schlüssel.</value>
+    <value>Deine App kann ein anderes Kind wählen als die Vorschau: FerretSharp sortiert Text binär (NLS_SORT=BINARY), deine App unter Umständen nach ihrer Sprache, die auch verschiedene Werte anders ordnet; bei gleichen Werten ohne Primärschlüssel nimmt das SQL die ROWID, C# den Entity-Schlüssel.</value>
   </data>
   <data name="Query_AddOrder" xml:space="preserve">
     <value>Reihenfolge</value>

@@ -126,9 +126,18 @@ public sealed class QueryDesignEditor(TableTab tab)
             Columns = [.. n.Columns.Select(c => c.Column == column ? c with { Name = name.Trim().Length > 0 ? name.Trim() : null } : c)],
         });
 
-    public void SetFilters(QueryNode node, IReadOnlyList<QueryFilter> filters) => Update(node, n => n with { Filters = filters });
+    /// <summary>
+    /// The node's conditions as the panel shows them; those on a column the table does not have (now) stay in the tab
+    /// (review: editing another condition dropped them, without "Remove from the query").
+    /// </summary>
+    public void SetFilters(QueryNode node, IReadOnlyList<QueryFilter> filters) =>
+        Update(node, n => n with { Filters = [.. filters, .. n.Filters.Where(f => IsMissing(node, f.Condition.Column))] });
 
-    public void SetSorts(QueryNode node, IReadOnlyList<SortSpec> sorts) => Update(node, n => n with { Sorts = sorts });
+    /// <summary>The order of a chosen child as the panel shows it; entries on a missing column stay (as <see cref="SetFilters"/>).</summary>
+    public void SetSorts(QueryNode node, IReadOnlyList<SortSpec> sorts) =>
+        Update(node, n => n with { Sorts = [.. sorts, .. n.Sorts.Where(s => IsMissing(node, s.Column))] });
+
+    private bool IsMissing(QueryNode node, string column) => DetailsOf(node.Table) is { } details && details.IndexOf(column) < 0;
 
     public void SetNames(QueryNames names) => Set(State with { Names = names });
 

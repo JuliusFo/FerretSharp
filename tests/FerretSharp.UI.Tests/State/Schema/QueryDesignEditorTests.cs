@@ -129,7 +129,11 @@ public class QueryDesignEditorTests
     {
         var tab = new TableTab(Guid.NewGuid(), Auftrag.Table)
         {
-            Design = QueryDesignState.Empty.Update([], n => n with { Columns = [new QueryColumn("NR"), new QueryColumn("WEG")] }) with { Active = true },
+            Design = QueryDesignState.Empty.Update([], n => n with
+            {
+                Columns = [new QueryColumn("NR"), new QueryColumn("WEG")],
+                Filters = [new QueryFilter(FilterCondition.Of("WEG", FilterOperator.IsNull))],
+            }) with { Active = true },
         };
         var editor = new QueryDesignEditor(tab);
         editor.Load(Graph);
@@ -140,8 +144,13 @@ public class QueryDesignEditorTests
         Assert.Equal(["NR", "WEG"], tab.Design!.Nodes[0].Columns.Select(c => c.Column));
         Assert.Single(editor.Notes);
 
+        // Second review: editing another condition kept the one on the missing column out of sight, but dropped it.
+        editor.SetFilters(editor.Design.Nodes[0], [new QueryFilter(FilterCondition.Of("NR", FilterOperator.Equals, "7"))]);
+        Assert.Equal(["NR", "WEG"], tab.Design!.Nodes[0].Filters.Select(f => f.Condition.Column));
+
         editor.DropMissing();
         Assert.Equal(["NR"], tab.Design!.Nodes[0].Columns.Select(c => c.Column));
+        Assert.Equal(["NR"], tab.Design.Nodes[0].Filters.Select(f => f.Condition.Column));
         Assert.True(tab.Design.Active);
         Assert.Empty(editor.Notes);
         Assert.False(QueryDesignEditor.Selectable(Auftrag.Columns[3])); // a CLOB has no value in the result

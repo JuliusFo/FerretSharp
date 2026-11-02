@@ -2040,7 +2040,7 @@
     <value>Without an order by the primary key.</value>
   </data>
   <data name="Query_OrderTies" xml:space="preserve">
-    <value>With equal values the app may choose another child than the preview: FerretSharp sorts text binary (NLS_SORT=BINARY), your app possibly by its language; without a primary key the SQL takes ROWID, C# the entity key.</value>
+    <value>Your app may choose another child than the preview: FerretSharp sorts text binary (NLS_SORT=BINARY), your app possibly by its language, which also orders different values otherwise; with equal values and no primary key the SQL takes ROWID, C# the entity key.</value>
     <comment>Hint below the order of a chosen child in a query built in the relationship diagram</comment>
   </data>
   <data name="Query_AddOrder" xml:space="preserve">
