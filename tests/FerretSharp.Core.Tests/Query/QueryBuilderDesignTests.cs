@@ -1,3 +1,5 @@
+using FerretSharp.Core.Ddl;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Relations;
 using FerretSharp.Core.Schema;
@@ -166,6 +168,10 @@ public class QueryBuilderDesignTests
             """.ReplaceLineEndings("\n"), view.Sql);
         Assert.Empty(view.Parameters);
         Assert.Equal(["ab", null, "nummer"], view.LeftOut.Select(l => l.Filter.Parameter));
+        var create = ViewDdl.Create(new TableRef(Owner, "V_AUFTRAG"), view.Sql);
+        Assert.StartsWith("CREATE VIEW \"APP\".\"V_AUFTRAG\" AS\nSELECT", create.Sql, StringComparison.Ordinal);
+        Assert.True(OracleSession.IsDdlStatement(create.Sql), create.Sql); // the schema path takes it: one DDL statement, no binds
+        Assert.Single(SqlScript.Split(create.Sql));
         Assert.Contains("TO_DATE", Build(QueryDesignState.Empty.Update([], n => Columns(n, "NR") with
         {
             Filters = [new QueryFilter(FilterCondition.Of("DATUM", FilterOperator.Gte, "1.10.2026"))],
