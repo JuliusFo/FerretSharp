@@ -360,4 +360,22 @@
   <data name="ModelFileTooLarge" xml:space="preserve">
     <value>Die Modelldatei ist größer als {0} MB und wird nicht gelesen.</value>
   </data>
+  <data name="ParameterNotForDays" xml:space="preserve">
+    <value>Eine Liste ganzer Tage kann kein Parameter sein.</value>
+  </data>
+  <data name="QueryNodeNoEntity" xml:space="preserve">
+    <value>{0}: keine Entity im C#-Modell – nur im SQL.</value>
+  </data>
+  <data name="QueryNodeNoNavigation" xml:space="preserve">
+    <value>{0}: Die Beziehung {1} hat keine Navigation im C#-Modell – nur im SQL.</value>
+  </data>
+  <data name="QueryValueNoProperty" xml:space="preserve">
+    <value>{0}: Die Spalte {1} hat keine Property – nur im SQL.</value>
+  </data>
+  <data name="QueryParameterInChild" xml:space="preserve">
+    <value>{0}: Bedingungen eines gewählten Kinds behalten ihre Werte – Parameter gibt es nur für die Wurzel und ihre Eltern.</value>
+  </data>
+  <data name="QueryNameInvalid" xml:space="preserve">
+    <value>„{0}“ ist kein C#-Name – stattdessen {1}.</value>
+  </data>
 </root>

@@ -457,4 +457,28 @@
     <value>The model file is larger than {0} MB and is not read.</value>
     <comment>{0} = limit in MB</comment>
   </data>
+  <data name="ParameterNotForDays" xml:space="preserve">
+    <value>A list of whole days cannot be a parameter.</value>
+    <comment>Why a filter "in" with dates without time cannot become a parameter of generated LINQ code</comment>
+  </data>
+  <data name="QueryNodeNoEntity" xml:space="preserve">
+    <value>{0}: no entity of the C# model – only in the SQL.</value>
+    <comment>{0}: the tables along the path of a node of a query from the relationship diagram, e.g. AUFTRAG → KUNDE</comment>
+  </data>
+  <data name="QueryNodeNoNavigation" xml:space="preserve">
+    <value>{0}: relationship {1} has no navigation in the C# model – only in the SQL.</value>
+    <comment>{0}: the tables along the path of a node, e.g. AUFTRAG → KUNDE; {1}: name of the relationship</comment>
+  </data>
+  <data name="QueryValueNoProperty" xml:space="preserve">
+    <value>{0}: column {1} has no property – only in the SQL.</value>
+    <comment>{0}: the tables along the path of a node, e.g. AUFTRAG → KUNDE; {1}: column name</comment>
+  </data>
+  <data name="QueryParameterInChild" xml:space="preserve">
+    <value>{0}: conditions of a chosen child keep their values – parameters only work for the root and its parents.</value>
+    <comment>{0}: the tables along the path of a node, e.g. AUFTRAG → POSITION</comment>
+  </data>
+  <data name="QueryNameInvalid" xml:space="preserve">
+    <value>“{0}” is not a C# name – {1} is used instead.</value>
+    <comment>{0}: the name the user typed; {1}: the name used instead</comment>
+  </data>
 </root>

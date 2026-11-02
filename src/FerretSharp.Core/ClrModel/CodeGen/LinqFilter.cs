@@ -43,41 +43,8 @@ public static class LinqFilter
             throw new InvalidOperationException(reason);
         }
 
-        var conditions = new List<string>();
-        var skipped = new List<string>();
-        var taken = 0;
         var list = filters as IReadOnlyList<FilterCondition> ?? filters.ToList();
-        foreach (var term in FilterGroups.Terms(list))
-        {
-            var members = term.Indexes.Select(i => list[i]).ToList();
-            var notGroup = term.Group?.Kind == FilterGroupKind.None;
-            var results = members.Select(f => (Filter: f, Result: Condition(presentation, f, notGroup))).ToList();
-            if (term.Group is not { } group)
-            {
-                var (filter, result) = results[0];
-                if (result.Code is { } code)
-                {
-                    conditions.Add(code);
-                    taken++;
-                }
-                else
-                {
-                    skipped.Add($"{FilterText.Row(filter)}: {result.Problem}");
-                }
-            }
-            else if (results.All(r => r.Result.Code is not null))
-            {
-                conditions.Add(GroupCode(group.Kind, results.Select(r => r.Result.Code!).ToList()));
-                taken += results.Count;
-            }
-            else
-            {
-                // Without one of its rows a group would find other rows than the grid: it stays out as a whole.
-                var problems = results.Where(r => r.Result.Code is null).Select(r => $"{FilterText.Row(r.Filter)}: {r.Result.Problem}");
-                skipped.Add(TextFormat.Format(ClrModelText.FilterGroupSkipped, FilterGroupLabels.Label(group.Kind),
-                    string.Join(" | ", members.Select(f => FilterText.Row(f))), string.Join("; ", problems)));
-            }
-        }
+        var (conditions, skipped, taken, _) = Terms(presentation, list, property => Member(Parameter, property), optionalGuard: null, parameters: null);
 
         var text = new System.Text.StringBuilder();
         foreach (var line in skipped)
@@ -106,6 +73,74 @@ public static class LinqFilter
         return new ExportText(text.ToString().TrimEnd(), taken,
             skipped.Select(s => TextFormat.Format(ClrModelText.FilterSkipped, s)).ToList());
     }
+
+    /// <summary>
+    /// The filters as C# conditions to join with <c>&amp;&amp;</c>, with the grid's semantics, over any member access – a
+    /// path from the diagram's query (WP-69, <c>a.Kunde!.Name</c>). What has no C# form is in <see cref="LinqTerms.Skipped"/>
+    /// (a group as a whole).
+    /// </summary>
+    /// <param name="memberOf">The access to a property of the table's entity: <c>x.Name</c>, <c>EF.Property&lt;int&gt;(x, "Id")</c>.</param>
+    /// <param name="optionalGuard">
+    /// The navigation the members hang on if it may be null (<c>a.Bearbeiter</c>), else null: in a NOT group it guards a
+    /// condition on a property that is not nullable itself – the row without parent stays, as in the grid.
+    /// </param>
+    /// <param name="parameters">Per filter the name of its parameter ("als Parameter"), or null for a value in the code.</param>
+    internal static LinqTerms Terms(
+        TablePresentation presentation, IReadOnlyList<FilterCondition> filters, Func<PropertyExport, string> memberOf, string? optionalGuard,
+        IReadOnlyList<string?>? parameters)
+    {
+        var conditions = new List<string>();
+        var skipped = new List<string>();
+        var declared = new List<LinqParameter>();
+        var taken = 0;
+        foreach (var term in FilterGroups.Terms(filters))
+        {
+            var members = term.Indexes.Select(i => filters[i]).ToList();
+            var notGroup = term.Group?.Kind == FilterGroupKind.None;
+            var results = term.Indexes.Select(i =>
+            {
+                var own = new List<LinqParameter>();
+                var result = Condition(presentation, filters[i], memberOf, optionalGuard, notGroup, parameters?[i], own);
+                return (Filter: filters[i], Result: result, Parameters: own);
+            }).ToList();
+            if (term.Group is not { } group)
+            {
+                var (filter, result, own) = results[0];
+                if (result.Code is { } code)
+                {
+                    conditions.Add(code);
+                    declared.AddRange(own);
+                    taken++;
+                }
+                else
+                {
+                    skipped.Add($"{FilterText.Row(filter)}: {result.Problem}");
+                }
+            }
+            else if (results.All(r => r.Result.Code is not null))
+            {
+                conditions.Add(GroupCode(group.Kind, results.Select(r => r.Result.Code!).ToList()));
+                declared.AddRange(results.SelectMany(r => r.Parameters));
+                taken += results.Count;
+            }
+            else
+            {
+                // Without one of its rows a group would find other rows than the grid: it stays out as a whole.
+                var problems = results.Where(r => r.Result.Code is null).Select(r => $"{FilterText.Row(r.Filter)}: {r.Result.Problem}");
+                skipped.Add(TextFormat.Format(ClrModelText.FilterGroupSkipped, FilterGroupLabels.Label(group.Kind),
+                    string.Join(" | ", members.Select(f => FilterText.Row(f))), string.Join("; ", problems)));
+            }
+        }
+
+        return new LinqTerms(conditions, skipped, taken, declared);
+    }
+
+    /// <summary><c>x.Name</c>, or <c>EF.Property&lt;T&gt;(x, "Name")</c> for a shadow property, on <paramref name="target"/>.</summary>
+    internal static string Member(string target, PropertyExport property) =>
+        property.IsShadow
+            ? $"EF.Property<{TablePresentation.ClrTypeText(property)}>({target}, {CSharpCode.String(property.Name)})"
+            : $"{target}.{CSharpCode.Identifier(property.Name)}";
+
 
     /// <summary>
     /// A filter group (WP-50) as one condition: <c>(a || b)</c>, <c>!(a || b)</c>. C#'s <c>!</c> already keeps the rows
@@ -172,7 +207,11 @@ public static class LinqFilter
     /// EF Core does not add NULL handling to a negated &lt;, &gt;, range or OR (<c>NOT ("Umsatz" &lt; 5000)</c> drops the NULL
     /// rows), the grid keeps them.
     /// </param>
-    private static CSharpValue Condition(TablePresentation presentation, FilterCondition filter, bool inNotGroup = false)
+    /// <param name="parameter">The name of the filter's parameter ("als Parameter", WP-69); null for its value in the code.</param>
+    /// <param name="declared">Receives the parameters the condition uses.</param>
+    private static CSharpValue Condition(
+        TablePresentation presentation, FilterCondition filter, Func<PropertyExport, string> memberOf, string? optionalGuard, bool inNotGroup,
+        string? parameter, List<LinqParameter> declared)
     {
         var index = presentation.Details.IndexOf(filter.Column);
         if (index < 0)
@@ -192,14 +231,13 @@ public static class LinqFilter
 
         var column = presentation.Details.Columns[index];
         var values = presentation.ValuesOf(index);
-        var member = property.IsShadow
-            ? $"EF.Property<{TablePresentation.ClrTypeText(property)}>({Parameter}, {CSharpCode.String(property.Name)})"
-            : $"{Parameter}.{CSharpCode.Identifier(property.Name)}";
-        var builder = new ConditionBuilder(property, values, column, member);
-        return builder.Build(filter, inNotGroup);
+        var builder = new ConditionBuilder(property, values, column, memberOf(property), parameter, declared);
+        return builder.Build(filter, inNotGroup, optionalGuard);
     }
 
-    private sealed class ConditionBuilder(PropertyExport property, ValueTable? values, ColumnInfo column, string m)
+    /// <param name="parameter">Writes the value as this parameter instead of a literal (WP-69).</param>
+    private sealed class ConditionBuilder(
+        PropertyExport property, ValueTable? values, ColumnInfo column, string m, string? parameter = null, List<LinqParameter>? declared = null)
     {
         private readonly ColumnCategory _category = ColumnCategories.Of(column);
 
@@ -212,12 +250,14 @@ public static class LinqFilter
                               && property.ClrType is "DateTime" or "DateTimeOffset";
 
         /// <param name="guardNull">In a NOT group; "≠" needs no guard: EF and the grid both count NULL as "not equal".</param>
-        public CSharpValue Build(FilterCondition filter, bool guardNull)
+        /// <param name="optionalGuard">The optional navigation the member hangs on; it guards a property that is not nullable itself.</param>
+        public CSharpValue Build(FilterCondition filter, bool guardNull, string? optionalGuard = null)
         {
             var result = Build(filter);
             var nullable = property.Nullable || property.ClrType is "string" or "byte[]";
-            return guardNull && nullable && result.Code is { } code && filter.Op is not (FilterOperator.IsNull or FilterOperator.IsNotNull or FilterOperator.NotEquals)
-                ? new CSharpValue($"{m} != null && {code}")
+            var guard = nullable ? m : optionalGuard;
+            return guardNull && guard is not null && result.Code is { } code && filter.Op is not (FilterOperator.IsNull or FilterOperator.IsNotNull or FilterOperator.NotEquals)
+                ? new CSharpValue($"{guard} != null && {code}")
                 : result;
         }
 
@@ -225,6 +265,11 @@ public static class LinqFilter
         {
             try
             {
+                if (parameter is not null && filter.Op is not (FilterOperator.IsNull or FilterOperator.IsNotNull))
+                {
+                    return ParameterCondition(filter, parameter);
+                }
+
                 return filter.Op switch
                 {
                     FilterOperator.IsNull => new CSharpValue($"{m} == null"),
@@ -309,11 +354,82 @@ public static class LinqFilter
             });
         }
 
+        /// <summary>
+        /// The condition with the value as a parameter (WP-69): <c>a.Datum &gt;= ab</c>, the same semantics as with the
+        /// literal – a date without time means the whole day of the value passed in (<c>ab.Date</c>). The parameters take
+        /// the filter's values, so the code runs as the grid filtered.
+        /// </summary>
+        private CSharpValue ParameterCondition(FilterCondition filter, string name)
+        {
+            var type = TablePresentation.ClrTypeText(property with { Nullable = false });
+            string Declare(string parameterName, string valueType, string value)
+            {
+                declared!.Add(new LinqParameter(parameterName, valueType, value));
+                return CSharpCode.Identifier(parameterName);
+            }
+
+            var day = ByDay && property.ClrType == "DateTime" && Date(filter.Values[0]).DateOnly;
+            switch (filter.Op)
+            {
+                case FilterOperator.Contains or FilterOperator.StartsWith or FilterOperator.EndsWith:
+                    if (!IsString)
+                    {
+                        return CSharpValue.Fails(TextFormat.Format(ClrModelText.OperatorStringOnly, OperatorLabels.Label(filter.Op), TablePresentation.ClrTypeText(property)));
+                    }
+
+                    var text = Declare(name, "string", CSharpCode.String(filter.Values[0]));
+                    var method = filter.Op switch { FilterOperator.Contains => "Contains", FilterOperator.StartsWith => "StartsWith", _ => "EndsWith" };
+                    return new CSharpValue($"{m}.ToUpper().{method}({text}.ToUpper())");
+                case FilterOperator.In:
+                    if (ByDay && filter.Values.Any(v => Date(v).DateOnly))
+                    {
+                        return CSharpValue.Fails(ClrModelText.ParameterNotForDays);
+                    }
+
+                    var list = Declare(name, type + "[]", $"new {type}[] {{ {string.Join(", ", filter.Values.Select(Literal))} }}");
+                    return new CSharpValue($"{list}.Contains({m})");
+                case FilterOperator.Between:
+                    var from = Declare(name + "From", type, Literal(filter.Values[0]));
+                    var to = Declare(name + "To", type, Literal(filter.Values[1]));
+                    return new CSharpValue(ByDay && property.ClrType == "DateTime" && Date(filter.Values[1]).DateOnly
+                        ? $"{m} >= {from} && {m} < {to}.Date.AddDays(1)"
+                        : $"{CompareCode(">=", from)} && {CompareCode("<=", to)}");
+            }
+
+            var value = Declare(name, type, Literal(filter.Values[0]));
+            if (IsBool)
+            {
+                return filter.Op is FilterOperator.Equals or FilterOperator.NotEquals
+                    ? new CSharpValue($"{m} {Symbol(filter.Op)} {value}")
+                    : CSharpValue.Fails(TextFormat.Format(ClrModelText.OperatorNotForBool, OperatorLabels.Label(filter.Op)));
+            }
+
+            if (!day)
+            {
+                return new CSharpValue(CompareCode(Symbol(filter.Op), value));
+            }
+
+            var start = $"{value}.Date";
+            var next = $"{value}.Date.AddDays(1)";
+            return new CSharpValue(filter.Op switch
+            {
+                FilterOperator.Equals => $"{m} >= {start} && {m} < {next}",
+                FilterOperator.NotEquals => $"({m} < {start} || {m} >= {next}{(property.Nullable ? $" || {m} == null" : "")})",
+                FilterOperator.Gt => $"{m} >= {next}",
+                FilterOperator.Gte => $"{m} >= {start}",
+                FilterOperator.Lt => $"{m} < {start}",
+                FilterOperator.Lte => $"{m} < {next}",
+                _ => throw new NoLiteralException(TextFormat.Format(ClrModelText.OperatorNotForDates, OperatorLabels.Label(filter.Op))),
+            });
+        }
+
         /// <summary><c>x.Wert &gt; 5</c>; strings through <c>string.Compare</c> (EF translates it to the plain comparison).</summary>
-        private string Compare(string symbol, string text) =>
+        private string Compare(string symbol, string text) => CompareCode(symbol, Literal(text));
+
+        private string CompareCode(string symbol, string value) =>
             IsString && symbol is not ("==" or "!=")
-                ? $"string.Compare({m}, {Literal(text)}) {symbol} 0"
-                : $"{m} {symbol} {Literal(text)}";
+                ? $"string.Compare({m}, {value}) {symbol} 0"
+                : $"{m} {symbol} {value}";
 
         private string DateLiteral(DateTime day) => Literal(day);
 
@@ -351,3 +467,13 @@ public static class LinqFilter
 
     private sealed class NoLiteralException(string message) : Exception(message);
 }
+
+/// <summary>A filter value as a parameter of generated code ("als Parameter", WP-69).</summary>
+/// <param name="Type">The C# type as written: <c>DateTime</c>, <c>Kundenart</c>, <c>int[]</c>.</param>
+/// <param name="Value">The filter's value as a C# expression, to declare it as a variable in the LINQ console.</param>
+public sealed record LinqParameter(string Name, string Type, string Value);
+
+/// <summary>Filters as C# conditions (<see cref="LinqFilter.Terms"/>).</summary>
+/// <param name="Skipped">The filters without a C# form, with the reason.</param>
+/// <param name="Taken">How many filter rows the conditions hold.</param>
+internal sealed record LinqTerms(IReadOnlyList<string> Conditions, IReadOnlyList<string> Skipped, int Taken, IReadOnlyList<LinqParameter> Parameters);
