@@ -901,7 +901,7 @@
     /// <summary>Copies the full value of a cell, like Ctrl+C (the form's "Copy value").</summary>
     public async Task CopyValueAsync(ColumnInfo column, object? value)
     {
-        var cell = DelimitedExport.CellText(column, value);
+        var cell = ClipboardCell.Copied(column, value);
         if (await CopyTextAsync(cell.Text))
         {
             Shell.Notify(cell.Warnings.Count > 0 ? GridText.Grid_ValueNotCopied : TextFormat.Format(GridText.Grid_ColumnCopied, column.Name), cell.Warnings);

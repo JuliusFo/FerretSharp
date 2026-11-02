@@ -1,13 +1,26 @@
+using FerretSharp.Core.Schema;
+
 namespace FerretSharp.Core.Data;
 
 /// <summary>
-/// Text pasted with Ctrl+V on a cell that is not being edited: one value for the focused cell, the marked cells or the
-/// selected rows. Ctrl+C on one cell gives the value as it is, Excel adds a line break and quotes a value holding a line
-/// break, tab or quote (as <see cref="DelimitedExport"/> does). Several cells – a tab, a line break between values – are
-/// not one value: pasting them cell by cell is still to come.
+/// One cell on the clipboard, both ways. Ctrl+C on one cell gives the value as Excel does: quoted (inner quotes doubled)
+/// if it holds a line break or tab, so that pasting it – here or in Excel – gives it back whole. Ctrl+V on a cell that
+/// is not being edited takes one value: the line break Excel adds to a single cell and its quotes go. Several cells – a
+/// tab, a line break between values – are not one value: pasting them cell by cell is still to come.
 /// </summary>
-public static class PastedCell
+public static class ClipboardCell
 {
+    /// <summary>
+    /// The text Ctrl+C puts on the clipboard for one cell: the full value of <see cref="DelimitedExport.CellText"/>, in
+    /// quotes where <see cref="ValueOf"/> would not give it back as it is (a line break or tab, or quotes it would take
+    /// for Excel's).
+    /// </summary>
+    public static ExportText Copied(ColumnInfo column, object? value)
+    {
+        var cell = DelimitedExport.CellText(column, value);
+        return cell with { Text = Quoted(cell.Text) };
+    }
+
     /// <summary>The value of pasted text; null if it holds several cells or lines.</summary>
     public static string? ValueOf(string text)
     {
@@ -21,6 +34,11 @@ public static class PastedCell
 
         return value.AsSpan().IndexOfAny('\t', '\r', '\n') >= 0 ? null : value;
     }
+
+    private static string Quoted(string value) =>
+        value.AsSpan().IndexOfAny('\t', '\r', '\n') >= 0 || Unquoted(value) is not null
+            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+            : value;
 
     /// <summary>
     /// A value Excel quoted: in quotes, every quote inside doubled, and something inside that needed the quotes. Null

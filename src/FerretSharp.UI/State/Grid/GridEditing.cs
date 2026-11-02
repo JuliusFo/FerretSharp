@@ -280,7 +280,7 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
     }
 
     /// <summary>
-    /// Ctrl+V on a cell that is not being edited: one pasted value (<see cref="PastedCell"/>) for the marked cells, the
+    /// Ctrl+V on a cell that is not being edited: one pasted value (<see cref="ClipboardCell"/>) for the marked cells, the
     /// focused column of the selected rows, or the focused cell – as Ctrl+Enter with the value typed in. Why nothing was
     /// set goes to the status bar.
     /// </summary>
@@ -295,7 +295,7 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
             return [];
         }
 
-        if (PastedCell.ValueOf(text) is not { } value)
+        if (ClipboardCell.ValueOf(text) is not { } value)
         {
             grid.Notify(GridText.Fill_PasteSeveral);
             return [];
