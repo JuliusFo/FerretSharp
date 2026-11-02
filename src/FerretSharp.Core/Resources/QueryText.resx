@@ -379,4 +379,8 @@
     <value>{0:N0} rows without a value (NULL) are left out.</value>
     <comment>Warning after copying each value once. {0} = number of NULL values</comment>
   </data>
+  <data name="DesignNodeProblem" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>{0}: the tables along the path of a node of a query built in the relationship diagram, e.g. AUFTRAG → KUNDE; {1}: what is wrong with its condition or order</comment>
+  </data>
 </root>

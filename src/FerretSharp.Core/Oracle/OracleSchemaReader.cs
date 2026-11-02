@@ -65,7 +65,7 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
 
     /// <summary>Of several schemas in one round trip (review 3.44.0, A17); <c>{0}</c> takes the owners' binds.</summary>
     private const string ForeignKeysSql = """
-        SELECT c.constraint_name, c.table_name, cc.column_name, r.owner, r.table_name, rc.column_name, c.owner
+        SELECT c.constraint_name, c.table_name, cc.column_name, r.owner, r.table_name, rc.column_name, c.owner, c.status, c.validated
           FROM all_constraints c
           JOIN all_cons_columns cc
             ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
@@ -244,7 +244,8 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
         var (sql, parameters) = ForOwners(ForeignKeysSql, owners);
         var rows = await session.ReadListAsync(sql, parameters, reader =>
             (Name: reader.GetString(0), Table: reader.GetString(1), Column: reader.GetString(2),
-             RefOwner: reader.GetString(3), RefTable: reader.GetString(4), RefColumn: reader.GetString(5), Owner: reader.GetString(6)), cancellationToken, many: true);
+             RefOwner: reader.GetString(3), RefTable: reader.GetString(4), RefColumn: reader.GetString(5), Owner: reader.GetString(6),
+             Enforced: reader.GetString(7) == "ENABLED" && reader.GetString(8) == "VALIDATED"), cancellationToken, many: true);
 
         return rows
             .GroupBy(r => (r.Owner, r.Name))
@@ -257,7 +258,7 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
                     g.Select(r => r.Column).ToList(),
                     new TableRef(first.RefOwner, first.RefTable),
                     g.Select(r => r.RefColumn).ToList(),
-                    FkSource.Declared);
+                    FkSource.Declared) { Enforced = first.Enforced };
             })
             .ToList();
     }

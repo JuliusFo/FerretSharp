@@ -297,4 +297,7 @@
   <data name="ColumnValuesDistinctNullsLeftOutOther" xml:space="preserve">
     <value>{0:N0} Zeilen ohne Wert (NULL) fehlen in der Liste.</value>
   </data>
+  <data name="DesignNodeProblem" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
 </root>

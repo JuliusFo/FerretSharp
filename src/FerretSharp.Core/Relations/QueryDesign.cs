@@ -193,27 +193,24 @@ public sealed class QueryDesign
     public static QueryDesign Resolve(TableRef root, QueryDesignState state, RelationGraph graph)
     {
         var normalized = state.Normalized();
-        var nodes = new List<QueryNode>();
+        var resolved = new List<QueryNode>();
         var notes = new List<string>();
-        var kept = new List<QueryNodeState>();
 
         // Shorter paths first, so the node a step starts from is resolved before it; in their order otherwise.
         foreach (var nodeState in normalized.Nodes.OrderBy(n => n.Path.Count))
         {
             if (nodeState.Path.Count == 0)
             {
-                if (nodes.Count == 0)
+                if (resolved.Count == 0)
                 {
-                    var rootNode = new QueryNode(nodeState, null, null, root, 0);
-                    nodes.Add(rootNode);
-                    kept.Add(nodeState);
+                    resolved.Add(new QueryNode(nodeState, null, null, root, 0));
                 }
 
                 continue;
             }
 
-            var from = nodes.FirstOrDefault(n => QueryStep.SamePath(n.Path, nodeState.Path.Take(nodeState.Path.Count - 1).ToList()));
-            if (from is null || nodes.Any(n => QueryStep.SamePath(n.Path, nodeState.Path)))
+            var from = resolved.FirstOrDefault(n => QueryStep.SamePath(n.Path, nodeState.Path.Take(nodeState.Path.Count - 1).ToList()));
+            if (from is null || resolved.Any(n => QueryStep.SamePath(n.Path, nodeState.Path)))
             {
                 // Below a node that was left out (noted there), or twice in the file.
                 continue;
@@ -226,11 +223,23 @@ public sealed class QueryDesign
                 continue;
             }
 
-            nodes.Add(new QueryNode(nodeState, from, relation, table, nodes.Count));
-            kept.Add(nodeState);
+            resolved.Add(new QueryNode(nodeState, from, relation, table, 0));
         }
 
-        return new QueryDesign(root, nodes, notes, normalized with { Nodes = kept });
+        // In the order of the tree – each node followed by what is reached through it – as the side panel lists them.
+        var nodes = new List<QueryNode>(resolved.Count);
+        void Visit(QueryNode node, QueryNode? from)
+        {
+            var placed = node with { From = from, Index = nodes.Count };
+            nodes.Add(placed);
+            foreach (var next in resolved.Where(n => ReferenceEquals(n.From, node)))
+            {
+                Visit(next, placed);
+            }
+        }
+
+        Visit(resolved[0], null);
+        return new QueryDesign(root, nodes, notes, normalized with { Nodes = [.. nodes.Select(n => n.State)] });
     }
 
     /// <summary>
