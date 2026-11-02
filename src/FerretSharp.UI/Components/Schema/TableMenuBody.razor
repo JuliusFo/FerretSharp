@@ -77,6 +77,10 @@
     </div>
 </div>
 
+@* WP-69: the relationship view in the mode "Abfrage bauen". *@
+<div class="menu-sep"></div>
+<MenuEntry Label="@SchemaViewText.Query_Build" Title="@SchemaViewText.Query_BuildTitle" OnClick="BuildQueryAsync" />
+
 @* The synonym as the schema knows it now: a tab keeps the one it was opened through, also once that is dropped. *@
 @if (Active.Schema?.Find(Table.Ref)?.Synonym is { } synonym)
 {
@@ -159,6 +163,16 @@
         if ((Tab ?? Shell.OpenTable(Table)) is { } tab)
         {
             Shell.ShowTab(tab, mode, designer);
+        }
+    });
+
+    /// <summary>The relationship view of the table's tab, its query in the mode "Abfrage bauen" (WP-69).</summary>
+    private Task BuildQueryAsync() => RunAsync(() =>
+    {
+        if ((Tab ?? Shell.OpenTable(Table)) is { } tab)
+        {
+            tab.Design = (tab.Design ?? Core.Relations.QueryDesignState.Empty) with { Active = true };
+            Shell.ShowTab(tab, TabMode.Relations);
         }
     });
 

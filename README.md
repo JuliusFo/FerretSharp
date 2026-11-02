@@ -98,6 +98,10 @@ developer works with an Oracle database day to day:
 - Sort the results of the SQL editor and the LINQ console by a click on a header.
 - **Relationship diagram**: the "Relations" view of a table – parents left, children right, one or two levels, "+n"
   handles to go further, kinds of relationship to switch off, zoom, copy as Mermaid for a ticket.
+- **Build a query in the diagram**: click the relationships to its parents (and to children, of which one row is
+  chosen by condition and order), tick columns, add conditions – and get LINQ in the style of query extensions (an
+  expression per value, LinqKit, a DTO or your own mapping lines), the SQL with the right joins, a preview of the rows
+  or a view. LINQ and SQL find the same rows; the LINQ console runs it with its parameters.
 - **Record diagram**: marked rows with their parents and children over up to four levels, read relationship by
   relationship; a click opens a row filtered, marked rows go to another connection (below).
 - **Audit tables read like their base table**: its relationships, C# names and enums, the cells a version changed

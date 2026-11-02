@@ -1602,4 +1602,184 @@
   <data name="Grants_SynonymName" xml:space="preserve">
     <value>Name des Synonyms</value>
   </data>
+  <data name="Query_Build" xml:space="preserve">
+    <value>Abfrage bauen</value>
+  </data>
+  <data name="Query_BuildTitle" xml:space="preserve">
+    <value>Beziehungen und Spalten wählen – daraus entstehen LINQ und SQL</value>
+  </data>
+  <data name="Query_EdgeTitle" xml:space="preserve">
+    <value>{0} – Klick nimmt sie in die Abfrage auf oder heraus</value>
+  </data>
+  <data name="Query_Root" xml:space="preserve">
+    <value>{0} (Wurzel)</value>
+  </data>
+  <data name="Query_ParentStep" xml:space="preserve">
+    <value>{0} über {1}</value>
+  </data>
+  <data name="Query_ChildStep" xml:space="preserve">
+    <value>{0} – eine Zeile über {1}</value>
+  </data>
+  <data name="Query_AddStep" xml:space="preserve">
+    <value>Beziehung hinzufügen…</value>
+  </data>
+  <data name="Query_AddParent" xml:space="preserve">
+    <value>Eltern: {0} über {1}</value>
+  </data>
+  <data name="Query_AddChild" xml:space="preserve">
+    <value>Ein Kind wählen: {0} über {1}</value>
+  </data>
+  <data name="Query_Remove" xml:space="preserve">
+    <value>Aus der Abfrage nehmen (mit allem, was daran hängt)</value>
+  </data>
+  <data name="Query_DropMissing" xml:space="preserve">
+    <value>Aus der Abfrage entfernen</value>
+  </data>
+  <data name="Query_Columns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="Query_ValueName" xml:space="preserve">
+    <value>Name des Werts; leer für den aus dem Pfad</value>
+  </data>
+  <data name="Query_NotSelectable" xml:space="preserve">
+    <value>LOB, LONG und andere Typen ohne Wert im Ergebnis sind nicht wählbar.</value>
+  </data>
+  <data name="Query_Conditions" xml:space="preserve">
+    <value>Bedingungen</value>
+  </data>
+  <data name="Query_ConditionsRoot" xml:space="preserve">
+    <value>Sie schränken die Zeilen von {0} ein.</value>
+  </data>
+  <data name="Query_ConditionsChild" xml:space="preserve">
+    <value>Sie wählen, welche Zeile von {0} genommen wird.</value>
+  </data>
+  <data name="Query_AddCondition" xml:space="preserve">
+    <value>Bedingung</value>
+  </data>
+  <data name="Query_AsParameter" xml:space="preserve">
+    <value>als Parameter</value>
+  </data>
+  <data name="Query_AsParameterTitle" xml:space="preserve">
+    <value>In C# wird der Wert ein Parameter des Filters (nur an der Wurzel und ihren Eltern); eine View lässt die Bedingung weg</value>
+  </data>
+  <data name="Query_ParameterName" xml:space="preserve">
+    <value>Name des Parameters</value>
+  </data>
+  <data name="Query_Order" xml:space="preserve">
+    <value>Reihenfolge – die erste Zeile wird genommen</value>
+  </data>
+  <data name="Query_OrderByKey" xml:space="preserve">
+    <value>Ohne Reihenfolge nach dem Primärschlüssel.</value>
+  </data>
+  <data name="Query_OrderTies" xml:space="preserve">
+    <value>Deine App kann ein anderes Kind wählen als die Vorschau: FerretSharp sortiert Text binär (NLS_SORT=BINARY), deine App unter Umständen nach ihrer Sprache, die auch verschiedene Werte anders ordnet; bei gleichen Werten ohne Primärschlüssel nimmt das SQL die ROWID, C# den Entity-Schlüssel.</value>
+  </data>
+  <data name="Query_AddOrder" xml:space="preserve">
+    <value>Reihenfolge</value>
+  </data>
+  <data name="Query_Descending" xml:space="preserve">
+    <value>absteigend</value>
+  </data>
+  <data name="Query_NoColumns" xml:space="preserve">
+    <value>Wähle mindestens eine Spalte – dann erscheinen hier LINQ und SQL.</value>
+  </data>
+  <data name="Query_LoadingColumns" xml:space="preserve">
+    <value>Spalten der Tabellen der Abfrage werden geladen …</value>
+  </data>
+  <data name="Query_ColumnsFailed" xml:space="preserve">
+    <value>Die Spalten der Tabellen der Abfrage ließen sich nicht lesen.</value>
+  </data>
+  <data name="Query_OutputLinq" xml:space="preserve">
+    <value>LINQ</value>
+  </data>
+  <data name="Query_OutputSql" xml:space="preserve">
+    <value>SQL</value>
+  </data>
+  <data name="Query_OutputPreview" xml:space="preserve">
+    <value>Vorschau</value>
+  </data>
+  <data name="Query_OpenInLinq" xml:space="preserve">
+    <value>In LINQ-Konsole öffnen</value>
+  </data>
+  <data name="Query_OpenInLinqNoProject" xml:space="preserve">
+    <value>Die LINQ-Konsole braucht ein verknüpftes C#-Projekt.</value>
+  </data>
+  <data name="Query_SingleRead" xml:space="preserve">
+    <value>Kind einmal lesen</value>
+  </data>
+  <data name="Query_SingleReadHint" xml:space="preserve">
+    <value>Mit einem Ausdruck je Wert liest das SQL ein gewähltes Kind einmal je Wert. Diese Abfrage liest es einmal – was schneller ist, hängt von den Daten ab: Vergleiche die Pläne in der LINQ-Konsole.</value>
+  </data>
+  <data name="Query_Style" xml:space="preserve">
+    <value>Namen und Stil</value>
+  </data>
+  <data name="Query_ClassName" xml:space="preserve">
+    <value>Klasse</value>
+  </data>
+  <data name="Query_PredicateName" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Query_ProjectionName" xml:space="preserve">
+    <value>Projektion</value>
+  </data>
+  <data name="Query_DtoName" xml:space="preserve">
+    <value>DTO</value>
+  </data>
+  <data name="Query_Namespace" xml:space="preserve">
+    <value>Namespace</value>
+  </data>
+  <data name="Query_WithDto" xml:space="preserve">
+    <value>DTO mit erzeugen</value>
+  </data>
+  <data name="Query_DtoRecord" xml:space="preserve">
+    <value>als record</value>
+  </data>
+  <data name="Query_LinqKit" xml:space="preserve">
+    <value>LinqKit</value>
+  </data>
+  <data name="Query_LinqKitTitle" xml:space="preserve">
+    <value>Ein Ausdruck je Wert, zusammengesetzt mit Invoke und Expand(); ohne steht jeder Wert als ganzer Pfad in der Projektion</value>
+  </data>
+  <data name="Query_StyleProject" xml:space="preserve">
+    <value>Gemerkt für das Projekt {0}.</value>
+  </data>
+  <data name="Query_Template" xml:space="preserve">
+    <value>Eigene Zuordnung</value>
+  </data>
+  <data name="Query_TemplateHead" xml:space="preserve">
+    <value>Kopf</value>
+  </data>
+  <data name="Query_TemplateLine" xml:space="preserve">
+    <value>Zeile je Wert</value>
+  </data>
+  <data name="Query_TemplateFoot" xml:space="preserve">
+    <value>Fuß</value>
+  </data>
+  <data name="Query_TemplateHint" xml:space="preserve">
+    <value>Platzhalter: {0}. Mit einer Zeile je Wert ersetzt die Zuordnung die Projektion; die LINQ-Konsole behält die Projektion.</value>
+  </data>
+  <data name="Query_PreviewRun" xml:space="preserve">
+    <value>Zeilen zeigen</value>
+  </data>
+  <data name="Query_PreviewMore" xml:space="preserve">
+    <value>Die ersten {0:N0} Zeilen – alle im SQL-Editor.</value>
+  </data>
+  <data name="Query_PreviewAll" xml:space="preserve">
+    <value>{0:N0} Zeilen.</value>
+  </data>
+  <data name="Query_CreateView" xml:space="preserve">
+    <value>View anlegen…</value>
+  </data>
+  <data name="Query_ViewName" xml:space="preserve">
+    <value>Name der View</value>
+  </data>
+  <data name="Query_ViewLeftOut" xml:space="preserve">
+    <value>Nicht in der View – eine View hat keine Parameter: {0}</value>
+  </data>
+  <data name="Query_ViewNameTaken" xml:space="preserve">
+    <value>{0} gibt es schon ({1}).</value>
+  </data>
+  <data name="Query_ViewCreated" xml:space="preserve">
+    <value>View {0} angelegt.</value>
+  </data>
 </root>

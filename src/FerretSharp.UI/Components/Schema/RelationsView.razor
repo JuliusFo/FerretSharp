@@ -9,10 +9,12 @@
 @inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject ILogger<RelationsView> Logger
 
 @if (_state.Diagram is { } diagram && _state.Placement is { } placement)
 {
     var lit = Neighbours(diagram);
+    var inQuery = _query.Tables;
     <div class="relations-view">
         <div class="relations-head">
             <span class="muted" title="@SchemaViewText.Relations_LevelsTitle">@SchemaViewText.Relations_Levels</span>
@@ -37,12 +39,15 @@
                 </label>
             }
             <span class="spacer"></span>
+            <button class="btn @(_query.Active ? "primary" : "ghost")" aria-pressed="@(_query.Active ? "true" : "false")" title="@SchemaViewText.Query_BuildTitle"
+                    @onclick="ToggleQueryAsync">@SchemaViewText.Query_Build</button>
             <DiagramZoomBar Zoom="_state.Zoom" OnChange="() => { }" />
             <button class="btn ghost" title="@TextFormat.Format(SchemaViewText.Relations_ResetTitle, Label(_state.Home))" disabled="@(!_state.Changed)"
                     @onclick="() => Change(_state.Reset, scroll: true)">@CommonText.Reset</button>
             <button class="btn ghost" title="@SchemaViewText.Relations_CopyMermaidTitle" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
         </div>
 
+        <div class="relations-body @(_query.Active ? "with-query" : "")">
         @if (diagram.Tables.Count == 1 && diagram.Groups.Count == 0)
         {
             <div class="relations-empty">
@@ -53,7 +58,8 @@
         else
         {
             <DiagramCanvas Id="@CanvasId" Placement="placement" Zoom="_state.Zoom.Value" OnMouseLeave="() => _hover = null"
-                           EdgeClass="edge => EdgeClass(diagram, edge)" EdgeTitle="edge => diagram.RelationOf(edge.Id) is { } r ? DiagramStyle.EdgeTitle(r, Label) : null">
+                           EdgeClass="edge => EdgeClass(diagram, edge)" EdgeTitle="edge => EdgeTitle(diagram, edge)"
+                           OnEdgeClick="@(_query.Active ? EventCallback.Factory.Create<EdgePath>(this, e => ToggleEdgeAsync(diagram, e)) : default)">
                 @foreach (var table in diagram.Tables)
                 {
                     var t = table.Table;
@@ -63,7 +69,7 @@
                     var children = diagram.HiddenCount(t, DiagramSide.Children);
                     var toParents = parents > 0 ? diagram.HiddenRelations(t, DiagramSide.Parents) : [];
                     var toChildren = children > 0 ? diagram.HiddenRelations(t, DiagramSide.Children) : [];
-                    <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @DiagramStyle.NodeState(t, _hover, lit)" style="@DiagramStyle.Box(box)"
+                    <div id="@(t == _state.Focus ? FocusId : null)" class="relations-node @(t == _state.Focus ? "focus" : "") @(_query.Active && inQuery.Contains(t) ? "in-query" : "") @DiagramStyle.NodeState(t, _hover, lit)" style="@DiagramStyle.Box(box)"
                          @onmouseenter="() => _hover = t" @onmouseleave="() => Leave(t)" @oncontextmenu="e => _menu!.OpenAsync(e, t)" @oncontextmenu:preventDefault="true">
                         @if (parents > 0)
                         {
@@ -105,6 +111,11 @@
                 }
             </DiagramCanvas>
         }
+        @if (_query.Active)
+        {
+            <QueryDesignPanel Editor="_query" Tab="Tab" OnChanged="OnQueryChangedAsync" />
+        }
+        </div>
     </div>
 }
 
@@ -146,6 +157,14 @@
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
 
+    /// <summary>The tab: it keeps the query built here (WP-69).</summary>
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    private QueryDesignEditor _query = null!;
+
+    private bool _loadingColumns;
+
     /// <summary>Incremented by the tab (F5): the diagram is built again from the schema, with what was expanded.</summary>
     [Parameter]
     public int Version { get; set; }
@@ -172,6 +191,7 @@
     protected override void OnInitialized()
     {
         _state = new RelationsDiagramState(Details.Table.Ref);
+        _query = new QueryDesignEditor(Tab);
         Presentations.Changed += OnPresentationChanged;
     }
 
@@ -185,6 +205,11 @@
         {
             _loadedVersion = Version;
             Load();
+        }
+        else if (_query.Active && _query.Missing.Count > 0)
+        {
+            // Switched on from the object menu (WP-69) while the view was mounted.
+            Fire(LoadColumnsAsync);
         }
     }
 
@@ -212,8 +237,73 @@
         }
 
         _loadedRelations = schema.ForeignKeys;
-        _state.Load(RelationGraph.Of(schema));
+        var graph = RelationGraph.Of(schema);
+        _state.Load(graph);
+        _query.Load(graph);
+        if (_query.Active)
+        {
+            Fire(LoadColumnsAsync);
+        }
     }
+
+    private Task ToggleQueryAsync()
+    {
+        _query.SetActive(!_query.Active);
+        Shell.MarkDirty();
+        return _query.Active ? LoadColumnsAsync() : Task.CompletedTask;
+    }
+
+    /// <summary>A click on an edge in the mode "Abfrage bauen": the relationship goes into the query or out of it.</summary>
+    private Task ToggleEdgeAsync(RelationDiagram diagram, EdgePath edge)
+    {
+        if (diagram.RelationOf(edge.Id) is not { } relation || !_query.ToggleEdge(relation))
+        {
+            return Task.CompletedTask;
+        }
+
+        Shell.MarkDirty();
+        return LoadColumnsAsync();
+    }
+
+    private Task OnQueryChangedAsync() => LoadColumnsAsync();
+
+    /// <summary>The columns of the query's tables the panel and the SQL need, one table after the other.</summary>
+    private async Task LoadColumnsAsync()
+    {
+        if (_loadingColumns || Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        _loadingColumns = true;
+        _query.ColumnsFailed = false;
+        try
+        {
+            while (_query.Missing is [var table, ..])
+            {
+                var summary = schema.Find(table) ?? new TableSummary(table.Owner, table.Name, TableKind.Table);
+                var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(summary, CancellationToken.None), CancellationToken.None);
+                if (read.Value is not { } details)
+                {
+                    _query.ColumnsFailed = true;
+                    StateHasChanged();
+                    return;
+                }
+
+                _query.Loaded(details);
+                StateHasChanged();
+            }
+        }
+        finally
+        {
+            _loadingColumns = false;
+        }
+    }
+
+    private string? EdgeTitle(RelationDiagram diagram, EdgePath edge) =>
+        diagram.RelationOf(edge.Id) is not { } relation ? null
+        : _query.Active ? TextFormat.Format(SchemaViewText.Query_EdgeTitle, DiagramStyle.EdgeTitle(relation, Label))
+        : DiagramStyle.EdgeTitle(relation, Label);
 
     /// <summary>A loaded or changed C# model: entity names change, and with its navigations the relationships may too.</summary>
     private void OnPresentationChanged() => Fire(() =>
@@ -278,7 +368,8 @@
 
     /// <summary>An edge's kind of relationship (<c>group</c> for one to a group) and its state under the mouse.</summary>
     private string EdgeClass(RelationDiagram diagram, EdgePath edge) =>
-        $"{(diagram.RelationOf(edge.Id) is { } relation ? DiagramStyle.KindClass(relation.Source) : "group")} {DiagramStyle.EdgeState(edge, HoverId)}";
+        $"{(diagram.RelationOf(edge.Id) is { } relation ? DiagramStyle.KindClass(relation.Source) : "group")} {DiagramStyle.EdgeState(edge, HoverId)}"
+        + (_query.Active && _query.Edges.Contains(edge.Id) ? " in-query" : "");
 
     private string? HoverId => _hover is { } hover ? RelationDiagram.IdOf(hover) : null;
 

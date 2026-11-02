@@ -209,6 +209,12 @@ public sealed record AppSettings
 
     /// <summary>What "SQL" in a table's filter bar shows: the grid's statement (default) or <c>SELECT t.*</c>.</summary>
     public FilterSqlColumns FilterSql { get; init; } = FilterSqlColumns.Listed;
+
+    /// <summary>
+    /// How each linked project writes the C# of a query from the relationship diagram (WP-69): namespace, DTO, LinqKit, its
+    /// own mapping lines – the last choice, read and written through <see cref="ClrModel.QueryCodeStyle"/>.
+    /// </summary>
+    public SettingsMap QueryCodeStyles { get; init; } = SettingsMap.Empty;
 }
 
 /// <summary>

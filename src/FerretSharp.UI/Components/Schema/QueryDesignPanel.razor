@@ -1,0 +1,464 @@
+@* The side panel of "Abfrage bauen" in the relationship view (WP-69): the query as a tree (root, parents, chosen children),
+   for the selected node its columns, conditions and – for a chosen child – its order, and below the output as LINQ, SQL
+   or a preview of the rows. Logic in QueryDesignEditor (State), SQL and C# in Core; this only shows and forwards. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.IO
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Relations
+@using FerretSharp.Core.Schema
+@using FerretSharp.Core.Settings
+@inherits FerretComponent
+@implements IDisposable
+@inject AppSettingsService Settings
+@inject ILogger<QueryDesignPanel> Logger
+
+<aside class="query-panel">
+    @if (Editor.Design is { } design)
+    {
+        <ul class="query-tree">
+            @foreach (var node in design.Nodes)
+            {
+                var n = node;
+                <li class="query-node @(ReferenceEquals(n, Editor.Selected) ? "selected" : "")" style="@($"padding-left:{n.Path.Count * 14 + 4}px")">
+                    <button class="link-btn query-node-name" @onclick="() => Change(() => Editor.Select(n))">@NodeLabel(n)</button>
+                    @if (n.State.Columns.Count > 0)
+                    {
+                        <span class="fs-badge">@n.State.Columns.Count</span>
+                    }
+                    @if (!n.IsRoot)
+                    {
+                        <button class="icon-btn" title="@SchemaViewText.Query_Remove" @onclick="() => Change(() => Editor.Remove(n))">@Icons.Close</button>
+                    }
+                </li>
+            }
+        </ul>
+
+        @foreach (var note in Editor.Notes)
+        {
+            <p class="hint small warn">@note</p>
+        }
+        @if (Editor.Notes.Count > 0)
+        {
+            <div class="query-actions">
+                <button class="btn" @onclick="() => Change(Editor.DropMissing)">@SchemaViewText.Query_DropMissing</button>
+            </div>
+        }
+
+        @if (Editor.Selected is { } selected)
+        {
+            var next = Editor.NextSteps(selected);
+            @if (next.Count > 0)
+            {
+                @* Keyed on the query: the same value "" again would not reset the choice the browser shows (ui.md). *@
+                <select @key="Editor.State" class="field query-add" value="" @onchange="e => AddStep(selected, next, e.Value as string)">
+                    <option value="">@SchemaViewText.Query_AddStep</option>
+                    @for (var i = 0; i < next.Count; i++)
+                    {
+                        var (step, relation) = next[i];
+                        <option value="@i">@StepOption(step, relation)</option>
+                    }
+                </select>
+            }
+
+            @if (Editor.DetailsOf(selected.Table) is { } details)
+            {
+                <QueryNodeEditor Node="selected" Details="details" Editor="Editor" OnChanged="Changed" />
+            }
+        }
+
+        <div class="query-output">
+            @if (!Editor.Complete && Editor.ColumnsFailed)
+            {
+                <p class="error small">@SchemaViewText.Query_ColumnsFailed</p>
+                <div class="query-actions">
+                    <button class="btn" @onclick="() => OnChanged.InvokeAsync()">@CommonText.TryAgain</button>
+                </div>
+            }
+            else if (!Editor.Complete)
+            {
+                <p class="muted"><span class="spinner"></span> @SchemaViewText.Query_LoadingColumns</p>
+            }
+            else if (!Editor.HasColumns)
+            {
+                <p class="muted">@SchemaViewText.Query_NoColumns</p>
+            }
+            else if (Editor.Problem is { } problem)
+            {
+                <p class="error small">@problem</p>
+            }
+            else
+            {
+                <div class="segmented small" role="tablist">
+                    @foreach (var (output, label) in Outputs)
+                    {
+                        var o = output;
+                        <button class="seg @(_output == o ? "active" : "")" role="tab" aria-selected="@(_output == o ? "true" : "false")"
+                                @onclick="() => { _output = o; _outputChosen = true; }">@label</button>
+                    }
+                </div>
+                @switch (_output)
+                {
+                    case Output.Linq:
+                        @LinqOutput()
+                        break;
+                    case Output.Sql:
+                        @SqlOutput()
+                        break;
+                    case Output.Preview:
+                        @PreviewOutput()
+                        break;
+                }
+            }
+        </div>
+    }
+</aside>
+
+@code {
+    private enum Output
+    {
+        Linq,
+        Sql,
+        Preview,
+    }
+
+    private Output _output = Output.Sql;
+    private bool _outputChosen;
+    private bool _styleOpen;
+    private SqlPage? _preview;
+    private PreviewRun? _previewRun;
+    private string? _viewName;
+    private string? _viewTaken;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public QueryDesignEditor Editor { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    /// <summary>The query changed: the diagram marks other edges.</summary>
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // LINQ first where the model knows the root – the query is meant for C#; SQL otherwise.
+        if (!_outputChosen && Presentations.Mapping?.EntityOf(Editor.Root) is not null)
+        {
+            _output = Output.Linq;
+        }
+    }
+
+    private IEnumerable<(Output Output, string Label)> Outputs =>
+    [
+        (Output.Linq, SchemaViewText.Query_OutputLinq),
+        (Output.Sql, SchemaViewText.Query_OutputSql),
+        (Output.Preview, SchemaViewText.Query_OutputPreview),
+    ];
+
+    private string? ProjectFile => Models.State.Link?.ProjectFile;
+
+    private QueryCodeStyle Style => QueryCodeStyle.Of(Settings.Current.QueryCodeStyles, ProjectFile ?? "");
+
+    private string Label(TableRef table) => Active.Schema?.LabelOf(table) ?? table.Name;
+
+    private string NodeLabel(QueryNode node) =>
+        node.IsRoot ? TextFormat.Format(SchemaViewText.Query_Root, Label(node.Table))
+        : node.IsChosenChild ? TextFormat.Format(SchemaViewText.Query_ChildStep, Label(node.Table), string.Join(", ", node.Relation!.FromColumns))
+        : TextFormat.Format(SchemaViewText.Query_ParentStep, Label(node.Table), string.Join(", ", node.Relation!.FromColumns));
+
+    private string StepOption(QueryStep step, ForeignKeyInfo relation) =>
+        step.ToChild
+            ? TextFormat.Format(SchemaViewText.Query_AddChild, Label(relation.From), string.Join(", ", relation.FromColumns))
+            : TextFormat.Format(SchemaViewText.Query_AddParent, Label(relation.To), string.Join(", ", relation.FromColumns));
+
+    private Task AddStep(QueryNode from, IReadOnlyList<(QueryStep Step, ForeignKeyInfo Relation)> next, string? value) =>
+        int.TryParse(value, out var i) && i >= 0 && i < next.Count ? Change(() => Editor.Add(from, next[i].Step)) : Task.CompletedTask;
+
+    private Task Change(Action change)
+    {
+        change();
+        return Changed();
+    }
+
+    private Task Changed()
+    {
+        // A running preview is of the query before: cancelled, and its rows are not shown (second review).
+        CancelPreview();
+        _previewRun = null;
+        _preview = null;
+        Shell.MarkDirty();
+        return OnChanged.InvokeAsync();
+    }
+
+    // --- LINQ ----------------------------------------------------------------------------------------------------------
+
+    private RenderFragment LinqOutput() => __builder =>
+    {
+        var mapping = Presentations.Mapping;
+        if (mapping is null || QueryCodeBuilder.Unavailable(Editor.Design!, mapping) is { } reason)
+        {
+            <p class="muted">@(mapping is null ? SchemaViewText.Query_OpenInLinqNoProject : ClrModelText.NoEntity)</p>
+            return;
+        }
+
+        var style = Style;
+        var linq = Editor.Code(mapping, style)!;
+        <details class="query-style" open="@_styleOpen" @ontoggle="() => _styleOpen = !_styleOpen">
+            <summary>@SchemaViewText.Query_Style</summary>
+            @StyleForm(style)
+        </details>
+        <SqlCode Sql="@linq.Code" Plain="true" />
+        @foreach (var note in linq.Notes)
+        {
+            <p class="hint small">@note</p>
+        }
+        <div class="query-actions">
+            <button class="btn" disabled="@(Models.State.Link is null)" title="@(Models.State.Link is null ? SchemaViewText.Query_OpenInLinqNoProject : null)"
+                    @onclick="() => Shell.OpenLinq(linq.Script, linq.Variables)">@SchemaViewText.Query_OpenInLinq</button>
+        </div>
+        @if (linq.SingleRead is { } once)
+        {
+            <h3>@SchemaViewText.Query_SingleRead</h3>
+            <p class="hint small">@SchemaViewText.Query_SingleReadHint</p>
+            <SqlCode Sql="@once" Plain="true" />
+            <div class="query-actions">
+                <button class="btn" disabled="@(Models.State.Link is null)"
+                        @onclick="() => Shell.OpenLinq(linq.Script[..linq.Script.LastIndexOf(linq.Usage, StringComparison.Ordinal)] + once, linq.Variables)">@SchemaViewText.Query_OpenInLinq</button>
+            </div>
+        }
+    };
+
+    private RenderFragment StyleForm(QueryCodeStyle style) => __builder =>
+    {
+        var names = Editor.State.Names;
+        <div class="query-style-form">
+            <label>@SchemaViewText.Query_ClassName <input class="field mono" value="@names.Class" placeholder="@($"{EntityName}Queries")" @onchange="e => SetNames(names with { Class = Text(e) })" /></label>
+            <label>@SchemaViewText.Query_PredicateName <input class="field mono" value="@names.Predicate" placeholder="Filter" @onchange="e => SetNames(names with { Predicate = Text(e) })" /></label>
+            <label>@SchemaViewText.Query_ProjectionName <input class="field mono" value="@names.Projection" placeholder="Projection" @onchange="e => SetNames(names with { Projection = Text(e) })" /></label>
+            <label>@SchemaViewText.Query_DtoName <input class="field mono" value="@names.Dto" placeholder="@($"{EntityName}Row")" @onchange="e => SetNames(names with { Dto = Text(e) })" /></label>
+            <label>@SchemaViewText.Query_Namespace <input class="field mono" value="@style.Namespace" @onchange="e => SaveStyleAsync(style with { Namespace = Text(e) })" /></label>
+            <label class="check"><input type="checkbox" checked="@style.WithDto" @onchange="() => SaveStyleAsync(style with { WithDto = !style.WithDto })" /> @SchemaViewText.Query_WithDto</label>
+            <label class="check"><input type="checkbox" checked="@style.DtoAsRecord" @onchange="() => SaveStyleAsync(style with { DtoAsRecord = !style.DtoAsRecord })" /> @SchemaViewText.Query_DtoRecord</label>
+            <label class="check" title="@SchemaViewText.Query_LinqKitTitle"><input type="checkbox" checked="@style.LinqKit" @onchange="() => SaveStyleAsync(style with { LinqKit = !style.LinqKit })" /> @SchemaViewText.Query_LinqKit</label>
+            <h4>@SchemaViewText.Query_Template</h4>
+            <label>@SchemaViewText.Query_TemplateHead <input class="field mono" value="@style.Template?.Head" @onchange="e => SaveTemplateAsync(style, t => t with { Head = Line(e) })" /></label>
+            <label>@SchemaViewText.Query_TemplateLine <input class="field mono" value="@style.Template?.Line" @onchange="e => SaveTemplateAsync(style, t => t with { Line = Line(e) })" /></label>
+            <label>@SchemaViewText.Query_TemplateFoot <input class="field mono" value="@style.Template?.Foot" @onchange="e => SaveTemplateAsync(style, t => t with { Foot = Line(e) })" /></label>
+            <p class="hint small">@TextFormat.Format(SchemaViewText.Query_TemplateHint, "{Entity}, {Dto}, {Expression}, {Property}")</p>
+            @if (Models.State.Link is { } link)
+            {
+                <p class="hint small">@TextFormat.Format(SchemaViewText.Query_StyleProject, link.ProjectName)</p>
+            }
+        </div>
+    };
+
+    private string EntityName => Presentations.Mapping?.EntityOf(Editor.Root) is { } entity ? ClrModelMapping.ShortName(entity.Entity.ClrType) : "";
+
+    private static string? Text(ChangeEventArgs e) => e.Value is string text && text.Trim().Length > 0 ? text.Trim() : null;
+
+    /// <summary>A line of the template as typed (its indent counts); empty if it holds only blanks.</summary>
+    private static string Line(ChangeEventArgs e) => e.Value is string text && text.Trim().Length > 0 ? text.TrimEnd() : "";
+
+    private Task SetNames(QueryNames names) => Change(() => Editor.SetNames(names));
+
+    /// <summary>One field of the template: kept without the others, and an emptied field is empty (review).</summary>
+    private Task SaveTemplateAsync(QueryCodeStyle style, Func<QueryLineTemplate, QueryLineTemplate> change)
+    {
+        var template = change(style.Template ?? new QueryLineTemplate("", "", ""));
+        return SaveStyleAsync(style with { Template = template is { Head.Length: 0, Line.Length: 0, Foot.Length: 0 } ? null : template });
+    }
+
+    private Task SaveStyleAsync(QueryCodeStyle style) =>
+        Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { QueryCodeStyles = style.Into(s.QueryCodeStyles, ProjectFile ?? "") }, CancellationToken.None));
+
+    // --- SQL and view ------------------------------------------------------------------------------------------------
+
+    private RenderFragment SqlOutput() => __builder =>
+    {
+        var sql = Editor.Sql(DesignSqlMode.Statement)!;
+        <SqlCode Sql="@sql.Sql" />
+        <div class="query-actions">
+            <button class="btn" @onclick="() => OpenInSqlEditor(sql)">@CommonText.OpenInSqlEditor</button>
+            <button class="btn" disabled="@(_viewName is not null)" @onclick="StartView">@SchemaViewText.Query_CreateView</button>
+        </div>
+        @if (_viewName is not null && Active.Schema is { } schema)
+        {
+            var view = Editor.Sql(DesignSqlMode.View)!;
+            var name = OracleIdentifier.Normalize(_viewName);
+            var problem = _viewName.Trim().Length == 0 ? null : OracleIdentifier.Problem(name) ?? _viewTaken;
+            <section class="query-view">
+                <label>@SchemaViewText.Query_ViewName <input class="field mono" value="@_viewName" @onchange="e => CheckViewNameAsync(e.Value as string ?? string.Empty)" /></label>
+                @if (view.LeftOut.Count > 0)
+                {
+                    <p class="hint small warn">@TextFormat.Format(SchemaViewText.Query_ViewLeftOut, string.Join("; ", view.LeftOut.Select(l => $"{l.Node.Table.Name}: {FilterText.Row(l.Filter.Condition)}")))</p>
+                }
+                <DdlDraftPanel @key="(name, view.Sql)" WorkspaceId="Tab.WorkspaceId"
+                               Steps="@(problem is null && name.Length > 0 ? [ViewDdl.Create(new TableRef(schema.Owner, name), view.Sql)] : [])"
+                               Problems="@(problem is null ? [] : [problem])"
+                               FileName="@($"{DateTime.Now:yyyy-MM-dd}_{SuggestedFileName.Of(name.Length > 0 ? name : "VIEW")}.sql")"
+                               OnRan="_ => ViewCreated(name)" OnClose="() => _viewName = null" />
+            </section>
+        }
+    };
+
+    private void OpenInSqlEditor(DesignSql sql) => Shell.OpenSql(sql.Sql + ";\n", sql.Parameters.Select(SqlBinds.FromParameter).ToList());
+
+    private void StartView()
+    {
+        _viewName = $"V_{Editor.Root.Name}";
+        _viewTaken = null;
+        Fire(() => CheckViewNameAsync(_viewName));
+    }
+
+    /// <summary>The name as Oracle reads it; a name in use is reported before the DDL (never <c>OR REPLACE</c>).</summary>
+    private async Task CheckViewNameAsync(string text)
+    {
+        _viewName = text;
+        _viewTaken = null;
+        if (Active.Schema is not { } schema || OracleIdentifier.Normalize(text) is not { Length: > 0 } name || OracleIdentifier.Problem(name) is not null)
+        {
+            return;
+        }
+
+        var taken = (await Shell.RunDbAsync(Logger, Active, () => schema.GetNameTakenAsync(schema.Owner, name, CancellationToken.None), CancellationToken.None)).Value;
+        if (_viewName == text && taken is not null)
+        {
+            _viewTaken = TextFormat.Format(SchemaViewText.Query_ViewNameTaken, name, taken);
+        }
+
+        StateHasChanged();
+    }
+
+    private void ViewCreated(string name)
+    {
+        _viewName = null;
+        Shell.Notify(TextFormat.Format(SchemaViewText.Query_ViewCreated, name));
+    }
+
+    // --- Preview -----------------------------------------------------------------------------------------------------
+
+    private const int PreviewRows = 100;
+
+    private RenderFragment PreviewOutput() => __builder =>
+    {
+        <div class="query-actions">
+            <button class="btn" disabled="@(_previewRun is not null)" @onclick="PreviewAsync">@SchemaViewText.Query_PreviewRun</button>
+        </div>
+        @if (_previewRun is { } run)
+        {
+            <RunProgress @key="run" WorkspaceId="Tab.WorkspaceId" Title="@SqlEditorText.Run_QueryRunning" Started="run.Started" OnCancel="CancelPreview" />
+        }
+        @if (_preview is { } page)
+        {
+            <p class="hint small">@(page.IsLastPage ? TextFormat.Format(SchemaViewText.Query_PreviewAll, page.Rows.Count) : TextFormat.Format(SchemaViewText.Query_PreviewMore, page.Rows.Count))</p>
+            <div class="query-preview">
+                <table class="columns">
+                    <thead><tr>@foreach (var column in page.Columns) { <th>@column.Name</th> }</tr></thead>
+                    <tbody>
+                        @foreach (var row in page.Rows)
+                        {
+                            <tr>
+                                @for (var i = 0; i < page.Columns.Count; i++)
+                                {
+                                    var value = row[i];
+                                    if (value is null)
+                                    {
+                                        <td class="null">NULL</td>
+                                    }
+                                    else
+                                    {
+                                        <td>@CellFormatter.Format(page.Columns[i].Column, value)</td>
+                                    }
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    };
+
+    /// <param name="Cancellation">Cancels the read: an OUTER APPLY per row or a silent VPN must not hold the workspace (review).</param>
+    private sealed record PreviewRun(DateTimeOffset Started, CancellationTokenSource Cancellation);
+
+    /// <summary>
+    /// The first rows through the read path of the tab's workspace, as the SQL editor reads them – with time, cancel and,
+    /// without an answer, "disconnect session" (<see cref="RunProgress"/>).
+    /// </summary>
+    private async Task PreviewAsync()
+    {
+        if (_previewRun is not null || Editor.Sql(DesignSqlMode.Statement) is not { } sql)
+        {
+            return;
+        }
+
+        var run = new PreviewRun(DateTimeOffset.Now, new CancellationTokenSource());
+        _previewRun = run;
+        try
+        {
+            var outcome = await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, new QuerySpec(sql.Sql, sql.Parameters), PreviewRows, null, run.Cancellation.Token);
+            if (!ReferenceEquals(_previewRun, run))
+            {
+                return; // the query changed meanwhile (Changed)
+            }
+
+            _preview = outcome.FirstPage;
+            if (outcome.Error is { } error && !outcome.Cancelled)
+            {
+                Shell.ShowError(error, Active.Profile?.MasksValues == true);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_previewRun, run))
+            {
+                _previewRun = null;
+            }
+
+            run.Cancellation.Dispose();
+        }
+    }
+
+    /// <summary>On a pool thread: ODP.NET sends the break synchronously, over a silent VPN it blocks (A3).</summary>
+    private void CancelPreview()
+    {
+        if (_previewRun is not { } run)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                run.Cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the read ended meanwhile
+            }
+        });
+    }
+
+    /// <summary>Leaving the mode or closing the tab cancels a running preview.</summary>
+    public void Dispose() => CancelPreview();
+}

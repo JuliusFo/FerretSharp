@@ -87,6 +87,9 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 
     public SynonymInfo? DropRequested { get; set; }
 
+    /// <summary>The query built in the relationship view (WP-69), saved with the tab; null if none was started.</summary>
+    public Core.Relations.QueryDesignState? Design { get; set; }
+
     /// <summary>Rough scroll position: first visible row, only if it was loaded.</summary>
     public int? FirstVisibleRow { get; set; }
 
@@ -411,6 +414,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         Preset = Preset,
         OriginTab = BackTarget(workspaceTabs) is { } origin ? IndexOf(workspaceTabs, origin) : null,
         Form = FormTabs.Save(this),
+        Design = Design,
     };
 
     private static int IndexOf(IReadOnlyList<WorkspaceTab> tabs, WorkspaceTab tab)
@@ -436,6 +440,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             FirstVisibleRow = state.FirstVisibleRow,
             PinnedColumns = state.PinnedColumns,
             Preset = state.Preset,
+            Design = state.Design,
         }.WithForm(state.Form);
         tab.SetFilterRows(state.FilterRows);
         return tab;

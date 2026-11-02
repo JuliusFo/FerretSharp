@@ -151,8 +151,11 @@ public sealed partial class ShellState
         return InsertAfterActive(workspace, tab);
     }
 
-    /// <summary>Opens a new LINQ console tab ("LINQ 1", "LINQ 2" …) after the active tab (WP-13).</summary>
-    public LinqTab? OpenLinq(string? code = null)
+    /// <summary>
+    /// Opens a new LINQ console tab ("LINQ 1", "LINQ 2" …) after the active tab (WP-13), optionally with code and the
+    /// declarations of its variables (a query from the diagram, WP-69).
+    /// </summary>
+    public LinqTab? OpenLinq(string? code = null, string? variables = null)
     {
         if (ActiveWorkspace is not { } workspace)
         {
@@ -160,7 +163,7 @@ public sealed partial class ShellState
         }
 
         var title = Workspace.FirstFreeName("LINQ ", workspace.Tabs.OfType<LinqTab>().Select(t => t.Title));
-        return InsertAfterActive(workspace, new LinqTab(workspace.WorkspaceId, title) { Code = code ?? "", Visited = true });
+        return InsertAfterActive(workspace, new LinqTab(workspace.WorkspaceId, title) { Code = code ?? "", Variables = variables ?? "", Visited = true });
     }
 
     /// <summary>

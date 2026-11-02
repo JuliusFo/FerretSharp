@@ -52,7 +52,7 @@ public sealed class QueryValidationException(IReadOnlyDictionary<int, string> er
 /// always quoted; values are always bind variables. The result order is deterministic (row key as tiebreaker),
 /// so OFFSET/FETCH pages neither overlap nor leave gaps.
 /// </summary>
-public static class QueryBuilder
+public static partial class QueryBuilder
 {
     public const int ClobPreviewLength = 200;
     public const int MaxInListSize = 1000; // ORA-01795
@@ -431,13 +431,23 @@ public static class QueryBuilder
         return new QuerySpec(sql, builder.Parameters);
     }
 
-    private sealed class Builder(TableDetails table)
+    /// <param name="alias">The table's alias in the statement; several builders of one statement (WP-69) each have their own.</param>
+    /// <param name="parameters">The binds of the statement, shared by its builders so the names stay unique.</param>
+    /// <param name="literals">Values as literals instead of binds: a view has no binds (WP-69).</param>
+    private sealed class Builder(TableDetails table, string alias = Alias, List<QueryParameter>? parameters = null, bool literals = false)
     {
-        public List<QueryParameter> Parameters { get; } = [];
+        public List<QueryParameter> Parameters { get; } = parameters ?? [];
 
-        public string Ref(ColumnInfo column) => $"{Alias}.{OracleIdentifier.Quote(column.Name)}";
+        public string Ref(ColumnInfo column) => $"{alias}.{OracleIdentifier.Quote(column.Name)}";
 
         public string Where(IReadOnlyList<FilterCondition> filters)
+        {
+            var conditions = Conditions(filters);
+            return conditions.Count == 0 ? "" : "\n WHERE " + string.Join("\n   AND ", conditions);
+        }
+
+        /// <summary>The terms of the filters (WP-50), each a condition of its own to join with AND.</summary>
+        public List<string> Conditions(IReadOnlyList<FilterCondition> filters)
         {
             var errors = Validate(table, filters);
             if (errors.Count > 0)
@@ -445,12 +455,11 @@ public static class QueryBuilder
                 throw new QueryValidationException(errors);
             }
 
-            var conditions = FilterGroups.Terms(filters)
+            return FilterGroups.Terms(filters)
                 .Select(term => term.Group is { } group
                     ? GroupCondition(group.Kind, term.Indexes.Select(i => filters[i]).ToList())
                     : Condition(filters[term.Indexes[0]]))
                 .ToList();
-            return conditions.Count == 0 ? "" : "\n WHERE " + string.Join("\n   AND ", conditions);
         }
 
         /// <summary>
@@ -505,12 +514,12 @@ public static class QueryBuilder
                 case RowKeyKind.PrimaryKey:
                     foreach (var name in table.PrimaryKey.Where(used.Add))
                     {
-                        yield return $"{Alias}.{OracleIdentifier.Quote(name)}";
+                        yield return $"{alias}.{OracleIdentifier.Quote(name)}";
                     }
 
                     break;
                 case RowKeyKind.RowId:
-                    yield return $"{Alias}.ROWID";
+                    yield return $"{alias}.ROWID";
                     break;
                 case RowKeyKind.None when keylessViewByAllColumns:
                     // Views without a key: all sortable columns (fully deterministic unless rows are exact duplicates).
@@ -667,9 +676,27 @@ public static class QueryBuilder
 
         private string Add(QueryParameter parameter)
         {
+            if (literals)
+            {
+                return Literal(parameter);
+            }
+
             Parameters.Add(parameter);
             return ":" + parameter.Name;
         }
+
+        /// <summary>The value of a bind as a literal of its type (WP-69, a view): what the bind would compare with.</summary>
+        private static string Literal(QueryParameter parameter) => (parameter.Value, parameter.Type) switch
+        {
+            (decimal number, _) => number.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            (byte[] bytes, _) => $"HEXTORAW('{Convert.ToHexString(bytes)}')",
+            (DateTime date, OracleTypeHint.Date) =>
+                $"TO_DATE('{date.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS')",
+            (DateTime timestamp, _) =>
+                $"TO_TIMESTAMP('{timestamp.ToString("yyyy-MM-dd HH:mm:ss.fffffff", System.Globalization.CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS.FF7')",
+            (string text, var type) => OracleLiteral.Text(text, national: type is OracleTypeHint.NVarchar2 or OracleTypeHint.NChar),
+            _ => throw new InvalidOperationException($"No literal for a bind of type {parameter.Type}."),
+        };
 
         private string NextName() => "p" + Parameters.Count;
 

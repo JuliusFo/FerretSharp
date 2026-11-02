@@ -457,4 +457,36 @@
     <value>The model file is larger than {0} MB and is not read.</value>
     <comment>{0} = limit in MB</comment>
   </data>
+  <data name="ParameterNotForDays" xml:space="preserve">
+    <value>A date without time cannot be a parameter here – untick “as parameter” or give a time.</value>
+    <comment>Why a condition with a date without time (a list of days, or on a DateTimeOffset) cannot become a parameter of generated LINQ code</comment>
+  </data>
+  <data name="QueryNodeNoEntity" xml:space="preserve">
+    <value>{0}: no entity of the C# model – only in the SQL.</value>
+    <comment>{0}: the tables along the path of a node of a query from the relationship diagram, e.g. AUFTRAG → KUNDE</comment>
+  </data>
+  <data name="QueryNodeNoNavigation" xml:space="preserve">
+    <value>{0}: relationship {1} has no navigation in the C# model – only in the SQL.</value>
+    <comment>{0}: the tables along the path of a node, e.g. AUFTRAG → KUNDE; {1}: name of the relationship</comment>
+  </data>
+  <data name="QueryValueNoProperty" xml:space="preserve">
+    <value>{0}: column {1} has no property – only in the SQL.</value>
+    <comment>{0}: the tables along the path of a node, e.g. AUFTRAG → KUNDE; {1}: column name</comment>
+  </data>
+  <data name="QueryParameterInChild" xml:space="preserve">
+    <value>{0}: conditions of a chosen child keep their values – parameters only work for the root and its parents.</value>
+    <comment>{0}: the tables along the path of a node, e.g. AUFTRAG → POSITION</comment>
+  </data>
+  <data name="QueryNameInvalid" xml:space="preserve">
+    <value>“{0}” is not a C# name – {1} is used instead.</value>
+    <comment>{0}: the name the user typed; {1}: the name used instead</comment>
+  </data>
+  <data name="QueryNamespaceInvalid" xml:space="preserve">
+    <value>Namespace “{0}” is not a C# namespace – left out.</value>
+    <comment>{0}: the namespace as typed for the code of a query built in the relationship diagram</comment>
+  </data>
+  <data name="QueryParameterNameInvalid" xml:space="preserve">
+    <value>{0}: “{1}” is not a C# name – the condition takes its value instead of a parameter.</value>
+    <comment>{0}: the tables along the path, e.g. AUFTRAG → KUNDE; {1}: the parameter name as typed</comment>
+  </data>
 </root>

@@ -1974,4 +1974,203 @@
     <value>Synonym name</value>
     <comment>Label of the grantee synonym's name in the grant draft (WP-71)</comment>
   </data>
+  <data name="Query_Build" xml:space="preserve">
+    <value>Build query</value>
+    <comment>Switches the relationship diagram into the mode that builds a query from chosen relationships and columns</comment>
+  </data>
+  <data name="Query_BuildTitle" xml:space="preserve">
+    <value>Choose relationships and columns – LINQ and SQL are written from them</value>
+  </data>
+  <data name="Query_EdgeTitle" xml:space="preserve">
+    <value>{0} – click to take it into the query or out of it</value>
+    <comment>{0}: the edge's usual tooltip (name, columns, kind of relationship)</comment>
+  </data>
+  <data name="Query_Root" xml:space="preserve">
+    <value>{0} (root)</value>
+    <comment>{0}: the table the query starts from</comment>
+  </data>
+  <data name="Query_ParentStep" xml:space="preserve">
+    <value>{0} via {1}</value>
+    <comment>{0}: the parent table; {1}: the referencing columns, e.g. KUNDE_ID</comment>
+  </data>
+  <data name="Query_ChildStep" xml:space="preserve">
+    <value>{0} – one row via {1}</value>
+    <comment>{0}: the child table one row of which is chosen; {1}: its referencing columns</comment>
+  </data>
+  <data name="Query_AddStep" xml:space="preserve">
+    <value>Add relationship…</value>
+  </data>
+  <data name="Query_AddParent" xml:space="preserve">
+    <value>Parent: {0} via {1}</value>
+    <comment>{0}: the parent table; {1}: the referencing columns</comment>
+  </data>
+  <data name="Query_AddChild" xml:space="preserve">
+    <value>Choose one child: {0} via {1}</value>
+    <comment>{0}: the child table; {1}: its referencing columns</comment>
+  </data>
+  <data name="Query_Remove" xml:space="preserve">
+    <value>Take out of the query (with what hangs on it)</value>
+  </data>
+  <data name="Query_DropMissing" xml:space="preserve">
+    <value>Remove from the query</value>
+    <comment>Button below the notes about missing relationships or columns of a saved query</comment>
+  </data>
+  <data name="Query_Columns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="Query_ValueName" xml:space="preserve">
+    <value>Name of the value; empty for the one from the path</value>
+  </data>
+  <data name="Query_NotSelectable" xml:space="preserve">
+    <value>LOB, LONG and other types without a value in the result cannot be chosen.</value>
+  </data>
+  <data name="Query_Conditions" xml:space="preserve">
+    <value>Conditions</value>
+  </data>
+  <data name="Query_ConditionsRoot" xml:space="preserve">
+    <value>They limit the rows of {0}.</value>
+    <comment>{0}: the root table</comment>
+  </data>
+  <data name="Query_ConditionsChild" xml:space="preserve">
+    <value>They choose which row of {0} is taken.</value>
+    <comment>{0}: the chosen child table</comment>
+  </data>
+  <data name="Query_AddCondition" xml:space="preserve">
+    <value>Condition</value>
+  </data>
+  <data name="Query_AsParameter" xml:space="preserve">
+    <value>as parameter</value>
+  </data>
+  <data name="Query_AsParameterTitle" xml:space="preserve">
+    <value>In C# the value becomes a parameter of the filter (only at the root and its parents); a view leaves the condition out</value>
+  </data>
+  <data name="Query_ParameterName" xml:space="preserve">
+    <value>Name of the parameter</value>
+  </data>
+  <data name="Query_Order" xml:space="preserve">
+    <value>Order – the first row is taken</value>
+  </data>
+  <data name="Query_OrderByKey" xml:space="preserve">
+    <value>Without an order by the primary key.</value>
+  </data>
+  <data name="Query_OrderTies" xml:space="preserve">
+    <value>Your app may choose another child than the preview: FerretSharp sorts text binary (NLS_SORT=BINARY), your app possibly by its language, which also orders different values otherwise; with equal values and no primary key the SQL takes ROWID, C# the entity key.</value>
+    <comment>Hint below the order of a chosen child in a query built in the relationship diagram</comment>
+  </data>
+  <data name="Query_AddOrder" xml:space="preserve">
+    <value>Order</value>
+  </data>
+  <data name="Query_Descending" xml:space="preserve">
+    <value>descending</value>
+  </data>
+  <data name="Query_NoColumns" xml:space="preserve">
+    <value>Choose at least one column – then LINQ and SQL appear here.</value>
+  </data>
+  <data name="Query_LoadingColumns" xml:space="preserve">
+    <value>Loading the columns of the query's tables …</value>
+  </data>
+  <data name="Query_ColumnsFailed" xml:space="preserve">
+    <value>The columns of the query's tables could not be read.</value>
+    <comment>In the side panel of a query built in the relationship diagram; the error itself was shown before</comment>
+  </data>
+  <data name="Query_OutputLinq" xml:space="preserve">
+    <value>LINQ</value>
+  </data>
+  <data name="Query_OutputSql" xml:space="preserve">
+    <value>SQL</value>
+  </data>
+  <data name="Query_OutputPreview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Query_OpenInLinq" xml:space="preserve">
+    <value>Open in LINQ console</value>
+  </data>
+  <data name="Query_OpenInLinqNoProject" xml:space="preserve">
+    <value>The LINQ console needs a linked C# project.</value>
+  </data>
+  <data name="Query_SingleRead" xml:space="preserve">
+    <value>Read the chosen child once</value>
+  </data>
+  <data name="Query_SingleReadHint" xml:space="preserve">
+    <value>With an expression per value, the SQL reads a chosen child once per value. This query reads it once – which is faster depends on the data: compare the plans in the LINQ console.</value>
+  </data>
+  <data name="Query_Style" xml:space="preserve">
+    <value>Names and style</value>
+  </data>
+  <data name="Query_ClassName" xml:space="preserve">
+    <value>Class</value>
+  </data>
+  <data name="Query_PredicateName" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Query_ProjectionName" xml:space="preserve">
+    <value>Projection</value>
+  </data>
+  <data name="Query_DtoName" xml:space="preserve">
+    <value>DTO</value>
+  </data>
+  <data name="Query_Namespace" xml:space="preserve">
+    <value>Namespace</value>
+  </data>
+  <data name="Query_WithDto" xml:space="preserve">
+    <value>Write the DTO</value>
+  </data>
+  <data name="Query_DtoRecord" xml:space="preserve">
+    <value>as record</value>
+  </data>
+  <data name="Query_LinqKit" xml:space="preserve">
+    <value>LinqKit</value>
+  </data>
+  <data name="Query_LinqKitTitle" xml:space="preserve">
+    <value>An expression per value, composed with Invoke and Expand(); without it each value stands in the projection as a whole path</value>
+  </data>
+  <data name="Query_StyleProject" xml:space="preserve">
+    <value>Kept for the project {0}.</value>
+    <comment>{0}: name of the linked C# project</comment>
+  </data>
+  <data name="Query_Template" xml:space="preserve">
+    <value>Own mapping</value>
+  </data>
+  <data name="Query_TemplateHead" xml:space="preserve">
+    <value>Head</value>
+  </data>
+  <data name="Query_TemplateLine" xml:space="preserve">
+    <value>Line per value</value>
+  </data>
+  <data name="Query_TemplateFoot" xml:space="preserve">
+    <value>Foot</value>
+  </data>
+  <data name="Query_TemplateHint" xml:space="preserve">
+    <value>Placeholders: {0}. With a line per value the mapping replaces the projection; the LINQ console keeps the projection.</value>
+    <comment>{0}: the placeholders, e.g. {Entity}, {Dto}</comment>
+  </data>
+  <data name="Query_PreviewRun" xml:space="preserve">
+    <value>Show rows</value>
+  </data>
+  <data name="Query_PreviewMore" xml:space="preserve">
+    <value>The first {0:N0} rows – all of them in the SQL editor.</value>
+    <comment>{0}: number of rows shown</comment>
+  </data>
+  <data name="Query_PreviewAll" xml:space="preserve">
+    <value>{0:N0} rows.</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Query_CreateView" xml:space="preserve">
+    <value>Create view…</value>
+  </data>
+  <data name="Query_ViewName" xml:space="preserve">
+    <value>Name of the view</value>
+  </data>
+  <data name="Query_ViewLeftOut" xml:space="preserve">
+    <value>Not in the view – a view has no parameters: {0}</value>
+    <comment>{0}: the conditions left out, e.g. AUFTRAG: DATUM ≥ 1.10.2026</comment>
+  </data>
+  <data name="Query_ViewNameTaken" xml:space="preserve">
+    <value>{0} exists already ({1}).</value>
+    <comment>{0}: the name; {1}: the kind of object that has it, e.g. TABLE</comment>
+  </data>
+  <data name="Query_ViewCreated" xml:space="preserve">
+    <value>View {0} created.</value>
+    <comment>{0}: name of the view</comment>
+  </data>
 </root>
