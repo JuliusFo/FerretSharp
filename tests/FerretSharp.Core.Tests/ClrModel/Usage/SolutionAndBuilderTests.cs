@@ -1,4 +1,5 @@
 using FerretSharp.Core.ClrModel;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Tests.ClrModel.UsageSamples;
 using Microsoft.Extensions.Time.Testing;
 
@@ -298,5 +299,40 @@ public sealed class SolutionAndBuilderTests : IDisposable
 
         Assert.Equal(CodeUsageBuilder.CacheFileName("Shop", mvid, ["Shop", "Shop.Data"]), CodeUsageBuilder.CacheFileName("Shop", mvid, ["shop.data", "SHOP"]));
         Assert.NotEqual(CodeUsageBuilder.CacheFileName("Shop", mvid, ["Shop"]), CodeUsageBuilder.CacheFileName("Shop", mvid, ["Shop", "Shop.Data"]));
+    }
+
+    /// <summary>
+    /// Review of <c>fix-suggested-file-names</c>: the assembly name from the project file went into the cache file's name
+    /// as it was – with <c>../</c> outside the cache folder. A usual name stays as it is, so existing cache files stay valid.
+    /// </summary>
+    [Theory]
+    [InlineData("MyApp.Data", "MyApp.Data")]
+    [InlineData("../../x", ".._.._x")]
+    [InlineData(@"..\..\x", ".._.._x")]
+    [InlineData("..", "_")]
+    [InlineData("NUL", "_NUL")]
+    [InlineData("C:x", "C_x")]
+    public void The_assembly_name_becomes_one_file_name_in_the_cache_folder(string assemblyName, string expected)
+    {
+        var mvid = Guid.NewGuid();
+        var cache = _folder.Combine("cache");
+
+        var file = CodeUsageBuilder.CacheFileName(assemblyName, mvid, ["Shop"]);
+
+        Assert.StartsWith($"{expected}.{mvid:N}.", file);
+        Assert.Equal(cache, Path.GetDirectoryName(Path.GetFullPath(Path.Combine(cache, file))));
+    }
+
+    /// <summary>The name is cut before build and set are appended, so the whole name stays within what NTFS allows.</summary>
+    [Fact]
+    public void A_long_assembly_name_is_cut_to_leave_room_for_build_and_set()
+    {
+        var mvid = Guid.NewGuid();
+
+        var file = CodeUsageBuilder.CacheFileName("Shop." + new string('x', 300), mvid, ["Shop"]);
+
+        Assert.Equal(SuggestedFileName.MaxLength, file.Length);
+        Assert.StartsWith("Shop.xxx", file);
+        Assert.Contains($".{mvid:N}.", file);
     }
 }

@@ -12,7 +12,8 @@ namespace FerretSharp.Core.IO;
 /// </summary>
 public static class SuggestedFileName
 {
-    private const int MaxLength = 255;
+    /// <summary>The longest file name NTFS allows.</summary>
+    public const int MaxLength = 255;
 
     private static readonly SearchValues<char> Invalid = SearchValues.Create(
         "<>:\"/\\|?*%\u061C\u200E\u200F\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069");
@@ -26,12 +27,14 @@ public static class SuggestedFileName
     /// <summary>
     /// <paramref name="name"/> as one file name in the dialog's folder: characters Windows refuses (separators, <c>:</c>,
     /// control characters …), <c>%</c> and bidi controls become <c>_</c>, trailing dots and blanks go (Windows drops
-    /// them), a device name gets a leading <c>_</c>, and a name over 255 characters is cut before its extension – never
-    /// inside a surrogate pair.
+    /// them), a device name gets a leading <c>_</c>, and a name over <paramref name="maxLength"/> characters is cut before
+    /// its extension – never inside a surrogate pair.
     /// </summary>
+    /// <param name="maxLength">Less than <see cref="MaxLength"/> where the caller appends to the name.</param>
     /// <returns>The file name; <c>_</c> if nothing is left.</returns>
-    public static string Of(string name)
+    public static string Of(string name, int maxLength = MaxLength)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLength);
         var chars = name.Trim().ToCharArray();
         for (var i = 0; i < chars.Length; i++)
         {
@@ -42,23 +45,25 @@ public static class SuggestedFileName
         }
 
         // Checked on the name as it ends up: a cut can leave only dots or blanks, or a device name (review of the fix).
-        var file = Fit(new string(chars));
+        var file = Fit(new string(chars), maxLength);
         if (file.Length == 0)
         {
             return "_";
         }
 
-        return Devices.Contains(file.Split('.')[0].TrimEnd(' ')) ? Fit("_" + file) : file;
+        return Devices.Contains(file.Split('.')[0].TrimEnd(' ')) ? Fit("_" + file, maxLength) : file;
     }
 
-    /// <summary>At most 255 characters, cut before the extension and never inside a surrogate pair; no trailing dots or blanks.</summary>
-    private static string Fit(string file)
+    /// <summary>At most <paramref name="maxLength"/> characters, cut before the extension and never inside a surrogate pair; no trailing dots or blanks.</summary>
+    private static string Fit(string file, int maxLength)
     {
         file = file.TrimEnd('.', ' '); // before the extension is read: "x.csv." has none
-        if (file.Length > MaxLength)
+        if (file.Length > maxLength)
         {
             var extension = Path.GetExtension(file);
-            file = extension.Length is > 0 and <= 16 ? Cut(file, MaxLength - extension.Length) + extension : Cut(file, MaxLength);
+            file = extension.Length is > 0 and <= 16 && extension.Length < maxLength / 2
+                ? Cut(file, maxLength - extension.Length) + extension
+                : Cut(file, maxLength);
         }
 
         return file.TrimEnd('.', ' ');
