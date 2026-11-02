@@ -41,9 +41,9 @@ public sealed class GridEditingTests
     {
         _grid.Rows[0] = Row(1, "Peter");
 
-        var edit = Editing.Edit(0, null, 1, "eins");
+        var edit = Editing.Edit(0, null, 2, new string('x', 31)); // NAME VARCHAR2(30), not the key: the value itself is refused
 
-        Assert.NotNull(edit.Error);
+        Assert.StartsWith("Zu lang", edit.Error);
         Assert.Null(edit.Row);
         Assert.Empty(_grid.Queued);
     }
@@ -240,7 +240,7 @@ public sealed class GridEditingTests
         _grid.Rows[0] = Row(1, "Peter");
 
         var several = await Editing.PasteAsync(0, null, 2, "A\tB", null, []);
-        var invalid = await Editing.PasteAsync(0, null, 1, "eins", null, []);
+        var invalid = await Editing.PasteAsync(0, null, 2, new string('x', 31), null, []); // NAME VARCHAR2(30)
         var noText = await Editing.PasteAsync(0, null, 2, null, new GridMarks(0, 0, ["c2"], false), []); // a picture: not NULL
 
         Assert.Empty(several);
@@ -249,6 +249,7 @@ public sealed class GridEditingTests
         Assert.False(_grid.Changes!.HasChanges);
         Assert.Equal(3, _grid.Notices.Count);
         Assert.StartsWith("Mehrere Zellen", _grid.Notices[0]);
+        Assert.StartsWith("Zu lang", _grid.Notices[1]);
         Assert.StartsWith("In der Zwischenablage liegt kein Text", _grid.Notices[2]);
     }
 
