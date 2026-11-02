@@ -906,7 +906,7 @@
         var cell = DelimitedExport.CellText(column, value);
         if (await CopyTextAsync(cell.Text))
         {
-            Shell.CellCopied(cell.Text);
+            Shell.CellCopied(cell.Warnings.Count == 0 ? cell.Text : null);
             Shell.Notify(cell.Warnings.Count > 0 ? GridText.Grid_ValueNotCopied : TextFormat.Format(GridText.Grid_ColumnCopied, column.Name), cell.Warnings);
         }
     }

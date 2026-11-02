@@ -61,6 +61,7 @@ public static class CellCopies
         ShellState shell, Func<string, Task<bool>> copy, IClipboardService clipboard, ILogger logger, ActiveConnection? connection,
         MarkedCells grid, GridMarks marks, MarksCopy kind)
     {
+        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste) – one marked cell sets it again below
         var columns = marks.ColumnIndexes;
         if (columns.Count == 0 || (kind == MarksCopy.InList && columns.Count != 1))
         {
@@ -123,9 +124,33 @@ public static class CellCopies
             return;
         }
 
+        if (kind == MarksCopy.Cells && rows.Count == 1 && columns.Count == 1)
+        {
+            await CopyOneAsync(shell, copy, grid.ColumnOf(columns[0]), rows[0], marks);
+            return;
+        }
+
         var cells = new CellValues([.. columns.Select(grid.ColumnOf)], kind == MarksCopy.Table);
         cells.AddRows(rows.Select(r => r.Values));
         await FinishAsync(shell, copy, cells, marks, kind, []);
+    }
+
+    /// <summary>
+    /// One marked cell, copied like Ctrl+C on it (fix-grid-paste): as the grid presents it, but not quoted, and remembered –
+    /// Ctrl+V gives it back whole, line breaks and NULL included.
+    /// </summary>
+    private static async Task CopyOneAsync(ShellState shell, Func<string, Task<bool>> copy, ExportColumn column, RowData row, GridMarks marks)
+    {
+        var value = row.Values[column.Source];
+        var cell = DelimitedExport.CellText(column.Column, column.Present is { } present ? present(value) : value);
+        if (!await copy(cell.Text))
+        {
+            shell.Notify(CommonText.ClipboardUnavailable);
+            return;
+        }
+
+        shell.CellCopied(cell.Warnings.Count == 0 ? cell.Text : null);
+        shell.Notify(TextFormat.Format(GridText.Marks_Copied, marks.Text), cell.Warnings);
     }
 
     /// <summary>

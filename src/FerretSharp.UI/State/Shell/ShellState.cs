@@ -105,7 +105,8 @@ public sealed partial class ShellState
     /// </summary>
     public string? CopiedCell { get; private set; }
 
-    public void CellCopied(string text) => CopiedCell = text;
+    /// <param name="text">The copied text; null forgets it – another copy, or a value not copied whole (a LOB preview).</param>
+    public void CellCopied(string? text) => CopiedCell = text;
 
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
