@@ -1171,7 +1171,7 @@
     <value>In der Zwischenablage liegt kein Text zum Einfügen.</value>
   </data>
   <data name="Fill_PasteSeveral" xml:space="preserve">
-    <value>Mehrere Zellen oder einen mehrzeiligen Text kann das Grid noch nicht einfügen – einen Text mit Zeilenumbrüchen im Zelleditor einfügen.</value>
+    <value>Mehrere Zellen oder einen mehrzeiligen Text kann das Grid noch nicht einfügen – füge einen Text mit Zeilenumbrüchen im Zelleditor ein.</value>
   </data>
   <data name="GridMenu_SetValue" xml:space="preserve">
     <value>Wert setzen…</value>
