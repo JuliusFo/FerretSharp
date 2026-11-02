@@ -940,7 +940,7 @@
     /// loaded rows; why nothing was set goes to the status bar.
     /// </summary>
     [JSInvokable]
-    public Task<GridRowUpdate[]> OnPaste(int rowIndex, string? newId, string colId, string text, GridMarks? marks, int[] selectedRows) =>
+    public Task<GridRowUpdate[]> OnPaste(int rowIndex, string? newId, string colId, string? text, GridMarks? marks, int[] selectedRows) =>
         GuardAsync(() => Editing.PasteAsync(rowIndex, newId, ColumnIndex(colId), text, marks, [.. selectedRows.Order()]), []);
 
     /// <summary>Ctrl+D on marked cells: the top row's values into the rows below (WP-59).</summary>

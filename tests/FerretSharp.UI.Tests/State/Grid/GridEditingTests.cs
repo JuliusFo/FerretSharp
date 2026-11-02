@@ -241,12 +241,15 @@ public sealed class GridEditingTests
 
         var several = await Editing.PasteAsync(0, null, 2, "A\tB", null, []);
         var invalid = await Editing.PasteAsync(0, null, 1, "eins", null, []);
+        var noText = await Editing.PasteAsync(0, null, 2, null, new GridMarks(0, 0, ["c2"], false), []); // a picture: not NULL
 
         Assert.Empty(several);
         Assert.Empty(invalid);
+        Assert.Empty(noText);
         Assert.False(_grid.Changes!.HasChanges);
-        Assert.Equal(2, _grid.Notices.Count);
+        Assert.Equal(3, _grid.Notices.Count);
         Assert.StartsWith("Mehrere Zellen", _grid.Notices[0]);
+        Assert.StartsWith("In der Zwischenablage liegt kein Text", _grid.Notices[2]);
     }
 
     [Fact]

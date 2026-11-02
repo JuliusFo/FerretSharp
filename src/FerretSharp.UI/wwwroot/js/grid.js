@@ -790,7 +790,8 @@ export function create(elementId, dotnet, columns, options) {
     if (!marks && (!cell || cell.rowIndex == null)) return;
     e.preventDefault();
     if (!editState.enabled) return;
-    const text = e.clipboardData?.getData('text/plain') ?? '';
+    // No text (a picture, files): null, not '' – an empty text would set the cells to NULL.
+    const text = e.clipboardData?.types.includes('text/plain') ? e.clipboardData.getData('text/plain') : null;
     const colId = cell?.column.getColId() ?? marks.columns[0];
     const node = !cell ? null : cell.rowPinned ? api.getPinnedTopRow(cell.rowIndex) : api.getDisplayedRowAtIndex(cell.rowIndex);
     const rows = !marks && node ? editState.fillTargets(node, colId)?.rows ?? [] : [];
