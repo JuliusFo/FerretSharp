@@ -192,6 +192,8 @@ public partial class App : Application
         builder.Services.AddSingleton<WebViewCapture>();
         builder.Services.AddSingleton(sp => new UiStallMonitor(
             Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>(), paths.LogsDirectory, sp.GetRequiredService<AppSettingsService>()));
+        builder.Services.AddSingleton(sp => new UiHangWatch(Dispatcher, sp.GetRequiredService<ILogger<UiHangWatch>>()));
+        builder.Services.AddSingleton<DisplayWatch>();
 
         _host = builder.Build();
         _logger = _host.Services.GetRequiredService<ILogger<App>>();
@@ -206,6 +208,10 @@ public partial class App : Application
         {
             _logger.LogWarning("Settings could not be read, using defaults: {Notice}", notice);
         }
+
+        // Before the window: its WebView control handles display changes too, and this log line must come first (2026-11-02).
+        _host.Services.GetRequiredService<DisplayWatch>().Start();
+        _host.Services.GetRequiredService<UiHangWatch>().Start();
 
         var window = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = window;
