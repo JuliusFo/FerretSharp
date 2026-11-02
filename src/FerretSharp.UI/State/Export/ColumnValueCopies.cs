@@ -94,7 +94,6 @@ public static class ColumnValueCopies
         ShellState shell, Func<string, Task<bool>> copy, ExportColumn column, string columnName, ColumnValuesFormat format,
         IReadOnlyList<RowData> rows, int missing)
     {
-        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
         var values = new ColumnValues(column, format);
         values.AddRange(rows.Select(r => r.Values[column.Source]));
         IReadOnlyList<string> extra = missing == 0 ? [] : [TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
@@ -112,7 +111,6 @@ public static class ColumnValueCopies
         ShellState shell, IClipboardService clipboard, ILogger logger, ActiveConnection? connection, ExportColumn column, string columnName,
         ColumnValuesFormat format, AllColumnValues all, IReadOnlyList<string>? extra = null)
     {
-        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
         var index = all.ValueIndexes[0];
         var distinct = format != ColumnValuesFormat.Lines;
         // SELECT DISTINCT reads each value once: the rows of the tab are no total for it (review 3.44.0, A15: "71 of 150,000").
@@ -163,6 +161,7 @@ public static class ColumnValueCopies
         }
         else if (await copy(text.Text))
         {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
             shell.Notify(values.Format switch
             {
                 ColumnValuesFormat.InList => TextFormat.Plural(text.Values, GridText.ColumnValues_CopiedInListOne, GridText.ColumnValues_CopiedInListOther, columnName),

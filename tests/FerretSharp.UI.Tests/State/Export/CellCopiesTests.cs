@@ -91,16 +91,17 @@ public sealed class CellCopiesTests
         _loaded[0] = new RowData(RowKey.None.Instance, [1m, "Zeile 1\nZeile 2", 2m, new LobValue("Vorschau", 5000)]);
 
         await CopyAsync(Grid(), new GridMarks(0, 0, ["c1"], false), MarksCopy.Cells);
+        await CopyAsync(Grid(), new GridMarks(0, ColumnValues.MaxValues, ["c0", "c1"], false), MarksCopy.Cells); // too many: not copied
         var copied = _shell.CopiedCell;
-        await CopyAsync(Grid(), new GridMarks(0, 0, ["c2"], false), MarksCopy.Cells); // as presented
-        var presented = _shell.CopiedCell;
+        await CopyAsync(Grid(), new GridMarks(0, 0, ["c2"], false), MarksCopy.Cells); // the value, not the enum's member
+        var value = _shell.CopiedCell;
         await CopyAsync(Grid(), new GridMarks(0, 0, ["c3"], false), MarksCopy.Cells); // only the preview: not copied
         var lob = _shell.CopiedCell;
         await CopyAsync(Grid(), new GridMarks(0, 0, ["c1", "c2"], false), MarksCopy.Cells);
 
-        Assert.Equal(["Zeile 1\nZeile 2", "Gewerbe (2)", "", "\"Zeile 1\nZeile 2\"\tGewerbe (2)"], _copied); // not quoted alone
-        Assert.Equal("Zeile 1\nZeile 2", copied);
-        Assert.Equal("Gewerbe (2)", presented);
+        Assert.Equal(["Zeile 1\nZeile 2", "2", "", "\"Zeile 1\nZeile 2\"\tGewerbe (2)"], _copied); // not quoted alone
+        Assert.Equal("Zeile 1\nZeile 2", copied); // a copy that failed keeps it
+        Assert.Equal("2", value);
         Assert.Null(lob); // an empty clipboard here is no NULL to paste
         Assert.Null(_shell.CopiedCell); // several cells forget it
     }

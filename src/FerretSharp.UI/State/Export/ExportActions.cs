@@ -50,7 +50,6 @@ public sealed class ExportActions(
     /// <param name="selected">The selected rows in order; null for one no longer loaded.</param>
     public static async Task CopyRowsAsync(ShellState shell, GridBridge grid, TableDetails table, IReadOnlyList<RowData?> selected)
     {
-        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
         var rows = selected.OfType<RowData>().ToList();
         var export = DelimitedExport.Build(table, rows, DelimitedExport.ClipboardSeparator);
         var missing = selected.Count - rows.Count;
@@ -59,6 +58,7 @@ public sealed class ExportActions(
             : [.. export.Warnings, TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
         if (await grid.CopyTextAsync(shell, export.Text))
         {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
             shell.Notify(CopiedText(ExportCopy.Table, rows.Count), warnings);
         }
     }
@@ -102,21 +102,27 @@ public sealed class ExportActions(
     /// <summary>Copies any text (a C# value); only a missing clipboard is worth a word.</summary>
     public async Task CopyTextAsync(string text)
     {
-        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
         var copied = await dom.CopyTextAsync(text);
         await close();
         if (!copied)
         {
             shell.Notify(CommonText.ClipboardUnavailable);
+            return;
         }
+
+        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
     }
 
     /// <param name="kind">How the rows were copied: picks the notice.</param>
     public async Task CopyAsync(ExportText export, ExportCopy kind)
     {
-        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
         var copied = await dom.CopyTextAsync(export.Text);
         await close();
+        if (copied)
+        {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
+        }
+
         shell.Notify(copied ? CopiedText(kind, export.Rows) : CommonText.ClipboardUnavailable, Warnings(export.Warnings));
     }
 

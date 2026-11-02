@@ -61,7 +61,6 @@ public static class CellCopies
         ShellState shell, Func<string, Task<bool>> copy, IClipboardService clipboard, ILogger logger, ActiveConnection? connection,
         MarkedCells grid, GridMarks marks, MarksCopy kind)
     {
-        shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste) – one marked cell sets it again below
         var columns = marks.ColumnIndexes;
         if (columns.Count == 0 || (kind == MarksCopy.InList && columns.Count != 1))
         {
@@ -136,13 +135,12 @@ public static class CellCopies
     }
 
     /// <summary>
-    /// One marked cell, copied like Ctrl+C on it (fix-grid-paste): as the grid presents it, but not quoted, and remembered –
-    /// Ctrl+V gives it back whole, line breaks and NULL included.
+    /// One marked cell, copied like Ctrl+C on it (fix-grid-paste): its value, not as presented (an enum's member would be
+    /// pasted back as text) and not quoted, and remembered – Ctrl+V gives it back whole, line breaks and NULL included.
     /// </summary>
     private static async Task CopyOneAsync(ShellState shell, Func<string, Task<bool>> copy, ExportColumn column, RowData row, GridMarks marks)
     {
-        var value = row.Values[column.Source];
-        var cell = DelimitedExport.CellText(column.Column, column.Present is { } present ? present(value) : value);
+        var cell = DelimitedExport.CellText(column.Column, row.Values[column.Source]);
         if (!await copy(cell.Text))
         {
             shell.Notify(CommonText.ClipboardUnavailable);
@@ -273,11 +271,14 @@ public static class CellCopies
         }
         else if (marks.Whole)
         {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
+
             shell.Notify(TextFormat.Format(kind == MarksCopy.Table ? GridText.Marks_ColumnsCopiedAsTable : GridText.Marks_ColumnsCopied,
                 marks.Text, ExportActions.RowsText(text.Rows)), warnings);
         }
         else
         {
+            shell.CellCopied(null); // not one cell: Ctrl+V reads the clipboard as it is (fix-grid-paste)
             shell.Notify(TextFormat.Format(kind == MarksCopy.Table ? GridText.Marks_CopiedAsTable : GridText.Marks_Copied, marks.Text), warnings);
         }
     }
