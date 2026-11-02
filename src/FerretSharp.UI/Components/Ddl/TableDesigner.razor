@@ -161,6 +161,13 @@ else
     [Parameter]
     public DesignerSection? StartAt { get; set; }
 
+    /// <summary>A relationship of the C# model to start with as a new foreign key ("Create constraint" in the "Constraints" view).</summary>
+    [Parameter]
+    public ForeignKeyInfo? AddForeignKey { get; set; }
+
+    /// <summary>Referenced tables whose structure was asked for (<see cref="TableDesignerDraft.UnknownReferences"/>): once each, also if it failed.</summary>
+    private readonly HashSet<TableRef> _referencing = [];
+
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
 
@@ -237,6 +244,11 @@ else
         if (_designer is not null && (StartAt ?? (StartWithAudit ? DesignerSection.Audit : null)) is { } section)
         {
             _designer.Section = section;
+        }
+
+        if (_designer is not null && AddForeignKey is { } relation)
+        {
+            _designer.AddForeignKey(relation);
         }
     }
 
@@ -499,7 +511,17 @@ else
     /// <summary>What the plan needs to know about the data and nobody counted yet: counted in the tab's workspace.</summary>
     protected override void OnAfterRender(bool firstRender)
     {
-        if (_designer is null || NewTab is not null) // a new table has no rows to count
+        if (_designer is null)
+        {
+            return;
+        }
+
+        foreach (var table in _designer.UnknownReferences().Where(_referencing.Add))
+        {
+            Fire(() => LearnAsync(table));
+        }
+
+        if (NewTab is not null) // a new table has no rows to count
         {
             return;
         }
@@ -574,20 +596,23 @@ else
         }
     }
 
-    /// <summary>The foreign key references another table; its structure is loaded once, for its key and column types.</summary>
-    private async Task ReferenceAsync(TableDesignerDraft designer, DesignConstraint constraint, string? value)
+    /// <summary>The foreign key references another table; its structure is loaded after the render (<see cref="LearnAsync"/>).</summary>
+    private void Reference(TableDesignerDraft designer, DesignConstraint constraint, string? value) =>
+        designer.Reference(constraint, Tables.FirstOrDefault(t => $"{t.Owner}.{t.Name}" == value)?.Ref);
+
+    /// <summary>A table new foreign keys reference: its structure is loaded once, for its keys and column types.</summary>
+    private async Task LearnAsync(TableRef table)
     {
-        var references = Tables.FirstOrDefault(t => $"{t.Owner}.{t.Name}" == value)?.Ref;
-        designer.Reference(constraint, references);
-        if (references is null || designer.Referenced.ContainsKey(references) || Active.Schema is not { } schema || schema.Find(references) is not { } summary)
+        if (_disposed || Active.Schema is not { } schema || schema.Find(table) is not { } summary)
         {
             return;
         }
 
         var loaded = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(summary, _cts.Token), _cts.Token);
-        if (loaded.Value is { } details && !_disposed)
+        if (loaded.Value is { } details && !_disposed && _designer is { } designer) // the draft as it is now (a rebase keeps what it learned)
         {
             designer.Learn(details);
+            StateHasChanged();
         }
     }
     /// <summary>Property lines for the new columns, if the C# model maps this table.</summary>
@@ -800,7 +825,7 @@ else
                 else if (a.Type == ConstraintType.ForeignKey)
                 {
                     <span class="designer-fk">
-                        @Icons.ArrowRight <select class="field" value="@(a.References is { } r ? $"{r.Owner}.{r.Name}" : "")" @onchange="e => ReferenceAsync(designer, a, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
+                        @Icons.ArrowRight <select class="field" value="@(a.References is { } r ? $"{r.Owner}.{r.Name}" : "")" @onchange="e => Reference(designer, a, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
                             <option value="">@SchemaViewText.Designer_ChooseTable</option>
                             @foreach (var table in Tables)
                             {

@@ -234,6 +234,41 @@ public sealed class TableDesignerDraftTests
         Assert.Equal(["ID", "NAME", "KUERZEL", "BETRAG"], rest.ColumnsOf(Kunde.Table.Ref));
     }
 
+    /// <summary>
+    /// "Create constraint" at a relationship of the C# model: the foreign key starts with the relationship's columns on both
+    /// sides – not the referenced key's order once the table is known – and with an index; asked for again, it is not doubled.
+    /// </summary>
+    [Fact]
+    public void A_foreign_key_from_a_relationship_keeps_its_columns_and_comes_once()
+    {
+        var pk = new ConstraintInfo("PK_KUNDE", ConstraintType.PrimaryKey, ["ID"], null, null, [], null, true, true, false, false, false);
+        var designer = new TableDesignerDraft(Kunde, [pk]);
+        var relation = new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL", "NAME"], Land.Table.Ref, ["ISO", "CODE"], FkSource.ClrModel);
+        var self = new ForeignKeyInfo("Kunde.Werber", Kunde.Table.Ref, ["BETRAG"], Kunde.Table.Ref, ["ID"], FkSource.ClrModel);
+
+        var fk = designer.AddForeignKey(relation);
+        designer.AddForeignKey(self);
+
+        Assert.Equal(DesignerSection.Constraints, designer.Section);
+        Assert.Equal(("FK_KUNDE_LAND", true), (fk.Name, fk.WithIndex));
+        Assert.Equal([Land.Table.Ref], designer.UnknownReferences()); // its own table is the draft's
+
+        designer.Learn(Land);
+        Assert.Equal(["KUERZEL", "NAME"], fk.Columns);
+        Assert.Equal(["ISO", "CODE"], fk.ReferencedColumns);
+        Assert.Empty(designer.UnknownReferences());
+
+        designer.Section = DesignerSection.Columns;
+        Assert.Same(fk, designer.AddForeignKey(relation));
+        Assert.Equal(2, designer.AddedConstraints.Count);
+        Assert.Equal(DesignerSection.Constraints, designer.Section);
+
+        var plan = TableDesign.Plan(new DesignContext(Kunde, [pk], [], []) { Referenced = designer.Referenced }, designer.ToDraft().Draft, DataFacts.None);
+        Assert.Empty(plan.Problems);
+        Assert.Contains(plan.Statements, s => s.Contains("FOREIGN KEY (\"KUERZEL\", \"NAME\") REFERENCES \"SHOP\".\"LAND\" (\"ISO\", \"CODE\")", StringComparison.Ordinal));
+        Assert.Contains(plan.Statements, s => s.StartsWith("CREATE INDEX", StringComparison.Ordinal) && s.Contains("(\"KUERZEL\", \"NAME\")", StringComparison.Ordinal));
+    }
+
     /// <summary>A new column starts as VARCHAR2(50); as a NUMBER the 50 would be a precision Oracle refuses.</summary>
     [Fact]
     public void Another_type_for_a_new_column_drops_a_size_it_cannot_take()

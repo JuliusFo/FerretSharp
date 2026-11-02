@@ -105,6 +105,37 @@ public sealed class TableDesignerDraft
         return constraint;
     }
 
+    /// <summary>
+    /// A foreign key as a relationship has it (one of the C# model without constraint, "Create constraint" in the
+    /// "Constraints" view): its columns, the referenced table and its columns as given – once the table is known they stay.
+    /// The same one asked for again is not added twice. The constraints tab shows.
+    /// </summary>
+    public DesignConstraint AddForeignKey(ForeignKeyInfo relation)
+    {
+        ArgumentNullException.ThrowIfNull(relation);
+        Section = DesignerSection.Constraints;
+        if (AddedConstraints.FirstOrDefault(c => c.Type == ConstraintType.ForeignKey && c.References == relation.To
+            && c.Columns.SequenceEqual(relation.FromColumns) && c.ReferencedColumns.SequenceEqual(relation.ToColumns)) is { } twin)
+        {
+            return twin;
+        }
+
+        var constraint = new DesignConstraint { Type = ConstraintType.ForeignKey, References = relation.To };
+        constraint.Columns.AddRange(relation.FromColumns);
+        constraint.ReferencedColumns.AddRange(relation.ToColumns);
+        AddedConstraints.Add(constraint);
+        SuggestName(constraint);
+        return constraint;
+    }
+
+    /// <summary>
+    /// The tables new foreign keys reference whose structure is not known yet (<see cref="Referenced"/>): the view loads
+    /// them and calls <see cref="Learn"/>. This table's own columns are the draft's.
+    /// </summary>
+    public IReadOnlyList<TableRef> UnknownReferences() =>
+        AddedConstraints.Where(c => c.Type == ConstraintType.ForeignKey).Select(c => c.References).OfType<TableRef>()
+            .Where(r => r != Table.Table.Ref && !Referenced.ContainsKey(r)).Distinct().ToList();
+
     /// <summary>The suggested name for its type and columns, unless the user typed one.</summary>
     public void SuggestName(DesignConstraint constraint)
     {

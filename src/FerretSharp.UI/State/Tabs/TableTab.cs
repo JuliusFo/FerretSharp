@@ -369,6 +369,12 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     public DesignerSection? OpenDesignerAt { get; set; }
 
     /// <summary>
+    /// A relationship of the C# model to add as a foreign key ("Create constraint" in the "Constraints" view): the "Columns"
+    /// view opens the edit mode with it – or adds it to the open one – and clears the request.
+    /// </summary>
+    public ForeignKeyInfo? DesignerForeignKey { get; set; }
+
+    /// <summary>
     /// Short form of the active filters ("KUNDE_ID = 4711"), to tell several tabs of one table apart. With a C# model
     /// enum and bool values read as their members ("KUNDENART = Gewerbe").
     /// </summary>

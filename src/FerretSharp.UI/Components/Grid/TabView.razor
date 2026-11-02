@@ -113,7 +113,8 @@
                                     <ColumnsView @ref="_columns" Details="_details" WorkspaceId="Tab.WorkspaceId" Tab="Tab" Shown="IsShown(TabMode.Structure)" OnSchemaChanged="() => _version++" />
                                     break;
                                 case TabMode.Constraints:
-                                    <ConstraintsView Details="_details" Version="_version" WorkspaceId="Tab.WorkspaceId" OnEdit="() => OpenDesigner(DesignerSection.Constraints)" />
+                                    <ConstraintsView Details="_details" Version="_version" WorkspaceId="Tab.WorkspaceId" OnEdit="() => OpenDesigner(DesignerSection.Constraints)"
+                                                     OnCreateConstraint="CreateConstraint" />
                                     break;
                                 case TabMode.Indexes:
                                     <IndexesView Details="_details" Version="_version" WorkspaceId="Tab.WorkspaceId" OnSchemaChanged="() => _version++" />
@@ -380,6 +381,24 @@
     {
         Tab.OpenDesignerAt = section;
         SetMode(TabMode.Structure);
+    }
+
+    /// <summary>
+    /// "Create constraint" at a relationship of the C# model: the designer of the table the foreign key belongs to – this
+    /// one, or the other table's tab (incoming) – with the relationship as a new foreign key.
+    /// </summary>
+    private void CreateConstraint(ForeignKeyInfo relation)
+    {
+        if (relation.From == Tab.Table.Ref)
+        {
+            Tab.DesignerForeignKey = relation;
+            OpenDesigner(DesignerSection.Constraints);
+        }
+        else if (Active.Schema?.Find(relation.From) is { } table && Shell.OpenTable(table) is { } other)
+        {
+            other.DesignerForeignKey = relation;
+            Shell.ShowTab(other, TabMode.Structure, DesignerSection.Constraints);
+        }
     }
 
     private void SetMode(TabMode mode)

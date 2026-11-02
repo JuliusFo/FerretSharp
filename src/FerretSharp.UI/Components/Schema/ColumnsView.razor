@@ -67,8 +67,8 @@
     </div>
     @if (_editing)
     {
-        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" StartWithAudit="_startWithAudit" StartAt="_startAt" OnRan="OnDesignRanAsync"
-                       OnClose="() => (_editing, _startWithAudit, _startAt) = (false, false, null)" />
+        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" StartWithAudit="_startWithAudit" StartAt="_startAt" AddForeignKey="_addForeignKey"
+                       OnRan="OnDesignRanAsync" OnClose="() => (_editing, _startWithAudit, _startAt, _addForeignKey) = (false, false, null, null)" />
     }
     else
     {
@@ -331,9 +331,12 @@
     /// <summary>The designer opens at this tab ("Edit" in the "Constraints" view, <see cref="TableTab.OpenDesignerAt"/>).</summary>
     private DesignerSection? _startAt;
 
+    /// <summary>The designer opens with this relationship as a new foreign key (<see cref="TableTab.DesignerForeignKey"/>).</summary>
+    private ForeignKeyInfo? _addForeignKey;
+
     private async Task OnDesignRanAsync()
     {
-        (_editing, _startWithAudit, _startAt) = (false, false, null);
+        (_editing, _startWithAudit, _startAt, _addForeignKey) = (false, false, null, null);
         await OnSchemaChanged.InvokeAsync();
     }
 
@@ -358,14 +361,19 @@
         _wasShown = Shown;
         if (Tab?.OpenDesignerAt is { } at)
         {
-            Tab.OpenDesignerAt = null;
+            var foreignKey = Tab.DesignerForeignKey;
+            (Tab.OpenDesignerAt, Tab.DesignerForeignKey) = (null, null);
             if (Tab.Designer is { } open)
             {
                 open.Draft.Section = at; // already editing: switch the tab
+                if (foreignKey is not null)
+                {
+                    open.Draft.AddForeignKey(foreignKey);
+                }
             }
             else
             {
-                (_editing, _startAt) = (true, at);
+                (_editing, _startAt, _addForeignKey) = (true, at, foreignKey);
             }
         }
     }
