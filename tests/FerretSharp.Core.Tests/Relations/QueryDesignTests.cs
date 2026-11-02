@@ -64,7 +64,7 @@ public class QueryDesignTests
     }
 
     [Fact]
-    public void A_relationship_that_is_gone_takes_its_node_and_everything_beyond_it_out_with_a_note()
+    public void A_relationship_that_is_missing_leaves_its_node_and_everything_beyond_it_out_with_a_note()
     {
         var state = QueryDesignState.Empty
             .Add([], Up(Rechnungskunde))
@@ -78,7 +78,7 @@ public class QueryDesignTests
         Assert.Equal(2, design.State.Nodes.Count);
         using (UiCulture.Use("en"))
         {
-            Assert.Equal(["AUFTRAG: relationship FK_POSITION_AUFTRAG no longer exists – left out of the query."],
+            Assert.Equal(["AUFTRAG: relationship FK_POSITION_AUFTRAG is missing (or the C# model is still loading) – left out of the query for now."],
                 QueryDesign.Resolve(Auftrag, state, withoutPositions).Notes);
         }
     }

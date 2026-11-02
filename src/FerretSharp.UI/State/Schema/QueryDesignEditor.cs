@@ -174,6 +174,9 @@ public sealed class QueryDesignEditor(TableTab tab)
         }
     }
 
+    /// <summary>Reading the columns failed (the view sets it): the panel offers to try again instead of waiting (review).</summary>
+    public bool ColumnsFailed { get; set; }
+
     /// <summary>Every table of the query has its columns – the SQL and the C# can be written.</summary>
     public bool Complete => Design is not null && Missing.Count == 0;
 

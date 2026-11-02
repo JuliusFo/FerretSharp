@@ -7,7 +7,10 @@ namespace FerretSharp.Core.ClrModel;
 /// settings (<see cref="AppSettings.QueryCodeStyles"/>) as flat entries <c>project file + '|' + field</c> – a settings map
 /// stays a value, and the file stays readable.
 /// </summary>
-/// <param name="Template">The project's own mapping lines; null for the projection.</param>
+/// <param name="Template">
+/// The project's own mapping lines; null for the projection. Kept as typed, also without a line (review: a head typed
+/// first was lost); the code takes it only with one (<see cref="Options"/>).
+/// </param>
 public sealed record QueryCodeStyle(string? Namespace = null, bool WithDto = true, bool DtoAsRecord = true, bool LinqKit = true, QueryLineTemplate? Template = null)
 {
     public static readonly QueryCodeStyle Default = new();
@@ -20,13 +23,13 @@ public sealed record QueryCodeStyle(string? Namespace = null, bool WithDto = tru
         string? Get(string field) => styles.TryGetValue(projectFile + Separator + field, out var value) ? value : null;
         bool Flag(string field, bool fallback) => Get(field) is { } value ? value == "true" : fallback;
 
-        var line = Get("line");
+        var template = new QueryLineTemplate(Get("head") ?? "", Get("line") ?? "", Get("foot") ?? "");
         return new QueryCodeStyle(
             Get("namespace"),
             Flag("dto", Default.WithDto),
             Flag("record", Default.DtoAsRecord),
             Flag("linqkit", Default.LinqKit),
-            line is { Length: > 0 } ? new QueryLineTemplate(Get("head") ?? "", line, Get("foot") ?? "") : null);
+            template is { Head.Length: 0, Line.Length: 0, Foot.Length: 0 } ? null : template);
     }
 
     /// <summary>The settings map with this style for <paramref name="projectFile"/>.</summary>
@@ -40,13 +43,17 @@ public sealed record QueryCodeStyle(string? Namespace = null, bool WithDto = tru
         Set("dto", WithDto ? "true" : "false");
         Set("record", DtoAsRecord ? "true" : "false");
         Set("linqkit", LinqKit ? "true" : "false");
-        Set("head", Template?.Head);
-        Set("line", Template?.Line);
-        Set("foot", Template?.Foot);
+        Set("head", Template?.Head is { Length: > 0 } head ? head : null);
+        Set("line", Template?.Line is { Length: > 0 } line ? line : null);
+        Set("foot", Template?.Foot is { Length: > 0 } foot ? foot : null);
         return map;
     }
 
-    /// <summary>The options of one query: this style with the query's names.</summary>
+    /// <summary>The options of one query: this style with the query's names; the template only with a line for the values.</summary>
     public QueryCodeOptions Options(QueryCodeOptions names) =>
-        names with { Namespace = Namespace, WithDto = WithDto, DtoAsRecord = DtoAsRecord, LinqKit = LinqKit, Template = Template };
+        names with
+        {
+            Namespace = Namespace, WithDto = WithDto, DtoAsRecord = DtoAsRecord, LinqKit = LinqKit,
+            Template = Template is { Line.Length: > 0 } ? Template : null,
+        };
 }

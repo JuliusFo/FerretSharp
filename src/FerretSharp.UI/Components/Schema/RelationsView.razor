@@ -276,6 +276,7 @@
         }
 
         _loadingColumns = true;
+        _query.ColumnsFailed = false;
         try
         {
             while (_query.Missing is [var table, ..])
@@ -284,6 +285,8 @@
                 var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(summary, CancellationToken.None), CancellationToken.None);
                 if (read.Value is not { } details)
                 {
+                    _query.ColumnsFailed = true;
+                    StateHasChanged();
                     return;
                 }
 

@@ -2055,6 +2055,10 @@
   <data name="Query_LoadingColumns" xml:space="preserve">
     <value>Loading the columns of the query's tables …</value>
   </data>
+  <data name="Query_ColumnsFailed" xml:space="preserve">
+    <value>The columns of the query's tables could not be read.</value>
+    <comment>In the side panel of a query built in the relationship diagram; the error itself was shown before</comment>
+  </data>
   <data name="Query_OutputLinq" xml:space="preserve">
     <value>LINQ</value>
   </data>

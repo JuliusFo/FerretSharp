@@ -1674,6 +1674,9 @@
   <data name="Query_LoadingColumns" xml:space="preserve">
     <value>Spalten der Tabellen der Abfrage werden geladen …</value>
   </data>
+  <data name="Query_ColumnsFailed" xml:space="preserve">
+    <value>Die Spalten der Tabellen der Abfrage ließen sich nicht lesen.</value>
+  </data>
   <data name="Query_OutputLinq" xml:space="preserve">
     <value>LINQ</value>
   </data>

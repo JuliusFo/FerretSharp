@@ -12,6 +12,7 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.Core.Settings
 @inherits FerretComponent
+@implements IDisposable
 @inject AppSettingsService Settings
 @inject ILogger<QueryDesignPanel> Logger
 
@@ -70,7 +71,14 @@
         }
 
         <div class="query-output">
-            @if (!Editor.Complete)
+            @if (!Editor.Complete && Editor.ColumnsFailed)
+            {
+                <p class="error small">@SchemaViewText.Query_ColumnsFailed</p>
+                <div class="query-actions">
+                    <button class="btn" @onclick="() => OnChanged.InvokeAsync()">@CommonText.TryAgain</button>
+                </div>
+            }
+            else if (!Editor.Complete)
             {
                 <p class="muted"><span class="spinner"></span> @SchemaViewText.Query_LoadingColumns</p>
             }
@@ -121,7 +129,7 @@
     private bool _outputChosen;
     private bool _styleOpen;
     private SqlPage? _preview;
-    private bool _previewing;
+    private PreviewRun? _previewRun;
     private string? _viewName;
     private string? _viewTaken;
 
@@ -249,9 +257,9 @@
             <label class="check"><input type="checkbox" checked="@style.DtoAsRecord" @onchange="() => SaveStyleAsync(style with { DtoAsRecord = !style.DtoAsRecord })" /> @SchemaViewText.Query_DtoRecord</label>
             <label class="check" title="@SchemaViewText.Query_LinqKitTitle"><input type="checkbox" checked="@style.LinqKit" @onchange="() => SaveStyleAsync(style with { LinqKit = !style.LinqKit })" /> @SchemaViewText.Query_LinqKit</label>
             <h4>@SchemaViewText.Query_Template</h4>
-            <label>@SchemaViewText.Query_TemplateHead <input class="field mono" value="@style.Template?.Head" @onchange="e => SaveTemplateAsync(style, head: Text(e))" /></label>
-            <label>@SchemaViewText.Query_TemplateLine <input class="field mono" value="@style.Template?.Line" @onchange="e => SaveTemplateAsync(style, line: Text(e))" /></label>
-            <label>@SchemaViewText.Query_TemplateFoot <input class="field mono" value="@style.Template?.Foot" @onchange="e => SaveTemplateAsync(style, foot: Text(e))" /></label>
+            <label>@SchemaViewText.Query_TemplateHead <input class="field mono" value="@style.Template?.Head" @onchange="e => SaveTemplateAsync(style, t => t with { Head = Line(e) })" /></label>
+            <label>@SchemaViewText.Query_TemplateLine <input class="field mono" value="@style.Template?.Line" @onchange="e => SaveTemplateAsync(style, t => t with { Line = Line(e) })" /></label>
+            <label>@SchemaViewText.Query_TemplateFoot <input class="field mono" value="@style.Template?.Foot" @onchange="e => SaveTemplateAsync(style, t => t with { Foot = Line(e) })" /></label>
             <p class="hint small">@TextFormat.Format(SchemaViewText.Query_TemplateHint, "{Entity}, {Dto}, {Expression}, {Property}")</p>
             @if (Models.State.Link is { } link)
             {
@@ -264,13 +272,16 @@
 
     private static string? Text(ChangeEventArgs e) => e.Value is string text && text.Trim().Length > 0 ? text.Trim() : null;
 
+    /// <summary>A line of the template as typed (its indent counts); empty if it holds only blanks.</summary>
+    private static string Line(ChangeEventArgs e) => e.Value is string text && text.Trim().Length > 0 ? text.TrimEnd() : "";
+
     private Task SetNames(QueryNames names) => Change(() => Editor.SetNames(names));
 
-    private Task SaveTemplateAsync(QueryCodeStyle style, string? head = null, string? line = null, string? foot = null)
+    /// <summary>One field of the template: kept without the others, and an emptied field is empty (review).</summary>
+    private Task SaveTemplateAsync(QueryCodeStyle style, Func<QueryLineTemplate, QueryLineTemplate> change)
     {
-        var template = style.Template ?? new QueryLineTemplate("", "", "");
-        template = template with { Head = head ?? template.Head, Line = line ?? template.Line, Foot = foot ?? template.Foot };
-        return SaveStyleAsync(style with { Template = template.Line.Length > 0 ? template : null });
+        var template = change(style.Template ?? new QueryLineTemplate("", "", ""));
+        return SaveStyleAsync(style with { Template = template is { Head.Length: 0, Line.Length: 0, Foot.Length: 0 } ? null : template });
     }
 
     private Task SaveStyleAsync(QueryCodeStyle style) =>
@@ -347,12 +358,12 @@
     private RenderFragment PreviewOutput() => __builder =>
     {
         <div class="query-actions">
-            <button class="btn" disabled="@_previewing" @onclick="PreviewAsync">@SchemaViewText.Query_PreviewRun</button>
-            @if (_previewing)
-            {
-                <span class="spinner"></span>
-            }
+            <button class="btn" disabled="@(_previewRun is not null)" @onclick="PreviewAsync">@SchemaViewText.Query_PreviewRun</button>
         </div>
+        @if (_previewRun is { } run)
+        {
+            <RunProgress @key="run" WorkspaceId="Tab.WorkspaceId" Title="@SqlEditorText.Run_QueryRunning" Started="run.Started" OnCancel="CancelPreview" />
+        }
         @if (_preview is { } page)
         {
             <p class="hint small">@(page.IsLastPage ? TextFormat.Format(SchemaViewText.Query_PreviewAll, page.Rows.Count) : TextFormat.Format(SchemaViewText.Query_PreviewMore, page.Rows.Count))</p>
@@ -383,18 +394,25 @@
         }
     };
 
-    /// <summary>The first rows through the read path of the tab's workspace, as the SQL editor reads them.</summary>
+    /// <param name="Cancellation">Cancels the read: an OUTER APPLY per row or a silent VPN must not hold the workspace (review).</param>
+    private sealed record PreviewRun(DateTimeOffset Started, CancellationTokenSource Cancellation);
+
+    /// <summary>
+    /// The first rows through the read path of the tab's workspace, as the SQL editor reads them – with time, cancel and,
+    /// without an answer, "disconnect session" (<see cref="RunProgress"/>).
+    /// </summary>
     private async Task PreviewAsync()
     {
-        if (Editor.Sql(DesignSqlMode.Statement) is not { } sql)
+        if (_previewRun is not null || Editor.Sql(DesignSqlMode.Statement) is not { } sql)
         {
             return;
         }
 
-        _previewing = true;
+        var run = new PreviewRun(DateTimeOffset.Now, new CancellationTokenSource());
+        _previewRun = run;
         try
         {
-            var outcome = await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, new QuerySpec(sql.Sql, sql.Parameters), PreviewRows, null, CancellationToken.None);
+            var outcome = await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, new QuerySpec(sql.Sql, sql.Parameters), PreviewRows, null, run.Cancellation.Token);
             _preview = outcome.FirstPage;
             if (outcome.Error is { } error && !outcome.Cancelled)
             {
@@ -403,7 +421,32 @@
         }
         finally
         {
-            _previewing = false;
+            _previewRun = null;
+            run.Cancellation.Dispose();
         }
     }
+
+    /// <summary>On a pool thread: ODP.NET sends the break synchronously, over a silent VPN it blocks (A3).</summary>
+    private void CancelPreview()
+    {
+        if (_previewRun is not { } run)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                run.Cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the read ended meanwhile
+            }
+        });
+    }
+
+    /// <summary>Leaving the mode or closing the tab cancels a running preview.</summary>
+    public void Dispose() => CancelPreview();
 }

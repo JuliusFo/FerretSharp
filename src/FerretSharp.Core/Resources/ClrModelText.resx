@@ -458,7 +458,7 @@
     <comment>{0} = limit in MB</comment>
   </data>
   <data name="ParameterNotForDays" xml:space="preserve">
-    <value>A date without time cannot be a parameter here – untick "as parameter" or give a time.</value>
+    <value>A date without time cannot be a parameter here – untick “as parameter” or give a time.</value>
     <comment>Why a condition with a date without time (a list of days, or on a DateTimeOffset) cannot become a parameter of generated LINQ code</comment>
   </data>
   <data name="QueryNodeNoEntity" xml:space="preserve">
