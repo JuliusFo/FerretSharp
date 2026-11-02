@@ -201,6 +201,9 @@
 
     private Task Changed()
     {
+        // A running preview is of the query before: cancelled, and its rows are not shown (second review).
+        CancelPreview();
+        _previewRun = null;
         _preview = null;
         Shell.MarkDirty();
         return OnChanged.InvokeAsync();
@@ -413,6 +416,11 @@
         try
         {
             var outcome = await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, new QuerySpec(sql.Sql, sql.Parameters), PreviewRows, null, run.Cancellation.Token);
+            if (!ReferenceEquals(_previewRun, run))
+            {
+                return; // the query changed meanwhile (Changed)
+            }
+
             _preview = outcome.FirstPage;
             if (outcome.Error is { } error && !outcome.Cancelled)
             {
@@ -421,7 +429,11 @@
         }
         finally
         {
-            _previewRun = null;
+            if (ReferenceEquals(_previewRun, run))
+            {
+                _previewRun = null;
+            }
+
             run.Cancellation.Dispose();
         }
     }
