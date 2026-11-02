@@ -148,10 +148,11 @@ internal sealed class LinqConsole
     internal LinqRunResult Run(string code, string variables)
     {
         var watch = Stopwatch.StartNew();
-        var first = Analyze(code, variables, prelude: []);
+        (var usings, code) = HoistUsings(code);
+        var first = Analyze(code, variables, prelude: usings);
         var unknown = first.Diagnostics.Where(d => d.Id == "CS0103").Select(d => NameAt(first.Tree, d)).Distinct(StringComparer.Ordinal).ToList();
 
-        var prelude = new List<string>();
+        var prelude = new List<string>(usings);
         var auto = new List<string>();
         foreach (var name in unknown)
         {
@@ -168,7 +169,7 @@ internal sealed class LinqConsole
         }
 
         // With the context declared, the lambdas have types again: only now can the other names be typed from their use.
-        var analysis = prelude.Count == 0 ? first : Analyze(code, variables, prelude);
+        var analysis = prelude.Count == usings.Count ? first : Analyze(code, variables, prelude);
         var suggestions = analysis.Diagnostics.Where(d => d.Id == "CS0103")
             .Select(d => NameAt(analysis.Tree, d))
             .Distinct(StringComparer.Ordinal)
@@ -220,10 +221,11 @@ internal sealed class LinqConsole
     /// <param name="offset">The cursor in that section's text.</param>
     internal IReadOnlyList<LinqCompletionItem> Complete(string code, string variables, string? section, int offset)
     {
-        var bare = CSharpScript.Create(ScriptText([], variables, code), _options, typeof(LinqGlobals)).GetCompilation();
+        (var usings, code) = HoistUsings(code);
+        var bare = CSharpScript.Create(ScriptText(usings, variables, code), _options, typeof(LinqGlobals)).GetCompilation();
         var tree = bare.SyntaxTrees.First();
         var model = bare.GetSemanticModel(tree);
-        var prelude = new List<string>();
+        var prelude = new List<string>(usings);
         foreach (var name in tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>()
                      .GroupBy(n => n.Identifier.Text, StringComparer.Ordinal)
                      .Where(g => model.GetSymbolInfo(g.First()) is { Symbol: null, CandidateSymbols.Length: 0 })
@@ -240,7 +242,7 @@ internal sealed class LinqConsole
         }
 
         var text = ScriptText(prelude, variables, code);
-        var compilation = prelude.Count == 0 ? bare : CSharpScript.Create(text, _options, typeof(LinqGlobals)).GetCompilation();
+        var compilation = prelude.Count == usings.Count ? bare : CSharpScript.Create(text, _options, typeof(LinqGlobals)).GetCompilation();
         var sectionText = section == LinqProtocol.VariablesSection ? variables : code;
         var start = PreludeText(prelude).Length + (section == LinqProtocol.VariablesSection ? 0 : variables.Length + 1);
         var position = start + Math.Clamp(offset, 0, sectionText.Length);
@@ -251,6 +253,36 @@ internal sealed class LinqConsole
     private string ContextDeclaration(string name) => $"var {name} = (global::{_contextType.FullName!.Replace('+', '.')})__Context;";
 
     private static string PreludeText(IReadOnlyList<string> prelude) => string.Concat(prelude.Select(p => p + "\n"));
+
+    /// <summary>
+    /// The <c>using</c> directives the code starts with (a query from the diagram, WP-69: <c>using LinqKit;</c>), moved in
+    /// front of the prelude and the variables – a script takes them only before everything else. In the code they stay as
+    /// empty lines, so lines and columns of diagnostics and completion keep their places.
+    /// </summary>
+    internal static (List<string> Usings, string Code) HoistUsings(string code)
+    {
+        var lines = code.Split('\n');
+        var usings = new List<string>();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i].Trim();
+            if (UsingDirective.IsMatch(line))
+            {
+                usings.Add(line);
+                lines[i] = lines[i].EndsWith('\r') ? "\r" : "";
+            }
+            else if (line.Length > 0 && !line.StartsWith("//", StringComparison.Ordinal))
+            {
+                break;
+            }
+        }
+
+        return usings.Count == 0 ? (usings, code) : (usings, string.Join('\n', lines));
+    }
+
+    /// <summary><c>using X.Y;</c>, <c>using static X.Y;</c>, <c>using A = X.Y;</c> – not <c>using var</c> or <c>using (…)</c>.</summary>
+    private static readonly System.Text.RegularExpressions.Regex UsingDirective =
+        new(@"\Ausing\s+(static\s+)?(\w+\s*=\s*)?[\w.]+(<[\w.,\s<>]*>)?\s*;\z", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     private static string ScriptText(IReadOnlyList<string> prelude, string variables, string code) => PreludeText(prelude) + variables + "\n" + code;
 
