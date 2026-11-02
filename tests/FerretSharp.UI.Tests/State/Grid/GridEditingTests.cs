@@ -265,6 +265,22 @@ public sealed class GridEditingTests
     }
 
     [Fact]
+    public async Task An_empty_clipboard_is_null_only_right_after_copying_null()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.Rows[1] = Row(2, "Paul");
+
+        _grid.CopiedCell = "Petra";
+        await Editing.PasteAsync(1, null, 2, "", null, []); // emptied elsewhere: nothing to paste
+        _grid.CopiedCell = ""; // Ctrl+C on NULL leaves the clipboard empty
+        await Editing.PasteAsync(0, null, 2, "", null, []);
+
+        Assert.Null(_grid.Changes!.Find(new RowKey.PrimaryKey([2m])));
+        Assert.Null(_grid.Changes.Find(new RowKey.PrimaryKey([1m]))!.ValueOf(2));
+        Assert.StartsWith("In der Zwischenablage liegt kein Text", Assert.Single(_grid.Notices));
+    }
+
+    [Fact]
     public async Task Del_on_several_rows_is_one_step()
     {
         _grid.Rows[0] = Row(1, "Peter");

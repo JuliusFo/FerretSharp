@@ -790,8 +790,10 @@ export function create(elementId, dotnet, columns, options) {
     if (!marks && (!cell || cell.rowIndex == null)) return;
     e.preventDefault();
     if (!editState.enabled) return;
-    // No text (a picture, files): null, not '' – an empty text would set the cells to NULL.
-    const text = e.clipboardData?.types.includes('text/plain') ? e.clipboardData.getData('text/plain') : null;
+    // A picture or files: null, not '' – an empty text would set the cells to NULL. An empty clipboard is '': Ctrl+C on
+    // NULL leaves no text (.NET takes it as NULL only after that copy).
+    const data = e.clipboardData;
+    const text = data?.types.includes('text/plain') ? data.getData('text/plain') : data?.types.length === 0 ? '' : null;
     const colId = cell?.column.getColId() ?? marks.columns[0];
     const node = !cell ? null : cell.rowPinned ? api.getPinnedTopRow(cell.rowIndex) : api.getDisplayedRowAtIndex(cell.rowIndex);
     const rows = !marks && node ? editState.fillTargets(node, colId)?.rows ?? [] : [];

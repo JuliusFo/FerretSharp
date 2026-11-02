@@ -287,12 +287,15 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
     /// focused column of the selected rows, or the focused cell – as Ctrl+Enter with the value typed in. Why nothing was
     /// set goes to the status bar.
     /// </summary>
-    /// <param name="text">The clipboard's text; null if it holds none (a picture, files).</param>
+    /// <param name="text">
+    /// The clipboard's text; empty if the clipboard is empty, null if it holds something else (a picture, files).
+    /// </param>
     /// <param name="selectedRows">The selected rows if the focused row is one of several, else empty.</param>
     /// <returns>The loaded rows to redraw (grid.js draws them itself); new rows are set again here.</returns>
     public async Task<GridRowUpdate[]> PasteAsync(int rowIndex, string? newId, int column, string? text, GridMarks? marks, IReadOnlyList<int> selectedRows)
     {
-        if (text is null)
+        // Ctrl+C on NULL leaves the clipboard empty: right after that copy it is NULL, otherwise there is nothing to paste.
+        if (text is null || (text.Length == 0 && grid.CopiedCell is not ""))
         {
             grid.Notify(GridText.Fill_PasteNoText);
             return [];
