@@ -1,0 +1,175 @@
+@* One node of "Abfrage bauen" (WP-69): its columns in the result (with the name of the value), its conditions in the grid's
+   filter model (each optionally a parameter in C#) and, for a chosen child, the order that decides the first row. Rows
+   combine with AND here; groups (WP-50) come with a later stage. *@
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Relations
+@using FerretSharp.Core.Schema
+
+<section class="query-node-editor">
+    <h3>@SchemaViewText.Query_Columns</h3>
+    <ul class="query-columns">
+        @foreach (var column in Details.Columns)
+        {
+            var c = column;
+            var on = Editor.HasColumn(Node, c.Name);
+            var selectable = QueryDesignEditor.Selectable(c);
+            <li>
+                <label class="check" title="@(selectable ? OracleTypes.DisplayType(c) : SchemaViewText.Query_NotSelectable)">
+                    <input type="checkbox" checked="@on" disabled="@(!selectable && !on)" @onchange="() => Change(() => Editor.ToggleColumn(Node, c.Name))" />
+                    <span class="mono">@c.Name</span>
+                </label>
+                @if (on)
+                {
+                    <input class="field mono small" title="@SchemaViewText.Query_ValueName" placeholder="@SchemaViewText.Query_ValueName"
+                           value="@Node.State.Columns.First(q => q.Column == c.Name).Name" @onchange="e => Change(() => Editor.RenameColumn(Node, c.Name, e.Value as string ?? string.Empty))" />
+                }
+            </li>
+        }
+    </ul>
+
+    <h3>@SchemaViewText.Query_Conditions</h3>
+    <p class="hint small">@(Node.IsChosenChild ? TextFormat.Format(SchemaViewText.Query_ConditionsChild, Node.Table.Name) : TextFormat.Format(SchemaViewText.Query_ConditionsRoot, QueryBuilder.PartOf(Node).Table.Name))</p>
+    @for (var i = 0; i < Node.State.Filters.Count; i++)
+    {
+        var at = i;
+        var filter = Node.State.Filters[at];
+        var row = FilterRow.From(filter.Condition);
+        var column = Details.Columns.FirstOrDefault(c => c.Name == row.Column);
+        var error = column is null ? null : FilterRules.Validate(column, filter.Condition);
+        <div class="query-filter">
+            <select class="field mono small" value="@row.Column" @onchange="e => SetRow(at, r => { r.Column = e.Value as string ?? r.Column; FitOperator(r); })">
+                @foreach (var c in Details.Columns)
+                {
+                    <option value="@c.Name">@c.Name</option>
+                }
+            </select>
+            @if (column is not null)
+            {
+                <select class="field small" value="@row.Op" @onchange="e => SetRow(at, r => r.Op = Enum.Parse<FilterOperator>(e.Value as string ?? r.Op.ToString()))">
+                    @foreach (var op in FilterRules.OperatorsFor(ColumnCategories.Of(column)))
+                    {
+                        <option value="@op">@OperatorLabels.Label(op)</option>
+                    }
+                </select>
+            }
+            @if (FilterRules.ValueCount(row.Op) != 0)
+            {
+                <input class="field small" value="@row.Value" @onchange="e => SetRow(at, r => r.Value = e.Value as string ?? string.Empty)" />
+            }
+            @if (FilterRules.ValueCount(row.Op) == 2)
+            {
+                <input class="field small" value="@row.Value2" @onchange="e => SetRow(at, r => r.Value2 = e.Value as string ?? string.Empty)" />
+            }
+            @if (!Node.IsChosenChild && QueryBuilder.PartOf(Node).IsRoot && FilterRules.ValueCount(row.Op) != 0)
+            {
+                <label class="check" title="@SchemaViewText.Query_AsParameterTitle">
+                    <input type="checkbox" checked="@(filter.Parameter is not null)" @onchange="() => SetParameter(at, filter.Parameter is null ? DefaultParameter(row.Column) : null)" />
+                    @SchemaViewText.Query_AsParameter
+                </label>
+                @if (filter.Parameter is { } parameter)
+                {
+                    <input class="field mono small" title="@SchemaViewText.Query_ParameterName" value="@parameter" @onchange="e => SetParameter(at, (e.Value as string)?.Trim() is { Length: > 0 } p ? p : parameter)" />
+                }
+            }
+            <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => SetFilters([.. Node.State.Filters.Where((_, j) => j != at)])">@Icons.Close</button>
+            @if (error is not null)
+            {
+                <span class="error small">@error</span>
+            }
+        </div>
+    }
+    <button class="btn ghost small" @onclick="AddFilter">+ @SchemaViewText.Query_AddCondition</button>
+
+    @if (Node.IsChosenChild)
+    {
+        <h3>@SchemaViewText.Query_Order</h3>
+        @if (Node.State.Sorts.Count == 0)
+        {
+            <p class="hint small">@SchemaViewText.Query_OrderByKey</p>
+        }
+        @for (var i = 0; i < Node.State.Sorts.Count; i++)
+        {
+            var at = i;
+            var sort = Node.State.Sorts[at];
+            <div class="query-filter">
+                <select class="field mono small" value="@sort.Column" @onchange="e => SetSort(at, sort with { Column = e.Value as string ?? sort.Column })">
+                    @foreach (var c in Details.Columns.Where(c => ColumnCategories.IsSortable(ColumnCategories.Of(c))))
+                    {
+                        <option value="@c.Name">@c.Name</option>
+                    }
+                </select>
+                <label class="check"><input type="checkbox" checked="@sort.Descending" @onchange="() => SetSort(at, sort with { Descending = !sort.Descending })" /> @SchemaViewText.Query_Descending</label>
+                <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => SetSorts([.. Node.State.Sorts.Where((_, j) => j != at)])">@Icons.Close</button>
+            </div>
+        }
+        <button class="btn ghost small" @onclick="AddSort">+ @SchemaViewText.Query_AddOrder</button>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public QueryNode Node { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public QueryDesignEditor Editor { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private Task Change(Action change)
+    {
+        change();
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task SetFilters(IReadOnlyList<QueryFilter> filters) => Change(() => Editor.SetFilters(Node, filters));
+
+    private Task SetSorts(IReadOnlyList<SortSpec> sorts) => Change(() => Editor.SetSorts(Node, sorts));
+
+    private Task SetRow(int at, Action<FilterRow> edit)
+    {
+        var filter = Node.State.Filters[at];
+        var row = FilterRow.From(filter.Condition);
+        edit(row);
+        return SetFilters([.. Node.State.Filters.Select((f, j) => j == at ? f with { Condition = row.ToCondition() } : f)]);
+    }
+
+    private Task SetParameter(int at, string? parameter) =>
+        SetFilters([.. Node.State.Filters.Select((f, j) => j == at ? f with { Parameter = parameter } : f)]);
+
+    /// <summary>The operator stays if the new column has it, else the column's first.</summary>
+    private void FitOperator(FilterRow row)
+    {
+        if (Details.Columns.FirstOrDefault(c => c.Name == row.Column) is { } column
+            && FilterRules.OperatorsFor(ColumnCategories.Of(column)) is { Count: > 0 } ops && !ops.Contains(row.Op))
+        {
+            row.Op = ops[0];
+        }
+    }
+
+    private Task AddFilter()
+    {
+        var column = Details.Columns.FirstOrDefault(QueryDesignEditor.Selectable) ?? Details.Columns[0];
+        var op = FilterRules.OperatorsFor(ColumnCategories.Of(column)).FirstOrDefault();
+        return SetFilters([.. Node.State.Filters, new QueryFilter(new FilterCondition(column.Name, op, FilterRules.ValueCount(op) == 0 ? [] : [""]))]);
+    }
+
+    private Task SetSort(int at, SortSpec sort) => SetSorts([.. Node.State.Sorts.Select((s, j) => j == at ? sort : s)]);
+
+    private Task AddSort()
+    {
+        var column = Details.Columns.First(c => ColumnCategories.IsSortable(ColumnCategories.Of(c)));
+        return SetSorts([.. Node.State.Sorts, new SortSpec(column.Name, false)]);
+    }
+
+    /// <summary>A parameter named after the column: <c>KUNDE_ID</c> → <c>kundeId</c>.</summary>
+    private static string DefaultParameter(string column)
+    {
+        var parts = column.Split('_', StringSplitOptions.RemoveEmptyEntries).Select(p => p.ToLowerInvariant()).ToList();
+        var name = string.Concat(parts.Select((p, i) => i == 0 ? p : char.ToUpperInvariant(p[0]) + p[1..]));
+        return name.Length > 0 && char.IsLetter(name[0]) ? name : "value";
+    }
+}

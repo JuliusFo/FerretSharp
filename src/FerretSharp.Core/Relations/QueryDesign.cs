@@ -18,6 +18,9 @@ public sealed record QueryDesignState(IReadOnlyList<QueryNodeState> Nodes)
     /// <summary>The diagram is in the mode "Abfrage bauen".</summary>
     public bool Active { get; init; }
 
+    /// <summary>Names of the generated C# as the user changed them; empty for the ones from the root's entity.</summary>
+    public QueryNames Names { get; init; } = QueryNames.None;
+
     /// <summary>The node at <paramref name="path"/>; null if the query has none there.</summary>
     public QueryNodeState? Find(IReadOnlyList<QueryStep> path) => Nodes.FirstOrDefault(n => QueryStep.SamePath(n.Path, path));
 
@@ -59,8 +62,14 @@ public sealed record QueryDesignState(IReadOnlyList<QueryNodeState> Nodes)
             nodes.Insert(0, QueryNodeState.Root);
         }
 
-        return this with { Nodes = nodes };
+        return this with { Nodes = nodes, Names = Names ?? QueryNames.None };
     }
+}
+
+/// <summary>The names of the generated C# of one query (WP-69); null or empty for the default.</summary>
+public sealed record QueryNames(string? Class = null, string? Predicate = null, string? Projection = null, string? Dto = null)
+{
+    public static readonly QueryNames None = new();
 }
 
 /// <summary>One step of a path: the relationship (<see cref="RelationGraph.KeyOf"/>) and whether it leads to a child.</summary>
