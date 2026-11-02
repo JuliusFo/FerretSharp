@@ -10,11 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - The query as LINQ in the style of hand-written query extensions: an expression per value over the root entity (`a.Kunde.Name`, optional navigations with `!`, value types through them nullable), a chosen child as an expression of its own that the values use through LinqKit's `Invoke`, the conditions of the root and its parents as a filter – a method once a condition is marked "as parameter" –, a projection and the DTO. Names, namespace, `record` or `class`, the DTO itself and LinqKit can be chosen; your own mapping library gets its lines from a template (head, a line per value, foot). The choice is kept per linked project. "Open in LINQ console" runs it with the parameters as variables. When a chosen child has several values, the panel also offers the query that reads it once (`SelectMany … Take(1).DefaultIfEmpty()`) – with an expression per value the SQL reads it once per value; which is faster depends on the data.
 - The query as SQL: parents join INNER where an enabled and validated constraint on NOT NULL columns guarantees them, LEFT otherwise; a chosen child is an `OUTER APPLY … FETCH FIRST 1 ROW ONLY`. Conditions keep the grid's NULL rules, so LINQ and SQL find the same rows. A preview shows the first rows; the SQL opens in the SQL editor, or "Create view…" creates a view after the usual confirmation (values written into it, conditions marked as parameters left out with a note, never `OR REPLACE`).
 - The LINQ console takes `using` lines at the start of the code.
-- The log notes when the window stops responding for 5 seconds or more – when it started and, once it responds again, how long it took –, also without the setting "Log UI stalls". Next to it stand what the graphics output runs on (remote session, monitors, render tier) and every change of the display settings and of the Windows session (RDP connected or disconnected, locked), to find out what froze the window.
+
+## [3.57.1] - 2026-11-02
+
+Suggested file names and the code usage cache no longer pick their folder, and the log notes when the window stops responding.
 
 ### Security
 - The file name a "Save as" dialog suggests no longer picks the folder. It comes from names in the database – a table, column, synonym or grantee –, and a quoted name with `\`, `/` or `..` made the dialog start in another folder; one with `%APPDATA%` was saved into that folder, as the dialog expands environment variables. Such characters now become `_`, as do characters that show a name reversed, and a device name like `NUL` gets a leading `_`.
 - The cache file of the code usage no longer takes its folder from the assembly name of the linked project: a name with `..\` wrote it outside the cache folder, one with `:` or a device name like `NUL` kept it from being written. Usual names stay as they are, so existing cache files stay valid.
+
+### Added
+- The log notes when the window stops responding for 5 seconds or more – when it started and, once it responds again, how long it took –, also without the setting "Log UI stalls". Next to it stand what the graphics output runs on (remote session, monitors, render tier) and every change of the display settings and of the Windows session (RDP connected or disconnected, locked), to find out what froze the window.
 
 ## [3.57.0] - 2026-11-01
 
