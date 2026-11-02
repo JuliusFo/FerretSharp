@@ -21,6 +21,8 @@ Schicht und Begründung: ADR 0009/0010/0011/0016; Invariante „C#-Modell als ei
 ## Abgleich und Code
 - C#-Modell gegen die DB (WP-27) nur mit **konfigurierten** Facetten vergleichen: Die Provider-Vorgaben (`NVARCHAR2(2000)`, `NUMBER(10)` für `int`) beschreiben nicht die Absicht des Projekts und erzeugen Massen an Abweichungen. Für NULL `ColumnNullable` (EFs Spaltensicht) statt `Nullable` der Property (TPH, Owned).
 
+- Abfrage aus dem Diagramm (WP-69, ADR 0040): Ein Kind per `FirstOrDefault()` in mehreren Ausdrücken je Wert steht im SQL von EF je Wert als eigene Unterabfrage (gemessen mit EF Core 8 und dem Oracle-Provider, `ToQueryString`); zweistufige Projektion und `let` ändern nichts, nur `SelectMany(… .Take(1).DefaultIfEmpty())` gibt einen Join. Erzeugter Code, der in die LINQ-Konsole geht, darf mit `using`-Zeilen beginnen (`LinqConsole.HoistUsings`), sonst nichts davor.
+
 ## ModelHost (Hilfsprozess, .NET 8)
 - Roslyn im Projektprozess nur bis 4.11 (ab 4.12 `System.Reflection.Metadata` 9.0, nicht ladbar in .NET 8); `AppContext.BaseDirectory` ist unter `dotnet exec --depsfile` nicht verlässlich (`typeof(Program).Assembly.Location`); Satelliten-Assemblies stehen nicht in der deps.json; ein Interceptor-Exemplar für die ganze Lebensdauer. Roslyn sieht eine Position am Textende als hinter einem unfertigen Lambda.
 - Den Prozessweg (Start, Anfragen, Export) prüfen die Tests gegen einen Stand-in, `tests/FerretSharp.FakeModelHost` (Szenario per `--scenario`, beim Export per `--context`); `LinqConsoleHost.StartAsync` nimmt dafür auch die Laufzeitgrenze. Der Endestatus eines Prozesses muss gelesen werden, bevor der Host ihn entsorgt. Bekannt: Ein Host, der beim Start endet, meldet sich erst nach dem Start-Timeout (Backlog).
