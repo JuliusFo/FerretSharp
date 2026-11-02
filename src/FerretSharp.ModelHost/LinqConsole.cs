@@ -257,7 +257,8 @@ internal sealed class LinqConsole
     /// <summary>
     /// The <c>using</c> directives the code starts with (a query from the diagram, WP-69: <c>using LinqKit;</c>), moved in
     /// front of the prelude and the variables – a script takes them only before everything else. In the code they stay as
-    /// empty lines, so lines and columns of diagnostics and completion keep their places.
+    /// blanks of the same length, so lines and columns of diagnostics and the offsets of completion keep their places
+    /// (review: with empty lines the completion asked as many characters too far on).
     /// </summary>
     internal static (List<string> Usings, string Code) HoistUsings(string code)
     {
@@ -269,7 +270,7 @@ internal sealed class LinqConsole
             if (UsingDirective.IsMatch(line))
             {
                 usings.Add(line);
-                lines[i] = lines[i].EndsWith('\r') ? "\r" : "";
+                lines[i] = lines[i].EndsWith('\r') ? new string(' ', lines[i].Length - 1) + "\r" : new string(' ', lines[i].Length);
             }
             else if (line.Length > 0 && !line.StartsWith("//", StringComparison.Ordinal))
             {

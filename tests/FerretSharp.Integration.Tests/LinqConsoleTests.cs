@@ -160,6 +160,18 @@ public sealed class LinqConsoleTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Using_lines_at_the_start_keep_the_cursor_where_it_is()
+    {
+        // Review (WP-69): the hoisted lines became empty, and the completion asked their length too far on – here into
+        // the comment, where nothing is offered.
+        var items = await CompleteAsync(
+            "using System.Text;\r\nusing System.Linq.Expressions;\r\n\r\nreturn db.Kunden.Where(k => k.|).ToList();\r\n// "
+            + new string('x', 100));
+
+        Assert.Contains(items, i => i.Label == "KundeId");
+    }
+
+    [Fact]
     public async Task A_typed_word_still_gets_the_members_and_linq_and_ef_extensions()
     {
         var items = await CompleteAsync("var x = 1;\nreturn await db.Kunden.Wh|.ToListAsync(ct);");
