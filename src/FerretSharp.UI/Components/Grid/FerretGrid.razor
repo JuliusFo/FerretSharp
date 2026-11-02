@@ -934,6 +934,15 @@
     [JSInvokable]
     public Task<GridRowUpdate[]> OnClearMarks(GridMarks marks) => GuardAsync(() => FillCoreAsync(marks, CellFill.Null), []);
 
+    /// <summary>
+    /// Ctrl+V on a cell that is not being edited: one value for the marked cells, the focused column of the selected rows
+    /// (<paramref name="selectedRows"/> only if the focused row is one of them), or the focused cell. The grid redraws the
+    /// loaded rows; why nothing was set goes to the status bar.
+    /// </summary>
+    [JSInvokable]
+    public Task<GridRowUpdate[]> OnPaste(int rowIndex, string? newId, string colId, string text, GridMarks? marks, int[] selectedRows) =>
+        GuardAsync(() => Editing.PasteAsync(rowIndex, newId, ColumnIndex(colId), text, marks, [.. selectedRows.Order()]), []);
+
     /// <summary>Ctrl+D on marked cells: the top row's values into the rows below (WP-59).</summary>
     [JSInvokable]
     public Task<GridRowUpdate[]> OnFillDown(GridMarks marks) => GuardAsync(() => FillCoreAsync(marks, CellFill.Down), []);

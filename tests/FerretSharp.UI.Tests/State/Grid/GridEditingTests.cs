@@ -212,6 +212,44 @@ public sealed class GridEditingTests
     }
 
     [Fact]
+    public async Task A_pasted_value_goes_into_the_marks_the_selected_rows_or_the_focused_cell()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.Rows[1] = Row(2, "Paul");
+        _grid.Rows[2] = Row(3, "Mary");
+        var added = _grid.Changes!.AddRow();
+
+        var marked = await Editing.PasteAsync(0, null, 1, "A\r\n", new GridMarks(0, 1, ["c2"], false), []);
+        var rows = await Editing.PasteAsync(2, null, 2, "B", null, [1, 2]);
+        var cell = await Editing.PasteAsync(0, null, 2, "C", null, []);
+        var newRow = await Editing.PasteAsync(-1, GridRows.NewRowId(added), 2, "D", null, []);
+
+        Assert.Equal([0, 1], marked.Select(u => u.RowIndex)); // the marks' column, not the focused one
+        Assert.Equal([1, 2], rows.Select(u => u.RowIndex));
+        Assert.Equal([0], cell.Select(u => u.RowIndex));
+        Assert.Empty(newRow);
+        Assert.Equal(1, _grid.NewRowsSet);
+        Assert.Equal(["C", "B", "B"], new decimal[] { 1, 2, 3 }.Select(id => _grid.Changes.Find(new RowKey.PrimaryKey([id]))!.ValueOf(2)));
+        Assert.Equal("D", added.ValueOf(2));
+        Assert.Same(added, Assert.Single(_grid.Changes.UndoEdit())); // each paste one step
+    }
+
+    [Fact]
+    public async Task Several_cells_or_an_invalid_value_set_nothing_and_say_why()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+
+        var several = await Editing.PasteAsync(0, null, 2, "A\tB", null, []);
+        var invalid = await Editing.PasteAsync(0, null, 1, "eins", null, []);
+
+        Assert.Empty(several);
+        Assert.Empty(invalid);
+        Assert.False(_grid.Changes!.HasChanges);
+        Assert.Equal(2, _grid.Notices.Count);
+        Assert.StartsWith("Mehrere Zellen", _grid.Notices[0]);
+    }
+
+    [Fact]
     public async Task Del_on_several_rows_is_one_step()
     {
         _grid.Rows[0] = Row(1, "Peter");

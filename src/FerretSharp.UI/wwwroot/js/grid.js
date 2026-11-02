@@ -779,6 +779,25 @@ export function create(elementId, dotnet, columns, options) {
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
 
+  // Ctrl+V on a cell that is not being edited (AG Grid Community has no clipboard): one value for the marked cells or
+  // columns, the selected rows the focused cell lies in (as Ctrl+Enter, fillTargets), or the focused cell. .NET takes the
+  // value from the text and says why it set nothing (GridEditing.PasteAsync). The browser raises paste on the focused
+  // cell; a cell editor keeps its own. Nothing on a locked workspace, like Del and Ctrl+D.
+  element.addEventListener('paste', e => {
+    if (!table || api.getEditingCells().length > 0 || !e.target.closest?.('.ag-cell')) return;
+    const marks = marksOf();
+    const cell = api.getFocusedCell();
+    if (!marks && (!cell || cell.rowIndex == null)) return;
+    e.preventDefault();
+    if (!editState.enabled) return;
+    const text = e.clipboardData?.getData('text/plain') ?? '';
+    const colId = cell?.column.getColId() ?? marks.columns[0];
+    const node = !cell ? null : cell.rowPinned ? api.getPinnedTopRow(cell.rowIndex) : api.getDisplayedRowAtIndex(cell.rowIndex);
+    const rows = !marks && node ? editState.fillTargets(node, colId)?.rows ?? [] : [];
+    dotnet.invokeMethodAsync('OnPaste', cell && !cell.rowPinned ? cell.rowIndex : -1, newIdOf(api, cell), colId, text, marks, rows)
+      .then(updates => applyUpdates(api, updates)).catch(callFailed);
+  }, true);
+
   // The selection follows the focus like in the Windows Explorer: moving to another row with the keyboard (or the form's
   // ▲ ▼) selects just that row, Shift+↑ ↓, Shift+PageUp/PageDown, Shift+Home/End and Ctrl+Shift+↑ ↓ (AG Grid's Home/End
   // and Ctrl+↑ ↓ go to the first or last row) select from the anchor to it and shrink again on the way back. New rows at

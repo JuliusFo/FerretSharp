@@ -1167,6 +1167,9 @@
   <data name="Fill_ColumnsNotLoaded" xml:space="preserve">
     <value>Ganze Spalten lassen sich erst ändern, wenn alle ihre Zeilen geladen sind – markiere stattdessen die Zellen.</value>
   </data>
+  <data name="Fill_PasteSeveral" xml:space="preserve">
+    <value>Mehrere Zellen oder einen mehrzeiligen Text kann das Grid noch nicht einfügen – einen Text mit Zeilenumbrüchen im Zelleditor einfügen.</value>
+  </data>
   <data name="GridMenu_SetValue" xml:space="preserve">
     <value>Wert setzen…</value>
   </data>
