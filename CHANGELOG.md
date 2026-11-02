@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- Ctrl+V on a cell that is not being edited pastes the copied value – before, it did nothing unless a double click had opened the editor. With marked cells it goes into all of them, with several selected rows into the focused column of each, as Ctrl+Enter does; checked like a typed value and one step for Ctrl+Z. A value copied from Excel loses its line break and quotes. Several cells or a text over several lines are not pasted this way yet; a notice says so (paste such a text in the cell editor).
+
 ## [3.57.1] - 2026-11-02
 
 Suggested file names and the code usage cache no longer pick their folder, and the log notes when the window stops responding.

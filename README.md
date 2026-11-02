@@ -138,9 +138,10 @@ developer works with an Oracle database day to day:
 - Lock conflicts are detected after a short wait (`SELECT … FOR UPDATE WAIT n`) and shown with the blocking session.
 - Optimistic concurrency check on the changed columns; insert and delete rows; edit CLOBs and BLOBs in a dialog
   (text in the code editor with line wrap, JSON/XML coloring and JSON indenting).
-- **One value for many cells**: type it into one of the marked cells and press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>;
-  <kbd>Del</kbd> sets marked cells to NULL, <kbd>Ctrl</kbd>+<kbd>D</kbd> fills them down – checked per column, pending
-  like any edit, and one step for <kbd>Ctrl</kbd>+<kbd>Z</kbd>.
+- **One value for many cells**: type it into one of the marked cells and press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, or
+  paste a copied value with <kbd>Ctrl</kbd>+<kbd>V</kbd> – into the marked cells, the selected rows or just the focused
+  cell, no double click needed; <kbd>Del</kbd> sets marked cells to NULL, <kbd>Ctrl</kbd>+<kbd>D</kbd> fills them down –
+  checked per column, pending like any edit, and one step for <kbd>Ctrl</kbd>+<kbd>Z</kbd>.
 - **Read-only connections** (default for production) run in `SET TRANSACTION READ ONLY` – Oracle rejects DML. Unlock a
   single workspace on purpose by typing the connection's name.
 - **Copy rows to another connection**: the marked rows with their parents and the children you choose into a workspace
