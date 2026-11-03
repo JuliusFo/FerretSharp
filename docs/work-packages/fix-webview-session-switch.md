@@ -13,6 +13,10 @@ Gefunden im Code-Review von `fix-rdp-gpu.md` (2026-11-03): Der Nutzer wechselte 
 - `WebViewCapture.OnDisplaySettingsChanged` ersetzt den Handler des Controls an `SystemEvents.DisplaySettingsChanged` (abgehängt über einen gleichen Delegaten; `SystemEvents` vergleicht mit `Equals`). Debug-Zeile „Display changes of the WebView's capture taken over“. `WebViewCapture` ist jetzt `IDisposable` und hängt sich beim Beenden ab.
 - `App.WatchSleep`: `ConsoleConnect`, `RemoteConnect`, `SessionUnlock` → `RestartSoon` (3 s später). `RestartSoon` fasst mehrere Aufrufe zu einem Neustart zusammen (ein Timer statt einer je Aufruf).
 
+## E2E (2026-11-03)
+- Lokal: Start ohne Warnung, beide „taken over“-Zeilen, Minimieren/Wiederherstellen baut neu auf.
+- Beim Nutzer mit 3.58.1-test.4 (zusammen mit `fix-rdp-gpu`, GPU-Schalter an): RDP getrennt, zurück an der Konsole, entsperrt. Neustart nach „front buffer available again“ 0,13 s vor `ConsoleConnect` klappte beim ersten Versuch, die Anzeigeänderung baute über den eigenen Handler neu auf, der Neustart nach `SessionUnlock` lief 3 s später; kein Dialog, Bild lief ohne Minimieren („Ja, lief“).
+
 ## Nicht geprüft
-- Der Wechsel selbst: hier ohne RDP nicht nachzustellen; Testversion an den Nutzer. Lokal geprüft: Start ohne Warnung, beide „taken over“-Zeilen, Minimieren/Wiederherstellen baut neu auf.
+- Die Wiederholungen selbst: Im Testlauf scheiterte kein Neuaufbau (`E_NOTIMPL` kam nur im Lauf mit Software-Rendering, Tier 0). Nachstellen mit `--rdp-software` (aus `fix-rdp-gpu`) und demselben Wechsel; im Log dann „trying again“ und „rebuilt at attempt N“.
 - Kein Unit-Test (kein Testprojekt für `FerretSharp.App`, Backlog).
