@@ -156,6 +156,9 @@ public sealed class SqlScriptTests
             SELECT id,
             begin
               FROM t;
+            SELECT * FROM t ORDER BY id,
+            begin
+            DESC;
             CREATE TABLE z (
               id NUMBER,
               begin DATE
@@ -177,6 +180,7 @@ public sealed class SqlScriptTests
                 "-- the trigger\nCREATE OR REPLACE TRIGGER trg AFTER INSERT ON t FOR EACH ROW\nBEGIN\n  INSERT INTO log VALUES (1);\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
                 "UPDATE t SET a = 1\nBEGIN\n  <<lbl>>\n  INSERT INTO log VALUES (1);\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
                 "SELECT id,\nbegin\n  FROM t",
+                "SELECT * FROM t ORDER BY id,\nbegin\nDESC",
                 "CREATE TABLE z (\n  id NUMBER,\n  begin DATE\n)",
                 "SELECT * FROM z\nBEGIN\n  offset := 0;\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
             ],
@@ -189,7 +193,8 @@ public sealed class SqlScriptTests
         var delete = text.IndexOf("DELETE", text.IndexOf("UPDATE", StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.Equal(statements[2].Text, SqlScript.StatementAt(text, delete, delete)?.Text);
         Assert.Null(SqlScript.Analyze(statements[3].Text).Rejection);
-        Assert.True(SqlScript.Analyze(statements[5].Text).RunsIntoBlock); // "offset" continues SQL, ":=" does not
+        Assert.Null(SqlScript.Analyze(statements[4].Text).Rejection); // DESC ends SQL, never a PL/SQL call
+        Assert.True(SqlScript.Analyze(statements[6].Text).RunsIntoBlock); // "offset" continues SQL, ":=" does not
     }
 
     /// <summary>

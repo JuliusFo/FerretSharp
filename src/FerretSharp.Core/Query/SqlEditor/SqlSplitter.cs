@@ -25,6 +25,12 @@ public static class SqlSplitter
     };
 
     /// <summary>
+    /// Words of <see cref="ContinuesSql"/> that end a SQL statement (<c>begin DESC;</c>) and are reserved in PL/SQL – never
+    /// a call like <c>keep;</c> (fourth review).
+    /// </summary>
+    private static readonly HashSet<string> EndsSql = new(StringComparer.OrdinalIgnoreCase) { "ASC", "DESC", "END" };
+
+    /// <summary>
     /// The statements of a script, separated by <c>;</c> or a line with only <c>/</c> (SQL*Plus). A blank line separates
     /// nothing (decision of the user, ADR 0014: a view laid out with blank lines was cut apart); a statement without
     /// <c>;</c> runs on to the next one. Comments directly above a statement belong to it; parts with only comments are no
@@ -152,7 +158,8 @@ public static class SqlSplitter
             }
             else if (depth == 0 && (tokens[i].IsWord("BEGIN") || tokens[i].IsWord("DECLARE")) && StartsLine(tokens, i)
                 && SignificantIn(tokens, i + 1, to + 1) is [var next, var second, ..]
-                && ((next.Kind == SqlTokenKind.Word && (!ContinuesSql.Contains(next.Value) || second.IsSymbol(":=") || second.IsSymbol(";")))
+                && ((next.Kind == SqlTokenKind.Word && (!ContinuesSql.Contains(next.Value) || second.IsSymbol(":=")
+                        || (second.IsSymbol(";") && !EndsSql.Contains(next.Value))))
                     || (next.IsSymbol("<") && second.IsSymbol("<"))))
             {
                 return true;
