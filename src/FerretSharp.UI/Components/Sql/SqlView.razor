@@ -680,16 +680,15 @@
         }
 
         var current = (await _editor.GetRunContextAsync())?.Text ?? Tab.Text;
-        // Only ";" and "/" separate (ADR 0014): a last statement without one would run on into the appended one.
-        var trimmed = SqlScript.Terminated(current.TrimEnd());
-        var prefix = trimmed.Length == 0 ? "" : trimmed + "\n\n";
-        Tab.Text = prefix + entry.Sql + ";\n";
+        // Only ";" and "/" separate (ADR 0014): both the script's last statement and the appended one get theirs.
+        var (text, start) = SqlScript.Append(current, entry.Sql);
+        Tab.Text = text;
         Tab.Variables = [.. Tab.Variables.Where(v => !entry.Variables.Any(e => string.Equals(e.Name, v.Name, StringComparison.OrdinalIgnoreCase))),
             .. entry.Variables.Where(v => v.Value.Length > 0 || !Tab.Variables.Any(t => string.Equals(t.Name, v.Name, StringComparison.OrdinalIgnoreCase)))];
         await _editor.SetTextAsync(Tab.Text);
         await UpdateVariablesAsync(Tab.Text);
         Shell.MarkDirty();
-        await _editor.RevealOffsetAsync(prefix.Length);
+        await _editor.RevealOffsetAsync(start);
     }
 
     /// <summary>Completion for the statement around the cursor (also one still being written).</summary>

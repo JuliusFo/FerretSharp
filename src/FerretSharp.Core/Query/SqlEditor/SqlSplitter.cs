@@ -16,6 +16,13 @@ public static class SqlSplitter
 {
     private static readonly Regex BlankLine = new(@"\n[ \t\r\f\v]*\n", RegexOptions.CultureInvariant);
 
+    /// <summary>Words after a column named <c>begin</c> or <c>declare</c> that never start a PL/SQL statement.</summary>
+    private static readonly HashSet<string> ContinuesSql = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FROM", "AS", "AND", "OR", "IS", "IN", "NOT", "BETWEEN", "LIKE", "WHERE", "GROUP", "ORDER", "HAVING", "UNION", "MINUS",
+        "INTERSECT", "EXCEPT", "ASC", "DESC", "NULLS", "THEN", "ELSE", "END", "WHEN", "OVER", "KEEP", "CONNECT", "START", "INTO",
+    };
+
     /// <summary>
     /// The statements of a script, separated by <c>;</c> or a line with only <c>/</c> (SQL*Plus). A blank line separates
     /// nothing (decision of the user, ADR 0014: a view laid out with blank lines was cut apart); a statement without
@@ -23,6 +30,13 @@ public static class SqlSplitter
     /// statement. A block – a trigger or another PL/SQL object, <c>BEGIN</c>/<c>DECLARE</c> – holds <c>;</c> and ends only
     /// at a <c>/</c> line or at the end of the text (WP-26), its text with the <c>;</c> after its <c>END</c>.
     /// </summary>
+    /// <remarks>
+    /// A block behind a statement without <c>;</c> must not fall apart at its inner <c>;</c> – each piece of its body would
+    /// run as a statement of its own (review of <c>fix-sql-split-at-semicolon</c>, decision of the user): the
+    /// <c>CREATE</c> of a PL/SQL object starts a statement of its own (<c>CREATE</c> is reserved, it never continues one);
+    /// a <c>BEGIN</c>/<c>DECLARE</c> block at the start of a line keeps the statement before it up to the <c>/</c> line, as
+    /// one statement that <see cref="SqlStatementInfo.RunsIntoBlock"/> refuses.
+    /// </remarks>
     public static IReadOnlyList<SqlStatement> Split(string text)
     {
         var statements = new List<SqlStatement>();
@@ -30,6 +44,8 @@ public static class SqlSplitter
         int? start = null;
         var first = 0;
         var end = 0;
+        var codeEnd = 0;
+        int? commentsAbove = null;
         var hasCode = false;
         bool? block = null;
 
@@ -43,6 +59,7 @@ public static class SqlSplitter
             start = null;
             hasCode = false;
             block = null;
+            commentsAbove = null;
         }
 
         // Decided at the first ";": by then a block's header has been read (its body is the first thing to hold a ";"). Cut
@@ -67,12 +84,22 @@ public static class SqlSplitter
             {
                 if (InBlock(i))
                 {
-                    end = token.End;
+                    end = codeEnd = token.End;
+                    commentsAbove = null;
                     continue;
                 }
 
                 Close();
                 continue;
+            }
+
+            if (hasCode && CreatesBlock(tokens, i) && !InBlock(i))
+            {
+                // The comment lines directly above it go with it.
+                end = codeEnd;
+                var from = commentsAbove ?? i;
+                Close();
+                (start, first) = (tokens[from].Start, from);
             }
 
             if (start is null)
@@ -81,7 +108,14 @@ public static class SqlSplitter
             }
 
             end = token.End;
-            hasCode |= token.Kind != SqlTokenKind.Comment;
+            if (token.Kind == SqlTokenKind.Comment)
+            {
+                commentsAbove ??= hasCode && StartsLine(tokens, i) ? i : null;
+            }
+            else
+            {
+                (codeEnd, commentsAbove, hasCode) = (token.End, null, true);
+            }
         }
 
         Close();
@@ -89,6 +123,40 @@ public static class SqlSplitter
     }
 
     private static bool IsBlock(IReadOnlyList<SqlToken> tokens, int from, int to)
+    {
+        var significant = SignificantIn(tokens, from, to);
+        return significant.Count > 0 && (IsBlock(SqlClassifier.KindOf(significant)) || HasBlockStart(tokens, from, to));
+    }
+
+    /// <summary>
+    /// <c>BEGIN</c> or <c>DECLARE</c> at the start of a line after the statement's first word, followed by a word that
+    /// does not continue SQL (<see cref="ContinuesSql"/>) or a label (<c>&lt;&lt;</c>): the block behind a statement
+    /// without <c>;</c>. A column named <c>begin</c> at the start of a line followed by an alias looks the same – then the
+    /// statement is refused, never cut.
+    /// </summary>
+    private static bool HasBlockStart(IReadOnlyList<SqlToken> tokens, int from, int to)
+    {
+        for (var i = from + 1; i < to; i++)
+        {
+            if ((tokens[i].IsWord("BEGIN") || tokens[i].IsWord("DECLARE")) && StartsLine(tokens, i)
+                && SignificantIn(tokens, i + 1, to) is [var next, ..]
+                && ((next.Kind == SqlTokenKind.Word && !ContinuesSql.Contains(next.Value)) || next.IsSymbol("<<")))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The <c>CREATE</c> of a trigger or another PL/SQL object (<c>CREATE [OR REPLACE] [EDITIONABLE] PACKAGE …</c>).</summary>
+    private static bool CreatesBlock(IReadOnlyList<SqlToken> tokens, int i) =>
+        tokens[i].IsWord("CREATE") && IsBlock(SqlClassifier.KindOf(SignificantIn(tokens, i, Math.Min(tokens.Count, i + 32))));
+
+    private static bool StartsLine(IReadOnlyList<SqlToken> tokens, int i) =>
+        i == 0 || (tokens[i - 1].Kind == SqlTokenKind.Space && tokens[i - 1].Value.Contains('\n', StringComparison.Ordinal));
+
+    private static List<SqlToken> SignificantIn(IReadOnlyList<SqlToken> tokens, int from, int to)
     {
         var significant = new List<SqlToken>();
         for (var i = from; i < to; i++)
@@ -99,7 +167,7 @@ public static class SqlSplitter
             }
         }
 
-        return significant.Count > 0 && IsBlock(SqlClassifier.KindOf(significant));
+        return significant;
     }
 
     private static bool IsBlock(SqlStatementKind kind) =>
@@ -159,14 +227,26 @@ public static class SqlSplitter
             return text;
         }
 
+        // A statement that runs into a block holds its ";" and ends only at a "/" line, as a block does.
         var code = SqlTokenizer.Significant(last.Text);
-        if (IsBlock(SqlClassifier.KindOf(code)))
+        if (IsBlock(SqlClassifier.KindOf(code)) || code.Any(t => t.IsSymbol(";")))
         {
             return text[..last.End] + "\n/" + text[last.End..];
         }
 
         var end = last.Start + code[^1].End;
         return text[..end] + ";" + text[end..];
+    }
+
+    /// <summary>
+    /// The script with <paramref name="statement"/> appended after a blank line, both ended (<see cref="Terminated"/>) –
+    /// what the SQL history adds; <c>Start</c> is where the statement begins.
+    /// </summary>
+    public static (string Text, int Start) Append(string script, string statement)
+    {
+        var before = Terminated(script.TrimEnd());
+        var prefix = before.Length == 0 ? "" : before + "\n\n";
+        return (prefix + Terminated(statement.Trim()) + "\n", prefix.Length);
     }
 
     /// <summary>How many statements a selection holds.</summary>

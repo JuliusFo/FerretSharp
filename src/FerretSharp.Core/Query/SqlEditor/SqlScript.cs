@@ -22,6 +22,9 @@ public static class SqlScript
     /// <inheritdoc cref="SqlSplitter.Terminated"/>
     public static string Terminated(string text) => SqlSplitter.Terminated(text);
 
+    /// <inheritdoc cref="SqlSplitter.Append"/>
+    public static (string Text, int Start) Append(string script, string statement) => SqlSplitter.Append(script, statement);
+
     /// <inheritdoc cref="SqlSplitter.CountStatements"/>
     public static int CountStatements(string text) => SqlSplitter.CountStatements(text);
 

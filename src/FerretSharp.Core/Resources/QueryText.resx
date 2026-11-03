@@ -265,6 +265,9 @@
   <data name="SqlRejectNotSingle" xml:space="preserve">
     <value>This is more than one statement – a “;” or a line with only “/” in it ends the statement there.</value>
   </data>
+  <data name="SqlRejectRunsIntoBlock" xml:space="preserve">
+    <value>A “;” is missing before the PL/SQL block (BEGIN/DECLARE) – without it, the statement before it and the block run as one. End that statement with “;” and the block with a line with only “/”.</value>
+  </data>
   <data name="SqlRejectNotDdl" xml:space="preserve">
     <value>“{0}” is not a DDL statement.</value>
     <comment>{0}: first word of the statement</comment>
