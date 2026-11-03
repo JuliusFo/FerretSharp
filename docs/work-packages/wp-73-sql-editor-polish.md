@@ -1,4 +1,4 @@
-# WP-73 SQL-Editor: Fokus, Spalten anheften, Anzeigenamen im Ergebnis → Release offen
+# WP-73 SQL-Editor: Fokus, Spalten anheften, Anzeigenamen im Ergebnis → Release 3.59.0
 
 Branch `wp/73-sql-editor-polish`, 2026-11-03. Feedback aus dem Alltag des Nutzers (drei Punkte: Fokus im neuen SQL-Tab, Spalten im SQL-Ergebnis anheften, definierte Namen bei FKs in Ergebnis und Formular).
 
