@@ -15,3 +15,11 @@ Meldung des Nutzers (2026-11-03, 3.58.0): Tippen im Grid (neue Zeilen) ist wiede
 
 ## Nicht geprüft
 - Der Schalter selbst läuft in keinem Test (kein Testprojekt für `FerretSharp.App`); `CommandLineTests` hält die Entscheidung fest. Über RDP nur beim Nutzer mit der Testversion geprüft.
+
+## Nachtrag: Code-Review (2026-11-03)
+Entscheidung des Nutzers: „2–4, dann eigener Fix“.
+1. M (Verdacht) – Wechsel zwischen RDP und Laptop bei laufender App ungeprüft → nicht reproduziert als Folge des Schalters: Das Log des Nutzers (19:24, RDP getrennt, zurück an der Konsole) zeigt den Ausfall mit ausgeschaltetem Schalter (Tier 0, „GPU in a remote session off“). Der Neuaufbau der Aufnahme nach „front buffer available again“ und der des Controls nach der Anzeigeänderung scheitern in `CreateD3D9Device` mit `E_NOTIMPL` (`NotImplementedException`), das Control fängt nur `COMException` → Dialog „Unerwarteter Fehler“, Bild steht bis Minimieren/Wiederherstellen. Schon vorher da; eigener Fix auf eigenem Branch. Mit Schalter ist der Wechsel weiter ungeprüft.
+2. K – Zähler „WebView frames arrived“ zählte in der ersten Spanne ein Bild zu viel → behoben (cf611ddd).
+3. K – ADR und Protokoll nannten verschiedene Branches → behoben, beide `fix/rdp-gpu` (0be54cf2).
+4. K – Kein Test, dass ein Neustart `--rdp-software` behält → Zeile im bestehenden Test (6b14f88a).
+- Zweiter Durchgang: Fixes decken ihre Befunde, dieser Nachtrag fehlte noch.
