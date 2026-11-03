@@ -80,6 +80,12 @@ public static class CommandLine
             ? prefix + Path.GetFullPath(argument[prefix.Length..])
             : argument;
 
+    /// <summary>
+    /// Whether breaks may go out of band (<see cref="EnableOob"/>); otherwise the start sends them in band (ADR 0041). Takes
+    /// <see cref="Effective"/> arguments: a link cannot turn it on.
+    /// </summary>
+    public static bool BreaksOutOfBand(IEnumerable<string> args) => Has(args, EnableOob);
+
     /// <summary>Whether the switch <paramref name="option"/> was given (the case of its name ignored).</summary>
     public static bool Has(IEnumerable<string> args, string option) =>
         args.Any(a => string.Equals(a, option, StringComparison.OrdinalIgnoreCase));

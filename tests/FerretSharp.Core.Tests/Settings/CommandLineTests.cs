@@ -26,6 +26,16 @@ public sealed class CommandLineTests
         Assert.Contains("--ENABLE-OOB", CommandLine.Restart(args));
     }
 
+    /// <summary>ADR 0041: in band unless <c>--enable-oob</c>; the old <c>--disable-oob</c> changes nothing, a link cannot add it.</summary>
+    [Fact]
+    public void Breaks_go_in_band_unless_out_of_band_is_enabled()
+    {
+        Assert.False(CommandLine.BreaksOutOfBand([]));
+        Assert.False(CommandLine.BreaksOutOfBand(["--data-dir=daten", "--disable-oob"]));
+        Assert.True(CommandLine.BreaksOutOfBand(["--Enable-OOB"]));
+        Assert.False(CommandLine.BreaksOutOfBand(CommandLine.Effective(["ferretsharp://open?v=1&s=HR&t=EMPLOYEES", "--enable-oob"])));
+    }
+
     [Fact]
     public void A_restart_takes_the_paths_as_full_paths_and_waits_for_the_old_instance()
     {
