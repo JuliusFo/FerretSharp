@@ -433,7 +433,7 @@
     <comment>Button at a relationship of the C# model</comment>
   </data>
   <data name="Constraints_CreateFromModelTitle" xml:space="preserve">
-    <value>Open the designer of {0} with this relationship as a new foreign key, with an index on its columns. Values without a match make it fail (ORA-02298).</value>
+    <value>Open the designer of {0} with this relationship as a new foreign key, with an index unless one already covers its columns. Values without a match make creating it fail (ORA-02298).</value>
     <comment>{0}: table the foreign key belongs to</comment>
   </data>
   <data name="Constraints_CreateFromModelNotPrimary" xml:space="preserve">

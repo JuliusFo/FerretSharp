@@ -352,7 +352,7 @@
     <value>Als Constraint anlegen</value>
   </data>
   <data name="Constraints_CreateFromModelTitle" xml:space="preserve">
-    <value>Den Designer von {0} mit dieser Beziehung als neuem FK öffnen, mit Index auf seinen Spalten. Werte ohne Gegenstück lassen ihn scheitern (ORA-02298).</value>
+    <value>Den Designer von {0} mit dieser Beziehung als neuem Fremdschlüssel öffnen, mit Index, falls noch keiner seine Spalten trägt. Werte ohne Gegenstück lassen das Anlegen scheitern (ORA-02298).</value>
   </data>
   <data name="Constraints_CreateFromModelNotPrimary" xml:space="preserve">
     <value>Die Zielspalten sind nicht der Primärschlüssel: Oracle braucht dort einen eindeutigen Schlüssel, der Designer prüft das.</value>
