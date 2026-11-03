@@ -12,6 +12,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - The LINQ console takes `using` lines at the start of the code.
 - "Create constraint" at each relationship of the C# model in the "Constraints" view: the designer opens on its constraints tab with the relationship as a new foreign key – its columns, the referenced table and columns, a suggested name and an index on its columns –, checked and run like one added by hand. An incoming relationship opens the table it starts at, where the foreign key belongs. Greyed out unless both sides are tables (not a view, not a table reached through a synonym); where the referenced columns are not the primary key, the tooltip says that Oracle needs a unique key on them, and the designer checks it once it has loaded the table. Values without a match in the referenced table still make it fail (ORA-02298) – counting them first is planned with the relationship check (WP-43).
 
+### Fixed
+- In the table designer, a foreign key to a table dropped since the schema was read no longer breaks the tab ("Something went wrong in this tab"): its referenced column stays empty, and the designer says the key does not fit.
+- In the table designer, columns added to a new foreign key before its referenced table had loaded now get their referenced column too – before, they had to be chosen by hand. A referenced column filled in takes the primary key's next column not used yet.
+
 ## [3.57.2] - 2026-11-02
 
 Ctrl+V pastes a value into grid cells without opening the editor.
