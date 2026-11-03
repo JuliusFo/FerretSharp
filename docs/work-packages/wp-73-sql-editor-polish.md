@@ -22,3 +22,8 @@ Branch `wp/73-sql-editor-polish`, 2026-11-03. Feedback aus dem Alltag des Nutzer
 - **Zeilenvergleich ohne Namen**, wie bei Tabellen (`RowComparison` kennt keine `DisplayNames`); die Roadmap nannte ihn, das wäre mehr gewesen als im Tabellen-Grid.
 - **Kein `Clear` der Namen beim Sortieren:** Ein Ergebnis liest dieselben Zeilen, nur anders geordnet; eine neue Ausführung baut ein neues Grid.
 - **Neu planen bei geändertem C#-Modell:** nicht – das Ergebnis-Grid folgt dem Modell auch sonst nicht (Beschriftungen und Badges stehen beim Ausführen fest).
+
+## E2E (2026-11-03, eigener Container `ferret-wp73`, Testinstanz mit `--data-dir`)
+- Geprüft mit echter Windows-Eingabe: Rechtsklick auf Kopf und Zelle, Anheften und Lösen über die Menüs, Ziehen in den angehefteten Bereich (meldet `OnPinnedChanged`, landet in der Workspace-Datei), Pins nach erneutem Ausführen und nach Neustart; Fokus im neuen Tab per Tastenkürzel und über das Objektmenü („SQL“, Cursor am Ende), kein Fokus im wiederhergestellten Tab; Namen in Grid und Formular (`a.KUNDE_ID` mit Namen, die PK-Spalte `k.KUNDE_ID` ohne).
+- Falle beim Prüfen: Das offene Formular liegt über den rechten Spalten des Ergebnisses – ein Ziehen, das dort beginnt, trifft das Formular. Vorher schließen oder per `elementFromPoint` prüfen.
+- Nicht geprüft: LINQ-Konsole (kein verknüpftes Projekt in der Testinstanz; derselbe Grid-Weg), der Inhalt der Excel-Datei (Spalten über Unit-Tests, der Speichern-Dialog wird im E2E nicht bedient).
