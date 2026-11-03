@@ -33,6 +33,7 @@ public partial class App : Application
     private IHost? _host;
     private ILogger<App>? _logger;
     private PowerModeChangedEventHandler? _powerModeChanged;
+    private SessionSwitchEventHandler? _sessionSwitch;
 
     /// <summary>Started by <see cref="Program.Main"/>, which holds the data folder's instance lock (WP-32).</summary>
     /// <param name="args">The arguments to act on (<see cref="CommandLine.Effective"/>), not WPF's own copy of the raw command line.</param>
@@ -237,7 +238,8 @@ public partial class App : Application
     /// <summary>
     /// After sleep the sessions are usually gone (the VPN dropped, the database timed them out): check them a few seconds after
     /// waking instead of up to two minutes later, so the banner – or reconnecting by itself – comes before the next click.
-    /// The WebView's picture could stay frozen after waking (<see cref="WebViewCapture"/>): its capture is restarted too.
+    /// The WebView's picture could stay frozen after waking (<see cref="WebViewCapture"/>): its capture is restarted too –
+    /// also when the session comes back to a screen (from RDP to the console or back, unlocked; 2026-11-03).
     /// </summary>
     private void WatchSleep(ConnectionKeepAlive keepAlive, WebViewCapture capture)
     {
@@ -251,6 +253,14 @@ public partial class App : Application
             }
         };
         SystemEvents.PowerModeChanged += _powerModeChanged;
+        _sessionSwitch = (_, args) =>
+        {
+            if (args.Reason is SessionSwitchReason.ConsoleConnect or SessionSwitchReason.RemoteConnect or SessionSwitchReason.SessionUnlock)
+            {
+                capture.RestartSoon($"session {args.Reason}"); // DisplayWatch logs the switch itself
+            }
+        };
+        SystemEvents.SessionSwitch += _sessionSwitch;
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -259,6 +269,11 @@ public partial class App : Application
         if (_powerModeChanged is not null)
         {
             SystemEvents.PowerModeChanged -= _powerModeChanged; // a static event: it would keep the app's objects alive
+        }
+
+        if (_sessionSwitch is not null)
+        {
+            SystemEvents.SessionSwitch -= _sessionSwitch;
         }
 
         CloseConnection();

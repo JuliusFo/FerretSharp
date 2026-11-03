@@ -33,3 +33,12 @@ Seit WebView2 1.0.4258 baut das Control Geräte, Aufnahme und Back Buffer nach e
 - Der Bildpuffer fasst ein Bild: Solange eines gehalten wird, liefert die Aufnahme nichts Neues. Dass eine Änderung aus dieser Zeit danach als nächstes Bild kommt, ist beobachtet (Kollege, unter Last), nicht dokumentiert.
 - Ein dritter Fehler desselben Wegs (WPF präsentiert vor dem Ende der GPU-Kopie) steht in ADR 0039; `WebViewCapture.Render` wartet seitdem auf die Kopie.
 - Seit dem eigenen Handler hängt jedes Bild der WebView an diesem Code: Fällt er aus, steht das Bild. Gegenprobe im E2E: Ein Handler, der nichts tut, ließ das Bild stehen – der des Controls war also wirklich ab.
+
+## Nachtrag: Sitzungswechsel (2026-11-03, `fix/webview-session-switch`)
+
+Log des Nutzers beim Wechsel von RDP zurück an die Konsole (ohne GPU-Schalter, Tier 0): „front buffer available again“ kam vor `ConsoleConnect`, unser Neuaufbau scheiterte in `Direct3DHelper.CreateD3D9Device` mit `E_NOTIMPL` (`NotImplementedException`) und setzte die Markierung zurück – danach kopierte das Control in Geräte, die es nicht mehr hatte („Copying a WebView frame failed: Object reference …“). Der Neuaufbau des Controls nach der folgenden Anzeigeänderung scheiterte genauso; es fängt nur `COMException`, also kam der Dialog „Unerwarteter Fehler“. Das Bild stand, bis der Nutzer minimierte.
+
+- **Wiederholen nach jeder Ausnahme:** Jeder Neuaufbau (eigener Neustart wie Anzeigeänderung) wird alle 500 ms wiederholt, höchstens 30 s; so lange bleibt die Änderung markiert und das Control verwirft Bilder, statt in fehlende Geräte zu kopieren. Erst danach wird die Markierung zurückgesetzt (Warnung im Log). Der erste Fehlschlag und ein später Erfolg stehen als Information im Log.
+- **Handler der Anzeigeänderung ersetzt:** `WebViewCapture` hängt `OnDisplaySettingsChanged` des Controls von `SystemEvents.DisplaySettingsChanged` ab (`SystemEvents` vergleicht die Delegaten mit `Equals`, in Microsoft.Win32.SystemEvents 10.0.12 nachgelesen) und baut selbst neu auf. `OnDisplaySettingsChanging` des Controls bleibt. Seine Wiederholungen nach `COMException` laufen damit nicht mehr; die eigenen decken sie ab.
+- **Neustart nach einem Sitzungswechsel:** `ConsoleConnect`, `RemoteConnect` und `SessionUnlock` starten die Aufnahme 3 s später neu, wie nach dem Ruhezustand; mehrere Wechsel kurz hintereinander ergeben einen Neustart.
+- Beim Heben von WebView2 zusätzlich: „Display changes of the WebView's capture taken over“ (Debug) im Log.
