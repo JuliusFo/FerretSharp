@@ -1170,7 +1170,8 @@ export function create(elementId, dotnet, columns, options) {
   }
 
   // Ctrl+C: the marked cells or columns (WP-58), the focused cell, or the selected rows if there are several (AG Grid
-  // Community has no clipboard). Text marked with the mouse inside one cell is copied by the browser as usual.
+  // Community has no clipboard). Text marked with the mouse inside one cell is copied by the browser as usual. A cell of a
+  // new row (pinned on top, tables only) is copied by its id – before, Ctrl+C did nothing there and Ctrl+V pasted the old text.
   function onCopyKey(e) {
     if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'c') return false;
     if (textMarkedInOneCell()) return true;
@@ -1181,7 +1182,14 @@ export function create(elementId, dotnet, columns, options) {
       return true;
     }
     const cell = api.getFocusedCell();
-    if (!cell || cell.rowIndex == null || cell.rowPinned) return true;
+    if (!cell || cell.rowIndex == null) return true;
+    if (cell.rowPinned) {
+      const newId = newIdOf(api, cell);
+      if (!newId) return true;
+      e.preventDefault();
+      dotnet.invokeMethodAsync('OnCopyNewRow', newId, cell.column.getColId()).catch(callFailed);
+      return true;
+    }
     e.preventDefault();
     dotnet.invokeMethodAsync('OnCopy', cell.rowIndex, cell.column.getColId(), selectedRows()).catch(callFailed);
     return true;
