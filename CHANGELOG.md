@@ -15,6 +15,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - The model page keeps where the model comes from, loading, building and the export; its lists – matching, differing columns, unused columns, the table of entities – moved to the report. "Show in the report" in the LINQ console (after ORA-00904) opens the report at the model without counterpart.
 - A newly opened SQL editor tab takes the focus, with the cursor at the end of its text – also when it opens from a menu with a statement ("Open in SQL editor", `SELECT *` from the explorer). Tabs restored with their workspace do not take it.
 
+### Fixed
+- Coming back to the computer from Remote Desktop (or the other way) no longer shows "Unexpected error" and a picture that stands still until the window is minimized: rebuilding the picture of the page failed while Windows was still setting up the screen; it is now tried again until it works, and the picture is rebuilt a few seconds after every switch or unlock.
+
 ## [3.58.0] - 2026-11-03
 
 Build a query in the relationship diagram as LINQ and SQL, create a foreign key constraint from a relationship of the C# model, and cancelling sends breaks in band by default.
