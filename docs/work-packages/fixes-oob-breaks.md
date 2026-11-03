@@ -33,5 +33,7 @@ Belegt am Connect-Paket im ODP.NET-Trace (Service Options): mit OOB `0x0C01`, mi
 - Für die Untersuchung eigene Container `ferret-oob-test` (Oracle 23), `ferret-oob-test21` (XE 21c), `ferret-oob-pub` und das Netz `ferret-oob-net`, danach entfernt.
 
 ## Offen – zu testen auf der echten Strecke
+**Erledigt 2026-11-03:** Mit `--disable-oob` keine Abbrüche mehr, auch beim Kollegen → in-band als Standard (`fix-oob-default.md`, ADR 0041).
+
 - Ein paar Tage mit `--disable-oob` über das VPN abbrechen: lange Abfrage im SQL-Editor, Grid-Laden, F5 beim Laden. Im Log nach „Breaks are sent in band“ beim Start und nach Verbindungsverlusten mit „breaks in band“ schauen.
 - Danach entscheidet der Nutzer: Pro Verbindung ginge nur über eine eigene sqlnet.ora per `Tns_Admin` (mit dem Haken bei TNS-Alias-Profilen oben). Sonst OOB ohne Einstellung generell abschalten – Preis: Der Server bemerkt einen Break nur, wenn er die Verbindung prüft, ein Abbruch greift bei langen Rechnungen später (in den Tests nicht messbar: 1 s wie mit OOB). Im gvenzl-Issue wird außerdem etwas Overhead durch das Prüfen auf Breaks erwähnt (`BREAK_POLL_SKIP`); im Alltag des Nutzers beim Ausprobieren mit beobachten.
