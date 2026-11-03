@@ -1172,8 +1172,9 @@ export function create(elementId, dotnet, columns, options) {
   // Ctrl+C: the marked cells or columns (WP-58), the focused cell, or the selected rows if there are several (AG Grid
   // Community has no clipboard). Text marked with the mouse inside one cell is copied by the browser as usual. A cell of a
   // new row (pinned on top, tables only) is copied by its id – before, Ctrl+C did nothing there and Ctrl+V pasted the old text.
+  // In a cell editor the key is the browser's, as Ctrl+V: without marked text it copied the stored value over the clipboard.
   function onCopyKey(e) {
-    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'c') return false;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'c' || api.getEditingCells().length > 0) return false;
     if (textMarkedInOneCell()) return true;
     const marks = marksOf();
     if (marks) {
