@@ -487,4 +487,48 @@
   <data name="Shortcuts_ConnectionsHint" xml:space="preserve">
     <value>A connection gets its shortcut in its dialog (Edit). The key shows the connection from anywhere in FerretSharp, connecting it first if needed.</value>
   </data>
+  <data name="Settings_ReportExceptionsFile" xml:space="preserve">
+    <value>Report exceptions</value>
+    <comment>Label of the exceptions file setting</comment>
+  </data>
+  <data name="Settings_ReportExceptionsFileHint" xml:space="preserve">
+    <value>Tables meant to have no entity, with a reason: the report does not count them as missing. E.g. a file in the company's repository, so colleagues share it.</value>
+  </data>
+  <data name="Settings_ReportExceptionsDefault" xml:space="preserve">
+    <value>report-exceptions.json in the data folder</value>
+    <comment>Placeholder of the path field</comment>
+  </data>
+  <data name="Settings_ReportExceptionsResetTitle" xml:space="preserve">
+    <value>Use the file in the data folder</value>
+  </data>
+  <data name="Settings_ReportExceptionsGroups" xml:space="preserve">
+    <value>Report exceptions of the connection groups</value>
+  </data>
+  <data name="Settings_ReportExceptionsGroupsHint" xml:space="preserve">
+    <value>Each group of systems can have its own file; a group without one uses the file above.</value>
+  </data>
+  <data name="Settings_ReportExceptionsAsGlobal" xml:space="preserve">
+    <value>as above</value>
+    <comment>Placeholder of a group's path field</comment>
+  </data>
+  <data name="Settings_ReportExceptionsOfGroup" xml:space="preserve">
+    <value>Report exceptions of {0}</value>
+    <comment>{0}: group name</comment>
+  </data>
+  <data name="Settings_ReportExceptionsFilter" xml:space="preserve">
+    <value>Report exceptions</value>
+    <comment>File type in the open dialog</comment>
+  </data>
+  <data name="Settings_ReportExceptionsCountOne" xml:space="preserve">
+    <value>{0} exception in {1}</value>
+    <comment>{0}: count; {1}: path</comment>
+  </data>
+  <data name="Settings_ReportExceptionsCountOther" xml:space="preserve">
+    <value>{0} exceptions in {1}</value>
+    <comment>{0}: count; {1}: path</comment>
+  </data>
+  <data name="Settings_ReportExceptionsNoFile" xml:space="preserve">
+    <value>{0} does not exist yet: the first “Mark as exception…” on the report creates it.</value>
+    <comment>{0}: path</comment>
+  </data>
 </root>

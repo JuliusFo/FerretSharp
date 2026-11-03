@@ -1,0 +1,122 @@
+@* Report page (WP-72, from the model page): mapped properties no code of the solution uses outside tests and mapping
+   (WP-40) – read on request, since reading the solution's build takes a moment. The page follows the index and computes
+   the rows (its tiles count them). *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+@implements IDisposable
+
+@{
+    var state = Usage.State;
+    var result = state.Result;
+}
+<div class="report-tools">
+    @if (state.Phase == CodeUsagePhase.Building)
+    {
+        <span class="muted"><span class="spinner small"></span> @ModelViewText.Usage_Building</span>
+    }
+    else
+    {
+        <button class="btn small" @onclick="ReadAsync">@(result is null ? ModelViewText.Usage_ReportRead : ModelViewText.Usage_Reload)</button>
+    }
+    @if (result is not null && state.BuiltAt is { } builtAt)
+    {
+        <span class="muted" title="@CodeUsageRows.ProjectDetails(result)">
+            @CodeUsageRows.Projects(result) · @TextFormat.Format(ModelViewText.Usage_BuiltAt, builtAt.ToString("t", CultureInfo.CurrentCulture))
+        </span>
+    }
+    @if (Rows is { } all)
+    {
+        <SearchBox @bind-Value="View.UnusedSearch" Class="search" Placeholder="@ModelViewText.Report_UnusedSearch" />
+        <button class="report-chip @(View.UnusedWithTests ? "on" : "")" disabled="@(!all.Any(u => u.UsedInTests))" title="@ModelViewText.Report_UnusedWithTestsTitle"
+                @onclick="() => View.UnusedWithTests = !View.UnusedWithTests">@TextFormat.Format(ModelViewText.Report_UnusedWithTests, all.Count(u => u.UsedInTests))</button>
+    }
+</div>
+<div class="report-empty">
+    @ModelViewText.Usage_ReportHint
+    @if (state.Error is { } error)
+    {
+        <div class="tab-error"><span>@TextFormat.Format(ModelViewText.Usage_Failed, error)</span></div>
+    }
+    <UsageBuildNote />
+</div>
+@if (Rows is { } rows)
+{
+    var shown = View.Unused(rows);
+    var slice = View.Slice(ReportPart.Unused, shown);
+    @if (rows.Count == 0)
+    {
+        <div class="report-empty">@ModelViewText.Usage_ReportNone</div>
+    }
+    else if (shown.Count == 0)
+    {
+        <div class="report-empty">@ModelViewText.Report_NothingFound</div>
+    }
+    else
+    {
+        <table class="report-table">
+            <thead><tr><th>@ModelViewText.Model_HeadEntity</th><th>@SchemaViewText.Columns_Property</th><th>@ModelViewText.Model_HeadTable</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var unused in slice.Shown)
+                {
+                    var (entity, property, located) = (unused.Entity, unused.Property, unused.Located);
+                    <tr>
+                        <td title="@entity.ClrType">@ClrModelMapping.ShortName(entity.ClrType)</td>
+                        <td class="mono">@property.Name</td>
+                        <td>
+                            @if (located is not null)
+                            {
+                                <button class="link-btn mono" @onclick="() => OnOpen.InvokeAsync(located.Table)">@located.Table.DisplayName.@(property.Column)</button>
+                            }
+                            else
+                            {
+                                <span class="mono muted">@(entity.Table ?? entity.View).@(property.Column)</span>
+                            }
+                        </td>
+                        <td>
+                            @if (unused.UsedInTests)
+                            {
+                                <span class="report-tag">@ModelViewText.Report_UsedInTests</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <ReportMore More="slice.More" OnShowAll="() => View.ShowAll(ReportPart.Unused)" />
+    }
+}
+
+@code {
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    /// <summary>The unused properties (<see cref="ModelReport.Unused"/>); null until the index is read.</summary>
+    [Parameter]
+    public IReadOnlyList<UnusedProperty>? Rows { get; set; }
+
+    [Parameter, EditorRequired]
+    public ReportView View { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<TableSummary> OnOpen { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+
+    private async Task ReadAsync()
+    {
+        if (Usage.State.Result is null)
+        {
+            await Usage.EnsureAsync(_lifetime.Token);
+        }
+        else
+        {
+            await Usage.RefreshAsync(_lifetime.Token);
+        }
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

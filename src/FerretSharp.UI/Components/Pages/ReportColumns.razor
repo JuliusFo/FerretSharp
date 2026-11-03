@@ -1,0 +1,133 @@
+@* Report page (WP-72): columns of mapped tables without property, by table – with the property code to copy. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+
+@{
+    var required = Report.Columns.Count(c => c.RequiredWithoutDefault);
+}
+<div class="report-tools">
+    <SearchBox @bind-Value="View.ColumnSearch" Class="search" Placeholder="@ModelViewText.Report_ColumnsSearch" />
+    <button class="report-chip @(View.ColumnsFlat ? "" : "on")" @onclick="() => View.ColumnsFlat = false">@ModelViewText.Report_ByTable</button>
+    <button class="report-chip @(View.ColumnsFlat ? "on" : "")" @onclick="() => View.ColumnsFlat = true">@ModelViewText.Report_Flat</button>
+    <button class="report-chip @(View.ColumnsRequired ? "on" : "")" disabled="@(required == 0)" title="@ModelViewText.Report_RequiredTitle"
+            @onclick="() => View.ColumnsRequired = !View.ColumnsRequired">@TextFormat.Format(ModelViewText.Report_RequiredOnly, required)</button>
+    <span class="grow"></span>
+    @if (!View.ColumnsFlat)
+    {
+        <button class="btn ghost small" @onclick="ToggleAll">@(View.AnyGroupOpen ? ModelViewText.Report_CollapseAll : ModelViewText.Report_ExpandAll)</button>
+    }
+</div>
+@if (View.ColumnsFlat)
+{
+    var rows = View.Columns(Report);
+    var slice = View.Slice(ReportPart.Columns, rows);
+    @if (rows.Count == 0)
+    {
+        <div class="report-empty">@ModelViewText.Report_NothingFound</div>
+    }
+    else
+    {
+        <table class="report-table">
+            <tbody>
+                @foreach (var column in slice.Shown)
+                {
+                    @Row(column, true)
+                }
+            </tbody>
+        </table>
+        <ReportMore More="slice.More" OnShowAll="() => View.ShowAll(ReportPart.Columns)" />
+    }
+}
+else
+{
+    var groups = View.ColumnGroups(Report);
+    var slice = View.Slice(ReportPart.Columns, groups);
+    @if (groups.Count == 0)
+    {
+        <div class="report-empty">@ModelViewText.Report_NothingFound</div>
+    }
+    @foreach (var group in slice.Shown)
+    {
+        var table = group.Entity.Table;
+        var open = View.IsGroupOpen(table.Ref);
+        <div class="report-group @(open ? "" : "closed")" @key="table.Ref">
+            <div class="report-group-row">
+            <button class="report-group-head" aria-expanded="@(open ? "true" : "false")" @onclick="() => View.ToggleGroup(table.Ref)">
+                <span class="chev">@Icons.ChevronDown</span>
+                <span class="mono">@table.DisplayName</span>
+                <span class="muted">→ @ClrModelMapping.ShortName(group.Entity.Entity.ClrType)</span>
+                <span class="report-count">@group.Columns.Count</span>
+                @if (group.Columns.Any(c => c.RequiredWithoutDefault))
+                {
+                    <span class="report-tag bad">@ModelViewText.Report_RequiredShort</span>
+                }
+            </button>
+            <button class="report-act" @onclick="() => OnOpen.InvokeAsync(table)">@ModelViewText.Report_OpenTable</button>
+            </div>
+            @if (open)
+            {
+                <table class="report-table">
+                    <tbody>
+                        @foreach (var column in group.Columns)
+                        {
+                            @Row(column, false)
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+    <ReportMore More="slice.More" OnShowAll="() => View.ShowAll(ReportPart.Columns)" />
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ModelReport Report { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ReportView View { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<TableSummary> OnOpen { get; set; }
+
+    /// <summary>Copies the code of a property for the column (<see cref="PropertyCode"/>).</summary>
+    [Parameter]
+    public EventCallback<ColumnWithoutProperty> OnCopyProperty { get; set; }
+
+    private RenderFragment Row(ColumnWithoutProperty column, bool withTable) =>
+        @<tr @key="(column.Entity.Table.Ref, column.Column.Name)">
+            <td class="mono" style="width: 34%">
+                @if (withTable)
+                {
+                    <span class="muted">@column.Entity.Table.DisplayName.</span>
+                }
+                @column.Column.Name
+            </td>
+            <td class="mono muted" style="width: 26%">@column.Column.DisplayType@(column.Column.Nullable ? "" : " NOT NULL")</td>
+            <td>
+                @if (column.RequiredWithoutDefault)
+                {
+                    <span class="report-tag bad">@ModelViewText.Report_RequiredTag</span>
+                }
+            </td>
+            <td class="acts">
+                @if (withTable)
+                {
+                    <button class="report-act" @onclick="() => OnOpen.InvokeAsync(column.Entity.Table)">@ModelViewText.Report_Open</button>
+                }
+                <button class="report-act" title="@ModelViewText.Report_CopyPropertyTitle" @onclick="() => OnCopyProperty.InvokeAsync(column)">@ModelViewText.Report_CopyProperty</button>
+            </td>
+        </tr>;
+
+    private void ToggleAll()
+    {
+        if (View.AnyGroupOpen)
+        {
+            View.CloseGroups();
+        }
+        else
+        {
+            View.OpenGroups(View.ColumnGroups(Report));
+        }
+    }
+}

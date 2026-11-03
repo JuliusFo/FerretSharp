@@ -984,4 +984,7 @@
   <data name="TabBar_GrantsTitle" xml:space="preserve">
     <value>Objektrechte im Schema {0}</value>
   </data>
+  <data name="Shell_Report" xml:space="preserve">
+    <value>Bericht: C#-Modell und Datenbank</value>
+  </data>
 </root>

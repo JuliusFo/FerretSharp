@@ -1,0 +1,54 @@
+@* Report page (WP-72, from the model page): the model's entities with their table or view, how many of their properties
+   found a column, and their value converters. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+
+@{
+    var rows = View.Entities(Mapping);
+    var slice = View.Slice(ReportPart.Entities, rows);
+}
+<div class="report-tools">
+    <SearchBox @bind-Value="View.EntitySearch" Class="search" Placeholder="@ModelViewText.Report_EntitiesSearch" />
+</div>
+@if (rows.Count == 0)
+{
+    <div class="report-empty">@ModelViewText.Report_NothingFound</div>
+}
+else
+{
+    <table class="report-table">
+        <thead><tr><th>@ModelViewText.Model_HeadEntity</th><th>@ModelViewText.Model_HeadTable</th><th class="num">@ModelViewText.Report_HeadProperties</th><th>@ModelViewText.Report_HeadConverters</th></tr></thead>
+        <tbody>
+            @foreach (var (entity, located) in slice.Shown)
+            {
+                <tr @key="entity">
+                    <td title="@entity.ClrType">@ClrModelMapping.ShortName(entity.ClrType)@(entity.IsOwned ? " (owned)" : "")</td>
+                    <td>
+                        @if (located is not null)
+                        {
+                            <button class="link-btn mono" @onclick="() => OnOpen.InvokeAsync(located.Table)">@located.Table.DisplayName</button>
+                        }
+                        else
+                        {
+                            <span class="mono muted">@(entity.View ?? entity.Table)</span>
+                        }
+                    </td>
+                    <td class="num">@(located?.Properties.Count ?? 0) / @entity.Properties.Count(p => p.Column is not null)</td>
+                    <td class="mono muted">@string.Join(", ", entity.Properties.Where(p => p.Converter is not null).Select(p => $"{p.Name}: {p.Converter}"))</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <ReportMore More="slice.More" OnShowAll="() => View.ShowAll(ReportPart.Entities)" />
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ClrModelMapping Mapping { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ReportView View { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<TableSummary> OnOpen { get; set; }
+}

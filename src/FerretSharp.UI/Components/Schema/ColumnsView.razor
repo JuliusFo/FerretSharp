@@ -154,8 +154,8 @@
                                 @if (mismatches.Count > 0)
                                 {
                                     var worst = mismatches.Min(m => m.Severity);
-                                    <span class="mismatch-sev @ModelMismatches.Css(worst)"
-                                          title="@string.Join("\n", mismatches.Select(m => $"{ModelMismatches.KindText(m.Kind)}: {m.Message}"))">@string.Join(" · ", mismatches.Select(m => ModelMismatches.KindText(m.Kind)))</span>
+                                    <span class="mismatch-sev @ReportMismatches.Css(worst)"
+                                          title="@string.Join("\n", mismatches.Select(m => $"{ReportMismatches.KindText(m.Kind)}: {m.Message}"))">@string.Join(" · ", mismatches.Select(m => ReportMismatches.KindText(m.Kind)))</span>
                                 }
                             </td>
                             <td class="mono clr-type" title="@ValuesTitle(property)">
@@ -356,6 +356,12 @@
         }
 
         _wasShown = Shown;
+        if (Tab is { OpenEntityCode: true } && Models.Mapping is { } model && model.EntityOf(Details.Table.Ref) is null)
+        {
+            Tab.OpenEntityCode = false;
+            _entityName ??= EntityCode.SuggestName(model.Model, Details.Table.Name);
+        }
+
         if (Tab?.OpenDesignerAt is { } at)
         {
             Tab.OpenDesignerAt = null;

@@ -1,0 +1,118 @@
+@* Report page (WP-72): relationships only the C# model has (create the constraint) and foreign keys only the database has
+   (copy the navigation). *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+
+@{
+    var modelOnly = View.ModelOnly(Report);
+    var modelSlice = View.Slice(ReportPart.Relations, modelOnly, "model");
+    var dbSlice = View.Slice(ReportPart.Relations, Report.DbOnly, "db");
+    var possible = Report.ModelOnly.Count(r => r.ConstraintPossible);
+}
+<div class="report-split">
+    <div>
+        <h4>
+            @ModelViewText.Report_ModelOnly <span class="report-tag warn">@Report.ModelOnly.Count</span>
+            <span class="grow"></span>
+            <button class="report-chip @(View.RelationsConstraintOnly ? "on" : "")" disabled="@(possible == 0)" title="@ModelViewText.Report_ConstraintOnlyTitle"
+                    @onclick="() => View.RelationsConstraintOnly = !View.RelationsConstraintOnly">@TextFormat.Format(ModelViewText.Report_ConstraintOnly, possible)</button>
+        </h4>
+        @if (modelOnly.Count == 0)
+        {
+            <div class="report-empty">@(Report.ModelOnly.Count == 0 ? ModelViewText.Report_ModelOnlyNone : ModelViewText.Report_NothingFound)</div>
+        }
+        else
+        {
+            <table class="report-table">
+                <tbody>
+                    @foreach (var row in modelSlice.Shown)
+                    {
+                        var relation = row.Relation;
+                        <tr @key="relation">
+                            <td class="mono">@Describe(relation)</td>
+                            <td><span class="report-tag clr">@relation.Name</span></td>
+                            <td class="acts">
+                                @if (row.ConstraintPossible)
+                                {
+                                    <button class="report-act" title="@ModelViewText.Report_CreateConstraintTitle" @onclick="() => OnCreateConstraint.InvokeAsync(relation)">@ModelViewText.Report_CreateConstraint</button>
+                                }
+                                else
+                                {
+                                    <span class="report-tag" title="@ModelViewText.Report_NoKeyTitle">@ModelViewText.Report_NoKey</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <ReportMore More="modelSlice.More" OnShowAll='() => View.ShowAll(ReportPart.Relations, "model")' />
+        }
+    </div>
+    <div>
+        <h4>@ModelViewText.Report_DbOnly <span class="report-tag">@Report.DbOnly.Count</span></h4>
+        @if (Report.DbOnly.Count == 0)
+        {
+            <div class="report-empty">@ModelViewText.Report_DbOnlyNone</div>
+        }
+        else
+        {
+            <table class="report-table">
+                <tbody>
+                    @foreach (var row in dbSlice.Shown)
+                    {
+                        var fk = row.ForeignKey;
+                        <tr @key="fk">
+                            <td class="mono" title="@fk.Name">@Describe(fk)</td>
+                            <td class="muted">
+                                @if (row.Reason == DbOnlyReason.TableWithoutEntity)
+                                {
+                                    @ModelViewText.Report_TableWithoutEntity
+                                }
+                                else
+                                {
+                                    @TextFormat.Format(row.HasProperties ? ModelViewText.Report_NoNavigation : ModelViewText.Report_NoNavigationNorProperty,
+                                        ClrModelMapping.ShortName(row.Dependent.Entity.ClrType))
+                                }
+                            </td>
+                            <td class="acts">
+                                @if (row.Reason == DbOnlyReason.TableWithoutEntity)
+                                {
+                                    <button class="report-act" @onclick="() => OnOpenRef.InvokeAsync(fk.To)">@ModelViewText.Report_Open</button>
+                                }
+                                else
+                                {
+                                    <button class="report-act" title="@ModelViewText.Report_CopyNavigationTitle" @onclick="() => OnCopyNavigation.InvokeAsync(fk)">@ModelViewText.Report_CopyNavigation</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <ReportMore More="dbSlice.More" OnShowAll='() => View.ShowAll(ReportPart.Relations, "db")' />
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ModelReport Report { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ReportView View { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<ForeignKeyInfo> OnCreateConstraint { get; set; }
+
+    [Parameter]
+    public EventCallback<ForeignKeyInfo> OnCopyNavigation { get; set; }
+
+    [Parameter]
+    public EventCallback<TableRef> OnOpenRef { get; set; }
+
+    /// <summary><c>AUFTRAG.KUNDE_ID → KUNDE</c>; the referenced columns too if they are not the ones of the same name.</summary>
+    private static string Describe(ForeignKeyInfo fk)
+    {
+        var to = fk.ToColumns.SequenceEqual(fk.FromColumns, StringComparer.Ordinal) ? fk.To.Name : $"{fk.To.Name}({string.Join(", ", fk.ToColumns)})";
+        return $"{fk.From.Name}.{string.Join(", ", fk.FromColumns)} → {to}";
+    }
+}

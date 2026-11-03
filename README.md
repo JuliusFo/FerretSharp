@@ -230,8 +230,13 @@ changes, and a new build is picked up automatically:
 - **Names**: entity and property names next to tables and columns (or in front of them), searchable everywhere.
 - **Values**: enum members and converted values (`Gewerbe (2)`, `true` for `'J'`), also as dropdowns in filters and
   when editing – flags enums as a list of check boxes – including `[Display]` names from your resources.
-- **Drift**: the model page lists what does not fit the database – missing tables and columns, but also types, NULL,
-  lengths and precision (`DateTimeOffset` on `DATE`, `HasMaxLength(200)` on `VARCHAR2(100)`), each with what will fail.
+- **Report**: one page shows how your model and the database fit – tables without entity, columns without property,
+  entities and properties without counterpart, columns whose type, NULL, length or precision does not fit
+  (`DateTimeOffset` on `DATE`, `HasMaxLength(200)` on `VARCHAR2(100)`, each with what will fail), relationships only in
+  the model or only in the database, and columns no code uses. Tiles with the counts, sections that fold, and what to do
+  about each entry: create the entity or the constraint, copy the property or navigation code, or mark a table as meant
+  to have no entity – in a file you can share through your repository (audit tables are left out by themselves).
+  Computed from what is loaded: no query of its own.
 - **Relationships**: navigations without a foreign-key constraint become navigable relationships.
 - **LINQ console**: paste a query from your code – unknown variables become suggested declarations, your context and
   cancellation token are recognized. FerretSharp shows the SQL EF Core would send and runs it in the workspace's session,

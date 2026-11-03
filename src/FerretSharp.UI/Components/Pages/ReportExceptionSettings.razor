@@ -1,0 +1,113 @@
+@* Settings › C# model: the exceptions file of the report (WP-72) – one for all connections, one per connection group, as
+   the audit templates. *@
+@using FerretSharp.Core.Settings
+@inject ConnectionGroups Groups
+@inject AppSettingsService Settings
+@inject FerretSharp.Core.ClrModel.ReportExceptionSource ExceptionSource
+@inject FerretSharp.Core.Connections.ConnectionManager Connections
+@inject IFileOpenService Files
+
+<div class="settings-row @Filter.HideClass(SettingKey.ReportExceptionsFile)">
+    <div class="settings-label">
+        <span>@SettingsViewText.Settings_ReportExceptionsFile</span>
+        <span class="hint">@SettingsViewText.Settings_ReportExceptionsFileHint</span>
+    </div>
+    <div class="settings-path">
+        <input class="field mono" spellcheck="false" placeholder="@SettingsViewText.Settings_ReportExceptionsDefault" value="@_path"
+               @onchange="e => SetPathAsync((string?)e.Value)" aria-label="@SettingsViewText.Settings_ReportExceptionsFile" />
+        <button class="btn" @onclick="PickAsync">@CommonText.Choose</button>
+        @if (!string.IsNullOrWhiteSpace(_path))
+        {
+            <button class="btn ghost" title="@SettingsViewText.Settings_ReportExceptionsResetTitle" @onclick="() => SetPathAsync(null)">@SettingsViewText.Settings_DisplayColumnsReset</button>
+        }
+    </div>
+</div>
+@Check(ExceptionSource.Load(_path), SettingKey.ReportExceptionsFile)
+
+<div class="settings-row @Filter.HideClass(SettingKey.ReportExceptionsGroups)">
+    <div class="settings-label">
+        <span>@SettingsViewText.Settings_ReportExceptionsGroups</span>
+        <span class="hint">@SettingsViewText.Settings_ReportExceptionsGroupsHint</span>
+    </div>
+</div>
+@{ var groups = AuditGroupTemplates.Of(Connections.Profiles, Settings.Current.ReportExceptionsGroups, Groups.Order); }
+@if (groups.Count == 0)
+{
+    <div class="settings-note @Filter.HideClass(SettingKey.ReportExceptionsGroups)">@SettingsViewText.Settings_AuditTemplateNoGroups</div>
+}
+@foreach (var row in groups)
+{
+    var group = row.Group;
+    <div class="settings-row settings-subrow @Filter.HideClass(SettingKey.ReportExceptionsGroups)" @key="group">
+        <div class="settings-label">
+            <span>@group</span>
+            @if (row.Orphaned)
+            {
+                <span class="hint">@SettingsViewText.Settings_AuditTemplateGroupOrphaned</span>
+            }
+        </div>
+        <div class="settings-path">
+            <input class="field mono" spellcheck="false" placeholder="@SettingsViewText.Settings_ReportExceptionsAsGlobal" value="@row.Path"
+                   @onchange="e => SetGroupAsync(group, (string?)e.Value)" aria-label="@TextFormat.Format(SettingsViewText.Settings_ReportExceptionsOfGroup, group)" />
+            <button class="btn" @onclick="() => PickGroupAsync(group, row.Path)">@CommonText.Choose</button>
+            @if (row.Path is not null)
+            {
+                <button class="btn ghost" @onclick="() => SetGroupAsync(group, null)">
+                    @(row.Orphaned ? SettingsViewText.Settings_AuditTemplateRemove : SettingsViewText.Settings_AuditTemplateUseGlobal)
+                </button>
+            }
+        </div>
+    </div>
+    @if (row.Path is { } groupPath)
+    {
+        @Check(ExceptionSource.Load(groupPath), SettingKey.ReportExceptionsGroups)
+    }
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingsFilter Filter { get; set; } = null!;
+
+    /// <summary>The file as the field shows it; null = the data folder.</summary>
+    private string? _path;
+
+    protected override void OnInitialized() => _path = Settings.Current.ReportExceptionsPath;
+
+    /// <summary>The file's problem, or how many exceptions it has.</summary>
+    private RenderFragment Check(FerretSharp.Core.ClrModel.ReportExceptionLoad load, SettingKey key) =>
+        @<div class="settings-note @((load.Error ?? load.ReadOnly) is null ? "" : "error") @Filter.HideClass(key)">
+            @(load.Error ?? load.ReadOnly ?? (load.Exists
+                ? TextFormat.Plural(load.Exceptions.Count, SettingsViewText.Settings_ReportExceptionsCountOne, SettingsViewText.Settings_ReportExceptionsCountOther, load.Path)
+                : TextFormat.Format(SettingsViewText.Settings_ReportExceptionsNoFile, load.Path)))
+        </div>;
+
+    private Task SetPathAsync(string? path)
+    {
+        _path = PathInput.Normalize(path);
+        return UpdateAsync(s => s with { ReportExceptionsPath = _path });
+    }
+
+    private async Task PickAsync()
+    {
+        if (await Files.PickAsync(SettingsViewText.Settings_ReportExceptionsFilter, ["json"], _path) is { } path)
+        {
+            await SetPathAsync(path);
+        }
+    }
+
+    private Task SetGroupAsync(string group, string? path) =>
+        UpdateAsync(s => s with { ReportExceptionsGroups = AuditGroupTemplates.With(s.ReportExceptionsGroups, group, path) });
+
+    private async Task PickGroupAsync(string group, string? current)
+    {
+        if (await Files.PickAsync(SettingsViewText.Settings_ReportExceptionsFilter, ["json"], current ?? _path) is { } path)
+        {
+            await SetGroupAsync(group, path);
+        }
+    }
+
+    private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
+}

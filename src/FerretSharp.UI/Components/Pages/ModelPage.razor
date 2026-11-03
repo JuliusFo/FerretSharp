@@ -1,6 +1,5 @@
 @* The C# model of the active connection's linked project (WP-11) or model file (WP-64): where it comes from,
-   reload/rebuild, export as a file, and how it matches the database – entities without table, properties without column,
-   columns without property. *@
+   reload/rebuild, export as a file, and the counts of how it matches the database – the lists are on the report (WP-72). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
@@ -184,68 +183,12 @@
                         <span class="hint">@TextFormat.Format(CommonText.AsOf, loadedAt.ToString("HH:mm:ss", CultureInfo.CurrentCulture))</span>
                     }
                 </div>
-
-                @if (mapping.Issues.Count == 0)
-                {
-                    <div class="settings-note">@ModelViewText.Model_AllMapped</div>
-                }
-
-                @foreach (var (kind, title, hint) in IssueGroups)
-                {
-                    var issues = mapping.Issues.Where(i => i.Kind == kind).ToList();
-                    if (issues.Count == 0)
-                    {
-                        continue;
-                    }
-
-                    <div class="model-issues">
-                        <h3>@title <span class="count">@issues.Count</span></h3>
-                        <div class="hint">@hint</div>
-                        <ul>
-                            @foreach (var issue in issues)
-                            {
-                                <li>
-                                    @issue.Message
-                                    @if (issue.Table is { } issueTable && Schema?.Find(issueTable) is { } summary)
-                                    {
-                                        <button class="link-btn" @onclick="() => Open(summary)">@ModelViewText.Model_Open</button>
-                                    }
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                }
-            </section>
-
-            <ModelMismatches Mapping="mapping" OnOpen="Open" />
-            <UnusedReport Mapping="mapping" OnOpen="Open" />
-
-            <section class="settings-section">
-                <h2>@ModelViewText.Model_Entities</h2>
-                <table class="model-table">
-                    <thead><tr><th>@ModelViewText.Model_HeadEntity</th><th>@ModelViewText.Model_HeadTable</th><th class="num">@ModelViewText.Model_HeadProperties</th><th>@ModelViewText.Model_HeadConverter</th></tr></thead>
-                    <tbody>
-                        @foreach (var entity in mapping.Model.Entities.OrderBy(e => ClrModelMapping.ShortName(e.ClrType), StringComparer.Ordinal))
-                        {
-                            var located = mapping.Entities.FirstOrDefault(m => m.Entity == entity);
-                            <tr>
-                                <td title="@entity.ClrType">@ClrModelMapping.ShortName(entity.ClrType)@(entity.IsOwned ? " (owned)" : "")</td>
-                                <td>
-                                    @if (located is not null)
-                                    {
-                                        <button class="link-btn mono" @onclick="() => Open(located.Table)">@located.Table.DisplayName</button>
-                                    }
-                                    else
-                                    {
-                                        <span class="mono muted">@(entity.View ?? entity.Table ?? "–")</span>
-                                    }
-                                </td>
-                                <td class="num">@(located?.Properties.Count ?? 0) / @entity.Properties.Count(p => p.Column is not null)</td>
-                                <td class="mono small">@string.Join(", ", entity.Properties.Where(p => p.Converter is not null).Select(p => $"{p.Name}: {p.Converter}"))</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                @* WP-72: the lists moved to the report; the model page keeps where the model comes from. *@
+                <div class="model-report-link">
+                    <span class="hint">@ModelViewText.Report_ModelSummary</span>
+                    <span class="grow"></span>
+                    <button class="btn primary" @onclick="() => Shell.ShowReport()">@Icons.Report @ModelViewText.Report_OpenReport</button>
+                </div>
             </section>
         }
     }
@@ -261,23 +204,12 @@
     private bool _showDetail;
     private bool _exporting;
 
-    // A property, not a static field: the texts follow the UI language.
-    private static (MappingIssueKind Kind, string Title, string Hint)[] IssueGroups =>
-    [
-        (MappingIssueKind.EntityWithoutTable, ModelViewText.Model_EntitiesWithoutTable, ModelViewText.Model_EntitiesWithoutTableHint),
-        (MappingIssueKind.PropertyWithoutColumn, ModelViewText.Model_PropertiesWithoutColumn, ModelViewText.Model_PropertiesWithoutColumnHint),
-        (MappingIssueKind.CaseMismatch, ModelViewText.Model_CaseMismatch, ModelViewText.Model_CaseMismatchHint),
-        (MappingIssueKind.ColumnWithoutProperty, ModelViewText.Model_ColumnsWithoutProperty, ModelViewText.Model_ColumnsWithoutPropertyHint),
-    ];
-
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
     private ClrModelState State => Models.State;
 
     private bool Busy => Models.IsBuilding || State.Phase == ClrModelPhase.Loading;
-
-    private SchemaCache? Schema => Active.Schema;
 
     private ConnectionProfile? Profile => Active.Profile is { } active ? Connections.Profiles.FirstOrDefault(p => p.Id == active.Id) ?? active : null;
 
@@ -341,12 +273,6 @@
         {
             return name;
         }
-    }
-
-    private void Open(TableSummary table)
-    {
-        Shell.ShowExplorer();
-        Shell.OpenTable(table, TabMode.Structure);
     }
 
     private static int Count(ClrModelMapping mapping, MappingIssueKind kind) => mapping.Issues.Count(i => i.Kind == kind);

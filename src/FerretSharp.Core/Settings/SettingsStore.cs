@@ -39,6 +39,7 @@ public sealed class SettingsStore(string filePath)
                         Shortcuts = settings.Shortcuts ?? SettingsMap.Empty,
                         ConnectionShortcuts = settings.ConnectionShortcuts ?? SettingsMap.Empty,
                         AuditTemplateGroups = settings.AuditTemplateGroups ?? SettingsMap.Empty,
+                        ReportExceptionsGroups = settings.ReportExceptionsGroups ?? SettingsMap.Empty,
                     };
                 case JsonFileState.Empty:
                     throw new SettingsStoreException(TextFormat.Format(CoreText.FileEmpty, FilePath));
