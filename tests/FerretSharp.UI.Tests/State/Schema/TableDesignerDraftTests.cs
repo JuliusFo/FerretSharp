@@ -198,7 +198,7 @@ public sealed class TableDesignerDraftTests
     private static readonly TableDetails Land = new(new TableSummary("SHOP", "LAND", TableKind.Table),
         [Col("CODE", "VARCHAR2", 2, nullable: false), Col("ISO", "CHAR", 3, nullable: false), Col("NAME", "VARCHAR2", 50)], ["CODE", "ISO"], [], false);
 
-    /// <summary>R4b (out of the view): a foreign key's referenced columns follow the referenced table's key, position by position.</summary>
+    /// <summary>R4b (out of the view): a foreign key's referenced columns follow the referenced table's key, column by column not used yet.</summary>
     [Fact]
     public void A_foreign_key_takes_the_referenced_key_once_the_table_is_known()
     {

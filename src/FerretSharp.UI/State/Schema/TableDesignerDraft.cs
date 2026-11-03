@@ -176,8 +176,8 @@ public sealed class TableDesignerDraft
     }
 
     /// <summary>
-    /// A column for the constraint, at the end. A foreign key's referenced column follows the key of the referenced table,
-    /// position by position (once its structure is known, <see cref="Referenced"/>).
+    /// A column for the constraint, at the end. A foreign key's referenced column is the referenced table's first primary
+    /// key column not referenced yet, once the table is known (this table at once, another one in <see cref="Referenced"/>).
     /// </summary>
     public void AddColumn(DesignConstraint constraint, string? column)
     {
@@ -207,8 +207,8 @@ public sealed class TableDesignerDraft
 
     /// <summary>
     /// The foreign key references <paramref name="table"/> (null: none chosen). Its referenced columns are the table's
-    /// primary key, position by position, as soon as the table's structure is known – the view loads it if
-    /// <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
+    /// primary key, in key order, as soon as the table's structure is known – this table's at once; another one the view
+    /// loads if <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
     /// </summary>
     public void Reference(DesignConstraint constraint, TableRef? table)
     {
