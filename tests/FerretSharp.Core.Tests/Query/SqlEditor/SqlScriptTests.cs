@@ -111,18 +111,22 @@ public sealed class SqlScriptTests
     [InlineData("UPDATE t SET a = 1\nBEGIN NULL; END;", "UPDATE t SET a = 1\nBEGIN NULL; END;\n/")]
     public void Terminated_ends_an_open_last_statement(string text, string expected) => Assert.Equal(expected, SqlScript.Terminated(text));
 
-    /// <summary>Review: the history ended only the script's last statement; one of its own ending in a comment or a block stayed open.</summary>
+    /// <summary>
+    /// Review: the history ended only the script's last statement; one of its own ending in a comment or a block stayed
+    /// open. Second review: line breaks of the script's kind – Monaco turns others into its own, and the cursor missed.
+    /// </summary>
     [Theory]
-    [InlineData("", "SELECT 1 FROM dual", "SELECT 1 FROM dual;\n", 0)]
     [InlineData("SELECT 1 FROM dual\n\n", "SELECT 2 FROM dual -- note", "SELECT 1 FROM dual;\n\nSELECT 2 FROM dual; -- note\n", 21)]
-    [InlineData("SELECT 1 FROM dual;", "BEGIN NULL; END;", "SELECT 1 FROM dual;\n\nBEGIN NULL; END;\n/\n", 21)]
-    [InlineData("SELECT 1 FROM dual\r\n", "SELECT 2 FROM dual", "SELECT 1 FROM dual;\n\nSELECT 2 FROM dual;\n", 21)]
+    [InlineData("SELECT 1 FROM dual;\n", "BEGIN NULL; END;", "SELECT 1 FROM dual;\n\nBEGIN NULL; END;\n/\n", 21)]
+    [InlineData("SELECT 1 FROM dual\r\n", "SELECT 2 FROM dual", "SELECT 1 FROM dual;\r\n\r\nSELECT 2 FROM dual;\r\n", 23)]
+    [InlineData("SELECT 1\r\nFROM dual", "BEGIN NULL; END;", "SELECT 1\r\nFROM dual;\r\n\r\nBEGIN NULL; END;\r\n/\r\n", 24)]
     public void The_history_appends_a_statement_of_its_own(string script, string statement, string expected, int start)
     {
         var appended = SqlScript.Append(script, statement);
 
         Assert.Equal((expected, start), appended);
-        Assert.Equal(script.Trim().Length == 0 ? 1 : 2, SqlScript.Split(appended.Text + "SELECT 3 FROM dual").Count - 1);
+        Assert.Equal(2, SqlScript.Split(appended.Text + "SELECT 3 FROM dual").Count - 1);
+        Assert.Equal((SqlScript.Terminated("SELECT 1 FROM dual") + Environment.NewLine, 0), SqlScript.Append("", "SELECT 1 FROM dual"));
     }
 
     /// <summary>
@@ -144,6 +148,7 @@ public sealed class SqlScriptTests
             /
             UPDATE t SET a = 1
             BEGIN
+              <<lbl>>
               INSERT INTO log VALUES (1);
               DELETE FROM audit_log WHERE id < 30;
             END;
@@ -151,6 +156,11 @@ public sealed class SqlScriptTests
             SELECT id,
             begin
               FROM t;
+            CREATE TABLE z (
+              id NUMBER,
+              begin DATE
+            );
+            SELECT * FROM z;
             """;
         var text = script.ReplaceLineEndings("\n");
 
@@ -160,8 +170,10 @@ public sealed class SqlScriptTests
             [
                 "SELECT 1 FROM dual",
                 "-- the trigger\nCREATE OR REPLACE TRIGGER trg AFTER INSERT ON t FOR EACH ROW\nBEGIN\n  INSERT INTO log VALUES (1);\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
-                "UPDATE t SET a = 1\nBEGIN\n  INSERT INTO log VALUES (1);\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
+                "UPDATE t SET a = 1\nBEGIN\n  <<lbl>>\n  INSERT INTO log VALUES (1);\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
                 "SELECT id,\nbegin\n  FROM t",
+                "CREATE TABLE z (\n  id NUMBER,\n  begin DATE\n)",
+                "SELECT * FROM z",
             ],
             statements.Select(s => s.Text));
         Assert.Equal(SqlStatementKind.Trigger, SqlScript.Analyze(statements[1].Text).Kind);

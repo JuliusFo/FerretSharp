@@ -21,6 +21,7 @@ public static class SqlSplitter
     {
         "FROM", "AS", "AND", "OR", "IS", "IN", "NOT", "BETWEEN", "LIKE", "WHERE", "GROUP", "ORDER", "HAVING", "UNION", "MINUS",
         "INTERSECT", "EXCEPT", "ASC", "DESC", "NULLS", "THEN", "ELSE", "END", "WHEN", "OVER", "KEEP", "CONNECT", "START", "INTO",
+        "OFFSET", "RETURNING", "JOIN", "ON",
     };
 
     /// <summary>
@@ -129,18 +130,28 @@ public static class SqlSplitter
     }
 
     /// <summary>
-    /// <c>BEGIN</c> or <c>DECLARE</c> at the start of a line after the statement's first word, followed by a word that
-    /// does not continue SQL (<see cref="ContinuesSql"/>) or a label (<c>&lt;&lt;</c>): the block behind a statement
-    /// without <c>;</c>. A column named <c>begin</c> at the start of a line followed by an alias looks the same – then the
-    /// statement is refused, never cut.
+    /// <c>BEGIN</c> or <c>DECLARE</c> at the start of a line after the statement's first word and outside parentheses,
+    /// followed by a word that does not continue SQL (<see cref="ContinuesSql"/>) or a label (<c>&lt;&lt;</c>, two
+    /// tokens): the block behind a statement without <c>;</c>. A column named <c>begin</c> at the start of a line followed
+    /// by an alias looks the same – then the statement is refused, never cut. Not found: <c>BEGIN</c> on the line of the
+    /// statement before it.
     /// </summary>
     private static bool HasBlockStart(IReadOnlyList<SqlToken> tokens, int from, int to)
     {
+        var depth = 0;
         for (var i = from + 1; i < to; i++)
         {
-            if ((tokens[i].IsWord("BEGIN") || tokens[i].IsWord("DECLARE")) && StartsLine(tokens, i)
-                && SignificantIn(tokens, i + 1, to) is [var next, ..]
-                && ((next.Kind == SqlTokenKind.Word && !ContinuesSql.Contains(next.Value)) || next.IsSymbol("<<")))
+            if (tokens[i].IsSymbol("("))
+            {
+                depth++;
+            }
+            else if (tokens[i].IsSymbol(")"))
+            {
+                depth = Math.Max(0, depth - 1);
+            }
+            else if (depth == 0 && (tokens[i].IsWord("BEGIN") || tokens[i].IsWord("DECLARE")) && StartsLine(tokens, i)
+                && SignificantIn(tokens, i + 1, to) is [var next, .. var rest]
+                && ((next.Kind == SqlTokenKind.Word && !ContinuesSql.Contains(next.Value)) || (next.IsSymbol("<") && rest is [var second, ..] && second.IsSymbol("<"))))
             {
                 return true;
             }
@@ -214,7 +225,9 @@ public static class SqlSplitter
     /// right after the statement's last code (before a comment that follows it), a <c>/</c> line after a block. Unchanged
     /// if it already ends at a <c>;</c> or a <c>/</c> line, or holds no statement.
     /// </summary>
-    public static string Terminated(string text)
+    public static string Terminated(string text) => Terminated(text, LineEndOf(text, "\n"));
+
+    private static string Terminated(string text, string newLine)
     {
         if (Split(text) is not [.., var last])
         {
@@ -231,7 +244,7 @@ public static class SqlSplitter
         var code = SqlTokenizer.Significant(last.Text);
         if (IsBlock(SqlClassifier.KindOf(code)) || code.Any(t => t.IsSymbol(";")))
         {
-            return text[..last.End] + "\n/" + text[last.End..];
+            return text[..last.End] + newLine + "/" + text[last.End..];
         }
 
         var end = last.Start + code[^1].End;
@@ -240,14 +253,19 @@ public static class SqlSplitter
 
     /// <summary>
     /// The script with <paramref name="statement"/> appended after a blank line, both ended (<see cref="Terminated"/>) –
-    /// what the SQL history adds; <c>Start</c> is where the statement begins.
+    /// what the SQL history adds; <c>Start</c> is where the statement begins. New line breaks are the script's, without
+    /// any the platform's: Monaco turns inserted ones into its own, and <c>Start</c> would no longer fit (review).
     /// </summary>
     public static (string Text, int Start) Append(string script, string statement)
     {
-        var before = Terminated(script.TrimEnd());
-        var prefix = before.Length == 0 ? "" : before + "\n\n";
-        return (prefix + Terminated(statement.Trim()) + "\n", prefix.Length);
+        var newLine = LineEndOf(script, Environment.NewLine);
+        var before = Terminated(script.TrimEnd(), newLine);
+        var prefix = before.Length == 0 ? "" : before + newLine + newLine;
+        return (prefix + Terminated(statement.Trim(), newLine) + newLine, prefix.Length);
     }
+
+    private static string LineEndOf(string text, string otherwise) =>
+        text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : text.Contains('\n', StringComparison.Ordinal) ? "\n" : otherwise;
 
     /// <summary>How many statements a selection holds.</summary>
     public static int CountStatements(string text) => Split(text).Count;
