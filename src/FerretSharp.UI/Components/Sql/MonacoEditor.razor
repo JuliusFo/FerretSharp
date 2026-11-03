@@ -78,6 +78,13 @@
     [Parameter]
     public bool LineFeed { get; set; }
 
+    /// <summary>
+    /// Cursor at the end of the text and the focus in the editor once it is created (a SQL tab just opened, WP-73); read
+    /// only when the editor is created.
+    /// </summary>
+    [Parameter]
+    public bool FocusOnCreate { get; set; }
+
     /// <summary>Completion items for (text, cursor offset); null = no completion from .NET.</summary>
     [Parameter]
     public Func<string, int, Task<IReadOnlyList<CompletionItem>>>? Completion { get; set; }
@@ -110,6 +117,10 @@
             {
                 _pendingReveal = null;
                 await CallAsync("reveal", _id, at.Line, at.Column);
+            }
+            else if (FocusOnCreate)
+            {
+                await CallAsync("focusEnd", _id);
             }
         }
 

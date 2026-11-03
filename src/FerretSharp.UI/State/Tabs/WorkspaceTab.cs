@@ -141,6 +141,12 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
 
     public SqlRun? ShownRun => Runs.Count == 0 ? null : Runs[Math.Clamp(SelectedRun, 0, Runs.Count - 1)];
 
+    /// <summary>
+    /// Opened just now (<see cref="ShellState.OpenSql"/>, WP-73): the editor takes the focus once, with the cursor at the end.
+    /// Not saved, never set for a restored tab – a tab in the background would take the focus.
+    /// </summary>
+    public bool FocusOnOpen { get; set; }
+
     public bool FormOpen { get; set; }
 
     public int? FormWidth { get; set; }
