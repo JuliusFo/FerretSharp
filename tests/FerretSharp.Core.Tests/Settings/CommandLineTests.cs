@@ -43,6 +43,7 @@ public sealed class CommandLineTests
         Assert.True(CommandLine.GpuInRemoteSession([]));
         Assert.True(CommandLine.GpuInRemoteSession(["--data-dir=daten", "--rdp-gpu"]));
         Assert.False(CommandLine.GpuInRemoteSession(["--RDP-Software"]));
+        Assert.False(CommandLine.GpuInRemoteSession(CommandLine.Restart(["--rdp-software"], waitFor: 4711))); // after a render failure or an update
         Assert.True(CommandLine.GpuInRemoteSession(CommandLine.Effective(["ferretsharp://open?v=1&s=HR&t=EMPLOYEES", "--rdp-software"])));
     }
 
