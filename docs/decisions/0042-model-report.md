@@ -20,6 +20,6 @@ Was C#-Modell und Datenbank trennt, stand verstreut: der Abgleich (WP-11/27) als
 
 ## Folgen
 
-- **Abweichung von der Planung:** kein eigener Watcher für die Ausnahmedatei. Die Seite fragt beim Rendern über `CachedFileRead` (wie die Audit-Vorlage): Eine Änderung auf der Platte (git pull) zählt beim nächsten Rendern nach höchstens drei Sekunden; Watcher und Abfrage der Anzeigespalten brauchen deren Zustand für das Grid, der Bericht nicht.
+- **Abweichung von der Planung:** kein `FileSystemWatcher` für die Ausnahmedatei. Die Seite liest beim Rendern über `CachedFileRead` (wie die Audit-Vorlage) und schaut, solange sie offen ist, alle 5 s außerhalb des UI-Threads nach (ein Klick in einem Abschnitt rendert nur diesen, im E2E gefunden); eine Änderung auf der Platte, etwa nach einem Pull, erscheint so nach höchstens 5 s. Watcher und Abfrage der Anzeigespalten brauchen deren Zustand für das Grid auch ohne offene Seite, der Bericht nicht.
 - Der Bericht rechnet bei jeder Änderung der Abbildung, der Tabellenliste, der Beziehungen, der Audit-Vorlage oder der Ausnahmen neu – in Millisekunden, auch für 425 Entities.
 - Verlauf, Markierung „neu seit …“ und eine Übersicht über alle Verbindungen stehen im Backlog.
