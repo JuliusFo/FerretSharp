@@ -42,6 +42,8 @@
                         @onclick="() => ToggleSidePage(ShellPage.AppStatements)">@Icons.Pulse</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="@ShellText.Shell_SchemaComparison"
                         @onclick="() => ToggleSidePage(ShellPage.Compare)">@Icons.SchemaCompare</button>
+                <button class="icon-btn ghost @(_state.Page == ShellPage.Report ? "active" : "")" title="@ShellText.Shell_Report"
+                        @onclick="() => ToggleSidePage(ShellPage.Report)">@Icons.Report</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Settings ? "active" : "")" title="@ShellText.Shell_Settings"
                         @onclick="() => ToggleSidePage(ShellPage.Settings)">@Icons.Settings</button>
                 <WorkspaceBadge Lifecycle="_lifecycle" />
@@ -154,6 +156,16 @@
                         else if (_state.Page == ShellPage.AppStatements)
                         {
                             <AppStatementsPage OnBack="LeaveSidePage" />
+                        }
+                        else if (_state.Page == ShellPage.Report && Active.IsConnected)
+                        {
+                            <ReportPage OnBack="LeaveSidePage" />
+                        }
+                        else if (_state.Page == ShellPage.Report)
+                        {
+                            <EmptyState Title="@ModelViewText.Report_Title" Text="@ModelViewText.Report_NotConnected">
+                                <button class="btn" @onclick="LeaveSidePage">@CommonText.Back</button>
+                            </EmptyState>
                         }
                         else if (_state.Page == ShellPage.Model && Active.IsConnected)
                         {
@@ -649,7 +661,7 @@
         }
     });
 
-    /// <summary>Settings, the schema comparison and the app statements: open from anywhere, the same button goes back.</summary>
+    /// <summary>Settings, the schema comparison, the app statements and the report: open from anywhere, the same button goes back.</summary>
     private void ToggleSidePage(ShellPage page)
     {
         if (_state.Page == page)
@@ -658,7 +670,7 @@
             return;
         }
 
-        if (_state.Page is not (ShellPage.Settings or ShellPage.Compare or ShellPage.AppStatements))
+        if (!IsSidePage(_state.Page))
         {
             _pageBefore = _state.Page;
         }
@@ -670,6 +682,9 @@
                 break;
             case ShellPage.AppStatements:
                 _state.ShowAppStatements();
+                break;
+            case ShellPage.Report:
+                _state.ShowReport();
                 break;
             default:
                 _state.ShowSettings();
@@ -683,6 +698,10 @@
         if (_pageBefore == ShellPage.Explorer && Active.Status != ConnectionStatus.Disconnected)
         {
             _state.ShowExplorer();
+        }
+        else if (_pageBefore == ShellPage.Model && Active.IsConnected)
+        {
+            _state.ShowModel();
         }
         else
         {
@@ -714,7 +733,18 @@
             return Task.CompletedTask;
         });
 
-    private void OnChanged() => InvokeAsync(StateHasChanged);
+    private void OnChanged()
+    {
+        // Also a side page opened by a link (the report from the LINQ console or the model page) goes back there.
+        if (!IsSidePage(_state.Page))
+        {
+            _pageBefore = _state.Page;
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static bool IsSidePage(ShellPage page) => page is ShellPage.Settings or ShellPage.Compare or ShellPage.AppStatements or ShellPage.Report;
 
     public async ValueTask DisposeAsync()
     {

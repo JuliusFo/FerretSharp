@@ -116,7 +116,7 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     }
 
     /// <summary>A relationship by what it connects: both tables and the column pairs in a fixed order.</summary>
-    private static string PairsOf(ForeignKeyInfo fk) =>
+    internal static string PairsOf(ForeignKeyInfo fk) =>
         $"{fk.From}\0{fk.To}\0" + string.Join('\0', fk.FromColumns.Zip(fk.ToColumns, (from, to) => from + "\u0001" + to).Order(StringComparer.Ordinal));
 
     public Task RefreshAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);

@@ -371,6 +371,11 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// </summary>
     public DesignerSection? OpenDesignerAt { get; set; }
 
+    /// <summary>
+    /// The "Columns" view opens "Entity from table" once it shows (the report's "Create entity", WP-72) and clears the request.
+    /// </summary>
+    public bool OpenEntityCode { get; set; }
+
     private readonly List<ForeignKeyInfo> _designerForeignKeys = [];
 
     /// <summary>

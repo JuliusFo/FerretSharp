@@ -489,4 +489,24 @@
     <value>{0}: “{1}” is not a C# name – the condition takes its value instead of a parameter.</value>
     <comment>{0}: the tables along the path, e.g. AUFTRAG → KUNDE; {1}: the parameter name as typed</comment>
   </data>
+  <data name="ReportExceptionsUnreadable" xml:space="preserve">
+    <value>The report's exceptions file {0} cannot be read: {1}</value>
+    <comment>{0}: path of the file; {1}: error message of the system</comment>
+  </data>
+  <data name="ReportExceptionsInvalid" xml:space="preserve">
+    <value>The report's exceptions file {0} is no valid JSON: {1}</value>
+    <comment>{0}: path of the file; {1}: error message of the JSON reader</comment>
+  </data>
+  <data name="ReportExceptionsNewerVersion" xml:space="preserve">
+    <value>The report's exceptions file {0} was written by a newer FerretSharp (format {1}): it is read, but not changed.</value>
+    <comment>{0}: path of the file; {1}: format version found in the file</comment>
+  </data>
+  <data name="ReportExceptionsNotWritten" xml:space="preserve">
+    <value>The report's exceptions file {0} cannot be written: {1}</value>
+    <comment>{0}: path of the file; {1}: error message of the system</comment>
+  </data>
+  <data name="NavigationPropertyMissing" xml:space="preserve">
+    <value>{0} has no property yet: add it first (report: columns without property).</value>
+    <comment>C# comment in copied code. {0}: the foreign key column</comment>
+  </data>
 </root>

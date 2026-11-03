@@ -209,7 +209,8 @@
         }
 
         var stale = state.Output?.IsStale == true;
-        // Names and type/NULL/length mismatches that matter; hints only on the model page.
+        // Names and type/NULL/length mismatches that matter; hints only in the report. The entry leads to the model page (decision
+        // of the user, review of WP-72): it is about loading and building the model, the page leads on to the report.
         var differences = mapping.Issues.Count + mapping.ColumnMismatches.Count(m => m.Severity != MismatchSeverity.Hint);
         // Segments of a list, joined with " · ".
         List<string> segments = ["C#", TextFormat.Format(ShellText.Status_ModelEntities, mapping.MappedEntityCount)];

@@ -166,6 +166,10 @@ internal static class Icons
     public static readonly MarkupString SchemaCompare = Svg(
         """<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M9 10h6"/><path d="M12 13V7"/><path d="M9 17h6"/>""");
 
+    /// <summary>Lucide <c>clipboard-check</c>: the report of how C# model and database fit (WP-72).</summary>
+    public static readonly MarkupString Report = Svg(
+        """<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>""");
+
     /// <summary>Lucide <c>git-compare</c>: compare the selected rows (WP-61).</summary>
     public static readonly MarkupString CompareRows = Svg(
         """<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/>""");

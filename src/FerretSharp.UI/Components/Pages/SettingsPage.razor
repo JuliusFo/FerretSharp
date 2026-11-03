@@ -55,6 +55,7 @@
                             Value="Settings.Current.CodeEditor" OnChange="editor => UpdateAsync(s => s with { CodeEditor = editor })">
                 <Hint>@SettingsViewText.Settings_CodeEditorHint</Hint>
             </SettingsChoice>
+            <ReportExceptionSettings Filter="Filter" />
         </section>
         }
 

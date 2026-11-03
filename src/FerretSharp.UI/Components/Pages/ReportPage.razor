@@ -1,0 +1,581 @@
+@* Report (WP-72, ADR 0042): how the shown connection's C# model and database fit – tiles with the counts, sections that fold
+   with the lists and what to do about each entry. Only what is loaded already (ModelReport): no query of its own. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+@inherits FerretComponent
+@implements IAsyncDisposable
+@inject ConnectionManager Connections
+@inject ConnectionHub Hub
+@inject AppSettingsService Settings
+@inject ReportExceptionSource ExceptionSource
+@inject IJSRuntime JS
+@inject ILogger<ReportPage> Logger
+
+<div class="settings-page report-page">
+    <div class="page-head">
+        <h1>@ModelViewText.Report_Title</h1>
+        @{ var connected = Hub.Open.Where(s => s.Active.IsConnected && s.Profile is not null).ToList(); }
+        @if (connected.Count > 1)
+        {
+            <select class="field report-conn" aria-label="@ModelViewText.Report_Connection" title="@ModelViewText.Report_ConnectionTitle" value="@Hub.Shown.Id" @onchange="ShowConnection">
+                @foreach (var scope in connected)
+                {
+                    <option @key="scope.Id" value="@scope.Id">@ConnectionLabel.Of(scope.Profile!, Settings.Current)</option>
+                }
+            </select>
+        }
+        else if (Active.Profile is { } single)
+        {
+            <span class="hint">@ConnectionLabel.Of(single, Settings.Current)</span>
+        }
+        @if (State.Link is { } headLink)
+        {
+            <span class="hint mono ellipsis" title="@headLink.ProjectFile">@headLink.ProjectName@(_branch is { } branch ? $" · {branch}" : "")</span>
+        }
+        else if (State.ModelFile is { } headFile)
+        {
+            <span class="hint mono ellipsis" title="@headFile">@Path.GetFileName(headFile)</span>
+        }
+        <span class="grow"></span>
+        @if (State.IsLinked)
+        {
+            <button class="btn" disabled="@(State.Phase == ClrModelPhase.Loading)" title="@ModelViewText.Report_ReloadTitle" @onclick="ReloadAsync">@ModelViewText.Report_Reload</button>
+        }
+        <button class="btn ghost" @onclick="Shell.ShowModel">@ModelViewText.Report_ModelPage</button>
+        <button class="btn ghost" @onclick="OnBack">@CommonText.Back</button>
+    </div>
+
+    @if (!State.IsLinked)
+    {
+        <section class="settings-section">
+            <h2>@ModelViewText.Model_NoProject</h2>
+            <div class="settings-note">
+                <Fmt Text="@ModelViewText.Report_NoModel"><Arg0><code>.csproj</code></Arg0></Fmt>
+            </div>
+            @if (Profile is { } profile)
+            {
+                <div class="model-report-link"><button class="btn" @onclick="() => Shell.EditConnection(profile)">@ModelViewText.Model_EditConnection</button></div>
+            }
+        </section>
+    }
+    else if (Report is not { } report || State.Mapping is not { } mapping)
+    {
+        <section class="settings-section">
+            @if (State is { Phase: ClrModelPhase.Failed, Error: { } error })
+            {
+                <div class="test-result error model-error"><span>@error.Message</span></div>
+                <div class="model-report-link"><button class="btn" @onclick="Shell.ShowModel">@ModelViewText.Report_ModelPage</button></div>
+            }
+            else
+            {
+                <div class="model-status"><span class="spinner small"></span> @TextFormat.Format(ModelViewText.Model_Step, State.Step ?? ModelViewText.Model_ReadingModel)</div>
+            }
+        </section>
+    }
+    else
+    {
+        var exceptions = Exceptions;
+        var unused = Unused;
+        <div class="report-sources">
+            <span class="src"><span class="dot ok"></span> @TextFormat.Format(ModelViewText.Report_SourceSchema, Time(Schema?.LoadedAt))</span>
+            @if (State.Phase == ClrModelPhase.Loading)
+            {
+                <span class="src"><span class="spinner small"></span> @TextFormat.Format(ModelViewText.Report_SourceModelLoading, State.Step ?? ModelViewText.Model_ReadingModel)</span>
+            }
+            else if (State.Output is { IsStale: true })
+            {
+                <span class="src warn" title="@ModelViewText.Report_SourceModelStaleTitle"><span class="dot warn"></span> @TextFormat.Format(ModelViewText.Report_SourceModelStale, Time(State.LoadedAt))</span>
+            }
+            else
+            {
+                <span class="src"><span class="dot ok"></span> @TextFormat.Format(ModelViewText.Report_SourceModel, Time(State.LoadedAt))</span>
+            }
+            @if (Usage.State is { Result: not null, BuiltAt: { } builtAt })
+            {
+                <span class="src"><span class="dot ok"></span> @TextFormat.Format(ModelViewText.Report_SourceUsage, Time(builtAt))</span>
+            }
+            else if (State.Link is not null)
+            {
+                <span class="src"><span class="dot"></span> @ModelViewText.Report_SourceUsageNone</span>
+            }
+            @if ((exceptions.Error ?? exceptions.ReadOnly) is { } problem)
+            {
+                <span class="src warn" title="@exceptions.Path"><span class="dot warn"></span> @problem</span>
+            }
+            else
+            {
+                <span class="src" title="@exceptions.Path">
+                    @TextFormat.Plural(exceptions.Exceptions.Count, ModelViewText.Report_SourceExceptionsOne, ModelViewText.Report_SourceExceptionsOther, Path.GetFileName(exceptions.Path))
+                </span>
+                @if (exceptions.Exceptions.Ignored > 0)
+                {
+                    <span class="src warn" title="@TextFormat.Format(ModelViewText.Report_SourceExceptionsIgnoredTitle, ReportExceptions.MaxEntries, ReportExceptions.MaxStars)">
+                        <span class="dot warn"></span> @TextFormat.Plural(exceptions.Exceptions.Ignored, ModelViewText.Report_SourceExceptionsIgnoredOne, ModelViewText.Report_SourceExceptionsIgnoredOther)
+                    </span>
+                }
+            }
+        </div>
+
+        @Tiles(report, unused)
+
+        <ReportSection View="_view" Part="ReportPart.Tables" Title="@ModelViewText.Report_Tables" What="@ModelViewText.Report_TablesWhat">
+            <Counts><span class="report-count @Tone(report.MissingTables.Count(), "warn")">@report.MissingTables.Count()</span></Counts>
+            <ChildContent>
+                <ReportTables Report="report" Mapping="mapping" View="_view" OnOpen="Open" OnCreateEntity="CreateEntity"
+                              OnMarkException="MarkException" OnRemoveException="RemoveExceptionAsync" />
+            </ChildContent>
+        </ReportSection>
+        <ReportSection View="_view" Part="ReportPart.Columns" Title="@ModelViewText.Report_Columns"
+                       What="@TextFormat.Plural(report.Columns.Select(c => c.Entity.Table.Ref).Distinct().Count(), ModelViewText.Report_ColumnsWhatOne, ModelViewText.Report_ColumnsWhatOther)">
+            <Counts><span class="report-count @Tone(report.Columns.Count, "warn")">@report.Columns.Count</span></Counts>
+            <ChildContent>
+                <ReportColumns Report="report" View="_view" OnOpen="Open" OnCopyProperty="CopyPropertyAsync" />
+            </ChildContent>
+        </ReportSection>
+        <ReportSection View="_view" Part="ReportPart.Relations" Title="@ModelViewText.Report_Relations" What="@ModelViewText.Report_RelationsWhat">
+            <Counts><span class="report-count @Tone(report.ModelOnly.Count + report.DbOnly.Count, "warn")">@(report.ModelOnly.Count + report.DbOnly.Count)</span></Counts>
+            <ChildContent>
+                <ReportRelations Report="report" View="_view" OnCreateConstraint="CreateConstraint" OnCopyNavigation="CopyNavigationAsync" OnOpenRef="OpenRef" />
+            </ChildContent>
+        </ReportSection>
+        <ReportSection View="_view" Part="ReportPart.Mismatches" Title="@ModelViewText.Report_Mismatches" What="@ModelViewText.Report_MismatchesWhat">
+            <Counts>
+                @{ var (errors, warnings, hints) = Severities(report); }
+                <span class="report-count @Tone(errors, "bad")">@TextFormat.Format(ModelViewText.Report_ErrorsCount, errors)</span>
+                <span class="report-count @Tone(warnings, "warn")">@TextFormat.Format(ModelViewText.Report_WarningsCount, warnings)</span>
+                @if (hints > 0)
+                {
+                    <span class="report-count">@TextFormat.Format(ModelViewText.Report_HintsCount, hints)</span>
+                }
+            </Counts>
+            <ChildContent>
+                <ReportMismatches Report="report" View="_view" OnOpen="Open" />
+            </ChildContent>
+        </ReportSection>
+        <ReportSection View="_view" Part="ReportPart.ModelWithoutMatch" Title="@ModelViewText.Report_ModelWithoutMatch" What="@ModelViewText.Report_ModelWithoutMatchWhat">
+            <Counts><span class="report-count @Tone(report.ModelWithoutMatch.Count, "bad")">@report.ModelWithoutMatch.Count</span></Counts>
+            <ChildContent>
+                <ReportModelIssues Report="report" Schema="Schema" OnOpen="Open" />
+            </ChildContent>
+        </ReportSection>
+        <ReportSection View="_view" Part="ReportPart.Entities" Title="@ModelViewText.Report_Entities" What="@ModelViewText.Report_EntitiesWhat">
+            <Counts><span class="report-count">@mapping.Model.Entities.Count(e => e.Table is not null || e.View is not null)</span></Counts>
+            <ChildContent>
+                <ReportEntities Mapping="mapping" View="_view" OnOpen="Open" />
+            </ChildContent>
+        </ReportSection>
+        @if (State.Link is not null)
+        {
+            <ReportSection View="_view" Part="ReportPart.Unused" Title="@ModelViewText.Report_Unused" What="@ModelViewText.Report_UnusedWhat">
+                <Counts>
+                    @if (unused is not null)
+                    {
+                        <span class="report-count @Tone(unused.Count, "warn")">@unused.Count</span>
+                    }
+                </Counts>
+                <Hint>
+                    @if (Usage.State.BuiltAt is { } usageAt && unused is not null)
+                    {
+                        <span class="hint">@TextFormat.Format(CommonText.AsOf, Time(usageAt))</span>
+                    }
+                </Hint>
+                <ChildContent>
+                    <ReportUnused Rows="unused" View="_view" OnOpen="Open" />
+                </ChildContent>
+            </ReportSection>
+        }
+    }
+</div>
+
+@if (_marking is { } marking)
+{
+    <ReportExceptionDialog Table="@marking.Name" File="@Exceptions.Path" Problem="@_markProblem" Saving="_saving"
+                           OnSave="SaveExceptionAsync" OnCancel="() => _marking = null" />
+}
+
+@code {
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    private readonly ReportView _view = new();
+    private DomModule? _dom;
+    private string? _branch;
+    private ReportPart? _scrollTo;
+
+    /// <summary>The table "Mark as exception…" was clicked for; null while the dialog is closed.</summary>
+    private TableSummary? _marking;
+    private string? _markProblem;
+    private bool _saving;
+
+    private (ClrModelMapping Mapping, IReadOnlyList<TableSummary> Tables, IReadOnlyList<ForeignKeyInfo> ForeignKeys, Core.Audit.AuditTemplate? Audit, ReportExceptions Exceptions, ModelReport Report)? _report;
+    private (CodeUsageResult Result, ClrModelMapping Mapping, IReadOnlyList<UnusedProperty> Rows)? _unused;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    private ClrModelState State => Models.State;
+
+    private SchemaCache? Schema => Active.Schema;
+
+    private ConnectionProfile? Profile => Active.Profile is { } active ? Connections.Profiles.FirstOrDefault(p => p.Id == active.Id) ?? active : null;
+
+    /// <summary>The exceptions file of the connection, as last read (read again when it changed on disk, <see cref="ReportExceptionSource"/>).</summary>
+    private ReportExceptionLoad Exceptions
+    {
+        get
+        {
+            var load = ExceptionSource.For(Profile);
+            _shownExceptions = load;
+            return load;
+        }
+    }
+
+    /// <summary>What the page showed last; the poll compares the file with it.</summary>
+    private ReportExceptionLoad? _shownExceptions;
+
+    /// <summary>How often the page looks at the exceptions file (a git pull, a colleague's change on a share).</summary>
+    private static readonly TimeSpan ExceptionsPoll = TimeSpan.FromSeconds(5);
+
+    private Timer? _poll;
+
+    /// <summary>1 while a look at the file runs: one that hangs on a share does not pile up further threads every 5 s.</summary>
+    private int _checking;
+
+    /// <summary>The report of the current mapping, schema and exceptions; computed again only when one of them changed.</summary>
+    private ModelReport? Report
+    {
+        get
+        {
+            if (State.Mapping is not { } mapping || Schema is not { } schema)
+            {
+                return null;
+            }
+
+            var exceptions = Exceptions.Exceptions;
+            if (_report is { } known && ReferenceEquals(known.Mapping, mapping) && ReferenceEquals(known.Tables, schema.Tables)
+                && ReferenceEquals(known.ForeignKeys, schema.ForeignKeys) && ReferenceEquals(known.Audit, schema.AuditTemplate) && known.Exceptions.SameAs(exceptions))
+            {
+                return known.Report;
+            }
+
+            var report = ModelReport.Build(mapping, schema, exceptions);
+            _report = (mapping, schema.Tables, schema.ForeignKeys, schema.AuditTemplate, exceptions, report);
+            return report;
+        }
+    }
+
+    /// <summary>The unused properties once the code index is read (<see cref="ModelReport.Unused"/>), computed once per index and mapping.</summary>
+    private IReadOnlyList<UnusedProperty>? Unused
+    {
+        get
+        {
+            if (Usage.State.Result is not { } result || State.Mapping is not { } mapping)
+            {
+                return null;
+            }
+
+            if (_unused is not { } known || !ReferenceEquals(known.Result, result) || !ReferenceEquals(known.Mapping, mapping))
+            {
+                _unused = known = (result, mapping, ModelReport.Unused(mapping, result.Index));
+            }
+
+            return known.Rows;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Models.Changed += OnChanged;
+        Active.Changed += OnChanged;
+        Usage.Changed += OnChanged;
+        if (State.Link?.ProjectFile is { } project)
+        {
+            // The branch of the clone the project lives in (each database has its own clone, .claude/rules/clr-model.md).
+            try
+            {
+                _branch = FerretSharp.Core.ClrModel.GitFolder.FindRoot(project) is { } root ? FerretSharp.Core.ClrModel.GitFolder.Branch(root) : null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                _branch = null;
+            }
+        }
+
+        if (Shell.TakeReportPart() is { } part)
+        {
+            _view.Open(part);
+            _scrollTo = part;
+        }
+
+        // The audit template may have been edited since the schema loaded: the report counts with the current one.
+        Schema?.RefreshAuditTemplate();
+
+        // A click in a section renders only that section: a change of the file on disk would wait for the next render of
+        // the page. Looked at off the UI thread (a share over the VPN); the render reads the same cached result.
+        _poll = new Timer(_ => CheckExceptions(), null, ExceptionsPoll, ExceptionsPoll);
+    }
+
+    private void CheckExceptions()
+    {
+        if (Interlocked.Exchange(ref _checking, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            // The profile as it is now: its group (and so its file) may have changed while the page is open.
+            var load = ExceptionSource.For(Profile);
+            if (_shownExceptions is { } shown
+                && (shown.Path != load.Path || shown.Error != load.Error || shown.ReadOnly != load.ReadOnly || !shown.Exceptions.SameAs(load.Exceptions)))
+            {
+                OnChanged();
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _checking, 0);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollTo is { } part && Report is not null)
+        {
+            _scrollTo = null;
+            await Dom.InvokeVoidAsync("scrollIntoViewById", ReportSection.IdOf(part), "start");
+        }
+    }
+
+    private void OnChanged() => Fire(StateHasChanged);
+
+    private RenderFragment Tiles(ModelReport report, IReadOnlyList<UnusedProperty>? unused)
+    {
+        var missing = report.MissingTables.Count();
+        var hidden = report.Tables.Count(t => t.IsHidden);
+        var coverage = report.TablesInScope == 0 ? 100 : (int)Math.Floor(100.0 * report.TablesMapped / report.TablesInScope);
+        var issues = report.ModelWithoutMatch;
+        var (errors, warnings, hints) = Severities(report);
+        var possible = report.ModelOnly.Count(r => r.ConstraintPossible);
+        return @<div class="report-tiles">
+            <div class="report-tile-group">
+                <h3>@ModelViewText.Report_TilesCoverage</h3>
+                <div class="report-coverage"><span>@ModelViewText.Report_TablesWithEntity</span><span><b>@report.TablesMapped</b> / @report.TablesInScope · @coverage %</span></div>
+                <div class="report-bar"><span style="width: @(coverage.ToString(CultureInfo.InvariantCulture))%"></span></div>
+                @Tile(missing, "warn", ModelViewText.Report_Tables, hidden > 0 ? TextFormat.Plural(hidden, ModelViewText.Report_TablesHiddenOne, ModelViewText.Report_TablesHiddenOther) : null, ReportPart.Tables)
+                @Tile(report.Columns.Count, "warn", ModelViewText.Report_Columns,
+                    TextFormat.Plural(report.Columns.Select(c => c.Entity.Table.Ref).Distinct().Count(), ModelViewText.Report_ColumnsWhatOne, ModelViewText.Report_ColumnsWhatOther), ReportPart.Columns)
+            </div>
+            <div class="report-tile-group">
+                <h3>@ModelViewText.Report_ModelWithoutMatch</h3>
+                @Tile(issues.Count(i => i.Kind == MappingIssueKind.EntityWithoutTable), "bad", ModelViewText.Model_EntitiesWithoutTable, null, ReportPart.ModelWithoutMatch)
+                @Tile(issues.Count(i => i.Kind == MappingIssueKind.PropertyWithoutColumn), "bad", ModelViewText.Model_PropertiesWithoutColumn, null, ReportPart.ModelWithoutMatch)
+                @Tile(issues.Count(i => i.Kind == MappingIssueKind.CaseMismatch), "bad", ModelViewText.Model_CaseMismatch, null, ReportPart.ModelWithoutMatch)
+            </div>
+            <div class="report-tile-group">
+                <h3>@ModelViewText.Report_TilesDifferences</h3>
+                @Tile(errors, "bad", ModelViewText.Report_TileErrors, ModelViewText.Report_TileErrorsHint, ReportPart.Mismatches)
+                @Tile(warnings, "warn", ModelViewText.Report_TileWarnings, hints > 0 ? TextFormat.Format(ModelViewText.Report_TileWarningsHints, hints) : ModelViewText.Report_TileWarningsHint, ReportPart.Mismatches)
+                @Tile(report.ModelOnly.Count, "warn", ModelViewText.Report_ModelOnly, TextFormat.Plural(possible, ModelViewText.Report_TileModelOnlyHintOne, ModelViewText.Report_TileModelOnlyHintOther), ReportPart.Relations)
+                @Tile(report.DbOnly.Count, "", ModelViewText.Report_DbOnly, ModelViewText.Report_TileDbOnlyHint, ReportPart.Relations)
+            </div>
+            @if (State.Link is not null)
+            {
+                <div class="report-tile-group">
+                    <h3>@ModelViewText.Report_TilesCode</h3>
+                    @if (unused is not null)
+                    {
+                        @Tile(unused.Count, "warn", ModelViewText.Report_Unused, ModelViewText.Report_TileUnusedHint, ReportPart.Unused)
+                        @Tile(unused.Count(u => u.UsedInTests), "", ModelViewText.Report_TileOnlyTests, null, ReportPart.Unused)
+                    }
+                    else if (Usage.State.Phase == CodeUsagePhase.Building)
+                    {
+                        <div class="report-tile idle"><span class="num"><span class="spinner small"></span></span><span class="label">@ModelViewText.Usage_Building</span></div>
+                    }
+                    else
+                    {
+                        <button class="report-tile idle" title="@ModelViewText.Report_TileReadUsageTitle" @onclick="ReadUsageAsync">
+                            <span class="num">–</span><span class="label">@ModelViewText.Report_TileUsageNotRead<small>@ModelViewText.Usage_ReportRead</small></span>
+                        </button>
+                    }
+                </div>
+            }
+        </div>;
+    }
+
+    /// <summary>A count that leads to its section; <paramref name="tone"/> colors a count above zero, zero is green.</summary>
+    private RenderFragment Tile(int count, string tone, string label, string? hint, ReportPart part) =>
+        @<button class="report-tile @Tone(count, tone)" @onclick="() => GoTo(part)">
+            <span class="num">@count.ToString("N0", CultureInfo.CurrentCulture)</span>
+            <span class="label">
+                @label
+                @if (hint is not null)
+                {
+                    <small>@hint</small>
+                }
+            </span>
+        </button>;
+
+    private static string Tone(int count, string tone) => count == 0 ? "ok" : tone;
+
+    private static (int Errors, int Warnings, int Hints) Severities(ModelReport report) =>
+        (report.Mismatches.Count(m => m.Severity == MismatchSeverity.Error),
+         report.Mismatches.Count(m => m.Severity == MismatchSeverity.Warning),
+         report.Mismatches.Count(m => m.Severity == MismatchSeverity.Hint));
+
+    private void GoTo(ReportPart part)
+    {
+        _view.Open(part);
+        _scrollTo = part;
+    }
+
+    /// <summary>The time for today, otherwise date and time – both in the format of the culture.</summary>
+    private static string Time(DateTimeOffset? at) =>
+        at is not { } time ? "–"
+        : time.LocalDateTime.Date == DateTime.Today ? time.ToLocalTime().ToString("t", CultureInfo.CurrentCulture)
+        : time.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+
+    private void ShowConnection(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value as string, out var id) && Hub.Find(id) is { } scope)
+        {
+            Hub.Show(scope); // the pages follow the shown connection: this page starts anew for it
+        }
+    }
+
+    /// <summary>Reads the model again (it matches against the schema anew) and, once read, the code index.</summary>
+    private async Task ReloadAsync()
+    {
+        Schema?.RefreshAuditTemplate();
+        _report = null;
+        await Models.LoadAsync();
+        if (Usage.State.Result is not null)
+        {
+            await Usage.RefreshAsync(CancellationToken.None);
+        }
+    }
+
+    private Task ReadUsageAsync() => Usage.EnsureAsync(CancellationToken.None);
+
+    private void Open(TableSummary table)
+    {
+        Shell.ShowExplorer();
+        Shell.OpenTable(table, TabMode.Structure);
+    }
+
+    private void OpenRef(TableRef table)
+    {
+        if (Schema?.Find(table) is { } summary)
+        {
+            Open(summary);
+        }
+    }
+
+    /// <summary>The table's "Columns" view with "Entity from table" open (WP-23).</summary>
+    private void CreateEntity(TableSummary table)
+    {
+        Shell.ShowExplorer();
+        if (Shell.OpenTable(table, TabMode.Structure) is { } tab)
+        {
+            tab.OpenEntityCode = true;
+            Shell.NotifyChanged();
+        }
+    }
+
+    /// <summary>The foreign key in the table designer of its table, as "Create constraint" in the "Constraints" view.</summary>
+    private void CreateConstraint(ForeignKeyInfo relation)
+    {
+        if (Schema?.Find(relation.From) is not { } table)
+        {
+            return;
+        }
+
+        Shell.ShowExplorer();
+        if (Shell.OpenTable(table) is { } tab)
+        {
+            tab.RequestForeignKey(relation);
+            Shell.ShowTab(tab, TabMode.Structure, DesignerSection.Constraints);
+        }
+    }
+
+    private async Task CopyPropertyAsync(ColumnWithoutProperty column)
+    {
+        if (State.Mapping is not { } mapping)
+        {
+            return;
+        }
+
+        if (await Dom.CopyTextAsync(Shell, EntityCode.Property(mapping, column.Entity, column.Column)))
+        {
+            Shell.Notify(TextFormat.Format(ModelViewText.Report_PropertyCopied, column.Column.Name));
+        }
+    }
+
+    private async Task CopyNavigationAsync(ForeignKeyInfo fk)
+    {
+        if (State.Mapping is { } mapping && EntityCode.Navigation(mapping, fk, Schema?.OutgoingOf(fk.From) ?? []) is { } text && await Dom.CopyTextAsync(Shell, text))
+        {
+            Shell.Notify(ModelViewText.Report_NavigationCopied);
+        }
+    }
+
+    private void MarkException(TableSummary table) => (_marking, _markProblem) = (table, null);
+
+    private async Task SaveExceptionAsync(ReportException exception)
+    {
+        _saving = true;
+        try
+        {
+            await ExceptionSource.SetAsync(Profile, exception.Table, exception.Reason, CancellationToken.None);
+            _marking = null;
+            Shell.Notify(TextFormat.Format(ModelViewText.Report_ExceptionSaved, exception.Table, Path.GetFileName(Exceptions.Path)));
+        }
+        catch (RefusedException ex)
+        {
+            Logger.LogWarning(ex, "The report's exceptions file could not be changed");
+            _markProblem = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task RemoveExceptionAsync(ReportException exception)
+    {
+        try
+        {
+            await ExceptionSource.RemoveAsync(Profile, exception.Table, CancellationToken.None);
+            Shell.Notify(TextFormat.Format(ModelViewText.Report_ExceptionRemoved, exception.Table));
+        }
+        catch (RefusedException ex)
+        {
+            Logger.LogWarning(ex, "The report's exceptions file could not be changed");
+            Shell.Notify(ex.Message);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _poll?.Dispose();
+        Models.Changed -= OnChanged;
+        Active.Changed -= OnChanged;
+        Usage.Changed -= OnChanged;
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+}

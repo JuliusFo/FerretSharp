@@ -71,6 +71,9 @@ public sealed class AppPaths
     /// <summary>Display columns (WP-31) unless the settings name another file.</summary>
     public string DisplayColumnsFile => Path.Combine(Root, "display-columns.json");
 
+    /// <summary>The exceptions of the report (WP-72) when the settings name no file of their own.</summary>
+    public string ReportExceptionsFile => Path.Combine(Root, "report-exceptions.json");
+
     /// <summary>Held by the running instance for this data folder (WP-32, <see cref="IO.InstanceLock"/>).</summary>
     public string InstanceLockFile => Path.Combine(Root, "instance.lock");
 

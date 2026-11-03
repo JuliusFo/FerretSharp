@@ -38,9 +38,14 @@ public sealed class ClrModelMapping
 
     private readonly ILookup<(TableRef Table, string Column), ColumnMismatch> _mismatchesByColumn;
 
-    private ClrModelMapping(ModelExport model, List<EntityMapping> entities, List<MappingIssue> issues, List<ColumnMismatch> mismatches)
+    private readonly Dictionary<TableRef, IReadOnlyList<ColumnInfo>> _columns;
+
+    private ClrModelMapping(
+        ModelExport model, List<EntityMapping> entities, List<MappingIssue> issues, List<ColumnMismatch> mismatches,
+        Dictionary<TableRef, IReadOnlyList<ColumnInfo>> columns)
     {
         Model = model;
+        _columns = columns;
         Entities = entities;
         Issues = issues;
         ColumnMismatches = mismatches;
@@ -74,6 +79,12 @@ public sealed class ClrModelMapping
     /// <summary>The entity of a table: the owning one if several share it (owned types, table splitting).</summary>
     public EntityMapping? EntityOf(TableRef table) =>
         _byTable.TryGetValue(table, out var entities) ? entities.FirstOrDefault(e => !e.Entity.IsOwned) ?? entities[0] : null;
+
+    /// <summary>
+    /// The columns of a mapped table or view as read when matching (WP-72: the report shows their types and writes property
+    /// code without a query of its own); empty for any other table.
+    /// </summary>
+    public IReadOnlyList<ColumnInfo> ColumnsOf(TableRef table) => _columns.GetValueOrDefault(table) ?? [];
 
     public PropertyExport? PropertyOf(TableRef table, string column) =>
         _byTable.TryGetValue(table, out var entities)
@@ -155,10 +166,12 @@ public sealed class ClrModelMapping
 
         progress?.Report(ClrModelText.StepCompare);
         var mismatches = new List<ColumnMismatch>();
+        var columnsByTable = new Dictionary<TableRef, IReadOnlyList<ColumnInfo>>();
         foreach (var group in located.GroupBy(l => l.Table.Ref))
         {
             var table = group.First().Table;
             var columnInfos = columnsByOwner[table.Owner].GetValueOrDefault(table.Name) ?? [];
+            columnsByTable[table.Ref] = columnInfos;
             var columns = columnInfos.Select(c => c.Name).ToList();
             var mapped = new HashSet<string>(StringComparer.Ordinal);
 
@@ -209,7 +222,7 @@ public sealed class ClrModelMapping
             .ThenBy(m => ShortName(m.Entity.ClrType), StringComparer.Ordinal)
             .ThenBy(m => m.Column.Position)
             .ToList();
-        return new ClrModelMapping(model, entities, issues, ordered);
+        return new ClrModelMapping(model, entities, issues, ordered, columnsByTable);
     }
 
     /// <summary>

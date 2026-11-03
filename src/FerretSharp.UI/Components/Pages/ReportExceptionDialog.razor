@@ -1,0 +1,70 @@
+@* Report page (WP-72): marks a table – or a pattern like AUD_* – as meant to have no entity, with a reason, in the
+   exceptions file of the connection. *@
+@using FerretSharp.Core.ClrModel
+
+<ModalFrame Label="@ModelViewText.Report_ExceptionDialogTitle" Class="report-exception" OnCancel="OnCancel" FocusOnOpen="true">
+    <header>
+        <span>@ModelViewText.Report_ExceptionDialogTitle</span>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnCancel">@Icons.Close</button>
+    </header>
+    <div class="dialog-body form-grid">
+        <label for="report-exception-name">@ModelViewText.Report_ExceptionName</label>
+        <div>
+            <input id="report-exception-name" class="field mono" spellcheck="false" maxlength="@ReportExceptions.MaxNameLength" @bind="_name" @bind:event="oninput" />
+            <div class="hint small">@ModelViewText.Report_ExceptionNameHint</div>
+            @if (ReportExceptions.Clean(_name) is not null && !ReportExceptions.IsUsable(_name))
+            {
+                <div class="settings-note error">@TextFormat.Format(ModelViewText.Report_ExceptionTooManyStars, ReportExceptions.MaxStars)</div>
+            }
+        </div>
+        <label for="report-exception-reason">@ModelViewText.Report_ExceptionReason</label>
+        <input id="report-exception-reason" class="field" maxlength="@ReportExceptions.MaxReasonLength" @bind="_reason" @bind:event="oninput" placeholder="@ModelViewText.Report_ExceptionReasonPlaceholder"
+               @onkeydown="OnKeyDownAsync" />
+        <span></span>
+        <div class="hint small" title="@File">@TextFormat.Format(ModelViewText.Report_ExceptionFile, File)</div>
+        @if (Problem is { } problem)
+        {
+            <span></span>
+            <div class="settings-note error" role="alert">@problem</div>
+        }
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="OnCancel">@CommonText.Cancel</button>
+        <button class="btn primary" disabled="@(!ReportExceptions.IsUsable(_name) || Saving)" @onclick="SaveAsync">@CommonText.Save</button>
+    </footer>
+</ModalFrame>
+
+@code {
+    /// <summary>The table the dialog starts with.</summary>
+    [Parameter, EditorRequired]
+    public string Table { get; set; } = "";
+
+    /// <summary>Where the exception is written.</summary>
+    [Parameter, EditorRequired]
+    public string File { get; set; } = "";
+
+    /// <summary>Why the last save failed; null if it did not.</summary>
+    [Parameter]
+    public string? Problem { get; set; }
+
+    [Parameter]
+    public bool Saving { get; set; }
+
+    [Parameter]
+    public EventCallback<ReportException> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private string _name = "";
+    private string _reason = "";
+
+    protected override void OnInitialized() => _name = Table;
+
+    private Task SaveAsync() =>
+        ReportExceptions.IsUsable(_name) && ReportExceptions.Clean(_name) is { } name ? OnSave.InvokeAsync(new ReportException(name, _reason.Trim())) : Task.CompletedTask;
+
+    private Task OnKeyDownAsync(KeyboardEventArgs e) => e.Key == "Enter" ? SaveAsync() : Task.CompletedTask;
+}

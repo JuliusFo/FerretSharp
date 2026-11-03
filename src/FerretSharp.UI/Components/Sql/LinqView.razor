@@ -164,9 +164,9 @@
                             <ErrorActions Context="error">
                                 @if (error.ErrorCode == "ORA-00904")
                                 {
-                                    @* The model maps a column the database does not have (yet): the model page lists such drift. *@
+                                    @* The model maps a column the database does not have (yet): the report lists it under "model without counterpart". *@
                                     <button class="btn ghost" title="@SqlEditorText.Linq_ModelMismatchTitle"
-                                            @onclick="Shell.ShowModel">@SqlEditorText.Linq_ShowModelMismatches</button>
+                                            @onclick="() => Shell.ShowReport(ReportPart.ModelWithoutMatch)">@SqlEditorText.Linq_ShowModelMismatches</button>
                                 }
                             </ErrorActions>
                         </ResultFooter>

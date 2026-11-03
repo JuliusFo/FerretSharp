@@ -1,0 +1,49 @@
+@* Report page (WP-72): one section that folds, its counts in the head – open sections are kept for the session (ReportView). *@
+
+@{ var open = View.IsOpen(Part); }
+<section class="report-section @(open ? "open" : "")" id="@IdOf(Part)">
+    <button class="report-summary" aria-expanded="@(open ? "true" : "false")" @onclick="() => View.Toggle(Part)">
+        <span class="chev">@Icons.ChevronDown</span>
+        @Title
+        @Counts
+        @if (What is { Length: > 0 })
+        {
+            <span class="what">@What</span>
+        }
+        <span class="grow"></span>
+        @Hint
+    </button>
+    @if (open)
+    {
+        @ChildContent
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public ReportView View { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ReportPart Part { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>What the section lists, in a few words beside the title.</summary>
+    [Parameter]
+    public string? What { get; set; }
+
+    /// <summary>The counts beside the title (<c>report-count</c>).</summary>
+    [Parameter]
+    public RenderFragment? Counts { get; set; }
+
+    /// <summary>At the right end of the head (e.g. how old the code index is).</summary>
+    [Parameter]
+    public RenderFragment? Hint { get; set; }
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = null!;
+
+    /// <summary>The element id a tile scrolls to.</summary>
+    public static string IdOf(ReportPart part) => $"report-{part.ToString().ToLowerInvariant()}";
+}

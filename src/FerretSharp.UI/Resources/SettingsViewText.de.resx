@@ -411,4 +411,40 @@
   <data name="Shortcuts_ConnectionsHint" xml:space="preserve">
     <value>Eine Verbindung bekommt ihr Tastenkürzel in ihrem Dialog (Bearbeiten). Die Taste zeigt die Verbindung von überall in FerretSharp und verbindet vorher, wenn nötig.</value>
   </data>
+  <data name="Settings_ReportExceptionsFile" xml:space="preserve">
+    <value>Ausnahmen des Berichts</value>
+  </data>
+  <data name="Settings_ReportExceptionsFileHint" xml:space="preserve">
+    <value>Tabellen, die bewusst kein Entity haben, mit Begründung: Der Bericht zählt sie nicht als fehlend. Etwa eine Datei im Firmen-Repository, damit Kollegen sie teilen.</value>
+  </data>
+  <data name="Settings_ReportExceptionsDefault" xml:space="preserve">
+    <value>report-exceptions.json im Datenordner</value>
+  </data>
+  <data name="Settings_ReportExceptionsResetTitle" xml:space="preserve">
+    <value>Die Datei im Datenordner verwenden</value>
+  </data>
+  <data name="Settings_ReportExceptionsGroups" xml:space="preserve">
+    <value>Ausnahmen des Berichts je Verbindungsgruppe</value>
+  </data>
+  <data name="Settings_ReportExceptionsGroupsHint" xml:space="preserve">
+    <value>Jede Gruppe von Systemen kann ihre eigene Datei haben; eine Gruppe ohne nimmt die Datei oben.</value>
+  </data>
+  <data name="Settings_ReportExceptionsAsGlobal" xml:space="preserve">
+    <value>wie oben</value>
+  </data>
+  <data name="Settings_ReportExceptionsOfGroup" xml:space="preserve">
+    <value>Ausnahmen des Berichts für {0}</value>
+  </data>
+  <data name="Settings_ReportExceptionsFilter" xml:space="preserve">
+    <value>Ausnahmen des Berichts</value>
+  </data>
+  <data name="Settings_ReportExceptionsCountOne" xml:space="preserve">
+    <value>{0} Ausnahme in {1}</value>
+  </data>
+  <data name="Settings_ReportExceptionsCountOther" xml:space="preserve">
+    <value>{0} Ausnahmen in {1}</value>
+  </data>
+  <data name="Settings_ReportExceptionsNoFile" xml:space="preserve">
+    <value>{0} gibt es noch nicht: Das erste „Als Ausnahme…“ im Bericht legt sie an.</value>
+  </data>
 </root>
