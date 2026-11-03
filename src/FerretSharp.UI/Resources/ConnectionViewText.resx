@@ -675,4 +675,8 @@
     <value>Its work clone {0} is dropped; “{1}” keeps its own (the folder stays among the recent ones).</value>
     <comment>{0}: the work clone folder dropped; {1}: the group that keeps its own</comment>
   </data>
+  <data name="GroupName_ReportExceptionsDropped" xml:space="preserve">
+    <value>Its report exceptions file {0} is dropped; “{1}” keeps its own.</value>
+    <comment>{0}: the exceptions file dropped; {1}: the group that keeps its own</comment>
+  </data>
 </root>

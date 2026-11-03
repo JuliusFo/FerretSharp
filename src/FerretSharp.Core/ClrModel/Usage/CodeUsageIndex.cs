@@ -145,6 +145,9 @@ public sealed class CodeUsageIndex
 
     private bool IsKey(EntityExport entity, string property) => _keys.Contains((entity.Name, property));
 
+    /// <summary>Test code uses the column (<see cref="ForColumn"/>): for an unused one, "only in tests" (WP-72).</summary>
+    public bool IsUsedInTests(EntityExport entity, PropertyExport property) => ForColumn(entity, property.Name).Any(u => u.IsTest);
+
     /// <summary>Every mapped, non-shadow property without a use outside tests and mapping code (the report).</summary>
     public IReadOnlyList<(EntityExport Entity, PropertyExport Property)> Unused() =>
         Model.Entities

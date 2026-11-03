@@ -573,4 +573,7 @@
   <data name="GroupName_WorkCloneDropped" xml:space="preserve">
     <value>Ihr Arbeits-Klon {0} entfällt; „{1}“ behält den eigenen (der Ordner bleibt unter den zuletzt gewählten).</value>
   </data>
+  <data name="GroupName_ReportExceptionsDropped" xml:space="preserve">
+    <value>Ihre Ausnahmedatei des Berichts {0} entfällt; „{1}“ behält die eigene.</value>
+  </data>
 </root>

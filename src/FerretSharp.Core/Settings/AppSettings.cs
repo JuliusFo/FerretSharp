@@ -198,6 +198,19 @@ public sealed record AppSettings
     /// </summary>
     public string? DisplayColumnsPath { get; init; }
 
+    /// <summary>
+    /// The exceptions file of the report (WP-72, ADR 0042): tables that are meant to have no entity, e.g. in the company's
+    /// repository so colleagues share them; null or empty for <c>report-exceptions.json</c> in the data folder. A connection
+    /// group can have its own (<see cref="ReportExceptionsGroups"/>). Read through <see cref="ClrModel.ReportExceptionSource"/>.
+    /// </summary>
+    public string? ReportExceptionsPath { get; init; }
+
+    /// <summary>
+    /// Exceptions files of connection groups (WP-72): group name → file, as <see cref="AuditTemplateGroups"/>. A group without
+    /// an entry takes <see cref="ReportExceptionsPath"/>.
+    /// </summary>
+    public SettingsMap ReportExceptionsGroups { get; init; } = SettingsMap.Empty;
+
     /// <summary>The Oracle type on the last line of a column header (table grid and SQL result). On by default.</summary>
     public bool ShowColumnTypes { get; init; } = true;
 

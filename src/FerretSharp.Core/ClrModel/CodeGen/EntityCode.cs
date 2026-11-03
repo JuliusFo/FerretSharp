@@ -93,18 +93,7 @@ public static class EntityCode
             }
 
             var optional = fk.FromColumns.Any(c => table.Columns[table.IndexOf(c)].Nullable);
-            var declaration = optional
-                ? $"public {principalName}? {navigation} {{ get; set; }}"
-                : $"public {principalName} {navigation} {{ get; set; }} = null!;";
-            var keys = Lambda(fk.FromColumns.Select(PropertyOf).ToList());
-            var relationship = new StringBuilder($"builder.HasOne(x => x.{navigation}).WithMany().HasForeignKey({keys})");
-            var principalProperties = fk.ToColumns.Select(c => mapping.PropertyOf(fk.To, c)?.Name).ToList();
-            if (principalProperties.All(p => p is not null) && !principalProperties.SequenceEqual(principal.Entity.PrimaryKey, StringComparer.Ordinal))
-            {
-                relationship.Append($".HasPrincipalKey({Lambda(principalProperties!)})");
-            }
-
-            navigations.Add((declaration, relationship.Append(';').ToString()));
+            navigations.Add(Relationship(mapping, fk, principal, navigation, optional, fk.FromColumns.Select(PropertyOf).ToList()));
         }
 
         foreach (var fk in declared.Where(f => mapping.EntityOf(f.To) is null))
@@ -163,6 +152,72 @@ public static class EntityCode
         notes.Add(TextFormat.Format(ClrModelText.EntityDbSet, name));
         return new EntitySuggestion(name, entity.ToString(), configuration.ToString(), notes);
     }
+
+    /// <summary>
+    /// The navigation a declared foreign key of a mapped table lacks in the model (WP-72, "copy navigation"): the property for
+    /// the entity class and the line for its configuration, as <see cref="Write"/> writes them. A foreign key column without
+    /// property gets the name a property for it would have, with a note.
+    /// </summary>
+    /// <returns>Null if one of the tables has no entity.</returns>
+    public static string? Navigation(ClrModelMapping mapping, ForeignKeyInfo foreignKey)
+    {
+        ArgumentNullException.ThrowIfNull(mapping);
+        ArgumentNullException.ThrowIfNull(foreignKey);
+        if (mapping.EntityOf(foreignKey.From) is not { } dependent || mapping.EntityOf(foreignKey.To) is not { } principal)
+        {
+            return null;
+        }
+
+        var columns = mapping.ColumnsOf(foreignKey.From);
+        var keys = foreignKey.FromColumns
+            .Select(c => mapping.PropertyOf(foreignKey.From, c)?.Name ?? PropertyCode.Suggest(mapping.Model, columns.FirstOrDefault(i => i.Name == c) ?? Column(c)).Name)
+            .ToList();
+        var principalName = ClrModelMapping.ShortName(principal.Entity.ClrType);
+        var used = dependent.Entity.Properties.Select(p => p.Name)
+            .Concat(dependent.Entity.ForeignKeys.Select(f => f.Navigation).OfType<string>())
+            .ToHashSet(StringComparer.Ordinal);
+        // The principal's name, unless the entity has a member of that name or a navigation to the same table already.
+        var navigation = used.Contains(principalName) || mapping.ForeignKeys.Any(f => f.From == foreignKey.From && f.To == foreignKey.To)
+            ? NavigationName(keys[0])
+            : principalName;
+        if (used.Contains(navigation))
+        {
+            navigation += "Navigation";
+        }
+
+        var optional = foreignKey.FromColumns.Any(c => columns.FirstOrDefault(i => i.Name == c)?.Nullable ?? true);
+        var (declaration, configuration) = Relationship(mapping, foreignKey, principal, navigation, optional, keys);
+        var dependentName = ClrModelMapping.ShortName(dependent.Entity.ClrType);
+        var text = new StringBuilder($"// {dependentName}\n{declaration}\n\n// {dependentName}Configuration\n{configuration}");
+        foreach (var column in foreignKey.FromColumns.Where(c => mapping.PropertyOf(foreignKey.From, c) is null))
+        {
+            // A quoted Oracle name may hold a line break: it must not end the comment.
+            text.Append("\n// ").Append(TextFormat.Format(ClrModelText.NavigationPropertyMissing, column.ReplaceLineEndings(" ")));
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>The navigation property and its <c>HasOne(…).WithMany()…</c> line.</summary>
+    private static (string Declaration, string Configuration) Relationship(
+        ClrModelMapping mapping, ForeignKeyInfo fk, EntityMapping principal, string navigation, bool optional, IReadOnlyList<string> keys)
+    {
+        var principalName = ClrModelMapping.ShortName(principal.Entity.ClrType);
+        var declaration = optional
+            ? $"public {principalName}? {navigation} {{ get; set; }}"
+            : $"public {principalName} {navigation} {{ get; set; }} = null!;";
+        var relationship = new StringBuilder($"builder.HasOne(x => x.{navigation}).WithMany().HasForeignKey({Lambda(keys)})");
+        var principalProperties = fk.ToColumns.Select(c => mapping.PropertyOf(fk.To, c)?.Name).ToList();
+        if (principalProperties.All(p => p is not null) && !principalProperties.SequenceEqual(principal.Entity.PrimaryKey, StringComparer.Ordinal))
+        {
+            relationship.Append($".HasPrincipalKey({Lambda(principalProperties!)})");
+        }
+
+        return (declaration, relationship.Append(';').ToString());
+    }
+
+    /// <summary>A column known by name only (not read): what a property suggestion needs.</summary>
+    private static ColumnInfo Column(string name) => new(name, "VARCHAR2", null, false, null, null, true, false, null, 0);
 
     /// <summary><c>x =&gt; x.Id</c> or <c>x =&gt; new { x.A, x.B }</c>.</summary>
     private static string Lambda(IReadOnlyList<string> properties) =>

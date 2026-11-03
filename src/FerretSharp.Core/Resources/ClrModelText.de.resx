@@ -384,4 +384,19 @@
   <data name="QueryParameterNameInvalid" xml:space="preserve">
     <value>{0}: „{1}“ ist kein C#-Name – die Bedingung nimmt den Wert statt eines Parameters.</value>
   </data>
+  <data name="ReportExceptionsUnreadable" xml:space="preserve">
+    <value>Die Ausnahmedatei des Berichts {0} kann nicht gelesen werden: {1}</value>
+  </data>
+  <data name="ReportExceptionsInvalid" xml:space="preserve">
+    <value>Die Ausnahmedatei des Berichts {0} ist kein gültiges JSON: {1}</value>
+  </data>
+  <data name="ReportExceptionsNewerVersion" xml:space="preserve">
+    <value>Die Ausnahmedatei des Berichts {0} stammt von einem neueren FerretSharp (Format {1}): Sie wird gelesen, aber nicht geändert.</value>
+  </data>
+  <data name="ReportExceptionsNotWritten" xml:space="preserve">
+    <value>Die Ausnahmedatei des Berichts {0} kann nicht geschrieben werden: {1}</value>
+  </data>
+  <data name="NavigationPropertyMissing" xml:space="preserve">
+    <value>{0} hat noch keine Property: zuerst anlegen (Bericht: Spalten ohne Property).</value>
+  </data>
 </root>

@@ -43,8 +43,9 @@ public sealed class ConnectionGroupRenameTests
     {
         var templates = SettingsMap.From([new("erp ", @"C:\erp.sql"), new("Kasse", @"C:\kasse.sql")]);
 
-        var rename = ConnectionGroupRename.Plan(All, "ERP", "Warenwirtschaft", templates);
+        var rename = ConnectionGroupRename.Plan(All, "ERP", "Warenwirtschaft", templates, SettingsMap.From([new("ERP", @"C:\erp.json")]));
 
+        Assert.Equal([new("Warenwirtschaft", @"C:\erp.json")], rename.ReportExceptionsGroups);
         Assert.Equal(@"C:\erp.sql", rename.AuditTemplateGroups["Warenwirtschaft"]);
         Assert.Equal(@"C:\kasse.sql", rename.AuditTemplateGroups["Kasse"]);
         Assert.Equal(2, rename.AuditTemplateGroups.Count);
@@ -56,8 +57,13 @@ public sealed class ConnectionGroupRenameTests
     {
         var templates = SettingsMap.From([new("ERP", @"C:\erp.sql"), new("Kasse", @"C:\kasse.sql")]);
 
-        var rename = ConnectionGroupRename.Plan(All, "ERP", "KASSE", templates);
+        var exceptions = SettingsMap.From([new("ERP", @"C:\erp.json"), new("Kasse", @"C:\kasse.json"), new("Lager", @"C:\lager.json")]);
 
+        var rename = ConnectionGroupRename.Plan(All, "ERP", "KASSE", templates, exceptions);
+
+        // The report's exceptions file (WP-72) follows the same rule.
+        Assert.Equal(@"C:\erp.json", rename.DroppedReportExceptions);
+        Assert.Equal([new("Kasse", @"C:\kasse.json"), new("Lager", @"C:\lager.json")], rename.ReportExceptionsGroups);
         Assert.True(rename.Merges);
         Assert.Equal("Kasse", rename.To);
         Assert.All(rename.Profiles, p => Assert.Equal("Kasse", p.Group));
