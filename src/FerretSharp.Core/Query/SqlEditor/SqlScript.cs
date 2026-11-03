@@ -2,7 +2,7 @@ namespace FerretSharp.Core.Query;
 
 /// <summary>
 /// The free SQL editor's view of a script (WP-17): tokens (comments, literals including <c>q'[…]'</c>, quoted names, binds),
-/// statements separated by <c>;</c>, a blank line or a line with only <c>/</c>, the statement at the cursor, and what kind
+/// statements separated by <c>;</c> or a line with only <c>/</c>, the statement at the cursor, and what kind
 /// of statement it is. Deliberately not a parser – the database decides what is valid, the session guards decide what runs.
 /// </summary>
 /// <remarks>
@@ -18,6 +18,12 @@ public static class SqlScript
 
     /// <inheritdoc cref="SqlSplitter.StatementAt"/>
     public static SqlStatement? StatementAt(string text, int selectionStart, int selectionEnd) => SqlSplitter.StatementAt(text, selectionStart, selectionEnd);
+
+    /// <inheritdoc cref="SqlSplitter.Terminated"/>
+    public static string Terminated(string text) => SqlSplitter.Terminated(text);
+
+    /// <inheritdoc cref="SqlSplitter.Append"/>
+    public static (string Text, int Start) Append(string script, string statement) => SqlSplitter.Append(script, statement);
 
     /// <inheritdoc cref="SqlSplitter.CountStatements"/>
     public static int CountStatements(string text) => SqlSplitter.CountStatements(text);
