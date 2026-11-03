@@ -371,11 +371,22 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// </summary>
     public DesignerSection? OpenDesignerAt { get; set; }
 
+    private readonly List<ForeignKeyInfo> _designerForeignKeys = [];
+
     /// <summary>
-    /// A relationship of the C# model to add as a foreign key ("Create constraint" in the "Constraints" view): the "Columns"
-    /// view opens the edit mode with it – or adds it to the open one – and clears the request.
+    /// A relationship of the C# model to add as a foreign key ("Create constraint" in the "Constraints" view), with
+    /// <see cref="OpenDesignerAt"/>: an open edit mode takes it at once, one that opens or still loads once it has loaded –
+    /// several asked for meanwhile all arrive (code review of the model constraints: the last one won).
     /// </summary>
-    public ForeignKeyInfo? DesignerForeignKey { get; set; }
+    public void RequestForeignKey(ForeignKeyInfo relation) => _designerForeignKeys.Add(relation);
+
+    /// <summary>The relationships asked for and not taken yet (<see cref="RequestForeignKey"/>); taken, they are gone.</summary>
+    public IReadOnlyList<ForeignKeyInfo> TakeForeignKeys()
+    {
+        var taken = _designerForeignKeys.ToList();
+        _designerForeignKeys.Clear();
+        return taken;
+    }
 
     /// <summary>
     /// Short form of the active filters ("KUNDE_ID = 4711"), to tell several tabs of one table apart. With a C# model

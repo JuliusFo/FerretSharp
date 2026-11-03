@@ -67,8 +67,8 @@
     </div>
     @if (_editing)
     {
-        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" StartWithAudit="_startWithAudit" StartAt="_startAt" AddForeignKey="_addForeignKey"
-                       OnRan="OnDesignRanAsync" OnClose="() => (_editing, _startWithAudit, _startAt, _addForeignKey) = (false, false, null, null)" />
+        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" StartWithAudit="_startWithAudit" StartAt="_startAt" OnRan="OnDesignRanAsync"
+                       OnClose="() => (_editing, _startWithAudit, _startAt) = (false, false, null)" />
     }
     else
     {
@@ -331,12 +331,9 @@
     /// <summary>The designer opens at this tab ("Edit" in the "Constraints" view, <see cref="TableTab.OpenDesignerAt"/>).</summary>
     private DesignerSection? _startAt;
 
-    /// <summary>The designer opens with this relationship as a new foreign key (<see cref="TableTab.DesignerForeignKey"/>).</summary>
-    private ForeignKeyInfo? _addForeignKey;
-
     private async Task OnDesignRanAsync()
     {
-        (_editing, _startWithAudit, _startAt, _addForeignKey) = (false, false, null, null);
+        (_editing, _startWithAudit, _startAt) = (false, false, null);
         await OnSchemaChanged.InvokeAsync();
     }
 
@@ -361,19 +358,18 @@
         _wasShown = Shown;
         if (Tab?.OpenDesignerAt is { } at)
         {
-            var foreignKey = Tab.DesignerForeignKey;
-            (Tab.OpenDesignerAt, Tab.DesignerForeignKey) = (null, null);
+            Tab.OpenDesignerAt = null;
             if (Tab.Designer is { } open)
             {
                 open.Draft.Section = at; // already editing: switch the tab
-                if (foreignKey is not null)
+                foreach (var relation in Tab.TakeForeignKeys())
                 {
-                    open.Draft.AddForeignKey(foreignKey);
+                    open.Draft.AddForeignKey(relation);
                 }
             }
             else
             {
-                (_editing, _startAt, _addForeignKey) = (true, at, foreignKey);
+                (_editing, _startAt) = (true, at); // the designer takes requested foreign keys once loaded, also while it still loads
             }
         }
     }

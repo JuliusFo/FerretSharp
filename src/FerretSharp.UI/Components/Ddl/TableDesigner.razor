@@ -161,10 +161,6 @@ else
     [Parameter]
     public DesignerSection? StartAt { get; set; }
 
-    /// <summary>A relationship of the C# model to start with as a new foreign key ("Create constraint" in the "Constraints" view).</summary>
-    [Parameter]
-    public ForeignKeyInfo? AddForeignKey { get; set; }
-
     /// <summary>Referenced tables whose structure was asked for (<see cref="TableDesignerDraft.UnknownReferences"/>).</summary>
     private readonly ReferencedTableLoads _loads = new();
 
@@ -246,9 +242,12 @@ else
             _designer.Section = section;
         }
 
-        if (_designer is not null && AddForeignKey is { } relation)
+        if (_designer is not null && Tab is not null)
         {
-            _designer.AddForeignKey(relation);
+            foreach (var relation in Tab.TakeForeignKeys()) // "Create constraint" in the "Constraints" view, also while loading
+            {
+                _designer.AddForeignKey(relation);
+            }
         }
     }
 
@@ -503,6 +502,7 @@ else
         if (Tab is not null)
         {
             Tab.Designer = null;
+            Tab.TakeForeignKeys(); // asked for while it could not load: not for a later edit mode
         }
 
         await OnClose.InvokeAsync();

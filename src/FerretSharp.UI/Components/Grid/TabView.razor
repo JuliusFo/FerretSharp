@@ -391,12 +391,12 @@
     {
         if (relation.From == Tab.Table.Ref)
         {
-            Tab.DesignerForeignKey = relation;
+            Tab.RequestForeignKey(relation);
             OpenDesigner(DesignerSection.Constraints);
         }
         else if (Active.Schema?.Find(relation.From) is { } table && Shell.OpenTable(table) is { } other)
         {
-            other.DesignerForeignKey = relation;
+            other.RequestForeignKey(relation);
             Shell.ShowTab(other, TabMode.Structure, DesignerSection.Constraints);
         }
     }
