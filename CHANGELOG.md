@@ -12,6 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Changed
 - A newly opened SQL editor tab takes the focus, with the cursor at the end of its text – also when it opens from a menu with a statement ("Open in SQL editor", `SELECT *` from the explorer). Tabs restored with their workspace do not take it.
 
+### Fixed
+- Typing over Remote Desktop no longer lags: WPF drew the window in software in a remote session and read every picture of the page back from the graphics card first; it now uses the graphics card there too. The start option `--rdp-software` goes back to software, should a remote session show the window wrongly; the log notes at the start whether the graphics card is used in a remote session.
+
 ## [3.58.0] - 2026-11-03
 
 Build a query in the relationship diagram as LINQ and SQL, create a foreign key constraint from a relationship of the C# model, and cancelling sends breaks in band by default.
