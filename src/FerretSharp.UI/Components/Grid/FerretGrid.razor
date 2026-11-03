@@ -1235,6 +1235,17 @@
         }
     }
 
+    /// <summary>Ctrl+C on a cell of a new row (pinned on top): its value as in the row, copied like a loaded row's cell.</summary>
+    [JSInvokable]
+    public Task OnCopyNewRow(string newId, string colId) => GuardAsync(async () =>
+    {
+        if (NewRow(newId) is { } added && colId.StartsWith('c'))
+        {
+            var index = ColumnIndex(colId);
+            await ExportActions.CopyCellAsync(Shell, _grid, Details.Columns[index], added.ValueOf(index));
+        }
+    });
+
     private Task<bool> CopyTextAsync(string text) => _grid.CopyTextAsync(Shell, text);
 
     /// <summary>

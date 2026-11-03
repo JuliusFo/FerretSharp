@@ -32,7 +32,7 @@ public sealed class SqlScriptTests
     }
 
     [Fact]
-    public void Statements_end_at_semicolons_blank_lines_and_slash_lines_not_inside_literals_or_comments()
+    public void Statements_end_at_semicolons_and_slash_lines_not_at_blank_lines_or_inside_literals_or_comments()
     {
         const string script = """
             SELECT 'a;b' FROM dual; SELECT 2 FROM dual;
@@ -44,9 +44,11 @@ public sealed class SqlScriptTests
             /
             DELETE FROM t
 
-            -- only a comment
+            -- still the DELETE
 
-            SELECT 3 FROM dual
+             WHERE id = 1;
+
+            -- only a comment
             """;
 
         Assert.Equal(
@@ -54,10 +56,145 @@ public sealed class SqlScriptTests
                 "SELECT 'a;b' FROM dual",
                 "SELECT 2 FROM dual",
                 "-- the next one\nUPDATE t\n   SET x = 1 /* stays\n\nin here */",
-                "DELETE FROM t",
-                "SELECT 3 FROM dual",
+                "DELETE FROM t\n\n-- still the DELETE\n\n WHERE id = 1",
             ],
             SqlScript.Split(script.ReplaceLineEndings("\n")).Select(s => s.Text));
+    }
+
+    /// <summary>
+    /// ADR 0014, decision of the user: a blank line separated statements, so a view laid out with blank lines was cut
+    /// apart – Ctrl+Enter in its lower part ran "PIVOT …" and was refused.
+    /// </summary>
+    [Fact]
+    public void A_view_with_blank_lines_is_one_statement()
+    {
+        const string script = """
+            CREATE OR REPLACE FORCE EDITIONABLE VIEW messwerte_v AS
+            SELECT *
+              FROM (
+                SELECT m.probe_id, m.name, m.wert
+                  FROM messung m
+
+                 WHERE m.typ = 1
+              )
+
+            PIVOT (MAX(wert) FOR name IN ('Q1' AS q1, 'Q2' AS q2));
+
+            SELECT * FROM messwerte_v
+            """;
+        var text = script.ReplaceLineEndings("\n");
+
+        var statement = SqlScript.StatementAt(text, text.IndexOf("PIVOT", StringComparison.Ordinal), text.IndexOf("PIVOT", StringComparison.Ordinal))!;
+
+        Assert.Equal(text[..text.IndexOf(';', StringComparison.Ordinal)], statement.Text);
+        Assert.Equal(SqlStatementKind.Ddl, SqlScript.Analyze(statement.Text).Kind);
+        Assert.Null(SqlScript.DdlRejection(statement.Text));
+        Assert.Equal(2, SqlScript.Split(text).Count);
+    }
+
+    /// <summary>The history appends after the script's last statement: without its own ";" or "/" line the two would run as one.</summary>
+    [Theory]
+    [InlineData("SELECT 1 FROM dual", "SELECT 1 FROM dual;")]
+    [InlineData("SELECT 1 FROM dual -- note", "SELECT 1 FROM dual; -- note")]
+    [InlineData("SELECT 1 FROM dual;\nSELECT 2 FROM dual", "SELECT 1 FROM dual;\nSELECT 2 FROM dual;")]
+    [InlineData("BEGIN NULL; END;", "BEGIN NULL; END;\n/")]
+    [InlineData("SELECT 1 FROM dual; -- done", "SELECT 1 FROM dual; -- done")]
+    [InlineData("BEGIN NULL; END;\n/", "BEGIN NULL; END;\n/")]
+    [InlineData("SELECT 1 FROM dual\n/", "SELECT 1 FROM dual\n/")]
+    [InlineData("-- only a comment", "-- only a comment")]
+    [InlineData("", "")]
+    [InlineData("SELECT 1 FROM dual\r\n-- note", "SELECT 1 FROM dual;\r\n-- note")]
+    [InlineData("SELECT 1 FROM dual /* note */", "SELECT 1 FROM dual; /* note */")]
+    [InlineData("SELECT 10\n/ 2 FROM dual", "SELECT 10\n/ 2 FROM dual;")]
+    [InlineData("BEGIN NULL; END; -- note", "BEGIN NULL; END; -- note\n/")]
+    [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t FOR EACH ROW CALL p", "CREATE TRIGGER t_bi BEFORE INSERT ON t FOR EACH ROW CALL p\n/")]
+    [InlineData("UPDATE t SET a = 1\nBEGIN NULL; END;", "UPDATE t SET a = 1\nBEGIN NULL; END;\n/")]
+    public void Terminated_ends_an_open_last_statement(string text, string expected) => Assert.Equal(expected, SqlScript.Terminated(text));
+
+    /// <summary>
+    /// Review: the history ended only the script's last statement; one of its own ending in a comment or a block stayed
+    /// open. Second review: line breaks of the script's kind – Monaco turns others into its own, and the cursor missed.
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT 1 FROM dual\n\n", "SELECT 2 FROM dual -- note", "SELECT 1 FROM dual;\n\nSELECT 2 FROM dual; -- note\n", 21)]
+    [InlineData("SELECT 1 FROM dual;\n", "BEGIN NULL; END;", "SELECT 1 FROM dual;\n\nBEGIN NULL; END;\n/\n", 21)]
+    [InlineData("SELECT 1 FROM dual\r\n", "SELECT 2 FROM dual", "SELECT 1 FROM dual;\r\n\r\nSELECT 2 FROM dual;\r\n", 23)]
+    [InlineData("SELECT 1\r\nFROM dual", "BEGIN NULL; END;", "SELECT 1\r\nFROM dual;\r\n\r\nBEGIN NULL; END;\r\n/\r\n", 24)]
+    public void The_history_appends_a_statement_of_its_own(string script, string statement, string expected, int start)
+    {
+        var appended = SqlScript.Append(script, statement);
+
+        Assert.Equal((expected, start), appended);
+        Assert.Equal(2, SqlScript.Split(appended.Text + "SELECT 3 FROM dual").Count - 1);
+        Assert.Equal((SqlScript.Terminated("SELECT 1 FROM dual") + Environment.NewLine, 0), SqlScript.Append("", "SELECT 1 FROM dual"));
+    }
+
+    /// <summary>
+    /// Review: a block behind a statement without ";" fell apart at its inner ";" – Ctrl+Enter on its DELETE line ran the
+    /// DELETE. Decision of the user: a PL/SQL object's CREATE starts a statement of its own, a BEGIN block is refused.
+    /// </summary>
+    [Fact]
+    public void A_block_behind_a_statement_without_semicolon_is_never_cut_into_statements()
+    {
+        const string script = """
+            SELECT 1 FROM dual
+
+            -- the trigger
+            CREATE OR REPLACE TRIGGER trg AFTER INSERT ON t FOR EACH ROW
+            BEGIN
+              INSERT INTO log VALUES (1);
+              DELETE FROM audit_log WHERE id < 30;
+            END;
+            /
+            UPDATE t SET a = 1
+            BEGIN
+              <<lbl>>
+              INSERT INTO log VALUES (1);
+              DELETE FROM audit_log WHERE id < 30;
+            END;
+            /
+            SELECT id,
+            begin
+              FROM t;
+            SELECT * FROM t ORDER BY id,
+            begin
+            DESC;
+            CREATE TABLE z (
+              id NUMBER,
+              begin DATE
+            );
+            SELECT * FROM z
+            BEGIN
+              offset := 0;
+              DELETE FROM audit_log WHERE id < 30;
+            END;
+            /
+            """;
+        var text = script.ReplaceLineEndings("\n");
+
+        var statements = SqlScript.Split(text);
+
+        Assert.Equal(
+            [
+                "SELECT 1 FROM dual",
+                "-- the trigger\nCREATE OR REPLACE TRIGGER trg AFTER INSERT ON t FOR EACH ROW\nBEGIN\n  INSERT INTO log VALUES (1);\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
+                "UPDATE t SET a = 1\nBEGIN\n  <<lbl>>\n  INSERT INTO log VALUES (1);\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
+                "SELECT id,\nbegin\n  FROM t",
+                "SELECT * FROM t ORDER BY id,\nbegin\nDESC",
+                "CREATE TABLE z (\n  id NUMBER,\n  begin DATE\n)",
+                "SELECT * FROM z\nBEGIN\n  offset := 0;\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
+            ],
+            statements.Select(s => s.Text));
+        Assert.Equal(SqlStatementKind.Trigger, SqlScript.Analyze(statements[1].Text).Kind);
+        var merged = SqlScript.Analyze(statements[2].Text);
+        Assert.Equal((SqlStatementKind.Update, true), (merged.Kind, merged.RunsIntoBlock));
+        Assert.StartsWith("Vor dem PL/SQL-Block (BEGIN/DECLARE) fehlt ein „;“", merged.Rejection);
+        Assert.NotNull(SqlScript.DdlRejection(statements[2].Text));
+        var delete = text.IndexOf("DELETE", text.IndexOf("UPDATE", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.Equal(statements[2].Text, SqlScript.StatementAt(text, delete, delete)?.Text);
+        Assert.Null(SqlScript.Analyze(statements[3].Text).Rejection);
+        Assert.Null(SqlScript.Analyze(statements[4].Text).Rejection); // DESC ends SQL, never a PL/SQL call
+        Assert.True(SqlScript.Analyze(statements[6].Text).RunsIntoBlock); // "offset" continues SQL, ":=" does not
     }
 
     /// <summary>
@@ -81,7 +218,7 @@ public sealed class SqlScriptTests
             BEGIN NULL; END;
             /
             ALTER TRIGGER kunde_audit ENABLE
-
+            -- a package
             CREATE PACKAGE p AS
               x NUMBER;
             END;
@@ -93,7 +230,7 @@ public sealed class SqlScriptTests
                 "SELECT 1 FROM dual",
                 "BEGIN NULL; END;",
                 "ALTER TRIGGER kunde_audit ENABLE",
-                "CREATE PACKAGE p AS\n  x NUMBER;\nEND;",
+                "-- a package\nCREATE PACKAGE p AS\n  x NUMBER;\nEND;",
             ],
             SqlScript.Split(script.ReplaceLineEndings("\n")).Select(s => s.Text));
     }
@@ -103,7 +240,8 @@ public sealed class SqlScriptTests
     [InlineData("SELECT 1 FROM dual;\n|", "SELECT 1 FROM dual")]
     [InlineData("SELECT 1\n  FROM du|al;\nSELECT 2 FROM dual;", "SELECT 1\n  FROM dual")]
     [InlineData("SELECT 1 FROM dual;\nSEL|ECT 2 FROM dual;", "SELECT 2 FROM dual")]
-    [InlineData("SELECT 1 FROM dual\n\n|\n\nSELECT 2 FROM dual", null)]
+    [InlineData("SELECT 1 FROM dual;\n\n|\n\nSELECT 2 FROM dual", null)]
+    [InlineData("SELECT 1 FROM dual\n\n|\n\nSELECT 2 FROM dual", "SELECT 1 FROM dual\n\n\n\nSELECT 2 FROM dual")]
     [InlineData("|\nSELECT 2 FROM dual", "SELECT 2 FROM dual")]
     [InlineData("|", null)]
     public void The_statement_at_the_cursor(string marked, string? expected)
@@ -376,7 +514,7 @@ public sealed class SqlScriptTests
     {
         Assert.Null(SqlScript.DdlRejection("ALTER TABLE kunden ADD (fax VARCHAR2(30));"));
         Assert.Null(SqlScript.DdlRejection("-- Kommentar\nCOMMENT ON TABLE kunden IS 'a;b'"));
-        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Leerzeile darin beendet die Anweisung dort.",
+        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Zeile nur mit „/“ darin beendet die Anweisung dort.",
             SqlScript.DdlRejection("ALTER TABLE kunden ADD CHECK (status IN ('A','B');)"));
         Assert.Equal("„UPDATE“ ist keine DDL-Anweisung.", SqlScript.DdlRejection("UPDATE kunden SET name = 'x'"));
         Assert.Equal("DDL nimmt keine Bind-Variablen (:v) – den Wert direkt ins Statement schreiben.",

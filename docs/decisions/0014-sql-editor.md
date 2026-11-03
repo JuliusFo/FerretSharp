@@ -24,4 +24,5 @@ Entscheidungen des Nutzers (2026-10-05/06): SELECT überall, INSERT/UPDATE/DELET
 
 - Grenze: Eine Funktion mit autonomer Transaktion kann aus einem SELECT heraus schreiben; die Leseschranke sieht das nicht, auf gesperrten Workspaces auch der READ-ONLY-Snapshot nicht. Die einzige echte Garantie bleibt ein Benutzer mit reinen SELECT-Rechten (CLAUDE.md, Abschnitt 2).
 - DDL, PL/SQL und Skripte in einem Rutsch bleiben außen vor (Backlog: DDL auf Dev ohne offene Transaktion, Skript ausführen). Nachtrag: Skripte seit WP-18, DDL seit WP-22 über einen eigenen engen Schemaweg (ADR 0019).
+- Nachtrag (2026-11-03, Entscheidung des Nutzers, `fix-sql-split-at-semicolon.md`): **Statements trennen nur noch `;` und eine Zeile mit nur `/`**, keine Leerzeile mehr – eine View mit Leerzeilen im Text wurde zerschnitten, und Ctrl+Enter lief nur ein Stück davon. Statements ohne `;` untereinander laufen seitdem als eines (Oracle meldet den Syntaxfehler); der Verlauf schließt das letzte offene Statement ab, bevor er anhängt.
 - Ergebnisse freier Abfragen zeigen DB-Werte (keine Enum-Namen): ohne Bezug zwischen Ergebnisspalte und Tabellenspalte gibt es keine Präsentationsschicht.

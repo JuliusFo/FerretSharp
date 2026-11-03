@@ -35,6 +35,12 @@ public static class CommandLine
     /// </summary>
     public const string EnableOob = "--enable-oob";
 
+    /// <summary>
+    /// WPF renders in software in a remote session (RDP), its own default there, instead of on the GPU as FerretSharp lets it
+    /// otherwise (ADR 0043). A way back should the remote machine's GPU show the window wrongly. A switch without a value.
+    /// </summary>
+    public const string RdpSoftware = "--rdp-software";
+
     /// <summary>The options that name a path: an update starts the new version with them as full paths.</summary>
     public static readonly IReadOnlyList<string> PathOptions = [DataDir, ImportAppData, UpdateSource];
 
@@ -85,6 +91,12 @@ public static class CommandLine
     /// <see cref="Effective"/> arguments: a link cannot turn it on.
     /// </summary>
     public static bool BreaksOutOfBand(IEnumerable<string> args) => Has(args, EnableOob);
+
+    /// <summary>
+    /// Whether WPF may render on the GPU in a remote session (unless <see cref="RdpSoftware"/>, ADR 0043). Takes
+    /// <see cref="Effective"/> arguments: a link cannot turn it off.
+    /// </summary>
+    public static bool GpuInRemoteSession(IEnumerable<string> args) => !Has(args, RdpSoftware);
 
     /// <summary>Whether the switch <paramref name="option"/> was given (the case of its name ignored).</summary>
     public static bool Has(IEnumerable<string> args, string option) =>

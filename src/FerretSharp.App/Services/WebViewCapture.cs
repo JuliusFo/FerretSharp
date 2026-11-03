@@ -124,6 +124,9 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
     private TimeSpan _longestHold;
     private long _lastNote;
 
+    private int _arrived;
+    private long _arrivedSince;
+
     private readonly CopyFence _fence = new();
     private bool _fenceUnsupported;
     private int _longCopies;
@@ -398,6 +401,7 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
 
     private void OnFrameArrived(Direct3D11CaptureFramePool pool, object args)
     {
+        NoteArrived();
         if (!ReferenceEquals(pool, _pool) || _hold is not { } hold || hold.IsEnabled)
         {
             // An old pool; or a frame already waits. The pool has one buffer, so nothing new comes while it is held: what
@@ -491,6 +495,32 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
             _fence.Release(); // device lost: the rebuild brings new devices, the next frame a new query
             logger.LogDebug("Waiting for the copy of a WebView frame failed: {Message}", ex.Message);
         }
+    }
+
+    /// <summary>
+    /// All frames of the capture, noted with the first one a minute after the last note: the span is the time since then,
+    /// so a quiet page shows as few frames over a long span. On some machines (Windows 11 23H2) the capture delivers one
+    /// for every frame shown, also without a change of the page – up to the display's refresh rate (ADR 0043).
+    /// </summary>
+    private void NoteArrived()
+    {
+        if (_arrivedSince == 0)
+        {
+            _arrivedSince = Stopwatch.GetTimestamp(); // starts the span and is not counted, as the frame that ends one
+            return;
+        }
+
+        _arrived++;
+        var span = Stopwatch.GetElapsedTime(_arrivedSince);
+        if (span < NoteEvery)
+        {
+            return;
+        }
+
+        logger.LogDebug("WebView frames arrived: {Count} in {Seconds} s, {PerSecond:0.0} per second",
+            _arrived, (int)span.TotalSeconds, _arrived / span.TotalSeconds);
+        _arrived = 0;
+        _arrivedSince = Stopwatch.GetTimestamp();
     }
 
     /// <summary>Copies that kept the UI thread waiting, at most once a minute in the log – and how many were still not done.</summary>

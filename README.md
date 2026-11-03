@@ -186,7 +186,8 @@ developer works with an Oracle database day to day:
   <img src="docs/images/sql-editor-light.png" alt="SQL editor with bind variables and a result grid">
 </picture>
 
-- SQL editor (Monaco) per workspace: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs the statement at the cursor,
+- SQL editor (Monaco) per workspace: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs the statement at the cursor (statements end
+  at `;` or a line with only `/`),
   <kbd>Alt</kbd>+<kbd>X</kbd> the whole script, with progress and cancel; queries everywhere, `INSERT`/`UPDATE`/`DELETE`/
   `MERGE` only in writable workspaces, inside their transaction (and part of its undo history).
 - **What is it waiting for?** A statement that runs longer says when it waits for a lock – on which table, held by whom

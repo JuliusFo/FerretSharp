@@ -121,7 +121,7 @@
     <value>Alle Statements nacheinander ausführen (oder die markierten); beim ersten Fehler hält das Skript an</value>
   </data>
   <data name="SqlView_RunTitle" xml:space="preserve">
-    <value>Das Statement am Cursor ausführen (oder die Markierung); Statements trennt ; oder eine Leerzeile</value>
+    <value>Das Statement am Cursor ausführen (oder die Markierung); Statements trennt ; oder eine Zeile nur mit /</value>
   </data>
   <data name="SqlView_ScriptButtonQuoted" xml:space="preserve">
     <value>„Skript“</value>
@@ -133,10 +133,10 @@
     <value>SQL im Workspace</value>
   </data>
   <data name="SqlView_EmptyText" xml:space="preserve">
-    <value>Statements schreiben, mit ; oder einer Leerzeile trennen und das Statement am Cursor ausführen – {0} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion, DDL (CREATE, ALTER, DROP …) ebenfalls nur dort, nach Bestätigung und sofort committet. Ctrl+Leertaste schlägt Tabellen und Spalten vor.</value>
+    <value>Statements schreiben, mit ; oder einer Zeile nur mit / trennen und das Statement am Cursor ausführen – {0} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion, DDL (CREATE, ALTER, DROP …) ebenfalls nur dort, nach Bestätigung und sofort committet. Ctrl+Leertaste schlägt Tabellen und Spalten vor.</value>
   </data>
   <data name="SqlView_EmptyTextWithKey" xml:space="preserve">
-    <value>Statements schreiben, mit ; oder einer Leerzeile trennen und mit {0} das Statement am Cursor ausführen – {1} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion, DDL (CREATE, ALTER, DROP …) ebenfalls nur dort, nach Bestätigung und sofort committet. Ctrl+Leertaste schlägt Tabellen und Spalten vor.</value>
+    <value>Statements schreiben, mit ; oder einer Zeile nur mit / trennen und mit {0} das Statement am Cursor ausführen – {1} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion, DDL (CREATE, ALTER, DROP …) ebenfalls nur dort, nach Bestätigung und sofort committet. Ctrl+Leertaste schlägt Tabellen und Spalten vor.</value>
   </data>
   <data name="SqlView_ConfirmAllRowsTitle" xml:space="preserve">
     <value>Alle Zeilen ändern?</value>
@@ -169,7 +169,7 @@
     <value>Das Statement läuft in der Transaktion des Workspaces und bleibt bis zum Commit für andere unsichtbar.</value>
   </data>
   <data name="SqlView_NoStatementAtCursor" xml:space="preserve">
-    <value>Kein Statement am Cursor – Statements trennt ; oder eine Leerzeile.</value>
+    <value>Kein Statement am Cursor – Statements trennt ; oder eine Zeile nur mit /.</value>
   </data>
   <data name="SqlView_SelectionHasStatements" xml:space="preserve">
     <value>Die Markierung enthält {0} Statements – ausgeführt wird das erste ({1} führt alle aus).</value>
