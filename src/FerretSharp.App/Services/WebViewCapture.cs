@@ -6,6 +6,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Wpf;
+using Microsoft.Win32;
 using Windows.Foundation;
 using Windows.Graphics.Capture;
 
@@ -29,9 +30,15 @@ namespace FerretSharp.App.Services;
 /// capture delivers a frame only when the page changes, so after a quick series of changes the last one could be missing
 /// until the next change: the LOB dialog stayed at "Loading …", rows after an FK jump stayed empty, a SQL tab showed its
 /// first line – until a click. Here the frame waits in the pool until the image is free and is copied then.</item>
+/// <item>Error dialog and frozen picture after a session switch (2026-11-03, back at the laptop from RDP): until Windows
+/// has the console's display ready, creating the Direct3D 9 device fails with <c>E_NOTIMPL</c>. The control tries again
+/// only after a <c>COMException</c>, so its rebuild after the display change ended in the "unexpected error" dialog, and
+/// the picture stood until the window was minimized. Here every rebuild – also the one after a display change, the
+/// control's handler replaced – is tried again until it works (<see cref="RebuildLimit"/>), and the capture restarts after
+/// a session switch.</item>
 /// </list>
 /// </summary>
-public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
+public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
 {
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
     private static readonly Type[] HandlerParameters = [typeof(object), typeof(EventArgs)];
@@ -40,9 +47,9 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     private static readonly FieldInfo? ImageField = typeof(WebView2CompositionControl).GetField("_d3dImage", Private);
 
     /// <summary>
-    /// Its handlers of the display change: the first marks the change and drops the back buffer, the second rebuilds with
-    /// retries after a <c>COMException</c>. The rebuild itself is called here first (any other exception would reach the
-    /// "unexpected error" dialog and leave the change marked, every frame dropped) – the second only for its retries.
+    /// Its handlers of the display change: the first marks the change and drops the back buffer, the second rebuilds and
+    /// tries again only after a <c>COMException</c> – any other exception reached the "unexpected error" dialog and left the
+    /// change marked, every frame dropped. The second is replaced here (<see cref="OnDisplaySettingsChanged"/>).
     /// </summary>
     private static readonly MethodInfo? DisplayChanging = ImageField?.FieldType.GetMethod("OnDisplaySettingsChanging", Private, HandlerParameters);
     private static readonly MethodInfo? DisplayChanged = ImageField?.FieldType.GetMethod("OnDisplaySettingsChanged", Private, HandlerParameters);
@@ -70,6 +77,13 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     private static readonly TimeSpan RestartWait = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan RestartStep = TimeSpan.FromMilliseconds(50);
 
+    /// <summary>
+    /// A rebuild that fails is tried again this often, for at most this long (after a session switch the console's display
+    /// was not ready 2 s after the first attempt, 2026-11-03); then left unmarked for the next restart.
+    /// </summary>
+    private static readonly TimeSpan RebuildStep = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan RebuildLimit = TimeSpan.FromSeconds(30);
+
     /// <summary>How often a frame that waits checks the image again, and for how long at most (then copied or dropped as before).</summary>
     private static readonly TimeSpan HoldStep = TimeSpan.FromMilliseconds(4);
     private static readonly TimeSpan HoldLimit = TimeSpan.FromSeconds(1);
@@ -93,6 +107,14 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     private DispatcherTimer? _restart;
     private string _restartReason = "";
     private long _restartSince;
+    private DispatcherTimer? _restartSoon;
+    private string _restartSoonReason = "";
+
+    private DispatcherTimer? _rebuild;
+    private object? _rebuildImage;
+    private long _rebuildSince;
+    private int _rebuildAttempts;
+    private bool _displayChangeTaken;
 
     private Direct3D11CaptureFramePool? _pool;
     private DispatcherTimer? _hold;
@@ -121,7 +143,15 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
         {
             _restart = new DispatcherTimer(DispatcherPriority.Render, control.Dispatcher) { Interval = RestartStep };
             _restart.Tick += (_, _) => RestartWhenFree();
-            WatchFrontBuffer();
+            _restartSoon = new DispatcherTimer(DispatcherPriority.Normal, control.Dispatcher) { Interval = AfterWaking };
+            _restartSoon.Tick += (_, _) =>
+            {
+                _restartSoon.Stop();
+                Restart(_restartSoonReason);
+            };
+            _rebuild = new DispatcherTimer(DispatcherPriority.Normal, control.Dispatcher) { Interval = RebuildStep };
+            _rebuild.Tick += (_, _) => RebuildNow();
+            WatchImage();
         }
 
         if (PoolField is null || FrameArrived is null || RequestRender is null)
@@ -144,7 +174,10 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
         check.Start();
     }
 
-    /// <summary>After waking up: a few seconds later, when the graphics output is back (from any thread).</summary>
+    /// <summary>
+    /// After waking up or a session switch: a few seconds later, when the graphics output is back (from any thread). Several
+    /// in a row (connected, then unlocked) give one restart, with the last reason.
+    /// </summary>
     public void RestartSoon(string reason)
     {
         if (_control is not { } control)
@@ -154,13 +187,12 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
 
         control.Dispatcher.BeginInvoke(() =>
         {
-            var timer = new DispatcherTimer { Interval = AfterWaking };
-            timer.Tick += (_, _) =>
+            if (_restartSoon is { } timer)
             {
+                _restartSoonReason = reason;
                 timer.Stop();
-                Restart(reason);
-            };
-            timer.Start();
+                timer.Start();
+            }
         });
     }
 
@@ -213,7 +245,7 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
             return;
         }
 
-        WatchFrontBuffer();
+        WatchImage();
         logger.LogInformation("Restarting the WebView's capture ({Reason})", reason);
         try
         {
@@ -227,47 +259,86 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
 
         // Like the control after a display change: rebuilt in a later dispatcher operation, at Normal as the control does
         // (before the next render pass – nothing here relies on the dropped back buffer being committed first).
-        control.Dispatcher.BeginInvoke(DispatcherPriority.Normal, () => RebuildNow(image));
+        control.Dispatcher.BeginInvoke(DispatcherPriority.Normal, () => StartRebuild(image));
     }
 
-    private void RebuildNow(object image)
-    {
-        if (ChangePending!.GetValue(image) is not true)
+    /// <summary>
+    /// The control's handler of a display change, replaced (<see cref="DisplayChanged"/>): rebuilt in a later dispatcher
+    /// operation at Render as the control does, once the change is marked – with retries after any exception.
+    /// </summary>
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
+        _control?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
         {
-            return; // rebuilt meanwhile (a change of the display settings) or the control is gone
+            if (_control is not null && ImageField?.GetValue(_control) is { } image && ChangePending!.GetValue(image) is true)
+            {
+                StartRebuild(image);
+            }
+        });
+
+    /// <summary>A rebuild from now on, also when one tries again: the newer cause counts.</summary>
+    private void StartRebuild(object image)
+    {
+        _rebuild!.Stop();
+        _rebuildImage = image;
+        _rebuildSince = Stopwatch.GetTimestamp();
+        _rebuildAttempts = 0;
+        RebuildNow();
+    }
+
+    private void RebuildNow()
+    {
+        if (_rebuildImage is not { } image || ChangePending!.GetValue(image) is not true)
+        {
+            _rebuild!.Stop();
+            return; // rebuilt meanwhile or the control is gone
         }
 
+        _rebuildAttempts++;
         try
         {
             Rebuild!.Invoke(image, null);
-            TakeOverPool(); // the rebuild made a new pool, with the control's handler on it
-        }
-        catch (TargetInvocationException ex) when (ex.InnerException is COMException)
-        {
-            try
-            {
-                DisplayChanged!.Invoke(image, [null, EventArgs.Empty]); // the device is not back yet: the control's retries
-            }
-            catch (TargetInvocationException again)
-            {
-                Unmark(image, again);
-            }
         }
         catch (TargetInvocationException ex)
         {
+            // Marked meanwhile, the control drops every frame instead of copying into devices it no longer has.
+            if (Stopwatch.GetElapsedTime(_rebuildSince) < RebuildLimit)
+            {
+                if (_rebuildAttempts == 1)
+                {
+                    logger.LogInformation("Rebuilding the WebView's capture failed, trying again for up to {Seconds} s: {Message}",
+                        RebuildLimit.TotalSeconds, ex.InnerException?.Message);
+                }
+
+                _rebuild!.Start();
+                return;
+            }
+
+            _rebuild!.Stop();
             Unmark(image, ex);
+            return;
         }
+
+        _rebuild!.Stop();
+        if (_rebuildAttempts > 1)
+        {
+            logger.LogInformation("WebView's capture rebuilt at attempt {Attempt}", _rebuildAttempts);
+        }
+
+        TakeOverPool(); // the rebuild made a new pool, with the control's handler on it
     }
 
     /// <summary>Left marked, the control would drop every frame; unmarked, the next restart (restore from minimized) tries again.</summary>
     private void Unmark(object image, TargetInvocationException ex)
     {
         ChangePending!.SetValue(image, false);
-        logger.LogWarning(ex.InnerException, "Rebuilding the WebView's capture failed");
+        logger.LogWarning(ex.InnerException, "Rebuilding the WebView's capture failed after {Attempts} attempts", _rebuildAttempts);
     }
 
-    /// <summary>The image exists only after the control has loaded: watched from the first chance on, once.</summary>
-    private void WatchFrontBuffer()
+    /// <summary>
+    /// The image exists only after the control has loaded: watched from the first chance on, once – its front buffer, and its
+    /// handler of a display change replaced (the delegate compares equal to the one the control added, as for the frames).
+    /// </summary>
+    private void WatchImage()
     {
         if (_watched is not null || _control is null || ImageField?.GetValue(_control) is not D3DImage image)
         {
@@ -282,6 +353,20 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
                 Restart("front buffer available again");
             }
         };
+
+        SystemEvents.DisplaySettingsChanged -= (EventHandler)Delegate.CreateDelegate(typeof(EventHandler), image, DisplayChanged!);
+        SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        _displayChangeTaken = true;
+        logger.LogDebug("Display changes of the WebView's capture taken over");
+    }
+
+    /// <summary>A static event: it would keep the control alive.</summary>
+    public void Dispose()
+    {
+        if (_displayChangeTaken)
+        {
+            SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        }
     }
 
     /// <summary>
