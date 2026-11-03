@@ -102,9 +102,6 @@
   <data name="Model_MismatchesTitle" xml:space="preserve">
     <value>Typ, NULL, Länge, Stellen – Hinweise nicht mitgezählt</value>
   </data>
-  <data name="Model_Open" xml:space="preserve">
-    <value>öffnen</value>
-  </data>
   <data name="Model_HeadEntity" xml:space="preserve">
     <value>Entity</value>
   </data>
@@ -742,7 +739,7 @@
     <value>Property und Konfigurationszeile im Stil des Projekts</value>
   </data>
   <data name="Report_PropertyCopied" xml:space="preserve">
-    <value>Code der Property {0} kopiert.</value>
+    <value>Property-Code für die Spalte {0} kopiert.</value>
   </data>
   <data name="Report_ConstraintOnly" xml:space="preserve">
     <value>nur mit PK auf der Gegenseite ({0})</value>
@@ -836,5 +833,26 @@
   </data>
   <data name="Report_TileModelOnlyHintOther" xml:space="preserve">
     <value>{0} könnten Constraint werden</value>
+  </data>
+  <data name="Report_SourceExceptionsIgnored" xml:space="preserve">
+    <value>{0} Einträge der Datei ignoriert</value>
+  </data>
+  <data name="Report_SourceExceptionsIgnoredTitle" xml:space="preserve">
+    <value>Leere oder zu lange Namen, Muster mit mehr als {1} * und alles über {0} Einträge hinaus bleiben außen vor.</value>
+  </data>
+  <data name="Report_Entities" xml:space="preserve">
+    <value>Entities</value>
+  </data>
+  <data name="Report_EntitiesWhat" xml:space="preserve">
+    <value>die Entities des Modells mit Tabelle, Properties und Convertern</value>
+  </data>
+  <data name="Report_EntitiesSearch" xml:space="preserve">
+    <value>Entity oder Tabelle filtern</value>
+  </data>
+  <data name="Report_HeadProperties" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="Report_HeadConverters" xml:space="preserve">
+    <value>Value Converter</value>
   </data>
 </root>

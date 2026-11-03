@@ -124,10 +124,6 @@
   <data name="Model_MismatchesTitle" xml:space="preserve">
     <value>Type, NULL, length, precision – hints not counted</value>
   </data>
-  <data name="Model_Open" xml:space="preserve">
-    <value>open</value>
-    <comment>Link: opens the table's structure</comment>
-  </data>
   <data name="Model_HeadEntity" xml:space="preserve">
     <value>Entity</value>
     <comment>Table column header</comment>
@@ -850,8 +846,8 @@
     <value>The property and its configuration line in the style of the project</value>
   </data>
   <data name="Report_PropertyCopied" xml:space="preserve">
-    <value>Code of the property {0} copied.</value>
-    <comment>{0}: property name</comment>
+    <value>Property code for the column {0} copied.</value>
+    <comment>{0}: column name</comment>
   </data>
   <data name="Report_ConstraintOnly" xml:space="preserve">
     <value>only with PK on the other side ({0})</value>
@@ -965,5 +961,32 @@
   <data name="Report_TileModelOnlyHintOther" xml:space="preserve">
     <value>{0} could become constraints</value>
     <comment>{0}: count</comment>
+  </data>
+  <data name="Report_SourceExceptionsIgnored" xml:space="preserve">
+    <value>{0} entries of the file ignored</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Report_SourceExceptionsIgnoredTitle" xml:space="preserve">
+    <value>Blank or too long names, patterns with more than {1} *, and everything beyond {0} entries are left out.</value>
+    <comment>{0}: most entries read; {1}: most * per pattern</comment>
+  </data>
+  <data name="Report_Entities" xml:space="preserve">
+    <value>Entities</value>
+    <comment>Section of the report</comment>
+  </data>
+  <data name="Report_EntitiesWhat" xml:space="preserve">
+    <value>the model's entities with their table, properties and converters</value>
+  </data>
+  <data name="Report_EntitiesSearch" xml:space="preserve">
+    <value>Filter entity or table</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Report_HeadProperties" xml:space="preserve">
+    <value>Properties</value>
+    <comment>Column heading: mapped / with column</comment>
+  </data>
+  <data name="Report_HeadConverters" xml:space="preserve">
+    <value>Value converters</value>
+    <comment>Column heading</comment>
   </data>
 </root>

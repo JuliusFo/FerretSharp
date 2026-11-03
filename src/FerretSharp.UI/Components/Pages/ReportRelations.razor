@@ -5,8 +5,8 @@
 
 @{
     var modelOnly = View.ModelOnly(Report);
-    var modelSlice = View.Slice(ReportPart.Relations, modelOnly);
-    var dbSlice = View.Slice(ReportPart.Relations, Report.DbOnly);
+    var modelSlice = View.Slice(ReportPart.Relations, modelOnly, "model");
+    var dbSlice = View.Slice(ReportPart.Relations, Report.DbOnly, "db");
     var possible = Report.ModelOnly.Count(r => r.ConstraintPossible);
 }
 <div class="report-split">
@@ -45,7 +45,7 @@
                     }
                 </tbody>
             </table>
-            <ReportMore More="modelSlice.More" OnShowAll="() => View.ShowAll(ReportPart.Relations)" />
+            <ReportMore More="modelSlice.More" OnShowAll='() => View.ShowAll(ReportPart.Relations, "model")' />
         }
     </div>
     <div>
@@ -88,7 +88,7 @@
                     }
                 </tbody>
             </table>
-            <ReportMore More="dbSlice.More" OnShowAll="() => View.ShowAll(ReportPart.Relations)" />
+            <ReportMore More="dbSlice.More" OnShowAll='() => View.ShowAll(ReportPart.Relations, "db")' />
         }
     </div>
 </div>

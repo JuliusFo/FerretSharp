@@ -1184,14 +1184,6 @@ button.badge-btn:hover { filter: brightness(1.08); }
 .model-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px 6px; }
 .model-chip { padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; }
 .model-chip.warn { border-color: var(--warn); color: var(--warn); }
-.model-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.model-table th, .model-table td { padding: 6px 16px; border-top: 1px solid var(--border); text-align: left; vertical-align: top; }
-/* Long entity, property and column names wrap instead of pushing the table out of its 1100px section. */
-.model-table td { overflow-wrap: anywhere; }
-.model-table .link-btn { text-align: left; }
-.model-table th { color: var(--muted); font-weight: 500; font-size: 12px; }
-.model-table .num { text-align: right; white-space: nowrap; }
-.model-table .small { font-size: 12px; color: var(--muted); }
 /* Type/NULL/length mismatches of the C# model (model page, "Spalten" view): severity as a small outlined tag. */
 .mismatch-toolbar { border-top: 1px solid var(--border); border-bottom: 0; }
 .mismatch-table .mono { font-family: var(--mono); font-size: 12px; }
@@ -1251,6 +1243,7 @@ table.columns .property .mismatch-sev { margin-left: 6px; cursor: help; }
 .report-table tr:last-child td { border-bottom: 0; }
 .report-table tbody tr:hover td { background: var(--hover); }
 .report-table .acts { text-align: right; white-space: nowrap; width: 1%; }
+.report-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .report-table .mono, .report-group .mono { font-family: var(--mono); font-size: 12px; }
 .report-table .muted { color: var(--muted); }
 .report-table .hidden-row td:first-child { color: var(--muted); }

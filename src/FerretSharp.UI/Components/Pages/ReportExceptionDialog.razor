@@ -11,11 +11,11 @@
     <div class="dialog-body form-grid">
         <label for="report-exception-name">@ModelViewText.Report_ExceptionName</label>
         <div>
-            <input id="report-exception-name" class="field mono" spellcheck="false" @bind="_name" @bind:event="oninput" />
+            <input id="report-exception-name" class="field mono" spellcheck="false" maxlength="@ReportExceptions.MaxNameLength" @bind="_name" @bind:event="oninput" />
             <div class="hint small">@ModelViewText.Report_ExceptionNameHint</div>
         </div>
         <label for="report-exception-reason">@ModelViewText.Report_ExceptionReason</label>
-        <input id="report-exception-reason" class="field" @bind="_reason" @bind:event="oninput" placeholder="@ModelViewText.Report_ExceptionReasonPlaceholder"
+        <input id="report-exception-reason" class="field" maxlength="@ReportExceptions.MaxReasonLength" @bind="_reason" @bind:event="oninput" placeholder="@ModelViewText.Report_ExceptionReasonPlaceholder"
                @onkeydown="OnKeyDownAsync" />
         <span></span>
         <div class="hint small" title="@File">@TextFormat.Format(ModelViewText.Report_ExceptionFile, File)</div>

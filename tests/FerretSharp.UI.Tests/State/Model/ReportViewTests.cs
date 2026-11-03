@@ -122,6 +122,25 @@ public sealed class ReportViewTests
         Assert.Equal((ReportView.FirstRows, 7), (first.Shown.Count, first.More));
         Assert.Equal((rows.Count, 0), (view.Slice(ReportPart.Unused, rows).Shown.Count, view.Slice(ReportPart.Unused, rows).More));
         Assert.Equal(ReportView.FirstRows, view.Slice(ReportPart.Tables, rows).Shown.Count); // per list
+
+        // Review of WP-72: the two halves of the relationships are lists of their own.
+        view.ShowAll(ReportPart.Relations, "model");
+        Assert.Equal(rows.Count, view.Slice(ReportPart.Relations, rows, "model").Shown.Count);
+        Assert.Equal(ReportView.FirstRows, view.Slice(ReportPart.Relations, rows, "db").Shown.Count);
+    }
+
+    /// <summary>Review of WP-72: the entity table of the model page moved to the report.</summary>
+    [Fact]
+    public async Task Entities_list_the_model_with_where_each_was_found()
+    {
+        var (_, mapping) = await ReportAsync();
+        var view = new ReportView();
+
+        Assert.Equal(["Auftrag", "Kunde"], view.Entities(mapping).Select(e => ClrModelMapping.ShortName(e.Entity.ClrType)));
+        Assert.All(view.Entities(mapping), e => Assert.NotNull(e.Located));
+
+        view.EntitySearch = "kunde";
+        Assert.Equal(["Kunde"], view.Entities(mapping).Select(e => ClrModelMapping.ShortName(e.Entity.ClrType)));
     }
 
     [Fact]

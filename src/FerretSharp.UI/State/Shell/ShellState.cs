@@ -31,7 +31,7 @@ public sealed record ConnectionExportRequest(bool OnlyGroup = false, string? Gro
 public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements, Report }
 
 /// <summary>The sections of the report page (WP-72), for a link that opens one.</summary>
-public enum ReportPart { Tables, Columns, Relations, Mismatches, ModelWithoutMatch, Unused }
+public enum ReportPart { Tables, Columns, Relations, Mismatches, ModelWithoutMatch, Entities, Unused }
 
 /// <summary>
 /// Shell-level UI state shared via a cascading value: current page, dialogs, notices, the events between components –

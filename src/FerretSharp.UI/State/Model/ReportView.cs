@@ -23,7 +23,7 @@ public sealed class ReportView
     private static readonly HashSet<ReportPart> s_open = [ReportPart.Tables, ReportPart.Columns, ReportPart.Relations];
     private static readonly Lock s_lock = new();
 
-    private readonly HashSet<ReportPart> _showAll = [];
+    private readonly HashSet<(ReportPart Part, string? List)> _showAll = [];
     private readonly HashSet<TableRef> _openGroups = [];
 
     public bool IsOpen(ReportPart part)
@@ -54,11 +54,12 @@ public sealed class ReportView
         }
     }
 
-    public void ShowAll(ReportPart part) => _showAll.Add(part);
+    /// <param name="list">One of several lists of the section (the two halves of the relationships); null for its only one.</param>
+    public void ShowAll(ReportPart part, string? list = null) => _showAll.Add((part, list));
 
     /// <summary>The first <see cref="FirstRows"/> of <paramref name="rows"/>, all after <see cref="ShowAll"/>.</summary>
-    public ReportSlice<T> Slice<T>(ReportPart part, IReadOnlyList<T> rows) =>
-        _showAll.Contains(part) || rows.Count <= FirstRows ? new(rows, 0) : new([.. rows.Take(FirstRows)], rows.Count - FirstRows);
+    public ReportSlice<T> Slice<T>(ReportPart part, IReadOnlyList<T> rows, string? list = null) =>
+        _showAll.Contains((part, list)) || rows.Count <= FirstRows ? new(rows, 0) : new([.. rows.Take(FirstRows)], rows.Count - FirstRows);
 
     // Tables without entity.
 
@@ -145,6 +146,25 @@ public sealed class ReportView
         var search = new TextSearch(MismatchSearch);
         return [.. report.Mismatches.Where(m => Severities.Contains(m.Severity) && search.Matches(
             $"{ClrModelMapping.ShortName(m.Entity.ClrType)}.{m.Property.Name} {m.Table.DisplayName}.{m.Column.Name}"))];
+    }
+
+    // Entities (moved from the model page).
+
+    public string EntitySearch { get; set; } = "";
+
+    /// <summary>
+    /// The model's entities with a table or view, by short name, with where each was found (null: not in the schema) – the
+    /// table the model page had.
+    /// </summary>
+    public IReadOnlyList<(EntityExport Entity, EntityMapping? Located)> Entities(ClrModelMapping mapping)
+    {
+        var search = new TextSearch(EntitySearch);
+        var located = mapping.Entities.GroupBy(m => m.Entity).ToDictionary(g => g.Key, g => g.First());
+        return [.. mapping.Model.Entities
+            .Where(e => e.Table is not null || e.View is not null)
+            .Select(e => (Entity: e, Located: located.GetValueOrDefault(e)))
+            .Where(e => search.Matches($"{ClrModelMapping.ShortName(e.Entity.ClrType)} {e.Located?.Table.DisplayName ?? e.Entity.View ?? e.Entity.Table}"))
+            .OrderBy(e => ClrModelMapping.ShortName(e.Entity.ClrType), StringComparer.Ordinal)];
     }
 
     // Unused columns.

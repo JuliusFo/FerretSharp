@@ -241,7 +241,7 @@
     <value>Das C#-Modell kennt eine Spalte, die es in der Datenbank nicht gibt</value>
   </data>
   <data name="Linq_ShowModelMismatches" xml:space="preserve">
-    <value>Modell-Abgleich öffnen</value>
+    <value>Im Bericht zeigen</value>
   </data>
   <data name="Linq_WriteHint" xml:space="preserve">
     <value>Dieses Statement ändert Daten. Es läuft in der Transaktion des Workspaces und bleibt bis zum Commit für andere unsichtbar.</value>

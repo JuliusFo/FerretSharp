@@ -18,10 +18,10 @@
         @{ var connected = Hub.Open.Where(s => s.Active.IsConnected && s.Profile is not null).ToList(); }
         @if (connected.Count > 1)
         {
-            <select class="field report-conn" aria-label="@ModelViewText.Report_Connection" title="@ModelViewText.Report_ConnectionTitle" @onchange="ShowConnection">
+            <select class="field report-conn" aria-label="@ModelViewText.Report_Connection" title="@ModelViewText.Report_ConnectionTitle" value="@Hub.Shown.Id" @onchange="ShowConnection">
                 @foreach (var scope in connected)
                 {
-                    <option value="@scope.Id" selected="@(scope == Hub.Shown)">@ConnectionLabel.Of(scope.Profile!, Settings.Current)</option>
+                    <option @key="scope.Id" value="@scope.Id">@ConnectionLabel.Of(scope.Profile!, Settings.Current)</option>
                 }
             </select>
         }
@@ -108,6 +108,12 @@
                 <span class="src" title="@exceptions.Path">
                     @TextFormat.Plural(exceptions.Exceptions.Count, ModelViewText.Report_SourceExceptionsOne, ModelViewText.Report_SourceExceptionsOther, Path.GetFileName(exceptions.Path))
                 </span>
+                @if (exceptions.Exceptions.Ignored > 0)
+                {
+                    <span class="src warn" title="@TextFormat.Format(ModelViewText.Report_SourceExceptionsIgnoredTitle, ReportExceptions.MaxEntries, ReportExceptions.MaxStars)">
+                        <span class="dot warn"></span> @TextFormat.Format(ModelViewText.Report_SourceExceptionsIgnored, exceptions.Exceptions.Ignored)
+                    </span>
+                }
             }
         </div>
 
@@ -151,6 +157,12 @@
             <Counts><span class="report-count @Tone(report.ModelWithoutMatch.Count, "bad")">@report.ModelWithoutMatch.Count</span></Counts>
             <ChildContent>
                 <ReportModelIssues Report="report" Schema="Schema" OnOpen="Open" />
+            </ChildContent>
+        </ReportSection>
+        <ReportSection View="_view" Part="ReportPart.Entities" Title="@ModelViewText.Report_Entities" What="@ModelViewText.Report_EntitiesWhat">
+            <Counts><span class="report-count">@mapping.Model.Entities.Count(e => e.Table is not null || e.View is not null)</span></Counts>
+            <ChildContent>
+                <ReportEntities Mapping="mapping" View="_view" OnOpen="Open" />
             </ChildContent>
         </ReportSection>
         @if (State.Link is not null)
@@ -238,6 +250,9 @@
 
     private Timer? _poll;
 
+    /// <summary>1 while a look at the file runs: one that hangs on a share does not pile up further threads every 5 s.</summary>
+    private int _checking;
+
     /// <summary>The report of the current mapping, schema and exceptions; computed again only when one of them changed.</summary>
     private ModelReport? Report
     {
@@ -308,18 +323,30 @@
         Schema?.RefreshAuditTemplate();
 
         // A click in a section renders only that section: a change of the file on disk would wait for the next render of
-        // the page. Looked at off the UI thread (a share over the VPN).
-        var profile = Profile;
-        _poll = new Timer(_ => CheckExceptions(profile), null, ExceptionsPoll, ExceptionsPoll);
+        // the page. Looked at off the UI thread (a share over the VPN); the render reads the same cached result.
+        _poll = new Timer(_ => CheckExceptions(), null, ExceptionsPoll, ExceptionsPoll);
     }
 
-    private void CheckExceptions(ConnectionProfile? profile)
+    private void CheckExceptions()
     {
-        var load = ExceptionSource.For(profile);
-        if (_shownExceptions is { } shown
-            && (shown.Path != load.Path || shown.Error != load.Error || shown.ReadOnly != load.ReadOnly || !shown.Exceptions.SameAs(load.Exceptions)))
+        if (Interlocked.Exchange(ref _checking, 1) == 1)
         {
-            OnChanged();
+            return;
+        }
+
+        try
+        {
+            // The profile as it is now: its group (and so its file) may have changed while the page is open.
+            var load = ExceptionSource.For(Profile);
+            if (_shownExceptions is { } shown
+                && (shown.Path != load.Path || shown.Error != load.Error || shown.ReadOnly != load.ReadOnly || !shown.Exceptions.SameAs(load.Exceptions)))
+            {
+                OnChanged();
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _checking, 0);
         }
     }
 
@@ -414,10 +441,11 @@
         _scrollTo = part;
     }
 
+    /// <summary>The time for today, otherwise date and time – both in the format of the culture.</summary>
     private static string Time(DateTimeOffset? at) =>
         at is not { } time ? "–"
-        : time.LocalDateTime.Date == DateTime.Today ? time.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture)
-        : time.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture);
+        : time.LocalDateTime.Date == DateTime.Today ? time.ToLocalTime().ToString("t", CultureInfo.CurrentCulture)
+        : time.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
 
     private void ShowConnection(ChangeEventArgs e)
     {
@@ -489,18 +517,15 @@
             return;
         }
 
-        var suggestion = PropertyCode.Suggest(mapping.Model, column.Column);
-        var entity = ClrModelMapping.ShortName(column.Entity.Entity.ClrType);
-        var text = $"// {entity}\n{suggestion.Declaration}\n\n// {entity}Configuration\n{suggestion.Configuration}";
-        if (await Dom.CopyTextAsync(Shell, text))
+        if (await Dom.CopyTextAsync(Shell, EntityCode.Property(mapping, column.Entity, column.Column)))
         {
-            Shell.Notify(TextFormat.Format(ModelViewText.Report_PropertyCopied, suggestion.Name));
+            Shell.Notify(TextFormat.Format(ModelViewText.Report_PropertyCopied, column.Column.Name));
         }
     }
 
     private async Task CopyNavigationAsync(ForeignKeyInfo fk)
     {
-        if (State.Mapping is { } mapping && EntityCode.Navigation(mapping, fk) is { } text && await Dom.CopyTextAsync(Shell, text))
+        if (State.Mapping is { } mapping && EntityCode.Navigation(mapping, fk, Schema?.OutgoingOf(fk.From) ?? []) is { } text && await Dom.CopyTextAsync(Shell, text))
         {
             Shell.Notify(ModelViewText.Report_NavigationCopied);
         }
