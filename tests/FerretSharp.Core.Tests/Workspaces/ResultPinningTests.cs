@@ -33,6 +33,21 @@ public sealed class ResultPinningTests
         Assert.Equal([new ResultColumnPin("BETRAG")], ResultPinning.FromGrid(dragged, Join, []));
     }
 
+    /// <summary>Review of WP-73: a column dragged in front of 30 pins stayed unsaved – the oldest pin goes instead.</summary>
+    [Fact]
+    public void Dragging_beyond_the_cap_keeps_the_column_just_pinned_wherever_it_was_dropped()
+    {
+        var names = Enumerable.Range(0, ResultPinning.MaxPins + 1).Select(i => $"C{i}").ToArray();
+        var pins = names.Skip(1).Select(n => new ResultColumnPin(n)).ToList(); // C1 … C30, C1 the oldest
+
+        var front = ResultPinning.FromGrid(pins, names, Enumerable.Range(0, names.Length)); // C0 dropped in front of C1
+
+        Assert.Equal(ResultPinning.MaxPins, front.Count);
+        Assert.Contains(new ResultColumnPin("C0"), front);
+        Assert.DoesNotContain(new ResultColumnPin("C1"), front);
+        Assert.Equal([0, .. Enumerable.Range(2, ResultPinning.MaxPins - 1)], ResultPinning.Pinned(front, names));
+    }
+
     [Fact]
     public void At_most_the_newest_pins_are_kept()
     {

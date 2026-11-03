@@ -47,18 +47,29 @@ public static class ResultPinning
 
     /// <summary>
     /// The pins after the user pinned, released or reordered columns of this result by dragging: <paramref name="pinned"/>
-    /// in display order replace this result's pins; those of columns it does not have stay.
+    /// in display order replace this result's pins; those of columns it does not have stay. Beyond <see cref="MaxPins"/> the
+    /// oldest pins go, never one just pinned – wherever it was dropped (review of WP-73: dropped in front, it went first).
     /// </summary>
     public static IReadOnlyList<ResultColumnPin> FromGrid(IReadOnlyList<ResultColumnPin> pins, IReadOnlyList<string> names, IEnumerable<int> pinned)
     {
         var own = Enumerable.Range(0, names.Count).Select(i => PinOf(names, i)).ToHashSet();
-        return Normalize([.. pins.Where(p => !own.Contains(p)), .. pinned.Select(i => PinOf(names, i))]);
+        var after = Normalize([.. pins.Where(p => !own.Contains(p)), .. pinned.Select(i => PinOf(names, i)).Distinct()], cap: false);
+        if (after.Count <= MaxPins)
+        {
+            return after;
+        }
+
+        // The pins kept from before are dropped in the order they were pinned in.
+        var dropped = pins.Where(after.Contains).Take(after.Count - MaxPins).ToHashSet();
+        return Normalize(after.Where(p => !dropped.Contains(p))); // the cap still holds if more than that were new
     }
 
     /// <summary>Pins as saved: no duplicates, no negative occurrence, at most <see cref="MaxPins"/> (the newest).</summary>
-    public static IReadOnlyList<ResultColumnPin> Normalize(IEnumerable<ResultColumnPin> pins)
+    public static IReadOnlyList<ResultColumnPin> Normalize(IEnumerable<ResultColumnPin> pins) => Normalize(pins, cap: true);
+
+    private static IReadOnlyList<ResultColumnPin> Normalize(IEnumerable<ResultColumnPin> pins, bool cap)
     {
         var kept = pins.Where(p => p is { Name: not null, Occurrence: >= 0 }).Distinct().ToList();
-        return kept.Count > MaxPins ? kept[^MaxPins..] : kept;
+        return cap && kept.Count > MaxPins ? kept[^MaxPins..] : kept;
     }
 }
