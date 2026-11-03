@@ -155,13 +155,13 @@
 
     private bool Related(FkJump jump) => _sources.TryGetValue(jump, out var source) && source.Involves(Request.Column);
 
-    /// <summary>The result's columns as presented; a column traced to a foreign key is followed by its names (same <see cref="ExportColumn.Source"/>).</summary>
     private async Task TogglePinAsync()
     {
         await CloseAsync();
         await OnTogglePin.InvokeAsync(Request.Column);
     }
 
+    /// <summary>The result's columns as presented; a column traced to a foreign key is followed by its names (same <see cref="ExportColumn.Source"/>).</summary>
     private IReadOnlyList<ExportColumn> XlsxColumns => ExportColumns ?? ExportColumn.Raw(Result);
 
     private Task CloseAsync() => OnClose.InvokeAsync();

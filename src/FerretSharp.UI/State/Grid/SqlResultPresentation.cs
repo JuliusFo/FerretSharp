@@ -161,13 +161,9 @@ public sealed class SqlResultPresentation : IColumnPresentation
                 ? PresentedExport.Column(presentation, table, column.Name, i) with { Column = column.Column }
                 : new ExportColumn(column.Name, i, column.Column);
             columns.Add(export);
-            if (names is not null && names.Shows(i) && names.Links.FirstOrDefault(l => l.Column == i) is { } link)
+            if (names is not null && PresentedExport.NameColumn(export, names) is { } named)
             {
-                var source = i;
-                columns.Add(new ExportColumn($"{export.Header} · {link.Label}", i, link.Target.Columns[link.Parts[0].Column])
-                {
-                    Present = value => names.NameOf(source, value)?.Text,
-                });
+                columns.Add(named);
             }
         }
 

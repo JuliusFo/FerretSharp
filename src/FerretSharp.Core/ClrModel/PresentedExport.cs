@@ -19,17 +19,28 @@ public static class PresentedExport
         {
             var column = Column(presentation, i, details.Columns[i].Name, i);
             columns.Add(column);
-            if (names.Shows(i) && names.Links.FirstOrDefault(l => l.Column == i) is { } link)
+            if (NameColumn(column, names) is { } named)
             {
-                var source = i;
-                columns.Add(new ExportColumn($"{column.Header} · {link.Label}", i, link.Target.Columns[link.Parts[0].Column])
-                {
-                    Present = value => names.NameOf(source, value)?.Text,
-                });
+                columns.Add(named);
             }
         }
 
         return columns;
+    }
+
+    /// <summary>
+    /// The column with the names behind <paramref name="column"/> (<c>KUNDE_ID · NAME</c>), the same source; null if it
+    /// shows none. For a table's export and a query result's (WP-73).
+    /// </summary>
+    public static ExportColumn? NameColumn(ExportColumn column, DisplayNames names)
+    {
+        var source = column.Source;
+        return names.Shows(source) && names.Links.FirstOrDefault(l => l.Column == source) is { } link
+            ? new ExportColumn($"{column.Header} · {link.Label}", source, link.Target.Columns[link.Parts[0].Column])
+            {
+                Present = value => names.NameOf(source, value)?.Text,
+            }
+            : null;
     }
 
     /// <summary>
