@@ -17,7 +17,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil es keine feste Reihenfolge gibt und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Release-Stand und Historie: die Tags und das `CHANGELOG.md`.
 
 ### Pakete nach WP-36
-Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Abhängigkeiten: WP-41 baut auf dem Code-Index (WP-40), WP-43 auf dem Beziehungsgraphen (WP-42) – beide released; WP-45 braucht WP-44. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
+Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Abhängigkeiten: WP-41 baut auf dem Code-Index (WP-40), WP-43 auf dem Beziehungsgraphen (WP-42) – beide released; WP-45 braucht WP-44; WP-43 erscheint als Bereich der Berichtsseite (WP-72), braucht sie aber nicht zwingend. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
 
 ### WP-39 Workspaces anheften und wechseln
 (Aus dem Backlog, dort als ein Paket vorgeschlagen.) Branch `wp/39-workspace-pins`.
@@ -34,12 +34,21 @@ Branch `wp/41-designer-to-code`. Baut auf WP-40 (released 3.43.0, ADR 0030): des
 - **Ziel ist der aktive Arbeits-Klon der Gruppe (WP-40, `WorkClones`), nie der verknüpfte Branch-Klon** (der muss dem Stand der DB entsprechen und wird gepullt). Die Dateien des Arbeits-Klons werden selbst untersucht – sein Feature-Branch kann vom Branch-Klon abweichen, der Index aus WP-40 ist nur ein Hinweis, wo zu suchen ist. Die Vorschau nennt Ordner und Branch des Ziels und bietet den Wechsel an; ohne passenden Arbeits-Klon wird nicht geschrieben. Warnung, wenn der Klon auf dem Branch einer Verbindung steht (z. B. `dev`) oder die Zieldatei ungespeicherte Änderungen hat.
 - Offen: Umfang der ersten Stufe (Vorschlag: hinzufügen, Facetten ändern, löschen; Umbenennen später); woran „Branch einer Verbindung“ erkannt wird (Branches der verknüpften Klone oder Liste von Hand).
 
+### WP-72 Berichtsseite Repo ↔ DB
+(Idee des Nutzers, 2026-11-03.) Branch `wp/72-model-report`. Baut auf dem Abgleich (WP-27), der Verwendung im Code (WP-40) und dem Beziehungsgraphen (WP-42), alle released.
+- **Seite „Bericht“ in der Leiste oben rechts:** zeigt auf einen Blick, wie gut das C#-Projekt und die DB zusammenpassen – je Bereich eine Zahl, aufklappbar zur Liste mit Sprung in die Tabelle bzw. Spalte. Nur aus dem, was schon geladen ist (Schema, Modell, Code-Index, Graph): keine eigenen Abfragen, sofort da, mit „Stand von …“ der Quellen.
+- **Bereiche:** Tabellen ohne Entity (neu: heute geht die Auswertung von den Entities aus – Auswahl der Schemas, Ausnahmen z. B. für Audit- und Hilfstabellen); Entities ohne Tabelle, Properties ohne Spalte, Spalten ohne Property, nur in anderer Schreibweise (`MappingIssueKind`); abweichende Spalten nach Typ, NULL, Länge, Stellen (WP-27, `ModelMismatches`); ungenutzte Spalten (WP-40, `UnusedReport`); Beziehungen nur im Modell bzw. nur als FK in der DB (neu, Vergleich über die Quellen `ClrModel`/`Declared` des Graphen; „nur im Modell“ mit dem vorhandenen Weg „Constraint anlegen“, `small-model-fk-constraint.md`).
+- **Model-Seite entschlanken (Entscheidung des Nutzers, 2026-11-03):** die Listen (Abgleich, Abweichungen, ungenutzt, Entity-Tabelle) ziehen auf die Berichtsseite um – die lange Liste schaut sich niemand an; die Model-Seite behält Projekt bzw. Modelldatei, Laden, Bauen und Export. Verweise auf die Abweichungen (LINQ-Konsole, Statusleiste) führen dann auf die Berichtsseite.
+- WP-43 kommt später als eigener Bereich „Datenqualität“ dazu, mit eigenem „Prüfen“ (teure Abfragen, bewusst ausgelöst).
+- Offen: Bezug – die Seiten oben rechts gehören keiner Verbindung, der Bericht hängt an Verbindung, Modell und Arbeits-Klon (Vorschlag: aktive Verbindung, oben umschaltbar; eine Übersicht über alle Verbindungen später); nur der aktuelle Stand oder Stände speichern für einen Verlauf (Vorschlag: erst nur aktuell, Verlauf zusammen mit dem Schema-Cache aus WP-47 bzw. dem Speichern aus WP-43); Ausnahmeliste für „Tabellen ohne Entity“ je Verbindung oder geteilt (Datei der Anzeigespalten, ADR 0022).
+
 ### WP-43 Datenqualität der Beziehungen
 Branch `wp/43-relationship-check`.
 - Bericht je Verbindung über den Graphen aus WP-42: für jede Beziehung **ohne** FK-Constraint die Zahl verwaister Werte (`NOT EXISTS`), mit Beispielwerten; Enum-Spalten mit Werten, die das C#-Enum nicht kennt; deklarierte Constraints im Zustand DISABLED/NOVALIDATE mit verletzenden Zeilen.
 - Je Zeile: „Zeilen zeigen“ – das Filtermodell kennt kein `NOT EXISTS`, deshalb ein Tab mit `in`-Filter auf die verwaisten Werte (bis zu einer Grenze) oder die Abfrage im SQL-Editor; „Constraint anlegen“ bei 0 Verwaisten und PK/UK auf der Gegenseite, mit Index für den FK. Für Beziehungen aus dem C#-Modell gibt es den Weg schon (vorgezogen, `small-model-fk-constraint.md`): `TableDesignerDraft.AddForeignKey` und `TableTab.RequestForeignKey` (mit `OpenDesignerAt`) öffnen den Designer mit dem FK – der Bericht ruft denselben Weg auf und zeigt vorher die Zahl der Verwaisten.
 - Kosten: volle Scans großer Tabellen über das VPN – Auswahl der Schemas/Beziehungen, je Beziehung abbrechbar, Laufzeit sichtbar, eigene Lese-Session (die Explorer-Session arbeitet einen Aufruf nach dem anderen ab). Auf Prod erlaubt (nur lesend).
-- Offen: Ergebnis speichern, um Läufe zu vergleichen; Platz in der Oberfläche (Seite oben rechts wie der Schema-Vergleich oder Ansicht je Verbindung).
+- Platz in der Oberfläche: ein Bereich „Datenqualität“ der Berichtsseite (WP-72, Idee des Nutzers 2026-11-03), dort mit eigenem „Prüfen“ – die übrigen Bereiche der Seite kosten keine Abfragen.
+- Offen: Ergebnis speichern, um Läufe zu vergleichen.
 
 ### WP-44 Daten-Diff
 Branch `wp/44-data-diff`. Ein Weg über Flashback, die Erweiterung auf die Tabellen eines Mitschnitts kommt mit WP-45. Entscheidung des Nutzers (2026-10-28): direkt Flashback mit `MINUS`, der Snapshot im Speicher wandert in den Backlog (Ausweichweg ohne Recht oder für längere Zeiträume).
