@@ -1,0 +1,17 @@
+@* Report page (WP-72): "25 more · show all" under a list that shows its first rows. *@
+
+@if (More > 0)
+{
+    <div class="report-more">
+        @TextFormat.Format(ModelViewText.Report_More, More) ·
+        <button class="link-btn" @onclick="OnShowAll">@ModelViewText.Report_ShowAll</button>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public int More { get; set; }
+
+    [Parameter]
+    public EventCallback OnShowAll { get; set; }
+}

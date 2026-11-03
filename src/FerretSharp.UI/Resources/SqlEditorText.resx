@@ -290,7 +290,7 @@
   </data>
   <data name="Linq_ShowModelMismatches" xml:space="preserve">
     <value>Show model mismatches</value>
-    <comment>Button that opens the model page with its comparison against the database</comment>
+    <comment>Button that opens the report at its differing columns (WP-72)</comment>
   </data>
   <data name="Linq_WriteHint" xml:space="preserve">
     <value>This statement changes data. It runs in the workspace’s transaction and is not visible to others until you commit.</value>

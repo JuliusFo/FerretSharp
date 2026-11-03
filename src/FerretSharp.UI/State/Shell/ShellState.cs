@@ -28,7 +28,10 @@ public sealed record PasswordRequest(ConnectionProfile Profile, bool ShowWhenCon
 /// <param name="Connection">Only this connection (WP-66, from its menu); the group is then not looked at.</param>
 public sealed record ConnectionExportRequest(bool OnlyGroup = false, string? Group = null, Guid? Connection = null);
 
-public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements }
+public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements, Report }
+
+/// <summary>The sections of the report page (WP-72), for a link that opens one.</summary>
+public enum ReportPart { Tables, Columns, Relations, Mismatches, ModelWithoutMatch, Unused }
 
 /// <summary>
 /// Shell-level UI state shared via a cascading value: current page, dialogs, notices, the events between components –
@@ -176,6 +179,27 @@ public sealed partial class ShellState
         SwitcherOpen = false;
         Page = ShellPage.Model;
     });
+
+    /// <summary>
+    /// The report of how the shown connection's C# model and database fit (WP-72).
+    /// </summary>
+    /// <param name="part">The section to open and scroll to (from the mismatches link of the LINQ console); null: as left.</param>
+    public void ShowReport(ReportPart? part = null) => Set(() =>
+    {
+        SwitcherOpen = false;
+        Page = ShellPage.Report;
+        RequestedReportPart = part;
+    });
+
+    /// <summary>The section the report opens with, once (<see cref="TakeReportPart"/>).</summary>
+    public ReportPart? RequestedReportPart { get; private set; }
+
+    public ReportPart? TakeReportPart()
+    {
+        var part = RequestedReportPart;
+        RequestedReportPart = null;
+        return part;
+    }
 
     /// <summary>Workspace the user wants to unlock for writing; the shell asks first (WP-10).</summary>
     public Guid? PendingUnlock { get; private set; }

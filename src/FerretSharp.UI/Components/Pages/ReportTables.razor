@@ -1,0 +1,118 @@
+@* Report page (WP-72): tables of the schemas that no entity maps – open, create the entity, mark as meant to have none. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+
+@{
+    var rows = View.Tables(Report, Mapping);
+    var slice = View.Slice(ReportPart.Tables, rows);
+    var (views, hidden) = ReportView.TableCounts(Report);
+}
+<div class="report-tools">
+    <SearchBox @bind-Value="View.TableSearch" Class="search" Placeholder="@ModelViewText.Report_TablesSearch" />
+    <button class="report-chip @(View.TableLinked ? "on" : "")" title="@ModelViewText.Report_TablesLinkedTitle"
+            @onclick="() => View.TableLinked = !View.TableLinked">@ModelViewText.Report_TablesLinked</button>
+    <button class="report-chip @(View.TableViews ? "on" : "")" disabled="@(views == 0)"
+            @onclick="() => View.TableViews = !View.TableViews">@TextFormat.Format(ModelViewText.Report_TablesViews, views)</button>
+    <span class="grow"></span>
+    @if (hidden > 0)
+    {
+        <span class="muted" title="@ModelViewText.Report_TablesHiddenTitle">
+            @TextFormat.Plural(hidden, ModelViewText.Report_TablesHiddenOne, ModelViewText.Report_TablesHiddenOther) ·
+            <button class="link-btn" @onclick="() => View.TableHidden = !View.TableHidden">@(View.TableHidden ? ModelViewText.Report_Hide : ModelViewText.Report_Show)</button>
+        </span>
+    }
+</div>
+@if (rows.Count == 0)
+{
+    <div class="report-empty">@(Report.Tables.Count == 0 ? ModelViewText.Report_TablesNone : ModelViewText.Report_NothingFound)</div>
+}
+else
+{
+    <table class="report-table">
+        <thead><tr><th>@ModelViewText.Model_HeadTable</th><th>@ModelViewText.Report_HeadRelations</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var row in slice.Shown)
+            {
+                var table = row.Table;
+                <tr class="@(row.IsHidden ? "hidden-row" : "")" @key="table.Ref">
+                    <td class="mono" title="@table.Ref.ToString()">
+                        @Name(table)
+                        @if (table.Kind != TableKind.Table)
+                        {
+                            <span class="report-tag">@(table.Kind == TableKind.View ? "VIEW" : "MVIEW")</span>
+                        }
+                        @if (row.AuditOf is { } audit)
+                        {
+                            <span class="report-tag" title="@ModelViewText.Report_AuditTitle">@TextFormat.Format(ModelViewText.Report_AuditOf, audit.Name)</span>
+                        }
+                        @if (row.Exception is { } exception)
+                        {
+                            <span class="report-tag" title="@ExceptionTitle(exception)">@ModelViewText.Report_Exception@(exception.IsPattern ? $" · {exception.Table}" : "")</span>
+                        }
+                    </td>
+                    <td>
+                        @foreach (var fk in row.Outgoing.Take(3))
+                        {
+                            <span class="report-tag" title="@fk.Name">FK → @fk.To.Name</span>
+                        }
+                        @if (row.Outgoing.Count > 3)
+                        {
+                            <span class="report-tag">+@(row.Outgoing.Count - 3)</span>
+                        }
+                        @if (row.Incoming.Count > 0)
+                        {
+                            <span class="report-tag" title="@string.Join(", ", row.Incoming.Select(f => f.From.Name).Distinct())">@TextFormat.Plural(row.Incoming.Count, ModelViewText.Report_IncomingOne, ModelViewText.Report_IncomingOther)</span>
+                        }
+                        @if (row.Outgoing.Count == 0 && row.Incoming.Count == 0)
+                        {
+                            <span class="muted">–</span>
+                        }
+                    </td>
+                    <td class="acts">
+                        <button class="report-act" @onclick="() => OnOpen.InvokeAsync(table)">@ModelViewText.Model_Open</button>
+                        <button class="report-act" title="@ModelViewText.Report_CreateEntityTitle" @onclick="() => OnCreateEntity.InvokeAsync(table)">@ModelViewText.Report_CreateEntity</button>
+                        @if (row.Exception is { } entry)
+                        {
+                            <button class="report-act quiet" title="@TextFormat.Format(ModelViewText.Report_RemoveExceptionTitle, entry.Table)"
+                                    @onclick="() => OnRemoveException.InvokeAsync(entry)">@ModelViewText.Report_RemoveException</button>
+                        }
+                        else if (row.AuditOf is null)
+                        {
+                            <button class="report-act quiet" title="@ModelViewText.Report_MarkExceptionTitle" @onclick="() => OnMarkException.InvokeAsync(table)">@ModelViewText.Report_MarkException</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <ReportMore More="slice.More" OnShowAll="() => View.ShowAll(ReportPart.Tables)" />
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ModelReport Report { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ClrModelMapping Mapping { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ReportView View { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<TableSummary> OnOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<TableSummary> OnCreateEntity { get; set; }
+
+    [Parameter]
+    public EventCallback<TableSummary> OnMarkException { get; set; }
+
+    [Parameter]
+    public EventCallback<ReportException> OnRemoveException { get; set; }
+
+    /// <summary>The name, with the owner when the report covers several schemas.</summary>
+    private string Name(TableSummary table) => Report.Owners.Count > 1 ? $"{table.Owner}.{table.DisplayName}" : table.DisplayName;
+
+    private static string ExceptionTitle(ReportException exception) =>
+        exception.Reason.Length > 0 ? $"{exception.Table}: {exception.Reason}" : exception.Table;
+}

@@ -1216,4 +1216,8 @@
     <value>Object privileges in schema {0}</value>
     <comment>Tooltip of the tab with the schema's privileges (WP-71)</comment>
   </data>
+  <data name="Shell_Report" xml:space="preserve">
+    <value>Report: C# model and database</value>
+    <comment>Tooltip of the top bar button</comment>
+  </data>
 </root>

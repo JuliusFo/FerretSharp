@@ -124,16 +124,9 @@
   <data name="Model_MismatchesTitle" xml:space="preserve">
     <value>Type, NULL, length, precision – hints not counted</value>
   </data>
-  <data name="Model_AllMapped" xml:space="preserve">
-    <value>All entities, properties and columns are mapped to each other.</value>
-  </data>
   <data name="Model_Open" xml:space="preserve">
     <value>open</value>
     <comment>Link: opens the table's structure</comment>
-  </data>
-  <data name="Model_Entities" xml:space="preserve">
-    <value>Entities</value>
-    <comment>Heading</comment>
   </data>
   <data name="Model_HeadEntity" xml:space="preserve">
     <value>Entity</value>
@@ -141,14 +134,6 @@
   </data>
   <data name="Model_HeadTable" xml:space="preserve">
     <value>Table</value>
-    <comment>Table column header</comment>
-  </data>
-  <data name="Model_HeadProperties" xml:space="preserve">
-    <value>Properties</value>
-    <comment>Table column header</comment>
-  </data>
-  <data name="Model_HeadConverter" xml:space="preserve">
-    <value>Converter</value>
     <comment>Table column header</comment>
   </data>
   <data name="Model_EntitiesWithoutTable" xml:space="preserve">
@@ -171,17 +156,6 @@
   </data>
   <data name="Model_CaseMismatchHint" xml:space="preserve">
     <value>EF Core quotes names on Oracle – with this spelling, queries do not find the object.</value>
-  </data>
-  <data name="Model_ColumnsWithoutProperty" xml:space="preserve">
-    <value>Columns without property</value>
-    <comment>Heading of an issue group</comment>
-  </data>
-  <data name="Model_ColumnsWithoutPropertyHint" xml:space="preserve">
-    <value>In the database but not in the model – e.g. after a table change that the entity does not reflect yet.</value>
-  </data>
-  <data name="Mismatches_Title" xml:space="preserve">
-    <value>Types, NULL and lengths</value>
-    <comment>Heading</comment>
   </data>
   <data name="Mismatches_None" xml:space="preserve">
     <value>All mapped properties match their columns.</value>
@@ -450,9 +424,6 @@
   <data name="Usage_NavigationsHint" xml:space="preserve">
     <value>Navigations that load the table's rows: EF joins it without a Set&lt;T&gt;() of it.</value>
   </data>
-  <data name="Usage_ReportHeading" xml:space="preserve">
-    <value>Unused in the code</value>
-  </data>
   <data name="Usage_ReportHint" xml:space="preserve">
     <value>Mapped properties that no code of the solution reads or writes outside tests and mapping code – read from the build; accesses by string and raw SQL are not seen.</value>
   </data>
@@ -561,5 +532,430 @@
   </data>
   <data name="Model_FileLimits" xml:space="preserve">
     <value>Read from the file: names, enums and relationships work as with the project. The LINQ console, code usage and building need the project itself. A new export copied over the file loads automatically.</value>
+  </data>
+  <data name="Report_Title" xml:space="preserve">
+    <value>Report</value>
+    <comment>Heading of the report page: how C# model and database fit</comment>
+  </data>
+  <data name="Report_NotConnected" xml:space="preserve">
+    <value>The report shows how the C# model of a connection and its database fit. Connect to a connection first.</value>
+  </data>
+  <data name="Report_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Label of the connection picker on the report page</comment>
+  </data>
+  <data name="Report_ConnectionTitle" xml:space="preserve">
+    <value>The report of another connected connection</value>
+  </data>
+  <data name="Report_Reload" xml:space="preserve">
+    <value>Read again</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Report_ReloadTitle" xml:space="preserve">
+    <value>Reads the C# model again and matches it against the schema; the code usage too, once it was read.</value>
+  </data>
+  <data name="Report_ModelPage" xml:space="preserve">
+    <value>Model page</value>
+    <comment>Button that opens the model page</comment>
+  </data>
+  <data name="Report_NoModel" xml:space="preserve">
+    <value>Link the connection to a C# project ({0}) or a model file in the connection dialog, then the report compares its model with the database.</value>
+    <comment>{0}: .csproj</comment>
+  </data>
+  <data name="Report_SourceSchema" xml:space="preserve">
+    <value>Schema · as of {0}</value>
+    <comment>{0}: time the schema was loaded</comment>
+  </data>
+  <data name="Report_SourceModel" xml:space="preserve">
+    <value>C# model · as of {0}</value>
+    <comment>{0}: time the model was loaded</comment>
+  </data>
+  <data name="Report_SourceModelLoading" xml:space="preserve">
+    <value>C# model · {0} …</value>
+    <comment>{0}: the current loading step</comment>
+  </data>
+  <data name="Report_SourceModelStale" xml:space="preserve">
+    <value>C# model · as of {0} – sources are newer than the build</value>
+    <comment>{0}: time the model was loaded</comment>
+  </data>
+  <data name="Report_SourceModelStaleTitle" xml:space="preserve">
+    <value>Source files of the project changed after the last build: build it to see the current model.</value>
+  </data>
+  <data name="Report_SourceUsage" xml:space="preserve">
+    <value>Code usage · as of {0}</value>
+    <comment>{0}: time the code index was built</comment>
+  </data>
+  <data name="Report_SourceUsageNone" xml:space="preserve">
+    <value>Code usage · not read</value>
+  </data>
+  <data name="Report_SourceExceptionsOne" xml:space="preserve">
+    <value>{0} exception from {1}</value>
+    <comment>{0}: count; {1}: file name of the exceptions file</comment>
+  </data>
+  <data name="Report_SourceExceptionsOther" xml:space="preserve">
+    <value>{0} exceptions from {1}</value>
+    <comment>{0}: count; {1}: file name of the exceptions file</comment>
+  </data>
+  <data name="Report_TilesCoverage" xml:space="preserve">
+    <value>Coverage</value>
+    <comment>Heading of a tile group</comment>
+  </data>
+  <data name="Report_TilesDifferences" xml:space="preserve">
+    <value>Differences</value>
+    <comment>Heading of a tile group</comment>
+  </data>
+  <data name="Report_TilesCode" xml:space="preserve">
+    <value>Code</value>
+    <comment>Heading of a tile group</comment>
+  </data>
+  <data name="Report_TablesWithEntity" xml:space="preserve">
+    <value>Tables with entity</value>
+  </data>
+  <data name="Report_Tables" xml:space="preserve">
+    <value>Tables without entity</value>
+    <comment>Section and tile</comment>
+  </data>
+  <data name="Report_TablesWhat" xml:space="preserve">
+    <value>tables of the schema no entity maps</value>
+  </data>
+  <data name="Report_Columns" xml:space="preserve">
+    <value>Columns without property</value>
+    <comment>Section and tile</comment>
+  </data>
+  <data name="Report_ColumnsWhatOne" xml:space="preserve">
+    <value>in {0} table</value>
+    <comment>{0}: count of tables</comment>
+  </data>
+  <data name="Report_ColumnsWhatOther" xml:space="preserve">
+    <value>in {0} tables</value>
+    <comment>{0}: count of tables</comment>
+  </data>
+  <data name="Report_Relations" xml:space="preserve">
+    <value>Relationships</value>
+    <comment>Section</comment>
+  </data>
+  <data name="Report_RelationsWhat" xml:space="preserve">
+    <value>model and database compared</value>
+  </data>
+  <data name="Report_Mismatches" xml:space="preserve">
+    <value>Differing columns</value>
+    <comment>Section</comment>
+  </data>
+  <data name="Report_MismatchesWhat" xml:space="preserve">
+    <value>type, NULL, length, precision</value>
+  </data>
+  <data name="Report_ModelWithoutMatch" xml:space="preserve">
+    <value>Model without counterpart</value>
+    <comment>Section and tile group</comment>
+  </data>
+  <data name="Report_ModelWithoutMatchWhat" xml:space="preserve">
+    <value>entities without table, properties without column, other letter case</value>
+  </data>
+  <data name="Report_ModelWithoutMatchNone" xml:space="preserve">
+    <value>Every entity and property of the model has its table and column.</value>
+  </data>
+  <data name="Report_Unused" xml:space="preserve">
+    <value>Unused columns</value>
+    <comment>Section and tile</comment>
+  </data>
+  <data name="Report_UnusedWhat" xml:space="preserve">
+    <value>mapped, but never read or written in the code</value>
+  </data>
+  <data name="Report_TileErrors" xml:space="preserve">
+    <value>Columns with errors</value>
+  </data>
+  <data name="Report_TileErrorsHint" xml:space="preserve">
+    <value>type, NULL – runtime errors likely</value>
+  </data>
+  <data name="Report_TileWarnings" xml:space="preserve">
+    <value>Columns with warnings</value>
+  </data>
+  <data name="Report_TileWarningsHint" xml:space="preserve">
+    <value>length, precision</value>
+  </data>
+  <data name="Report_TileWarningsHints" xml:space="preserve">
+    <value>length, precision · plus {0} hints</value>
+    <comment>{0}: count of hints</comment>
+  </data>
+  <data name="Report_ModelOnly" xml:space="preserve">
+    <value>Relationships only in the model</value>
+  </data>
+  <data name="Report_TileModelOnlyHint" xml:space="preserve">
+    <value>{0} could become a constraint</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Report_DbOnly" xml:space="preserve">
+    <value>Foreign keys only in the database</value>
+  </data>
+  <data name="Report_TileDbOnlyHint" xml:space="preserve">
+    <value>no relationship in the model</value>
+  </data>
+  <data name="Report_TileUnusedHint" xml:space="preserve">
+    <value>mapped, never read or written</value>
+  </data>
+  <data name="Report_TileOnlyTests" xml:space="preserve">
+    <value>of these used in tests only</value>
+  </data>
+  <data name="Report_TileUsageNotRead" xml:space="preserve">
+    <value>Code usage not read</value>
+  </data>
+  <data name="Report_TileReadUsageTitle" xml:space="preserve">
+    <value>Reads the build output of the solution: which mapped columns no code uses</value>
+  </data>
+  <data name="Report_ErrorsCount" xml:space="preserve">
+    <value>{0} errors</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Report_WarningsCount" xml:space="preserve">
+    <value>{0} warnings</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Report_HintsCount" xml:space="preserve">
+    <value>{0} hints</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Report_TablesSearch" xml:space="preserve">
+    <value>Filter tables</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Report_TablesLinked" xml:space="preserve">
+    <value>with FK to mapped table</value>
+    <comment>Filter chip</comment>
+  </data>
+  <data name="Report_TablesLinkedTitle" xml:space="preserve">
+    <value>Only tables with a foreign key to or from a table an entity maps: likely part of the domain</value>
+  </data>
+  <data name="Report_TablesViews" xml:space="preserve">
+    <value>Views ({0})</value>
+    <comment>Filter chip; {0}: count of views and materialized views</comment>
+  </data>
+  <data name="Report_TablesHiddenOne" xml:space="preserve">
+    <value>{0} hidden as meant to have none</value>
+    <comment>{0}: count (exceptions and audit tables)</comment>
+  </data>
+  <data name="Report_TablesHiddenOther" xml:space="preserve">
+    <value>{0} hidden as meant to have none</value>
+    <comment>{0}: count (exceptions and audit tables)</comment>
+  </data>
+  <data name="Report_TablesHiddenTitle" xml:space="preserve">
+    <value>Tables of the exceptions file and audit tables of the connection's audit template do not count as missing.</value>
+  </data>
+  <data name="Report_Show" xml:space="preserve">
+    <value>show</value>
+    <comment>Link: shows hidden rows</comment>
+  </data>
+  <data name="Report_Hide" xml:space="preserve">
+    <value>hide</value>
+    <comment>Link: hides them again</comment>
+  </data>
+  <data name="Report_TablesNone" xml:space="preserve">
+    <value>Every table of the schema has an entity.</value>
+  </data>
+  <data name="Report_NothingFound" xml:space="preserve">
+    <value>Nothing matches the filter.</value>
+  </data>
+  <data name="Report_HeadRelations" xml:space="preserve">
+    <value>Relationships</value>
+    <comment>Column heading</comment>
+  </data>
+  <data name="Report_AuditOf" xml:space="preserve">
+    <value>audit of {0}</value>
+    <comment>Tag; {0}: base table</comment>
+  </data>
+  <data name="Report_AuditTitle" xml:space="preserve">
+    <value>Audit table by the connection's audit template: needs no entity of its own</value>
+  </data>
+  <data name="Report_Exception" xml:space="preserve">
+    <value>exception</value>
+    <comment>Tag of a table meant to have no entity</comment>
+  </data>
+  <data name="Report_IncomingOne" xml:space="preserve">
+    <value>← {0} FK</value>
+    <comment>Tag; {0}: count of foreign keys to the table</comment>
+  </data>
+  <data name="Report_IncomingOther" xml:space="preserve">
+    <value>← {0} FKs</value>
+    <comment>Tag; {0}: count of foreign keys to the table</comment>
+  </data>
+  <data name="Report_CreateEntity" xml:space="preserve">
+    <value>Create entity</value>
+    <comment>Action</comment>
+  </data>
+  <data name="Report_CreateEntityTitle" xml:space="preserve">
+    <value>Opens the table's columns with “Entity from table”: the class and its configuration to copy</value>
+  </data>
+  <data name="Report_MarkException" xml:space="preserve">
+    <value>Mark as exception…</value>
+    <comment>Action</comment>
+  </data>
+  <data name="Report_MarkExceptionTitle" xml:space="preserve">
+    <value>The table is meant to have no entity: noted with a reason in the exceptions file, then it no longer counts</value>
+  </data>
+  <data name="Report_RemoveException" xml:space="preserve">
+    <value>Remove exception</value>
+    <comment>Action</comment>
+  </data>
+  <data name="Report_RemoveExceptionTitle" xml:space="preserve">
+    <value>Removes “{0}” from the exceptions file</value>
+    <comment>{0}: table name or pattern</comment>
+  </data>
+  <data name="Report_More" xml:space="preserve">
+    <value>{0} more</value>
+    <comment>{0}: count of rows not shown</comment>
+  </data>
+  <data name="Report_ShowAll" xml:space="preserve">
+    <value>show all</value>
+    <comment>Link</comment>
+  </data>
+  <data name="Report_ColumnsSearch" xml:space="preserve">
+    <value>Filter table or column</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Report_ByTable" xml:space="preserve">
+    <value>by table</value>
+    <comment>Chip</comment>
+  </data>
+  <data name="Report_Flat" xml:space="preserve">
+    <value>flat list</value>
+    <comment>Chip</comment>
+  </data>
+  <data name="Report_RequiredOnly" xml:space="preserve">
+    <value>only NOT NULL without default ({0})</value>
+    <comment>Chip; {0}: count</comment>
+  </data>
+  <data name="Report_RequiredTitle" xml:space="preserve">
+    <value>Columns an insert through EF Core cannot leave out: without a property it fails</value>
+  </data>
+  <data name="Report_RequiredShort" xml:space="preserve">
+    <value>NOT NULL without default</value>
+    <comment>Tag on a table group</comment>
+  </data>
+  <data name="Report_RequiredTag" xml:space="preserve">
+    <value>NOT NULL without default – an insert from EF fails</value>
+    <comment>Tag on a column</comment>
+  </data>
+  <data name="Report_ExpandAll" xml:space="preserve">
+    <value>Expand all</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Report_CollapseAll" xml:space="preserve">
+    <value>Collapse all</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Report_OpenTable" xml:space="preserve">
+    <value>Open table</value>
+    <comment>Action</comment>
+  </data>
+  <data name="Report_CopyProperty" xml:space="preserve">
+    <value>Copy property code</value>
+    <comment>Action</comment>
+  </data>
+  <data name="Report_CopyPropertyTitle" xml:space="preserve">
+    <value>The property and its configuration line in the style of the project</value>
+  </data>
+  <data name="Report_PropertyCopied" xml:space="preserve">
+    <value>Code of the property {0} copied.</value>
+    <comment>{0}: property name</comment>
+  </data>
+  <data name="Report_ConstraintOnly" xml:space="preserve">
+    <value>only with PK on the other side ({0})</value>
+    <comment>Chip; {0}: count</comment>
+  </data>
+  <data name="Report_ConstraintOnlyTitle" xml:space="preserve">
+    <value>Only relationships that reference the primary key of a table: a constraint can be created as they are</value>
+  </data>
+  <data name="Report_ModelOnlyNone" xml:space="preserve">
+    <value>The database declares every relationship of the model.</value>
+  </data>
+  <data name="Report_CreateConstraint" xml:space="preserve">
+    <value>Create constraint</value>
+    <comment>Action</comment>
+  </data>
+  <data name="Report_CreateConstraintTitle" xml:space="preserve">
+    <value>Opens the table designer with the foreign key: nothing runs before you look at the DDL</value>
+  </data>
+  <data name="Report_NoKey" xml:space="preserve">
+    <value>no PK</value>
+    <comment>Tag: the referenced columns are not the primary key</comment>
+  </data>
+  <data name="Report_NoKeyTitle" xml:space="preserve">
+    <value>The referenced columns are not the primary key of a table (or one end is a view): a constraint needs a key there</value>
+  </data>
+  <data name="Report_DbOnlyNone" xml:space="preserve">
+    <value>The model has a relationship for every foreign key of a mapped table.</value>
+  </data>
+  <data name="Report_TableWithoutEntity" xml:space="preserve">
+    <value>table without entity</value>
+  </data>
+  <data name="Report_NoNavigation" xml:space="preserve">
+    <value>property there, no navigation in {0}</value>
+    <comment>{0}: entity name</comment>
+  </data>
+  <data name="Report_NoNavigationNorProperty" xml:space="preserve">
+    <value>no navigation and no property in {0}</value>
+    <comment>{0}: entity name</comment>
+  </data>
+  <data name="Report_CopyNavigation" xml:space="preserve">
+    <value>Copy navigation</value>
+    <comment>Action</comment>
+  </data>
+  <data name="Report_CopyNavigationTitle" xml:space="preserve">
+    <value>The navigation property and its HasOne…HasForeignKey line</value>
+  </data>
+  <data name="Report_NavigationCopied" xml:space="preserve">
+    <value>Code of the navigation copied.</value>
+  </data>
+  <data name="Report_UnusedSearch" xml:space="preserve">
+    <value>Filter entity or column</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Report_UnusedWithTests" xml:space="preserve">
+    <value>also used in tests ({0})</value>
+    <comment>Chip; {0}: count</comment>
+  </data>
+  <data name="Report_UnusedWithTestsTitle" xml:space="preserve">
+    <value>Columns only test code uses: unused by the application all the same</value>
+  </data>
+  <data name="Report_UsedInTests" xml:space="preserve">
+    <value>only in tests</value>
+    <comment>Tag</comment>
+  </data>
+  <data name="Report_ExceptionDialogTitle" xml:space="preserve">
+    <value>Table without entity on purpose</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Report_ExceptionName" xml:space="preserve">
+    <value>Table</value>
+    <comment>Label of the name or pattern field</comment>
+  </data>
+  <data name="Report_ExceptionNameHint" xml:space="preserve">
+    <value>Name without schema, or a pattern with *: AUD_* leaves out every table starting with AUD_.</value>
+  </data>
+  <data name="Report_ExceptionReason" xml:space="preserve">
+    <value>Reason</value>
+    <comment>Label</comment>
+  </data>
+  <data name="Report_ExceptionReasonPlaceholder" xml:space="preserve">
+    <value>e.g. filled by the nightly import</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Report_ExceptionFile" xml:space="preserve">
+    <value>Saved in {0}</value>
+    <comment>{0}: path of the exceptions file</comment>
+  </data>
+  <data name="Report_ExceptionSaved" xml:space="preserve">
+    <value>{0} noted in {1}.</value>
+    <comment>{0}: table name or pattern; {1}: file name</comment>
+  </data>
+  <data name="Report_ExceptionRemoved" xml:space="preserve">
+    <value>{0} removed from the exceptions.</value>
+    <comment>{0}: table name or pattern</comment>
+  </data>
+  <data name="Report_ModelSummary" xml:space="preserve">
+    <value>The lists – tables and columns without counterpart, differing columns, relationships, unused columns – are on the report.</value>
+  </data>
+  <data name="Report_OpenReport" xml:space="preserve">
+    <value>Open report</value>
+    <comment>Button on the model page</comment>
   </data>
 </root>

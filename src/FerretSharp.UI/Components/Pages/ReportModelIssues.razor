@@ -1,0 +1,57 @@
+@* Report page (WP-72, from the model page): what the C# model names and the database lacks – entities without table,
+   properties without column, names only in another letter case. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+
+@if (Report.ModelWithoutMatch.Count == 0)
+{
+    <div class="report-empty">@ModelViewText.Report_ModelWithoutMatchNone</div>
+}
+@foreach (var (kind, title, hint) in Groups)
+{
+    var issues = Report.ModelWithoutMatch.Where(i => i.Kind == kind).ToList();
+    if (issues.Count == 0)
+    {
+        continue;
+    }
+
+    <div class="report-tools">
+        <strong>@title</strong> <span class="report-count bad">@issues.Count</span>
+        <span class="muted">@hint</span>
+    </div>
+    <table class="report-table">
+        <tbody>
+            @foreach (var issue in issues)
+            {
+                <tr>
+                    <td class="mono">@issue.Message</td>
+                    <td class="acts">
+                        @if (issue.Table is { } table && Schema?.Find(table) is { } summary)
+                        {
+                            <button class="report-act" @onclick="() => OnOpen.InvokeAsync(summary)">@ModelViewText.Model_Open</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ModelReport Report { get; set; } = null!;
+
+    [Parameter]
+    public SchemaCache? Schema { get; set; }
+
+    [Parameter]
+    public EventCallback<TableSummary> OnOpen { get; set; }
+
+    // A property, not a static field: the texts follow the UI language.
+    private static (MappingIssueKind Kind, string Title, string Hint)[] Groups =>
+    [
+        (MappingIssueKind.EntityWithoutTable, ModelViewText.Model_EntitiesWithoutTable, ModelViewText.Model_EntitiesWithoutTableHint),
+        (MappingIssueKind.PropertyWithoutColumn, ModelViewText.Model_PropertiesWithoutColumn, ModelViewText.Model_PropertiesWithoutColumnHint),
+        (MappingIssueKind.CaseMismatch, ModelViewText.Model_CaseMismatch, ModelViewText.Model_CaseMismatchHint),
+    ];
+}

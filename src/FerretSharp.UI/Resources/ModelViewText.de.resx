@@ -102,26 +102,14 @@
   <data name="Model_MismatchesTitle" xml:space="preserve">
     <value>Typ, NULL, Länge, Stellen – Hinweise nicht mitgezählt</value>
   </data>
-  <data name="Model_AllMapped" xml:space="preserve">
-    <value>Alle Entities, Properties und Spalten sind einander zugeordnet.</value>
-  </data>
   <data name="Model_Open" xml:space="preserve">
     <value>öffnen</value>
-  </data>
-  <data name="Model_Entities" xml:space="preserve">
-    <value>Entities</value>
   </data>
   <data name="Model_HeadEntity" xml:space="preserve">
     <value>Entity</value>
   </data>
   <data name="Model_HeadTable" xml:space="preserve">
     <value>Tabelle</value>
-  </data>
-  <data name="Model_HeadProperties" xml:space="preserve">
-    <value>Properties</value>
-  </data>
-  <data name="Model_HeadConverter" xml:space="preserve">
-    <value>Converter</value>
   </data>
   <data name="Model_EntitiesWithoutTable" xml:space="preserve">
     <value>Entities ohne Tabelle</value>
@@ -140,15 +128,6 @@
   </data>
   <data name="Model_CaseMismatchHint" xml:space="preserve">
     <value>EF Core quotet Namen auf Oracle – so geschrieben findet eine Abfrage das Objekt nicht.</value>
-  </data>
-  <data name="Model_ColumnsWithoutProperty" xml:space="preserve">
-    <value>Spalten ohne Property</value>
-  </data>
-  <data name="Model_ColumnsWithoutPropertyHint" xml:space="preserve">
-    <value>In der Datenbank, aber nicht im Modell – z. B. nach einer Änderung an der Tabelle, die in der Entity noch fehlt.</value>
-  </data>
-  <data name="Mismatches_Title" xml:space="preserve">
-    <value>Typen, NULL und Längen</value>
   </data>
   <data name="Mismatches_None" xml:space="preserve">
     <value>Alle zugeordneten Properties passen zu ihren Spalten.</value>
@@ -399,9 +378,6 @@
   <data name="Usage_NavigationsHint" xml:space="preserve">
     <value>Navigations, die Zeilen der Tabelle laden: EF joint sie ohne ein Set&lt;T&gt;() von ihr.</value>
   </data>
-  <data name="Usage_ReportHeading" xml:space="preserve">
-    <value>Im Code ungenutzt</value>
-  </data>
   <data name="Usage_ReportHint" xml:space="preserve">
     <value>Gemappte Properties, die kein Code der Solution außerhalb von Tests und Mapping liest oder schreibt – gelesen aus dem Build; Zugriffe per String und rohes SQL sieht das nicht.</value>
   </data>
@@ -503,5 +479,356 @@
   </data>
   <data name="Model_FileLimits" xml:space="preserve">
     <value>Aus der Datei gelesen: Namen, Enums und Beziehungen wirken wie mit dem Projekt. LINQ-Konsole, Verwendung im Code und Bauen brauchen das Projekt selbst. Ein neuer Export, über die Datei kopiert, lädt automatisch.</value>
+  </data>
+  <data name="Report_Title" xml:space="preserve">
+    <value>Bericht</value>
+  </data>
+  <data name="Report_NotConnected" xml:space="preserve">
+    <value>Der Bericht zeigt, wie das C#-Modell einer Verbindung und ihre Datenbank zusammenpassen. Zuerst eine Verbindung verbinden.</value>
+  </data>
+  <data name="Report_Connection" xml:space="preserve">
+    <value>Verbindung</value>
+  </data>
+  <data name="Report_ConnectionTitle" xml:space="preserve">
+    <value>Der Bericht einer anderen verbundenen Verbindung</value>
+  </data>
+  <data name="Report_Reload" xml:space="preserve">
+    <value>Neu einlesen</value>
+  </data>
+  <data name="Report_ReloadTitle" xml:space="preserve">
+    <value>Liest das C#-Modell neu ein und gleicht es mit dem Schema ab; die Verwendung im Code ebenso, falls schon eingelesen.</value>
+  </data>
+  <data name="Report_ModelPage" xml:space="preserve">
+    <value>Model-Seite</value>
+  </data>
+  <data name="Report_NoModel" xml:space="preserve">
+    <value>Die Verbindung im Verbindungsdialog mit einem C#-Projekt ({0}) oder einer Modelldatei verknüpfen, dann vergleicht der Bericht dessen Modell mit der Datenbank.</value>
+  </data>
+  <data name="Report_SourceSchema" xml:space="preserve">
+    <value>Schema · Stand {0}</value>
+  </data>
+  <data name="Report_SourceModel" xml:space="preserve">
+    <value>C#-Modell · Stand {0}</value>
+  </data>
+  <data name="Report_SourceModelLoading" xml:space="preserve">
+    <value>C#-Modell · {0} …</value>
+  </data>
+  <data name="Report_SourceModelStale" xml:space="preserve">
+    <value>C#-Modell · Stand {0} – Quellen neuer als der Build</value>
+  </data>
+  <data name="Report_SourceModelStaleTitle" xml:space="preserve">
+    <value>Quelldateien des Projekts wurden nach dem letzten Build geändert: bauen, um das aktuelle Modell zu sehen.</value>
+  </data>
+  <data name="Report_SourceUsage" xml:space="preserve">
+    <value>Verwendung im Code · Stand {0}</value>
+  </data>
+  <data name="Report_SourceUsageNone" xml:space="preserve">
+    <value>Verwendung im Code · nicht eingelesen</value>
+  </data>
+  <data name="Report_SourceExceptionsOne" xml:space="preserve">
+    <value>{0} Ausnahme aus {1}</value>
+  </data>
+  <data name="Report_SourceExceptionsOther" xml:space="preserve">
+    <value>{0} Ausnahmen aus {1}</value>
+  </data>
+  <data name="Report_TilesCoverage" xml:space="preserve">
+    <value>Abdeckung</value>
+  </data>
+  <data name="Report_TilesDifferences" xml:space="preserve">
+    <value>Abweichungen</value>
+  </data>
+  <data name="Report_TilesCode" xml:space="preserve">
+    <value>Code</value>
+  </data>
+  <data name="Report_TablesWithEntity" xml:space="preserve">
+    <value>Tabellen mit Entity</value>
+  </data>
+  <data name="Report_Tables" xml:space="preserve">
+    <value>Tabellen ohne Entity</value>
+  </data>
+  <data name="Report_TablesWhat" xml:space="preserve">
+    <value>Tabellen im Schema, die kein Entity mappt</value>
+  </data>
+  <data name="Report_Columns" xml:space="preserve">
+    <value>Spalten ohne Property</value>
+  </data>
+  <data name="Report_ColumnsWhatOne" xml:space="preserve">
+    <value>in {0} Tabelle</value>
+  </data>
+  <data name="Report_ColumnsWhatOther" xml:space="preserve">
+    <value>in {0} Tabellen</value>
+  </data>
+  <data name="Report_Relations" xml:space="preserve">
+    <value>Beziehungen</value>
+  </data>
+  <data name="Report_RelationsWhat" xml:space="preserve">
+    <value>Modell und DB im Vergleich</value>
+  </data>
+  <data name="Report_Mismatches" xml:space="preserve">
+    <value>Abweichende Spalten</value>
+  </data>
+  <data name="Report_MismatchesWhat" xml:space="preserve">
+    <value>Typ, NULL, Länge, Stellen</value>
+  </data>
+  <data name="Report_ModelWithoutMatch" xml:space="preserve">
+    <value>Modell ohne Gegenstück</value>
+  </data>
+  <data name="Report_ModelWithoutMatchWhat" xml:space="preserve">
+    <value>Entities ohne Tabelle, Properties ohne Spalte, andere Schreibweise</value>
+  </data>
+  <data name="Report_ModelWithoutMatchNone" xml:space="preserve">
+    <value>Jedes Entity und jede Property des Modells hat Tabelle und Spalte.</value>
+  </data>
+  <data name="Report_Unused" xml:space="preserve">
+    <value>Ungenutzte Spalten</value>
+  </data>
+  <data name="Report_UnusedWhat" xml:space="preserve">
+    <value>gemappt, aber im Code nie gelesen oder geschrieben</value>
+  </data>
+  <data name="Report_TileErrors" xml:space="preserve">
+    <value>Spalten mit Fehlern</value>
+  </data>
+  <data name="Report_TileErrorsHint" xml:space="preserve">
+    <value>Typ, NULL – Laufzeitfehler möglich</value>
+  </data>
+  <data name="Report_TileWarnings" xml:space="preserve">
+    <value>Spalten mit Warnungen</value>
+  </data>
+  <data name="Report_TileWarningsHint" xml:space="preserve">
+    <value>Länge, Stellen</value>
+  </data>
+  <data name="Report_TileWarningsHints" xml:space="preserve">
+    <value>Länge, Stellen · dazu {0} Hinweise</value>
+  </data>
+  <data name="Report_ModelOnly" xml:space="preserve">
+    <value>Beziehungen nur im Modell</value>
+  </data>
+  <data name="Report_TileModelOnlyHint" xml:space="preserve">
+    <value>{0} könnten Constraint werden</value>
+  </data>
+  <data name="Report_DbOnly" xml:space="preserve">
+    <value>FKs nur in der DB</value>
+  </data>
+  <data name="Report_TileDbOnlyHint" xml:space="preserve">
+    <value>ohne Beziehung im Modell</value>
+  </data>
+  <data name="Report_TileUnusedHint" xml:space="preserve">
+    <value>gemappt, nie gelesen/geschrieben</value>
+  </data>
+  <data name="Report_TileOnlyTests" xml:space="preserve">
+    <value>davon nur in Tests genutzt</value>
+  </data>
+  <data name="Report_TileUsageNotRead" xml:space="preserve">
+    <value>Verwendung im Code nicht eingelesen</value>
+  </data>
+  <data name="Report_TileReadUsageTitle" xml:space="preserve">
+    <value>Liest die Build-Ausgabe der Solution: welche gemappten Spalten kein Code nutzt</value>
+  </data>
+  <data name="Report_ErrorsCount" xml:space="preserve">
+    <value>{0} Fehler</value>
+  </data>
+  <data name="Report_WarningsCount" xml:space="preserve">
+    <value>{0} Warnungen</value>
+  </data>
+  <data name="Report_HintsCount" xml:space="preserve">
+    <value>{0} Hinweise</value>
+  </data>
+  <data name="Report_TablesSearch" xml:space="preserve">
+    <value>Tabellen filtern</value>
+  </data>
+  <data name="Report_TablesLinked" xml:space="preserve">
+    <value>mit FK zu gemappter Tabelle</value>
+  </data>
+  <data name="Report_TablesLinkedTitle" xml:space="preserve">
+    <value>Nur Tabellen mit einem Fremdschlüssel zu oder von einer Tabelle mit Entity: vermutlich Teil der Fachlichkeit</value>
+  </data>
+  <data name="Report_TablesViews" xml:space="preserve">
+    <value>Views ({0})</value>
+  </data>
+  <data name="Report_TablesHiddenOne" xml:space="preserve">
+    <value>{0} als Ausnahme ausgeblendet</value>
+  </data>
+  <data name="Report_TablesHiddenOther" xml:space="preserve">
+    <value>{0} als Ausnahme ausgeblendet</value>
+  </data>
+  <data name="Report_TablesHiddenTitle" xml:space="preserve">
+    <value>Tabellen aus der Ausnahmedatei und Audit-Tabellen nach der Audit-Vorlage der Verbindung zählen nicht als fehlend.</value>
+  </data>
+  <data name="Report_Show" xml:space="preserve">
+    <value>einblenden</value>
+  </data>
+  <data name="Report_Hide" xml:space="preserve">
+    <value>ausblenden</value>
+  </data>
+  <data name="Report_TablesNone" xml:space="preserve">
+    <value>Jede Tabelle des Schemas hat ein Entity.</value>
+  </data>
+  <data name="Report_NothingFound" xml:space="preserve">
+    <value>Nichts passt zum Filter.</value>
+  </data>
+  <data name="Report_HeadRelations" xml:space="preserve">
+    <value>Beziehungen</value>
+  </data>
+  <data name="Report_AuditOf" xml:space="preserve">
+    <value>Audit zu {0}</value>
+  </data>
+  <data name="Report_AuditTitle" xml:space="preserve">
+    <value>Audit-Tabelle nach der Audit-Vorlage der Verbindung: braucht kein eigenes Entity</value>
+  </data>
+  <data name="Report_Exception" xml:space="preserve">
+    <value>Ausnahme</value>
+  </data>
+  <data name="Report_IncomingOne" xml:space="preserve">
+    <value>← {0} FK</value>
+  </data>
+  <data name="Report_IncomingOther" xml:space="preserve">
+    <value>← {0} FKs</value>
+  </data>
+  <data name="Report_CreateEntity" xml:space="preserve">
+    <value>Entity erzeugen</value>
+  </data>
+  <data name="Report_CreateEntityTitle" xml:space="preserve">
+    <value>Öffnet die Spalten der Tabelle mit „Entity aus Tabelle“: Klasse und Konfiguration zum Kopieren</value>
+  </data>
+  <data name="Report_MarkException" xml:space="preserve">
+    <value>Als Ausnahme…</value>
+  </data>
+  <data name="Report_MarkExceptionTitle" xml:space="preserve">
+    <value>Die Tabelle soll kein Entity haben: mit Begründung in die Ausnahmedatei, danach zählt sie nicht mehr</value>
+  </data>
+  <data name="Report_RemoveException" xml:space="preserve">
+    <value>Ausnahme entfernen</value>
+  </data>
+  <data name="Report_RemoveExceptionTitle" xml:space="preserve">
+    <value>Entfernt „{0}“ aus der Ausnahmedatei</value>
+  </data>
+  <data name="Report_More" xml:space="preserve">
+    <value>{0} weitere</value>
+  </data>
+  <data name="Report_ShowAll" xml:space="preserve">
+    <value>alle zeigen</value>
+  </data>
+  <data name="Report_ColumnsSearch" xml:space="preserve">
+    <value>Tabelle oder Spalte filtern</value>
+  </data>
+  <data name="Report_ByTable" xml:space="preserve">
+    <value>nach Tabelle</value>
+  </data>
+  <data name="Report_Flat" xml:space="preserve">
+    <value>flache Liste</value>
+  </data>
+  <data name="Report_RequiredOnly" xml:space="preserve">
+    <value>nur NOT NULL ohne Default ({0})</value>
+  </data>
+  <data name="Report_RequiredTitle" xml:space="preserve">
+    <value>Spalten, die ein Insert über EF Core nicht weglassen kann: ohne Property scheitert er</value>
+  </data>
+  <data name="Report_RequiredShort" xml:space="preserve">
+    <value>NOT NULL ohne Default</value>
+  </data>
+  <data name="Report_RequiredTag" xml:space="preserve">
+    <value>NOT NULL ohne Default – INSERT aus EF scheitert</value>
+  </data>
+  <data name="Report_ExpandAll" xml:space="preserve">
+    <value>Alle aufklappen</value>
+  </data>
+  <data name="Report_CollapseAll" xml:space="preserve">
+    <value>Alle zuklappen</value>
+  </data>
+  <data name="Report_OpenTable" xml:space="preserve">
+    <value>Tabelle öffnen</value>
+  </data>
+  <data name="Report_CopyProperty" xml:space="preserve">
+    <value>Property-Code kopieren</value>
+  </data>
+  <data name="Report_CopyPropertyTitle" xml:space="preserve">
+    <value>Property und Konfigurationszeile im Stil des Projekts</value>
+  </data>
+  <data name="Report_PropertyCopied" xml:space="preserve">
+    <value>Code der Property {0} kopiert.</value>
+  </data>
+  <data name="Report_ConstraintOnly" xml:space="preserve">
+    <value>nur mit PK auf der Gegenseite ({0})</value>
+  </data>
+  <data name="Report_ConstraintOnlyTitle" xml:space="preserve">
+    <value>Nur Beziehungen auf den Primärschlüssel einer Tabelle: ein Constraint geht so, wie sie sind</value>
+  </data>
+  <data name="Report_ModelOnlyNone" xml:space="preserve">
+    <value>Die Datenbank deklariert jede Beziehung des Modells.</value>
+  </data>
+  <data name="Report_CreateConstraint" xml:space="preserve">
+    <value>Constraint anlegen</value>
+  </data>
+  <data name="Report_CreateConstraintTitle" xml:space="preserve">
+    <value>Öffnet den Tabellen-Designer mit dem Fremdschlüssel: Nichts läuft, bevor du die DDL gesehen hast</value>
+  </data>
+  <data name="Report_NoKey" xml:space="preserve">
+    <value>kein PK</value>
+  </data>
+  <data name="Report_NoKeyTitle" xml:space="preserve">
+    <value>Die referenzierten Spalten sind nicht der Primärschlüssel einer Tabelle (oder ein Ende ist eine View): ein Constraint braucht dort einen Schlüssel</value>
+  </data>
+  <data name="Report_DbOnlyNone" xml:space="preserve">
+    <value>Das Modell hat zu jedem Fremdschlüssel einer gemappten Tabelle eine Beziehung.</value>
+  </data>
+  <data name="Report_TableWithoutEntity" xml:space="preserve">
+    <value>Tabelle ohne Entity</value>
+  </data>
+  <data name="Report_NoNavigation" xml:space="preserve">
+    <value>Property da, keine Navigation in {0}</value>
+  </data>
+  <data name="Report_NoNavigationNorProperty" xml:space="preserve">
+    <value>weder Navigation noch Property in {0}</value>
+  </data>
+  <data name="Report_CopyNavigation" xml:space="preserve">
+    <value>Navigation kopieren</value>
+  </data>
+  <data name="Report_CopyNavigationTitle" xml:space="preserve">
+    <value>Navigation-Property und ihre Zeile HasOne…HasForeignKey</value>
+  </data>
+  <data name="Report_NavigationCopied" xml:space="preserve">
+    <value>Code der Navigation kopiert.</value>
+  </data>
+  <data name="Report_UnusedSearch" xml:space="preserve">
+    <value>Entity oder Spalte filtern</value>
+  </data>
+  <data name="Report_UnusedWithTests" xml:space="preserve">
+    <value>auch in Tests genutzte ({0})</value>
+  </data>
+  <data name="Report_UnusedWithTestsTitle" xml:space="preserve">
+    <value>Spalten, die nur Testcode nutzt: von der Anwendung trotzdem ungenutzt</value>
+  </data>
+  <data name="Report_UsedInTests" xml:space="preserve">
+    <value>nur in Tests</value>
+  </data>
+  <data name="Report_ExceptionDialogTitle" xml:space="preserve">
+    <value>Tabelle bewusst ohne Entity</value>
+  </data>
+  <data name="Report_ExceptionName" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="Report_ExceptionNameHint" xml:space="preserve">
+    <value>Name ohne Schema oder ein Muster mit *: AUD_* lässt jede Tabelle aus, die mit AUD_ beginnt.</value>
+  </data>
+  <data name="Report_ExceptionReason" xml:space="preserve">
+    <value>Begründung</value>
+  </data>
+  <data name="Report_ExceptionReasonPlaceholder" xml:space="preserve">
+    <value>z. B. füllt der nächtliche Import</value>
+  </data>
+  <data name="Report_ExceptionFile" xml:space="preserve">
+    <value>Gespeichert in {0}</value>
+  </data>
+  <data name="Report_ExceptionSaved" xml:space="preserve">
+    <value>{0} in {1} eingetragen.</value>
+  </data>
+  <data name="Report_ExceptionRemoved" xml:space="preserve">
+    <value>{0} aus den Ausnahmen entfernt.</value>
+  </data>
+  <data name="Report_ModelSummary" xml:space="preserve">
+    <value>Die Listen – Tabellen und Spalten ohne Gegenstück, abweichende Spalten, Beziehungen, ungenutzte Spalten – stehen im Bericht.</value>
+  </data>
+  <data name="Report_OpenReport" xml:space="preserve">
+    <value>Bericht öffnen</value>
   </data>
 </root>
