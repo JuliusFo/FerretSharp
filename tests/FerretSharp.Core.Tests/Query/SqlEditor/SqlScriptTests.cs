@@ -32,7 +32,7 @@ public sealed class SqlScriptTests
     }
 
     [Fact]
-    public void Statements_end_at_semicolons_blank_lines_and_slash_lines_not_inside_literals_or_comments()
+    public void Statements_end_at_semicolons_and_slash_lines_not_at_blank_lines_or_inside_literals_or_comments()
     {
         const string script = """
             SELECT 'a;b' FROM dual; SELECT 2 FROM dual;
@@ -44,9 +44,11 @@ public sealed class SqlScriptTests
             /
             DELETE FROM t
 
-            -- only a comment
+            -- still the DELETE
 
-            SELECT 3 FROM dual
+             WHERE id = 1;
+
+            -- only a comment
             """;
 
         Assert.Equal(
@@ -54,11 +56,54 @@ public sealed class SqlScriptTests
                 "SELECT 'a;b' FROM dual",
                 "SELECT 2 FROM dual",
                 "-- the next one\nUPDATE t\n   SET x = 1 /* stays\n\nin here */",
-                "DELETE FROM t",
-                "SELECT 3 FROM dual",
+                "DELETE FROM t\n\n-- still the DELETE\n\n WHERE id = 1",
             ],
             SqlScript.Split(script.ReplaceLineEndings("\n")).Select(s => s.Text));
     }
+
+    /// <summary>
+    /// ADR 0014, decision of the user: a blank line separated statements, so a view laid out with blank lines was cut
+    /// apart – Ctrl+Enter in its lower part ran "PIVOT …" and was refused.
+    /// </summary>
+    [Fact]
+    public void A_view_with_blank_lines_is_one_statement()
+    {
+        const string script = """
+            CREATE OR REPLACE FORCE EDITIONABLE VIEW messwerte_v AS
+            SELECT *
+              FROM (
+                SELECT m.probe_id, m.name, m.wert
+                  FROM messung m
+
+                 WHERE m.typ = 1
+              )
+
+            PIVOT (MAX(wert) FOR name IN ('A50' AS a50, 'A80' AS a80));
+
+            SELECT * FROM messwerte_v
+            """;
+        var text = script.ReplaceLineEndings("\n");
+
+        var statement = SqlScript.StatementAt(text, text.IndexOf("PIVOT", StringComparison.Ordinal), text.IndexOf("PIVOT", StringComparison.Ordinal))!;
+
+        Assert.Equal(text[..text.IndexOf(';', StringComparison.Ordinal)], statement.Text);
+        Assert.Equal(SqlStatementKind.Ddl, SqlScript.Analyze(statement.Text).Kind);
+        Assert.Null(SqlScript.DdlRejection(statement.Text));
+        Assert.Equal(2, SqlScript.Split(text).Count);
+    }
+
+    /// <summary>The history appends after the script's last statement: without its own ";" or "/" line the two would run as one.</summary>
+    [Theory]
+    [InlineData("SELECT 1 FROM dual", "SELECT 1 FROM dual;")]
+    [InlineData("SELECT 1 FROM dual -- note", "SELECT 1 FROM dual; -- note")]
+    [InlineData("SELECT 1 FROM dual;\nSELECT 2 FROM dual", "SELECT 1 FROM dual;\nSELECT 2 FROM dual;")]
+    [InlineData("BEGIN NULL; END;", "BEGIN NULL; END;\n/")]
+    [InlineData("SELECT 1 FROM dual; -- done", "SELECT 1 FROM dual; -- done")]
+    [InlineData("BEGIN NULL; END;\n/", "BEGIN NULL; END;\n/")]
+    [InlineData("SELECT 1 FROM dual\n/", "SELECT 1 FROM dual\n/")]
+    [InlineData("-- only a comment", "-- only a comment")]
+    [InlineData("", "")]
+    public void Terminated_ends_an_open_last_statement(string text, string expected) => Assert.Equal(expected, SqlScript.Terminated(text));
 
     /// <summary>
     /// WP-26: a trigger (or another block) holds ";" and blank lines and ends at a "/" line – cut at its first ";", it would
@@ -80,7 +125,7 @@ public sealed class SqlScriptTests
             SELECT 1 FROM dual;
             BEGIN NULL; END;
             /
-            ALTER TRIGGER kunde_audit ENABLE
+            ALTER TRIGGER kunde_audit ENABLE;
 
             CREATE PACKAGE p AS
               x NUMBER;
@@ -103,7 +148,8 @@ public sealed class SqlScriptTests
     [InlineData("SELECT 1 FROM dual;\n|", "SELECT 1 FROM dual")]
     [InlineData("SELECT 1\n  FROM du|al;\nSELECT 2 FROM dual;", "SELECT 1\n  FROM dual")]
     [InlineData("SELECT 1 FROM dual;\nSEL|ECT 2 FROM dual;", "SELECT 2 FROM dual")]
-    [InlineData("SELECT 1 FROM dual\n\n|\n\nSELECT 2 FROM dual", null)]
+    [InlineData("SELECT 1 FROM dual;\n\n|\n\nSELECT 2 FROM dual", null)]
+    [InlineData("SELECT 1 FROM dual\n\n|\n\nSELECT 2 FROM dual", "SELECT 1 FROM dual\n\n\n\nSELECT 2 FROM dual")]
     [InlineData("|\nSELECT 2 FROM dual", "SELECT 2 FROM dual")]
     [InlineData("|", null)]
     public void The_statement_at_the_cursor(string marked, string? expected)
@@ -376,7 +422,7 @@ public sealed class SqlScriptTests
     {
         Assert.Null(SqlScript.DdlRejection("ALTER TABLE kunden ADD (fax VARCHAR2(30));"));
         Assert.Null(SqlScript.DdlRejection("-- Kommentar\nCOMMENT ON TABLE kunden IS 'a;b'"));
-        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Leerzeile darin beendet die Anweisung dort.",
+        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Zeile nur mit „/“ darin beendet die Anweisung dort.",
             SqlScript.DdlRejection("ALTER TABLE kunden ADD CHECK (status IN ('A','B');)"));
         Assert.Equal("„UPDATE“ ist keine DDL-Anweisung.", SqlScript.DdlRejection("UPDATE kunden SET name = 'x'"));
         Assert.Equal("DDL nimmt keine Bind-Variablen (:v) – den Wert direkt ins Statement schreiben.",

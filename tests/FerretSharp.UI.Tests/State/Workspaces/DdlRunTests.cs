@@ -83,7 +83,7 @@ public sealed class DdlRunTests
         Assert.Same(result, stopped);
         Assert.Empty(result.Ran);
         Assert.Equal(twoStatements, result.Failed);
-        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Leerzeile darin beendet die Anweisung dort.", result.Error?.Message);
+        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Zeile nur mit „/“ darin beendet die Anweisung dort.", result.Error?.Message);
         Assert.Empty(app.RanDdl);
         Assert.Equal(1, pending.Changes!.PendingCount); // not discarded: nothing was going to run
     }

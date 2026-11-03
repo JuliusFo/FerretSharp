@@ -9,18 +9,19 @@ public sealed record SqlStatement(int Start, int Length, string Text)
 }
 
 /// <summary>
-/// The statements of a script (WP-17, part of <see cref="SqlScript"/> since R4b): separated by <c>;</c>, a blank line or a
-/// line with only <c>/</c>, the statement at the cursor, the statements of a selection.
+/// The statements of a script (WP-17, part of <see cref="SqlScript"/> since R4b): separated by <c>;</c> or a line with only
+/// <c>/</c>, the statement at the cursor, the statements of a selection.
 /// </summary>
 public static class SqlSplitter
 {
     private static readonly Regex BlankLine = new(@"\n[ \t\r\f\v]*\n", RegexOptions.CultureInvariant);
 
     /// <summary>
-    /// The statements of a script, separated by <c>;</c>, a blank line or a line with only <c>/</c> (SQL*Plus). Comments
-    /// directly above a statement belong to it; parts with only comments are no statement. A block – a trigger or another
-    /// PL/SQL object, <c>BEGIN</c>/<c>DECLARE</c> – holds <c>;</c> and blank lines and ends only at a <c>/</c> line or at
-    /// the end of the text (WP-26), its text with the <c>;</c> after its <c>END</c>.
+    /// The statements of a script, separated by <c>;</c> or a line with only <c>/</c> (SQL*Plus). A blank line separates
+    /// nothing (decision of the user, ADR 0014: a view laid out with blank lines was cut apart); a statement without
+    /// <c>;</c> runs on to the next one. Comments directly above a statement belong to it; parts with only comments are no
+    /// statement. A block – a trigger or another PL/SQL object, <c>BEGIN</c>/<c>DECLARE</c> – holds <c>;</c> and ends only
+    /// at a <c>/</c> line or at the end of the text (WP-26), its text with the <c>;</c> after its <c>END</c>.
     /// </summary>
     public static IReadOnlyList<SqlStatement> Split(string text)
     {
@@ -44,8 +45,8 @@ public static class SqlSplitter
             block = null;
         }
 
-        // Decided at the first ";" or blank line: by then a block's header has been read (its body is the first thing to
-        // hold a ";"). Cut at its first ";", a trigger would reach Oracle as a broken one and stop all DML on its table.
+        // Decided at the first ";": by then a block's header has been read (its body is the first thing to hold a ";"). Cut
+        // at its first ";", a trigger would reach Oracle as a broken one and stop all DML on its table.
         bool InBlock(int i) => hasCode && (block ??= IsBlock(tokens, first, i));
 
         for (var i = 0; i < tokens.Count; i++)
@@ -53,11 +54,6 @@ public static class SqlSplitter
             var token = tokens[i];
             if (token.Kind == SqlTokenKind.Space)
             {
-                if (BlankLine.IsMatch(token.Value) && !InBlock(i))
-                {
-                    Close();
-                }
-
                 continue;
             }
 
@@ -103,9 +99,11 @@ public static class SqlSplitter
             }
         }
 
-        return significant.Count > 0 && SqlClassifier.KindOf(significant) is SqlStatementKind.Trigger or SqlStatementKind.SystemTrigger
-            or SqlStatementKind.PlSqlObject or SqlStatementKind.PlSql;
+        return significant.Count > 0 && IsBlock(SqlClassifier.KindOf(significant));
     }
+
+    private static bool IsBlock(SqlStatementKind kind) =>
+        kind is SqlStatementKind.Trigger or SqlStatementKind.SystemTrigger or SqlStatementKind.PlSqlObject or SqlStatementKind.PlSql;
 
     /// <summary>
     /// What Ctrl+Enter runs: the selection if it holds more than whitespace, otherwise the statement at the cursor – the
@@ -141,6 +139,34 @@ public static class SqlSplitter
 
         var after = statements.FirstOrDefault(s => s.Start >= cursor);
         return after is not null && !BlankLine.IsMatch(text[cursor..after.Start]) ? after : null;
+    }
+
+    /// <summary>
+    /// The text with its last statement ended, so that a statement appended after it stays one of its own: a <c>;</c>
+    /// right after the statement's last code (before a comment that follows it), a <c>/</c> line after a block. Unchanged
+    /// if it already ends at a <c>;</c> or a <c>/</c> line, or holds no statement.
+    /// </summary>
+    public static string Terminated(string text)
+    {
+        if (Split(text) is not [.., var last])
+        {
+            return text;
+        }
+
+        var rest = SqlTokenizer.Tokenize(text[last.End..]);
+        if (rest.Any(t => t.IsSymbol(";") || (t.IsSymbol("/") && AloneOnLine(text, t with { Start = t.Start + last.End }))))
+        {
+            return text;
+        }
+
+        var code = SqlTokenizer.Significant(last.Text);
+        if (IsBlock(SqlClassifier.KindOf(code)))
+        {
+            return text[..last.End] + "\n/" + text[last.End..];
+        }
+
+        var end = last.Start + code[^1].End;
+        return text[..end] + ";" + text[end..];
     }
 
     /// <summary>How many statements a selection holds.</summary>

@@ -671,7 +671,7 @@
         }
     }
 
-    /// <summary>Appends the statement after a blank line, adopts its variables and puts the cursor there.</summary>
+    /// <summary>Appends the statement after the script's last one, adopts its variables and puts the cursor there.</summary>
     private async Task AdoptAsync(SqlHistoryEntry entry)
     {
         if (_editor is null)
@@ -680,8 +680,9 @@
         }
 
         var current = (await _editor.GetRunContextAsync())?.Text ?? Tab.Text;
-        var trimmed = current.TrimEnd();
-        var prefix = trimmed.Length == 0 ? "" : trimmed + "\n\n"; // the blank line separates; the script stays as written
+        // Only ";" and "/" separate (ADR 0014): a last statement without one would run on into the appended one.
+        var trimmed = SqlScript.Terminated(current.TrimEnd());
+        var prefix = trimmed.Length == 0 ? "" : trimmed + "\n\n";
         Tab.Text = prefix + entry.Sql + ";\n";
         Tab.Variables = [.. Tab.Variables.Where(v => !entry.Variables.Any(e => string.Equals(e.Name, v.Name, StringComparison.OrdinalIgnoreCase))),
             .. entry.Variables.Where(v => v.Value.Length > 0 || !Tab.Variables.Any(t => string.Equals(t.Name, v.Name, StringComparison.OrdinalIgnoreCase)))];
