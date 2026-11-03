@@ -246,7 +246,7 @@ public sealed class TableDesignerDraftTests
         var relation = new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL", "NAME"], Land.Table.Ref, ["ISO", "CODE"], FkSource.ClrModel);
         var self = new ForeignKeyInfo("Kunde.Werber", Kunde.Table.Ref, ["BETRAG"], Kunde.Table.Ref, ["ID"], FkSource.ClrModel);
 
-        var fk = designer.AddForeignKey(relation);
+        var fk = designer.AddForeignKey(relation)!;
         designer.AddForeignKey(self);
 
         Assert.Equal(DesignerSection.Constraints, designer.Section);
@@ -260,6 +260,8 @@ public sealed class TableDesignerDraftTests
 
         designer.Section = DesignerSection.Columns;
         Assert.Same(fk, designer.AddForeignKey(relation));
+        // The same pairs in another order (code review: a key filled in the referenced key's order looked new – ORA-02275).
+        Assert.Same(fk, designer.AddForeignKey(relation with { FromColumns = ["NAME", "KUERZEL"], ToColumns = ["CODE", "ISO"] }));
         Assert.Equal(2, designer.AddedConstraints.Count);
         Assert.Equal(DesignerSection.Constraints, designer.Section);
 
@@ -267,6 +269,20 @@ public sealed class TableDesignerDraftTests
         Assert.Empty(plan.Problems);
         Assert.Contains(plan.Statements, s => s.Contains("FOREIGN KEY (\"KUERZEL\", \"NAME\") REFERENCES \"SHOP\".\"LAND\" (\"ISO\", \"CODE\")", StringComparison.Ordinal));
         Assert.Contains(plan.Statements, s => s.StartsWith("CREATE INDEX", StringComparison.Ordinal) && s.Contains("(\"KUERZEL\", \"NAME\")", StringComparison.Ordinal));
+    }
+
+    /// <summary>A foreign key the table has already is not added from a relationship again – unless the draft drops it.</summary>
+    [Fact]
+    public void A_relationship_the_table_has_as_foreign_key_adds_nothing_unless_it_is_dropped()
+    {
+        var relation = new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL"], Land.Table.Ref, ["CODE"], FkSource.ClrModel);
+        var designer = new TableDesignerDraft(Kunde, [FkLand]);
+
+        Assert.Null(designer.AddForeignKey(relation));
+        Assert.Empty(designer.AddedConstraints);
+
+        designer.ToggleDropConstraint(FkLand.Name);
+        Assert.NotNull(designer.AddForeignKey(relation));
     }
 
     /// <summary>A new column starts as VARCHAR2(50); as a NUMBER the 50 would be a precision Oracle refuses.</summary>

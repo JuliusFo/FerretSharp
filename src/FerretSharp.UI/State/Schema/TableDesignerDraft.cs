@@ -108,14 +108,22 @@ public sealed class TableDesignerDraft
     /// <summary>
     /// A foreign key as a relationship has it (one of the C# model without constraint, "Create constraint" in the
     /// "Constraints" view): its columns, the referenced table and its columns as given – once the table is known they stay.
-    /// The same one asked for again is not added twice. The constraints tab shows.
+    /// The constraints tab shows. Not added twice: a new foreign key with the same column pairs (in any order) is returned
+    /// instead, and a kept one of the table means null – Oracle refuses a second one (ORA-02275; code review of the model
+    /// constraints: the order of the referenced key made a twin look new).
     /// </summary>
-    public DesignConstraint AddForeignKey(ForeignKeyInfo relation)
+    public DesignConstraint? AddForeignKey(ForeignKeyInfo relation)
     {
         ArgumentNullException.ThrowIfNull(relation);
         Section = DesignerSection.Constraints;
-        if (AddedConstraints.FirstOrDefault(c => c.Type == ConstraintType.ForeignKey && c.References == relation.To
-            && c.Columns.SequenceEqual(relation.FromColumns) && c.ReferencedColumns.SequenceEqual(relation.ToColumns)) is { } twin)
+        if (Existing.Any(e => e.Before.Type == ConstraintType.ForeignKey && !DroppedConstraints.Contains(e.Before.Name)
+            && SameForeignKey(e.Before.Columns, e.Before.References, e.Before.ReferencedColumns, relation)))
+        {
+            return null;
+        }
+
+        if (AddedConstraints.FirstOrDefault(c => c.Type == ConstraintType.ForeignKey
+            && SameForeignKey(c.Columns, c.References, c.ReferencedColumns, relation)) is { } twin)
         {
             return twin;
         }
@@ -127,6 +135,11 @@ public sealed class TableDesignerDraft
         SuggestName(constraint);
         return constraint;
     }
+
+    /// <summary>Same referenced table and the same pairs of key and referenced column, in any order.</summary>
+    private static bool SameForeignKey(IReadOnlyList<string> columns, TableRef? references, IReadOnlyList<string>? referencedColumns, ForeignKeyInfo relation) =>
+        references == relation.To && columns.Count == relation.FromColumns.Count && referencedColumns?.Count == relation.ToColumns.Count
+        && columns.Zip(referencedColumns).ToHashSet().SetEquals(relation.FromColumns.Zip(relation.ToColumns));
 
     /// <summary>
     /// The tables new foreign keys reference whose structure is not known yet (<see cref="Referenced"/>): the view loads
