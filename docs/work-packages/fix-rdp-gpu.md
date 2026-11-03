@@ -1,4 +1,4 @@
-# Fix: Träges Tippen über RDP → Release offen
+# Fix: Träges Tippen über RDP → Release 3.59.0
 
 Meldung des Nutzers (2026-11-03, 3.58.0): Tippen im Grid (neue Zeilen) ist wieder träge, er arbeitet per RDP auf seinem Laptop. Branch `fix/rdp-gpu`, ADR 0043.
 

@@ -1,4 +1,4 @@
-# WP-72 Berichtsseite Repo ↔ DB → Release offen
+# WP-72 Berichtsseite Repo ↔ DB → Release 3.59.0
 
 Branch `wp/72-model-report`, 2026-11-03, eigener Worktree. Idee des Nutzers: eine Seite, die wie ein Dashboard zeigt, wie gut das C#-Repo und die Datenbank zusammenpassen – die Listen der Model-Seite (bei einem Arbeits-Repo über 1000 Zeilen) gut sortiert und aufklappbar, in der Leiste oben. Entscheidung und Begründung: ADR 0042. Bewusst nicht im Release nach WP-73: Der Nutzer veröffentlicht vorher selbst von `main`, gemergt wird danach.
 

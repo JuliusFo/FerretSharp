@@ -1,4 +1,4 @@
-# Fix: SQL-Editor trennt nur an `;` und `/`-Zeile (`fix/sql-split-at-semicolon`) → Release offen
+# Fix: SQL-Editor trennt nur an `;` und `/`-Zeile (`fix/sql-split-at-semicolon`) → Release 3.59.0
 
 Branch `fix/sql-split-at-semicolon` (von `main`), 2026-11-03.
 

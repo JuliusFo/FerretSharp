@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.59.0] - 2026-11-03
+
+A report page on how the C# model and the database fit, with a file of tables meant to have no entity; names beside foreign key values and pinned columns in SQL and LINQ results; the SQL editor splits only at `;` and `/` lines; and typing over Remote Desktop no longer lags.
+
 ### Added
 - The results of the SQL editor and the LINQ console show the names beside foreign key values, as a table does: a column read from a foreign key column of a table whose target has display columns reads `4711 · PetersPizza`, also in the form and in the Excel export (of the selected rows and of all rows, looked up anew while reading).
 - Pin columns of a result to the left: from the column header's menu (SQL editor), the cell menu or by dragging, as in a table. The pins belong to the tab and apply to every result it shows – a script's results keep theirs –, by column name; a name the result has twice (`ID` of a join) is pinned per column. They are saved with the tab, at most 30, and go with it. Form and row comparison show the pinned columns first.

@@ -1,4 +1,4 @@
-# Fix: WebView-Bild nach einem Sitzungswechsel → Release offen
+# Fix: WebView-Bild nach einem Sitzungswechsel → Release 3.59.0
 
 Gefunden im Code-Review von `fix-rdp-gpu.md` (2026-11-03): Der Nutzer wechselte von RDP zurück an den Laptop, mit offener App (Testversion ohne GPU-Schalter, Tier 0). Folge: Dialog „Unerwarteter Fehler“, das Bild stand, bis er minimierte und wiederherstellte. Entscheidung des Nutzers: „2–4, dann eigener Fix“. Branch `fix/webview-session-switch`, Nachtrag zu ADR 0038.
 
