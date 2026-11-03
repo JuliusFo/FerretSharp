@@ -165,8 +165,8 @@ else
     [Parameter]
     public ForeignKeyInfo? AddForeignKey { get; set; }
 
-    /// <summary>Referenced tables whose structure was asked for (<see cref="TableDesignerDraft.UnknownReferences"/>): once each, also if it failed.</summary>
-    private readonly HashSet<TableRef> _referencing = [];
+    /// <summary>Referenced tables whose structure was asked for (<see cref="TableDesignerDraft.UnknownReferences"/>).</summary>
+    private readonly ReferencedTableLoads _loads = new();
 
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
@@ -516,7 +516,7 @@ else
             return;
         }
 
-        foreach (var table in _designer.UnknownReferences().Where(_referencing.Add))
+        foreach (var table in _loads.Due(_designer.UnknownReferences()))
         {
             Fire(() => LearnAsync(table));
         }
@@ -596,15 +596,27 @@ else
         }
     }
 
-    /// <summary>The foreign key references another table; its structure is loaded after the render (<see cref="LearnAsync"/>).</summary>
-    private void Reference(TableDesignerDraft designer, DesignConstraint constraint, string? value) =>
-        designer.Reference(constraint, Tables.FirstOrDefault(t => $"{t.Owner}.{t.Name}" == value)?.Ref);
+    /// <summary>
+    /// The foreign key references another table; its structure is loaded after the render (<see cref="LearnAsync"/>) – also
+    /// again, if loading it failed before.
+    /// </summary>
+    private void Reference(TableDesignerDraft designer, DesignConstraint constraint, string? value)
+    {
+        var references = Tables.FirstOrDefault(t => $"{t.Owner}.{t.Name}" == value)?.Ref;
+        if (references is not null)
+        {
+            _loads.Again(references);
+        }
+
+        designer.Reference(constraint, references);
+    }
 
     /// <summary>A table new foreign keys reference: its structure is loaded once, for its keys and column types.</summary>
     private async Task LearnAsync(TableRef table)
     {
         if (_disposed || Active.Schema is not { } schema || schema.Find(table) is not { } summary)
         {
+            _loads.Again(table); // not started: asked for again after the next render
             return;
         }
 
