@@ -44,3 +44,18 @@ Review mit einem unabhängigen Reviewer-Agent (`/branch-code-review`), fünf Run
   - Eine einzelne markierte Zelle mit `A⏎B` → roh kopiert, „1 Zelle kopiert.“, in der nächsten Zeile wieder `A⏎B`.
   - Logs ohne `[ERR]`/`[WRN]`.
 - **Folge der Entscheidung „Rohwert“:** Eine Zelle mit Zeilenumbruch, mit Ctrl+C nach Excel kopiert, verteilt sich dort über mehrere Zeilen. Bereiche ab zwei Zellen, „Als Tabelle“ und ganze Spalten setzen weiter Anführungszeichen wie Excel.
+
+## Nachtrag: Ctrl+C auf neuen Zeilen (2026-11-03)
+Gemeldet vom Nutzer: In einer neuen, noch nicht geschriebenen Zeile kopierte Ctrl+C nichts, ein folgendes Ctrl+V setzte den vorher kopierten Text. Neue Zeilen sind in AG Grid oben angeheftet, und `onCopyKey` brach bei jeder angehefteten Zeile ab. Jetzt geht eine Zelle einer neuen Zeile über ihre Id an `FerretGrid.OnCopyNewRow` und denselben `ExportActions.CopyCellAsync` (roh, gemerkt), `c77cf817`. Markieren und Zellmenü fehlen neuen Zeilen weiter (Backlog).
+
+## Nachtrag: Code-Review (2026-11-03)
+Review des Fixes für neue Zeilen mit einem unabhängigen Reviewer-Agent (`/branch-code-review`). Entscheidung des Nutzers: „Alle beheben“.
+- **#1 (K) Ctrl+C im offenen Zelleditor ohne Markierung schrieb den gespeicherten Wert über die Zwischenablage** (bei geladenen Zeilen schon vorher so, mit dem Fix auch bei neuen): behoben, `onCopyKey` tritt wie alle anderen Tasten-Handler beiseite, solange eine Zelle bearbeitet wird (`2828519b`).
+- **#2 (K) kein Test, der ohne den Fix scheitert:** kein Unit-Test (Verdrahtung zwischen `grid.js` und Komponente, dafür gibt es keine Testgrundlage); stattdessen E2E, siehe unten.
+- **Verworfen:** „Ctrl+C auf einer neuen Zeile übergeht mehrere ausgewählte Zeilen, architecture.md stimmt nicht“ – ein Fokus auf einer angehefteten Zeile hebt die Zeilenauswahl auf (`followFocus`).
+- **E2E** (eigene Instanz, eigener Container `ferret-e2e-ctrlc`, danach entfernt; echte Windows-Eingabe, KUNDEN mit zwei neuen Zeilen):
+  - Ctrl+C auf NAME der ersten neuen Zeile → Zwischenablage „Alpha Eins“; Ctrl+V auf NAME der zweiten → übernommen.
+  - Ctrl+C auf KUERZEL (NULL) der ersten → Zwischenablage leer; Ctrl+V auf „BZ1“ der zweiten → NULL.
+  - Editor offen, Cursor ohne Markierung, Ctrl+C → Zwischenablage unverändert; mit markiertem Text → der Text.
+  - Ctrl+C auf einer geladenen Zeile kopiert weiter ihren Wert. Log ohne `[ERR]`/`[WRN]`.
+- **Zweiter Durchgang:** Fix deckt #1 ab, nichts anderes betroffen (keydown-Kette, globale Tasten, Enum- und Flags-Editor). Nachgezogen: CHANGELOG und Tastenübersicht in architecture.md nennen jetzt auch, dass Ctrl+C im Editor einer geladenen Zeile die Zwischenablage nicht mehr überschreibt.
