@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - Ctrl+C on a cell of a new row, not yet written, copies its value. Before, it copied nothing, and a following Ctrl+V pasted whatever was copied earlier. In an open cell editor Ctrl+C is left to the editor, as Ctrl+V is: without marked text it no longer replaces the clipboard with the cell's stored value.
+- Typing over Remote Desktop no longer lags: WPF drew the window in software in a remote session and read every picture of the page back from the graphics card first; it now uses the graphics card there too. The start option `--rdp-software` goes back to software, should a remote session show the window wrongly; the log notes at the start whether the graphics card is used in a remote session.
 
 ## [3.58.0] - 2026-11-03
 
