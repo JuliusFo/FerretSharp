@@ -69,7 +69,7 @@ else
                         }
                     </td>
                     <td class="acts">
-                        <button class="report-act" @onclick="() => OnOpen.InvokeAsync(table)">@ModelViewText.Model_Open</button>
+                        <button class="report-act" @onclick="() => OnOpen.InvokeAsync(table)">@ModelViewText.Report_Open</button>
                         <button class="report-act" title="@ModelViewText.Report_CreateEntityTitle" @onclick="() => OnCreateEntity.InvokeAsync(table)">@ModelViewText.Report_CreateEntity</button>
                         @if (row.Exception is { } entry)
                         {

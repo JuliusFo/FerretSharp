@@ -28,7 +28,7 @@
                     <td class="acts">
                         @if (issue.Table is { } table && Schema?.Find(table) is { } summary)
                         {
-                            <button class="report-act" @onclick="() => OnOpen.InvokeAsync(summary)">@ModelViewText.Model_Open</button>
+                            <button class="report-act" @onclick="() => OnOpen.InvokeAsync(summary)">@ModelViewText.Report_Open</button>
                         }
                     </td>
                 </tr>

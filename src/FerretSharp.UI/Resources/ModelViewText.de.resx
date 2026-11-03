@@ -603,9 +603,6 @@
   <data name="Report_ModelOnly" xml:space="preserve">
     <value>Beziehungen nur im Modell</value>
   </data>
-  <data name="Report_TileModelOnlyHint" xml:space="preserve">
-    <value>{0} könnten Constraint werden</value>
-  </data>
   <data name="Report_DbOnly" xml:space="preserve">
     <value>FKs nur in der DB</value>
   </data>
@@ -830,5 +827,14 @@
   </data>
   <data name="Report_OpenReport" xml:space="preserve">
     <value>Bericht öffnen</value>
+  </data>
+  <data name="Report_Open" xml:space="preserve">
+    <value>Öffnen</value>
+  </data>
+  <data name="Report_TileModelOnlyHintOne" xml:space="preserve">
+    <value>{0} könnte Constraint werden</value>
+  </data>
+  <data name="Report_TileModelOnlyHintOther" xml:space="preserve">
+    <value>{0} könnten Constraint werden</value>
   </data>
 </root>

@@ -680,10 +680,6 @@
   <data name="Report_ModelOnly" xml:space="preserve">
     <value>Relationships only in the model</value>
   </data>
-  <data name="Report_TileModelOnlyHint" xml:space="preserve">
-    <value>{0} could become a constraint</value>
-    <comment>{0}: count</comment>
-  </data>
   <data name="Report_DbOnly" xml:space="preserve">
     <value>Foreign keys only in the database</value>
   </data>
@@ -957,5 +953,17 @@
   <data name="Report_OpenReport" xml:space="preserve">
     <value>Open report</value>
     <comment>Button on the model page</comment>
+  </data>
+  <data name="Report_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>Action that opens the table</comment>
+  </data>
+  <data name="Report_TileModelOnlyHintOne" xml:space="preserve">
+    <value>{0} could become a constraint</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Report_TileModelOnlyHintOther" xml:space="preserve">
+    <value>{0} could become constraints</value>
+    <comment>{0}: count</comment>
   </data>
 </root>

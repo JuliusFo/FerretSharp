@@ -113,7 +113,7 @@ else
             <td class="acts">
                 @if (withTable)
                 {
-                    <button class="report-act" @onclick="() => OnOpen.InvokeAsync(column.Entity.Table)">@ModelViewText.Model_Open</button>
+                    <button class="report-act" @onclick="() => OnOpen.InvokeAsync(column.Entity.Table)">@ModelViewText.Report_Open</button>
                 }
                 <button class="report-act" title="@ModelViewText.Report_CopyPropertyTitle" @onclick="() => OnCopyProperty.InvokeAsync(column)">@ModelViewText.Report_CopyProperty</button>
             </td>

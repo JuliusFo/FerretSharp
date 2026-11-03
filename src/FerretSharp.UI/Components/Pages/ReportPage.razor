@@ -220,7 +220,23 @@
     private ConnectionProfile? Profile => Active.Profile is { } active ? Connections.Profiles.FirstOrDefault(p => p.Id == active.Id) ?? active : null;
 
     /// <summary>The exceptions file of the connection, as last read (read again when it changed on disk, <see cref="ReportExceptionSource"/>).</summary>
-    private ReportExceptionLoad Exceptions => ExceptionSource.For(Profile);
+    private ReportExceptionLoad Exceptions
+    {
+        get
+        {
+            var load = ExceptionSource.For(Profile);
+            _shownExceptions = load;
+            return load;
+        }
+    }
+
+    /// <summary>What the page showed last; the poll compares the file with it.</summary>
+    private ReportExceptionLoad? _shownExceptions;
+
+    /// <summary>How often the page looks at the exceptions file (a git pull, a colleague's change on a share).</summary>
+    private static readonly TimeSpan ExceptionsPoll = TimeSpan.FromSeconds(5);
+
+    private Timer? _poll;
 
     /// <summary>The report of the current mapping, schema and exceptions; computed again only when one of them changed.</summary>
     private ModelReport? Report
@@ -290,6 +306,21 @@
 
         // The audit template may have been edited since the schema loaded: the report counts with the current one.
         Schema?.RefreshAuditTemplate();
+
+        // A click in a section renders only that section: a change of the file on disk would wait for the next render of
+        // the page. Looked at off the UI thread (a share over the VPN).
+        var profile = Profile;
+        _poll = new Timer(_ => CheckExceptions(profile), null, ExceptionsPoll, ExceptionsPoll);
+    }
+
+    private void CheckExceptions(ConnectionProfile? profile)
+    {
+        var load = ExceptionSource.For(profile);
+        if (_shownExceptions is { } shown
+            && (shown.Path != load.Path || shown.Error != load.Error || shown.ReadOnly != load.ReadOnly || !shown.Exceptions.SameAs(load.Exceptions)))
+        {
+            OnChanged();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -330,7 +361,7 @@
                 <h3>@ModelViewText.Report_TilesDifferences</h3>
                 @Tile(errors, "bad", ModelViewText.Report_TileErrors, ModelViewText.Report_TileErrorsHint, ReportPart.Mismatches)
                 @Tile(warnings, "warn", ModelViewText.Report_TileWarnings, hints > 0 ? TextFormat.Format(ModelViewText.Report_TileWarningsHints, hints) : ModelViewText.Report_TileWarningsHint, ReportPart.Mismatches)
-                @Tile(report.ModelOnly.Count, "warn", ModelViewText.Report_ModelOnly, TextFormat.Format(ModelViewText.Report_TileModelOnlyHint, possible), ReportPart.Relations)
+                @Tile(report.ModelOnly.Count, "warn", ModelViewText.Report_ModelOnly, TextFormat.Plural(possible, ModelViewText.Report_TileModelOnlyHintOne, ModelViewText.Report_TileModelOnlyHintOther), ReportPart.Relations)
                 @Tile(report.DbOnly.Count, "", ModelViewText.Report_DbOnly, ModelViewText.Report_TileDbOnlyHint, ReportPart.Relations)
             </div>
             @if (State.Link is not null)
@@ -513,6 +544,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        _poll?.Dispose();
         Models.Changed -= OnChanged;
         Active.Changed -= OnChanged;
         Usage.Changed -= OnChanged;
