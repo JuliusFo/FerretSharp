@@ -13,7 +13,7 @@ Ergebnis auf der echten Strecke (Rückmeldung 2026-11-03): Beim Nutzer hörten d
 ## Entscheidung
 
 - **Breaks gehen immer in-band**: `Program.Main` setzt vor allem anderen `OracleConfiguration.DisableOOB` (`OracleSession.SendBreaksInBand`) – prozessweit, ODP.NET nimmt es nur vor der ersten Verbindung (ORA-50099).
-- **Notausgang `--enable-oob`**: lässt die Einstellung weg (ODP.NET-Standard). Das Log nennt es beim Start („Breaks are sent out of band (--enable-oob)“), die Historie einer verlorenen Session endet dann mit „; breaks out of band“. Keine Einstellung in der Oberfläche: Sie wirkte erst nach einem Neustart, und es gibt keinen bekannten Fall, der sie braucht.
+- **Notausgang `--enable-oob`**: lässt die Einstellung weg (ODP.NET-Standard). Das Log nennt es beim Start („Out-of-band breaks allowed (--enable-oob)“), die Historie einer verlorenen Session endet dann mit „; out-of-band breaks allowed“ – nur „erlaubt“: Ob ein Break wirklich out-of-band geht, entscheiden Server und sqlnet.ora. Die Entscheidung trifft `CommandLine.BreaksOutOfBand`; gesetzt wird erst in der Instanz, die die App startet (die Übergabe eines Links braucht keinen Treiber). Keine Einstellung in der Oberfläche: Sie wirkte erst nach einem Neustart, und es gibt keinen bekannten Fall, der sie braucht.
 - `--disable-oob` ist überflüssig; die App ignoriert es wie jedes unbekannte Argument, vorhandene Verknüpfungen stören also nicht.
 - **Verworfen: pro Verbindung** über eine eigene sqlnet.ora per `Tns_Admin` – ersetzt bei TNS-Alias-Profilen die sqlnet.ora des Nutzers (ODP.NET liest nur die erste gefundene), und ein Vorteil von OOB war bei keiner Verbindung zu sehen.
 

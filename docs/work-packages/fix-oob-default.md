@@ -4,7 +4,7 @@ Auswertung zu `fixes-oob-breaks.md` (3.50.2): Der Nutzer meldet am 2026-11-03, d
 
 ## Gebaut
 - `Program.Main` setzt `OracleSession.SendBreaksInBand()` ohne Schalter, vor der ersten Verbindung wie bisher.
-- `CommandLine.DisableOob` → `CommandLine.EnableOob` (`--enable-oob`): Notausgang zurück zum ODP.NET-Standard. Das Start-Log nennt nur noch die Abweichung („Breaks are sent out of band (--enable-oob)“), die Historie einer verlorenen Session endet mit „; breaks out of band“ statt „; breaks in band“ (`DescribeHistory(…, outOfBand)`).
+- `CommandLine.DisableOob` → `CommandLine.EnableOob` (`--enable-oob`): Notausgang zurück zum ODP.NET-Standard. Das Start-Log nennt nur noch die Abweichung („Out-of-band breaks allowed (--enable-oob)“), die Historie einer verlorenen Session endet mit „; out-of-band breaks allowed“ statt „; breaks in band“ (`DescribeHistory(…, outOfBandAllowed)`).
 - `--disable-oob` wird ignoriert wie jedes unbekannte Argument; Verknüpfungen mit dem alten Schalter starten weiter.
 - Keine Einstellung in der Oberfläche (wirkte erst nach Neustart, kein bekannter Bedarf) – offene Frage an den Nutzer, falls doch.
 - Backlog-Eintrag „Abbrechen über VPN“ entfernt.
