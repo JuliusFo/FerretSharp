@@ -19,11 +19,11 @@ public sealed class CommandLineTests
     [Fact]
     public void A_switch_counts_only_as_itself_and_stays_on_a_restart()
     {
-        string[] args = ["--data-dir=daten", "--DISABLE-OOB"];
+        string[] args = ["--data-dir=daten", "--ENABLE-OOB"];
 
-        Assert.True(CommandLine.Has(args, CommandLine.DisableOob));
-        Assert.False(CommandLine.Has(["--disable-oob=no", "--disable-oobx"], CommandLine.DisableOob));
-        Assert.Contains("--DISABLE-OOB", CommandLine.Restart(args));
+        Assert.True(CommandLine.Has(args, CommandLine.EnableOob));
+        Assert.False(CommandLine.Has(["--enable-oob=no", "--enable-oobx"], CommandLine.EnableOob));
+        Assert.Contains("--ENABLE-OOB", CommandLine.Restart(args));
     }
 
     [Fact]

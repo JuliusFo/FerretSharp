@@ -63,7 +63,7 @@ public sealed class OutOfBandBreakTests(OracleContainerFixture oracle)
 
     /// <summary>
     /// <c>DISABLE_OOB</c> from a sqlnet.ora of the connection's own (<c>Tns_Admin</c>) – the same setting as
-    /// <c>--disable-oob</c> (<see cref="OracleSession.SendBreaksInBand"/>), which ODP.NET takes only once per process.
+    /// the app's default (<see cref="OracleSession.SendBreaksInBand"/>, ADR 0041), which ODP.NET takes only once per process.
     /// </summary>
     [Fact]
     public async Task In_band_a_cancel_ends_with_ORA_01013_and_keeps_the_session_on_either_path()

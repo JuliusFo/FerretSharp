@@ -31,9 +31,9 @@ internal static class Program
             .Run();
 
         args = CommandLine.Effective(args); // a link's own options are ignored (WP-37, review)
-        if (CommandLine.Has(args, CommandLine.DisableOob))
+        if (!CommandLine.Has(args, CommandLine.EnableOob))
         {
-            OracleSession.SendBreaksInBand(); // before any connection opens: ODP.NET refuses it afterwards (ORA-50099)
+            OracleSession.SendBreaksInBand(); // ADR 0041; before any connection opens: ODP.NET refuses it afterwards (ORA-50099)
         }
 
         var paths = DataFolder(args);

@@ -18,8 +18,9 @@ public sealed partial class OracleSession
     /// <summary>
     /// Sends breaks in band instead of as TCP urgent data (out of band, ODP.NET's default when the server agrees). A path that
     /// loses urgent data delays a cancel until the server is done; one that clears the urgent flag passes the byte on as data
-    /// and the session is lost (ORA-12537/ORA-12570, backlog "Abbrechen über VPN"). In band, the server notices a break only
-    /// when it next checks the connection. Process-wide in ODP.NET and only before the first connection opens (ORA-50099).
+    /// and the session is lost (ORA-12537/ORA-12570, <c>fixes-oob-breaks.md</c>). In band, the server notices a break only
+    /// when it next checks the connection. The app's default (ADR 0041; <c>--enable-oob</c> leaves it out). Process-wide in
+    /// ODP.NET and only before the first connection opens (ORA-50099).
     /// </summary>
     public static void SendBreaksInBand() => OracleConfiguration.DisableOOB = true;
 
@@ -92,7 +93,7 @@ public sealed partial class OracleSession
         var translated = OracleErrors.Translate(ex);
         if (translated is { IsConnectionLost: true })
         {
-            translated.SessionHistory = DescribeHistory(_lastBreak, Interlocked.Read(ref _idleBefore), Environment.TickCount64, BreaksInBand);
+            translated.SessionHistory = DescribeHistory(_lastBreak, Interlocked.Read(ref _idleBefore), Environment.TickCount64, !BreaksInBand);
         }
 
         return translated;
@@ -100,12 +101,13 @@ public sealed partial class OracleSession
 
     /// <summary>
     /// "idle 13.2 s before this command; last break 14.0 s ago, 2 ms after its command had returned (it ended normally), 1 command since";
-    /// "; breaks in band" after it with <paramref name="inBand"/> (to tell the two ways apart while trying <c>--disable-oob</c>).
+    /// "; breaks out of band" after it with <paramref name="outOfBand"/> (<c>--enable-oob</c>: a lost session then points at the
+    /// break's way first, ADR 0041).
     /// </summary>
-    internal static string DescribeHistory(SentBreak? last, long idleBefore, long now, bool inBand = false)
+    internal static string DescribeHistory(SentBreak? last, long idleBefore, long now, bool outOfBand = false)
     {
         var idle = $"idle {Seconds(idleBefore)} before this command";
-        var mode = inBand ? "; breaks in band" : "";
+        var mode = outOfBand ? "; breaks out of band" : "";
         if (last is null)
         {
             return $"{idle}; no break sent since the session opened{mode}";

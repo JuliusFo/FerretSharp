@@ -35,16 +35,16 @@ public sealed class OracleSessionHistoryTests
             OracleSession.DescribeHistory(last, idleBefore: 0, now: 1_000_000));
     }
 
-    /// <summary>While trying <c>--disable-oob</c> (backlog "Abbrechen über VPN"), the log tells which way the break went.</summary>
+    /// <summary>With <c>--enable-oob</c> (ADR 0041), the log tells that the break went the other way.</summary>
     [Fact]
-    public void Breaks_in_band_are_named_at_the_end()
+    public void Breaks_out_of_band_are_named_at_the_end()
     {
         var last = new OracleSession.SentBreak(sentAt: 999_800, intoCommand: 800, afterReturn: false) { Ended = "with ORA-12570" };
 
         Assert.Equal(
-            "idle 0.0 s before this command; last break 0.2 s ago, 0.8 s into its command (it ended with ORA-12570), during this command; breaks in band",
-            OracleSession.DescribeHistory(last, idleBefore: 0, now: 1_000_000, inBand: true));
-        Assert.Equal("idle 1.0 s before this command; no break sent since the session opened; breaks in band",
-            OracleSession.DescribeHistory(null, idleBefore: 1_000, now: 1_000_000, inBand: true));
+            "idle 0.0 s before this command; last break 0.2 s ago, 0.8 s into its command (it ended with ORA-12570), during this command; breaks out of band",
+            OracleSession.DescribeHistory(last, idleBefore: 0, now: 1_000_000, outOfBand: true));
+        Assert.Equal("idle 1.0 s before this command; no break sent since the session opened; breaks out of band",
+            OracleSession.DescribeHistory(null, idleBefore: 1_000, now: 1_000_000, outOfBand: true));
     }
 }
