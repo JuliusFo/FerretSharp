@@ -409,7 +409,10 @@
         await _grid.CallAsync("setPinned", ResultPinning.Pinned(tab.ResultPins, ColumnNames()).Select(GridColumn.IdOf).ToList());
     }
 
-    /// <summary>The user pinned, released or reordered pinned columns by dragging; <paramref name="colIds"/> in display order.</summary>
+    /// <summary>
+    /// The user pinned, released or reordered pinned columns by dragging; <paramref name="colIds"/> in display order. Beyond
+    /// <see cref="ResultPinning.MaxPins"/> the oldest pins go: the grid releases them too (review of WP-73 – it kept them pinned).
+    /// </summary>
     [JSInvokable]
     public void OnPinnedChanged(string[] colIds) => Guard(() =>
     {
@@ -418,6 +421,11 @@
             tab.ResultPins = ResultPinning.FromGrid(tab.ResultPins, ColumnNames(), colIds.Select(GridColumn.IndexOf).Where(i => i < _columns.Count));
             Shell.MarkDirty();
             RowsChanged?.Invoke();
+            var kept = ResultPinning.Pinned(tab.ResultPins, ColumnNames());
+            if (kept.Count < colIds.Length)
+            {
+                Fire(() => _grid.CallAsync("setPinned", kept.Select(GridColumn.IdOf).ToList()));
+            }
         }
     });
 
