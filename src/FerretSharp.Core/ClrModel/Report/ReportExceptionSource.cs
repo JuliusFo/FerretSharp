@@ -55,14 +55,14 @@ public sealed class ReportExceptionSource(AppSettingsService settings, string de
     /// <summary>Adds or replaces the exception for a table name or pattern in the file of <paramref name="profile"/>.</summary>
     /// <exception cref="RefusedException">The file cannot be read, is no valid JSON, comes from a newer FerretSharp or cannot be written.</exception>
     public Task SetAsync(ConnectionProfile? profile, string tableOrPattern, string? reason, CancellationToken cancellationToken) =>
-        ChangeAsync(profile, exceptions => exceptions.With(tableOrPattern, reason), cancellationToken);
+        ChangeAsync(profile, document => document.Set(tableOrPattern, reason), cancellationToken);
 
     /// <summary>Removes the exception written exactly so (case ignored); as <see cref="SetAsync"/>.</summary>
     /// <exception cref="RefusedException">As for <see cref="SetAsync"/>.</exception>
     public Task RemoveAsync(ConnectionProfile? profile, string tableOrPattern, CancellationToken cancellationToken) =>
-        ChangeAsync(profile, exceptions => exceptions.Without(tableOrPattern), cancellationToken);
+        ChangeAsync(profile, document => document.Remove(tableOrPattern), cancellationToken);
 
-    private async Task ChangeAsync(ConnectionProfile? profile, Func<ReportExceptions, ReportExceptions> change, CancellationToken cancellationToken)
+    private async Task ChangeAsync(ConnectionProfile? profile, Action<ReportExceptionDocument> change, CancellationToken cancellationToken)
     {
         await _writing.WaitAsync(cancellationToken);
         try
@@ -88,7 +88,7 @@ public sealed class ReportExceptionSource(AppSettingsService settings, string de
                 throw new RefusedException(readOnly);
             }
 
-            document.Set(change(document.Exceptions()));
+            change(document);
             try
             {
                 await AtomicJsonFile.WriteAsync(path, document, ReportExceptionDocument.Options, cancellationToken);

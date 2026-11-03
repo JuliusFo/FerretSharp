@@ -134,5 +134,38 @@ public sealed class ReportExceptionSourceTests : IDisposable
         Assert.NotNull(source.For(Profile("Kasse")).Exceptions.Match("KASSE_TMP"));
     }
 
+    /// <summary>Review of WP-72: a huge or hostile file from a shared repository must not stall the report.</summary>
+    [Fact]
+    public void Entries_beyond_the_limit_and_patterns_with_too_many_stars_are_ignored_and_counted()
+    {
+        var entries = Enumerable.Range(0, ReportExceptions.MaxEntries + 5).ToDictionary(i => $"T{i:D5}", _ => (string?)"");
+        entries["*A*B*C*D*E"] = "too many stars";
+
+        var exceptions = ReportExceptions.From(entries);
+
+        Assert.Equal(ReportExceptions.MaxEntries, exceptions.Count);
+        Assert.Equal(6, exceptions.Ignored);
+    }
+
+    /// <summary>Review of WP-72: marking a table must not cut or drop what colleagues wrote.</summary>
+    [Fact]
+    public async Task Setting_an_exception_keeps_every_other_line_as_written()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(DefaultPath)!);
+        var longReason = new string('r', ReportExceptions.MaxReasonLength + 20);
+        var tooLong = new string('X', ReportExceptions.MaxNameLength + 1);
+        await File.WriteAllTextAsync(DefaultPath, $$"""{ "version": 1, "tablesWithoutEntity": { "OLD": "{{longReason}}", "{{tooLong}}": "", "*A*B*C*D*E": "" } }""", Ct);
+        var source = Source(AppSettings.Default);
+
+        await source.SetAsync(null, "NEW", "mine", Ct);
+
+        var text = await File.ReadAllTextAsync(DefaultPath, Ct);
+        Assert.Contains(longReason, text, StringComparison.Ordinal);
+        Assert.Contains(tooLong, text, StringComparison.Ordinal);
+        Assert.Contains("*A*B*C*D*E", text, StringComparison.Ordinal);
+        Assert.Contains("\"NEW\": \"mine\"", text, StringComparison.Ordinal);
+        Assert.Equal(2, source.For(null).Exceptions.Ignored);
+    }
+
     public void Dispose() => _folder.Dispose();
 }

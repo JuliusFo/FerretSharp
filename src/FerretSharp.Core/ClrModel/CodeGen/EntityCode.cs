@@ -158,11 +158,13 @@ public static class EntityCode
     /// the entity class and the line for its configuration, as <see cref="Write"/> writes them. A foreign key column without
     /// property gets the name a property for it would have, with a note.
     /// </summary>
+    /// <param name="outgoing">The table's foreign keys: several declared ones to the same entity are named after their columns.</param>
     /// <returns>Null if one of the tables has no entity.</returns>
-    public static string? Navigation(ClrModelMapping mapping, ForeignKeyInfo foreignKey)
+    public static string? Navigation(ClrModelMapping mapping, ForeignKeyInfo foreignKey, IEnumerable<ForeignKeyInfo> outgoing)
     {
         ArgumentNullException.ThrowIfNull(mapping);
         ArgumentNullException.ThrowIfNull(foreignKey);
+        ArgumentNullException.ThrowIfNull(outgoing);
         if (mapping.EntityOf(foreignKey.From) is not { } dependent || mapping.EntityOf(foreignKey.To) is not { } principal)
         {
             return null;
@@ -173,13 +175,18 @@ public static class EntityCode
             .Select(c => mapping.PropertyOf(foreignKey.From, c)?.Name ?? PropertyCode.Suggest(mapping.Model, columns.FirstOrDefault(i => i.Name == c) ?? Column(c)).Name)
             .ToList();
         var principalName = ClrModelMapping.ShortName(principal.Entity.ClrType);
+        var dependentName = ClrModelMapping.ShortName(dependent.Entity.ClrType);
+        // A member may not have the name of its class (CS0542): a foreign key of a table to itself (PARENT_ID).
         var used = dependent.Entity.Properties.Select(p => p.Name)
             .Concat(dependent.Entity.ForeignKeys.Select(f => f.Navigation).OfType<string>())
+            .Append(dependentName)
             .ToHashSet(StringComparer.Ordinal);
-        // The principal's name, unless the entity has a member of that name or a navigation to the same table already.
-        var navigation = used.Contains(principalName) || mapping.ForeignKeys.Any(f => f.From == foreignKey.From && f.To == foreignKey.To)
-            ? NavigationName(keys[0])
-            : principalName;
+        // The principal's name, unless it is taken, the model has a navigation to the same table already or the table declares
+        // another foreign key to the same entity (delivery and invoice address) – then after the column, as Write does.
+        var shared = mapping.ForeignKeys.Any(f => f.From == foreignKey.From && f.To == foreignKey.To)
+                     || outgoing.Any(f => f.Source == FkSource.Declared && f != foreignKey && f.From == foreignKey.From
+                                          && mapping.EntityOf(f.To)?.Entity == principal.Entity);
+        var navigation = used.Contains(principalName) || shared ? NavigationName(keys[0]) : principalName;
         if (used.Contains(navigation))
         {
             navigation += "Navigation";
@@ -187,12 +194,47 @@ public static class EntityCode
 
         var optional = foreignKey.FromColumns.Any(c => columns.FirstOrDefault(i => i.Name == c)?.Nullable ?? true);
         var (declaration, configuration) = Relationship(mapping, foreignKey, principal, navigation, optional, keys);
-        var dependentName = ClrModelMapping.ShortName(dependent.Entity.ClrType);
         var text = new StringBuilder($"// {dependentName}\n{declaration}\n\n// {dependentName}Configuration\n{configuration}");
         foreach (var column in foreignKey.FromColumns.Where(c => mapping.PropertyOf(foreignKey.From, c) is null))
         {
             // A quoted Oracle name may hold a line break: it must not end the comment.
             text.Append("\n// ").Append(TextFormat.Format(ClrModelText.NavigationPropertyMissing, column.ReplaceLineEndings(" ")));
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// A property for a column of a mapped table that no property maps (WP-72, "copy property code"): declaration and
+    /// configuration line as <see cref="PropertyCode.Suggest"/> writes them, the name made unique among the entity's members
+    /// (and not its class name), and the notes as comments – a converter left to do by hand must not get lost.
+    /// </summary>
+    public static string Property(ClrModelMapping mapping, EntityMapping entity, ColumnInfo column)
+    {
+        ArgumentNullException.ThrowIfNull(mapping);
+        ArgumentNullException.ThrowIfNull(entity);
+        ArgumentNullException.ThrowIfNull(column);
+        var entityName = ClrModelMapping.ShortName(entity.Entity.ClrType);
+        var used = entity.Entity.Properties.Select(p => p.Name)
+            .Concat(entity.Entity.ForeignKeys.Select(f => f.Navigation).OfType<string>())
+            .Append(entityName)
+            .ToHashSet(StringComparer.Ordinal);
+        var suggestion = PropertyCode.Suggest(mapping.Model, column);
+        var unique = suggestion.Name;
+        for (var n = 2; used.Contains(unique); n++)
+        {
+            unique = suggestion.Name + n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (unique != suggestion.Name)
+        {
+            suggestion = Rename(suggestion, unique);
+        }
+
+        var text = new StringBuilder($"// {entityName}\n{suggestion.Declaration}\n\n// {entityName}Configuration\n{suggestion.Configuration}");
+        foreach (var note in suggestion.Notes)
+        {
+            text.Append("\n// ").Append(note.ReplaceLineEndings(" ")); // names from the database or the model: one line each
         }
 
         return text.ToString();

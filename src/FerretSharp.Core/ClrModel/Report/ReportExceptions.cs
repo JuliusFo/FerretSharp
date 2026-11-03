@@ -26,9 +26,10 @@ public sealed class ReportExceptions
     private readonly SortedDictionary<string, string> _tables;
     private readonly List<ReportException> _patterns;
 
-    private ReportExceptions(SortedDictionary<string, string> tables)
+    private ReportExceptions(SortedDictionary<string, string> tables, int ignored = 0)
     {
         _tables = tables;
+        Ignored = ignored;
         _patterns = [.. tables.Where(t => t.Key.Contains('*', StringComparison.Ordinal)).Select(t => new ReportException(t.Key, t.Value))];
     }
 
@@ -36,6 +37,9 @@ public sealed class ReportExceptions
     public IReadOnlyList<ReportException> Tables => [.. _tables.Select(t => new ReportException(t.Key, t.Value))];
 
     public int Count => _tables.Count;
+
+    /// <summary>Entries of the file left out: blank or too long, a pattern with too many <c>*</c>, beyond <see cref="MaxEntries"/>.</summary>
+    public int Ignored { get; }
 
     /// <summary>The entry that leaves the table out: its own name first, otherwise the first pattern that fits; null if none.</summary>
     public ReportException? Match(string table)
@@ -82,25 +86,36 @@ public sealed class ReportExceptions
     /// <summary>Longer entries are ignored: 128 bytes of an Oracle name, with room for a few <c>*</c>.</summary>
     public const int MaxNameLength = 160;
 
-    /// <summary>A reason is cut to this length when read (it is shown in a list).</summary>
+    /// <summary>A reason is cut to this length for the report (it is shown in a list); the file keeps it whole.</summary>
     public const int MaxReasonLength = 500;
+
+    /// <summary>
+    /// Entries read at most: every table without entity is matched against every pattern while the report renders, so a
+    /// huge file from a shared repository (foreign input) must not stall the UI thread.
+    /// </summary>
+    public const int MaxEntries = 2000;
+
+    /// <summary>A pattern with more <c>*</c> is ignored (keeps matching one name cheap; <c>*_TMP_*</c> needs two).</summary>
+    public const int MaxStars = 4;
 
     internal static ReportExceptions From(IReadOnlyDictionary<string, string?>? tables)
     {
         var sorted = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var ignored = 0;
         foreach (var (table, reason) in tables ?? new Dictionary<string, string?>())
         {
-            if (Clean(table) is { } name)
+            if (Clean(table) is not { } name || name.Count(c => c == '*') > MaxStars || (sorted.Count >= MaxEntries && !sorted.ContainsKey(name)))
             {
-                var text = reason?.Trim() ?? "";
-                sorted[name] = text.Length > MaxReasonLength ? text[..MaxReasonLength] : text;
+                ignored++;
+                continue;
             }
+
+            var text = reason?.Trim() ?? "";
+            sorted[name] = text.Length > MaxReasonLength ? text[..MaxReasonLength] : text;
         }
 
-        return new ReportExceptions(sorted);
+        return new ReportExceptions(sorted, ignored);
     }
-
-    internal SortedDictionary<string, string> ToDictionary() => new(_tables, StringComparer.Ordinal);
 
     /// <summary>
     /// <paramref name="name"/> fits <paramref name="pattern"/>, where <c>*</c> stands for any characters (none too), case
@@ -162,6 +177,25 @@ internal sealed class ReportExceptionDocument
 
     public ReportExceptions Exceptions() => ReportExceptions.From(TablesWithoutEntity);
 
-    public void Set(ReportExceptions exceptions) =>
-        TablesWithoutEntity = new(exceptions.ToDictionary().ToDictionary(e => e.Key, e => (string?)e.Value), StringComparer.Ordinal);
+    /// <summary>
+    /// Sets one entry in the file as read – an entry in another letter case is replaced; every other line stays as it is,
+    /// also one this FerretSharp ignores (a colleague's long reason, an entry of a newer version).
+    /// </summary>
+    public void Set(string tableOrPattern, string? reason)
+    {
+        var name = ReportExceptions.Clean(tableOrPattern) ?? throw new ArgumentException("An exception needs a table name or pattern.", nameof(tableOrPattern));
+        var text = reason?.Trim() ?? "";
+        Remove(name);
+        TablesWithoutEntity[name] = text.Length > ReportExceptions.MaxReasonLength ? text[..ReportExceptions.MaxReasonLength] : text;
+    }
+
+    /// <summary>Removes the entry written so (case ignored); the other lines stay as they are.</summary>
+    public void Remove(string tableOrPattern)
+    {
+        var name = tableOrPattern.Trim();
+        // Sorted ordinally as written, whatever comparer the reader gave the dictionary.
+        TablesWithoutEntity = new(
+            (TablesWithoutEntity ?? []).Where(e => !string.Equals(e.Key?.Trim(), name, StringComparison.OrdinalIgnoreCase)).ToDictionary(e => e.Key, e => e.Value),
+            StringComparer.Ordinal);
+    }
 }

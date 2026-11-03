@@ -167,7 +167,7 @@ public sealed class ModelReportTests
         var (mapping, schema) = await ShopAsync();
         var report = ModelReport.Build(mapping, schema, ReportExceptions.Empty);
 
-        var code = EntityCode.Navigation(mapping, report.DbOnly[0].ForeignKey);
+        var code = EntityCode.Navigation(mapping, report.DbOnly[0].ForeignKey, schema.OutgoingOf(Auftrag));
 
         Assert.Equal(
             """
@@ -178,7 +178,7 @@ public sealed class ModelReportTests
             builder.HasOne(x => x.Lager).WithMany().HasForeignKey(x => x.LagerId);
             """.ReplaceLineEndings("\n"),
             code);
-        Assert.Null(EntityCode.Navigation(mapping, report.DbOnly[1].ForeignKey));
+        Assert.Null(EntityCode.Navigation(mapping, report.DbOnly[1].ForeignKey, []));
     }
 
     [Fact]
@@ -187,11 +187,46 @@ public sealed class ModelReportTests
         var (mapping, _) = await ShopAsync();
         var fk = Declared("FK_X", Auftrag, "GUTSCHEIN_ID", Kunde, "KUNDE_ID");
 
-        var code = EntityCode.Navigation(mapping, fk)!;
+        var code = EntityCode.Navigation(mapping, fk, [])!;
 
         // The model has a navigation from AUFTRAG to KUNDE already: the new one is named after its column.
         Assert.Contains("public Kunde? Gutschein { get; set; }", code, StringComparison.Ordinal);
         Assert.Contains(".HasForeignKey(x => x.GutscheinId);", code, StringComparison.Ordinal);
         Assert.EndsWith("// GUTSCHEIN_ID hat noch keine Property: zuerst anlegen (Bericht: Spalten ohne Property).", code, StringComparison.Ordinal);
+    }
+
+    /// <summary>Review of WP-72: a member named like its class does not compile (CS0542), two navigations of one name neither.</summary>
+    [Fact]
+    public async Task Navigation_code_avoids_the_class_name_and_a_second_foreign_key_to_the_same_entity()
+    {
+        var (mapping, _) = await ShopAsync();
+        var toItself = Declared("FK_KUNDE_KUNDE", Kunde, "LAGER_ID", Kunde, "KUNDE_ID");
+        var delivery = Declared("FK_AUFTRAG_LAGER", Auftrag, "LAGER_ID", Lager, "LAGER_ID");
+        var other = Declared("FK_AUFTRAG_LAGER2", Auftrag, "GUTSCHEIN_ID", Lager, "LAGER_ID");
+
+        var self = EntityCode.Navigation(mapping, toItself, [toItself])!;
+        var alone = EntityCode.Navigation(mapping, other, [other])!;
+        var second = EntityCode.Navigation(mapping, other, [delivery, other])!;
+
+        Assert.DoesNotContain("public Kunde? Kunde ", self, StringComparison.Ordinal);
+        Assert.Contains("public Kunde? LagerNavigation { get; set; }", self, StringComparison.Ordinal); // Kunde.Lager exists
+        Assert.Contains("public Lager? Lager { get; set; }", alone, StringComparison.Ordinal);
+        Assert.Contains("public Lager? Gutschein { get; set; }", second, StringComparison.Ordinal);
+    }
+
+    /// <summary>Review of WP-72: the copied property must not clash with a member or the class, and keeps the notes.</summary>
+    [Fact]
+    public async Task Property_code_gets_a_free_name_and_the_notes_as_comments()
+    {
+        var (mapping, _) = await ShopAsync();
+        var auftrag = mapping.EntityOf(Auftrag)!;
+
+        var clash = EntityCode.Property(mapping, auftrag, new ColumnInfo("AUFTRAG", "NUMBER", null, false, 10, 0, true, false, null, 9));
+        // NUMMER is Kunde.Nummer elsewhere: the suggestion takes that name and says so in a note.
+        var elsewhere = EntityCode.Property(mapping, auftrag, new ColumnInfo("NUMMER", "NUMBER", null, false, 10, 0, false, false, null, 9));
+
+        Assert.Contains("public long? Auftrag2 { get; set; }", clash, StringComparison.Ordinal);
+        Assert.StartsWith("// Auftrag\npublic int Nummer { get; set; }\n\n// AuftragConfiguration\n", elsewhere, StringComparison.Ordinal);
+        Assert.Matches(";\n// .*NUMMER", elsewhere); // the notes of the suggestion as comments
     }
 }
