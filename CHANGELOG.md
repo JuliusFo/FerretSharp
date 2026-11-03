@@ -16,6 +16,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - The model page keeps where the model comes from, loading, building and the export; its lists – matching, differing columns, unused columns, the table of entities – moved to the report. "Show in the report" in the LINQ console (after ORA-00904) opens the report at the model without counterpart.
 - A newly opened SQL editor tab takes the focus, with the cursor at the end of its text – also when it opens from a menu with a statement ("Open in SQL editor", `SELECT *` from the explorer). Tabs restored with their workspace do not take it.
 
+### Fixed
+- Ctrl+C on a cell of a new row, not yet written, copies its value. Before, it copied nothing, and a following Ctrl+V pasted whatever was copied earlier. In an open cell editor Ctrl+C is left to the editor, as Ctrl+V is: without marked text it no longer replaces the clipboard with the cell's stored value.
+
 ## [3.58.0] - 2026-11-03
 
 Build a query in the relationship diagram as LINQ and SQL, create a foreign key constraint from a relationship of the C# model, and cancelling sends breaks in band by default.
