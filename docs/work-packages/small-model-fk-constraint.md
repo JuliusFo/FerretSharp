@@ -1,4 +1,4 @@
-# Klein: Beziehungen aus dem C#-Modell als FK-Constraint anlegen → Unreleased
+# Klein: Beziehungen aus dem C#-Modell als FK-Constraint anlegen → Release 3.58.0
 
 Branch `feat/model-fk-constraint` (von `main`), 2026-11-02.
 

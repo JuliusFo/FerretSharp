@@ -1,4 +1,4 @@
-# WP-69 Abfrage aus dem Beziehungsdiagramm → Release offen
+# WP-69 Abfrage aus dem Beziehungsdiagramm → Release 3.58.0
 
 Branch `wp/69-diagram-query`, begonnen am 2026-11-02. ADR 0040. Baut auf dem Beziehungsdiagramm (WP-46), dem Graphen (WP-42), den C#-Namen und Navigations (WP-12), der LINQ-Erzeugung (WP-15) und der LINQ-Konsole (WP-13).
 
