@@ -19,7 +19,7 @@ public sealed class DisplayWatch(ILogger<DisplayWatch> logger) : IDisposable
     private const int ScreenWidth = 0; // SM_CXSCREEN
     private const int ScreenHeight = 1; // SM_CYSCREEN
 
-    /// <summary>WPF's switch for the GPU in a remote session (ADR 0042, set unless <c>--rdp-software</c>); off, it renders in software there.</summary>
+    /// <summary>WPF's switch for the GPU in a remote session (ADR 0043, set unless <c>--rdp-software</c>); off, it renders in software there.</summary>
     public const string HardwareAccelerationInRdp = "Switch.System.Windows.Media.EnableHardwareAccelerationInRdp";
 
     private bool _started;

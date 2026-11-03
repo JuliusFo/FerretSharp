@@ -36,7 +36,7 @@ public sealed class CommandLineTests
         Assert.False(CommandLine.BreaksOutOfBand(CommandLine.Effective(["ferretsharp://open?v=1&s=HR&t=EMPLOYEES", "--enable-oob"])));
     }
 
-    /// <summary>ADR 0042: the GPU in a remote session unless <c>--rdp-software</c>; a link cannot turn it off.</summary>
+    /// <summary>ADR 0043: the GPU in a remote session unless <c>--rdp-software</c>; a link cannot turn it off.</summary>
     [Fact]
     public void The_gpu_renders_in_a_remote_session_unless_software_is_asked_for()
     {

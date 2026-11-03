@@ -1,6 +1,6 @@
 # Fix: Träges Tippen über RDP → Release offen
 
-Meldung des Nutzers (2026-11-03, 3.58.0): Tippen im Grid (neue Zeilen) ist wieder träge, er arbeitet per RDP auf seinem Laptop. Branch `claude/webview-gpu-performance-44b20a`, ADR 0042.
+Meldung des Nutzers (2026-11-03, 3.58.0): Tippen im Grid (neue Zeilen) ist wieder träge, er arbeitet per RDP auf seinem Laptop. Branch `claude/webview-gpu-performance-44b20a`, ADR 0043.
 
 ## Analyse
 - Im Log über RDP: Render-Tier 0, viele zurückgehaltene Bilder (ADR 0038, bis ~860 je Minute, das längste 83 ms). WPF rendert in einer Remote-Sitzung in Software und liest jedes Bild der WebView von der GPU zurück.

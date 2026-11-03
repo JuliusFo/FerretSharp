@@ -67,7 +67,7 @@ internal static class Program
                 OracleSession.SendBreaksInBand();
             }
 
-            // ADR 0042: WPF renders in software in a remote session on its own, and the WebView's every frame is then read
+            // ADR 0043: WPF renders in software in a remote session on its own, and the WebView's every frame is then read
             // back from the GPU – typing lags over RDP. Read once when WPF's media system starts, so before the app exists.
             if (CommandLine.GpuInRemoteSession(args))
             {

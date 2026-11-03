@@ -37,7 +37,7 @@ public static class CommandLine
 
     /// <summary>
     /// WPF renders in software in a remote session (RDP), its own default there, instead of on the GPU as FerretSharp lets it
-    /// otherwise (ADR 0042). A way back should the remote machine's GPU show the window wrongly. A switch without a value.
+    /// otherwise (ADR 0043). A way back should the remote machine's GPU show the window wrongly. A switch without a value.
     /// </summary>
     public const string RdpSoftware = "--rdp-software";
 
@@ -93,7 +93,7 @@ public static class CommandLine
     public static bool BreaksOutOfBand(IEnumerable<string> args) => Has(args, EnableOob);
 
     /// <summary>
-    /// Whether WPF may render on the GPU in a remote session (unless <see cref="RdpSoftware"/>, ADR 0042). Takes
+    /// Whether WPF may render on the GPU in a remote session (unless <see cref="RdpSoftware"/>, ADR 0043). Takes
     /// <see cref="Effective"/> arguments: a link cannot turn it off.
     /// </summary>
     public static bool GpuInRemoteSession(IEnumerable<string> args) => !Has(args, RdpSoftware);

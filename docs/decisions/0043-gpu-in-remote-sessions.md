@@ -1,4 +1,4 @@
-# ADR 0042: WPF rendert auch in einer Remote-Sitzung auf der GPU
+# ADR 0043: WPF rendert auch in einer Remote-Sitzung auf der GPU
 
 - Status: akzeptiert
 - Datum: 2026-11-03

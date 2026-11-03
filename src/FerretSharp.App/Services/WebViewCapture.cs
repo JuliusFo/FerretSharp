@@ -415,7 +415,7 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     /// <summary>
     /// All frames of the capture, noted with the first one a minute after the last note: the span is the time since then,
     /// so a quiet page shows as few frames over a long span. On some machines (Windows 11 23H2) the capture delivers one
-    /// for every frame shown, also without a change of the page – up to the display's refresh rate (ADR 0042).
+    /// for every frame shown, also without a change of the page – up to the display's refresh rate (ADR 0043).
     /// </summary>
     private void NoteArrived()
     {
