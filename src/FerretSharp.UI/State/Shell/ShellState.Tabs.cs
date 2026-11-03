@@ -626,11 +626,11 @@ public sealed partial class ShellState
             WorkspaceTab tab;
             if (state.Linq is { } linq)
             {
-                tab = LinqTab.Restore(workspace.Id, linq, state.Form);
+                tab = LinqTab.Restore(workspace.Id, linq, state.Form, state.ResultPins);
             }
             else if (state.Sql is { } sql)
             {
-                tab = SqlTab.Restore(workspace.Id, sql, state.Form);
+                tab = SqlTab.Restore(workspace.Id, sql, state.Form, state.ResultPins);
             }
             else if (state.Records is { Owner: not null, Name: not null } records)
             {

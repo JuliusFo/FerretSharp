@@ -1,6 +1,6 @@
 @* Right-click menu of a column header of a SQL editor result (WP-57), with the blocks of the table's column menu (WP-61): name
-   and type, a quick bar to select the column as a whole (WP-58) or copy its name, and chips that copy all values of the
-   column – the query run again, unless every row is loaded. *@
+   and type, a quick bar to pin the column (WP-73), select it as a whole (WP-58) or copy its name, and chips that copy all
+   values of the column – the query run again, unless every row is loaded. *@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
@@ -10,6 +10,10 @@
              Width="300" EstimatedHeight="230" KeyNavigation="true" OnClose="OnClose">
     <ColumnMenuHead Column="Column" Facts="false" />
     <QuickBar Captions="true">
+        @if (OffersPin)
+        {
+            <QuickAction Icon="Icons.Pin" Caption="@GridText.Caption_Pin" Label="@PinAction.Of(Pinned, false).Label" Active="@Pinned" OnClick="ToggleAsync" />
+        }
         <QuickAction Icon="Icons.SelectColumn" Caption="@GridText.Caption_Select" Label="@GridText.ColumnMenu_MarkColumn" Title="@GridText.ResultColumnMenu_MarkColumnTitle"
                      OnClick="MarkAsync" />
         <QuickAction Icon="Icons.Copy" Caption="@GridText.Caption_Name" Label="@GridText.ColumnMenu_CopyName" Title="@Column.Name" OnClick="CopyNameAsync" />
@@ -42,6 +46,17 @@
     [Parameter]
     public EventCallback OnMarkColumn { get; set; }
 
+    /// <summary>The tab keeps pinned columns (WP-73): the column can be pinned or released here.</summary>
+    [Parameter]
+    public bool OffersPin { get; set; }
+
+    [Parameter]
+    public bool Pinned { get; set; }
+
+    /// <summary>Pins or releases the column (its index).</summary>
+    [Parameter]
+    public EventCallback<int> OnTogglePin { get; set; }
+
     private DomModule? _dom;
 
     /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
@@ -51,6 +66,12 @@
     {
         await OnClose.InvokeAsync();
         await OnMarkColumn.InvokeAsync();
+    }
+
+    private async Task ToggleAsync()
+    {
+        await OnClose.InvokeAsync();
+        await OnTogglePin.InvokeAsync(Request.Column);
     }
 
     private async Task CopyNameAsync()

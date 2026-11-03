@@ -10,6 +10,7 @@
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@using FerretSharp.Core.Workspaces
 @inherits FerretComponent
 @implements IAsyncDisposable
 @implements IFormGrid
@@ -35,19 +36,21 @@
     <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" ExportColumns="_presentation.ExportColumns(Names)"
                 ExportColumnsToSave="() => _presentation.ExportColumns(Names.Copy())" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
                 ExportName="@ExportName" AllRows="@(ExportsAllRows ? AllRowsOf() : null)" OnClose="() => _menu = null"
-                OffersForm="@(FormTab is not null)" OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare" />
+                OffersForm="@(FormTab is not null)" OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare"
+                OffersPin="@(PinTab is not null)" Pinned="IsPinned(menu.Column)" OnTogglePin="TogglePinAsync" />
 }
 
 @if (_columnMenu is { } columnMenu && columnMenu.Column < _columns.Count)
 {
     <ResultColumnMenu @key="columnMenu" Request="columnMenu" Column="_columns[columnMenu.Column].Column" Presented="PresentedColumn(columnMenu.Column)"
                       All="@AllValuesOf([columnMenu.Column])" OnClose="() => _columnMenu = null"
-                      OnMarkColumn="() => MarkColumnAsync(columnMenu.Column)" />
+                      OnMarkColumn="() => MarkColumnAsync(columnMenu.Column)" OffersPin="@(PinTab is not null)" Pinned="IsPinned(columnMenu.Column)"
+                      OnTogglePin="TogglePinAsync" />
 }
 
 @if (_compare is { } compare)
 {
-    <RowCompareDialog Title="@ExportName" Presentation="_presentation" Order="@(Enumerable.Range(0, _columns.Count).ToList())" Rows="compare.Rows" Missing="compare.Missing" Note="@GridText.Compare_FooterNoteResult"
+    <RowCompareDialog Title="@ExportName" Presentation="_presentation" Order="@DisplayOrder" Rows="compare.Rows" Missing="compare.Missing" Note="@GridText.Compare_FooterNoteResult"
                       OnClose="() => _compare = null" OnShow="ShowComparedRowAsync" />
 }
 
@@ -121,6 +124,10 @@
     /// <summary>The tab whose form shows the focused row (WP-56); null offers no form (the comparison still works).</summary>
     [Parameter]
     public IFormTab? FormTab { get; set; }
+
+    /// <summary>The tab that keeps the result's pinned columns (WP-73); null pins nothing (the grid's own dragging stays unsaved).</summary>
+    [Parameter]
+    public IResultPinTab? PinTab { get; set; }
 
     /// <summary>The form was opened or closed here (Alt+Enter, menu, ✕): the view's switch shows it.</summary>
     [Parameter]
@@ -242,7 +249,10 @@
 
         // The result is shown whatever becomes of the tracing; a failure that is a bug reaches the error boundary afterwards.
         _header = Presentations.Header;
-        await _grid.CreateAsync(GridColumns(_presentation), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight(_header), Table: false) { Form = true, HeaderMenu = ExportsAllRows });
+        var pinned = Pins;
+        var columns = GridColumns(_presentation);
+        await _grid.CreateAsync(ResultPinning.DisplayOrder(pinned, ColumnNames()).Select(i => columns[i] with { Pinned = ResultPinning.IsPinned(pinned, ColumnNames(), i) }).ToList(),
+            new GridOptions([], 0, Editable: false, _presentation.HeaderHeight(_header), Table: false) { Form = true, HeaderMenu = ExportsAllRows, Pinning = PinTab is not null });
         OnHeaderChanged(); // header lines that came while the grid was created (R4a)
         if (!traced.IsCompletedSuccessfully)
         {
@@ -372,6 +382,44 @@
             RowsChanged?.Invoke();
         }
     }
+
+    // ---------- pinned columns (WP-73) ----------
+
+    private IReadOnlyList<ResultColumnPin> Pins => PinTab?.ResultPins ?? [];
+
+    /// <summary>The result's column names, which the pins go by.</summary>
+    private IReadOnlyList<string> ColumnNames() => [.. _columns.Select(c => c.Name)];
+
+    /// <summary>Result columns in the grid's order: the pinned ones first (form and comparison show them so too).</summary>
+    public IReadOnlyList<int> DisplayOrder => ResultPinning.DisplayOrder(Pins, ColumnNames());
+
+    private bool IsPinned(int column) => column < _columns.Count && ResultPinning.IsPinned(Pins, ColumnNames(), column);
+
+    /// <summary>Pins or releases a column (column or cell menu); saved with the tab, for every result it shows.</summary>
+    private async Task TogglePinAsync(int column)
+    {
+        if (PinTab is not { } tab || column >= _columns.Count)
+        {
+            return;
+        }
+
+        tab.ResultPins = ResultPinning.Toggle(tab.ResultPins, ColumnNames(), column);
+        Shell.MarkDirty();
+        RowsChanged?.Invoke(); // the form follows the order
+        await _grid.CallAsync("setPinned", ResultPinning.Pinned(tab.ResultPins, ColumnNames()).Select(GridColumn.IdOf).ToList());
+    }
+
+    /// <summary>The user pinned, released or reordered pinned columns by dragging; <paramref name="colIds"/> in display order.</summary>
+    [JSInvokable]
+    public void OnPinnedChanged(string[] colIds) => Guard(() =>
+    {
+        if (PinTab is { } tab)
+        {
+            tab.ResultPins = ResultPinning.FromGrid(tab.ResultPins, ColumnNames(), colIds.Select(GridColumn.IndexOf).Where(i => i < _columns.Count));
+            Shell.MarkDirty();
+            RowsChanged?.Invoke();
+        }
+    });
 
     /// <summary>A grid already replaced reports nothing: its status would overwrite the one of the grid shown now.</summary>
     private Task Status(SqlGridStatus status) => _disposed ? Task.CompletedTask : OnStatus.InvokeAsync(status);

@@ -23,6 +23,10 @@
         <QuickBar>
             <QuickAction Icon="Icons.Copy" Label="@CommonText.CopyValue" Unavailable="@(Request.CellText is null ? GridText.Quick_ValueIsNull : null)"
                          OnClick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])" />
+            @if (OffersPin)
+            {
+                <QuickAction Icon="Icons.Pin" Label="@PinAction.Of(Pinned, false).Label" Active="@Pinned" OnClick="TogglePinAsync" />
+            }
             <FormQuickAction Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" OffersForm="OffersForm" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
         </QuickBar>
         <SearchBox Class="popover-search ctx-filter" Value="@_filter.Text" ValueChanged="text => _filter.Set(text)" Placeholder="@GridText.Menu_FilterPlaceholder" />
@@ -110,6 +114,18 @@
     [Parameter]
     public bool OffersForm { get; set; }
 
+    /// <summary>The tab keeps pinned columns (WP-73): the clicked column can be pinned or released here.</summary>
+    [Parameter]
+    public bool OffersPin { get; set; }
+
+    /// <summary>Whether the clicked column is pinned now.</summary>
+    [Parameter]
+    public bool Pinned { get; set; }
+
+    /// <summary>Pins or releases the column (its index).</summary>
+    [Parameter]
+    public EventCallback<int> OnTogglePin { get; set; }
+
     /// <summary>Shows the clicked row in the form beside the result.</summary>
     [Parameter]
     public EventCallback OnOpenForm { get; set; }
@@ -140,6 +156,12 @@
     private bool Related(FkJump jump) => _sources.TryGetValue(jump, out var source) && source.Involves(Request.Column);
 
     /// <summary>The result's columns as presented; a column traced to a foreign key is followed by its names (same <see cref="ExportColumn.Source"/>).</summary>
+    private async Task TogglePinAsync()
+    {
+        await CloseAsync();
+        await OnTogglePin.InvokeAsync(Request.Column);
+    }
+
     private IReadOnlyList<ExportColumn> XlsxColumns => ExportColumns ?? ExportColumn.Raw(Result);
 
     private Task CloseAsync() => OnClose.InvokeAsync();

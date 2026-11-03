@@ -192,6 +192,7 @@ public sealed class WorkspaceStoreTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(_directory, id + ".json"), $$"""
             { "version": 1, "workspace": { "id": "{{id}}", "connectionId": "{{_connectionId}}", "name": "Hand", "notes": null, "tabs": [ null,
               { "table": { "owner": "APP", "name": "KUNDEN" }, "mode": "data", "filterRows": null, "appliedFilters": [ null ], "sorts": null, "pinnedColumns": null,
+                "resultPins": [ null, { "name": null }, { "name": "ID", "occurrence": -1 }, { "name": "ID", "occurrence": 1 } ],
                 "sql": { "title": "SQL 1", "text": null, "variables": null } } ] } }
             """, Ct);
 
@@ -200,6 +201,7 @@ public sealed class WorkspaceStoreTests : IDisposable
         var tab = Assert.Single(workspace.Tabs);
         Assert.Equal("", workspace.Notes);
         Assert.Equal((0, 0, 0, 0, 0, ""), (tab.FilterRows.Count, tab.AppliedFilters.Count, tab.Sorts.Count, tab.PinnedColumns.Count, tab.Sql!.Variables.Count, tab.Sql.Text));
+        Assert.Equal([new ResultColumnPin("ID", 1)], tab.ResultPins); // WP-73: what cannot be a pin is left out
     }
 
     /// <summary>WP-62: a record diagram saved before the levels goes one level, as it did; a depth set by hand stays in range.</summary>
