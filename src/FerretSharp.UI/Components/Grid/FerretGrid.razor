@@ -278,7 +278,7 @@
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
             return await DisplayNames.LookupAsync(data, lookup, DisplayNames.LookupTimeout, token);
         }, token),
-        NameFormatter, i => Details.Columns[i].Name);
+        Presentations.NameFormatter, i => Details.Columns[i].Name);
 
     /// <summary>The display columns file or the setting changed: header badges, and which columns get names.</summary>
     private void OnDisplayColumnsChanged() => Fire(async () =>
@@ -308,31 +308,6 @@
         var planned = await Shell.RunDbAsync(Logger, Active, () => DisplayLinks.PlanAsync(details, schema, shown, CancellationToken.None,
             ex => QueryErrorLog.Log(Logger, ex, connection.Profile)));
         return planned.Value ?? [];
-    }
-
-    /// <summary>
-    /// A value of a target's column as text, with the targets' presentation as it is when a name is formatted (a model may
-    /// load meanwhile), reused per version.
-    /// </summary>
-    private Func<TableDetails, int, object?, string?> NameFormatter()
-    {
-        var presentations = new Dictionary<TableRef, TablePresentation>();
-        var version = Presentations.Version;
-        return (details, column, value) =>
-        {
-            if (Presentations.Version != version)
-            {
-                version = Presentations.Version;
-                presentations.Clear();
-            }
-
-            if (!presentations.TryGetValue(details.Table.Ref, out var target))
-            {
-                presentations[details.Table.Ref] = target = Presentations.For(details);
-            }
-
-            return target.Present(column, value).Text;
-        };
     }
 
     // ---------- audit tables: changes against the version before, inserts and deletes (WP-63) ----------

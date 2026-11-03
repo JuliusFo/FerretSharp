@@ -2,9 +2,11 @@
    shown with the same grid bridge as tables – read-only, in the query's own order until a header sorts it (in memory once
    every row is loaded, else by the database: ResultOrder). Beside it the form of the focused row, and the selected rows side
    by side (WP-56), both read-only. In the SQL editor a column header menu copies all values of the column (WP-57). Marked
-   cells – and in the SQL editor whole columns – are copied as text (WP-58). *@
+   cells – and in the SQL editor whole columns – are copied as text (WP-58). Foreign key columns traced back to their
+   tables show the names of their target's display columns, as in a table grid (WP-73). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Display
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
@@ -12,9 +14,11 @@
 @implements IAsyncDisposable
 @implements IFormGrid
 @implements ISelectionGrid
+@implements IDisplayNamesGrid
 @inject IJSRuntime JS
 @inject ILogger<SqlResultGrid> Logger
 @inject IClipboardService Clipboard
+@inject DisplayColumnSource DisplayColumns
 
 <div class="grid-split result-split">
     <div class="grid-host">
@@ -28,7 +32,8 @@
 
 @if (_menu is { } menu)
 {
-    <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" ExportColumns="_presentation.ExportColumns()" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
+    <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" ExportColumns="_presentation.ExportColumns(Names)"
+                ExportColumnsToSave="() => _presentation.ExportColumns(Names.Copy())" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
                 ExportName="@ExportName" AllRows="@(ExportsAllRows ? AllRowsOf() : null)" OnClose="() => _menu = null"
                 OffersForm="@(FormTab is not null)" OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare" />
 }
@@ -165,6 +170,8 @@
     {
         _grid = new GridBridge(JS, _id, DotNetObjectReference.Create(this));
         Presentations.HeaderChanged += OnHeaderChanged;
+        DisplayColumns.Changed += OnDisplayColumnsChanged;
+        _displayVersion = DisplayColumns.Version;
     }
 
     /// <summary>
@@ -183,8 +190,8 @@
         await _grid.CallAsync("updateColumns", GridColumns(_presentation), _presentation.HeaderHeight(header), true);
     });
 
-    /// <summary>The columns for grid.js, with the headers that sort now.</summary>
-    private IReadOnlyList<GridColumn> GridColumns(SqlResultPresentation presentation) => presentation.Columns(_header, _order);
+    /// <summary>The columns for grid.js, with the headers that sort now and the columns with names.</summary>
+    private IReadOnlyList<GridColumn> GridColumns(SqlResultPresentation presentation) => presentation.Columns(_header, _order, Names);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -241,6 +248,10 @@
         {
             Fire(() => RelabelAsync(traced));
         }
+        else
+        {
+            await DisplayNamesOf.PlanAsync();
+        }
     }
 
     /// <summary>
@@ -273,10 +284,93 @@
         _presentation = presentation;
         if (await _grid.CallAsync("updateColumns", GridColumns(presentation), presentation.HeaderHeight(_header)))
         {
-            await _grid.CallAsync("updateRows", _blocks.All().Select(r => new GridRowUpdate(r.Index, presentation.Row(r.Row.Values))).ToList());
+            await RedrawAsync(_ => true);
         }
 
         RowsChanged?.Invoke();
+        await DisplayNamesOf.PlanAsync(); // the sources are known only now
+    }
+
+    // ---------- names beside foreign key values (WP-73, as in a table grid: WP-31) ----------
+
+    private int _displayVersion;
+    private GridDisplayNames? _displayNames;
+
+    /// <summary>The names of the result (the form and the export show them too); none before the grid planned them.</summary>
+    public DisplayNames Names => _displayNames?.Names ?? DisplayNames.None;
+
+    /// <summary>Plans, looks up and shows the names – one lookup at a time on the workspace's session (<see cref="GridDisplayNames"/>).</summary>
+    private GridDisplayNames DisplayNamesOf => _displayNames ??= new GridDisplayNames(this, PlanLinksAsync,
+        (lookup, token) => Shell.RunDbAsync(Logger, Active, async () =>
+        {
+            var data = await Workspaces.GetDataAsync(WorkspaceId, token);
+            return await DisplayNames.LookupAsync(data, lookup, DisplayNames.LookupTimeout, token);
+        }, token),
+        Presentations.NameFormatter, i => _columns[i].Name);
+
+    /// <summary>The display columns file or the setting changed: which columns get names.</summary>
+    private void OnDisplayColumnsChanged() => Fire(async () =>
+    {
+        if (_disposed || !_grid.IsCreated || DisplayColumns.Version == _displayVersion)
+        {
+            return;
+        }
+
+        _displayVersion = DisplayColumns.Version;
+        await DisplayNamesOf.PlanAsync();
+    });
+
+    /// <summary>The result columns traced back to foreign key columns whose target has display columns; none without.</summary>
+    private async Task<IReadOnlyList<DisplayLink>> PlanLinksAsync()
+    {
+        var (shown, sources) = (DisplayColumns.Shown, _presentation.Sources);
+        if (shown.Count == 0 || sources.Sources.Count == 0 || Active.Schema is not { } schema)
+        {
+            return [];
+        }
+
+        // A level deeper that cannot be planned shows the values there: the log says why (review WP-65).
+        var connection = Active;
+        var token = _cts.Token;
+        var planned = await Shell.RunDbAsync(Logger, Active, () => DisplayLinks.PlanForResultAsync(sources, schema, shown, token,
+            ex => QueryErrorLog.Log(Logger, ex, connection.Profile)), token);
+        return planned.Value ?? [];
+    }
+
+    bool IDisplayNamesGrid.IsAlive => !_disposed && _grid.IsCreated;
+
+    IEnumerable<IReadOnlyList<object?>> IDisplayNamesGrid.HeldRows() => _blocks.All().Select(r => r.Row.Values);
+
+    /// <summary>Columns with names are laid out for them (left-aligned, wider); the rows are redrawn from the held values.</summary>
+    async Task IDisplayNamesGrid.RelabelAsync()
+    {
+        if (!_disposed && _grid.IsCreated)
+        {
+            await _grid.CallAsync("updateColumns", GridColumns(_presentation), _presentation.HeaderHeight(_header), true);
+        }
+    }
+
+    Task IDisplayNamesGrid.RedrawAllAsync() => RedrawAsync(_ => true);
+
+    Task IDisplayNamesGrid.RedrawAsync(Func<IReadOnlyList<object?>, bool> touches) => RedrawAsync(touches);
+
+    void IDisplayNamesGrid.Fire(Func<Task> work) => Fire(work);
+
+    void IDisplayNamesGrid.Notify(string text) => Shell.Notify(text);
+
+    /// <summary>Redraws the held rows <paramref name="touches"/> selects (names came, the columns were relabelled); the form follows.</summary>
+    private async Task RedrawAsync(Func<IReadOnlyList<object?>, bool> touches)
+    {
+        var (presentation, names) = (_presentation, Names);
+        var updates = _blocks.All()
+            .Where(r => touches(r.Row.Values))
+            .Select(r => new GridRowUpdate(r.Index, presentation.Row(r.Row.Values, names)))
+            .ToList();
+        if (updates.Count > 0)
+        {
+            await _grid.CallAsync("updateRows", updates);
+            RowsChanged?.Invoke();
+        }
     }
 
     /// <summary>A grid already replaced reports nothing: its status would overwrite the one of the grid shown now.</summary>
@@ -328,8 +422,9 @@
         _allLoaded |= page.IsLastPage;
         (_dataAsOf, _snapshotMoved) = Snapshots.Next(startRow, _dataAsOf, _snapshotMoved, page.DataAsOf);
         await Status(new SqlGridStatus(false, _rowsLoaded, page.IsLastPage, page.Elapsed, _dataAsOf, null, _snapshotMoved));
-        var presentation = _presentation;
-        var rows = page.Rows.Select(presentation.Row).ToList();
+        var (presentation, names) = (_presentation, Names);
+        var rows = page.Rows.Select(values => presentation.Row(values, names)).ToList();
+        DisplayNamesOf.Queue(page.Rows); // names come after the block, the rows are redrawn then
         RowsChanged?.Invoke();
         if (_allLoaded && _order.Sorts.Count == 0 && LoadedRows() is { } all && _order.Loaded(all))
         {
@@ -347,8 +442,8 @@
         _rowsLoaded = ordered.Count;
         _allLoaded = true;
         await Status(new SqlGridStatus(false, _rowsLoaded, true, null, _dataAsOf, null, _snapshotMoved));
-        var presentation = _presentation;
-        var rows = block.Select(r => presentation.Row(r.Values)).ToList();
+        var (presentation, names) = (_presentation, Names);
+        var rows = block.Select(r => presentation.Row(r.Values, names)).ToList();
         RowsChanged?.Invoke();
         return new GridPage(rows, ordered.Count);
     }
@@ -424,8 +519,12 @@
     private ExportColumn PresentedColumn(int column) => _presentation.ExportColumns().First(c => c.Source == column);
 
     /// <summary>All rows of the query, run again in the workspace's session (WP-54), sorted as the headers ask.</summary>
-    private AllRowsExport AllRowsOf() =>
-        AllRowsExports.ForResult(_order.Query, _columns, _allLoaded ? _rowsLoaded : null, _presentation.ExportColumns(), WorkspaceId, Workspaces.GetDataAsync);
+    private AllRowsExport AllRowsOf()
+    {
+        var presentation = _presentation;
+        return AllRowsExports.ForResult(_order.Query, _columns, _allLoaded ? _rowsLoaded : null, presentation.ExportColumns, Names, Presentations.For,
+            WorkspaceId, Workspaces.GetDataAsync);
+    }
 
     /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>
     private TableDetails AsTable() => new(new TableSummary("", ExportName, TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);
@@ -633,6 +732,12 @@
     {
         _disposed = true;
         Presentations.HeaderChanged -= OnHeaderChanged;
+        DisplayColumns.Changed -= OnDisplayColumnsChanged;
+        if (_displayNames is not null)
+        {
+            await _displayNames.DisposeAsync(); // a running lookup stops; queued ones are not run
+        }
+
         CancelOffThread.Run(_closing);
         await _cts.CancelAsync();
         _cts.Dispose();

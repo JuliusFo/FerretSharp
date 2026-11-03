@@ -32,7 +32,7 @@
             {
                 <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
             }
-            <ExportMatrix Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns" Marked="@(Request.Marks is not null)"
+            <ExportMatrix Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns" XlsxColumnsToSave="ExportColumnsToSave" Marked="@(Request.Marks is not null)"
                           InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
                           InsertTitle="@(InsertTarget is { } insert
                               ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
@@ -90,6 +90,10 @@
     /// <summary>The columns of the Excel export as the result presents them (WP-53); null exports them as the driver reports them.</summary>
     [Parameter]
     public IReadOnlyList<ExportColumn>? ExportColumns { get; set; }
+
+    /// <summary>The Excel columns a save of the selected rows writes, with the names as they are now (WP-73); null takes <see cref="ExportColumns"/>.</summary>
+    [Parameter]
+    public Func<IReadOnlyList<ExportColumn>>? ExportColumnsToSave { get; set; }
 
     /// <summary>File name (without extension) offered for CSV and Excel.</summary>
     [Parameter]

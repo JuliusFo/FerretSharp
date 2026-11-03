@@ -1,5 +1,6 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Display;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
@@ -11,7 +12,8 @@ namespace FerretSharp.UI.State;
 /// How a query result is shown (WP-48): a column traced back to a table column (<see cref="SqlResultSources"/>) gets the
 /// table's C# name and type, enum members and FK badge, like in a table grid – under the name the query gave it. All other
 /// columns stay as the driver reports them. No PK badge: grid.js pins key columns to the left, and the query's column
-/// order counts. The form and the comparison of rows (WP-56) label and show the columns the same way.
+/// order counts. The form and the comparison of rows (WP-56) label and show the columns the same way. Names beside foreign
+/// key values (WP-73) come from the grid's <see cref="DisplayNames"/>, planned over the same sources.
 /// </summary>
 public sealed class SqlResultPresentation : IColumnPresentation
 {
@@ -68,10 +70,11 @@ public sealed class SqlResultPresentation : IColumnPresentation
 
     /// <param name="header">Type and NOT NULL as the settings show them.</param>
     /// <param name="order">Which headers sort and why the others do not (<see cref="ResultOrder"/>); none without.</param>
-    public IReadOnlyList<GridColumn> Columns(ColumnHeaderLines header, ResultOrder? order = null)
+    /// <param name="names">The names the grid looks up (WP-73): their columns are laid out for a name; null without.</param>
+    public IReadOnlyList<GridColumn> Columns(ColumnHeaderLines header, ResultOrder? order = null, DisplayNames? names = null)
     {
         ArgumentNullException.ThrowIfNull(header);
-        return [.. _columns.Select((_, i) => ColumnOf(i, header) with { Sortable = order?.Sortable(i) ?? false, SortHint = order?.HintOf(i) })];
+        return [.. _columns.Select((_, i) => ColumnOf(i, header, names?.Shows(i) == true) with { Sortable = order?.Sortable(i) ?? false, SortHint = order?.HintOf(i) })];
     }
 
     /// <summary>
@@ -110,7 +113,7 @@ public sealed class SqlResultPresentation : IColumnPresentation
         return details.Columns[table].Comment is { } comment ? origin + "\n" + comment : origin; // grid.js joins its lines with \n
     }
 
-    private GridColumn ColumnOf(int i, ColumnHeaderLines header)
+    private GridColumn ColumnOf(int i, ColumnHeaderLines header, bool named)
     {
         var column = _columns[i];
         var category = ColumnCategories.Of(column.Column);
@@ -135,7 +138,8 @@ public sealed class SqlResultPresentation : IColumnPresentation
             ClrType = label.ClrType,
             Fk = _fk[i],
             FkModel = _fkModel[i],
-            Numeric = category == ColumnCategory.Number && values is null,
+            Numeric = category == ColumnCategory.Number && values is null && !named,
+            Named = named,
             Comment = CommentOf(i),
             UnknownText = values?.UnknownText,
         };
@@ -143,28 +147,55 @@ public sealed class SqlResultPresentation : IColumnPresentation
 
     /// <summary>
     /// The columns of an Excel export (WP-53): a traced column as its table presents it (C# name, enum members), under the
-    /// name the query gave it if C# names are off; all other columns as the driver reports them.
+    /// name the query gave it if C# names are off; all other columns as the driver reports them. Behind a column with names
+    /// (WP-73) a column with them, as in a table's export.
     /// </summary>
-    public IReadOnlyList<ExportColumn> ExportColumns() =>
-    [
-        .. _columns.Select((column, i) => _byColumn[i] is var (presentation, table)
-            ? PresentedExport.Column(presentation, table, column.Name, i) with { Column = column.Column }
-            : new ExportColumn(column.Name, i, column.Column)),
-    ];
+    /// <param name="names">The names the grid has looked up; null adds no name columns.</param>
+    public IReadOnlyList<ExportColumn> ExportColumns(DisplayNames? names = null)
+    {
+        var columns = new List<ExportColumn>();
+        for (var i = 0; i < _columns.Count; i++)
+        {
+            var column = _columns[i];
+            var export = _byColumn[i] is var (presentation, table)
+                ? PresentedExport.Column(presentation, table, column.Name, i) with { Column = column.Column }
+                : new ExportColumn(column.Name, i, column.Column);
+            columns.Add(export);
+            if (names is not null && names.Shows(i) && names.Links.FirstOrDefault(l => l.Column == i) is { } link)
+            {
+                var source = i;
+                columns.Add(new ExportColumn($"{export.Header} · {link.Label}", i, link.Target.Columns[link.Parts[0].Column])
+                {
+                    Present = value => names.NameOf(source, value)?.Text,
+                });
+            }
+        }
+
+        return columns;
+    }
 
     /// <summary>A cell's display text: enum members and bools by name for traced columns; null for NULL.</summary>
     public PresentedValue Present(int column, object? value) =>
         _byColumn[column] is var (presentation, table) ? presentation.Present(table, value) : new PresentedValue(CellFormatter.Format(_columns[column].Column, value));
 
-    /// <summary>A row as grid.js gets it: cells by column id, <c>__u</c> values without enum member, <c>__t</c> tooltips (as <see cref="GridRows"/>).</summary>
-    public Dictionary<string, object?> Row(IReadOnlyList<object?> values)
+    /// <summary>
+    /// A row as grid.js gets it: cells by column id, <c>__u</c> values without enum member, <c>__t</c> tooltips, <c>__n</c>
+    /// and <c>__nm</c> the names beside foreign key values (WP-73; as <see cref="GridRows"/>).
+    /// </summary>
+    /// <param name="names">The names the grid has looked up; null without.</param>
+    public Dictionary<string, object?> Row(IReadOnlyList<object?> values, DisplayNames? names = null)
     {
-        var cells = new GridRows.PresentedCells(new Dictionary<string, object?>(values.Count + 2));
+        var all = new Dictionary<string, object?>(values.Count + 4);
+        var cells = new GridRows.PresentedCells(all);
+        var named = new GridRows.NamedCells(all, names);
         for (var i = 0; i < values.Count; i++)
         {
-            cells.Add(GridColumn.IdOf(i), Present(i, values[i]));
+            var id = GridColumn.IdOf(i);
+            cells.Add(id, Present(i, values[i]));
+            named.Add(i, id, values[i]);
         }
 
-        return cells.Finish();
+        cells.Finish();
+        return named.Finish();
     }
 }

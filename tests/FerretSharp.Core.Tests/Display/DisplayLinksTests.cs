@@ -1,4 +1,5 @@
 using FerretSharp.Core.Display;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using NSubstitute;
 
@@ -201,5 +202,35 @@ public sealed class DisplayLinksTests
         Assert.Equal(("AUFTRAG", "KUNDE_ID"), (link.Target.Table.Name, link.Label));
         Assert.Null(Assert.Single(link.Parts).Via);
         Assert.NotNull(Assert.Single(Assert.Single(await DisplayLinks.PlanAsync(Position, await SchemaAsync(), columns, Ct)).Parts).Via);
+    }
+
+    /// <summary>
+    /// WP-73: a result column traced back to a foreign key column gets its table's link, on the result column – also a
+    /// column a second alias of the same table reads. Columns the tables have no link for (here AUFTRAG.ID, KUNDE.NAME) get none.
+    /// </summary>
+    [Fact]
+    public async Task Result_columns_traced_back_to_foreign_keys_get_their_tables_links()
+    {
+        // SELECT a.ID, a.KUNDE_ID, k.NAME, k.PARENT_ID, b.KUNDE_ID FROM AUFTRAG a JOIN KUNDE k … JOIN AUFTRAG b …
+        var sources = new SqlResultSources([
+            new SqlResultSource(Auftrag, [(0, 0), (1, 1)]),
+            new SqlResultSource(Kunde, [(2, 1), (3, 4)]),
+            new SqlResultSource(Auftrag, [(4, 1)]),
+        ]);
+
+        var links = await DisplayLinks.PlanForResultAsync(sources, await SchemaAsync(), Columns, Ct);
+
+        Assert.Equal([(1, "FK_AUFTRAG_KUNDE"), (3, "FK_KUNDE_PARENT"), (4, "FK_AUFTRAG_KUNDE")], links.Select(l => (l.Column, l.ForeignKey.Name)));
+        Assert.All(links, l => Assert.Equal(("KUNDE", "NAME"), (l.Target.Table.Name, l.Label)));
+    }
+
+    [Fact]
+    public async Task A_result_without_display_columns_or_sources_gets_no_links()
+    {
+        var sources = new SqlResultSources([new SqlResultSource(Auftrag, [(0, 1)])]);
+        var schema = await SchemaAsync();
+
+        Assert.Empty(await DisplayLinks.PlanForResultAsync(sources, schema, DisplayColumns.Empty, Ct));
+        Assert.Empty(await DisplayLinks.PlanForResultAsync(SqlResultSources.None, schema, Columns, Ct));
     }
 }

@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Display;
@@ -83,6 +84,41 @@ public static class DisplayLinks
         }
 
         return links;
+    }
+
+    /// <summary>
+    /// The links of a query result (WP-73): a result column traced back to a table column (WP-48) gets the link that column
+    /// has in its table, with <see cref="DisplayLink.Column"/> the result column – in result order. Each table is planned
+    /// once, also when the result reads it through two aliases; a table column read twice gives two links.
+    /// </summary>
+    public static async Task<IReadOnlyList<DisplayLink>> PlanForResultAsync(
+        SqlResultSources sources, SchemaCache schema, DisplayColumns columns, CancellationToken cancellationToken,
+        Action<DatabaseException>? deeperFailed = null)
+    {
+        var links = new List<DisplayLink>();
+        if (columns.Count == 0)
+        {
+            return links;
+        }
+
+        var planned = new Dictionary<TableRef, IReadOnlyList<DisplayLink>>();
+        foreach (var source in sources.Sources)
+        {
+            if (!planned.TryGetValue(source.Table.Ref, out var ofTable))
+            {
+                planned[source.Table.Ref] = ofTable = await PlanAsync(source.Details, schema, columns, cancellationToken, deeperFailed);
+            }
+
+            foreach (var (result, table) in source.Columns)
+            {
+                if (ofTable.FirstOrDefault(l => l.Column == table) is { } link)
+                {
+                    links.Add(link with { Column = result });
+                }
+            }
+        }
+
+        return [.. links.OrderBy(l => l.Column)];
     }
 
     /// <summary>The links of <paramref name="table"/> without a second level; only over <paramref name="only"/> if given.</summary>

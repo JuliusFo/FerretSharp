@@ -133,6 +133,32 @@ public sealed class SqlResultPresentationTests
         Assert.False(ExportColumn.DiffersFromRaw(SqlResultPresentation.Plain(Columns).ExportColumns()));
     }
 
+    /// <summary>
+    /// WP-73: a result column with names is laid out for them, its cells carry the name (or "not found") as in a table
+    /// grid, and the export writes a name column behind it.
+    /// </summary>
+    [Fact]
+    public async Task A_column_with_names_shows_them_in_cells_and_export_like_a_table()
+    {
+        var presentation = await PresentationAsync(ClrNameDisplay.Off);
+        var names = new Core.Display.DisplayNames([new Core.Display.DisplayLink(1, AuftragKunde, Kunden, 0, [new Core.Display.DisplayPart(1)])],
+            (_, _, value) => value as string);
+        var lookup = Assert.Single(names.Missing([[1m, 4711m, 2m, 1m], [2m, 13m, 2m, 1m]]));
+        names.Found(lookup, [new LookupRow(4711m, ["PetersPizza"])]);
+
+        var columns = presentation.Columns(ColumnHeaderLines.All, names: names);
+        var found = presentation.Row([1m, 4711m, 2m, 1m], names);
+        var missing = presentation.Row([2m, 13m, 2m, 1m], names);
+        var export = presentation.ExportColumns(names);
+
+        Assert.Equal([false, true, false, false], columns.Select(c => c.Named));
+        Assert.False(columns[1].Numeric); // left-aligned beside its name
+        Assert.Equal("PetersPizza", Assert.IsType<Dictionary<string, string>>(found["__n"])["c1"]);
+        Assert.Equal(["c1"], Assert.IsType<List<string>>(missing["__nm"]));
+        Assert.Equal(["AUFTRAG_ID", "KUNDE_ID", "KUNDE_ID · NAME", "ART", "ONE"], export.Select(c => c.Header));
+        Assert.Equal("PetersPizza", export[2].Present!(4711m));
+    }
+
     [Fact]
     public async Task Form_and_comparison_label_search_and_compare_result_rows_like_the_grid()
     {
