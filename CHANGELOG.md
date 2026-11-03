@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.58.0] - 2026-11-03
+
+Build a query in the relationship diagram as LINQ and SQL, create a foreign key constraint from a relationship of the C# model, and cancelling sends breaks in band by default.
+
 ### Added
 - Build a query in the relationship diagram: "Build query" in the view "Relations" (or in the right-click menu of a table) turns a click on an edge into a step of the query – to a parent, over several levels, or to the children, of which one row is chosen by its conditions and order (the first by the primary key without one). The same table can come in twice over different relationships (invoice and delivery customer). A side panel shows the query as a tree; for each node you tick its columns, give a value its own name, add conditions as in the filter bar and, for a chosen child, its order. The query is kept with the tab.
 - The query as LINQ in the style of hand-written query extensions: an expression per value over the root entity (`a.Kunde.Name`, optional navigations with `!`, value types through them nullable), a chosen child as an expression of its own that the values use through LinqKit's `Invoke`, the conditions of the root and its parents as a filter – a method once a condition is marked "as parameter" –, a projection and the DTO. Names, namespace, `record` or `class`, the DTO itself and LinqKit can be chosen; your own mapping library gets its lines from a template (head, a line per value, foot). The choice is kept per linked project. "Open in LINQ console" runs it with the parameters as variables. When a chosen child has several values, the panel also offers the query that reads it once (`SelectMany … Take(1).DefaultIfEmpty()`) – with an expression per value the SQL reads it once per value; which is faster depends on the data.

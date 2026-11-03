@@ -1,4 +1,4 @@
-# Fixes: Breaks standardmäßig in-band → Release (nächste)
+# Fixes: Breaks standardmäßig in-band → Release 3.58.0
 
 Auswertung zu `fixes-oob-breaks.md` (3.50.2): Der Nutzer meldet am 2026-11-03, dass `--disable-oob` die ständigen Verbindungsabbrüche über das VPN behoben hat, bei einem Kollegen ebenso. Auftrag: in-band zum Standard machen. Branch `fix/oob-default`, ADR 0041.
 
