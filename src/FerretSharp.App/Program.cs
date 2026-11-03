@@ -31,11 +31,6 @@ internal static class Program
             .Run();
 
         args = CommandLine.Effective(args); // a link's own options are ignored (WP-37, review)
-        if (CommandLine.Has(args, CommandLine.DisableOob))
-        {
-            OracleSession.SendBreaksInBand(); // before any connection opens: ODP.NET refuses it afterwards (ORA-50099)
-        }
-
         var paths = DataFolder(args);
         WaitForPreviousInstance(args);
         InstanceLock? instance = null;
@@ -65,6 +60,13 @@ internal static class Program
 
         using (instance)
         {
+            // ADR 0041: only in the instance that runs (a link's hand-over needs no driver), before any connection opens –
+            // ODP.NET refuses it afterwards (ORA-50099).
+            if (!CommandLine.BreaksOutOfBand(args))
+            {
+                OracleSession.SendBreaksInBand();
+            }
+
             var app = new App(paths, args);
             app.InitializeComponent();
             return app.Run();

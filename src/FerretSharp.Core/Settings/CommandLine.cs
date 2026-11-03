@@ -29,10 +29,11 @@ public static class CommandLine
     public const string WaitFor = "--wait-for=";
 
     /// <summary>
-    /// Breaks to the server in band instead of as TCP urgent data (<see cref="Oracle.OracleSession.SendBreaksInBand"/>), to try
-    /// whether cancelling over a VPN keeps the session (backlog "Abbrechen über VPN"). A switch without a value.
+    /// Breaks to the server as TCP urgent data when the server agrees (ODP.NET's own default) instead of in band, which
+    /// FerretSharp sets otherwise (<see cref="Oracle.OracleSession.SendBreaksInBand"/>, ADR 0041). A way back should a
+    /// server only notice a cancel late in band. A switch without a value.
     /// </summary>
-    public const string DisableOob = "--disable-oob";
+    public const string EnableOob = "--enable-oob";
 
     /// <summary>The options that name a path: an update starts the new version with them as full paths.</summary>
     public static readonly IReadOnlyList<string> PathOptions = [DataDir, ImportAppData, UpdateSource];
@@ -78,6 +79,12 @@ public static class CommandLine
         && argument.Length > prefix.Length
             ? prefix + Path.GetFullPath(argument[prefix.Length..])
             : argument;
+
+    /// <summary>
+    /// Whether breaks may go out of band (<see cref="EnableOob"/>); otherwise the start sends them in band (ADR 0041). Takes
+    /// <see cref="Effective"/> arguments: a link cannot turn it on.
+    /// </summary>
+    public static bool BreaksOutOfBand(IEnumerable<string> args) => Has(args, EnableOob);
 
     /// <summary>Whether the switch <paramref name="option"/> was given (the case of its name ignored).</summary>
     public static bool Has(IEnumerable<string> args, string option) =>

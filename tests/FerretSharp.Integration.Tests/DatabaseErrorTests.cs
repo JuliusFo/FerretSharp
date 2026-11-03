@@ -135,7 +135,7 @@ public sealed class DatabaseErrorTests(OracleContainerFixture oracle)
 
         var error = await Assert.ThrowsAsync<DatabaseException>(() => connection.PingIfIdleAsync(TimeSpan.Zero, Ct));
         Assert.True(error.IsConnectionLost, error.Display);
-        Assert.EndsWith("no break sent since the session opened", error.SessionHistory);
+        Assert.Contains("no break sent since the session opened", error.SessionHistory); // "; out-of-band breaks allowed" after it in tests (ADR 0041)
     }
 
     /// <summary>
