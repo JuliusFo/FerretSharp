@@ -52,30 +52,6 @@ public sealed class ReportExceptions
         return _patterns.FirstOrDefault(p => Fits(p.Table, table));
     }
 
-    /// <summary>The entry written exactly so (name or pattern, case ignored); null without one.</summary>
-    public ReportException? Entry(string tableOrPattern) =>
-        _tables.Where(t => string.Equals(t.Key, tableOrPattern.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Select(t => new ReportException(t.Key, t.Value))
-            .FirstOrDefault();
-
-    /// <summary>A copy with the entry set (an entry in another letter case is replaced); the name is trimmed.</summary>
-    public ReportExceptions With(string tableOrPattern, string? reason)
-    {
-        var name = Clean(tableOrPattern) ?? throw new ArgumentException("An exception needs a table name or pattern.", nameof(tableOrPattern));
-        var copy = new SortedDictionary<string, string>(_tables, StringComparer.OrdinalIgnoreCase);
-        copy.Remove(name);
-        copy[name] = reason?.Trim() ?? "";
-        return new ReportExceptions(copy);
-    }
-
-    /// <summary>A copy without the entry (case ignored).</summary>
-    public ReportExceptions Without(string tableOrPattern)
-    {
-        var copy = new SortedDictionary<string, string>(_tables, StringComparer.OrdinalIgnoreCase);
-        copy.Remove(tableOrPattern.Trim());
-        return new ReportExceptions(copy);
-    }
-
     /// <summary>The same entries in the same spelling (to skip a reload that changed nothing).</summary>
     public bool SameAs(ReportExceptions other) => _tables.SequenceEqual(other._tables);
 
@@ -95,8 +71,15 @@ public sealed class ReportExceptions
     /// </summary>
     public const int MaxEntries = 2000;
 
-    /// <summary>A pattern with more <c>*</c> is ignored (keeps matching one name cheap; <c>*_TMP_*</c> needs two).</summary>
+    /// <summary>
+    /// A pattern with more <c>*</c> counts as a broken entry and is ignored – <c>AUD_*</c> needs one, <c>*_TMP_*</c> two. (The
+    /// work of matching is bounded by <see cref="MaxEntries"/> and <see cref="MaxNameLength"/>, not by this.)
+    /// </summary>
     public const int MaxStars = 4;
+
+    /// <summary>A name or pattern the report uses: not blank, not too long, at most <see cref="MaxStars"/> <c>*</c>.</summary>
+    public static bool IsUsable(string? tableOrPattern) =>
+        Clean(tableOrPattern) is { } name && name.Count(c => c == '*') <= MaxStars;
 
     internal static ReportExceptions From(IReadOnlyDictionary<string, string?>? tables)
     {
@@ -104,7 +87,7 @@ public sealed class ReportExceptions
         var ignored = 0;
         foreach (var (table, reason) in tables ?? new Dictionary<string, string?>())
         {
-            if (Clean(table) is not { } name || name.Count(c => c == '*') > MaxStars || (sorted.Count >= MaxEntries && !sorted.ContainsKey(name)))
+            if (!IsUsable(table) || Clean(table) is not { } name || (sorted.Count >= MaxEntries && !sorted.ContainsKey(name)))
             {
                 ignored++;
                 continue;
@@ -183,7 +166,9 @@ internal sealed class ReportExceptionDocument
     /// </summary>
     public void Set(string tableOrPattern, string? reason)
     {
-        var name = ReportExceptions.Clean(tableOrPattern) ?? throw new ArgumentException("An exception needs a table name or pattern.", nameof(tableOrPattern));
+        var name = ReportExceptions.IsUsable(tableOrPattern) && ReportExceptions.Clean(tableOrPattern) is { } clean
+            ? clean
+            : throw new ArgumentException("An exception needs a table name or a pattern the report uses.", nameof(tableOrPattern));
         var text = reason?.Trim() ?? "";
         Remove(name);
         TablesWithoutEntity[name] = text.Length > ReportExceptions.MaxReasonLength ? text[..ReportExceptions.MaxReasonLength] : text;

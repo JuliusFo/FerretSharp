@@ -88,7 +88,7 @@ public sealed class ModelReportTests
     public async Task Tables_without_entity_leave_out_audit_tables_and_exceptions_but_keep_them_countable()
     {
         var (mapping, schema) = await ShopAsync(AuditTemplates.Default);
-        var exceptions = ReportExceptions.Empty.With("import_*", "Loaded nightly");
+        var exceptions = ReportExceptions.From(new Dictionary<string, string?> { ["import_*"] = "Loaded nightly" });
 
         var report = ModelReport.Build(mapping, schema, exceptions);
 
@@ -143,7 +143,7 @@ public sealed class ModelReportTests
     {
         var (mapping, schema) = await ShopAsync();
 
-        var report = ModelReport.Build(mapping, schema, ReportExceptions.Empty.With("GUTSCHEIN", null));
+        var report = ModelReport.Build(mapping, schema, ReportExceptions.From(new Dictionary<string, string?> { ["GUTSCHEIN"] = null }));
 
         Assert.Equal(["FK_AUFTRAG_LAGER"], report.DbOnly.Select(r => r.ForeignKey.Name));
         Assert.True(report.Tables.Single(t => t.Table.Ref == Gutschein).IsHidden);
@@ -226,6 +226,8 @@ public sealed class ModelReportTests
         var elsewhere = EntityCode.Property(mapping, auftrag, new ColumnInfo("NUMMER", "NUMBER", null, false, 10, 0, false, false, null, 9));
 
         Assert.Contains("public long? Auftrag2 { get; set; }", clash, StringComparison.Ordinal);
+        // The convention would map Auftrag2 to AUFTRAG2: the renamed property names its column (second review pass).
+        Assert.Contains("builder.Property(x => x.Auftrag2).HasColumnName(\"AUFTRAG\")", clash, StringComparison.Ordinal);
         Assert.StartsWith("// Auftrag\npublic int Nummer { get; set; }\n\n// AuftragConfiguration\n", elsewhere, StringComparison.Ordinal);
         Assert.Matches(";\n// .*NUMMER", elsewhere); // the notes of the suggestion as comments
     }

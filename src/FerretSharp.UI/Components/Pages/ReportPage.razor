@@ -111,7 +111,7 @@
                 @if (exceptions.Exceptions.Ignored > 0)
                 {
                     <span class="src warn" title="@TextFormat.Format(ModelViewText.Report_SourceExceptionsIgnoredTitle, ReportExceptions.MaxEntries, ReportExceptions.MaxStars)">
-                        <span class="dot warn"></span> @TextFormat.Format(ModelViewText.Report_SourceExceptionsIgnored, exceptions.Exceptions.Ignored)
+                        <span class="dot warn"></span> @TextFormat.Plural(exceptions.Exceptions.Ignored, ModelViewText.Report_SourceExceptionsIgnoredOne, ModelViewText.Report_SourceExceptionsIgnoredOther)
                     </span>
                 }
             }

@@ -51,7 +51,7 @@ public sealed class ReportViewTests
             new EntityExport("Shop.Kunde", "Shop.Kunde", false, null, "KUNDE", null, null, null, [Prop("KundeId", "KUNDE_ID")], ["KundeId"], []),
         ]);
         var mapping = await ClrModelMapping.BuildAsync(model, schema, Ct);
-        return (ModelReport.Build(mapping, schema, ReportExceptions.Empty.With("IMPORT_*", "staging")), mapping);
+        return (ModelReport.Build(mapping, schema, ReportExceptions.From(new Dictionary<string, string?> { ["IMPORT_*"] = "staging" })), mapping);
     }
 
     [Fact]

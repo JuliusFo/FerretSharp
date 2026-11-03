@@ -158,6 +158,8 @@ public sealed class ReportExceptionSourceTests : IDisposable
         var source = Source(AppSettings.Default);
 
         await source.SetAsync(null, "NEW", "mine", Ct);
+        // A pattern the report would ignore is not written (second review pass).
+        await Assert.ThrowsAsync<ArgumentException>(() => source.SetAsync(null, "*A*B*C*D*E*", null, Ct));
 
         var text = await File.ReadAllTextAsync(DefaultPath, Ct);
         Assert.Contains(longReason, text, StringComparison.Ordinal);

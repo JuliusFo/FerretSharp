@@ -272,13 +272,27 @@ public static class EntityCode
     private static bool IsBare(string configuration) =>
         configuration.StartsWith("builder.Property(x => x.", StringComparison.Ordinal) && configuration.IndexOf(").", StringComparison.Ordinal) < 0;
 
-    private static PropertySuggestion Rename(PropertySuggestion suggestion, string name) => suggestion with
+    /// <summary>
+    /// The suggestion under another name. The column is named explicitly then: a project's naming convention would map the new
+    /// name to another column (<c>Auftrag2</c> → <c>AUFTRAG2</c>, review of WP-72).
+    /// </summary>
+    private static PropertySuggestion Rename(PropertySuggestion suggestion, string name)
     {
-        Name = name,
-        // The name stands right before the accessors – the type may have the same name (R4a: "public Status Status").
-        Declaration = suggestion.Declaration.Replace($" {suggestion.Name} {{ get;", $" {name} {{ get;", StringComparison.Ordinal),
-        Configuration = suggestion.Configuration.Replace($"x.{suggestion.Name})", $"x.{name})", StringComparison.Ordinal),
-    };
+        var property = $"builder.Property(x => x.{name})";
+        var configuration = suggestion.Configuration.Replace($"builder.Property(x => x.{suggestion.Name})", property, StringComparison.Ordinal);
+        if (!configuration.Contains(".HasColumnName(", StringComparison.Ordinal))
+        {
+            configuration = configuration.Replace(property, $"{property}.HasColumnName({CSharpCode.String(suggestion.Column)})", StringComparison.Ordinal);
+        }
+
+        return suggestion with
+        {
+            Name = name,
+            // The name stands right before the accessors – the type may have the same name (R4a: "public Status Status").
+            Declaration = suggestion.Declaration.Replace($" {suggestion.Name} {{ get;", $" {name} {{ get;", StringComparison.Ordinal),
+            Configuration = configuration,
+        };
+    }
 
     /// <summary>Most entities of the project have the table <see cref="PropertyCode.UpperSnake"/> makes of their name: a naming convention.</summary>
     private static bool UsesConvention(ModelExport model)

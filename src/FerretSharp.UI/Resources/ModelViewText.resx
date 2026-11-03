@@ -962,10 +962,6 @@
     <value>{0} could become constraints</value>
     <comment>{0}: count</comment>
   </data>
-  <data name="Report_SourceExceptionsIgnored" xml:space="preserve">
-    <value>{0} entries of the file ignored</value>
-    <comment>{0}: count</comment>
-  </data>
   <data name="Report_SourceExceptionsIgnoredTitle" xml:space="preserve">
     <value>Blank or too long names, patterns with more than {1} *, and everything beyond {0} entries are left out.</value>
     <comment>{0}: most entries read; {1}: most * per pattern</comment>
@@ -988,5 +984,17 @@
   <data name="Report_HeadConverters" xml:space="preserve">
     <value>Value converters</value>
     <comment>Column heading</comment>
+  </data>
+  <data name="Report_SourceExceptionsIgnoredOne" xml:space="preserve">
+    <value>{0} entry of the file ignored</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Report_SourceExceptionsIgnoredOther" xml:space="preserve">
+    <value>{0} entries of the file ignored</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Report_ExceptionTooManyStars" xml:space="preserve">
+    <value>A pattern may have at most {0} *.</value>
+    <comment>{0}: most * per pattern</comment>
   </data>
 </root>

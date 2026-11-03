@@ -13,6 +13,10 @@
         <div>
             <input id="report-exception-name" class="field mono" spellcheck="false" maxlength="@ReportExceptions.MaxNameLength" @bind="_name" @bind:event="oninput" />
             <div class="hint small">@ModelViewText.Report_ExceptionNameHint</div>
+            @if (ReportExceptions.Clean(_name) is not null && !ReportExceptions.IsUsable(_name))
+            {
+                <div class="settings-note error">@TextFormat.Format(ModelViewText.Report_ExceptionTooManyStars, ReportExceptions.MaxStars)</div>
+            }
         </div>
         <label for="report-exception-reason">@ModelViewText.Report_ExceptionReason</label>
         <input id="report-exception-reason" class="field" maxlength="@ReportExceptions.MaxReasonLength" @bind="_reason" @bind:event="oninput" placeholder="@ModelViewText.Report_ExceptionReasonPlaceholder"
@@ -28,7 +32,7 @@
     <footer>
         <span class="spacer"></span>
         <button class="btn ghost" @onclick="OnCancel">@CommonText.Cancel</button>
-        <button class="btn primary" disabled="@(ReportExceptions.Clean(_name) is null || Saving)" @onclick="SaveAsync">@CommonText.Save</button>
+        <button class="btn primary" disabled="@(!ReportExceptions.IsUsable(_name) || Saving)" @onclick="SaveAsync">@CommonText.Save</button>
     </footer>
 </ModalFrame>
 
@@ -60,7 +64,7 @@
     protected override void OnInitialized() => _name = Table;
 
     private Task SaveAsync() =>
-        ReportExceptions.Clean(_name) is { } name ? OnSave.InvokeAsync(new ReportException(name, _reason.Trim())) : Task.CompletedTask;
+        ReportExceptions.IsUsable(_name) && ReportExceptions.Clean(_name) is { } name ? OnSave.InvokeAsync(new ReportException(name, _reason.Trim())) : Task.CompletedTask;
 
     private Task OnKeyDownAsync(KeyboardEventArgs e) => e.Key == "Enter" ? SaveAsync() : Task.CompletedTask;
 }

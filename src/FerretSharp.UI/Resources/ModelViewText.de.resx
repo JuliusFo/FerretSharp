@@ -834,9 +834,6 @@
   <data name="Report_TileModelOnlyHintOther" xml:space="preserve">
     <value>{0} könnten Constraint werden</value>
   </data>
-  <data name="Report_SourceExceptionsIgnored" xml:space="preserve">
-    <value>{0} Einträge der Datei ignoriert</value>
-  </data>
   <data name="Report_SourceExceptionsIgnoredTitle" xml:space="preserve">
     <value>Leere oder zu lange Namen, Muster mit mehr als {1} * und alles über {0} Einträge hinaus bleiben außen vor.</value>
   </data>
@@ -854,5 +851,14 @@
   </data>
   <data name="Report_HeadConverters" xml:space="preserve">
     <value>Value Converter</value>
+  </data>
+  <data name="Report_SourceExceptionsIgnoredOne" xml:space="preserve">
+    <value>{0} Eintrag der Datei ignoriert</value>
+  </data>
+  <data name="Report_SourceExceptionsIgnoredOther" xml:space="preserve">
+    <value>{0} Einträge der Datei ignoriert</value>
+  </data>
+  <data name="Report_ExceptionTooManyStars" xml:space="preserve">
+    <value>Ein Muster darf höchstens {0} * haben.</value>
   </data>
 </root>
