@@ -19,11 +19,16 @@ public sealed class DisplayWatch(ILogger<DisplayWatch> logger) : IDisposable
     private const int ScreenWidth = 0; // SM_CXSCREEN
     private const int ScreenHeight = 1; // SM_CYSCREEN
 
+    /// <summary>WPF's switch for the GPU in a remote session (ADR 0042, set unless <c>--rdp-software</c>); off, it renders in software there.</summary>
+    public const string HardwareAccelerationInRdp = "Switch.System.Windows.Media.EnableHardwareAccelerationInRdp";
+
     private bool _started;
 
     public void Start()
     {
-        logger.LogInformation("Display: {Facts}, render tier {Tier}", Facts(), RenderCapability.Tier >> 16);
+        var rdpGpu = AppContext.TryGetSwitch(HardwareAccelerationInRdp, out var on) && on;
+        logger.LogInformation("Display: {Facts}, render tier {Tier}, GPU in a remote session {RdpGpu}",
+            Facts(), RenderCapability.Tier >> 16, rdpGpu ? "on" : "off");
         SystemEvents.DisplaySettingsChanging += OnDisplaySettingsChanging;
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         SystemEvents.SessionSwitch += OnSessionSwitch;
