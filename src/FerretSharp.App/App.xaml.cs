@@ -202,7 +202,7 @@ public partial class App : Application
         _logger.LogInformation("FerretSharp {Version} started", FerretSharp.UI.State.AppVersion.Current);
         if (!OracleSession.BreaksInBand)
         {
-            _logger.LogInformation("Breaks are sent out of band ({Switch})", CommandLine.EnableOob);
+            _logger.LogInformation("Out-of-band breaks allowed ({Switch})", CommandLine.EnableOob);
         }
         if (settings.StartupNotice is { } notice)
         {

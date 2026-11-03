@@ -101,13 +101,13 @@ public sealed partial class OracleSession
 
     /// <summary>
     /// "idle 13.2 s before this command; last break 14.0 s ago, 2 ms after its command had returned (it ended normally), 1 command since";
-    /// "; breaks out of band" after it with <paramref name="outOfBand"/> (<c>--enable-oob</c>: a lost session then points at the
-    /// break's way first, ADR 0041).
+    /// "; out-of-band breaks allowed" after it with <paramref name="outOfBandAllowed"/> (<c>--enable-oob</c>: a lost session then
+    /// points at the break's way first, ADR 0041). Only allowed: whether they go out of band is up to the server and a sqlnet.ora.
     /// </summary>
-    internal static string DescribeHistory(SentBreak? last, long idleBefore, long now, bool outOfBand = false)
+    internal static string DescribeHistory(SentBreak? last, long idleBefore, long now, bool outOfBandAllowed = false)
     {
         var idle = $"idle {Seconds(idleBefore)} before this command";
-        var mode = outOfBand ? "; breaks out of band" : "";
+        var mode = outOfBandAllowed ? "; out-of-band breaks allowed" : "";
         if (last is null)
         {
             return $"{idle}; no break sent since the session opened{mode}";
