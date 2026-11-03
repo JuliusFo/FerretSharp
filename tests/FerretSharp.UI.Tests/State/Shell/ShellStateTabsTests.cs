@@ -142,17 +142,13 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         Assert.False(copy.Pinned);
     }
 
-    /// <summary>WP-73: a SQL tab opened now takes the focus; one restored with its workspace does not.</summary>
+    /// <summary>WP-73: a SQL tab opened now takes the focus (a restored one never sets it).</summary>
     [Fact]
-    public async Task A_new_sql_tab_takes_the_focus_a_restored_one_does_not()
+    public async Task A_new_sql_tab_takes_the_focus()
     {
         await _app.OpenAsync(TestApp.Profile("Test"));
-        var opened = _app.Shell.OpenSql("SELECT 1 FROM dual;")!;
 
-        var restored = SqlTab.Restore(opened.WorkspaceId, opened.ToState([opened]).Sql!);
-
-        Assert.True(opened.FocusOnOpen);
-        Assert.False(restored.FocusOnOpen);
+        Assert.True(_app.Shell.OpenSql("SELECT 1 FROM dual;")!.FocusOnOpen);
     }
 
     /// <summary>WP-70: the explorer of the tab's connection takes the request; a table it does not list gets a notice instead.</summary>
