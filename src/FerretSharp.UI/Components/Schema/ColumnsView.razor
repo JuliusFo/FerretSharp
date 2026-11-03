@@ -362,10 +362,14 @@
             if (Tab.Designer is { } open)
             {
                 open.Draft.Section = at; // already editing: switch the tab
+                foreach (var relation in Tab.TakeForeignKeys())
+                {
+                    open.Draft.AddForeignKey(relation);
+                }
             }
             else
             {
-                (_editing, _startAt) = (true, at);
+                (_editing, _startAt) = (true, at); // the designer takes requested foreign keys once loaded, also while it still loads
             }
         }
     }

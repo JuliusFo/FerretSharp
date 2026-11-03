@@ -120,7 +120,8 @@ developer works with an Oracle database day to day:
       Right-click a cell: jump to the referenced row, or to the rows that reference it – with counts, loaded lazily.
       Each jump opens a new tab with the filter already applied; <kbd>Alt</kbd>+<kbd>←</kbd> takes you back.
       Relationships that exist only as navigations in your DbContext are marked "from C# model". The same works in the
-      results of the SQL editor and the LINQ console, for columns read from a table.
+      results of the SQL editor and the LINQ console, for columns read from a table. In the "Constraints" view, "Create
+      constraint" turns such a relationship into a real foreign key: the table designer opens with it filled in.
     </td>
   </tr>
 </table>

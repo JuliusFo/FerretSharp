@@ -198,7 +198,7 @@ public sealed class TableDesignerDraftTests
     private static readonly TableDetails Land = new(new TableSummary("SHOP", "LAND", TableKind.Table),
         [Col("CODE", "VARCHAR2", 2, nullable: false), Col("ISO", "CHAR", 3, nullable: false), Col("NAME", "VARCHAR2", 50)], ["CODE", "ISO"], [], false);
 
-    /// <summary>R4b (out of the view): a foreign key's referenced columns follow the referenced table's key, position by position.</summary>
+    /// <summary>R4b (out of the view): a foreign key's referenced columns follow the referenced table's key, column by column not used yet.</summary>
     [Fact]
     public void A_foreign_key_takes_the_referenced_key_once_the_table_is_known()
     {
@@ -232,6 +232,113 @@ public sealed class TableDesignerDraftTests
         var rest = designer.Rebase(Kunde, []);
         Assert.Same(Land, rest.Referenced[Land.Table.Ref]);
         Assert.Equal(["ID", "NAME", "KUERZEL", "BETRAG"], rest.ColumnsOf(Kunde.Table.Ref));
+    }
+
+    /// <summary>
+    /// "Create constraint" at a relationship of the C# model: the foreign key starts with the relationship's columns on both
+    /// sides – not the referenced key's order once the table is known – and with an index; asked for again, it is not doubled.
+    /// </summary>
+    [Fact]
+    public void A_foreign_key_from_a_relationship_keeps_its_columns_and_comes_once()
+    {
+        var pk = new ConstraintInfo("PK_KUNDE", ConstraintType.PrimaryKey, ["ID"], null, null, [], null, true, true, false, false, false);
+        var designer = new TableDesignerDraft(Kunde, [pk]);
+        var relation = new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL", "NAME"], Land.Table.Ref, ["ISO", "CODE"], FkSource.ClrModel);
+        var self = new ForeignKeyInfo("Kunde.Werber", Kunde.Table.Ref, ["BETRAG"], Kunde.Table.Ref, ["ID"], FkSource.ClrModel);
+
+        var fk = designer.AddForeignKey(relation)!;
+        designer.AddForeignKey(self);
+
+        Assert.Equal(DesignerSection.Constraints, designer.Section);
+        Assert.Equal(("FK_KUNDE_LAND", true), (fk.Name, fk.WithIndex));
+        Assert.Equal([Land.Table.Ref], designer.UnknownReferences()); // its own table is the draft's
+
+        designer.Learn(Land);
+        Assert.Equal(["KUERZEL", "NAME"], fk.Columns);
+        Assert.Equal(["ISO", "CODE"], fk.ReferencedColumns);
+        Assert.Empty(designer.UnknownReferences());
+
+        designer.Section = DesignerSection.Columns;
+        Assert.Same(fk, designer.AddForeignKey(relation));
+        // The same pairs in another order (code review: a key filled in the referenced key's order looked new – ORA-02275).
+        Assert.Same(fk, designer.AddForeignKey(relation with { FromColumns = ["NAME", "KUERZEL"], ToColumns = ["CODE", "ISO"] }));
+        Assert.Equal(2, designer.AddedConstraints.Count);
+        Assert.Equal(DesignerSection.Constraints, designer.Section);
+
+        var plan = TableDesign.Plan(new DesignContext(Kunde, [pk], [], []) { Referenced = designer.Referenced }, designer.ToDraft().Draft, DataFacts.None);
+        Assert.Empty(plan.Problems);
+        Assert.Contains(plan.Statements, s => s.Contains("FOREIGN KEY (\"KUERZEL\", \"NAME\") REFERENCES \"SHOP\".\"LAND\" (\"ISO\", \"CODE\")", StringComparison.Ordinal));
+        Assert.Contains(plan.Statements, s => s.StartsWith("CREATE INDEX", StringComparison.Ordinal) && s.Contains("(\"KUERZEL\", \"NAME\")", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A column added to a prefilled foreign key while its table still loads gets the key's first column not used yet once
+    /// the table is known; the given ones stay (code review: only a foreign key without any got them, and by position the
+    /// key column given out of order came twice).
+    /// </summary>
+    [Fact]
+    public void A_column_added_before_the_referenced_table_is_known_gets_its_key_column_after()
+    {
+        var designer = new TableDesignerDraft(Kunde, []);
+        var fk = designer.AddForeignKey(new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL"], Land.Table.Ref, ["ISO"], FkSource.ClrModel))!;
+        designer.AddColumn(fk, "NAME");
+        Assert.Equal(["ISO"], fk.ReferencedColumns);
+
+        designer.Learn(Land);
+
+        Assert.Equal(["ISO", "CODE"], fk.ReferencedColumns); // the key's column not used yet; the given one stays
+    }
+
+    /// <summary>
+    /// A foreign key on the table itself (a hierarchy) gets its primary key – the own table is never loaded as a referenced
+    /// one, so it got none and the plan stopped (code review of the model constraints; on main it was loaded).
+    /// </summary>
+    [Fact]
+    public void A_foreign_key_on_the_table_itself_takes_its_primary_key()
+    {
+        var designer = new TableDesignerDraft(Kunde, []);
+        var fk = designer.AddConstraint(ConstraintType.ForeignKey);
+        designer.AddColumn(fk, "BETRAG");
+
+        designer.Reference(fk, Kunde.Table.Ref);
+
+        Assert.Equal(["ID"], fk.ReferencedColumns);
+        Assert.Empty(designer.UnknownReferences());
+    }
+
+    /// <summary>
+    /// A referenced table dropped since the schema was read comes without columns: its key column stays empty and the plan
+    /// says the key does not fit – it crashed the tab (code review of the model constraints).
+    /// </summary>
+    [Fact]
+    public void A_referenced_table_without_columns_leaves_the_referenced_column_empty()
+    {
+        var gone = Land with { Columns = [], PrimaryKey = [] };
+        var designer = new TableDesignerDraft(Kunde, []);
+        var fk = designer.AddConstraint(ConstraintType.ForeignKey);
+        designer.AddColumn(fk, "KUERZEL");
+        designer.Reference(fk, gone.Table.Ref);
+
+        designer.Learn(gone);
+        designer.AddColumn(fk, "NAME");
+
+        Assert.Equal(["", ""], fk.ReferencedColumns);
+        var plan = TableDesign.Plan(new DesignContext(Kunde, [], [], []) { Referenced = designer.Referenced }, designer.ToDraft().Draft, DataFacts.None);
+        Assert.NotEmpty(plan.Problems);
+    }
+
+    /// <summary>A foreign key the table has already is not added from a relationship again – unless the draft drops it.</summary>
+    [Fact]
+    public void A_relationship_the_table_has_as_foreign_key_adds_nothing_unless_it_is_dropped()
+    {
+        var relation = new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL"], Land.Table.Ref, ["CODE"], FkSource.ClrModel);
+        var designer = new TableDesignerDraft(Kunde, [FkLand]);
+
+        Assert.Null(designer.AddForeignKey(relation));
+        Assert.Empty(designer.AddedConstraints);
+
+        designer.ToggleDropConstraint(FkLand.Name);
+        Assert.NotNull(designer.AddForeignKey(relation));
     }
 
     /// <summary>A new column starts as VARCHAR2(50); as a NUMBER the 50 would be a precision Oracle refuses.</summary>

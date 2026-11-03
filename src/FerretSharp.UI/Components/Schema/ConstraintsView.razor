@@ -95,6 +95,7 @@
                 <TableLink Target="fk.To" />
                 <span class="mono">(@string.Join(", ", fk.ToColumns))</span>
                 <span class="muted constraint">@fk.Name</span>
+                @CreateButton(fk)
             </div>
         }
         @foreach (var fk in ModelIncoming)
@@ -105,6 +106,7 @@
                 <span class="arrow">@Icons.ArrowRight</span>
                 <span class="mono">(@string.Join(", ", fk.ToColumns))</span>
                 <span class="muted constraint">@fk.Name</span>
+                @CreateButton(fk)
             </div>
         }
     </section>
@@ -118,6 +120,30 @@
     /// <summary>"Edit": the edit mode of the "Columns" view, at its constraints (designer tabs).</summary>
     [Parameter]
     public EventCallback OnEdit { get; set; }
+
+    /// <summary>"Create constraint" at a relationship of the C# model: the designer of the table it starts at, with it as a new foreign key.</summary>
+    [Parameter]
+    public EventCallback<ForeignKeyInfo> OnCreateConstraint { get; set; }
+
+    /// <summary>"Create constraint" where the table can be edited; greyed out unless both sides are tables (<see cref="ModelConstraintOffers"/>).</summary>
+    private RenderFragment? CreateButton(ForeignKeyInfo fk)
+    {
+        if (WorkspaceId == Guid.Empty || Active.Schema is not { } schema)
+        {
+            return null;
+        }
+
+        var offer = ModelConstraintOffers.Of(fk, schema.Find, schema.PrimaryKeyOf);
+        var title = offer switch
+        {
+            ModelConstraintOffer.NotTables => SchemaViewText.Constraints_CreateFromModelNotTables,
+            ModelConstraintOffer.NotPrimaryKey => TextFormat.Format(SchemaViewText.Constraints_CreateFromModelTitle, fk.From.Name)
+                + Environment.NewLine + SchemaViewText.Constraints_CreateFromModelNotPrimary,
+            _ => TextFormat.Format(SchemaViewText.Constraints_CreateFromModelTitle, fk.From.Name),
+        };
+        return @<button class="link-btn" disabled="@(offer == ModelConstraintOffer.NotTables)" title="@title"
+                        @onclick="() => OnCreateConstraint.InvokeAsync(fk)">@SchemaViewText.Constraints_CreateFromModel</button>;
+    }
 
     private IReadOnlyList<ForeignKeyInfo> Incoming =>
         Active.Schema?.IncomingOf(Table.Ref).Where(f => f.Source != FkSource.ClrModel).ToList() ?? [];

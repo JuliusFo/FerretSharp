@@ -898,6 +898,7 @@ table.binds td { font-family: var(--mono); overflow-wrap: anywhere; }
 
 /* ---------- errors, connection loss, notices ---------- */
 .link-btn { border: 0; padding: 0 0 0 8px; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; font-size: inherit; }
+.link-btn:disabled { color: var(--faint); text-decoration: none; cursor: default; }
 .tab-error { display: flex; align-items: baseline; gap: 4px; }
 .sql-lock-holders { padding: 4px 12px 8px; font-size: 12.5px; }
 .sql-lock-holders .muted { margin: 6px 0 0; }

@@ -428,6 +428,20 @@
   <data name="Constraints_ModelRelationsHint" xml:space="preserve">
     <value>Navigations of the linked project without an FK constraint in the database – you can follow them in the grid with a right-click.</value>
   </data>
+  <data name="Constraints_CreateFromModel" xml:space="preserve">
+    <value>Create constraint</value>
+    <comment>Button at a relationship of the C# model</comment>
+  </data>
+  <data name="Constraints_CreateFromModelTitle" xml:space="preserve">
+    <value>Open the designer of {0} with this relationship as a new foreign key, with an index unless one already covers its columns. Values without a match make creating it fail (ORA-02298).</value>
+    <comment>{0}: table the foreign key belongs to</comment>
+  </data>
+  <data name="Constraints_CreateFromModelNotPrimary" xml:space="preserve">
+    <value>The referenced columns are not the primary key: Oracle needs a unique key on them, the designer checks that.</value>
+  </data>
+  <data name="Constraints_CreateFromModelNotTables" xml:space="preserve">
+    <value>Only between two tables – not for a view or a table reached through a synonym.</value>
+  </data>
   <data name="Constraints_Enabled" xml:space="preserve">
     <value>enabled</value>
     <comment>Constraint status</comment>

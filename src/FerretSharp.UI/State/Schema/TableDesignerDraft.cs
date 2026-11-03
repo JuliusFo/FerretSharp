@@ -105,6 +105,50 @@ public sealed class TableDesignerDraft
         return constraint;
     }
 
+    /// <summary>
+    /// A foreign key as a relationship has it (one of the C# model without constraint, "Create constraint" in the
+    /// "Constraints" view): its columns, the referenced table and its columns as given – once the table is known they stay.
+    /// The constraints tab shows. Not added twice: a new foreign key with the same column pairs (in any order) is returned
+    /// instead, and a kept one of the table means null – Oracle refuses a second one (ORA-02275; code review of the model
+    /// constraints: the order of the referenced key made a twin look new).
+    /// </summary>
+    public DesignConstraint? AddForeignKey(ForeignKeyInfo relation)
+    {
+        ArgumentNullException.ThrowIfNull(relation);
+        Section = DesignerSection.Constraints;
+        if (Existing.Any(e => e.Before.Type == ConstraintType.ForeignKey && !DroppedConstraints.Contains(e.Before.Name)
+            && SameForeignKey(e.Before.Columns, e.Before.References, e.Before.ReferencedColumns, relation)))
+        {
+            return null;
+        }
+
+        if (AddedConstraints.FirstOrDefault(c => c.Type == ConstraintType.ForeignKey
+            && SameForeignKey(c.Columns, c.References, c.ReferencedColumns, relation)) is { } twin)
+        {
+            return twin;
+        }
+
+        var constraint = new DesignConstraint { Type = ConstraintType.ForeignKey, References = relation.To };
+        constraint.Columns.AddRange(relation.FromColumns);
+        constraint.ReferencedColumns.AddRange(relation.ToColumns);
+        AddedConstraints.Add(constraint);
+        SuggestName(constraint);
+        return constraint;
+    }
+
+    /// <summary>Same referenced table and the same pairs of key and referenced column, in any order.</summary>
+    private static bool SameForeignKey(IReadOnlyList<string> columns, TableRef? references, IReadOnlyList<string>? referencedColumns, ForeignKeyInfo relation) =>
+        references == relation.To && columns.Count == relation.FromColumns.Count && referencedColumns?.Count == relation.ToColumns.Count
+        && columns.Zip(referencedColumns).ToHashSet().SetEquals(relation.FromColumns.Zip(relation.ToColumns));
+
+    /// <summary>
+    /// The tables new foreign keys reference whose structure is not known yet (<see cref="Referenced"/>): the view loads
+    /// them and calls <see cref="Learn"/>. This table's own columns are the draft's.
+    /// </summary>
+    public IReadOnlyList<TableRef> UnknownReferences() =>
+        AddedConstraints.Where(c => c.Type == ConstraintType.ForeignKey).Select(c => c.References).OfType<TableRef>()
+            .Where(r => r != Table.Table.Ref && !Referenced.ContainsKey(r)).Distinct().ToList();
+
     /// <summary>The suggested name for its type and columns, unless the user typed one.</summary>
     public void SuggestName(DesignConstraint constraint)
     {
@@ -132,8 +176,8 @@ public sealed class TableDesignerDraft
     }
 
     /// <summary>
-    /// A column for the constraint, at the end. A foreign key's referenced column follows the key of the referenced table,
-    /// position by position (once its structure is known, <see cref="Referenced"/>).
+    /// A column for the constraint, at the end. A foreign key's referenced column is the referenced table's first primary
+    /// key column not referenced yet, once the table is known (this table at once, another one in <see cref="Referenced"/>).
     /// </summary>
     public void AddColumn(DesignConstraint constraint, string? column)
     {
@@ -144,11 +188,7 @@ public sealed class TableDesignerDraft
         }
 
         constraint.Columns.Add(column);
-        if (constraint.References is { } references && Referenced.TryGetValue(references, out var target))
-        {
-            constraint.ReferencedColumns.Add(KeyColumn(target, constraint.Columns.Count - 1));
-        }
-
+        FillReferenced(constraint);
         SuggestName(constraint);
     }
 
@@ -167,8 +207,8 @@ public sealed class TableDesignerDraft
 
     /// <summary>
     /// The foreign key references <paramref name="table"/> (null: none chosen). Its referenced columns are the table's
-    /// primary key, position by position, as soon as the table's structure is known – the view loads it if
-    /// <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
+    /// primary key, in key order, as soon as the table's structure is known – this table's at once; another one the view
+    /// loads if <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
     /// </summary>
     public void Reference(DesignConstraint constraint, TableRef? table)
     {
@@ -185,7 +225,10 @@ public sealed class TableDesignerDraft
     /// </summary>
     public Dictionary<TableRef, TableDetails> Referenced { get; } = [];
 
-    /// <summary>A referenced table's structure arrived: foreign keys on it without referenced columns get its key.</summary>
+    /// <summary>
+    /// A referenced table's structure arrived: foreign keys on it get its key for the columns that have no referenced column
+    /// yet – all of a new one, those added while the table was still loading to a prefilled one.
+    /// </summary>
     public void Learn(TableDetails table)
     {
         ArgumentNullException.ThrowIfNull(table);
@@ -200,16 +243,38 @@ public sealed class TableDesignerDraft
     public IReadOnlyList<string>? ColumnsOf(TableRef table) =>
         table == Table.Table.Ref ? ColumnNames : Referenced.TryGetValue(table, out var details) ? details.Columns.Select(c => c.Name).ToList() : null;
 
+    /// <summary>
+    /// A referenced column for each key column past the referenced columns there are, once the referenced table is known –
+    /// before, only a foreign key without any got them, and a column added while the table loaded stayed without one (code
+    /// review of the model constraints).
+    /// </summary>
     private void FillReferenced(DesignConstraint constraint)
     {
-        if (constraint is { References: { } references, ReferencedColumns.Count: 0 } && Referenced.TryGetValue(references, out var target))
+        if (TargetOf(constraint) is { } target)
         {
-            constraint.ReferencedColumns.AddRange(constraint.Columns.Select((_, i) => KeyColumn(target, i)));
+            while (constraint.ReferencedColumns.Count < constraint.Columns.Count)
+            {
+                constraint.ReferencedColumns.Add(NextKeyColumn(target, constraint.ReferencedColumns));
+            }
         }
     }
 
-    /// <summary>The primary key's column at a position; the first column where the key has none.</summary>
-    private static string KeyColumn(TableDetails table, int at) => table.PrimaryKey.ElementAtOrDefault(at) ?? table.Columns[0].Name;
+    /// <summary>
+    /// The structure a foreign key's referenced columns come from: this table's own – never loaded as a referenced table
+    /// (code review: a foreign key on the own table got none) –, another one's once known; null while not.
+    /// </summary>
+    private TableDetails? TargetOf(DesignConstraint constraint) =>
+        constraint.References is not { } references ? null
+        : references == Table.Table.Ref ? Table
+        : Referenced.GetValueOrDefault(references);
+
+    /// <summary>
+    /// The primary key's first column not referenced yet, in key order (code review: by position, a key column given
+    /// out of order came twice); then the first column; empty for a table without columns – one dropped since the schema
+    /// was read, which the plan then reports (code review: it crashed the tab).
+    /// </summary>
+    private static string NextKeyColumn(TableDetails table, IReadOnlyCollection<string> used) =>
+        table.PrimaryKey.FirstOrDefault(k => !used.Contains(k)) ?? table.Columns.FirstOrDefault()?.Name ?? "";
 
     /// <summary>
     /// The same draft laid over the table as it is now – after DDL that stopped halfway (WP-23): the draft says how the table
