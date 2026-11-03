@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- The results of the SQL editor and the LINQ console show the names beside foreign key values, as a table does: a column read from a foreign key column of a table whose target has display columns reads `4711 · PetersPizza`, also in the form and in the Excel export (of the selected rows and of all rows, looked up anew while reading).
+- Pin columns of a result to the left: from the column header's menu (SQL editor), the cell menu or by dragging, as in a table. The pins belong to the tab and apply to every result it shows – a script's results keep theirs –, by column name; a name the result has twice (`ID` of a join) is pinned per column. They are saved with the tab, at most 30, and go with it. Form and row comparison show the pinned columns first.
+
+### Changed
+- A newly opened SQL editor tab takes the focus, with the cursor at the end of its text – also when it opens from a menu with a statement ("Open in SQL editor", `SELECT *` from the explorer). Tabs restored with their workspace do not take it.
+
 ## [3.58.0] - 2026-11-03
 
 Build a query in the relationship diagram as LINQ and SQL, create a foreign key constraint from a relationship of the C# model, and cancelling sends breaks in band by default.

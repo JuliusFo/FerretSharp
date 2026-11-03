@@ -69,7 +69,8 @@ developer works with an Oracle database day to day:
   connection that fits or one you choose.
 - Names beside foreign keys: mark a display column per table (`KUNDEN.NAME`) and every reference to it reads
   `4711 · PetersPizza`; a name can join several columns (`Müller - Hans`) and follow one more foreign key; a value
-  without a referenced row says "not found". The display columns live in one file you
+  without a referenced row says "not found". The same in the results of the SQL editor and the LINQ console, for
+  columns read from a table. The display columns live in one file you
   can share with your team through your repository.
 - Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies,
   synonyms, DDL.
@@ -197,8 +198,9 @@ developer works with an Oracle database day to day:
   compile errors are marked in the editor.
 - Bind variables (`:kundeId`) become typed input fields – values are bound, never pasted into the SQL.
 - Completion for tables, views, synonyms and columns (with their C# names), history per connection, export of results.
-- Results know where their columns come from: C# names, enum members and foreign-key jumps as in a table – also with the
-  quoted aliases EF Core writes and through synonyms.
+- Results know where their columns come from: C# names, enum members, names beside foreign keys and foreign-key jumps
+  as in a table – also with the quoted aliases EF Core writes and through synonyms. Columns of a result can be pinned;
+  the tab keeps them for every result it shows.
 - Execution plans: estimated (`EXPLAIN PLAN`) or actual, with row counts from the real execution and misestimates flagged.
 
 <picture>
