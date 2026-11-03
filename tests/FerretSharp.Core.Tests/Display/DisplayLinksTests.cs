@@ -224,6 +224,21 @@ public sealed class DisplayLinksTests
         Assert.All(links, l => Assert.Equal(("KUNDE", "NAME"), (l.Target.Table.Name, l.Label)));
     }
 
+    /// <summary>
+    /// Review of WP-73: a result reading no foreign key column of its table loads none of the table's targets – nor fails
+    /// because one of them cannot be read (a missing grant), which took the names of the other columns with it.
+    /// </summary>
+    [Fact]
+    public async Task A_result_plans_only_the_columns_it_reads()
+    {
+        var schema = await SchemaAsync(unreadable: Land); // AUFTRAG.STAAT_ID → STAAT cannot be read
+        var sources = new SqlResultSources([new SqlResultSource(Auftrag, [(0, 0), (1, 1)])]); // ID, KUNDE_ID
+
+        var link = Assert.Single(await DisplayLinks.PlanForResultAsync(sources, schema, Columns, Ct));
+
+        Assert.Equal((1, "KUNDE"), (link.Column, link.Target.Table.Name));
+    }
+
     [Fact]
     public async Task A_result_without_display_columns_or_sources_gets_no_links()
     {

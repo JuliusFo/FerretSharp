@@ -49,9 +49,13 @@ public static class DisplayLinks
     /// values there – the names of the first level stay (review WP-65); a lost connection still ends the plan.
     /// </summary>
     /// <param name="deeperFailed">Told why a level deeper could not be planned (for the log); null to ignore it.</param>
+    /// <param name="only">
+    /// Only these columns of <paramref name="table"/> (a query result's, WP-73): targets of other foreign keys are not
+    /// loaded – neither for nothing nor to fail the plan; null for all.
+    /// </param>
     public static async Task<IReadOnlyList<DisplayLink>> PlanAsync(
         TableDetails table, SchemaCache schema, DisplayColumns columns, CancellationToken cancellationToken,
-        Action<DatabaseException>? deeperFailed = null)
+        Action<DatabaseException>? deeperFailed = null, IReadOnlySet<int>? only = null)
     {
         var links = new List<DisplayLink>();
         if (columns.Count == 0)
@@ -61,7 +65,7 @@ public static class DisplayLinks
 
         // One level deeper per target once: several foreign keys to one table have the same display columns there.
         var deeper = new Dictionary<TableRef, IReadOnlyDictionary<int, DisplayLink>>();
-        foreach (var link in await ResolveAllAsync(table, schema, columns, null, cancellationToken))
+        foreach (var link in await ResolveAllAsync(table, schema, columns, only is null ? null : [.. only], cancellationToken))
         {
             if (!deeper.TryGetValue(link.Target.Table.Ref, out var nested))
             {
@@ -89,7 +93,7 @@ public static class DisplayLinks
     /// <summary>
     /// The links of a query result (WP-73): a result column traced back to a table column (WP-48) gets the link that column
     /// has in its table, with <see cref="DisplayLink.Column"/> the result column – in result order. Each table is planned
-    /// once, also when the result reads it through two aliases; a table column read twice gives two links.
+    /// once, over the columns the result reads from it (also through two aliases); a table column read twice gives two links.
     /// </summary>
     public static async Task<IReadOnlyList<DisplayLink>> PlanForResultAsync(
         SqlResultSources sources, SchemaCache schema, DisplayColumns columns, CancellationToken cancellationToken,
@@ -106,7 +110,9 @@ public static class DisplayLinks
         {
             if (!planned.TryGetValue(source.Table.Ref, out var ofTable))
             {
-                planned[source.Table.Ref] = ofTable = await PlanAsync(source.Details, schema, columns, cancellationToken, deeperFailed);
+                // Review of WP-73: the whole table loaded the targets of foreign keys the result does not show.
+                var shown = sources.Sources.Where(s => s.Table.Ref == source.Table.Ref).SelectMany(s => s.Columns.Select(c => c.Table)).ToHashSet();
+                planned[source.Table.Ref] = ofTable = await PlanAsync(source.Details, schema, columns, cancellationToken, deeperFailed, shown);
             }
 
             foreach (var (result, table) in source.Columns)
