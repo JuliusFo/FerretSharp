@@ -121,6 +121,9 @@ public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bo
 
     /// <summary>A query result whose column headers have a menu (SQL editor, WP-57): OnHeaderContextMenu is reported, as for a table.</summary>
     public bool HeaderMenu { get; init; }
+
+    /// <summary>A query result whose tab keeps pinned columns (WP-73): pinning by dragging is reported (OnPinnedChanged), as for a table.</summary>
+    public bool Pinning { get; init; }
 }
 
 /// <summary>

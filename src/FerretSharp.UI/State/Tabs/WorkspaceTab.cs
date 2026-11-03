@@ -79,6 +79,15 @@ public interface IFormTab
     bool FormHideEmpty { get; set; }
 }
 
+/// <summary>
+/// A tab whose query results can pin columns (WP-73: SQL editor, LINQ console), saved with the tab as
+/// <see cref="TabState.ResultPins"/> – for all its results, by column name (<see cref="ResultPinning"/>).
+/// </summary>
+public interface IResultPinTab
+{
+    IReadOnlyList<ResultColumnPin> ResultPins { get; set; }
+}
+
 public static class FormTabs
 {
     /// <summary>What is saved of the form; null if it was never used in the tab.</summary>
@@ -95,7 +104,7 @@ public static class FormTabs
 }
 
 /// <summary>A LINQ console tab (WP-13, ADR 0011): C# against the linked project's DbContext, run in the workspace's session.</summary>
-public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "linq-"), ITitledTab, IFormTab
+public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "linq-"), ITitledTab, IFormTab, IResultPinTab
 {
     public string Title { get; set; } = title;
 
@@ -116,15 +125,17 @@ public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(works
 
     public bool FormHideEmpty { get; set; }
 
-    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
-        TabState.OfLinq(new LinqTabState(Title, Code, Variables)) with { Form = FormTabs.Save(this) };
+    public IReadOnlyList<ResultColumnPin> ResultPins { get; set; } = [];
 
-    public static LinqTab Restore(Guid workspaceId, LinqTabState state, FormTabState? form = null) =>
-        new LinqTab(workspaceId, state.Title) { Code = state.Code, Variables = state.Variables }.WithForm(form);
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
+        TabState.OfLinq(new LinqTabState(Title, Code, Variables)) with { Form = FormTabs.Save(this), ResultPins = ResultPins.Count > 0 ? ResultPins : null };
+
+    public static LinqTab Restore(Guid workspaceId, LinqTabState state, FormTabState? form = null, IReadOnlyList<ResultColumnPin>? pins = null) =>
+        new LinqTab(workspaceId, state.Title) { Code = state.Code, Variables = state.Variables, ResultPins = pins ?? [] }.WithForm(form);
 }
 
 /// <summary>A SQL editor tab (WP-17, ADR 0014): a script whose statement at the cursor runs in the workspace's session.</summary>
-public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "sql-"), ITitledTab, IFormTab
+public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "sql-"), ITitledTab, IFormTab, IResultPinTab
 {
     public string Title { get; set; } = title;
 
@@ -141,17 +152,25 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
 
     public SqlRun? ShownRun => Runs.Count == 0 ? null : Runs[Math.Clamp(SelectedRun, 0, Runs.Count - 1)];
 
+    /// <summary>
+    /// Opened just now (<see cref="ShellState.OpenSql"/>, WP-73): the editor takes the focus once, with the cursor at the end.
+    /// Not saved, never set for a restored tab – a tab in the background would take the focus.
+    /// </summary>
+    public bool FocusOnOpen { get; set; }
+
     public bool FormOpen { get; set; }
 
     public int? FormWidth { get; set; }
 
     public bool FormHideEmpty { get; set; }
 
-    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
-        TabState.OfSql(new SqlTabState(Title, Text, Variables)) with { Form = FormTabs.Save(this) };
+    public IReadOnlyList<ResultColumnPin> ResultPins { get; set; } = [];
 
-    public static SqlTab Restore(Guid workspaceId, SqlTabState state, FormTabState? form = null) =>
-        new SqlTab(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables }.WithForm(form);
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
+        TabState.OfSql(new SqlTabState(Title, Text, Variables)) with { Form = FormTabs.Save(this), ResultPins = ResultPins.Count > 0 ? ResultPins : null };
+
+    public static SqlTab Restore(Guid workspaceId, SqlTabState state, FormTabState? form = null, IReadOnlyList<ResultColumnPin>? pins = null) =>
+        new SqlTab(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables, ResultPins = pins ?? [] }.WithForm(form);
 }
 
 /// <summary>

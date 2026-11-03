@@ -72,7 +72,7 @@ public sealed class SqlResultSources
 {
     public static readonly SqlResultSources None = new([]);
 
-    private SqlResultSources(IReadOnlyList<SqlResultSource> sources) => Sources = sources;
+    internal SqlResultSources(IReadOnlyList<SqlResultSource> sources) => Sources = sources;
 
     public IReadOnlyList<SqlResultSource> Sources { get; }
 

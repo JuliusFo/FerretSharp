@@ -35,7 +35,7 @@
 
     <div class="sql-main">
         <div class="sql-editors">
-            <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync"
+            <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync" FocusOnCreate="_focusOnCreate"
                           Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
             <SqlVariablesEditor Variables="Tab.Variables" Binds="_binds" OnChange="SetVariables" />
         </div>
@@ -107,7 +107,7 @@
                 <div class="grid-host">
                     <SqlResultGrid @key="@($"{_runKey}-{Tab.SelectedRun}")" @ref="_resultGrid" WorkspaceId="Tab.WorkspaceId" Query="run.Query" FirstPage="run.FirstPage"
                                    OnStatus="OnGridStatus" InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" ExportsAllRows="true"
-                                   FormTab="Tab" OnFormChanged="StateHasChanged" />
+                                   FormTab="Tab" PinTab="Tab" OnFormChanged="StateHasChanged" />
                 </div>
                 <ResultFooter Status="_grid" Grid="_resultGrid" FormTab="Tab" OnToggleForm="ToggleForm" />
             }
@@ -284,8 +284,12 @@
     /// <summary>The connection as the confirmation names it, with its group in front (<see cref="ConnectionLabel"/>).</summary>
     private string? ConnectionName => Active.Profile is { } profile ? ConnectionLabel.Of(profile, Settings.Current) : null;
 
+    /// <summary>The tab was opened just now (WP-73): the editor takes the focus once – not again when it is mounted anew.</summary>
+    private bool _focusOnCreate;
+
     protected override async Task OnInitializedAsync()
     {
+        (_focusOnCreate, Tab.FocusOnOpen) = (Tab.FocusOnOpen, false);
         Shell.TabCommandRequested += OnTabCommand;
         Workspaces.Changed += OnWorkspacesChanged;
         await UpdateVariablesAsync(Tab.Text);

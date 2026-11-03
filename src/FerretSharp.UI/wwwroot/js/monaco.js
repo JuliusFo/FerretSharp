@@ -318,6 +318,18 @@ export function revealOffset(elementId, offset) {
   editor.focus();
 }
 
+/** Puts the cursor at the end of the text, shows it and focuses the editor (a SQL tab just opened, WP-73). */
+export function focusEnd(elementId) {
+  const editor = editors.get(elementId);
+  if (!editor) return;
+  editor.layout(); // the tab may just have become visible
+  const model = editor.getModel();
+  const position = model.getPositionAt(model.getValueLength());
+  editor.setPosition(position);
+  editor.revealPositionInCenterIfOutsideViewport(position);
+  editor.focus();
+}
+
 /** Replaces the whole text (e.g. after adding suggested declarations), keeping undo. */
 export function setText(elementId, text) {
   const editor = editors.get(elementId);

@@ -71,6 +71,12 @@ public sealed record TabState(
     /// <summary>The form beside the grid (WP-21; of a SQL or LINQ tab: beside its result, WP-56); null if it was never opened in the tab.</summary>
     public FormTabState? Form { get; init; }
 
+    /// <summary>
+    /// Result columns the user pinned in a SQL or LINQ tab (WP-73, <see cref="ResultPinning"/>); null if none. Not to be
+    /// confused with <see cref="PinnedColumns"/> of a table tab.
+    /// </summary>
+    public IReadOnlyList<ResultColumnPin>? ResultPins { get; init; }
+
     /// <summary>Set for a PL/SQL tab (WP-28); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
     public PlSqlTabState? PlSql { get; init; }
 
@@ -202,6 +208,7 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
             AppliedFilters = (tab.AppliedFilters ?? []).OfType<FilterCondition>().ToList(),
             Sorts = (tab.Sorts ?? []).OfType<SortSpec>().ToList(),
             PinnedColumns = (tab.PinnedColumns ?? []).OfType<string>().ToList(),
+            ResultPins = tab.ResultPins is { } pins ? ResultPinning.Normalize(pins.OfType<ResultColumnPin>()) : null,
             Sql = tab.Sql is { } sql ? sql with { Text = sql.Text ?? "", Variables = (sql.Variables ?? []).OfType<SqlVariable>().ToList() } : null,
             Records = tab.Records is { } records ? records with
             {

@@ -14,7 +14,10 @@
 @{
     var row = CurrentRow;
     var presentation = Grid.Presentation;
-    IReadOnlyList<FormField> fields = row?.Loaded is { } loaded ? RowForm.ResultFields(presentation, loaded, JumpsOf(loaded), presentation.CommentOf) : [];
+    // The pinned columns first, as in the grid (WP-73).
+    IReadOnlyList<FormField> fields = row?.Loaded is { } loaded
+        ? RowForm.ResultFields(presentation, loaded, JumpsOf(loaded), presentation.CommentOf, Grid.Names) is var all ? [.. Grid.DisplayOrder.Select(i => all[i])] : []
+        : [];
 }
 
 <FormPanelFrame @ref="_frame" Tab="Tab" Position="@(_cursor.Cell is { } cell ? PositionText(cell) : null)" Lost="@_cursor.Lost" RowLoaded="row is not null"

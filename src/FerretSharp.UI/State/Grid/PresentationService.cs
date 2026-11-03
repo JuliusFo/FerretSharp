@@ -73,6 +73,32 @@ public sealed class PresentationService : IDisposable
         return TablePresentation.Create(details, _mapping, _names, model == details.Table.Ref ? null : model);
     }
 
+    /// <summary>
+    /// For the names beside foreign key values (WP-31, <see cref="Core.Display.DisplayNames"/>): a value of a target's column
+    /// as text, with the targets' presentation as it is when a name is formatted (a model may load meanwhile), reused per
+    /// version. A table grid and a query result (WP-73) each take a new one.
+    /// </summary>
+    public Func<TableDetails, int, object?, string?> NameFormatter()
+    {
+        var presentations = new Dictionary<TableRef, TablePresentation>();
+        var version = Version;
+        return (details, column, value) =>
+        {
+            if (Version != version)
+            {
+                version = Version;
+                presentations.Clear();
+            }
+
+            if (!presentations.TryGetValue(details.Table.Ref, out var target))
+            {
+                presentations[details.Table.Ref] = target = For(details);
+            }
+
+            return target.Present(column, value).Text;
+        };
+    }
+
     /// <summary>The table whose entity names the columns of <paramref name="table"/>: an audit table's base table (WP-63), else itself.</summary>
     public TableRef ModelTableOf(TableRef table) => _active?.Schema?.AuditBaseOf(table) ?? table;
 

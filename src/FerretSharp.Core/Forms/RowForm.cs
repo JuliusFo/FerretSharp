@@ -169,8 +169,10 @@ public static class RowForm
     /// the columns traced back to their tables (WP-48, <see cref="SqlResultSources.JumpsFor"/> for this row).
     /// </summary>
     /// <param name="commentOf">A field's tooltip comment (where the column comes from, and its comment); the column's if null.</param>
+    /// <param name="names">Names looked up for foreign key values by the result grid (WP-73); null without.</param>
     public static IReadOnlyList<FormField> ResultFields(
-        IColumnPresentation presentation, RowData row, IReadOnlyList<SqlResultJump> jumps, Func<int, string?>? commentOf = null)
+        IColumnPresentation presentation, RowData row, IReadOnlyList<SqlResultJump> jumps, Func<int, string?>? commentOf = null,
+        Display.DisplayNames? names = null)
     {
         var outgoing = jumps.Where(j => j.Jump.Direction == JumpDirection.Outgoing).ToList();
         return presentation.Columns
@@ -190,7 +192,8 @@ public static class RowForm
                     false,
                     null,
                     outgoing.Where(j => j.Involves(i)).Select(j => j.Jump).ToList(),
-                    []);
+                    [],
+                    names?.NameOf(i, raw));
             })
             .ToList();
     }

@@ -23,6 +23,10 @@
         <QuickBar>
             <QuickAction Icon="Icons.Copy" Label="@CommonText.CopyValue" Unavailable="@(Request.CellText is null ? GridText.Quick_ValueIsNull : null)"
                          OnClick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])" />
+            @if (OffersPin)
+            {
+                <QuickAction Icon="Icons.Pin" Label="@PinAction.Of(Pinned, false).Label" Active="@Pinned" OnClick="TogglePinAsync" />
+            }
             <FormQuickAction Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" OffersForm="OffersForm" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
         </QuickBar>
         <SearchBox Class="popover-search ctx-filter" Value="@_filter.Text" ValueChanged="text => _filter.Set(text)" Placeholder="@GridText.Menu_FilterPlaceholder" />
@@ -32,7 +36,7 @@
             {
                 <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
             }
-            <ExportMatrix Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns" Marked="@(Request.Marks is not null)"
+            <ExportMatrix Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns" XlsxColumnsToSave="ExportColumnsToSave" Marked="@(Request.Marks is not null)"
                           InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
                           InsertTitle="@(InsertTarget is { } insert
                               ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
@@ -91,6 +95,10 @@
     [Parameter]
     public IReadOnlyList<ExportColumn>? ExportColumns { get; set; }
 
+    /// <summary>The Excel columns a save of the selected rows writes, with the names as they are now (WP-73); null takes <see cref="ExportColumns"/>.</summary>
+    [Parameter]
+    public Func<IReadOnlyList<ExportColumn>>? ExportColumnsToSave { get; set; }
+
     /// <summary>File name (without extension) offered for CSV and Excel.</summary>
     [Parameter]
     public string ExportName { get; set; } = SqlEditorText.Result_DefaultExportName;
@@ -105,6 +113,18 @@
     /// <summary>The result has a form beside it (WP-56): "Als Formular" for a single row.</summary>
     [Parameter]
     public bool OffersForm { get; set; }
+
+    /// <summary>The tab keeps pinned columns (WP-73): the clicked column can be pinned or released here.</summary>
+    [Parameter]
+    public bool OffersPin { get; set; }
+
+    /// <summary>Whether the clicked column is pinned now.</summary>
+    [Parameter]
+    public bool Pinned { get; set; }
+
+    /// <summary>Pins or releases the column (its index).</summary>
+    [Parameter]
+    public EventCallback<int> OnTogglePin { get; set; }
 
     /// <summary>Shows the clicked row in the form beside the result.</summary>
     [Parameter]
@@ -134,6 +154,12 @@
     }
 
     private bool Related(FkJump jump) => _sources.TryGetValue(jump, out var source) && source.Involves(Request.Column);
+
+    private async Task TogglePinAsync()
+    {
+        await CloseAsync();
+        await OnTogglePin.InvokeAsync(Request.Column);
+    }
 
     /// <summary>The result's columns as presented; a column traced to a foreign key is followed by its names (same <see cref="ExportColumn.Source"/>).</summary>
     private IReadOnlyList<ExportColumn> XlsxColumns => ExportColumns ?? ExportColumn.Raw(Result);

@@ -113,12 +113,35 @@ public sealed class AllRowsExportsTests
         var xlsx = ExportColumn.Raw(Kunden);
         var workspace = Guid.NewGuid();
 
-        var all = AllRowsExports.ForResult(query, columns, 42, xlsx, workspace, DataOf);
+        var all = AllRowsExports.ForResult(query, columns, 42, _ => xlsx, DisplayNames.None, TablePresentation.Plain, workspace, DataOf);
         await all.Read(Ignore, Ct);
 
         await _data.Received(1).ReadSqlAllAsync(query, Arg.Is<IReadOnlyList<string>>(n => n.SequenceEqual(new[] { "ID", "NAME" })), Arg.Any<RowBlockHandler>(), Ct);
         Assert.Equal([workspace], _workspaces);
         Assert.Equal("Alle Zeilen des Ergebnisses · 42 Zeilen", all.Heading);
         Assert.Same(xlsx, all.Excel().Columns);
+        Assert.Null(all.Excel().Names);
+    }
+
+    /// <summary>WP-73: a result's names beside foreign keys are looked up anew while reading, as a table's are.</summary>
+    [Fact]
+    public void A_result_with_names_looks_them_up_anew_for_its_excel_columns()
+    {
+        var gridNames = new DisplayNames([Link], (_, _, value) => value as string);
+        var columns = new[] { new SqlColumn("ID", Col("ID", "NUMBER")), new SqlColumn("NAME", Col("NAME", "VARCHAR2")), new SqlColumn("MANDANT_ID", Col("MANDANT_ID", "NUMBER")) };
+        DisplayNames? given = null;
+
+        var all = AllRowsExports.ForResult(new QuerySpec("SELECT ID, NAME, MANDANT_ID FROM KUNDEN", []), columns, null, names =>
+        {
+            given = names;
+            return ExportColumn.Raw(Kunden);
+        }, gridNames, TablePresentation.Plain, Guid.NewGuid(), DataOf);
+        Assert.Null(given); // nothing built while the menu only opens
+
+        var excel = all.Excel();
+
+        Assert.Same(given, excel.Names);
+        Assert.NotSame(gridNames, excel.Names);
+        Assert.True(excel.Names!.Shows(2));
     }
 }

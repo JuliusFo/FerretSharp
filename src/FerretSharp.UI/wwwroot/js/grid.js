@@ -650,11 +650,13 @@ function reportPinned(api, dotnet) {
  *     WP-56.
  *   headerMenu: a query result reports a right click on a column header too (OnHeaderContextMenu, SQL editor, WP-57).
  *     Whole columns can be marked (WP-58) where there is a header menu: they mean all rows, read again.
+ *   pinning: a query result reports pinning by dragging too (OnPinnedChanged, WP-73) – its tab keeps the pins.
  */
 export function create(elementId, dotnet, columns, options) {
   // texts: what the grid shows itself (header tooltips, the member list), in the UI language – JS holds no texts.
-  const { sorts, firstRow, editable, headerHeight, table, form, headerMenu, texts } = options;
+  const { sorts, firstRow, editable, headerHeight, table, form, headerMenu, pinning, texts } = options;
   const reportsForm = table || !!form;
+  const reportsPins = table || !!pinning;
   registerModules();
   destroy(elementId);
   let restoreRow = firstRow > 0 ? firstRow : null;
@@ -1396,12 +1398,12 @@ export function create(elementId, dotnet, columns, options) {
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api'). Marked cells mean
     // other columns afterwards; marked columns get their outline anew.
     onColumnPinned: e => {
-      if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet);
+      if (reportsPins && e.source?.startsWith('ui')) reportPinned(api, dotnet);
       clearMarksAfterMove();
     },
     onColumnMoved: e => {
       if (!e.finished) return;
-      if (table && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet);
+      if (reportsPins && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet);
       clearMarksAfterMove();
     },
     // The menu itself is a Blazor component; the grid only reports where the user right-clicked.

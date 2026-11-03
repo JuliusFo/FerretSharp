@@ -29,23 +29,13 @@ public static class GridRows
         var presentedCells = new PresentedCells(cells);
         var stages = new Dictionary<string, string>();
         var readOnly = new List<string>();
-        Dictionary<string, string>? displayNames = null;
-        List<string>? notFound = null;
+        var namedCells = new NamedCells(cells, names);
         for (var i = 0; i < columns; i++)
         {
             var id = GridColumn.IdOf(i);
             var value = change is not null ? change.ValueOf(i) : values?[i];
             presentedCells.Add(id, presentation.Present(i, value));
-
-            switch (names?.NameOf(i, value))
-            {
-                case { NotFound: true }:
-                    (notFound ??= []).Add(id);
-                    break;
-                case { Text: { } name }:
-                    (displayNames ??= [])[id] = name;
-                    break;
-            }
+            namedCells.Add(i, id, value);
 
             if (change?.StageOf(i) is { } stage)
             {
@@ -74,15 +64,7 @@ public static class GridRows
         }
 
         presentedCells.Finish();
-        if (displayNames is not null)
-        {
-            cells["__n"] = displayNames;
-        }
-
-        if (notFound is not null)
-        {
-            cells["__nm"] = notFound;
-        }
+        namedCells.Finish();
 
         if (change is { IsNew: true, IsInserted: false })
         {
@@ -150,6 +132,46 @@ public static class GridRows
             if (_tooltips is not null)
             {
                 cells["__t"] = _tooltips;
+            }
+
+            return cells;
+        }
+    }
+
+    /// <summary>
+    /// The names beside a row's foreign key values for grid.js (WP-31): <c>__n</c> the name by column id, <c>__nm</c> values
+    /// without a row in their target – for a table grid and, since WP-73, a query result.
+    /// </summary>
+    /// <param name="names">Names looked up for foreign key values; null adds nothing.</param>
+    public sealed class NamedCells(Dictionary<string, object?> cells, DisplayNames? names)
+    {
+        private Dictionary<string, string>? _names;
+        private List<string>? _notFound;
+
+        public void Add(int column, string id, object? value)
+        {
+            switch (names?.NameOf(column, value))
+            {
+                case { NotFound: true }:
+                    (_notFound ??= []).Add(id);
+                    break;
+                case { Text: { } name }:
+                    (_names ??= [])[id] = name;
+                    break;
+            }
+        }
+
+        /// <summary>Adds the lists, if any; returns the cells.</summary>
+        public Dictionary<string, object?> Finish()
+        {
+            if (_names is not null)
+            {
+                cells["__n"] = _names;
+            }
+
+            if (_notFound is not null)
+            {
+                cells["__nm"] = _notFound;
             }
 
             return cells;

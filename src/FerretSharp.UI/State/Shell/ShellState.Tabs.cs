@@ -168,7 +168,7 @@ public sealed partial class ShellState
 
     /// <summary>
     /// Opens a new SQL editor tab ("SQL 1", "SQL 2" …) after the active tab (WP-17), optionally with a statement and its
-    /// variables ("Open in SQL editor" from a table tab's SQL preview).
+    /// variables ("Open in SQL editor" from a table tab's SQL preview). The editor takes the focus (WP-73).
     /// </summary>
     public SqlTab? OpenSql(string? text = null, IReadOnlyList<Core.Query.SqlVariable>? variables = null)
     {
@@ -178,7 +178,7 @@ public sealed partial class ShellState
         }
 
         var title = Workspace.FirstFreeName("SQL ", workspace.Tabs.OfType<SqlTab>().Select(t => t.Title));
-        return InsertAfterActive(workspace, new SqlTab(workspace.WorkspaceId, title) { Text = text ?? "", Variables = variables ?? [], Visited = true });
+        return InsertAfterActive(workspace, new SqlTab(workspace.WorkspaceId, title) { Text = text ?? "", Variables = variables ?? [], Visited = true, FocusOnOpen = true });
     }
 
     /// <summary>
@@ -626,11 +626,11 @@ public sealed partial class ShellState
             WorkspaceTab tab;
             if (state.Linq is { } linq)
             {
-                tab = LinqTab.Restore(workspace.Id, linq, state.Form);
+                tab = LinqTab.Restore(workspace.Id, linq, state.Form, state.ResultPins);
             }
             else if (state.Sql is { } sql)
             {
-                tab = SqlTab.Restore(workspace.Id, sql, state.Form);
+                tab = SqlTab.Restore(workspace.Id, sql, state.Form, state.ResultPins);
             }
             else if (state.Records is { Owner: not null, Name: not null } records)
             {

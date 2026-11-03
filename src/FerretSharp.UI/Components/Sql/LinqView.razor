@@ -157,7 +157,7 @@
                         {
                             <div class="grid-host">
                                 <SqlResultGrid @key="_runKey" @ref="_resultGrid" WorkspaceId="Tab.WorkspaceId" Query="_query" FirstPage="_firstPage" OnStatus="OnGridStatus"
-                                               FormTab="Tab" OnFormChanged="StateHasChanged" />
+                                               FormTab="Tab" PinTab="Tab" OnFormChanged="StateHasChanged" />
                             </div>
                         }
                         <ResultFooter Status="_grid" Grid="_resultGrid" FormTab="Tab" OnToggleForm="ToggleForm">
