@@ -272,6 +272,23 @@ public sealed class TableDesignerDraftTests
     }
 
     /// <summary>
+    /// A column added to a prefilled foreign key while its table still loads gets the key's column at its position once the
+    /// table is known; the given ones stay (code review: only a foreign key without any got them).
+    /// </summary>
+    [Fact]
+    public void A_column_added_before_the_referenced_table_is_known_gets_its_key_column_after()
+    {
+        var designer = new TableDesignerDraft(Kunde, []);
+        var fk = designer.AddForeignKey(new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL"], Land.Table.Ref, ["ISO"], FkSource.ClrModel))!;
+        designer.AddColumn(fk, "NAME");
+        Assert.Equal(["ISO"], fk.ReferencedColumns);
+
+        designer.Learn(Land);
+
+        Assert.Equal(["ISO", "ISO"], fk.ReferencedColumns); // the key's second column; the first stays as given
+    }
+
+    /// <summary>
     /// A referenced table dropped since the schema was read comes without columns: its key column stays empty and the plan
     /// says the key does not fit – it crashed the tab (code review of the model constraints).
     /// </summary>

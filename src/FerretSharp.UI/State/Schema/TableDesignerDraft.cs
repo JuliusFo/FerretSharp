@@ -229,7 +229,10 @@ public sealed class TableDesignerDraft
     /// </summary>
     public Dictionary<TableRef, TableDetails> Referenced { get; } = [];
 
-    /// <summary>A referenced table's structure arrived: foreign keys on it without referenced columns get its key.</summary>
+    /// <summary>
+    /// A referenced table's structure arrived: foreign keys on it get its key for the columns that have no referenced column
+    /// yet – all of a new one, those added while the table was still loading to a prefilled one.
+    /// </summary>
     public void Learn(TableDetails table)
     {
         ArgumentNullException.ThrowIfNull(table);
@@ -244,11 +247,18 @@ public sealed class TableDesignerDraft
     public IReadOnlyList<string>? ColumnsOf(TableRef table) =>
         table == Table.Table.Ref ? ColumnNames : Referenced.TryGetValue(table, out var details) ? details.Columns.Select(c => c.Name).ToList() : null;
 
+    /// <summary>
+    /// The key column at each position past the referenced columns there are – before, only a foreign key without any got
+    /// them, and a column added while the table loaded stayed without one (code review of the model constraints).
+    /// </summary>
     private void FillReferenced(DesignConstraint constraint)
     {
-        if (constraint is { References: { } references, ReferencedColumns.Count: 0 } && Referenced.TryGetValue(references, out var target))
+        if (constraint.References is { } references && Referenced.TryGetValue(references, out var target))
         {
-            constraint.ReferencedColumns.AddRange(constraint.Columns.Select((_, i) => KeyColumn(target, i)));
+            for (var i = constraint.ReferencedColumns.Count; i < constraint.Columns.Count; i++)
+            {
+                constraint.ReferencedColumns.Add(KeyColumn(target, i));
+            }
         }
     }
 
