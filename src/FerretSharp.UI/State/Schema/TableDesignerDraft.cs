@@ -188,11 +188,7 @@ public sealed class TableDesignerDraft
         }
 
         constraint.Columns.Add(column);
-        if (constraint.References is { } references && Referenced.TryGetValue(references, out var target))
-        {
-            constraint.ReferencedColumns.Add(KeyColumn(target, constraint.Columns.Count - 1));
-        }
-
+        FillReferenced(constraint);
         SuggestName(constraint);
     }
 
@@ -248,25 +244,37 @@ public sealed class TableDesignerDraft
         table == Table.Table.Ref ? ColumnNames : Referenced.TryGetValue(table, out var details) ? details.Columns.Select(c => c.Name).ToList() : null;
 
     /// <summary>
-    /// The key column at each position past the referenced columns there are – before, only a foreign key without any got
-    /// them, and a column added while the table loaded stayed without one (code review of the model constraints).
+    /// A referenced column for each key column past the referenced columns there are, once the referenced table is known –
+    /// before, only a foreign key without any got them, and a column added while the table loaded stayed without one (code
+    /// review of the model constraints).
     /// </summary>
     private void FillReferenced(DesignConstraint constraint)
     {
-        if (constraint.References is { } references && Referenced.TryGetValue(references, out var target))
+        if (TargetOf(constraint) is { } target)
         {
-            for (var i = constraint.ReferencedColumns.Count; i < constraint.Columns.Count; i++)
+            while (constraint.ReferencedColumns.Count < constraint.Columns.Count)
             {
-                constraint.ReferencedColumns.Add(KeyColumn(target, i));
+                constraint.ReferencedColumns.Add(NextKeyColumn(target, constraint.ReferencedColumns));
             }
         }
     }
 
     /// <summary>
-    /// The primary key's column at a position; the first column where the key has none; empty for a table without columns
-    /// – one dropped since the schema was read, which the plan then reports (code review: it crashed the tab).
+    /// The structure a foreign key's referenced columns come from: this table's own – never loaded as a referenced table
+    /// (code review: a foreign key on the own table got none) –, another one's once known; null while not.
     /// </summary>
-    private static string KeyColumn(TableDetails table, int at) => table.PrimaryKey.ElementAtOrDefault(at) ?? table.Columns.FirstOrDefault()?.Name ?? "";
+    private TableDetails? TargetOf(DesignConstraint constraint) =>
+        constraint.References is not { } references ? null
+        : references == Table.Table.Ref ? Table
+        : Referenced.GetValueOrDefault(references);
+
+    /// <summary>
+    /// The primary key's first column not referenced yet, in key order (code review: by position, a key column given
+    /// out of order came twice); then the first column; empty for a table without columns – one dropped since the schema
+    /// was read, which the plan then reports (code review: it crashed the tab).
+    /// </summary>
+    private static string NextKeyColumn(TableDetails table, IReadOnlyCollection<string> used) =>
+        table.PrimaryKey.FirstOrDefault(k => !used.Contains(k)) ?? table.Columns.FirstOrDefault()?.Name ?? "";
 
     /// <summary>
     /// The same draft laid over the table as it is now – after DDL that stopped halfway (WP-23): the draft says how the table

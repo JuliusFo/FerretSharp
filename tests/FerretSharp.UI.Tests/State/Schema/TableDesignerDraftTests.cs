@@ -272,8 +272,9 @@ public sealed class TableDesignerDraftTests
     }
 
     /// <summary>
-    /// A column added to a prefilled foreign key while its table still loads gets the key's column at its position once the
-    /// table is known; the given ones stay (code review: only a foreign key without any got them).
+    /// A column added to a prefilled foreign key while its table still loads gets the key's first column not used yet once
+    /// the table is known; the given ones stay (code review: only a foreign key without any got them, and by position the
+    /// key column given out of order came twice).
     /// </summary>
     [Fact]
     public void A_column_added_before_the_referenced_table_is_known_gets_its_key_column_after()
@@ -285,7 +286,24 @@ public sealed class TableDesignerDraftTests
 
         designer.Learn(Land);
 
-        Assert.Equal(["ISO", "ISO"], fk.ReferencedColumns); // the key's second column; the first stays as given
+        Assert.Equal(["ISO", "CODE"], fk.ReferencedColumns); // the key's column not used yet; the given one stays
+    }
+
+    /// <summary>
+    /// A foreign key on the table itself (a hierarchy) gets its primary key – the own table is never loaded as a referenced
+    /// one, so it got none and the plan stopped (code review of the model constraints; on main it was loaded).
+    /// </summary>
+    [Fact]
+    public void A_foreign_key_on_the_table_itself_takes_its_primary_key()
+    {
+        var designer = new TableDesignerDraft(Kunde, []);
+        var fk = designer.AddConstraint(ConstraintType.ForeignKey);
+        designer.AddColumn(fk, "BETRAG");
+
+        designer.Reference(fk, Kunde.Table.Ref);
+
+        Assert.Equal(["ID"], fk.ReferencedColumns);
+        Assert.Empty(designer.UnknownReferences());
     }
 
     /// <summary>
