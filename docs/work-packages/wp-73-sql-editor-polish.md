@@ -28,3 +28,14 @@ Branch `wp/73-sql-editor-polish`, 2026-11-03. Feedback aus dem Alltag des Nutzer
 - Geprüft mit echter Windows-Eingabe: Rechtsklick auf Kopf und Zelle, Anheften und Lösen über die Menüs, Ziehen in den angehefteten Bereich (meldet `OnPinnedChanged`, landet in der Workspace-Datei), Pins nach erneutem Ausführen und nach Neustart; Fokus im neuen Tab per Tastenkürzel und über das Objektmenü („SQL“, Cursor am Ende), kein Fokus im wiederhergestellten Tab; Namen in Grid und Formular (`a.KUNDE_ID` mit Namen, die PK-Spalte `k.KUNDE_ID` ohne).
 - Falle beim Prüfen: Das offene Formular liegt über den rechten Spalten des Ergebnisses – ein Ziehen, das dort beginnt, trifft das Formular. Vorher schließen oder per `elementFromPoint` prüfen.
 - Nicht geprüft: LINQ-Konsole (kein verknüpftes Projekt in der Testinstanz; derselbe Grid-Weg), der Inhalt der Excel-Datei (Spalten über Unit-Tests, der Speichern-Dialog wird im E2E nicht bedient).
+
+## Nachtrag: Code-Review (2026-11-03)
+Unabhängiger Agent über den Branch, sieben Befunde, alle K und nachgeprüft. Entscheidung des Nutzers: „Alles klar, kannst du das beheben?“ – alle behoben.
+1. Namen eines Ergebnisses planten die ganze Quelltabelle (Details aller FK-Ziele über das VPN; ein unlesbares Ziel nahm allen Spalten die Namen) – behoben: `PlanAsync(…, only)`, je Tabelle über die Spalten aller ihrer Aliase; Test `A_result_plans_only_the_columns_it_reads` (scheitert ohne den Fix).
+2. Planung nannte CSV und „Werte kopieren“ mit Namen – wie bei Tabellen ohne, unter „Entscheidungen in der Umsetzung“ festgehalten.
+3. `ui-grid.md` sagte, Kopfmenü und Anheften blieben Tabellen vorbehalten – Regel nachgezogen (`form`, `headerMenu`, `pinning`).
+4. Summary von `XlsxColumns` stand über `TogglePinAsync` – verschoben.
+5. Ziehen über die Grenze von 30 ließ das Grid alle angeheftet – behoben: `OnPinnedChanged` ruft dann `setPinned`. Nicht im E2E nachgestellt: AG Grid löst Pins selbst, sobald der angeheftete Bereich breiter als das Grid wird (30 Pins in `VERTRAG`: 7 blieben, 1060 von 1144 px, behalten werden die zuletzt angehefteten), eine 31. Spalte meldet es nur bei schmalen Spalten auf einem breiten Grid. Ein Ziehen danach meldet nur die sichtbar angehefteten – die vom Grid gelösten fallen dann aus dem Tab, wie bei Tabellen.
+6. Namensspalte des Excel-Exports doppelt – `PresentedExport.NameColumn` für Tabelle und Ergebnis.
+7. Fokus-Test prüfte einen Standardwert – Assert gestrichen.
+- Vorher schon da, geprüft im E2E: ein Ausdruck mit dem Alias einer FK-Spalte (`a.KUNDE_ID + 1 AS KUNDE_ID`) bekommt keine Herkunft, also weder Badge noch Namen; `a.KUNDE_ID AS K2` bekommt beide.
