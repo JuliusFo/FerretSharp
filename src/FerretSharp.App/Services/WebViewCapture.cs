@@ -419,13 +419,13 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger)
     /// </summary>
     private void NoteArrived()
     {
-        _arrived++;
         if (_arrivedSince == 0)
         {
-            _arrivedSince = Stopwatch.GetTimestamp();
+            _arrivedSince = Stopwatch.GetTimestamp(); // starts the span and is not counted, as the frame that ends one
             return;
         }
 
+        _arrived++;
         var span = Stopwatch.GetElapsedTime(_arrivedSince);
         if (span < NoteEvery)
         {
