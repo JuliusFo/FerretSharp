@@ -25,7 +25,7 @@ Meldung des Nutzers: Ein `CREATE OR REPLACE FORCE EDITIONABLE VIEW … PIVOT (�
 - Nicht in der laufenden App geprüft (E2E) und Integrationstests nicht gelaufen; ihre Skripte trennen mit `;` und `/`, hängen also nicht an der Leerzeile.
 
 ## Nachtrag: Code-Review (2026-11-03)
-Entscheidung des Nutzers: „Alle, 1 mit A“; zweiter Durchgang „Alle, C nur Text“; dritter Durchgang „H beheben, G notieren“.
+Entscheidung des Nutzers: „Alle, 1 mit A“; zweiter Durchgang „Alle, C nur Text“; dritter Durchgang „H beheben, G notieren“; vierter Durchgang „I beheben“.
 - 1 (M) Block hinter einem Statement ohne `;` zerfiel an seinen inneren `;`, Ctrl+Enter lief ein DML-Stück seines Rumpfs – behoben (Variante A: vor einem PL/SQL-`CREATE` trennen, `BEGIN`/`DECLARE` abweisen), dcfda9c4.
 - 2 (M) Verlauf hängte `;` blind an (im Kommentar, `END;;` bei Blöcken) – behoben mit `SqlScript.Append`, dcfda9c4.
 - 3 (K) ADR 0021 nannte noch die Leerzeile – Nachtrag, 478e0302.
@@ -39,3 +39,4 @@ Entscheidung des Nutzers: „Alle, 1 mit A“; zweiter Durchgang „Alle, C nur 
 - F (Hinweis) `BEGIN` in derselben Zeile – als Grenze notiert.
 - G (K) `BEGIN` hinter einem Statement mit offener Klammer – als Grenze notiert.
 - H (K) PL/SQL-Variable wie `offset` als erste Anweisung – behoben (`:=`/`;` danach), a8025f66.
+- I (K) Der Fix für H nahm `begin` vor `DESC;`/`ASC;`/`END;` für einen Block und wies den Rest des Skripts ab – behoben (die drei sind in PL/SQL reserviert, nie ein Aufruf), 246585c4.
