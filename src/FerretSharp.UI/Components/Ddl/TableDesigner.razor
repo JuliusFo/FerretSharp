@@ -269,6 +269,7 @@ else
         if (!loaded.Succeeded)
         {
             _loadError = loaded.Error ?? new DatabaseException(SqlEditorText.Run_Canceled);
+            Tab?.TakeForeignKeys(); // the error has no "Close": asked for now, not for a later "Edit" (code review)
             return;
         }
 
