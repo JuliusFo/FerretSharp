@@ -36,6 +36,12 @@ public sealed record SqlStatementInfo(
     /// </summary>
     public IReadOnlyList<string> InlineViews { get; init; } = [];
 
+    /// <summary>
+    /// A statement without <c>;</c> before a <c>BEGIN</c>/<c>DECLARE</c> block: the splitter keeps both up to the
+    /// <c>/</c> line rather than cut the block's body into statements of their own (<see cref="SqlSplitter.Split"/>).
+    /// </summary>
+    public bool RunsIntoBlock { get; init; }
+
     public bool IsQuery => Kind == SqlStatementKind.Query && !ForUpdate;
 
     public bool IsDml => Kind is SqlStatementKind.Insert or SqlStatementKind.Update or SqlStatementKind.Delete or SqlStatementKind.Merge;
@@ -49,6 +55,7 @@ public sealed record SqlStatementInfo(
     /// <summary>Why the SQL editor does not run the statement (for the user); null if it does.</summary>
     public string? Rejection => Kind switch
     {
+        _ when RunsIntoBlock => QueryText.SqlRejectRunsIntoBlock,
         SqlStatementKind.Query when ForUpdate => QueryText.SqlRejectForUpdate,
         SqlStatementKind.Query or SqlStatementKind.Insert or SqlStatementKind.Update or SqlStatementKind.Delete or SqlStatementKind.Merge => null,
         SqlStatementKind.Empty => QueryText.SqlRejectEmpty,
@@ -151,9 +158,11 @@ public static class SqlAnalysis
 
         // In a trigger ":new.x", ":old.x" (and the names of its REFERENCING clause) are its rows, not values to ask for.
         var (tables, inlineViews) = TablesOf(tokens);
+        var runsIntoBlock = kind is not (SqlStatementKind.Trigger or SqlStatementKind.SystemTrigger or SqlStatementKind.PlSqlObject or SqlStatementKind.PlSql)
+            && tokens.SkipLast(1).Any(t => t.IsSymbol(";"));
         return kind is SqlStatementKind.Trigger or SqlStatementKind.SystemTrigger
             ? new SqlStatementInfo(kind, first, [], hasWhere, forUpdate, tables, []) { InlineViews = inlineViews }
-            : new SqlStatementInfo(kind, first, binds, hasWhere, forUpdate, tables, BindUsesOf(tokens)) { InlineViews = inlineViews };
+            : new SqlStatementInfo(kind, first, binds, hasWhere, forUpdate, tables, BindUsesOf(tokens)) { InlineViews = inlineViews, RunsIntoBlock = runsIntoBlock };
     }
 
     /// <summary>
