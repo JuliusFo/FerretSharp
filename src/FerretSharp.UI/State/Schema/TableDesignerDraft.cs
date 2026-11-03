@@ -252,8 +252,11 @@ public sealed class TableDesignerDraft
         }
     }
 
-    /// <summary>The primary key's column at a position; the first column where the key has none.</summary>
-    private static string KeyColumn(TableDetails table, int at) => table.PrimaryKey.ElementAtOrDefault(at) ?? table.Columns[0].Name;
+    /// <summary>
+    /// The primary key's column at a position; the first column where the key has none; empty for a table without columns
+    /// – one dropped since the schema was read, which the plan then reports (code review: it crashed the tab).
+    /// </summary>
+    private static string KeyColumn(TableDetails table, int at) => table.PrimaryKey.ElementAtOrDefault(at) ?? table.Columns.FirstOrDefault()?.Name ?? "";
 
     /// <summary>
     /// The same draft laid over the table as it is now – after DDL that stopped halfway (WP-23): the draft says how the table

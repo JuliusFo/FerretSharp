@@ -271,6 +271,27 @@ public sealed class TableDesignerDraftTests
         Assert.Contains(plan.Statements, s => s.StartsWith("CREATE INDEX", StringComparison.Ordinal) && s.Contains("(\"KUERZEL\", \"NAME\")", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// A referenced table dropped since the schema was read comes without columns: its key column stays empty and the plan
+    /// says the key does not fit – it crashed the tab (code review of the model constraints).
+    /// </summary>
+    [Fact]
+    public void A_referenced_table_without_columns_leaves_the_referenced_column_empty()
+    {
+        var gone = Land with { Columns = [], PrimaryKey = [] };
+        var designer = new TableDesignerDraft(Kunde, []);
+        var fk = designer.AddConstraint(ConstraintType.ForeignKey);
+        designer.AddColumn(fk, "KUERZEL");
+        designer.Reference(fk, gone.Table.Ref);
+
+        designer.Learn(gone);
+        designer.AddColumn(fk, "NAME");
+
+        Assert.Equal(["", ""], fk.ReferencedColumns);
+        var plan = TableDesign.Plan(new DesignContext(Kunde, [], [], []) { Referenced = designer.Referenced }, designer.ToDraft().Draft, DataFacts.None);
+        Assert.NotEmpty(plan.Problems);
+    }
+
     /// <summary>A foreign key the table has already is not added from a relationship again – unless the draft drops it.</summary>
     [Fact]
     public void A_relationship_the_table_has_as_foreign_key_adds_nothing_unless_it_is_dropped()
