@@ -131,10 +131,11 @@ public static class SqlSplitter
 
     /// <summary>
     /// <c>BEGIN</c> or <c>DECLARE</c> at the start of a line after the statement's first word and outside parentheses,
-    /// followed by a word that does not continue SQL (<see cref="ContinuesSql"/>) or a label (<c>&lt;&lt;</c>, two
-    /// tokens): the block behind a statement without <c>;</c>. A column named <c>begin</c> at the start of a line followed
-    /// by an alias looks the same – then the statement is refused, never cut. Not found: <c>BEGIN</c> on the line of the
-    /// statement before it.
+    /// followed by a word that does not continue SQL (<see cref="ContinuesSql"/>) – or does, but is a PL/SQL variable or
+    /// call (<c>offset := 0</c>, <c>keep;</c>) – or a label (<c>&lt;&lt;</c>, two tokens): the block behind a statement
+    /// without <c>;</c>. A column named <c>begin</c> at the start of a line followed by an alias looks the same – then the
+    /// statement is refused, never cut. Not found: <c>BEGIN</c> on the line of the statement before it, or behind a
+    /// statement with a parenthesis left open (ADR 0021).
     /// </summary>
     private static bool HasBlockStart(IReadOnlyList<SqlToken> tokens, int from, int to)
     {
@@ -150,8 +151,9 @@ public static class SqlSplitter
                 depth = Math.Max(0, depth - 1);
             }
             else if (depth == 0 && (tokens[i].IsWord("BEGIN") || tokens[i].IsWord("DECLARE")) && StartsLine(tokens, i)
-                && SignificantIn(tokens, i + 1, to) is [var next, .. var rest]
-                && ((next.Kind == SqlTokenKind.Word && !ContinuesSql.Contains(next.Value)) || (next.IsSymbol("<") && rest is [var second, ..] && second.IsSymbol("<"))))
+                && SignificantIn(tokens, i + 1, to + 1) is [var next, var second, ..]
+                && ((next.Kind == SqlTokenKind.Word && (!ContinuesSql.Contains(next.Value) || second.IsSymbol(":=") || second.IsSymbol(";")))
+                    || (next.IsSymbol("<") && second.IsSymbol("<"))))
             {
                 return true;
             }

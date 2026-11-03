@@ -160,7 +160,12 @@ public sealed class SqlScriptTests
               id NUMBER,
               begin DATE
             );
-            SELECT * FROM z;
+            SELECT * FROM z
+            BEGIN
+              offset := 0;
+              DELETE FROM audit_log WHERE id < 30;
+            END;
+            /
             """;
         var text = script.ReplaceLineEndings("\n");
 
@@ -173,7 +178,7 @@ public sealed class SqlScriptTests
                 "UPDATE t SET a = 1\nBEGIN\n  <<lbl>>\n  INSERT INTO log VALUES (1);\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
                 "SELECT id,\nbegin\n  FROM t",
                 "CREATE TABLE z (\n  id NUMBER,\n  begin DATE\n)",
-                "SELECT * FROM z",
+                "SELECT * FROM z\nBEGIN\n  offset := 0;\n  DELETE FROM audit_log WHERE id < 30;\nEND;",
             ],
             statements.Select(s => s.Text));
         Assert.Equal(SqlStatementKind.Trigger, SqlScript.Analyze(statements[1].Text).Kind);
@@ -181,9 +186,10 @@ public sealed class SqlScriptTests
         Assert.Equal((SqlStatementKind.Update, true), (merged.Kind, merged.RunsIntoBlock));
         Assert.StartsWith("Vor dem PL/SQL-Block (BEGIN/DECLARE) fehlt ein „;“", merged.Rejection);
         Assert.NotNull(SqlScript.DdlRejection(statements[2].Text));
-        var delete = text.LastIndexOf("DELETE", StringComparison.Ordinal);
+        var delete = text.IndexOf("DELETE", text.IndexOf("UPDATE", StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.Equal(statements[2].Text, SqlScript.StatementAt(text, delete, delete)?.Text);
         Assert.Null(SqlScript.Analyze(statements[3].Text).Rejection);
+        Assert.True(SqlScript.Analyze(statements[5].Text).RunsIntoBlock); // "offset" continues SQL, ":=" does not
     }
 
     /// <summary>
