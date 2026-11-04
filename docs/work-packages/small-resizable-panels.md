@@ -9,7 +9,7 @@ Ohne Rückfrage entschieden (einfachste Variante, Fragen unten):
 - **Eine Größe für die ganze App**, in den Einstellungen wie `ChangesPanelWidth`: `AppSettings.ExplorerWidth` (gilt für den Explorer jeder Verbindung), `SqlEditorHeight` (jeder SQL-Tab), `LinqEditorHeight` (Abfrage-Editor jeder LINQ-Konsole). Nicht je Tab wie die Formularbreite: Das brächte die Höhe ins Workspace-JSON.
 - **Die LINQ-Konsole mit dabei:** Sie ist gebaut wie der SQL-Editor; ohne Griff verhielte sie sich anders. Gezogen wird nur der Abfrage-Editor, das Variablen-Feld bleibt 62 px.
 - **Doppelklick stellt den Standard her**, an allen vier Griffen (auch Formular und Änderungsübersicht): Die Einstellung bzw. `Tab.FormWidth` wird null, der Standard steht wieder im CSS bzw. in der Komponente.
-- Grenzen: Explorer 200 px bis 50 % von `.body` (Standard 280 px), SQL-Editor 80 px bis 75 % der Ansicht, LINQ-Editor 60 px bis 60 %. Im CSS bleibt zur Sicherheit `max-height: 70vh` bzw. `max-width: 50%`, falls das Fenster nach dem Ziehen kleiner wird.
+- Grenzen: Explorer 200 px bis 50 % von `.body` (Standard 280 px), SQL-Editor 80 px bis 75 % der Ansicht, LINQ-Editor 60 px bis 60 %. Wird das Fenster nach dem Ziehen kleiner, hält das CSS dieselben Grenzen: `max-width: 50%` am Explorer, `min(…, 75cqh)` bzw. `60cqh` an den Editoren (seit dem Code-Review, unten).
 
 ## Gebaut
 - `ResizeHandle` (Common) für alle vier Griffe: `Edge` (links/rechts/unten), `Min`, `MaxFraction`, wahlweise `Variable` (CSS-Variable statt eigener Größe), `Measure`/`Within` (Selektoren für das gezogene Element und die Grenze); meldet `OnResized` und `OnReset`. Doppelklick über `@onclick` mit `Detail >= 2` (kein `dblclick` im WPF-Host).
@@ -28,3 +28,16 @@ Ohne Rückfrage entschieden (einfachste Variante, Fragen unten):
 
 ## Fragen an den Nutzer
 - Reicht eine Größe für alle Tabs, oder soll die Editorhöhe je Tab gelten (wie die Formularbreite)?
+
+## Nachtrag: Code-Review (2026-11-04)
+Ein unabhängiger Reviewer-Agent (`/branch-code-review`), vier Durchgänge. Entscheidungen des Nutzers: „Alle, 1 mit (a)“, danach „A2 mit clip, B fixen“, danach „Ja, scrollbar“.
+
+- **B1 (M) Gespeicherte Editorhöhe in einem kleineren Fenster:** behoben. Die Grenze beim Ziehen galt nur beim Ziehen, im CSS stand `70vh` des Fensters. Wurde das Fenster kleiner, drückte der Editor die Ergebnisse weg, und der Griff lag außerhalb des Fensters. Jetzt sind `.sqlview`/`.linqview` Größen-Container, die Höhe ist `min(gespeichert, 75cqh / 60cqh)`. Im WebView geprüft: `container-type: size` macht die Ansicht nicht zum Bezugsrahmen für `position: fixed`, Menüs bleiben, wo sie waren. E2E: SQL auf 560 und LINQ auf 448 px gezogen, Fenster 900 → 700 px: 410 bzw. 328 px, beide Griffe in der Ansicht.
+- **A (M, Rest von B1) Der Block über den Ergebnissen wuchs weiter:** behoben (Variante A2). Bind-Variablen bzw. Labels und das LINQ-Variablenfeld kamen zur Grenze dazu. Jetzt schrumpfen `.sql-main`/`.linq-editors` (`flex: 0 1 auto`), der Editor gibt nach, das LINQ-Variablenfeld bleibt 62 px. Die Ergebnisse behalten mindestens 48 px, und die Ansichten schneiden ab (`overflow: clip`, kein Scroll-Container), statt über die Statusleiste zu malen. E2E bei 700 px mit 6 Variablen und offenem Verlauf: Editor 314 px, Variablen ganz sichtbar, Griff in der Ansicht. Bei 521 px: SQL 174, LINQ 185 px, den LINQ-Griff dort mit echter Maus gezogen. Das Zellmenü im Ergebnis öffnet unbeschnitten.
+- **D (K) Laufanzeige im schmalen Ergebnisstreifen abgeschnitten:** behoben. Der Ergebnisbereich scrollt jetzt (`overflow-y: auto`). E2E: lange Abfrage bei 48 px Streifen, bis „Abbrechen“ gescrollt und mit echter Maus abgebrochen. Bei 900 px und Standardhöhe kein Scrollbalken. Bewusst so gelassen: Ist der Editor groß gezogen, der Streifen also unter etwa 190 px, scrollt der Streifen außen zusätzlich zum Grid (das Grid hält `min-height: 160px`).
+- **B2 (K) Klick und gleich danach Ziehen setzte die gezogene Größe zurück:** behoben. Vor dem Fix mit echter Maus nachgestellt: Der `click` nach dem Ziehen kam mit `detail` 3. Jetzt setzt nur ein Doppelklick dort zurück, wo die Taste gedrückt wurde (`ResizeClick`, Tests in `ResizeClickTests`). Nach dem Fix: Die gezogene Größe bleibt, ein Doppelklick setzt weiter zurück.
+- **B (K, Rest von B2) Quer verrutschter Doppelklick:** behoben. `ResizeClick` prüfte beide Achsen, `dom.js` nur die Zugachse; jetzt zählt auch dort nur die Zugachse (Testfall „quer verrutscht“).
+- **B3 (K) README:** behoben, eine Zeile unter „Browse“.
+- **B4 (K) Griff-CSS mitten im Formularabschnitt:** behoben, der Block steht hinter dem Formularabschnitt.
+- Werkzeug: `Invoke-RealClick.ps1` kann vor einem Ziehen klicken (`-Clicks 2` mit `-ToX/-ToY`).
+- Vorher schon da, nicht geändert: `ChangesPanelWidth` und `FormWidth` werden ohne Prüfung auf > 0 gerendert (ein negativer Wert von Hand ergibt nur die automatische Breite). Viele Bind-Variablen konnten den SQL-Bereich schon mit der alten Standardhöhe über die Ansicht schieben; das fängt jetzt A ab.
