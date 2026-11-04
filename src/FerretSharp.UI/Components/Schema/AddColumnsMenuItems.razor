@@ -1,13 +1,14 @@
 @* Columns of a table added to the same table elsewhere (small-column-add-ddl, chips since WP-61): copy the ALTER TABLE … ADD
-   of the columns, or open it in a SQL tab of another connection, connecting if need be (AddColumnsScript). The menu of the
-   "Columns" view and the column header menu of a table grid (the column, or all marked columns with it). Connections the
-   menu's filter does not match are left out. *@
+   of the columns with the foreign keys made only of them, or open it in a SQL tab of another connection, connecting if need
+   be (AddColumnsScript). The menu of the "Columns" view and the column header menu of a table grid (the column, or all
+   marked columns with it). Connections the menu's filter does not match are left out. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Schema
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
 @inject AppSettingsService Settings
+@inject ILogger<AddColumnsMenuItems> Logger
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -73,12 +74,37 @@
     /// <summary>The table the script changes on <paramref name="target"/>: the matching one if its schema is loaded, else by name in its schema.</summary>
     private TableRef TargetTable(ConnectionProfile target) => AddColumnsTargets.Table(target, Hub.Find(target.Id)?.Active.Schema, Details.Table.Ref);
 
-    private string Script(TableRef target) =>
-        AddColumnsScript.Write(Details.Table.Ref, target, Columns.Select(name => Details.Columns[Details.IndexOf(name)]));
+    /// <summary>Ends the constraint read when the menu closes.</summary>
+    private readonly CancellationTokenSource _lifetime = new();
+
+    private async Task<string> ScriptAsync(TableRef target) =>
+        AddColumnsScript.Write(Details.Table.Ref, target, Columns.Select(name => Details.Columns[Details.IndexOf(name)]), await ConstraintsAsync());
+
+    /// <summary>
+    /// The table's constraints for its foreign keys, read on the click: the column header menu of every grid shows these
+    /// items, opening it must not cost a query. Null if they could not be read (the error is logged, the script says so).
+    /// </summary>
+    private async Task<IReadOnlyList<ConstraintInfo>?> ConstraintsAsync()
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return null;
+        }
+
+        var token = _lifetime.Token;
+        var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetConstraintsAsync(Details.Table.Ref, token), token);
+        return read.Succeeded ? read.Value : null;
+    }
 
     private async Task CopyAsync()
     {
-        if (await Dom.CopyTextAsync(Shell, Script(Details.Table.Ref)))
+        var script = await ScriptAsync(Details.Table.Ref);
+        if (_lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (await Dom.CopyTextAsync(Shell, script))
         {
             Shell.Notify(TextFormat.Format(SchemaViewText.Columns_AddScriptCopied,
                 TextFormat.Plural(Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther)));
@@ -93,11 +119,21 @@
     /// </summary>
     private async Task OpenInAsync(ConnectionProfile target)
     {
-        var script = Script(TargetTable(target));
+        var script = await ScriptAsync(TargetTable(target));
+        if (_lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+
         await OnClose.InvokeAsync();
         Shell.OpenSqlIn(target.Id, script);
         await Lifecycle.ConnectAsync(target);
     }
 
-    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await _lifetime.CancelAsync();
+        _lifetime.Dispose();
+        await Dom.DisposeAsync();
+    }
 }
