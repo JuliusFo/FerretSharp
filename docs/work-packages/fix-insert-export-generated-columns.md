@@ -36,3 +36,6 @@ Zweiter Durchgang, Entscheidung des Nutzers: „Jop, leg los“ (alle).
 - 6 (K) Scheiterte das Lesen der Struktur, blieb der Klick ohne Meldung (`RunDbAsync` meldet nicht selbst) – behoben (`ShowFailure`, Menü schließt).
 - 7 (K) Menü während des Lesens geschlossen → „Zwischenablage nicht verfügbar“; zweiter Klick kopierte doppelt – behoben (nach dem Schließen nichts kopieren, zweiter Klick ignoriert).
 - 8 (K) Ergebnis nur aus virtuellen Spalten ergab `INSERT INTO t () VALUES ()` – behoben (kein Statement, Kopfzeile `InsertExportNothingToWrite`).
+
+Dritter Durchgang, Entscheidung des Nutzers: „Ja, behebe das noch.“
+- 9 (K) Ohne Statement zählte die erste Kopfzeile die markierten Zeilen, der Hinweis 0 – behoben (beide 0).
