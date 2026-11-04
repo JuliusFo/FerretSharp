@@ -1326,7 +1326,7 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .tab.linq .icon { color: var(--clr); }
 .tab-new { flex: none; align-self: center; margin: 0 8px; height: 26px; padding: 0 10px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent; color: var(--muted); font-size: 12px; }
 .tab-new:hover { color: var(--clr); border-color: var(--clr); background: var(--clr-weak); }
-.linqview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.linqview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container-type: size; }
 .linqview > .tab-toolbar .icon { color: var(--clr); }
 .linq-title { font: 600 13px var(--mono); }
 .title-btn { height: 24px; padding: 0 6px; margin-left: -6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--text); cursor: text; }
@@ -1345,7 +1345,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .linq-label code { font-size: 11px; }
 .monaco-host { border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
 .monaco-host.linq-variables { height: 62px; }
-.monaco-host.linq-code { height: var(--linq-editor-height, clamp(110px, 22vh, 300px)); max-height: 70vh; }
+/* At most 60 % of the view like the drag limit (LinqView.EditorMaxFraction), also when the window got smaller since. */
+.monaco-host.linq-code { height: min(var(--linq-editor-height, clamp(110px, 22vh, 300px)), 60cqh); }
 .linq-output { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
 /* RunProgress: where the result will appear while a statement runs. */
 .run-progress {
@@ -1398,7 +1399,7 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 
 /* ---------- SQL editor (WP-17) ---------- */
 .tab.sql .icon { color: var(--accent); }
-.sqlview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.sqlview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container-type: size; }
 .sqlview > .tab-toolbar .icon { color: var(--accent); }
 /* On a filled button (Run) the toolbar's icon color would be the button's own background. */
 .tab-toolbar .btn.primary .icon { color: inherit; }
@@ -1406,7 +1407,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .sqlview > .tab-toolbar .btn.active { color: var(--accent); background: var(--accent-weak); }
 .sql-main { position: relative; flex: none; display: flex; min-height: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
 .sql-editors { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 12px 10px; }
-.monaco-host.sql-code { height: var(--sql-editor-height, clamp(140px, 30vh, 420px)); max-height: 70vh; }
+/* At most 75 % of the view like the drag limit (SqlView.EditorMaxFraction), also when the window got smaller since. */
+.monaco-host.sql-code { height: min(var(--sql-editor-height, clamp(140px, 30vh, 420px)), 75cqh); }
 .fs-ran-statement { background: var(--accent-weak); }
 .sql-runs { flex-wrap: wrap; }
 .chip-btn.failed { color: var(--danger); border-color: var(--danger); }
