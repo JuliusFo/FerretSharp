@@ -6,7 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Changed
-- `ALTER TABLE … ADD` for columns on another database (right-click in the "Columns" view or on a column header) brings along the foreign keys made only of the picked columns, after the columns and with their `ON DELETE` rule; a referenced table of the source's owner is the one in the target's owner. A foreign key on a column with a default warns that it checks the existing rows. Should the constraints not be readable, the script says it has no foreign keys.
+- `ALTER TABLE … ADD` for columns on another database (right-click in the "Columns" view or on a column header) brings along the foreign keys made only of the picked columns, after the columns and with their `ON DELETE` rule; a referenced table of the source's owner is the one in the target's owner. A foreign key whose columns all get a value at once (a default) warns that it checks the existing rows; one on a picked key column of its own table warns that the key is not in the script; one whose parent table cannot be read is named as a note. While the menu reads the constraints it says so, and Escape still closes it; the script goes to the clipboard also when the window is no longer in front. Should the constraints not be readable, the script says it has no foreign keys.
+
+### Fixed
+- Notes and warnings of a DDL script (schema comparison, designer, columns for another database) stay comments when a quoted name holds an unusual line break (a lone carriage return, NEL, LS or PS): the SQL editor broke the line there, and the rest of the name became a statement of the script.
 
 ## [3.59.0] - 2026-11-03
 
