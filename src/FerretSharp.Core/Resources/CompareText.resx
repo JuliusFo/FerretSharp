@@ -285,6 +285,14 @@
   <data name="AddColumnsWithoutForeignKeys" xml:space="preserve">
     <value>Without foreign keys: the constraints of the table could not be read.</value>
   </data>
+  <data name="AddColumnsForeignKeyUnreadable" xml:space="preserve">
+    <value>Foreign key {0}: its parent table cannot be read (no privileges on its owner?) – it is not in the script.</value>
+    <comment>{0}: constraint name</comment>
+  </data>
+  <data name="AddColumnsOwnKeyNeeded" xml:space="preserve">
+    <value>Needs a primary or unique key on ({0}) in the target – the script does not create it.</value>
+    <comment>{0}: referenced columns, comma-separated</comment>
+  </data>
   <data name="IdentityModeHint" xml:space="preserve">
     <value>Identity {0}: ALWAYS or BY DEFAULT (ON NULL) differs – check the statement before running it; start and increment are not compared.</value>
     <comment>{0}: column name</comment>

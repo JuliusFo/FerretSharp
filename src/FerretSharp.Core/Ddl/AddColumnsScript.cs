@@ -38,22 +38,45 @@ public static class AddColumnsScript
     /// <summary>
     /// The foreign keys of <paramref name="source"/> made only of added columns. A referenced table of the source's owner is
     /// the one of the target's owner (as in the schema comparison), the source table itself the target table. One that
-    /// checks rows the new columns give values (a default, identity, virtual) carries the warning of the comparison.
+    /// checks rows – every column gets a value at once (a default, identity, virtual): Oracle checks no row with a NULL in
+    /// the key – carries the warning of the comparison. One that references added columns of its own table warns that the
+    /// key it needs is not in the script (review, finding 8). One whose parent the dictionary does not show (no privileges
+    /// on its owner) is named as a note instead of dropped silently.
     /// </summary>
     private static IEnumerable<DdlStep> ForeignKeys(TableRef source, TableRef target, IReadOnlyList<ColumnInfo> added, IReadOnlyList<ConstraintInfo> constraints)
     {
         var byName = added.ToDictionary(c => c.Name, StringComparer.Ordinal);
-        foreach (var fk in constraints.Where(c => c.Type == ConstraintType.ForeignKey && c.References is not null && c.Columns.Count > 0))
+        foreach (var fk in constraints.Where(c => c.Type == ConstraintType.ForeignKey && c.Columns.Count > 0))
         {
             if (!fk.Columns.All(byName.ContainsKey))
             {
                 continue;
             }
 
-            var checksRows = fk.Enabled && fk.Validated && fk.Columns.Any(c => byName[c] is { } column && (column.Default is not null || column.IsIdentity || column.IsVirtual));
+            if (fk.References is null || fk.ReferencedColumns.Count != fk.Columns.Count)
+            {
+                yield return DdlStep.Hint(target.Name, TextFormat.Format(CompareText.AddColumnsForeignKeyUnreadable, fk.Name), null);
+                continue;
+            }
+
+            var checksRows = fk.Enabled && fk.Validated && fk.Columns.All(c => GetsValue(byName[c]));
+            var ownKey = fk.References == source && fk.ReferencedColumns.Any(byName.ContainsKey);
+            List<string> warnings = [];
+            if (checksRows)
+            {
+                warnings.Add(CompareText.ChecksExistingRows);
+            }
+
+            if (ownKey)
+            {
+                warnings.Add(TextFormat.Format(CompareText.AddColumnsOwnKeyNeeded, string.Join(", ", fk.ReferencedColumns)));
+            }
+
             yield return new DdlStep(target.Name, DdlStepKind.AddForeignKey, OracleDdl.AddConstraint(target, OracleDdl.ConstraintClause(fk, Map)),
-                checksRows ? DdlRisk.MayFailOnValues : DdlRisk.Safe, checksRows ? CompareText.ChecksExistingRows : null);
+                checksRows ? DdlRisk.MayFailOnValues : DdlRisk.Safe, warnings.Count > 0 ? string.Join("\n", warnings) : null);
         }
+
+        static bool GetsValue(ColumnInfo column) => column.Default is not null || column.IsIdentity || column.IsVirtual;
 
         TableRef Map(TableRef table) =>
             table == source ? target

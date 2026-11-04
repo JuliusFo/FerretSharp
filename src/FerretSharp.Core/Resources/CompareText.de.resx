@@ -240,6 +240,12 @@
   <data name="AddColumnsWithoutForeignKeys" xml:space="preserve">
     <value>Ohne Fremdschlüssel: Die Constraints der Tabelle ließen sich nicht lesen.</value>
   </data>
+  <data name="AddColumnsForeignKeyUnreadable" xml:space="preserve">
+    <value>Fremdschlüssel {0}: Die Elterntabelle ist nicht lesbar (keine Rechte auf ihren Owner?) – er steht nicht im Skript.</value>
+  </data>
+  <data name="AddColumnsOwnKeyNeeded" xml:space="preserve">
+    <value>Braucht im Ziel einen Primär- oder eindeutigen Schlüssel auf ({0}) – das Skript legt ihn nicht an.</value>
+  </data>
   <data name="IdentityModeHint" xml:space="preserve">
     <value>Identity {0}: ALWAYS oder BY DEFAULT (ON NULL) weicht ab – Statement vor dem Ausführen prüfen; Start und Schrittweite sind nicht verglichen.</value>
   </data>

@@ -11,8 +11,9 @@ public class AddColumnsScriptTests
         string? @default = null, string? comment = null, bool isVirtual = false) =>
         new(name, type, length, true, precision, null, nullable, false, @default, position, comment, isVirtual);
 
-    private static ConstraintInfo ForeignKey(string name, string[] columns, TableRef to, string[] toColumns, string deleteRule = "NO ACTION", bool generatedName = false) =>
-        new(name, ConstraintType.ForeignKey, columns, null, to, toColumns, deleteRule, true, true, false, false, generatedName);
+    private static ConstraintInfo ForeignKey(string name, string[] columns, TableRef? to, string[] toColumns, string deleteRule = "NO ACTION", bool generatedName = false,
+        bool enabled = true, bool validated = true, bool deferrable = false, bool deferred = false) =>
+        new(name, ConstraintType.ForeignKey, columns, null, to, toColumns, deleteRule, enabled, validated, deferrable, deferred, generatedName);
 
     [Fact]
     public void Columns_are_added_in_schema_order_with_their_comments_after_them()
@@ -111,14 +112,79 @@ public class AddColumnsScriptTests
             """.ReplaceLineEndings("\n"), script);
     }
 
-    /// <summary>New columns hold NULL, so their foreign key checks nothing – unless a default (or identity) gives them values.</summary>
-    [Fact]
-    public void A_foreign_key_on_a_column_with_default_warns_that_it_checks_the_rows()
+    /// <summary>
+    /// New columns hold NULL, so their foreign key checks nothing – unless every key column gets a value at once (default,
+    /// identity, virtual): Oracle checks no row with a NULL in a composite key (review, finding 3: one default was enough).
+    /// A disabled or not validated key checks no existing row either. Cases: LAND (default) / PLZ (default, identity,
+    /// virtual or none) – enabled, validated – warns?
+    /// </summary>
+    [Theory]
+    [InlineData("default", true, true, true)]
+    [InlineData("identity", true, true, true)]
+    [InlineData("virtual", true, true, true)]
+    [InlineData("none", true, true, false)]
+    [InlineData("default", false, true, false)]
+    [InlineData("default", true, false, false)]
+    public void A_foreign_key_warns_only_when_every_column_gets_a_value_and_the_rows_are_checked(string plz, bool enabled, bool validated, bool warns)
     {
-        var script = AddColumnsScript.Write(Kunde, Kunde, [Column("LAND", "VARCHAR2", 7, length: 2, @default: "'DE'")],
-            [ForeignKey("FK_KUNDE_LAND", ["LAND"], new TableRef("SHOP", "LAND"), ["CODE"])]);
+        var land = Column("LAND", "VARCHAR2", 7, length: 2, @default: "'DE'");
+        var plzColumn = plz switch
+        {
+            "default" => Column("PLZ", "VARCHAR2", 8, length: 5, @default: "'00000'"),
+            "identity" => Column("PLZ", "NUMBER", 8, precision: 5, nullable: false) with { IsIdentity = true },
+            "virtual" => Column("PLZ", "VARCHAR2", 8, length: 5, @default: "'0'", isVirtual: true),
+            _ => Column("PLZ", "VARCHAR2", 8, length: 5),
+        };
 
-        Assert.Contains("-- ⚠ Prüft die vorhandenen Zeilen und scheitert bei Verstößen.\nALTER TABLE \"SHOP\".\"KUNDE\" ADD CONSTRAINT \"FK_KUNDE_LAND\"", script);
+        var script = AddColumnsScript.Write(Kunde, Kunde, [land, plzColumn],
+            [ForeignKey("FK_KUNDE_ORT", ["LAND", "PLZ"], new TableRef("SHOP", "ORT"), ["LAND", "PLZ"], enabled: enabled, validated: validated)]);
+
+        Assert.Equal(warns, script.Contains("-- ⚠ Prüft die vorhandenen Zeilen und scheitert bei Verstößen.\nALTER TABLE \"SHOP\".\"KUNDE\" ADD CONSTRAINT \"FK_KUNDE_ORT\"", StringComparison.Ordinal));
+        Assert.Contains("ADD CONSTRAINT \"FK_KUNDE_ORT\"", script);
+    }
+
+    /// <summary>
+    /// A composite key keeps its own column order, not the schema order of the added columns, and its state: DEFERRABLE,
+    /// DISABLE as in the source.
+    /// </summary>
+    [Fact]
+    public void A_composite_foreign_key_keeps_its_column_order_and_its_state()
+    {
+        var script = AddColumnsScript.Write(Kunde, Kunde,
+            [Column("POS_NR", "NUMBER", 2, precision: 4), Column("AUFTRAG_ID", "NUMBER", 3, precision: 10)],
+            [ForeignKey("FK_KUNDE_POS", ["AUFTRAG_ID", "POS_NR"], new TableRef("SHOP", "POSITION"), ["AUFTRAG_ID", "NR"], enabled: false, deferrable: true, deferred: true)]);
+
+        Assert.EndsWith(
+            "ALTER TABLE \"SHOP\".\"KUNDE\" ADD CONSTRAINT \"FK_KUNDE_POS\" FOREIGN KEY (\"AUFTRAG_ID\", \"POS_NR\") REFERENCES \"SHOP\".\"POSITION\" (\"AUFTRAG_ID\", \"NR\") DEFERRABLE INITIALLY DEFERRED DISABLE VALIDATE;",
+            script);
+    }
+
+    /// <summary>
+    /// Review, finding 6: without privileges on the parent's owner the dictionary shows no referenced table – the key was
+    /// dropped without a word. It is named as a note at the end, commented out.
+    /// </summary>
+    [Fact]
+    public void A_foreign_key_whose_parent_cannot_be_read_is_named_as_a_note()
+    {
+        var script = AddColumnsScript.Write(Kunde, Kunde, [Column("LAND", "VARCHAR2", 7, length: 2)],
+            [ForeignKey("FK_KUNDE_LAND", ["LAND"], null, [])]);
+
+        Assert.EndsWith("\n\n-- Fremdschlüssel FK_KUNDE_LAND: Die Elterntabelle ist nicht lesbar (keine Rechte auf ihren Owner?) – er steht nicht im Skript.", script);
+        Assert.DoesNotContain("ADD CONSTRAINT", script);
+    }
+
+    /// <summary>
+    /// Review, finding 8 (the user's decision: a warning, no key): a key added together with a foreign key on it is not in
+    /// the script – the foreign key fails with ORA-02270 unless the target has the key.
+    /// </summary>
+    [Fact]
+    public void A_foreign_key_on_an_added_column_of_its_own_table_warns_that_the_key_is_missing()
+    {
+        var script = AddColumnsScript.Write(Kunde, Kunde,
+            [Column("NR", "NUMBER", 2, precision: 10), Column("HAUPT_NR", "NUMBER", 3, precision: 10)],
+            [ForeignKey("FK_KUNDE_HAUPT", ["HAUPT_NR"], Kunde, ["NR"])]);
+
+        Assert.Contains("-- ⚠ Braucht im Ziel einen Primär- oder eindeutigen Schlüssel auf (NR) – das Skript legt ihn nicht an.\nALTER TABLE \"SHOP\".\"KUNDE\" ADD CONSTRAINT \"FK_KUNDE_HAUPT\"", script);
     }
 
     [Fact]
