@@ -33,6 +33,31 @@ public sealed class CSharpRowsTests
         Assert.Empty(result.Warnings);
     }
 
+    /// <summary>As "Copy as INSERT": EF would send a set key of an identity GENERATED ALWAYS (ORA-32795); a seed needs it.</summary>
+    [Fact]
+    public async Task Initializers_leave_out_what_the_database_fills_itself_a_seed_keeps_it()
+    {
+        var table = CodeGenerationModel.Kunden with
+        {
+            Columns = [.. CodeGenerationModel.Kunden.Columns.Select(c => c.Name switch
+            {
+                "KUNDE_ID" => c with { IsIdentity = true, IdentityAlways = true },
+                "UMSATZ" => c with { IsVirtual = true },
+                _ => c,
+            })],
+        };
+        var presentation = TablePresentation.Create(table, await CodeGenerationModel.MappingAsync(), ClrNameDisplay.Beside);
+
+        var objects = CSharpRows.Initializers(presentation, [Row(4711, "Meier GmbH", umsatz: 1234.50m)]);
+        var seed = CSharpRows.HasData(presentation, [Row(4711, "Meier GmbH", umsatz: 1234.50m)]);
+
+        Assert.StartsWith("var kunde = new Kunde\r\n{\r\n    Name = \"Meier GmbH\",\r\n", objects.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Umsatz", objects.Text, StringComparison.Ordinal);
+        Assert.Empty(objects.Warnings);
+        Assert.Contains("KundeId = 4711,", seed.Text, StringComparison.Ordinal);
+        Assert.Contains("Umsatz = 1234.50m,", seed.Text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Several_rows_are_a_list_gaps_become_comments()
     {

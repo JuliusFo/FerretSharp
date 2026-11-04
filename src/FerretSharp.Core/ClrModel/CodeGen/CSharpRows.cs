@@ -8,7 +8,9 @@ namespace FerretSharp.Core.ClrModel;
 /// Rows as C# (WP-15): object initializers of the entity (<c>var kunde = new Kunde { … };</c>, several rows as a list with a
 /// collection expression) or an EF Core seed (<c>builder.HasData(…)</c>). Values through <see cref="CSharpCode"/>; NULL
 /// values are left out, navigations are never set (their FK properties are). Columns without a property and values
-/// without a C# form become comments, and the warnings name them.
+/// without a C# form become comments, and the warnings name them. Object initializers leave out what the database fills
+/// itself and refuses a value for – identity GENERATED ALWAYS (ORA-32795), virtual columns –, as "Copy as INSERT" does;
+/// a seed keeps them (<c>HasData</c> needs the key).
 /// </summary>
 public static class CSharpRows
 {
@@ -32,7 +34,7 @@ public static class CSharpRows
         if (rows.Count == 1)
         {
             text.Append("var ").Append(CSharpCode.LocalName(entity)).Append(" = new ").Append(entity).Append("\r\n");
-            AppendBody(text, presentation, rows[0], "", seed: false, notes);
+            AppendBody(text, presentation, rows[0], "", seed: false, notes, withGenerated: false);
             text.Append(";");
         }
         else
@@ -41,7 +43,7 @@ public static class CSharpRows
             foreach (var row in rows)
             {
                 text.Append(Indent).Append("new()\r\n");
-                AppendBody(text, presentation, row, Indent, seed: false, notes);
+                AppendBody(text, presentation, row, Indent, seed: false, notes, withGenerated: false);
                 text.Append(",\r\n");
             }
 
@@ -68,7 +70,7 @@ public static class CSharpRows
         {
             var anonymous = HasShadowValues(presentation, rows[i]);
             text.Append(i == 0 ? "\r\n" : ",\r\n").Append(Indent).Append(anonymous ? "new" : "new " + entity).Append("\r\n");
-            AppendBody(text, presentation, rows[i], Indent, seed: anonymous, notes);
+            AppendBody(text, presentation, rows[i], Indent, seed: anonymous, notes, withGenerated: true);
         }
 
         text.Append(");");
@@ -109,7 +111,9 @@ public static class CSharpRows
     }
 
     /// <param name="seed">An anonymous object of a seed: shadow properties can be set.</param>
-    private static void AppendBody(StringBuilder text, TablePresentation presentation, RowData row, string indent, bool seed, Notes notes)
+    /// <param name="withGenerated">Also columns the database fills itself (identity GENERATED ALWAYS, virtual): a seed's key.</param>
+    private static void AppendBody(
+        StringBuilder text, TablePresentation presentation, RowData row, string indent, bool seed, Notes notes, bool withGenerated)
     {
         var inner = indent + Indent;
         text.Append(indent).Append("{\r\n");
@@ -122,6 +126,11 @@ public static class CSharpRows
             }
 
             var column = presentation.Details.Columns[i];
+            if (!withGenerated && (column.IdentityAlways || column.IsVirtual))
+            {
+                continue;
+            }
+
             if (presentation.PropertyOf(i) is not { } property)
             {
                 text.Append(inner).Append("// ").Append(TextFormat.Format(ClrModelText.CommentNoProperty, column.Name, CSharpCode.Shown(column, raw)))
