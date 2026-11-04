@@ -133,6 +133,26 @@ public class ExportTests
             export.Text.Split("\r\n"));
     }
 
+    /// <summary>Second review of the fix: a SQL editor result of only virtual columns gave <c>INSERT INTO t () VALUES ()</c>.</summary>
+    [Fact]
+    public void Only_virtual_columns_give_no_statement()
+    {
+        var table = new TableDetails(
+            new TableSummary("APP", "LAGER", TableKind.Table), [Col("NAME_GROSS", "VARCHAR2") with { IsVirtual = true }], [], [], false);
+
+        var export = InsertExport.Build(table, [Row("A"), Row("B")]);
+
+        Assert.Equal(
+            [
+                "-- 2 Zeilen aus \"APP\".\"LAGER\" (FerretSharp-Export)",
+                "-- NAME_GROSS weggelassen: virtuelle Spalte, Oracle berechnet sie.",
+                "-- Keine Spalte nimmt einen Wert an: Das Skript enthält keine Statements.",
+                "",
+            ],
+            export.Text.Split("\r\n"));
+        Assert.Equal(0, export.Rows);
+    }
+
     /// <summary>Review of the fix: a SQL editor result knew no identity, so "Copy as INSERT" there still wrote it.</summary>
     [Fact]
     public void A_query_result_takes_identity_virtual_and_key_from_the_table_it_writes_into()

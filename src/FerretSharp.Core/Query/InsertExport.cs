@@ -26,9 +26,11 @@ public static class InsertExport
         var columns = onlyDefault is not null
             ? OracleIdentifier.Quote(onlyDefault.Name)
             : string.Join(", ", written.Select(i => OracleIdentifier.Quote(table.Columns[i].Name)));
+        // Only virtual columns (a query result of them, SQL editor): no statement would be valid, the header says so.
+        var nothingToWrite = written.Count == 0 && onlyDefault is null;
         var statements = new StringBuilder();
         var hasAmpersand = false;
-        foreach (var row in rows)
+        foreach (var row in nothingToWrite ? [] : rows)
         {
             List<string> values = onlyDefault is not null
                 ? ["DEFAULT"]
@@ -60,7 +62,12 @@ public static class InsertExport
             }
         }
 
-        return new ExportText(header.Append(statements).ToString(), rows.Count, warnings.ToList());
+        if (nothingToWrite)
+        {
+            header.Append(Comment(QueryText.InsertExportNothingToWrite)).Append("\r\n");
+        }
+
+        return new ExportText(header.Append(statements).ToString(), nothingToWrite ? 0 : rows.Count, warnings.ToList());
     }
 
     /// <summary>

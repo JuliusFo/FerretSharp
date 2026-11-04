@@ -255,6 +255,10 @@
     <value>{0} gets DEFAULT: identity column GENERATED ALWAYS, Oracle assigns new values.</value>
     <comment>Comment line in an INSERT script of a table whose only column Oracle fills itself: the statements write DEFAULT into it. {0} = column name</comment>
   </data>
+  <data name="InsertExportNothingToWrite" xml:space="preserve">
+    <value>No column takes a value: the script has no statements.</value>
+    <comment>Comment line in an INSERT script whose columns are all virtual (a query result): Oracle would refuse every value, so no INSERT is written</comment>
+  </data>
   <data name="InsertExportNewKeys" xml:space="preserve">
     <value>New keys: references to the old values of {0} do not follow them.</value>
     <comment>Comment line in an INSERT script below the line of a primary key column left out: a self reference or rows of another table still hold the old key values. {0} = column name</comment>
