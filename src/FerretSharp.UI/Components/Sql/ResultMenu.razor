@@ -63,6 +63,7 @@
     private Dictionary<FkJump, SqlResultJump> _sources = new(ReferenceEqualityComparer.Instance);
     private DomModule? _dom;
     private ExportActions? _export;
+    private bool _disposed;
 
     /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
@@ -157,7 +158,8 @@
 
     /// <summary>
     /// The result's columns know no identity or virtual column: they come from the table's structure (schema cache, read once
-    /// per table), so the INSERT leaves out what Oracle fills itself. Null if it could not be read – the failure is reported.
+    /// per table), so the INSERT leaves out what Oracle fills itself. Null stops the copy: the read failed (the menu closes,
+    /// the error dialog shows why) or the menu was closed meanwhile – dom.js is gone then, and nothing is copied.
     /// </summary>
     private async Task<TableDetails?> WithTableColumnsAsync(TableDetails target)
     {
@@ -167,7 +169,19 @@
         }
 
         var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(target.Table, CancellationToken.None));
-        return read.Succeeded ? InsertExport.ForTable(target, read.Value!) : null;
+        if (_disposed)
+        {
+            return null;
+        }
+
+        if (read.Succeeded)
+        {
+            return InsertExport.ForTable(target, read.Value!);
+        }
+
+        await CloseAsync();
+        Shell.ShowFailure(read);
+        return null;
     }
 
     private async Task TogglePinAsync()
@@ -181,5 +195,9 @@
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 
-    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        return Dom.DisposeAsync();
+    }
 }

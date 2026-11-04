@@ -38,6 +38,8 @@
 }
 
 @code {
+    private bool _completing;
+
     [CascadingParameter]
     public MenuFilter? Filter { get; set; }
 
@@ -171,9 +173,29 @@
         }
     }
 
-    private async Task<TableDetails?> InsertTargetAsync() => InsertTable is not { } table ? null
-        : CompleteInsertTable is { } complete ? await complete(table)
-        : table;
+    /// <summary>Null while <see cref="CompleteInsertTable"/> still runs for an earlier click: that click copies, this one not.</summary>
+    private async Task<TableDetails?> InsertTargetAsync()
+    {
+        if (InsertTable is not { } table || _completing)
+        {
+            return null;
+        }
+
+        if (CompleteInsertTable is not { } complete)
+        {
+            return table;
+        }
+
+        _completing = true;
+        try
+        {
+            return await complete(table);
+        }
+        finally
+        {
+            _completing = false;
+        }
+    }
 
     private Task SaveCsvAsync()
     {
