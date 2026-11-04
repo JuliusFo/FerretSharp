@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
-- The explorer can be made wider or narrower: drag its right edge. The SQL editor and the LINQ console's query editor can be made taller or lower: drag the line between the editor and its results. Each size holds for every connection and every tab and is kept after a restart.
+- The explorer can be made wider or narrower: drag its right edge. The SQL editor and the LINQ console's query editor can be made taller or lower: drag the line between the editor and its results. Each size holds for every connection and every tab and is kept after a restart. The statement history beside the SQL editor is as tall as the editor; its list scrolls.
 - A double click on a drag handle – also those of the form and of the change overview – goes back to the default size.
 
 ## [3.59.0] - 2026-11-03
