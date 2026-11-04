@@ -21,7 +21,7 @@
         @TextFormat.Format(SchemaViewText.Columns_AddScriptGroup, TextFormat.Plural(Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther))
     </div>
     <div class="chips menu-chips">
-        <button type="button" class="menu-chip" title="@SchemaViewText.Columns_CopyAddScriptTitle" disabled="@_reading" @onclick="CopyAsync">@Icons.Copy @SchemaViewText.Columns_CopyAddScriptChip</button>
+        <button type="button" class="menu-chip" title="@SchemaViewText.Columns_CopyAddScriptTitle" aria-disabled="@(_reading ? "true" : null)" @onclick="CopyAsync">@Icons.Copy @SchemaViewText.Columns_CopyAddScriptChip</button>
     </div>
     @if (_reading)
     {
@@ -32,7 +32,7 @@
         @foreach (var target in targets)
         {
             var table = TargetTable(target);
-            <button type="button" class="menu-chip conn kind-@target.Kind.ToString().ToLowerInvariant()" disabled="@_reading" @onclick="() => OpenInAsync(target)"
+            <button type="button" class="menu-chip conn kind-@target.Kind.ToString().ToLowerInvariant()" aria-disabled="@(_reading ? "true" : null)" @onclick="() => OpenInAsync(target)"
                     title="@TextFormat.Format(SchemaViewText.Columns_OpenAddScriptTitle, ConnectionLabel.Of(target, Settings.Current), $"{table.Owner}.{table.Name}")">
                 <span class="kind-badge">@ConnectionKindInfo.Short(target.Kind)</span> @ConnectionLabel.Of(target, Settings.Current)
             </button>
@@ -78,7 +78,8 @@
 
     /// <summary>
     /// The constraints are being read: the chips wait, and the menu says so – the read goes through the connection's
-    /// explorer session and may wait behind another call on it (review, finding 2).
+    /// explorer session and may wait behind another call on it (review, finding 2). The chips are aria-disabled, not
+    /// disabled: a disabled button loses the focus to the page, and Escape no longer reached the menu (finding 11).
     /// </summary>
     private bool _reading;
 
@@ -88,6 +89,11 @@
     /// </summary>
     private async Task<string?> ScriptAsync(TableRef target)
     {
+        if (_reading)
+        {
+            return null; // a second click while the first one reads
+        }
+
         var source = Details.Table.Ref;
         var columns = Columns.Select(name => Details.Columns[Details.IndexOf(name)]).ToList();
         _reading = true;
