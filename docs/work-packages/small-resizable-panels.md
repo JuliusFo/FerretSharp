@@ -19,7 +19,12 @@ Ohne Rückfrage entschieden (einfachste Variante, Fragen unten):
 - Formular und Änderungsübersicht auf `ResizeHandle` umgestellt. `GridText.Form_ResizeWidth` ist ersetzt durch `CommonText.Resize_Width`/`Resize_Height` (mit Hinweis auf den Doppelklick).
 
 ## Prüfung
-- **Nicht in der App geprüft:** E2E ging auf der Arbeitsmaschine nicht. Der Nutzer prüft zuhause mit echter Maus (Liste im Backlog unter „Tests und Werkzeuge“).
+- E2E 2026-11-04 mit echter Maus (`SendInput`, Testinstanz 1440×900, eigener Container), Ereignisse per CDP mitgeschnitten:
+  - Explorer: Der Griff liegt bis 3 px über dem Inhalt rechts daneben oben. Ziehen auf 461 px, Grenze bei 712 px (50 % von 1424), Minimum 200 px. Eine zweite Verbindung öffnet mit derselben Breite, und nach dem Ziehen dort hat auch die erste die neue Breite.
+  - SQL-Editor: Monaco folgt (Container 452, Layout 450), Grenze 560 px (75 % von 747), Minimum 80 px, auch mit offenem Verlauf. LINQ-Editor: folgt, Grenze 448 px (60 % von 747), das Variablen-Feld bleibt 62 px.
+  - Doppelklick an allen vier Griffen: Standard wieder da (280 px, 30vh, Formular 440, Änderungsübersicht 380), die Einstellung ist entfernt. Der WPF-Host schickt wie erwartet zweimal `mousedown` (`detail` 2 und 3); dabei wird keine Größe gespeichert. Auch der `click` nach jedem Ziehen speichert nichts.
+  - Neustart: Explorer, SQL, LINQ, Änderungsübersicht (Einstellungen) und Formular (Workspace) haben dieselben Größen. Log ohne `[ERR]`/`[WRN]`.
+- **Gefunden und behoben:** Die Verlaufsspalte war höchstens `clamp(180px, 42vh, 560px)` hoch (`.sql-history`). Ist der Editor höher (bis 75 %), endete ihr Rand neben dem Editor. Mit vielen Einträgen wäre der Bereich bei kleinem Editor dagegen auf 42vh gewachsen. Entscheidung des Nutzers: Die Spalte ist immer so hoch wie der Editor, die Liste scrollt. Umgesetzt mit `contain: size` statt `max-height`: Die Spalte trägt nichts zur Höhe bei und wird auf die Höhe der Zeile gestreckt. Im E2E mit 30 Einträgen geprüft: 352, 560 und 80 px Editor, die Spalte jeweils gleich hoch. Bei 80 px bleiben das Suchfeld und ein Eintrag sichtbar.
 
 ## Fragen an den Nutzer
 - Reicht eine Größe für alle Tabs, oder soll die Editorhöhe je Tab gelten (wie die Formularbreite)?
