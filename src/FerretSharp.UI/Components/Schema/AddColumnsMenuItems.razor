@@ -9,8 +9,8 @@
 @inject ConnectionHub Hub
 @inject AppSettingsService Settings
 @inject ILogger<AddColumnsMenuItems> Logger
+@inject IClipboardService Clipboard
 @implements IAsyncDisposable
-@inject IJSRuntime JS
 
 @{
     var targets = AddColumnsTargets.Of(Connections.Profiles, Active.Profile?.Id ?? Guid.Empty)
@@ -21,14 +21,18 @@
         @TextFormat.Format(SchemaViewText.Columns_AddScriptGroup, TextFormat.Plural(Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther))
     </div>
     <div class="chips menu-chips">
-        <button type="button" class="menu-chip" title="@SchemaViewText.Columns_CopyAddScriptTitle" @onclick="CopyAsync">@Icons.Copy @SchemaViewText.Columns_CopyAddScriptChip</button>
+        <button type="button" class="menu-chip" title="@SchemaViewText.Columns_CopyAddScriptTitle" disabled="@_reading" @onclick="CopyAsync">@Icons.Copy @SchemaViewText.Columns_CopyAddScriptChip</button>
     </div>
+    @if (_reading)
+    {
+        <div class="ctx-note">@SchemaViewText.Columns_ReadingForeignKeys</div>
+    }
     <div class="group-head-btn static">@SchemaViewText.Columns_OpenAddScriptIn</div>
     <div class="chips menu-chips">
         @foreach (var target in targets)
         {
             var table = TargetTable(target);
-            <button type="button" class="menu-chip conn kind-@target.Kind.ToString().ToLowerInvariant()" @onclick="() => OpenInAsync(target)"
+            <button type="button" class="menu-chip conn kind-@target.Kind.ToString().ToLowerInvariant()" disabled="@_reading" @onclick="() => OpenInAsync(target)"
                     title="@TextFormat.Format(SchemaViewText.Columns_OpenAddScriptTitle, ConnectionLabel.Of(target, Settings.Current), $"{table.Owner}.{table.Name}")">
                 <span class="kind-badge">@ConnectionKindInfo.Short(target.Kind)</span> @ConnectionLabel.Of(target, Settings.Current)
             </button>
@@ -63,11 +67,6 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    private DomModule? _dom;
-
-    /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
-    private DomModule Dom => _dom ??= new(JS);
-
     /// <summary>Connections shown before the menu offers a filter field (the "Columns" view).</summary>
     public const int ShownWithoutFilter = 8;
 
@@ -77,14 +76,37 @@
     /// <summary>Ends the constraint read when the menu closes.</summary>
     private readonly CancellationTokenSource _lifetime = new();
 
-    private async Task<string> ScriptAsync(TableRef target) =>
-        AddColumnsScript.Write(Details.Table.Ref, target, Columns.Select(name => Details.Columns[Details.IndexOf(name)]), await ConstraintsAsync());
+    /// <summary>
+    /// The constraints are being read: the chips wait, and the menu says so – the read goes through the connection's
+    /// explorer session and may wait behind another call on it (review, finding 2).
+    /// </summary>
+    private bool _reading;
+
+    /// <summary>
+    /// The script for <paramref name="target"/>; null if the menu closed during the read. Table and columns are taken before
+    /// the read: new details of the parent meanwhile must not mix with them (review, finding 5).
+    /// </summary>
+    private async Task<string?> ScriptAsync(TableRef target)
+    {
+        var source = Details.Table.Ref;
+        var columns = Columns.Select(name => Details.Columns[Details.IndexOf(name)]).ToList();
+        _reading = true;
+        try
+        {
+            var constraints = await ConstraintsAsync(source);
+            return _lifetime.IsCancellationRequested ? null : AddColumnsScript.Write(source, target, columns, constraints);
+        }
+        finally
+        {
+            _reading = false;
+        }
+    }
 
     /// <summary>
     /// The table's constraints for its foreign keys, read on the click: the column header menu of every grid shows these
     /// items, opening it must not cost a query. Null if they could not be read (the error is logged, the script says so).
     /// </summary>
-    private async Task<IReadOnlyList<ConstraintInfo>?> ConstraintsAsync()
+    private async Task<IReadOnlyList<ConstraintInfo>?> ConstraintsAsync(TableRef table)
     {
         if (Active.Schema is not { } schema)
         {
@@ -92,25 +114,26 @@
         }
 
         var token = _lifetime.Token;
-        var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetConstraintsAsync(Details.Table.Ref, token), token);
+        var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetConstraintsAsync(table, token), token);
         return read.Succeeded ? read.Value : null;
     }
 
+    /// <summary>
+    /// Through the host's clipboard: the text exists only after a read, and the browser's clipboard refuses once the window
+    /// is no longer in front (ui.md; review, finding 1).
+    /// </summary>
     private async Task CopyAsync()
     {
-        var script = await ScriptAsync(Details.Table.Ref);
-        if (_lifetime.IsCancellationRequested)
+        if (await ScriptAsync(Details.Table.Ref) is not { } script)
         {
             return;
         }
 
-        if (await Dom.CopyTextAsync(Shell, script))
-        {
-            Shell.Notify(TextFormat.Format(SchemaViewText.Columns_AddScriptCopied,
-                TextFormat.Plural(Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther)));
-        }
-
+        var count = Columns.Count;
         await OnClose.InvokeAsync();
+        Shell.Notify(await Clipboard.SetTextAsync(script)
+            ? TextFormat.Format(SchemaViewText.Columns_AddScriptCopied, TextFormat.Plural(count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther))
+            : CommonText.ClipboardUnavailable);
     }
 
     /// <summary>
@@ -119,8 +142,7 @@
     /// </summary>
     private async Task OpenInAsync(ConnectionProfile target)
     {
-        var script = await ScriptAsync(TargetTable(target));
-        if (_lifetime.IsCancellationRequested)
+        if (await ScriptAsync(TargetTable(target)) is not { } script)
         {
             return;
         }
@@ -134,6 +156,5 @@
     {
         await _lifetime.CancelAsync();
         _lifetime.Dispose();
-        await Dom.DisposeAsync();
     }
 }
