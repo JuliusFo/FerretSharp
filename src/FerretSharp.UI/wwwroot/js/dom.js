@@ -139,7 +139,7 @@ export function arrowsMoveList(id) {
   });
 }
 
-/** Pixels the pointer moves on a resize handle before it drags: a click – also either half of a double click – keeps the size. */
+/** Pixels the pointer moves on a resize handle before it drags: a click – also either half of a double click – keeps the size. Same as ResizeClick.DragThreshold (C#). */
 const dragThreshold = 3;
 
 /** The nearest ancestor with a box of its own: `display: contents` has none (each connection's explorer sits in one). */

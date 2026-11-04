@@ -40,6 +40,7 @@
     private ElementReference _handle;
     private DomModule? _dom;
     private bool _disposed;
+    private (double X, double Y)? _press;
 
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
@@ -60,6 +61,7 @@
             return;
         }
 
+        _press = (e.ClientX, e.ClientY); // before the await: the click that follows must find it
         var options = new { edge = EdgeClass, min = Min, maxFraction = MaxFraction, variable = Variable, measure = Measure, within = Within };
         var size = await Dom.InvokeAsync<int>("dragSize", _handle, e.PointerId, e.ClientX, e.ClientY, options);
         if (!_disposed && size > 0)
@@ -69,12 +71,12 @@
     }
 
     /// <summary>
-    /// A double click as a click with <c>Detail</c> 2 (no <c>dblclick</c> in the WPF host, <c>ui.md</c>). Neither click
+    /// A double click as a click with <c>Detail</c> 2 where the button went down (<see cref="ResizeClick"/>). Neither click
     /// changed the size: <c>dragSize</c> reports 0 when the pointer did not move.
     /// </summary>
     private async Task OnClickAsync(MouseEventArgs e)
     {
-        if (e.Detail >= 2 && e.Button == 0)
+        if (ResizeClick.IsReset(e.Detail, e.Button, _press, e.ClientX, e.ClientY))
         {
             await OnReset.InvokeAsync();
         }
