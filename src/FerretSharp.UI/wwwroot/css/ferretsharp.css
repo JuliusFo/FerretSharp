@@ -1326,7 +1326,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .tab.linq .icon { color: var(--clr); }
 .tab-new { flex: none; align-self: center; margin: 0 8px; height: 26px; padding: 0 10px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent; color: var(--muted); font-size: 12px; }
 .tab-new:hover { color: var(--clr); border-color: var(--clr); background: var(--clr-weak); }
-.linqview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container-type: size; }
+/* A size container for the editor's limit (cqh); clip: what does not fit stays out of the status bar, without a scroll container. */
+.linqview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container-type: size; overflow: clip; }
 .linqview > .tab-toolbar .icon { color: var(--clr); }
 .linq-title { font: 600 13px var(--mono); }
 .title-btn { height: 24px; padding: 0 6px; margin-left: -6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--text); cursor: text; }
@@ -1339,15 +1340,17 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .linq-console.ready { color: var(--test); }
 .linq-console.failed { color: var(--danger); }
 .linq-console.warn { color: var(--warn); }
-.linq-editors { position: relative; flex: none; display: flex; flex-direction: column; padding: 6px 12px 10px; gap: 4px; background: var(--surface); border-bottom: 1px solid var(--border); }
+/* Shrinks rather than push the results and its handle out of a small view: the query editor gives way (review 2026-11-04). */
+.linq-editors { position: relative; flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 6px 12px 10px; gap: 4px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .linq-label { display: flex; align-items: baseline; gap: 10px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .linq-label .hint { font-size: 11.5px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--faint); }
 .linq-label code { font-size: 11px; }
 .monaco-host { border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-.monaco-host.linq-variables { height: 62px; }
+.monaco-host.linq-variables { height: 62px; flex-shrink: 0; }
 /* At most 60 % of the view like the drag limit (LinqView.EditorMaxFraction), also when the window got smaller since. */
 .monaco-host.linq-code { height: min(var(--linq-editor-height, clamp(110px, 22vh, 300px)), 60cqh); }
-.linq-output { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+/* Results of the LINQ console and the SQL editor; a strip stays for them when the editor above is large and the view small. */
+.linq-output { flex: 1; display: flex; flex-direction: column; min-height: 48px; position: relative; }
 /* RunProgress: where the result will appear while a statement runs. */
 .run-progress {
   align-self: center; width: min(640px, calc(100% - 32px)); margin: 28px 16px; padding: 16px 18px;
@@ -1399,13 +1402,15 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 
 /* ---------- SQL editor (WP-17) ---------- */
 .tab.sql .icon { color: var(--accent); }
-.sqlview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container-type: size; }
+/* As .linqview: a size container for the editor's limit, clipped. */
+.sqlview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container-type: size; overflow: clip; }
 .sqlview > .tab-toolbar .icon { color: var(--accent); }
 /* On a filled button (Run) the toolbar's icon color would be the button's own background. */
 .tab-toolbar .btn.primary .icon { color: inherit; }
 .sqlview > .tab-toolbar .muted { font-size: 12px; color: var(--muted); }
 .sqlview > .tab-toolbar .btn.active { color: var(--accent); background: var(--accent-weak); }
-.sql-main { position: relative; flex: none; display: flex; min-height: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+/* Shrinks like .linq-editors: the editor gives way to the bind variables and the results' strip. */
+.sql-main { position: relative; flex: 0 1 auto; display: flex; min-height: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
 .sql-editors { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 12px 10px; }
 /* At most 75 % of the view like the drag limit (SqlView.EditorMaxFraction), also when the window got smaller since. */
 .monaco-host.sql-code { height: min(var(--sql-editor-height, clamp(140px, 30vh, 420px)), 75cqh); }
