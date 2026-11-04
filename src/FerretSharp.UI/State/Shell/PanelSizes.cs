@@ -1,13 +1,13 @@
 using System.Globalization;
-using System.Text;
 using FerretSharp.Core.Settings;
 
 namespace FerretSharp.UI.State;
 
 /// <summary>
-/// Sizes the user dragged that hold for the whole app – the explorer of every connection, the editors of every SQL and LINQ
-/// tab – as CSS custom properties on the app root. The stylesheet falls back to its default where one is missing; while
-/// the handle is dragged, <c>dom.js dragSize</c> sets the same property, and the shell renders the saved value afterwards.
+/// Dragged sizes as CSS custom properties; the stylesheet falls back to its default where one is missing, and while a
+/// handle is dragged <c>dom.js dragSize</c> sets the same property on the same element. The explorer's width holds for the
+/// whole app (in the settings, on the app root); the editor heights of the SQL editor and the LINQ console are per tab
+/// (decision of the user, in the tab's state, on its view).
 /// </summary>
 public static class PanelSizes
 {
@@ -16,20 +16,9 @@ public static class PanelSizes
     public const string LinqEditorHeight = "--linq-editor-height";
 
     /// <summary>The style of the app root for the sizes in the settings; null if all are the defaults.</summary>
-    public static string? Style(AppSettings settings)
-    {
-        var style = new StringBuilder();
-        Append(ExplorerWidth, settings.ExplorerWidth);
-        Append(SqlEditorHeight, settings.SqlEditorHeight);
-        Append(LinqEditorHeight, settings.LinqEditorHeight);
-        return style.Length == 0 ? null : style.ToString().TrimEnd();
+    public static string? Style(AppSettings settings) => Property(ExplorerWidth, settings.ExplorerWidth);
 
-        void Append(string variable, int? pixels)
-        {
-            if (pixels is > 0)
-            {
-                style.Append(CultureInfo.InvariantCulture, $"{variable}: {pixels}px; ");
-            }
-        }
-    }
+    /// <summary>The style that carries one dragged size, e.g. a tab's editor height on its view; null for the default.</summary>
+    public static string? Property(string variable, int? pixels) =>
+        pixels is > 0 ? string.Create(CultureInfo.InvariantCulture, $"{variable}: {pixels}px;") : null;
 }

@@ -154,12 +154,13 @@ function boxParent(element) {
  * at its right edge; the SQL and LINQ editors at their bottom edge) while the pointer is down. The size follows the pointer
  * between min and maxFraction of `within` (a selector of an ancestor of the handle; else the nearest ancestor of the sized
  * element with a box). The sized element is `measure` inside `within` (else the handle's parent). With `variable` the size
- * goes into that CSS custom property on the app root – the shell renders it from the settings, so every explorer and every
- * editor tab follows –, else into the element's own width or height. Resolves with the final size, 0 if the pointer never
- * moved past dragThreshold.
+ * goes into that CSS custom property on `variableOn` (an ancestor of the handle; else the app root), where the owner
+ * renders it too – the explorer's width on the app root for every connection, an editor's height on its tab's view –,
+ * else into the element's own width or height. Resolves with the final size, 0 if the pointer never moved past
+ * dragThreshold.
  */
 export function dragSize(handle, pointerId, startX, startY, options) {
-  const { edge, min, maxFraction, variable, measure, within } = options;
+  const { edge, min, maxFraction, variable, variableOn, measure, within } = options;
   const container = within ? handle.closest(within) : null;
   const element = measure ? (container ?? document).querySelector(measure) : handle.parentElement;
   if (!element) return Promise.resolve(0);
@@ -169,7 +170,7 @@ export function dragSize(handle, pointerId, startX, startY, options) {
   const startSize = length(element.getBoundingClientRect());
   const max = Math.max(min, length((container ?? boxParent(element)).getBoundingClientRect()) * maxFraction);
   const grow = edge === 'left' ? -1 : 1;
-  const host = variable ? (handle.closest('.app') ?? document.documentElement) : null;
+  const host = variable ? (handle.closest(variableOn ?? '.app') ?? document.documentElement) : null;
   let size = 0;
   return trackDrag(handle, pointerId, start, e => (vertical ? e.clientY : e.clientX), at => {
     size = Math.round(Math.min(max, Math.max(min, startSize + grow * (at - start))));

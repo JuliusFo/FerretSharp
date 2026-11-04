@@ -14,7 +14,7 @@
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
 
-<div class="sqlview">
+<div class="sqlview" style="@PanelSizes.Property(PanelSizes.SqlEditorHeight, Tab.EditorHeight)">
     <div class="tab-toolbar">
         @Icons.Database
         <TabTitle Tab="Tab" />
@@ -46,7 +46,7 @@
         }
 
         <ResizeHandle Edge="ResizeEdge.Bottom" Min="EditorMinHeight" MaxFraction="EditorMaxFraction" Variable="@PanelSizes.SqlEditorHeight"
-                      Measure=".sql-code" Within=".sqlview" OnResized="h => SaveEditorHeightAsync(h)" OnReset="() => SaveEditorHeightAsync(null)" />
+                      VariableOn=".sqlview" Measure=".sql-code" Within=".sqlview" OnResized="h => SetEditorHeight(h)" OnReset="() => SetEditorHeight(null)" />
     </div>
 
     <div class="linq-output">
@@ -281,14 +281,15 @@
     private const double EditorMaxFraction = 0.75;
 
     /// <summary>
-    /// The dragged editor height, one for every SQL tab, kept in the settings; null for the default. The shell renders it as
-    /// <see cref="PanelSizes.SqlEditorHeight"/>.
+    /// The dragged editor height, kept in the tab (per tab, decision of the user) and saved with the workspace; null for
+    /// the default. Rendered as <see cref="PanelSizes.SqlEditorHeight"/> on the view.
     /// </summary>
-    private async Task SaveEditorHeightAsync(int? height)
+    private void SetEditorHeight(int? height)
     {
-        if (height != Settings.Current.SqlEditorHeight)
+        if (Tab.EditorHeight != height)
         {
-            await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { SqlEditorHeight = height }, CancellationToken.None));
+            Tab.EditorHeight = height;
+            Shell.MarkDirty();
         }
     }
 

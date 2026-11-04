@@ -21,6 +21,10 @@
     [Parameter]
     public string? Variable { get; set; }
 
+    /// <summary>Selector of the handle's ancestor that carries <see cref="Variable"/> (and renders it); null: the app root.</summary>
+    [Parameter]
+    public string? VariableOn { get; set; }
+
     /// <summary>Selector of the sized element inside <see cref="Within"/>; null: the handle's parent.</summary>
     [Parameter]
     public string? Measure { get; set; }
@@ -62,7 +66,7 @@
         }
 
         _press = (e.ClientX, e.ClientY); // before the await: the click that follows must find it
-        var options = new { edge = EdgeClass, min = Min, maxFraction = MaxFraction, variable = Variable, measure = Measure, within = Within };
+        var options = new { edge = EdgeClass, min = Min, maxFraction = MaxFraction, variable = Variable, variableOn = VariableOn, measure = Measure, within = Within };
         var size = await Dom.InvokeAsync<int>("dragSize", _handle, e.PointerId, e.ClientX, e.ClientY, options);
         if (!_disposed && size > 0)
         {

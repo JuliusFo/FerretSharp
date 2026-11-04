@@ -10,7 +10,7 @@
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
 
-<div class="linqview">
+<div class="linqview" style="@PanelSizes.Property(PanelSizes.LinqEditorHeight, Tab.EditorHeight)">
     <div class="tab-toolbar">
         @Icons.Code
         <TabTitle Tab="Tab" />
@@ -51,7 +51,7 @@
         <MonacoEditor @ref="_codeEditor" Class="linq-code" Text="@Tab.Code" OnChange="OnCodeChanged" Completion="CompleteCodeAsync" Markers="Markers(LinqProtocol.CodeSection)"
                       Placeholder="return await db.Kunden.Where(k => k.KundeId == kundeId).ToListAsync(ct);" />
         <ResizeHandle Edge="ResizeEdge.Bottom" Min="EditorMinHeight" MaxFraction="EditorMaxFraction" Variable="@PanelSizes.LinqEditorHeight"
-                      Measure=".linq-code" Within=".linqview" OnResized="h => SaveEditorHeightAsync(h)" OnReset="() => SaveEditorHeightAsync(null)" />
+                      VariableOn=".linqview" Measure=".linq-code" Within=".linqview" OnResized="h => SetEditorHeight(h)" OnReset="() => SetEditorHeight(null)" />
     </div>
 
     <div class="linq-output">
@@ -285,14 +285,15 @@
     private const double EditorMaxFraction = 0.6;
 
     /// <summary>
-    /// The dragged height of the query editor, one for every LINQ tab, kept in the settings; null for the default. The shell
-    /// renders it as <see cref="PanelSizes.LinqEditorHeight"/>.
+    /// The dragged height of the query editor, kept in the tab (per tab, decision of the user) and saved with the workspace;
+    /// null for the default. Rendered as <see cref="PanelSizes.LinqEditorHeight"/> on the view.
     /// </summary>
-    private async Task SaveEditorHeightAsync(int? height)
+    private void SetEditorHeight(int? height)
     {
-        if (height != Settings.Current.LinqEditorHeight)
+        if (Tab.EditorHeight != height)
         {
-            await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { LinqEditorHeight = height }, CancellationToken.None));
+            Tab.EditorHeight = height;
+            Shell.MarkDirty();
         }
     }
 

@@ -78,14 +78,14 @@ public sealed class WorkspaceStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Sql_tabs_keep_script_and_typed_variables()
+    public async Task Sql_tabs_keep_script_typed_variables_and_editor_height()
     {
         var workspace = Sample() with
         {
             Tabs =
             [
                 TabState.OfSql(new SqlTabState("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual",
-                    [new SqlVariable("id", SqlVariableType.Number, "4711"), new SqlVariable("von", SqlVariableType.Date, "01.10.2026")])),
+                    [new SqlVariable("id", SqlVariableType.Number, "4711"), new SqlVariable("von", SqlVariableType.Date, "01.10.2026")], EditorHeight: 420)),
             ],
         };
 
@@ -93,7 +93,7 @@ public sealed class WorkspaceStoreTests : IDisposable
         var sql = Assert.Single(Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Workspaces).Tabs).Sql;
 
         Assert.NotNull(sql);
-        Assert.Equal(("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual"), (sql.Title, sql.Text));
+        Assert.Equal(("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual", (int?)420), (sql.Title, sql.Text, sql.EditorHeight));
         Assert.Equal(workspace.Tabs[0].Sql!.Variables, sql.Variables);
     }
 

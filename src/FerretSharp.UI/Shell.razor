@@ -388,12 +388,12 @@
         await _shortcuts.InvokeVoidAsync("setLocal", Shortcuts.LocalCombos);
     }
 
-    /// <summary>The dragged sizes (<see cref="PanelSizes"/>) at the last render of the app root.</summary>
+    /// <summary>The dragged sizes of the settings (<see cref="PanelSizes.Style"/>) at the last render of the app root.</summary>
     private string? _shownSizes;
 
     /// <summary>
-    /// Renders again only if a dragged size changed (a handle released or double-clicked), not for every other setting: the
-    /// app root carries the sizes for every explorer and editor tab, which then need no render of their own.
+    /// Renders again only if a dragged size changed (the explorer's handle released or double-clicked), not for every other
+    /// setting: the app root carries the width for every connection's explorer, which then needs no render of its own.
     /// </summary>
     private void OnSettingsChanged() => InvokeAsync(() =>
     {
