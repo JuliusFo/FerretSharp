@@ -251,6 +251,14 @@
     <value>{0} left out: identity column GENERATED ALWAYS, Oracle assigns new values.</value>
     <comment>Comment line in an INSERT script; the column is not in the statements (Oracle would reject a value, ORA-32795). {0} = column name</comment>
   </data>
+  <data name="InsertExportIdentityDefault" xml:space="preserve">
+    <value>{0} gets DEFAULT: identity column GENERATED ALWAYS, Oracle assigns new values.</value>
+    <comment>Comment line in an INSERT script of a table whose only column Oracle fills itself: the statements write DEFAULT into it. {0} = column name</comment>
+  </data>
+  <data name="InsertExportNewKeys" xml:space="preserve">
+    <value>New keys: references to the old values of {0} do not follow them.</value>
+    <comment>Comment line in an INSERT script below the line of a primary key column left out: a self reference or rows of another table still hold the old key values. {0} = column name</comment>
+  </data>
   <data name="InsertExportIdentityByDefault" xml:space="preserve">
     <value>{0} is an identity column (BY DEFAULT): the script keeps its values, its sequence does not advance.</value>
     <comment>Comment line in an INSERT script; the values are in the statements, a later INSERT without a value may hit a duplicate key. {0} = column name</comment>

@@ -48,13 +48,37 @@ public static class InsertExport
 
         foreach (var column in table.Columns.Where(c => c.IsIdentity || c.IsVirtual))
         {
-            var text = column.IdentityAlways ? QueryText.InsertExportIdentityAlways
+            var text = column == onlyDefault ? QueryText.InsertExportIdentityDefault
+                : column.IdentityAlways ? QueryText.InsertExportIdentityAlways
                 : column.IsVirtual ? QueryText.InsertExportVirtual
                 : QueryText.InsertExportIdentityByDefault;
             header.Append(Comment(TextFormat.Format(text, column.Name))).Append("\r\n");
+            // A new key leaves behind what refers to the old one: a self reference, the rows of a child table copied apart.
+            if (column.IdentityAlways && table.PrimaryKey.Contains(column.Name, StringComparer.Ordinal))
+            {
+                header.Append(Comment(TextFormat.Format(QueryText.InsertExportNewKeys, column.Name))).Append("\r\n");
+            }
         }
 
         return new ExportText(header.Append(statements).ToString(), rows.Count, warnings.ToList());
+    }
+
+    /// <summary>
+    /// A query result as INSERT target (SQL editor): its columns, named as the driver reports them, know nothing of identity
+    /// or virtual columns. Each takes them from the column of <paramref name="table"/> with its name – the one the INSERT writes
+    /// into –, together with the table's primary key; a column the table lacks (an alias) stays as it is.
+    /// </summary>
+    public static TableDetails ForTable(TableDetails result, TableDetails table)
+    {
+        var byName = table.Columns.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        return result with
+        {
+            Table = table.Table,
+            Columns = [.. result.Columns.Select(c => byName.TryGetValue(c.Name, out var t)
+                ? c with { IsIdentity = t.IsIdentity, IdentityAlways = t.IdentityAlways, IsVirtual = t.IsVirtual }
+                : c)],
+            PrimaryKey = table.PrimaryKey,
+        };
     }
 
     private static string Comment(string text) => SqlComment.Of(text, "\r\n");

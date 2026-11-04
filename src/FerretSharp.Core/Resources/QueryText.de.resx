@@ -195,6 +195,12 @@
   <data name="InsertExportIdentityAlways" xml:space="preserve">
     <value>{0} weggelassen: Identity-Spalte GENERATED ALWAYS, Oracle vergibt neue Werte.</value>
   </data>
+  <data name="InsertExportIdentityDefault" xml:space="preserve">
+    <value>{0} bekommt DEFAULT: Identity-Spalte GENERATED ALWAYS, Oracle vergibt neue Werte.</value>
+  </data>
+  <data name="InsertExportNewKeys" xml:space="preserve">
+    <value>Neue Schlüssel: Verweise auf die alten Werte von {0} ziehen nicht mit.</value>
+  </data>
   <data name="InsertExportIdentityByDefault" xml:space="preserve">
     <value>{0} ist eine Identity-Spalte (BY DEFAULT): Das Skript übernimmt die Werte, ihre Sequenz zählt dabei nicht weiter.</value>
   </data>

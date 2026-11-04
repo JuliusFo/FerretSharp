@@ -37,7 +37,7 @@
                 <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
             }
             <ExportMatrix Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns" XlsxColumnsToSave="ExportColumnsToSave" Marked="@(Request.Marks is not null)"
-                          InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
+                          InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)" CompleteInsertTable="WithTableColumnsAsync"
                           InsertTitle="@(InsertTarget is { } insert
                               ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
                               : SqlEditorText.ResultMenu_CopyInsertUnavailable)"
@@ -154,6 +154,21 @@
     }
 
     private bool Related(FkJump jump) => _sources.TryGetValue(jump, out var source) && source.Involves(Request.Column);
+
+    /// <summary>
+    /// The result's columns know no identity or virtual column: they come from the table's structure (schema cache, read once
+    /// per table), so the INSERT leaves out what Oracle fills itself. Null if it could not be read – the failure is reported.
+    /// </summary>
+    private async Task<TableDetails?> WithTableColumnsAsync(TableDetails target)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return target;
+        }
+
+        var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(target.Table, CancellationToken.None));
+        return read.Succeeded ? InsertExport.ForTable(target, read.Value!) : null;
+    }
 
     private async Task TogglePinAsync()
     {
