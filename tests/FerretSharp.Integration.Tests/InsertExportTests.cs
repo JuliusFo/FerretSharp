@@ -152,7 +152,7 @@ public sealed class InsertExportTests(OracleContainerFixture oracle) : IAsyncLif
     [Theory]
     [InlineData("EXPORT_GEN")]
     [InlineData("EXPORT_ID_ONLY")]
-    public async Task Script_runs_on_a_table_with_an_always_identity_and_a_virtual_column(string table)
+    public async Task Script_runs_on_a_table_with_columns_oracle_fills_itself(string table)
     {
         var (details, rows) = await ReadAsync(table);
         Assert.True(details.Columns[0].IdentityAlways);
