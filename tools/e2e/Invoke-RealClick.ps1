@@ -27,7 +27,7 @@ param(
     # window.devicePixelRatio of the page.
     [double]$Dpr = 1,
     [ValidateSet('Left', 'Right', 'Middle')][string]$Button = 'Left',
-    # 2 = double click, 3 = triple click.
+    # 2 = double click, 3 = triple click. With -ToX/-ToY: clicks before the drag, whose press then counts on (detail 2…).
     [ValidateRange(1, 3)][int]$Clicks = 1,
     # Drags with the button held from X,Y to ToX,ToY (CSS pixels) in small steps.
     [double]$ToX = [double]::NaN,
@@ -92,6 +92,10 @@ $flags = @{ Left = 0x0002, 0x0004; Right = 0x0008, 0x0010; Middle = 0x0020, 0x00
 Start-Sleep -Milliseconds 80
 if (-not $MoveOnly) {
     if ($drag) {
+        for ($i = 1; $i -lt $Clicks; $i++) {
+            [RealInput]::Mouse($flags[0], 0, 0); Start-Sleep -Milliseconds 40
+            [RealInput]::Mouse($flags[1], 0, 0); Start-Sleep -Milliseconds 60
+        }
         [RealInput]::Mouse($flags[0], 0, 0)
         for ($i = 1; $i -le 10; $i++) {
             $p = New-Object RealInput+POINT
@@ -108,5 +112,5 @@ if (-not $MoveOnly) {
     }
 }
 Start-Sleep -Milliseconds 150
-$what = if ($MoveOnly) { 'Moved' } elseif ($drag) { "Dragged ($Button) to ($($end.X), $($end.Y)) from" } else { "$Button x$Clicks at" }
+$what = if ($MoveOnly) { 'Moved' } elseif ($drag) { "Dragged ($Button, $($Clicks - 1) click(s) before) to ($($end.X), $($end.Y)) from" } else { "$Button x$Clicks at" }
 "$what ($($start.X), $($start.Y)); test instance still in front: $([RealInput]::GetForegroundWindow() -eq $window)"
