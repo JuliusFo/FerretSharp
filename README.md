@@ -54,8 +54,8 @@ developer works with an Oracle database day to day:
   views on request in a section of their own. **Right-click an object** (or the head of its tab) to open it in a view,
   as `SELECT *` in the SQL editor, as its DbSet in the LINQ console, in the designer or on another connection, and to
   copy its name, `OWNER.NAME`, entity or link. A tab can be duplicated with its filters or shown in the explorer.
-- Drag the explorer wider or narrower and the SQL and LINQ editors taller or lower – the sizes stay for every connection
-  and after a restart; a double click on the edge goes back to the default.
+- Drag the explorer wider or narrower (for every connection) and the SQL and LINQ editors taller or lower (each tab its
+  own height) – kept after a restart; a double click on the edge goes back to the default.
 - **Quick open and command palette**: one box at the top of the window – type a name to open a table, view or PL/SQL
   (also by its C# entity name), or ">" to find an action with its shortcut.
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,
