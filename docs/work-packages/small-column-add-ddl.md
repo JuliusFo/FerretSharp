@@ -34,3 +34,17 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, dunkel), eigener
 - Ob die Spalte im Ziel schon existiert, prüft das Skript nicht – Oracle meldet ORA-01430 beim Ausführen, für den echten Abgleich bleibt der Schema-Vergleich.
 - Der Eintrag im Spaltenkopf-Menü des Grids (in WP-58 markierte Spalten) kommt mit WP-61 (dort vermerkt).
 - Tastatur in der Spaltenansicht (Ctrl+A, Pfeile mit Shift) gibt es nicht; bisher nur Maus.
+
+## Nachtrag: Fremdschlüssel (Branch `feat/add-columns-foreign-keys`, 2026-11-04)
+Wunsch des Nutzers: Das Skript soll den FK der Spalten mitnehmen (bisher bewusst nur `ADD` und Kommentare, siehe oben).
+
+Ohne Rückfrage entschieden:
+- **Nur FKs, deren Spalten alle gewählt sind.** Ein FK mit einer nicht gewählten Spalte bleibt still draußen: Die Spalte fehlt im Ziel womöglich, und der Nutzer hat sie bewusst nicht gewählt. PK, UNIQUE und CHECK kommen nicht mit (gefragt war der FK).
+- **Zieltabelle des FK** wie im Schema-Vergleich (`DdlWriter.MapTable`): eine Tabelle im Owner der Quelle → gleicher Name im Owner des Ziels; die Quelltabelle selbst (Selbstbezug) → die Zieltabelle; ein fremder Owner bleibt. Ob die Elterntabelle im Ziel existiert, prüft das Skript nicht (ORA-00942 beim Ausführen).
+- **Constraint-Klausel** aus `OracleDdl.ConstraintClause`: Name (außer `SYS_C…`), `ON DELETE`, `DEFERRABLE`, `DISABLE`/`NOVALIDATE` wie in der Quelle. Stufe `AddForeignKey` – nach den Spalten, vor den Kommentaren.
+- **Warnung** „Prüft die vorhandenen Zeilen …“ (Risiko `MayFailOnValues`) nur, wenn eine FK-Spalte durch Default, Identity oder Ausdruck sofort Werte bekommt und der FK aktiv und validiert ist – neue Spalten sind sonst NULL, der FK prüft nichts.
+- **Constraints lesen erst beim Klick** (Kopieren oder Verbindung), über `Shell.RunDbAsync` und `SchemaCache.GetConstraintsAsync`: Das Spaltenkopf-Menü jedes Grids zeigt dieselben Einträge, ein Lesen beim Öffnen hätte jedes Öffnen eine Abfrage gekostet. Scheitert das Lesen, entsteht das Skript ohne FKs mit einer zweiten Kopfzeile „Ohne Fremdschlüssel: …“ (`CompareText.AddColumnsWithoutForeignKeys`); schließt das Menü während des Lesens, passiert nichts.
+
+Gebaut: `AddColumnsScript.Write(source, target, columns, constraints)` (null = nicht lesbar), `AddColumnsMenuItems` liest die Constraints. Tests: `AddColumnsScriptTests` (FKs mit Owner-Zuordnung, Selbstbezug, fremdem Owner, teilweise gewählten Spalten; Warnung bei Default; Kopfzeile ohne Constraints).
+
+Offen: nicht E2E in der App geprüft. Ob der FK eine Elterntabelle anderen Namens im Ziel (Synonym) braucht, wie `AddColumnsTargets.Table` sie für die Zieltabelle sucht – bisher nur über den Owner.

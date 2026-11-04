@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- `ALTER TABLE … ADD` for columns on another database (right-click in the "Columns" view or on a column header) brings along the foreign keys made only of the picked columns, after the columns and with their `ON DELETE` rule; a referenced table of the source's owner is the one in the target's owner. A foreign key on a column with a default warns that it checks the existing rows. Should the constraints not be readable, the script says it has no foreign keys.
+
 ## [3.59.0] - 2026-11-03
 
 A report page on how the C# model and the database fit, with a file of tables meant to have no entity; names beside foreign key values and pinned columns in SQL and LINQ results; the SQL editor splits only at `;` and `/` lines; and typing over Remote Desktop no longer lags.
