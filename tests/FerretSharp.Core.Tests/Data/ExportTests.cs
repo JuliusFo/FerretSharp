@@ -144,7 +144,7 @@ public class ExportTests
 
         Assert.Equal(
             [
-                "-- 2 Zeilen aus \"APP\".\"LAGER\" (FerretSharp-Export)",
+                "-- 0 Zeilen aus \"APP\".\"LAGER\" (FerretSharp-Export)",
                 "-- NAME_GROSS weggelassen: virtuelle Spalte, Oracle berechnet sie.",
                 "-- Keine Spalte nimmt einen Wert an: Das Skript enthält keine Statements.",
                 "",

@@ -40,8 +40,9 @@ public static class InsertExport
                 .AppendJoin(", ", values).Append(");\r\n");
         }
 
+        var count = nothingToWrite ? 0 : rows.Count;
         var header = new StringBuilder()
-            .Append(Comment(TextFormat.Plural(rows.Count, QueryText.InsertExportHeaderOne, QueryText.InsertExportHeaderOther, target)))
+            .Append(Comment(TextFormat.Plural(count, QueryText.InsertExportHeaderOne, QueryText.InsertExportHeaderOther, target)))
             .Append("\r\n");
         if (hasAmpersand)
         {
@@ -67,7 +68,7 @@ public static class InsertExport
             header.Append(Comment(QueryText.InsertExportNothingToWrite)).Append("\r\n");
         }
 
-        return new ExportText(header.Append(statements).ToString(), nothingToWrite ? 0 : rows.Count, warnings.ToList());
+        return new ExportText(header.Append(statements).ToString(), count, warnings.ToList());
     }
 
     /// <summary>
