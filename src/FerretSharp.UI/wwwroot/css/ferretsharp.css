@@ -1505,14 +1505,6 @@ table.compare-matrix td.different.g3 { background: color-mix(in srgb, var(--test
 
 /* ---------- form view of a row (WP-21): beside the grid, and selected rows compared in a dialog ---------- */
 .grid-split { flex: 1; display: flex; min-height: 0; }
-
-/* ---------- drag handles (ResizeHandle): on a panel's edge or between editor and results; sizes in PanelSizes ---------- */
-.resize-handle { position: absolute; z-index: 3; touch-action: none; }
-.resize-handle:hover { background: var(--accent-weak); }
-.resize-handle.left, .resize-handle.right { top: 0; bottom: 0; width: 7px; cursor: col-resize; }
-.resize-handle.left { left: -4px; }
-.resize-handle.right { right: -4px; }
-.resize-handle.bottom { left: 0; right: 0; bottom: -4px; height: 7px; cursor: row-resize; }
 .grid-split > .grid-host { flex: 1; min-width: 0; }
 .result-split { height: 100%; }
 .tab-toolbar .btn.active, .tab-footer .btn.active { color: var(--accent); background: var(--accent-weak); }
@@ -1582,6 +1574,14 @@ table.compare-rows td.ff-flushed { box-shadow: inset 2px 0 0 var(--accent); back
 .cr-type { display: block; font: 10.5px var(--mono); color: var(--faint); }
 .cr-row { padding: 0; font-weight: 600; }
 .cr-key { display: block; font: 11px var(--mono); color: var(--muted); }
+
+/* ---------- drag handles (ResizeHandle): on a panel's edge or between editor and results; sizes in PanelSizes ---------- */
+.resize-handle { position: absolute; z-index: 3; touch-action: none; }
+.resize-handle:hover { background: var(--accent-weak); }
+.resize-handle.left, .resize-handle.right { top: 0; bottom: 0; width: 7px; cursor: col-resize; }
+.resize-handle.left { left: -4px; }
+.resize-handle.right { right: -4px; }
+.resize-handle.bottom { left: 0; right: 0; bottom: -4px; height: 7px; cursor: row-resize; }
 
 /* Settings › Tastenkürzel (WP-25) */
 .shortcut-intro { max-width: 1100px; margin: 12px auto 0; }
