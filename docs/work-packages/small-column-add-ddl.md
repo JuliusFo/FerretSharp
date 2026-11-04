@@ -47,4 +47,11 @@ Ohne Rückfrage entschieden:
 
 Gebaut: `AddColumnsScript.Write(source, target, columns, constraints)` (null = nicht lesbar), `AddColumnsMenuItems` liest die Constraints. Tests: `AddColumnsScriptTests` (FKs mit Owner-Zuordnung, Selbstbezug, fremdem Owner, teilweise gewählten Spalten; Warnung bei Default; Kopfzeile ohne Constraints).
 
-Offen: nicht E2E in der App geprüft. Ob der FK eine Elterntabelle anderen Namens im Ziel (Synonym) braucht, wie `AddColumnsTargets.Table` sie für die Zieltabelle sucht – bisher nur über den Owner.
+E2E (2026-11-04): eigene Instanz (`--data-dir`, deutsch, dunkel), eigener Container `ferret-e2e-fk` (Port 1531, danach entfernt) mit dem Beispielschema, dazu in `FERRET.RECHNUNG` ein Selbstbezug `STORNO_VON` (`ON DELETE SET NULL`) und `LAND` mit `DEFAULT 'DE'` und FK auf `LAND_IOT`, und ein User `FERRET2` mit den Elterntabellen und einem `RECHNUNG` ohne diese Spalten. Verbindungen „E2E Quelle“ (FERRET) und „E2E Ziel“ (FERRET2), Passwort ohne Credential Manager, bedient per CDP (Klicks über `Input.dispatchMouseEvent`).
+- Spaltenansicht `RECHNUNG`, vier FK-Spalten gewählt, „Kopieren“: vier `ADD`, danach `FK_RECHNUNG_AUFTRAG`, `FK_RECHNUNG_KUNDE`, `FK_RECHNUNG_LAND` (mit „⚠ Prüft die vorhandenen Zeilen …“) und `FK_RECHNUNG_STORNO … ON DELETE SET NULL`, alle unter `FERRET`; die Windows-Zwischenablage hatte das Skript.
+- „Im SQL-Editor öffnen von E2E Ziel“: dasselbe Skript mit `FERRET2` für Tabelle und Elterntabellen; „Skript“ → Bestätigung mit 8 Statements → alle liefen, in `ALL_CONSTRAINTS` von FERRET2 vier FKs `ENABLED`/`VALIDATED`, `SET NULL` am Selbstbezug, `LAND` mit `'DE'` gegen die Zeile im Ziel geprüft.
+- `LIEFERUNG`: nur `POS_NR` gewählt → kein FK; mit `AUFTRAG_ID` → `FK_LIEF_POS (AUFTRAG_ID, POS_NR)`. Ebenso im Spaltenkopf-Menü des Grids mit zwei per Ctrl+Klick markierten Spalten.
+- Container bei offenem Menü gestoppt, dann „Kopieren“: Skript ohne FK mit „-- Ohne Fremdschlüssel: Die Constraints der Tabelle ließen sich nicht lesen.“; im Log nur die erwartete Warnung ORA-03135.
+- Nicht mit echter Windows-Eingabe geprüft: Am Klickweg des Menüs hat sich nichts geändert, nur was der Klick danach liest.
+
+Offen: Ob der FK eine Elterntabelle anderen Namens im Ziel (Synonym) braucht, wie `AddColumnsTargets.Table` sie für die Zieltabelle sucht – bisher nur über den Owner.
