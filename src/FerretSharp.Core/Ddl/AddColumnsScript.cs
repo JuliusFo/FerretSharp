@@ -38,10 +38,10 @@ public static class AddColumnsScript
     /// <summary>
     /// The foreign keys of <paramref name="source"/> made only of added columns. A referenced table of the source's owner is
     /// the one of the target's owner (as in the schema comparison), the source table itself the target table. One that
-    /// checks rows – every column gets a value at once (a default, identity, virtual): Oracle checks no row with a NULL in
-    /// the key – carries the warning of the comparison. One that references added columns of its own table warns that the
-    /// key it needs is not in the script (review, finding 8). One whose parent the dictionary does not show (no privileges
-    /// on its owner) is named as a note instead of dropped silently.
+    /// checks rows – every column gets a value at once (a default – a virtual column's expression is one –, identity): Oracle
+    /// checks no row with a NULL in the key – carries the warning of the comparison. One that references added columns of its own table warns that the
+    /// key it needs is not in the script (review, finding 8). One whose parent or its key columns the dictionary does not
+    /// show (no privileges on its owner) is named as a note instead of dropped silently.
     /// </summary>
     private static IEnumerable<DdlStep> ForeignKeys(TableRef source, TableRef target, IReadOnlyList<ColumnInfo> added, IReadOnlyList<ConstraintInfo> constraints)
     {
@@ -76,7 +76,7 @@ public static class AddColumnsScript
                 checksRows ? DdlRisk.MayFailOnValues : DdlRisk.Safe, warnings.Count > 0 ? string.Join("\n", warnings) : null);
         }
 
-        static bool GetsValue(ColumnInfo column) => column.Default is not null || column.IsIdentity || column.IsVirtual;
+        static bool GetsValue(ColumnInfo column) => column.Default is not null || column.IsIdentity;
 
         TableRef Map(TableRef table) =>
             table == source ? target

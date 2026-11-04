@@ -114,14 +114,13 @@ public class AddColumnsScriptTests
 
     /// <summary>
     /// New columns hold NULL, so their foreign key checks nothing – unless every key column gets a value at once (default,
-    /// identity, virtual): Oracle checks no row with a NULL in a composite key (review, finding 3: one default was enough).
-    /// A disabled or not validated key checks no existing row either. Cases: LAND (default) / PLZ (default, identity,
-    /// virtual or none) – enabled, validated – warns?
+    /// identity; a virtual column carries its expression as default): Oracle checks no row with a NULL in a composite key
+    /// (review, finding 3: one default was enough). A disabled or not validated key checks no existing row either. Cases:
+    /// LAND (default) / PLZ (default, identity or none) – enabled, validated – warns?
     /// </summary>
     [Theory]
     [InlineData("default", true, true, true)]
     [InlineData("identity", true, true, true)]
-    [InlineData("virtual", true, true, true)]
     [InlineData("none", true, true, false)]
     [InlineData("default", false, true, false)]
     [InlineData("default", true, false, false)]
@@ -132,7 +131,6 @@ public class AddColumnsScriptTests
         {
             "default" => Column("PLZ", "VARCHAR2", 8, length: 5, @default: "'00000'"),
             "identity" => Column("PLZ", "NUMBER", 8, precision: 5, nullable: false) with { IsIdentity = true },
-            "virtual" => Column("PLZ", "VARCHAR2", 8, length: 5, @default: "'0'", isVirtual: true),
             _ => Column("PLZ", "VARCHAR2", 8, length: 5),
         };
 
@@ -160,16 +158,19 @@ public class AddColumnsScriptTests
     }
 
     /// <summary>
-    /// Review, finding 6: without privileges on the parent's owner the dictionary shows no referenced table – the key was
-    /// dropped without a word. It is named as a note at the end, commented out.
+    /// Review, findings 6 and 13: without privileges on the parent's owner the dictionary shows no referenced table (or
+    /// not its key columns) – the key was dropped without a word, or written as <c>REFERENCES … ()</c>. It is named as a
+    /// note at the end, commented out.
     /// </summary>
-    [Fact]
-    public void A_foreign_key_whose_parent_cannot_be_read_is_named_as_a_note()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_foreign_key_whose_parent_cannot_be_read_is_named_as_a_note(bool tableKnown)
     {
         var script = AddColumnsScript.Write(Kunde, Kunde, [Column("LAND", "VARCHAR2", 7, length: 2)],
-            [ForeignKey("FK_KUNDE_LAND", ["LAND"], null, [])]);
+            [ForeignKey("FK_KUNDE_LAND", ["LAND"], tableKnown ? new TableRef("SHOP", "LAND") : null, [])]);
 
-        Assert.EndsWith("\n\n-- Fremdschlüssel FK_KUNDE_LAND: Die Elterntabelle ist nicht lesbar (keine Rechte auf ihren Owner?) – er steht nicht im Skript.", script);
+        Assert.EndsWith("\n\n-- Fremdschlüssel FK_KUNDE_LAND: Die Elterntabelle oder ihre Schlüsselspalten sind nicht lesbar (keine Rechte auf ihren Owner?) – er steht nicht im Skript.", script);
         Assert.DoesNotContain("ADD CONSTRAINT", script);
     }
 

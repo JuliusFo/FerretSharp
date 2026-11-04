@@ -286,7 +286,7 @@
     <value>Without foreign keys: the constraints of the table could not be read.</value>
   </data>
   <data name="AddColumnsForeignKeyUnreadable" xml:space="preserve">
-    <value>Foreign key {0}: its parent table cannot be read (no privileges on its owner?) – it is not in the script.</value>
+    <value>Foreign key {0}: its parent table or its key columns cannot be read (no privileges on its owner?) – it is not in the script.</value>
     <comment>{0}: constraint name</comment>
   </data>
   <data name="AddColumnsOwnKeyNeeded" xml:space="preserve">
