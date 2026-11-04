@@ -76,7 +76,7 @@
     /// </summary>
     private async Task OnClickAsync(MouseEventArgs e)
     {
-        if (ResizeClick.IsReset(e.Detail, e.Button, _press, e.ClientX, e.ClientY))
+        if (ResizeClick.IsReset(e.Detail, e.Button, Edge == ResizeEdge.Bottom, _press, e.ClientX, e.ClientY))
         {
             await OnReset.InvokeAsync();
         }

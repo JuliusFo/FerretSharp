@@ -11,8 +11,12 @@ public static class ResizeClick
     /// <summary>Pixels the pointer moves before a press becomes a drag; the same as <c>dragThreshold</c> in dom.js.</summary>
     public const double DragThreshold = 3;
 
+    /// <param name="vertical">
+    /// The handle changes a height: only the vertical distance counts, as in <c>dom.js trackDrag</c> – a double click that
+    /// slipped sideways did not drag, so it still resets.
+    /// </param>
     /// <param name="press">Where the last press on the handle was; null if none was seen.</param>
-    public static bool IsReset(long detail, long button, (double X, double Y)? press, double x, double y) =>
+    public static bool IsReset(long detail, long button, bool vertical, (double X, double Y)? press, double x, double y) =>
         detail >= 2 && button == 0
-        && (press is not { } at || (Math.Abs(x - at.X) < DragThreshold && Math.Abs(y - at.Y) < DragThreshold));
+        && (press is not { } at || Math.Abs(vertical ? y - at.Y : x - at.X) < DragThreshold);
 }
