@@ -15,11 +15,12 @@ Frage des Nutzers zu „Als INSERT kopieren“ auf markierten Zeilen: Der Kopf d
 - Core `InsertExport.ForTable`: Ein Ergebnis des SQL-Editors kennt keine Identity und keine virtuelle Spalte (`OracleDataAccess.ColumnOf`); jede Spalte übernimmt sie von der gleichnamigen Spalte der Zieltabelle – in diese schreibt das INSERT –, dazu deren Primärschlüssel. Eine Spalte, die die Tabelle nicht hat (Alias), bleibt, wie sie ist.
 - UI `ExportMatrix.CompleteInsertTable`: vervollständigt das Ziel direkt vor dem Bauen des Skripts; ein zweiter Klick, solange das läuft, kopiert nicht noch einmal. `ResultMenu` holt die Struktur der Tabelle aus dem Schema-Cache (einmal je Tabelle gelesen, meist schon mit dem Ergebnis geladen) über `RunDbAsync`: Scheitert das Lesen, schließt das Menü und der Fehlerdialog zeigt den Grund (`ShowFailure`); wurde das Menü inzwischen geschlossen, wird nichts kopiert.
 - Texte in Englisch und Deutsch: `InsertExportIdentityAlways`, `InsertExportIdentityDefault`, `InsertExportIdentityByDefault`, `InsertExportVirtual`, `InsertExportNewKeys`, `InsertExportNothingToWrite` (ersetzen `InsertExportIdentity`).
+- Core `CSharpRows.Initializers` („Als C#-Objekte kopieren“): lässt dieselben Spalten weg – EF Core schickte eine gesetzte ID einer Identity ALWAYS mit (ORA-32795). Entscheidung des Nutzers (2026-11-04): „Ja, der C#-Objektinit soll das auch weglassen würde ich sagen.“ Still, ohne Kommentarzeile je Objekt.
 - Integrationstest: Das Skript läuft gegen Oracle auf einer Tabelle mit ALWAYS-Identity und virtueller Spalte und auf einer Tabelle nur aus einer ALWAYS-Identity.
 
 ## Bekannte Grenzen
 - Neue Schlüssel heißt: Verweise auf die alten (Selbstbezug, Kindtabellen) bleiben stehen. Neue Schlüssel samt umgeschriebener Fremdschlüssel steht im Backlog (Fortsetzung von WP-42).
-- „Als C#-Objektinitialisierer kopieren“ übernimmt die ID weiter; offen, ob sie dort auch wegfallen soll (Frage an den Nutzer).
+- Der `HasData`-Seed behält Identity- und virtuelle Spalten: EF verlangt den Schlüssel im Seed.
 
 ## Offen / nicht geprüft
 - Nicht in der laufenden App geprüft (E2E): Im SQL-Editor liegt zwischen Klick und Zwischenablage jetzt das Lesen der Tabellenstruktur, wenn sie noch nicht im Cache ist; das Menü bleibt so lange offen.
