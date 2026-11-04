@@ -247,9 +247,17 @@
     <value>Contains '&amp;': run SET DEFINE OFF first in SQL*Plus.</value>
     <comment>Comment line in an INSERT script</comment>
   </data>
-  <data name="InsertExportIdentity" xml:space="preserve">
-    <value>{0} is an identity column: GENERATED ALWAYS rejects explicit values (ORA-32795).</value>
-    <comment>Comment line in an INSERT script. {0} = column name</comment>
+  <data name="InsertExportIdentityAlways" xml:space="preserve">
+    <value>{0} left out: identity column GENERATED ALWAYS, Oracle assigns new values.</value>
+    <comment>Comment line in an INSERT script; the column is not in the statements (Oracle would reject a value, ORA-32795). {0} = column name</comment>
+  </data>
+  <data name="InsertExportIdentityByDefault" xml:space="preserve">
+    <value>{0} is an identity column (BY DEFAULT): the script keeps its values, its sequence does not advance.</value>
+    <comment>Comment line in an INSERT script; the values are in the statements, a later INSERT without a value may hit a duplicate key. {0} = column name</comment>
+  </data>
+  <data name="InsertExportVirtual" xml:space="preserve">
+    <value>{0} left out: virtual column, Oracle computes it.</value>
+    <comment>Comment line in an INSERT script; the column is not in the statements (Oracle would reject a value, ORA-54013). {0} = column name</comment>
   </data>
   <data name="InsertExportSkipped" xml:space="preserve">
     <value>{0} ({1}) not exported</value>

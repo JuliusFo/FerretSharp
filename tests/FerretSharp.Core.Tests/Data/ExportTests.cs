@@ -82,7 +82,47 @@ public class ExportTests
         var lines = export.Text.Split("\r\n");
         Assert.Equal("-- 1 Zeile aus \"APP\".\"KUNDEN\" (FerretSharp-Export)", lines[0]);
         Assert.Contains(lines, l => l.Contains("SET DEFINE OFF", StringComparison.Ordinal));
-        Assert.Contains(lines, l => l.StartsWith("-- ID ist eine Identity-Spalte", StringComparison.Ordinal));
+        Assert.Contains("-- ID ist eine Identity-Spalte (BY DEFAULT): Das Skript übernimmt die Werte, ihre Sequenz zählt dabei nicht weiter.", lines);
+    }
+
+    /// <summary>Oracle rejects any value for an identity GENERATED ALWAYS (ORA-32795) or a virtual column (ORA-54013).</summary>
+    [Fact]
+    public void Insert_script_leaves_out_columns_oracle_fills_itself()
+    {
+        var table = new TableDetails(
+            new TableSummary("APP", "LAGER", TableKind.Table),
+            [
+                Col("ID", "NUMBER", identity: true) with { IdentityAlways = true }, Col("NAME", "VARCHAR2"),
+                Col("NAME_GROSS", "VARCHAR2") with { IsVirtual = true, Default = "UPPER(\"NAME\")" }, Col("MENGE", "NUMBER"),
+            ],
+            ["ID"], [], false);
+
+        var export = InsertExport.Build(table, [Row(7m, "Regal", "REGAL", 3m), Row(8m, null, null, null)]);
+
+        Assert.Equal(
+            [
+                "-- 2 Zeilen aus \"APP\".\"LAGER\" (FerretSharp-Export)",
+                "-- ID weggelassen: Identity-Spalte GENERATED ALWAYS, Oracle vergibt neue Werte.",
+                "-- NAME_GROSS weggelassen: virtuelle Spalte, Oracle berechnet sie.",
+                "INSERT INTO \"APP\".\"LAGER\" (\"NAME\", \"MENGE\") VALUES ('Regal', 3);",
+                "INSERT INTO \"APP\".\"LAGER\" (\"NAME\", \"MENGE\") VALUES (NULL, NULL);",
+                "",
+            ],
+            export.Text.Split("\r\n"));
+        Assert.Empty(export.Warnings);
+    }
+
+    [Fact]
+    public void A_table_of_only_an_always_identity_gets_default()
+    {
+        var table = new TableDetails(
+            new TableSummary("APP", "NUMMERN", TableKind.Table), [Col("ID", "NUMBER", identity: true) with { IdentityAlways = true }], ["ID"], [], false);
+
+        var export = InsertExport.Build(table, [Row(1m), Row(2m)]);
+
+        var inserts = export.Text.Split("\r\n").Where(l => l.StartsWith("INSERT", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, inserts.Count);
+        Assert.All(inserts, l => Assert.Equal("INSERT INTO \"APP\".\"NUMMERN\" (\"ID\") VALUES (DEFAULT);", l));
     }
 
     /// <summary>Review of R8: a quoted name with a line break left the rest of the header as an executable line.</summary>

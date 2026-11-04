@@ -192,8 +192,14 @@
   <data name="InsertExportAmpersand" xml:space="preserve">
     <value>Enthält '&amp;': in SQL*Plus vorher SET DEFINE OFF ausführen.</value>
   </data>
-  <data name="InsertExportIdentity" xml:space="preserve">
-    <value>{0} ist eine Identity-Spalte: GENERATED ALWAYS lehnt explizite Werte ab (ORA-32795).</value>
+  <data name="InsertExportIdentityAlways" xml:space="preserve">
+    <value>{0} weggelassen: Identity-Spalte GENERATED ALWAYS, Oracle vergibt neue Werte.</value>
+  </data>
+  <data name="InsertExportIdentityByDefault" xml:space="preserve">
+    <value>{0} ist eine Identity-Spalte (BY DEFAULT): Das Skript übernimmt die Werte, ihre Sequenz zählt dabei nicht weiter.</value>
+  </data>
+  <data name="InsertExportVirtual" xml:space="preserve">
+    <value>{0} weggelassen: virtuelle Spalte, Oracle berechnet sie.</value>
   </data>
   <data name="InsertExportSkipped" xml:space="preserve">
     <value>{0} ({1}) nicht exportiert</value>

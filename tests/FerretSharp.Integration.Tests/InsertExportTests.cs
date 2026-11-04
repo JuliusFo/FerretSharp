@@ -47,6 +47,14 @@ public sealed class InsertExportTests(OracleContainerFixture oracle) : IAsyncLif
         """,
         "INSERT INTO EXPORT_SRC (ID, DBL, FLAG, NOTIZ) VALUES (2, BINARY_DOUBLE_INFINITY, FALSE, EMPTY_CLOB())",
         "INSERT INTO EXPORT_SRC (ID) VALUES (3)",
+        """
+        CREATE TABLE EXPORT_GEN (
+            ID         NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            NAME       VARCHAR2(20),
+            NAME_UPPER VARCHAR2(20) GENERATED ALWAYS AS (UPPER(NAME)) VIRTUAL)
+        """,
+        "INSERT INTO EXPORT_GEN (NAME) VALUES ('shelf')",
+        "INSERT INTO EXPORT_GEN (NAME) VALUES (NULL)",
         "COMMIT",
     ];
 
@@ -132,6 +140,28 @@ public sealed class InsertExportTests(OracleContainerFixture oracle) : IAsyncLif
                     $"Row {r + 1}, {details.Columns[c].Name}: {Show(expected)} ≠ {Show(copied[r].Values[c])}");
             }
         }
+    }
+
+    /// <summary>Identity GENERATED ALWAYS (ORA-32795) and virtual columns (ORA-54013) take no value: the script leaves them out.</summary>
+    [Fact]
+    public async Task Script_runs_on_a_table_with_an_always_identity_and_a_virtual_column()
+    {
+        var (details, rows) = await ReadAsync("EXPORT_GEN");
+        Assert.True(details.Columns[0].IdentityAlways);
+        Assert.True(details.Columns[2].IsVirtual);
+
+        var export = InsertExport.Build(details, rows);
+        // Into the same table: Oracle assigns new IDs, so the copies sit beside the originals.
+        await ExecuteAsync(export.Text.Split("\r\n")
+            .Where(l => l.StartsWith("INSERT", StringComparison.Ordinal))
+            .Select(l => l.TrimEnd(';'))
+            .Append("COMMIT"));
+        var (_, after) = await ReadAsync("EXPORT_GEN");
+
+        Assert.Equal(rows.Count * 2, after.Count);
+        Assert.Equal(after.Count, after.Select(r => r.Values[0]).Distinct().Count());
+        static string Named(RowData r) => $"{Show(r.Values[1])} → {Show(r.Values[2])}";
+        Assert.Equal(rows.Concat(rows).Select(Named).Order(StringComparer.Ordinal), after.Select(Named).Order(StringComparer.Ordinal));
     }
 
     private static string Show(object? value) => value switch
