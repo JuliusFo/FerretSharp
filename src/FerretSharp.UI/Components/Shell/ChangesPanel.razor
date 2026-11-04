@@ -5,14 +5,12 @@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Settings
 @inherits FerretComponent
-@implements IAsyncDisposable
 @inject ConnectionHub Hub
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
-@inject IJSRuntime JS
 
-<aside class="changes-panel" style="@WidthStyle" aria-label="@ShellText.Changes_Title" @ref="_panel">
-    <div class="form-resize" @ref="_handle" title="@GridText.Form_ResizeWidth" @onpointerdown="StartResizeAsync"></div>
+<aside class="changes-panel" style="@WidthStyle" aria-label="@ShellText.Changes_Title">
+    <ResizeHandle Edge="ResizeEdge.Left" Min="MinWidth" MaxFraction="MaxFraction" OnResized="w => SaveWidthAsync(w)" OnReset="() => SaveWidthAsync(null)" />
     <header class="changes-head">
         <strong>@ShellText.Changes_Title</strong>
         @if (Workspace is { } shown)
@@ -208,37 +206,17 @@
     private const int MinWidth = 300;
     private const double MaxFraction = 0.6;
 
-    private ElementReference _panel;
-    private ElementReference _handle;
-    private DomModule? _dom;
-    private bool _disposed;
-
-    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
-    private DomModule Dom => _dom ??= new(JS);
-
     private string WidthStyle => FormattableString.Invariant($"width: {Settings.Current.ChangesPanelWidth ?? DefaultWidth}px;");
 
-    /// <summary>Dragging the left edge sets the width – one for the whole app, kept in the settings.</summary>
-    private async Task StartResizeAsync(PointerEventArgs e)
+    /// <summary>Dragging the left edge sets the width – one for the whole app, kept in the settings; null for the default.</summary>
+    private async Task SaveWidthAsync(int? width)
     {
-        if (e.Button != 0)
-        {
-            return;
-        }
-
-        var width = await Dom.InvokeAsync<int>("dragWidth", _handle, _panel, e.PointerId, e.ClientX, MinWidth, MaxFraction);
-        if (_disposed || width <= 0 || width == Settings.Current.ChangesPanelWidth)
+        if (width == Settings.Current.ChangesPanelWidth)
         {
             return;
         }
 
         await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { ChangesPanelWidth = width }, CancellationToken.None));
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _disposed = true;
-        await Dom.DisposeAsync();
     }
 
     /// <summary>The written action whose "up to here" the mouse is on: it and every later one are marked.</summary>

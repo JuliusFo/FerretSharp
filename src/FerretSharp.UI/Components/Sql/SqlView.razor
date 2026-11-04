@@ -44,6 +44,9 @@
         {
             <SqlHistoryPanel Entries="_history" OnAdopt="AdoptAsync" />
         }
+
+        <ResizeHandle Edge="ResizeEdge.Bottom" Min="EditorMinHeight" MaxFraction="EditorMaxFraction" Variable="@PanelSizes.SqlEditorHeight"
+                      Measure=".sql-code" Within=".sqlview" OnResized="h => SaveEditorHeightAsync(h)" OnReset="() => SaveEditorHeightAsync(null)" />
     </div>
 
     <div class="linq-output">
@@ -272,6 +275,22 @@
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    /// <summary>Height limits of the editor when its bottom edge is dragged; the default is in the stylesheet.</summary>
+    private const int EditorMinHeight = 80;
+    private const double EditorMaxFraction = 0.75;
+
+    /// <summary>
+    /// The dragged editor height, one for every SQL tab, kept in the settings; null for the default. The shell renders it as
+    /// <see cref="PanelSizes.SqlEditorHeight"/>.
+    /// </summary>
+    private async Task SaveEditorHeightAsync(int? height)
+    {
+        if (height != Settings.Current.SqlEditorHeight)
+        {
+            await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { SqlEditorHeight = height }, CancellationToken.None));
+        }
+    }
 
     [CascadingParameter]
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;

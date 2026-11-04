@@ -21,7 +21,7 @@
 <CascadingValue Value="_state" IsFixed="true">
 <CascadingValue Value="_lifecycle" IsFixed="true">
 <CascadingValue Value="_reconnect" IsFixed="true">
-    <div class="app @(_lifecycle.IsProd ? "is-prod" : "")">
+    <div class="app @(_lifecycle.IsProd ? "is-prod" : "")" style="@(_shownSizes = PanelSizes.Style(Settings.Current))">
         <header class="topbar">
             <ConnectionScopeView @key='(Shown, "header")' Scope="Shown">
             <div class="brand">Ferret<span>Sharp</span></div>
@@ -331,6 +331,7 @@
         Hub.Changed += OnHubChanged;
         KeepAlive.ConnectionLost += OnKeepAliveLost;
         Shortcuts.Changed += OnShortcutsChanged;
+        Settings.Changed += OnSettingsChanged;
         KeepAlive.Start();
         if (Settings.StartupNotice is { } notice)
         {
@@ -386,6 +387,21 @@
         await _shortcuts.InvokeVoidAsync("register", _selfRef, Shortcuts.Map.GlobalCombos, takeEditFirst.OfType<string>().ToList());
         await _shortcuts.InvokeVoidAsync("setLocal", Shortcuts.LocalCombos);
     }
+
+    /// <summary>The dragged sizes (<see cref="PanelSizes"/>) at the last render of the app root.</summary>
+    private string? _shownSizes;
+
+    /// <summary>
+    /// Renders again only if a dragged size changed (a handle released or double-clicked), not for every other setting: the
+    /// app root carries the sizes for every explorer and editor tab, which then need no render of their own.
+    /// </summary>
+    private void OnSettingsChanged() => InvokeAsync(() =>
+    {
+        if (PanelSizes.Style(Settings.Current) != _shownSizes)
+        {
+            StateHasChanged();
+        }
+    });
 
     private void OnShortcutsChanged() => Run(async () =>
     {
@@ -765,6 +781,7 @@
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         _reconnect.Dispose();
         Shortcuts.Changed -= OnShortcutsChanged;
+        Settings.Changed -= OnSettingsChanged;
         Links.Received -= OnLinkReceived;
         _state.IncomingLinkClosed -= OnLinkReceived;
         if (_shortcuts is not null)

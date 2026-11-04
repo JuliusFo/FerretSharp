@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- The explorer can be made wider or narrower: drag its right edge. The SQL editor and the LINQ console's query editor can be made taller or lower: drag the line between the editor and its results. Each size holds for every connection and every tab and is kept after a restart.
+- A double click on a drag handle – also those of the form and of the change overview – goes back to the default size.
+
 ## [3.59.0] - 2026-11-03
 
 A report page on how the C# model and the database fit, with a file of tables meant to have no entity; names beside foreign key values and pinned columns in SQL and LINQ results; the SQL editor splits only at `;` and `/` lines; and typing over Remote Desktop no longer lags.
