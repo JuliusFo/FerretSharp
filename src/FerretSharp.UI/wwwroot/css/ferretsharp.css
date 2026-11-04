@@ -1349,8 +1349,9 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .monaco-host.linq-variables { height: 62px; flex-shrink: 0; }
 /* At most 60 % of the view like the drag limit (LinqView.EditorMaxFraction), also when the window got smaller since. */
 .monaco-host.linq-code { height: min(var(--linq-editor-height, clamp(110px, 22vh, 300px)), 60cqh); }
-/* Results of the LINQ console and the SQL editor; a strip stays for them when the editor above is large and the view small. */
-.linq-output { flex: 1; display: flex; flex-direction: column; min-height: 48px; position: relative; }
+/* Results of the LINQ console and the SQL editor; a strip stays for them when the editor above is large and the view small.
+   It scrolls there, so the run progress with Cancel and Disconnect session stays reachable (review 2026-11-04). */
+.linq-output { flex: 1; display: flex; flex-direction: column; min-height: 48px; position: relative; overflow-y: auto; }
 /* RunProgress: where the result will appear while a statement runs. */
 .run-progress {
   align-self: center; width: min(640px, calc(100% - 32px)); margin: 28px 16px; padding: 16px 18px;
