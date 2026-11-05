@@ -442,6 +442,13 @@ public sealed partial class WorkspaceEditing(
         {
             var result = await editor.FlushAsync(tracker.Table, operations, options, CancellationToken.None);
             var batch = tracker.MarkFlushed(operations, result.NewKeys);
+            if (operations.Any(o => o.Kind == OperationKind.Insert))
+            {
+                // Rows still waiting for "Load": the reload after this write reads them, or an inserted row – no longer a new
+                // one – left the grid. Not at "+ Row": removed again unwritten, the tab still waits (code review).
+                tab.RowsDeferred = false;
+            }
+
             if (result.Action is { } action)
             {
                 History.Written(workspace.WorkspaceId, action.Id, tab, batch);

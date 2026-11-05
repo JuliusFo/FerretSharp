@@ -980,9 +980,6 @@
             return;
         }
 
-        // Rows still waiting for "Load": the reload after writing must read them, or the inserted row – no longer a new
-        // one – left the grid (code review).
-        Tab.RowsDeferred = false;
         var first = added.Column is { } column ? ColumnId(column) : null;
         if (!inGrid)
         {
