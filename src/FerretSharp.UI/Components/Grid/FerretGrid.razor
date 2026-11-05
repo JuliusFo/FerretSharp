@@ -1043,9 +1043,19 @@
 
     private async Task<GridPage> GetRowsCoreAsync(int startRow, int endRow, GridSort[] sortModel)
     {
-        Tab.Sorts = sortModel
+        var sorted = sortModel
             .Select(s => new SortSpec(Details.Columns[ColumnIndex(s.ColId)].Name, s.Sort == "desc"))
             .ToList();
+        if (Tab.StillDeferred(startRow, sorted))
+        {
+            // The rows wait for the user (setting "Load rows"): none, the footer says so.
+            Tab.RowsLoaded = 0;
+            Tab.AllRowsLoaded = false;
+            await OnPageLoaded.InvokeAsync();
+            return new GridPage([], 0);
+        }
+
+        Tab.Sorts = sorted;
         if (startRow == 0)
         {
             Tab.RowsLoaded = 0;

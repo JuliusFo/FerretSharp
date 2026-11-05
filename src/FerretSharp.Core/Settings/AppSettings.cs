@@ -49,6 +49,19 @@ public enum FkCountMode
     OnHover,
 }
 
+/// <summary>When a newly opened table tab reads its first rows.</summary>
+public enum RowLoadMode
+{
+    /// <summary>As soon as the data view shows (default).</summary>
+    Immediately,
+
+    /// <summary>
+    /// Only when asked for: "Load", F5, applying filters or sorting by a header. Filters can be set first on a big table or
+    /// view, whose first page may already be a full scan with a sort.
+    /// </summary>
+    OnRequest,
+}
+
 /// <summary>What "SQL" in a table's filter bar shows and opens in the SQL editor.</summary>
 public enum FilterSqlColumns
 {
@@ -225,6 +238,16 @@ public sealed record AppSettings
 
     /// <summary>What "SQL" in a table's filter bar shows: the grid's statement (default) or <c>SELECT t.*</c>.</summary>
     public FilterSqlColumns FilterSql { get; init; } = FilterSqlColumns.Listed;
+
+    /// <summary>
+    /// The view a table tab opens on when nothing asks for another one (explorer, command palette, diagrams): the data
+    /// (default) or one of the detail views. An FK jump and a link with filters always open the data, a restored tab its
+    /// saved view.
+    /// </summary>
+    public Workspaces.TabMode OpenView { get; init; } = Workspaces.TabMode.Data;
+
+    /// <summary>When a newly opened table tab without filters reads its first rows; a restored tab reads them as before.</summary>
+    public RowLoadMode LoadRows { get; init; } = RowLoadMode.Immediately;
 
     /// <summary>
     /// How each linked project writes the C# of a query from the relationship diagram (WP-69): namespace, DTO, LinqKit, its

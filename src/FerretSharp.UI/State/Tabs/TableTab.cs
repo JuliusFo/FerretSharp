@@ -78,6 +78,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         set
         {
             field = value;
+            ViewFromSetting = false;
             if (value != TabMode.Synonyms)
             {
                 DropRequested = null;
@@ -86,6 +87,44 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     } = TabMode.Data;
 
     public SynonymInfo? DropRequested { get; set; }
+
+    /// <summary>
+    /// <see cref="Mode"/> is the setting's view for a new tab (<see cref="TableOpening"/>), not one asked for: the tab's view
+    /// falls back to the data if it cannot show it ("Usage" without a linked C# project). Setting the mode clears it. Not saved.
+    /// </summary>
+    public bool ViewFromSetting { get; private set; }
+
+    /// <summary>Opens the tab on the setting's view (<see cref="TableOpening.View"/>).</summary>
+    public void UseViewFromSetting(TabMode mode)
+    {
+        Mode = mode;
+        ViewFromSetting = true;
+    }
+
+    /// <summary>
+    /// The rows wait for the user (setting "Load rows", <see cref="Core.Settings.RowLoadMode.OnRequest"/>): the grid shows
+    /// none and the footer says so until "Load", F5, applying the filters or a sort asks for them. Not saved: a restored tab
+    /// reads its rows (decision of the user).
+    /// </summary>
+    public bool RowsDeferred { get; set; }
+
+    /// <summary>
+    /// The grid asks for rows from <paramref name="startRow"/> in the order <paramref name="sorts"/>: true while they still
+    /// wait for the user (<see cref="RowsDeferred"/>). Another order than the tab's is a click on a header – it asks for the
+    /// rows, and its order arrives with the grid's request before the sort event (ui-grid.md) – and ends the wait like
+    /// every request past the first row.
+    /// </summary>
+    public bool StillDeferred(int startRow, IReadOnlyList<SortSpec> sorts)
+    {
+        ArgumentNullException.ThrowIfNull(sorts);
+        if (RowsDeferred && startRow == 0 && sorts.SequenceEqual(Sorts))
+        {
+            return true;
+        }
+
+        RowsDeferred = false;
+        return false;
+    }
 
     /// <summary>
     /// The data view was shown once: from then on the grid stays mounted beside the other views, also when the tab's view

@@ -447,4 +447,22 @@
   <data name="Settings_ReportExceptionsNoFile" xml:space="preserve">
     <value>{0} gibt es noch nicht: Das erste „Als Ausnahme…“ im Bericht legt sie an.</value>
   </data>
+  <data name="Settings_OpenView" xml:space="preserve">
+    <value>Ansicht beim Öffnen einer Tabelle</value>
+  </data>
+  <data name="Settings_OpenViewHint" xml:space="preserve">
+    <value>Die Ansicht, auf der eine Tabelle aus dem Explorer, der Befehlspalette oder einem Diagramm öffnet – die Daten oder eine der Detailansichten. FK-Sprünge und Links mit Filtern öffnen immer die Daten, wiederhergestellte Tabs ihre gespeicherte Ansicht. Ohne verknüpftes C#-Projekt öffnet „Verwendung“ die Daten.</value>
+  </data>
+  <data name="Settings_LoadRows" xml:space="preserve">
+    <value>Zeilen beim Öffnen laden</value>
+  </data>
+  <data name="Settings_LoadRowsHint" xml:space="preserve">
+    <value>„Auf Anforderung“: Eine neu geöffnete Tabelle zeigt ihre Spalten ohne Zeilen, bis „Laden“, Neu laden, Anwenden der Filter oder ein Klick auf einen Spaltenkopf sie holt – bei großen Tabellen und Views erst filtern. FK-Sprünge und wiederhergestellte Tabs laden sofort.</value>
+  </data>
+  <data name="Settings_LoadRowsImmediately" xml:space="preserve">
+    <value>Sofort</value>
+  </data>
+  <data name="Settings_LoadRowsOnRequest" xml:space="preserve">
+    <value>Auf Anforderung</value>
+  </data>
 </root>

@@ -1,4 +1,5 @@
 using FerretSharp.Core.Settings;
+using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.Core.Tests.Settings;
 
@@ -28,6 +29,7 @@ public sealed class SettingsStoreTests : IDisposable
             (ShowColumnTypes: true, ShowNotNull: true, SyncAuditInDesigner: true, CreateAuditTables: true, CheckForUpdates: true, ChangesPanelOpen: false, ChangesPanelWidth: (int?)null),
             (settings.ShowColumnTypes, settings.ShowNotNull, settings.SyncAuditInDesigner, settings.CreateAuditTables, settings.CheckForUpdates, settings.ChangesPanelOpen, settings.ChangesPanelWidth));
         Assert.Null(settings.ExplorerWidth);
+        Assert.Equal((TabMode.Data, RowLoadMode.Immediately), (settings.OpenView, settings.LoadRows));
     }
 
     [Theory]

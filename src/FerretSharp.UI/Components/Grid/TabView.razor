@@ -98,7 +98,7 @@
                         <RowFormPanel @ref="_form" Tab="Tab" Details="_details" Grid="_grid" OnClose="CloseFormAsync" />
                     }
                 </div>
-                <TabFooter @ref="_footer" Tab="Tab" Details="_details" Grid="_grid" Loading="_grid?.LoadingFirstPage == true" />
+                <TabFooter @ref="_footer" Tab="Tab" Details="_details" Grid="_grid" Loading="_grid?.LoadingFirstPage == true" OnLoad="() => RefreshAsync()" />
             </div>
         }
 
@@ -346,6 +346,11 @@
         Shell.TabCommandRequested += OnTabCommand;
         _presentation = new PresentationWatch(Presentations);
         Presentations.Changed += OnPresentationChanged;
+        if (Tab.ViewFromSetting && TableOpening.Shown(Tab.Mode, Models.State.Link is not null) is var shown && shown != Tab.Mode)
+        {
+            Tab.Mode = shown; // the setting's view cannot show here ("Usage" without a linked project)
+        }
+
         if (Active.Schema is not { } schema)
         {
             return;
@@ -451,6 +456,7 @@
     /// <param name="sorts">A new sort order; the grid then reloads by sorting (one query).</param>
     private async Task RefreshAsync(IReadOnlyList<SortSpec>? sorts = null)
     {
+        Tab.RowsDeferred = false; // "Load", F5 and applying the filters ask for the rows
         _footer?.Reset();
         Tab.Error = null;
         Tab.Failure = null;

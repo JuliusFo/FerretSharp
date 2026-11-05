@@ -531,4 +531,24 @@
     <value>{0} does not exist yet: the first “Mark as exception…” on the report creates it.</value>
     <comment>{0}: path</comment>
   </data>
+  <data name="Settings_OpenView" xml:space="preserve">
+    <value>View when opening a table</value>
+  </data>
+  <data name="Settings_OpenViewHint" xml:space="preserve">
+    <value>The view a table opens on from the explorer, the command palette or a diagram – the data or one of the detail views. An FK jump and a link with filters always open the data, a restored tab its saved view. Without a linked C# project, “Usage” opens the data.</value>
+  </data>
+  <data name="Settings_LoadRows" xml:space="preserve">
+    <value>Load rows when opening</value>
+  </data>
+  <data name="Settings_LoadRowsHint" xml:space="preserve">
+    <value>“On request”: a newly opened table shows its columns without rows until “Load”, reloading, applying the filters or a click on a column header asks for them – on big tables and views, filter first. FK jumps and restored tabs load at once.</value>
+  </data>
+  <data name="Settings_LoadRowsImmediately" xml:space="preserve">
+    <value>Immediately</value>
+    <comment>Option of "Load rows when opening"</comment>
+  </data>
+  <data name="Settings_LoadRowsOnRequest" xml:space="preserve">
+    <value>On request</value>
+    <comment>Option of "Load rows when opening": only when the user asks</comment>
+  </data>
 </root>

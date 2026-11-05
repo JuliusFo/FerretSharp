@@ -1,6 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
 using NSubstitute;
@@ -128,6 +129,7 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         (source.AppliedFilters, source.Sorts, source.Mode) = (applied, [new SortSpec("NAME", true)], TabMode.Structure);
         source.Preset = Guid.NewGuid();
         source.SetFilterRows([.. applied, FilterCondition.Of("ORT", FilterOperator.Equals, "Kiel")]);
+        source.RowsDeferred = true;
         var sql = _app.Shell.OpenSql()!;
 
         var copy = _app.Shell.DuplicateTab(source)!;
@@ -140,6 +142,31 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         Assert.Equal(TabMode.Structure, copy.Mode);
         Assert.Equal(source.Preset, copy.Preset); // review of WP-70: the filter bar names the preset
         Assert.False(copy.Pinned);
+        Assert.True(copy.RowsDeferred); // the copy of a tab that has not read its rows does not read them either
+    }
+
+    /// <summary>
+    /// Settings "View when opening" and "Load rows": a new tab starts as they say; a view asked for, an open tab and an FK
+    /// jump do not follow them.
+    /// </summary>
+    [Fact]
+    public async Task A_new_table_tab_opens_on_the_settings_view_and_waits_for_its_rows()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        await _app.Settings.UpdateAsync(s => s with { OpenView = TabMode.Ddl, LoadRows = RowLoadMode.OnRequest }, TestContext.Current.CancellationToken);
+
+        var tab = _app.Shell.OpenTable(TestApp.Kunden)!;
+        Assert.Equal((TabMode.Ddl, true, true), (tab.Mode, tab.ViewFromSetting, tab.RowsDeferred));
+
+        tab.Mode = TabMode.Indexes;
+        Assert.Same(tab, _app.Shell.OpenTable(TestApp.Kunden));
+        Assert.Equal((TabMode.Indexes, false), (tab.Mode, tab.ViewFromSetting)); // the open tab keeps its view
+
+        var asked = _app.Shell.OpenTable(new TableSummary("APP_USER", "AUFTRAEGE", TableKind.Table), TabMode.Structure)!;
+        Assert.Equal((TabMode.Structure, false), (asked.Mode, asked.ViewFromSetting));
+
+        var jump = _app.Shell.OpenFiltered(TestApp.Kunden, [FilterCondition.Of("ID", FilterOperator.Equals, "1")])!;
+        Assert.Equal((TabMode.Data, false), (jump.Mode, jump.RowsDeferred));
     }
 
     /// <summary>WP-73: a SQL tab opened now takes the focus (a restored one never sets it).</summary>

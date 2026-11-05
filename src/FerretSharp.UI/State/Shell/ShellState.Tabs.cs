@@ -101,7 +101,17 @@ public sealed partial class ShellState
         OpenPendingLink();
     }
 
-    /// <summary>Activates the tab of <paramref name="table"/> in the active workspace or opens a new one.</summary>
+    /// <summary>
+    /// The settings as they are now (Shell.razor hands in <see cref="Core.Settings.AppSettingsService.Current"/>): how a new
+    /// table tab starts (<see cref="TableOpening"/>).
+    /// </summary>
+    public Func<Core.Settings.AppSettings> CurrentSettings { get; set; } = () => Core.Settings.AppSettings.Default;
+
+    /// <summary>
+    /// Activates the tab of <paramref name="table"/> in the active workspace or opens a new one – without
+    /// <paramref name="mode"/> on the view of the setting, its rows loaded now or on request (<see cref="TableOpening"/>).
+    /// An open tab keeps its view and rows.
+    /// </summary>
     public TableTab? OpenTable(TableSummary table, TabMode? mode = null)
     {
         if (ActiveWorkspace is not { } workspace)
@@ -114,7 +124,13 @@ public sealed partial class ShellState
         {
             if (tab is null)
             {
-                tab = new TableTab(workspace.WorkspaceId, table);
+                var settings = CurrentSettings();
+                tab = new TableTab(workspace.WorkspaceId, table) { RowsDeferred = TableOpening.DefersRows(settings) };
+                if (mode is null)
+                {
+                    tab.UseViewFromSetting(TableOpening.View(settings));
+                }
+
                 workspace.Tabs.Add(tab);
             }
 
@@ -415,6 +431,7 @@ public sealed partial class ShellState
             Preset = source.Preset,
             Mode = source.Mode,
             PinnedColumns = source.PinnedColumns,
+            RowsDeferred = source.RowsDeferred, // a copy of a tab that has not read its rows does not read them either
             Visited = true,
         };
         copy.SetFilterRows(source.AppliedFilters);
