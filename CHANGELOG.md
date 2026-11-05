@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- Every way between two tables (*Relations › Path to …*): pick a table, and the view lists each chain of relationships from this table to it – over parents and children, every table at most once, the shortest first, “1 : 1” for ways over parents only. There is no limit: ways come in blocks of 50 while the search runs in the background, “More ways” goes on, “Cancel” stops it. A diagram shows all ways found, a way under the mouse lights up. “Not via this table” leaves out tables every way would pass, like who created a row – kept per connection. A way becomes the query of “Build query” (replacing it or added to it), or is copied as text or Mermaid.
 - Choose the view a table opens on (*Settings › Data view*): the data, as before, or one of the detail views – columns, constraints, DDL and the others. It applies to tables opened from the explorer, the command palette, a diagram or a column header's menu; a jump to referencing or referenced rows still opens the data, a link its own view, a tab restored with its workspace its saved view. Without a linked C# project, "Usage" opens the data.
 - Rows on request (*Settings › Data view*): a newly opened table shows its columns without rows until "Load" in the footer, reloading, applying the filters or a click on a column header asks for them – so a big table or view can be filtered first. Jumps to referencing or referenced rows, links and restored tabs load at once; counting the rows works before loading.
 
