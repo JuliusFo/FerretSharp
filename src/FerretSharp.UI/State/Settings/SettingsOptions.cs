@@ -1,5 +1,6 @@
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
+using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
@@ -29,6 +30,12 @@ public static class SettingsOptions
 
     public static IReadOnlyList<(FilterSqlColumns Columns, string Label)> FilterSql =>
         [(FilterSqlColumns.Listed, SettingsViewText.Settings_FilterSqlListed), (FilterSqlColumns.Star, SettingsCatalog.FilterSqlStar)];
+
+    /// <summary>Every view of a table tab, as its view switch shows them ("Usage" falls back to the data without a C# project).</summary>
+    public static IReadOnlyList<(TabMode Mode, string Label)> OpenViews => TabModeLabels.All;
+
+    public static IReadOnlyList<(RowLoadMode Mode, string Label)> LoadRows =>
+        [(RowLoadMode.Immediately, SettingsViewText.Settings_LoadRowsImmediately), (RowLoadMode.OnRequest, SettingsViewText.Settings_LoadRowsOnRequest)];
 
     public static IReadOnlyList<(int Hours, string Label)> UpdateIntervals =>
     [

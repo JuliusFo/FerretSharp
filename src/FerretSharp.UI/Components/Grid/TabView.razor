@@ -72,31 +72,35 @@
     }
     else
     {
-        <div class="tab-data @(Tab.Mode == TabMode.Data ? "" : "hidden")">
-            <FilterBar Tab="Tab" Details="_details" OnApply="() => ApplyFiltersAsync()" OnApplyPreset="ApplyFiltersAsync" OnShowSql="ShowSql" OnShowPlan="ShowPlan" />
-            @if (Tab.Error is not null)
-            {
-                <div class="tab-error">
-                    <span>@Tab.Error</span>
-                    @if (Tab.Failure is { } failure)
+        @* The grid mounts when the data view is first shown (like the detail views): a tab that opens on another view reads no rows. *@
+        @if (Tab.DataShown)
+        {
+            <div class="tab-data @(Tab.Mode == TabMode.Data ? "" : "hidden")">
+                <FilterBar Tab="Tab" Details="_details" OnApply="() => ApplyFiltersAsync()" OnApplyPreset="ApplyFiltersAsync" OnShowSql="ShowSql" OnShowPlan="ShowPlan" />
+                @if (Tab.Error is not null)
+                {
+                    <div class="tab-error">
+                        <span>@Tab.Error</span>
+                        @if (Tab.Failure is { } failure)
+                        {
+                            <button class="link-btn" @onclick="() => Shell.ShowError(failure, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
+                        }
+                    </div>
+                }
+                <div class="grid-split">
+                    <div class="grid-host">
+                        <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="OnPageLoadedAsync" OnLoadingShown="StateHasChanged"
+                                    OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
+                                    OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" OnFormRequested="OnFormRequested" />
+                    </div>
+                    @if (Tab.FormOpen)
                     {
-                        <button class="link-btn" @onclick="() => Shell.ShowError(failure, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
+                        <RowFormPanel @ref="_form" Tab="Tab" Details="_details" Grid="_grid" OnClose="CloseFormAsync" />
                     }
                 </div>
-            }
-            <div class="grid-split">
-                <div class="grid-host">
-                    <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="OnPageLoadedAsync" OnLoadingShown="StateHasChanged"
-                                OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
-                                OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" OnFormRequested="OnFormRequested" />
-                </div>
-                @if (Tab.FormOpen)
-                {
-                    <RowFormPanel @ref="_form" Tab="Tab" Details="_details" Grid="_grid" OnClose="CloseFormAsync" />
-                }
+                <TabFooter @ref="_footer" Tab="Tab" Details="_details" Grid="_grid" Loading="_grid?.LoadingFirstPage == true" OnLoad="() => RefreshAsync()" />
             </div>
-            <TabFooter @ref="_footer" Tab="Tab" Details="_details" Grid="_grid" Loading="_grid?.LoadingFirstPage == true" />
-        </div>
+        }
 
         @* Detail views mount when first shown and then stay (like the grid), so switching back costs no query. *@
         @if (_visited.Any(m => m != TabMode.Data))
@@ -342,6 +346,11 @@
         Shell.TabCommandRequested += OnTabCommand;
         _presentation = new PresentationWatch(Presentations);
         Presentations.Changed += OnPresentationChanged;
+        if (Tab.ViewFromSetting && TableOpening.Shown(Tab.Mode, Models.State.Link is not null) is var shown && shown != Tab.Mode)
+        {
+            Tab.Mode = shown; // the setting's view cannot show here ("Usage" without a linked project)
+        }
+
         if (Active.Schema is not { } schema)
         {
             return;
@@ -364,7 +373,13 @@
     }
 
     /// <summary>The mode may also change from outside (a table link opens the structure of an open tab).</summary>
-    protected override void OnParametersSet() => _visited.Add(Tab.Mode);
+    protected override void OnParametersSet() => Visit(Tab.Mode);
+
+    private void Visit(TabMode mode)
+    {
+        _visited.Add(mode);
+        Tab.DataShown |= mode == TabMode.Data;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -404,7 +419,7 @@
     private void SetMode(TabMode mode)
     {
         Tab.Mode = mode;
-        _visited.Add(mode);
+        Visit(mode);
         Shell.NotifyChanged();
     }
 
@@ -441,6 +456,7 @@
     /// <param name="sorts">A new sort order; the grid then reloads by sorting (one query).</param>
     private async Task RefreshAsync(IReadOnlyList<SortSpec>? sorts = null)
     {
+        Tab.RowsDeferred = false; // "Load", F5 and applying the filters ask for the rows
         _footer?.Reset();
         Tab.Error = null;
         Tab.Failure = null;

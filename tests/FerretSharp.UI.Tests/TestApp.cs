@@ -61,6 +61,7 @@ internal sealed class TestApp : IAsyncDisposable
         _services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 
         Hub = _services.GetRequiredService<ConnectionHub>();
+        Shell.CurrentSettings = () => Settings.Current;
         Editing = new WorkspaceEditing(Shell, Hub, _services.GetRequiredService<AppSettingsService>(), NullLogger<WorkspaceEditing>.Instance, Time);
         Lifecycle = new WorkspaceLifecycle(
             Shell, Hub, _services.GetRequiredService<ConnectionManager>(), History = new SqlHistoryStore(_folder.Combine("history")),

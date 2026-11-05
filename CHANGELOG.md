@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Choose the view a table opens on (*Settings › Data view*): the data, as before, or one of the detail views – columns, constraints, DDL and the others. It applies to tables opened from the explorer, the command palette, a diagram or a column header's menu; a jump to referencing or referenced rows still opens the data, a link its own view, a tab restored with its workspace its saved view. Without a linked C# project, "Usage" opens the data.
+- Rows on request (*Settings › Data view*): a newly opened table shows its columns without rows until "Load" in the footer, reloading, applying the filters or a click on a column header asks for them – so a big table or view can be filtered first. Jumps to referencing or referenced rows, links and restored tabs load at once; counting the rows works before loading.
+
+### Changed
+- A table tab reads its rows only once its data view is shown: a tab opened on another view – the columns from a link in the designer, the synonyms or privileges from the object menu – ran the grid's query in the background.
+
 ## [3.60.0] - 2026-11-05
 
 Drag the explorer wider and the SQL and LINQ editors taller, foreign keys come along in the column ADD script, and INSERT exports leave out identity ALWAYS and virtual columns.

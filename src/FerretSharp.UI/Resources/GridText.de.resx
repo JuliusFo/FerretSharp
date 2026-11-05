@@ -1329,4 +1329,13 @@
   <data name="Grid_AuditChangesSlow" xml:space="preserve">
     <value>die Abfrage dauerte länger als {0} s – ein Index in der Audit-Tabelle auf den Schlüsselspalten der Basistabelle würde helfen</value>
   </data>
+  <data name="Footer_NotLoaded" xml:space="preserve">
+    <value>Zeilen nicht geladen</value>
+  </data>
+  <data name="Footer_Load" xml:space="preserve">
+    <value>Laden</value>
+  </data>
+  <data name="Footer_LoadTitle" xml:space="preserve">
+    <value>Liest die ersten Zeilen mit den angewandten Filtern</value>
+  </data>
 </root>

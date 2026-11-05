@@ -1,8 +1,27 @@
-@* Settings › Data view: type and NOT NULL in the column headers (table grid and SQL result), and what "SQL" in the filter bar shows. *@
+@* Settings › Data view: how a new table tab opens (view, rows), type and NOT NULL in the column headers (table grid and SQL
+   result), and what "SQL" in the filter bar shows. *@
+@using FerretSharp.Core.Workspaces
 @inject AppSettingsService Settings
 
 <section class="settings-section">
     <h2>@SettingsViewText.Settings_DataView</h2>
+    @* Ten views: a list instead of segmented buttons, which pressed the hint into a narrow column. value, not selected= (ui.md). *@
+    <div class="settings-row @Filter.HideClass(SettingKey.OpenView)">
+        <div class="settings-label">
+            <span>@SettingsViewText.Settings_OpenView</span>
+            <span class="hint">@SettingsViewText.Settings_OpenViewHint</span>
+        </div>
+        <select class="field settings-select" aria-label="@SettingsViewText.Settings_OpenView" value="@Settings.Current.OpenView" @onchange="SetOpenViewAsync">
+            @foreach (var (view, label) in SettingsOptions.OpenViews)
+            {
+                <option value="@view">@label</option>
+            }
+        </select>
+    </div>
+    <SettingsChoice TValue="RowLoadMode" Filter="Filter" Key="SettingKey.LoadRows" Label="@SettingsViewText.Settings_LoadRows" Options="SettingsOptions.LoadRows"
+                    Value="Settings.Current.LoadRows" OnChange="mode => UpdateAsync(s => s with { LoadRows = mode })">
+        <Hint>@SettingsViewText.Settings_LoadRowsHint</Hint>
+    </SettingsChoice>
     <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.HeaderTypes" Label="@SettingsViewText.Settings_HeaderTypes" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.ShowColumnTypes" OnChange="on => UpdateAsync(s => s with { ShowColumnTypes = on })">
         <Hint><Fmt Text="@SettingsViewText.Settings_HeaderTypesHint"><Arg0><code>@SettingsCatalog.HeaderTypeExample</code></Arg0></Fmt></Hint>
@@ -23,6 +42,9 @@
 
     [Parameter, EditorRequired]
     public SettingsFilter Filter { get; set; } = null!;
+
+    private Task SetOpenViewAsync(ChangeEventArgs e) =>
+        Enum.TryParse<TabMode>(e.Value as string, out var view) ? UpdateAsync(s => s with { OpenView = view }) : Task.CompletedTask;
 
     private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
 }

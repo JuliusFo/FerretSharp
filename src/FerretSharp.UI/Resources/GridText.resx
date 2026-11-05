@@ -1697,4 +1697,16 @@
     <value>the query took longer than {0} s – an index in the audit table on the key columns of the base table would help</value>
     <comment>Reason for Grid_AuditChangesOff; {0}: seconds</comment>
   </data>
+  <data name="Footer_NotLoaded" xml:space="preserve">
+    <value>Rows not loaded</value>
+    <comment>Footer of a table tab whose rows wait for the user (setting "Load rows when opening")</comment>
+  </data>
+  <data name="Footer_Load" xml:space="preserve">
+    <value>Load</value>
+    <comment>Button in the footer: reads the first rows</comment>
+  </data>
+  <data name="Footer_LoadTitle" xml:space="preserve">
+    <value>Reads the first rows with the applied filters</value>
+    <comment>Tooltip of Footer_Load; the shortcut of "Reload" may follow in parentheses</comment>
+  </data>
 </root>

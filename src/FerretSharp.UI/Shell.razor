@@ -316,6 +316,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _state.CurrentSettings = () => Settings.Current;
         _editing = new WorkspaceEditing(_state, Hub, Settings, LoggerFactory.CreateLogger<WorkspaceEditing>());
         _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>());
         _reconnect = new AutoReconnect(_state, Hub, _editing, Settings, _lifecycle.ReconnectInPlaceAsync, Run, LoggerFactory.CreateLogger<AutoReconnect>());

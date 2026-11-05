@@ -61,6 +61,8 @@ developer works with an Oracle database day to day:
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,
   exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F). The row selection follows the
   keyboard as in the Windows Explorer: Shift+↑/↓, Ctrl+A, Space.
+- A table opens on the view of your choice – the data or one of the detail views – and, if you like, without rows:
+  set the filters first, then load (*Settings › Data view*).
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
   statement (the grid's own or a short `SELECT t.*`) and its execution plan at any time. Combine rows with **OR** and **NOT** groups (NOT treats NULL as C# does,
   so the grid and a LINQ `Where` keep the same rows).

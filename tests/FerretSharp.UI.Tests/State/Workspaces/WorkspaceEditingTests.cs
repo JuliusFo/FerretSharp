@@ -496,6 +496,27 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.Equal(1, tab.Changes.FlushedCount);
     }
 
+    /// <summary>
+    /// Code review: a tab whose rows wait for "Load" (setting "Load rows") reloaded empty after writing a new row – the
+    /// inserted row left the grid. Writing an insert ends the waiting, an update or a new row removed unwritten does not.
+    /// </summary>
+    [Fact]
+    public async Task Writing_a_new_row_ends_waiting_for_the_rows()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.RowsDeferred = true;
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        tab.Changes.Delete(tab.Changes.AddRow());
+
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        Assert.True(tab.RowsDeferred);
+
+        tab.Changes.SetValue(tab.Changes.AddRow(), 1, "Neu");
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        Assert.False(tab.RowsDeferred);
+    }
+
     [Fact]
     public async Task Discard_drops_the_change_of_the_row_and_writes_the_rest()
     {

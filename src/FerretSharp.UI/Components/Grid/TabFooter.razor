@@ -1,5 +1,5 @@
-@* The footer of a table tab (R3b, out of TabView): rows loaded, total count (counted on request, cancellable), query time,
-   snapshot time of a locked workspace, sort order and the row key. *@
+@* The footer of a table tab (R3b, out of TabView): rows loaded (or "not loaded" with "Load"), total count (counted on
+   request, cancellable), query time, snapshot time of a locked workspace, sort order and the row key. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
@@ -12,6 +12,10 @@
     @if (Loading)
     {
         <span><span class="spinner small"></span> @GridText.Footer_Loading</span>
+    }
+    else if (Tab.RowsDeferred)
+    {
+        <span>@GridText.Footer_NotLoaded <button class="status-btn" title="@(GridText.Footer_LoadTitle + Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="OnLoad">@GridText.Footer_Load</button></span>
     }
     else if (Tab.AllRowsLoaded)
     {
@@ -84,6 +88,10 @@
     /// <summary>The rows of a new query are on their way: no count yet (it showed "≥ 0 rows").</summary>
     [Parameter]
     public bool Loading { get; set; }
+
+    /// <summary>"Load" of a tab whose rows wait for the user (setting "Load rows").</summary>
+    [Parameter]
+    public EventCallback OnLoad { get; set; }
 
     /// <summary>A new query (filter, sort, F5): a count still running belongs to the old one; its error goes too.</summary>
     public void Reset()
