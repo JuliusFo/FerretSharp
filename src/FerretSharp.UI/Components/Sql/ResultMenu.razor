@@ -37,7 +37,7 @@
                 <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
             }
             <ExportMatrix Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns" XlsxColumnsToSave="ExportColumnsToSave" Marked="@(Request.Marks is not null)"
-                          InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
+                          InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)" CompleteInsertTable="WithTableColumnsAsync"
                           InsertTitle="@(InsertTarget is { } insert
                               ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
                               : SqlEditorText.ResultMenu_CopyInsertUnavailable)"
@@ -63,6 +63,7 @@
     private Dictionary<FkJump, SqlResultJump> _sources = new(ReferenceEqualityComparer.Instance);
     private DomModule? _dom;
     private ExportActions? _export;
+    private bool _disposed;
 
     /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
@@ -155,6 +156,34 @@
 
     private bool Related(FkJump jump) => _sources.TryGetValue(jump, out var source) && source.Involves(Request.Column);
 
+    /// <summary>
+    /// The result's columns know no identity or virtual column: they come from the table's structure (schema cache, read once
+    /// per table), so the INSERT leaves out what Oracle fills itself. Null stops the copy: the read failed (the menu closes,
+    /// the error dialog shows why) or the menu was closed meanwhile – dom.js is gone then, and nothing is copied.
+    /// </summary>
+    private async Task<TableDetails?> WithTableColumnsAsync(TableDetails target)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return target;
+        }
+
+        var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(target.Table, CancellationToken.None));
+        if (_disposed)
+        {
+            return null;
+        }
+
+        if (read.Succeeded)
+        {
+            return InsertExport.ForTable(target, read.Value!);
+        }
+
+        await CloseAsync();
+        Shell.ShowFailure(read);
+        return null;
+    }
+
     private async Task TogglePinAsync()
     {
         await CloseAsync();
@@ -166,5 +195,9 @@
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 
-    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        return Dom.DisposeAsync();
+    }
 }

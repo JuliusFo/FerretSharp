@@ -31,7 +31,7 @@ public class EnglishTextTests
                 insert.Warnings.Order(StringComparer.Ordinal));
             var lines = insert.Text.Split("\r\n");
             Assert.Equal("-- 2 rows from \"APP\".\"CUSTOMERS\" (FerretSharp export)", lines[0]);
-            Assert.Equal("-- ID is an identity column: GENERATED ALWAYS rejects explicit values (ORA-32795).", lines[1]);
+            Assert.Equal("-- ID is an identity column (BY DEFAULT): the script keeps its values, its sequence does not advance.", lines[1]);
             Assert.Contains("NULL /* CLOB (5.000 characters) not exported */", insert.Text);
             Assert.Contains("NULL /* BLOB (1 byte) not exported */", insert.Text);
         }

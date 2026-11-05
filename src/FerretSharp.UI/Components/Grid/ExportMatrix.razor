@@ -38,6 +38,8 @@
 }
 
 @code {
+    private bool _completing;
+
     [CascadingParameter]
     public MenuFilter? Filter { get; set; }
 
@@ -85,6 +87,13 @@
     /// <summary>The table the INSERT statements write into; null disables "Copy as INSERT" (<see cref="InsertTitle"/> says why).</summary>
     [Parameter]
     public TableDetails? InsertTable { get; set; }
+
+    /// <summary>
+    /// Completes <see cref="InsertTable"/> just before the statements are built – a query result learns the table's identity
+    /// and virtual columns (SQL editor); null stops the copy (the failure is reported). Without it the table is taken as it is.
+    /// </summary>
+    [Parameter]
+    public Func<TableDetails, Task<TableDetails?>>? CompleteInsertTable { get; set; }
 
     [Parameter]
     public string InsertTitle { get; set; } = GridText.GridMenu_CopyInsertTitle;
@@ -146,13 +155,47 @@
     private Task CopyTableAsync() =>
         Export.CopyAsync(DelimitedExport.Build(Table, Rows, DelimitedExport.ClipboardSeparator), ExportCopy.Table);
 
-    private Task CopyInsertAsync() => InsertTable is { } target
-        ? Export.CopyAsync(InsertExport.Build(target, Rows), ExportCopy.Insert)
-        : Task.CompletedTask;
+    private async Task CopyInsertAsync()
+    {
+        var rows = Rows;
+        if (await InsertTargetAsync() is { } target)
+        {
+            await Export.CopyAsync(InsertExport.Build(target, rows), ExportCopy.Insert);
+        }
+    }
 
-    private Task SaveInsertAsync() => InsertTable is { } target
-        ? Export.SaveAsync(InsertExport.Build(target, Rows), FileName + ".sql", GridText.Export_SqlScriptFilter, utf8Bom: false)
-        : Task.CompletedTask;
+    private async Task SaveInsertAsync()
+    {
+        var (rows, name) = (Rows, FileName);
+        if (await InsertTargetAsync() is { } target)
+        {
+            await Export.SaveAsync(InsertExport.Build(target, rows), name + ".sql", GridText.Export_SqlScriptFilter, utf8Bom: false);
+        }
+    }
+
+    /// <summary>Null while <see cref="CompleteInsertTable"/> still runs for an earlier click: that click copies, this one not.</summary>
+    private async Task<TableDetails?> InsertTargetAsync()
+    {
+        if (InsertTable is not { } table || _completing)
+        {
+            return null;
+        }
+
+        if (CompleteInsertTable is not { } complete)
+        {
+            return table;
+        }
+
+        _completing = true;
+        try
+        {
+            return await complete(table);
+        }
+        finally
+        {
+            _completing = false;
+        }
+    }
 
     private Task SaveCsvAsync()
     {
