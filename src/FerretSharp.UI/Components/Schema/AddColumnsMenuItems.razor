@@ -1,15 +1,16 @@
 @* Columns of a table added to the same table elsewhere (small-column-add-ddl, chips since WP-61): copy the ALTER TABLE … ADD
-   of the columns, or open it in a SQL tab of another connection, connecting if need be (AddColumnsScript). The menu of the
-   "Columns" view and the column header menu of a table grid (the column, or all marked columns with it). Connections the
-   menu's filter does not match are left out. *@
+   of the columns with the foreign keys made only of them, or open it in a SQL tab of another connection, connecting if need
+   be (AddColumnsScript). The menu of the "Columns" view and the column header menu of a table grid (the column, or all
+   marked columns with it). Connections the menu's filter does not match are left out. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Schema
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
 @inject AppSettingsService Settings
+@inject ILogger<AddColumnsMenuItems> Logger
+@inject IClipboardService Clipboard
 @implements IAsyncDisposable
-@inject IJSRuntime JS
 
 @{
     var targets = AddColumnsTargets.Of(Connections.Profiles, Active.Profile?.Id ?? Guid.Empty)
@@ -20,14 +21,18 @@
         @TextFormat.Format(SchemaViewText.Columns_AddScriptGroup, TextFormat.Plural(Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther))
     </div>
     <div class="chips menu-chips">
-        <button type="button" class="menu-chip" title="@SchemaViewText.Columns_CopyAddScriptTitle" @onclick="CopyAsync">@Icons.Copy @SchemaViewText.Columns_CopyAddScriptChip</button>
+        <button type="button" class="menu-chip" title="@SchemaViewText.Columns_CopyAddScriptTitle" aria-disabled="@(_reading ? "true" : null)" @onclick="CopyAsync">@Icons.Copy @SchemaViewText.Columns_CopyAddScriptChip</button>
     </div>
+    @if (_reading)
+    {
+        <div class="ctx-note">@SchemaViewText.Columns_ReadingForeignKeys</div>
+    }
     <div class="group-head-btn static">@SchemaViewText.Columns_OpenAddScriptIn</div>
     <div class="chips menu-chips">
         @foreach (var target in targets)
         {
             var table = TargetTable(target);
-            <button type="button" class="menu-chip conn kind-@target.Kind.ToString().ToLowerInvariant()" @onclick="() => OpenInAsync(target)"
+            <button type="button" class="menu-chip conn kind-@target.Kind.ToString().ToLowerInvariant()" aria-disabled="@(_reading ? "true" : null)" @onclick="() => OpenInAsync(target)"
                     title="@TextFormat.Format(SchemaViewText.Columns_OpenAddScriptTitle, ConnectionLabel.Of(target, Settings.Current), $"{table.Owner}.{table.Name}")">
                 <span class="kind-badge">@ConnectionKindInfo.Short(target.Kind)</span> @ConnectionLabel.Of(target, Settings.Current)
             </button>
@@ -62,29 +67,79 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    private DomModule? _dom;
-
-    /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
-    private DomModule Dom => _dom ??= new(JS);
-
     /// <summary>Connections shown before the menu offers a filter field (the "Columns" view).</summary>
     public const int ShownWithoutFilter = 8;
 
     /// <summary>The table the script changes on <paramref name="target"/>: the matching one if its schema is loaded, else by name in its schema.</summary>
     private TableRef TargetTable(ConnectionProfile target) => AddColumnsTargets.Table(target, Hub.Find(target.Id)?.Active.Schema, Details.Table.Ref);
 
-    private string Script(TableRef target) =>
-        AddColumnsScript.Write(Details.Table.Ref, target, Columns.Select(name => Details.Columns[Details.IndexOf(name)]));
+    /// <summary>Ends the constraint read when the menu closes.</summary>
+    private readonly CancellationTokenSource _lifetime = new();
 
-    private async Task CopyAsync()
+    /// <summary>
+    /// The constraints are being read: the chips wait, and the menu says so – the read goes through the connection's
+    /// explorer session and may wait behind another call on it (review, finding 2). The chips are aria-disabled, not
+    /// disabled: a disabled button loses the focus to the page, and Escape no longer reached the menu (finding 11).
+    /// </summary>
+    private bool _reading;
+
+    /// <summary>
+    /// The script for <paramref name="target"/>; null if the menu closed during the read. Table and columns are taken before
+    /// the read: new details of the parent meanwhile must not mix with them (review, finding 5).
+    /// </summary>
+    private async Task<string?> ScriptAsync(TableRef target)
     {
-        if (await Dom.CopyTextAsync(Shell, Script(Details.Table.Ref)))
+        if (_reading)
         {
-            Shell.Notify(TextFormat.Format(SchemaViewText.Columns_AddScriptCopied,
-                TextFormat.Plural(Columns.Count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther)));
+            return null; // a second click while the first one reads
         }
 
+        var source = Details.Table.Ref;
+        var columns = Columns.Select(name => Details.Columns[Details.IndexOf(name)]).ToList();
+        _reading = true;
+        try
+        {
+            var constraints = await ConstraintsAsync(source);
+            return _lifetime.IsCancellationRequested ? null : AddColumnsScript.Write(source, target, columns, constraints);
+        }
+        finally
+        {
+            _reading = false;
+        }
+    }
+
+    /// <summary>
+    /// The table's constraints for its foreign keys, read on the click: the column header menu of every grid shows these
+    /// items, opening it must not cost a query. Null if they could not be read (the error is logged, the script says so).
+    /// </summary>
+    private async Task<IReadOnlyList<ConstraintInfo>?> ConstraintsAsync(TableRef table)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return null;
+        }
+
+        var token = _lifetime.Token;
+        var read = await Shell.RunDbAsync(Logger, Active, () => schema.GetConstraintsAsync(table, token), token);
+        return read.Succeeded ? read.Value : null;
+    }
+
+    /// <summary>
+    /// Through the host's clipboard: the text exists only after a read, and the browser's clipboard refuses once the window
+    /// is no longer in front (ui.md; review, finding 1).
+    /// </summary>
+    private async Task CopyAsync()
+    {
+        if (await ScriptAsync(Details.Table.Ref) is not { } script)
+        {
+            return;
+        }
+
+        var count = Columns.Count;
         await OnClose.InvokeAsync();
+        Shell.Notify(await Clipboard.SetTextAsync(script)
+            ? TextFormat.Format(SchemaViewText.Columns_AddScriptCopied, TextFormat.Plural(count, SchemaViewText.Columns_PickedOne, SchemaViewText.Columns_PickedOther))
+            : CommonText.ClipboardUnavailable);
     }
 
     /// <summary>
@@ -93,11 +148,19 @@
     /// </summary>
     private async Task OpenInAsync(ConnectionProfile target)
     {
-        var script = Script(TargetTable(target));
+        if (await ScriptAsync(TargetTable(target)) is not { } script)
+        {
+            return;
+        }
+
         await OnClose.InvokeAsync();
         Shell.OpenSqlIn(target.Id, script);
         await Lifecycle.ConnectAsync(target);
     }
 
-    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await _lifetime.CancelAsync();
+        _lifetime.Dispose();
+    }
 }

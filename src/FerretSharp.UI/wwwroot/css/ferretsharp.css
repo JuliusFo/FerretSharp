@@ -982,8 +982,9 @@ table.binds td { font-family: var(--mono); overflow-wrap: anywhere; }
   border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 12px; white-space: nowrap;
 }
 .menu-chip .icon { width: 12px; height: 12px; color: var(--muted); }
-.menu-chip:hover:not(:disabled), .menu-chip:focus-visible { border-color: var(--border-strong); background: var(--accent-weak); outline: none; }
-.menu-chip:disabled { opacity: .45; cursor: default; }
+.menu-chip:hover:not(:disabled, [aria-disabled="true"]), .menu-chip:focus-visible { border-color: var(--border-strong); background: var(--accent-weak); outline: none; }
+/* aria-disabled: waits, but keeps the focus – a disabled button loses it, and Escape no longer reaches the menu */
+.menu-chip:disabled, .menu-chip[aria-disabled="true"] { opacity: .45; cursor: default; }
 .ctx-jump.one-line { height: 30px; min-height: 0; padding: 0 10px; }
 .ctx-jump.one-line .ctx-table { flex: 1; min-width: 0; }
 .ctx-jump.one-line .ctx-meta { flex: none; max-width: 45%; }

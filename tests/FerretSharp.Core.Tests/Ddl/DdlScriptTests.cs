@@ -37,6 +37,32 @@ public class DdlScriptTests
 
     // ---- script ----
 
+    /// <summary>
+    /// Review of the column ADD script, finding 10: a quoted Oracle name may hold a lone CR (or NEL, LS, PS), and the SQL
+    /// editor breaks lines there – a note or warning naming it was split only at LF, and the rest of the name became an
+    /// executable line of the script opened in another connection. Every line of a comment stays one.
+    /// </summary>
+    [Theory]
+    [InlineData("\r")]
+    [InlineData("\u0085")]
+    [InlineData("\u2028")]
+    [InlineData("\u2029")]
+    public void Notes_and_warnings_stay_comments_on_every_kind_of_line_end(string lineEnd)
+    {
+        var name = $"X{lineEnd}DROP TABLE Y;";
+
+        var script = DdlScript.Render(
+        [
+            DdlStep.Hint("KUNDE", $"Foreign key {name}: not in the script.", null),
+            new DdlStep("KUNDE", DdlStepKind.AddColumn, "ALTER TABLE \"SHOP\".\"KUNDE\" ADD (\"A\" NUMBER)", Warning: $"Needs a key on ({name})."),
+        ]);
+
+        var lines = script.ReplaceLineEndings("\n").Split('\n');
+        Assert.DoesNotContain(lines, line => line.StartsWith("DROP", StringComparison.Ordinal));
+        Assert.Contains("-- DROP TABLE Y;: not in the script.", lines);
+        Assert.Contains("-- ⚠ DROP TABLE Y;).", lines);
+    }
+
     [Fact]
     public void A_script_ends_statements_with_a_semicolon_and_a_plsql_object_with_a_slash_line()
     {

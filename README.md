@@ -218,6 +218,9 @@ developer works with an Oracle database day to day:
   share a colour; names Oracle generated (`SYS_C…`) are matched by content.
 - "Forgot the ALTER on Test?": a DDL proposal aligns one side with another – drops and renames only as commented-out
   hints – and opens in the SQL editor of the target connection. Comparisons can be saved and copied as Markdown.
+- Single columns to another database: pick them in the "Columns" view (or mark their headers in the grid) and right-click
+  – `ALTER TABLE … ADD` with their comments and the foreign keys made only of them, to copy or to open in the SQL
+  editor of another connection.
 
 ### .NET and EF Core
 
