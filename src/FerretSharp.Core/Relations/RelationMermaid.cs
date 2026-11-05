@@ -14,22 +14,7 @@ public static class RelationMermaid
     /// <param name="label">The name of a table as the diagram shows it (<see cref="SchemaCache.LabelOf"/>).</param>
     public static string Write(RelationDiagram diagram, Func<TableRef, string> label)
     {
-        var text = new StringBuilder("erDiagram\n");
-        var related = new HashSet<TableRef>();
-        foreach (var relation in diagram.Relations)
-        {
-            var line = relation.Source == FkSource.Declared ? "--" : "..";
-            text.Append($"    {Name(label(relation.To))} ||{line}o{{ {Name(label(relation.From))} : {Quote(relation.Name)}\n");
-            related.Add(relation.From);
-            related.Add(relation.To);
-        }
-
-        // A table without relationships (all of its neighbours in a group) would not appear otherwise.
-        foreach (var table in diagram.Tables.Select(t => t.Table).Where(t => !related.Contains(t)))
-        {
-            text.Append($"    {Name(label(table))}\n");
-        }
-
+        var text = Relations(diagram.Relations, diagram.Tables.Select(t => t.Table), label);
         foreach (var group in diagram.Groups)
         {
             var count = diagram.Members(group).Count;
@@ -43,6 +28,35 @@ public static class RelationMermaid
         }
 
         return text.ToString();
+    }
+
+    /// <summary>Ways between two tables (WP-74): the relationships of <paramref name="paths"/>, each once, in the order the ways take them.</summary>
+    public static string Write(IEnumerable<RelationPath> paths, Func<TableRef, string> label)
+    {
+        var list = paths.ToList();
+        var relations = list.SelectMany(p => p.Steps).Select(s => s.Relation).DistinctBy(RelationGraph.KeyOf);
+        return Relations(relations, list.SelectMany(p => p.Tables), label).ToString();
+    }
+
+    private static StringBuilder Relations(IEnumerable<ForeignKeyInfo> relations, IEnumerable<TableRef> tables, Func<TableRef, string> label)
+    {
+        var text = new StringBuilder("erDiagram\n");
+        var related = new HashSet<TableRef>();
+        foreach (var relation in relations)
+        {
+            var line = relation.Source == FkSource.Declared ? "--" : "..";
+            text.Append($"    {Name(label(relation.To))} ||{line}o{{ {Name(label(relation.From))} : {Quote(relation.Name)}\n");
+            related.Add(relation.From);
+            related.Add(relation.To);
+        }
+
+        // A table without relationships (all of its neighbours in a group) would not appear otherwise.
+        foreach (var table in tables.Distinct().Where(t => !related.Contains(t)))
+        {
+            text.Append($"    {Name(label(table))}\n");
+        }
+
+        return text;
     }
 
     /// <summary>An entity name: plain if Mermaid takes it so (letters, digits, _ and -), otherwise in quotes.</summary>

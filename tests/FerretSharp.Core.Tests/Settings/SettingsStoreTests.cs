@@ -89,6 +89,7 @@ public sealed class SettingsStoreTests : IDisposable
         _ when type == typeof(int?) => (int?)current is { } n ? n + 1 : 520,
         _ when type == typeof(string) => current is null ? "C:\\team\\file.json" : null,
         _ when type.IsEnum => Enum.GetValues(type).Cast<object>().First(v => !v.Equals(current)),
+        _ when type == typeof(TableListMap) => TableListMap.Empty.With(Guid.Empty.ToString(), [new("APP", "BENUTZER")]),
         _ => throw new InvalidOperationException($"No changed value for a setting of type {type.Name}: add one here."),
     };
 
@@ -179,6 +180,27 @@ public sealed class SettingsStoreTests : IDisposable
 
         await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "auditTemplateGroups": null } }""", Ct);
         Assert.Same(SettingsMap.Empty, (await _store.LoadAsync(Ct)).AuditTemplateGroups);
+    }
+
+    /// <summary>WP-74: the tables ways avoid per connection, owner and name apart (a quoted name may hold a dot); null by hand is none.</summary>
+    [Fact]
+    public async Task Avoided_tables_round_trip_by_owner_and_name()
+    {
+        var id = Guid.NewGuid().ToString();
+        var settings = AppSettings.Default with { PathAvoidedTables = TableListMap.Empty.With(id, [new("APP", "BENUTZER"), new("APP", "A.B"), new("APP", "BENUTZER")]) };
+
+        await _store.SaveAsync(settings, Ct);
+
+        var text = await File.ReadAllTextAsync(_store.FilePath, Ct);
+        Assert.Contains("\"name\": \"A.B\"", text, StringComparison.Ordinal);
+        var loaded = await _store.LoadAsync(Ct);
+        Assert.Equal(settings, loaded);
+        Assert.Equal(2, loaded.PathAvoidedTables.Of(id).Count);
+
+        await File.WriteAllTextAsync(_store.FilePath, $$"""{ "version": 1, "settings": { "pathAvoidedTables": { "{{id}}": null, "x": [ null ] } } }""", Ct);
+        Assert.Equal(0, (await _store.LoadAsync(Ct)).PathAvoidedTables.Count);
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "pathAvoidedTables": null } }""", Ct);
+        Assert.Same(TableListMap.Empty, (await _store.LoadAsync(Ct)).PathAvoidedTables);
     }
 
     private static readonly DateTimeOffset Start = new(2026, 10, 11, 15, 30, 0, TimeSpan.FromHours(2));
