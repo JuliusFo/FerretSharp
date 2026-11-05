@@ -1,4 +1,4 @@
-# Klein: Explorer und Editoren in der Größe ziehen → Release offen
+# Klein: Explorer und Editoren in der Größe ziehen → Release 3.60.0
 
 Branch `feat/resizable-panels` (von `main`), 2026-11-04.
 

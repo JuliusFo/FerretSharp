@@ -35,7 +35,7 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, dunkel), eigener
 - Der Eintrag im Spaltenkopf-Menü des Grids (in WP-58 markierte Spalten) kommt mit WP-61 (dort vermerkt).
 - Tastatur in der Spaltenansicht (Ctrl+A, Pfeile mit Shift) gibt es nicht; bisher nur Maus.
 
-## Nachtrag: Fremdschlüssel (Branch `feat/add-columns-foreign-keys`, 2026-11-04)
+## Nachtrag: Fremdschlüssel (Branch `feat/add-columns-foreign-keys`, 2026-11-04) → Release 3.60.0
 Wunsch des Nutzers: Das Skript soll den FK der Spalten mitnehmen (bisher bewusst nur `ADD` und Kommentare, siehe oben).
 
 Ohne Rückfrage entschieden:
