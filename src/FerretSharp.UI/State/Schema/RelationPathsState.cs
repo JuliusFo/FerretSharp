@@ -149,8 +149,9 @@ public sealed class RelationPathsState(TableRef start)
                 return false;
             }
 
-            found = _pending;
-            _pending = [];
+            // Emptied, not replaced: the running block goes on adding to this list (review: replaced, its later ways were lost).
+            found = [.. _pending];
+            _pending.Clear();
         }
 
         // Length for length, so a new way only sorts in among those of its own length.

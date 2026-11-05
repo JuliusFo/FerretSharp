@@ -131,6 +131,36 @@ public sealed class RelationPathsStateTests
         Assert.Equal(state.Paths.Select(p => p.Length).Order(), state.Paths.Select(p => p.Length));
     }
 
+    /// <summary>
+    /// Review of WP-74: the view collects every 200 ms while a block runs. Collecting replaced the list the block wrote to –
+    /// the ways after it were lost, and taking them could meet the block still adding ("Collection was modified").
+    /// </summary>
+    [Fact]
+    public async Task Collecting_while_a_block_runs_loses_no_way()
+    {
+        var tables = Enumerable.Range(0, 11).Select(i => new TableRef(Owner, $"K{i:00}")).ToList();
+        var dense = new RelationGraph(from a in tables from b in tables where string.CompareOrdinal(a.Name, b.Name) < 0 select Fk($"FK_{a.Name}_{b.Name}", a, b));
+        var state = new RelationPathsState(tables[0]);
+        state.Load(dense);
+        state.SetTarget(tables[10]);
+
+        const int Blocks = 20;
+        for (var block = 0; block < Blocks; block++)
+        {
+            var run = state.MoreAsync();
+            while (!run.IsCompleted)
+            {
+                state.Collect();
+            }
+
+            await run;
+            state.Collect();
+        }
+
+        Assert.Equal(Blocks * RelationPathsState.BlockSize, state.Paths.Count);
+        Assert.Equal(state.Paths.Count, state.Paths.Select(p => p.Key).Distinct().Count());
+    }
+
     [Fact]
     public async Task A_block_of_a_replaced_search_ends_unseen()
     {
