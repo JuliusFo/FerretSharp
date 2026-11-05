@@ -3,14 +3,15 @@
 @using FerretSharp.Core.Schema
 
 <span class="path-target">
-    <MenuButton Class="@(Target is null ? "btn ghost" : "btn primary")" OpenClass="open" Title="@SchemaViewText.Paths_ToTitle" Width="340" EstimatedHeight="360"
-                KeyNavigation="true" OnOpening="Opening">
+    <MenuButton Class="@(Target is null ? "btn ghost" : "btn primary")" OpenClass="open" Title="@SchemaViewText.Paths_ToTitle" Width="340" EstimatedHeight="350"
+                ShiftX="320" KeyNavigation="true" OnOpening="Opening">
         <Label>@(Target is { } target ? TextFormat.Format(SchemaViewText.Paths_ToTable, Label(target)) : SchemaViewText.Paths_To)</Label>
         <ChildContent Context="menu">
             <SearchBox Class="popover-search ctx-filter" Value="@_query" ValueChanged="text => _query = text" Placeholder="@SchemaViewText.Paths_FindTable" />
             @{
                 var candidates = RelationPathsState.Candidates(Tables, EntityOf, _query, Start);
             }
+            <div class="path-candidates">
             @foreach (var table in candidates)
             {
                 var t = table;
@@ -26,6 +27,7 @@
             {
                 <div class="ctx-empty">@GridText.Menu_NoMatch</div>
             }
+            </div>
         </ChildContent>
     </MenuButton>
     @if (Target is not null)

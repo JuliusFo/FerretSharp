@@ -28,4 +28,9 @@ Branch `wp/74-relation-paths` (von `main`), 2026-11-06. ADR 0044. Baut auf WP-46
 - **Tests:** Core `RelationPathsTests` (Reihenfolge, beide Richtungen, Selbstbezug, Ausschlüsse, parallele Beziehungen, Blöcke, Abbruch und Fortsetzen, 29 Schritte, vollständiger Graph mit 65 Wegen, Text, Abfrage), `PathDiagramTests`, `SettingsStoreTests` (Round-Trip, `null` von Hand); UI `RelationPathsStateTests`, `ConnectionGroupsTests`.
 
 ## E2E
-(folgt)
+2026-11-06, eigener Container (`New-SampleDb.ps1 -Name ferret-e2e-paths -Port 1536`), dazu eine Sammeltabelle `E2E_BENUTZER` (FK aus KUNDEN, AUFTRAG, ARTIKEL, HERSTELLER), eine Kette `E2E_K01` … `E2E_K12` ab AUFTRAG und ein vollständiger Teilgraph `E2E_D1` … `E2E_D9` (13 700 Wege zwischen D1 und D9). `--lang=de`, dunkel und hell; Klicks, Rechtsklicks und Hover mit echter Windows-Eingabe (`Invoke-RealClick.ps1`, Probe vorher bestanden), Tippen per CDP, Zwischenablage per CDP mitgeschnitten.
+- Geprüft: LIEFERUNG → E2E_K12 (7 Wege, 14 bis 18 Schritte, „alle gefunden“); „Nicht über diese Tabelle“ im Kontextmenü (1 Weg, Chip, `settings.json` mit Owner und Name) und Zulassen über den Chip; Hervorhebung beim Überfahren; „Abfrage bauen“ (17 Knoten, Ziel gewählt, Nachbarschaft entlang des Wegs aufgeklappt), aus und wieder an, „Ersetzen“/„Anhängen“ (31 Knoten); E2E_D1 → E2E_D9 in Blöcken zu 50 mit „Weitere Wege“; Ziel nach Neustart wiederhergestellt; „Als Text kopieren“, „Als Mermaid kopieren“ (36 Beziehungen); Auswahl des Ziels mit ↓ und Enter. Log ohne `[ERR]`/`[WRN]`.
+- Gefunden, behoben: Das Menü „Weg zu …“ öffnete nach links über den Explorer (`ShiftX`) und schob sich mit der langen Liste über den Knopf (Liste scrollt jetzt, höchstens 300 px).
+- Nicht geprüft: „Abbrechen“ in der Oberfläche – ein Block ist im Beispielschema in Millisekunden fertig (Abbrechen und Fortsetzen nur in `RelationPathsTests`/`RelationPathsStateTests`).
+- Werkzeug: `Start-TestInstance.ps1` beendete die eigene Instanz wieder als fremd (Backlog, ergänzt); von Hand gestartet.
+- Offene UX-Frage: „Weitere Wege“ steht über der Liste, nach dem Scrollen ans Ende also außer Sicht. Zusätzlich am Ende der Liste?
