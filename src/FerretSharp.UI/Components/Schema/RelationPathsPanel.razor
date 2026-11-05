@@ -1,7 +1,7 @@
 @* The list of ways beside the diagram of the relationship view (WP-74): the tables left out as chips, the progress of
    the search with "Cancel" and "More ways", and one row per way – its tables with ↑ for a step to the parent and ↓ for
    one to a child, its length, "1 : 1" or "1 : n", and a menu (build the query, copy). Hovering a row lights the way in
-   the diagram, a click chooses it. *@
+   the diagram, a click chooses it. Each way is a RelationPathRow that renders only when it changes (review). *@
 @using FerretSharp.Core.Relations
 @using FerretSharp.Core.Schema
 
@@ -43,24 +43,8 @@
     <ol class="paths-list" @onmouseleave="() => OnHover.InvokeAsync(null)">
         @foreach (var path in State.Paths)
         {
-            var p = path;
-            var start = Label(p.Start);
-            var target = Label(p.Target);
-            <li class="paths-row @(State.Selected?.Key == p.Key ? "selected" : "")" @key="p.Key"
-                @onmouseenter="() => OnHover.InvokeAsync(p)" @onclick="() => OnSelect.InvokeAsync(p)">
-                <span class="paths-chain mono" title="@p.Text(Label)">
-                    @Label(p.Start)@foreach (var step in p.Steps)
-                    {
-                        <span class="paths-arrow @(step.ToChild ? "down" : "up")">@(step.ToChild ? " ↓ " : " ↑ ")</span>@Label(step.To)
-                    }
-                </span>
-                <span class="paths-facts">
-                    <span class="muted">@TextFormat.Plural(p.Length, SchemaViewText.Paths_StepsOne, SchemaViewText.Paths_StepsOther)</span>
-                    <span class="chip @(p.SingleRow ? "" : "many")"
-                          title="@TextFormat.Format(p.SingleRow ? SchemaViewText.Paths_SingleRowTitle : SchemaViewText.Paths_ManyRowsTitle, start, target)">@(p.SingleRow ? SchemaViewText.Paths_SingleRow : SchemaViewText.Paths_ManyRows)</span>
-                    <MoreMenu Title="@SchemaViewText.Paths_MenuTitle" Width="240" Items="Items(p)" />
-                </span>
-            </li>
+            <RelationPathRow @key="path.Key" Path="path" Selected="@(State.Selected?.Key == path.Key)" Label="Label" OnHover="OnHover" OnSelect="OnSelect"
+                             OnBuildQuery="OnBuildQuery" OnCopyText="OnCopyText" OnCopyMermaid="OnCopyMermaid" />
         }
     </ol>
 </aside>
@@ -95,15 +79,4 @@
 
     [Parameter]
     public EventCallback<RelationPath> OnCopyMermaid { get; set; }
-
-    private IReadOnlyList<MoreMenuItem> Items(RelationPath path) =>
-    [
-        new(SchemaViewText.Query_Build, () => OnBuildQuery.InvokeAsync(path))
-        {
-            Strong = true,
-            Title = path.SingleRow ? SchemaViewText.Paths_BuildQueryTitle : SchemaViewText.Paths_BuildQueryChildTitle,
-        },
-        new(SchemaViewText.Paths_CopyText, () => OnCopyText.InvokeAsync(path)) { Title = SchemaViewText.Paths_CopyTextTitle },
-        new(SchemaViewText.Relations_CopyMermaid, () => OnCopyMermaid.InvokeAsync(path)),
-    ];
 }

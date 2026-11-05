@@ -342,6 +342,11 @@
         }
 
         _paths.Load(new RelationGraph(_graph.Relations.Where(r => _state.Shows(r.Source))));
+        if (_hoverPath is { } hover && !_paths.Paths.Any(p => p.Key == hover.Key))
+        {
+            _hoverPath = null; // a new search: the way under the mouse is gone (review)
+        }
+
         StartPaths();
     }
 
@@ -369,6 +374,7 @@
         }
 
         var run = _paths.MoreAsync();
+        var length = _paths.Length;
         while (!run.IsCompleted)
         {
             await Task.WhenAny(run, Task.Delay(200));
@@ -377,8 +383,12 @@
                 return;
             }
 
-            _paths.Collect();
-            StateHasChanged();
+            // Only what changed: new ways or a longer length (review: the whole view rendered five times a second).
+            if (_paths.Collect() | _paths.Length != length)
+            {
+                length = _paths.Length;
+                StateHasChanged();
+            }
         }
 
         await run;
@@ -492,8 +502,22 @@
     {
         var kind = diagram.RelationOf(edge.Id) is { } relation ? DiagramStyle.KindClass(relation.Source) : "group";
         return ActivePath is { } path
-            ? $"{kind} {(path.Steps.Any(s => RelationGraph.KeyOf(s.Relation) == edge.Id) ? "lit" : "faded")}"
+            ? $"{kind} {(EdgesOf(path).Contains(edge.Id) ? "lit" : "faded")}"
             : $"{kind} {DiagramStyle.EdgeState(edge, HoverId)}";
+    }
+
+    private RelationPath? _edgesFor;
+    private HashSet<string> _edges = [];
+
+    /// <summary>The edge ids of a way, kept for the way last asked: every edge asks on every render (review).</summary>
+    private HashSet<string> EdgesOf(RelationPath path)
+    {
+        if (!ReferenceEquals(path, _edgesFor))
+        {
+            (_edgesFor, _edges) = (path, path.Steps.Select(s => RelationGraph.KeyOf(s.Relation)).ToHashSet(StringComparer.Ordinal));
+        }
+
+        return _edges;
     }
 
     /// <summary>The tables related to the one under the mouse in the diagram of the ways.</summary>
