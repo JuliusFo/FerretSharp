@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.60.0] - 2026-11-05
+
+Drag the explorer wider and the SQL and LINQ editors taller, foreign keys come along in the column ADD script, and INSERT exports leave out identity ALWAYS and virtual columns.
+
 ### Added
 - The explorer can be made wider or narrower: drag its right edge. The SQL editor and the LINQ console's query editor can be made taller or lower: drag the line between the editor and its results. The explorer's width holds for every connection; each SQL and LINQ tab keeps its own editor height, saved with the workspace. Both are kept after a restart. In a small window the editor gives way, so its results and the drag line stay in view. The statement history beside the SQL editor is as tall as the editor; its list scrolls.
 - A double click on a drag handle – also those of the form and of the change overview – goes back to the default size.
