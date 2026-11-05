@@ -1,0 +1,71 @@
+@* "Path to …" in the head of the relationship view (WP-74): a menu with a search field over the schema's tables – by
+   name, synonym and entity name like the quick open – and an ✕ back to the neighbours. *@
+@using FerretSharp.Core.Schema
+
+<span class="path-target">
+    <MenuButton Class="@(Target is null ? "btn ghost" : "btn primary")" OpenClass="open" Title="@SchemaViewText.Paths_ToTitle" Width="340" EstimatedHeight="360"
+                KeyNavigation="true" OnOpening="Opening">
+        <Label>@(Target is { } target ? TextFormat.Format(SchemaViewText.Paths_ToTable, Label(target)) : SchemaViewText.Paths_To)</Label>
+        <ChildContent Context="menu">
+            <SearchBox Class="popover-search ctx-filter" Value="@_query" ValueChanged="text => _query = text" Placeholder="@SchemaViewText.Paths_FindTable" />
+            @{
+                var candidates = RelationPathsState.Candidates(Tables, EntityOf, _query, Start);
+            }
+            @foreach (var table in candidates)
+            {
+                var t = table;
+                <button class="menu-item path-candidate @(t.Ref == Target ? "strong" : "")" @onclick="() => PickAsync(menu, t.Ref)">
+                    <span class="mono">@Label(t.Ref)</span>
+                    @if (EntityOf(t.Ref) is { } entity)
+                    {
+                        <span class="muted">@entity</span>
+                    }
+                </button>
+            }
+            @if (candidates.Count == 0)
+            {
+                <div class="ctx-empty">@GridText.Menu_NoMatch</div>
+            }
+        </ChildContent>
+    </MenuButton>
+    @if (Target is not null)
+    {
+        <button class="icon-btn ghost" title="@TextFormat.Format(SchemaViewText.Paths_ClearTitle, Label(Start))" @onclick="() => OnPick.InvokeAsync(null)">@Icons.Close</button>
+    }
+</span>
+
+@code {
+    private string _query = "";
+
+    [Parameter, EditorRequired]
+    public TableRef Start { get; set; } = null!;
+
+    [Parameter]
+    public TableRef? Target { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<TableSummary> Tables { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Func<TableRef, string> Label { get; set; } = null!;
+
+    /// <summary>The entity's name if C# names are shown; null otherwise.</summary>
+    [Parameter, EditorRequired]
+    public Func<TableRef, string?> EntityOf { get; set; } = null!;
+
+    /// <summary>A table chosen; null for back to the neighbours.</summary>
+    [Parameter]
+    public EventCallback<TableRef?> OnPick { get; set; }
+
+    private Task Opening()
+    {
+        _query = "";
+        return Task.CompletedTask;
+    }
+
+    private Task PickAsync(MenuButton menu, TableRef table)
+    {
+        menu.Close();
+        return OnPick.InvokeAsync(table);
+    }
+}

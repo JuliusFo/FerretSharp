@@ -70,6 +70,53 @@ public sealed class RelationsDiagramState(TableRef home)
         Arrange(Placement);
     }
 
+    /// <summary>
+    /// Shows the tables of a way from the tab's table (WP-74), so a query built from it can be seen and changed here: back
+    /// to the tab's table in the middle if another one is, then each step's side expanded – or its group opened – as far as
+    /// the way goes. Remembered as steps like expanding by hand.
+    /// </summary>
+    public void ShowPath(IReadOnlyList<PathStep> steps)
+    {
+        if (Diagram is null)
+        {
+            return;
+        }
+
+        if (Focus != Home)
+        {
+            Recenter(Home);
+        }
+
+        foreach (var step in steps)
+        {
+            if (!Diagram.IsShown(step.From))
+            {
+                break;
+            }
+
+            if (Diagram.IsShown(step.To))
+            {
+                continue;
+            }
+
+            var side = step.ToChild ? DiagramSide.Children : DiagramSide.Parents;
+            if (Diagram.HiddenCount(step.From, side) > 0)
+            {
+                Diagram.Expand(step.From, side);
+                _steps.Add(new Step(step.From, side, Group: false));
+            }
+
+            if (!Diagram.IsShown(step.To)
+                && Diagram.Groups.FirstOrDefault(g => g.Table == step.From && g.Side == side && Diagram.Members(g).Contains(step.To)) is { } group)
+            {
+                Diagram.Open(group);
+                _steps.Add(new Step(group.Table, group.Side, Group: true));
+            }
+        }
+
+        Arrange(Placement);
+    }
+
     /// <summary>Puts <paramref name="table"/> in the middle: a new diagram around it, with depth and kinds as they are.</summary>
     public void Recenter(TableRef table)
     {

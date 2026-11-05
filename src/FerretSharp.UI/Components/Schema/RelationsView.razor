@@ -2,7 +2,8 @@
    as a diagram. Edges are coloured by the kind of relationship, a dot marks the referencing end. "+n" on a node shows
    its hidden neighbours on that side, a click on the name opens the table; many neighbours at once become one node until
    shown. Nothing is read from the database: the schema holds every relationship. Laid out by DiagramLayout (Core),
-   drawn here – nodes as HTML over an SVG of the edges, no JS but scrolling and the clipboard. *@
+   drawn here – nodes as HTML over an SVG of the edges, no JS but scrolling and the clipboard. "Path to …" (WP-74) shows
+   every way to another table instead: the list beside a diagram of all of them, searched in blocks in the background. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Relations
 @using FerretSharp.Core.Schema
@@ -10,29 +11,39 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<RelationsView> Logger
+@inject AppSettingsService Settings
 
 @if (_state.Diagram is { } diagram && _state.Placement is { } placement)
 {
     var lit = Neighbours(diagram);
     var inQuery = _query.Tables;
+    var pathMode = PathMode;
     <div class="relations-view">
         <div class="relations-head">
-            <span class="muted" title="@SchemaViewText.Relations_LevelsTitle">@SchemaViewText.Relations_Levels</span>
-            <div class="segmented small" role="group" title="@SchemaViewText.Relations_LevelsTitle">
-                @for (var depth = 1; depth <= RelationDiagram.MaxDepth; depth++)
-                {
-                    var d = depth;
-                    <button class="seg @(_state.Depth == d ? "active" : "")" aria-pressed="@(_state.Depth == d ? "true" : "false")"
-                            @onclick="() => Change(() => _state.SetDepth(d))">@d</button>
-                }
-            </div>
+            @if (!_query.Active)
+            {
+                <PathTargetPicker Start="_paths.Start" Target="_paths.Target" Tables="@(Active.Schema?.Tables ?? [])" Label="Label"
+                                  EntityOf="Presentations.ShownEntityNameOf" OnPick="PickTargetAsync" />
+            }
+            @if (!pathMode)
+            {
+                <span class="muted" title="@SchemaViewText.Relations_LevelsTitle">@SchemaViewText.Relations_Levels</span>
+                <div class="segmented small" role="group" title="@SchemaViewText.Relations_LevelsTitle">
+                    @for (var depth = 1; depth <= RelationDiagram.MaxDepth; depth++)
+                    {
+                        var d = depth;
+                        <button class="seg @(_state.Depth == d ? "active" : "")" aria-pressed="@(_state.Depth == d ? "true" : "false")"
+                                @onclick="() => Change(() => _state.SetDepth(d))">@d</button>
+                    }
+                </div>
+            }
             @foreach (var source in _state.Sources)
             {
                 var s = source;
                 <label class="relations-source" title="@SchemaViewText.Relations_SourceTitle">
                     @if (_state.Sources.Count > 1)
                     {
-                        <input type="checkbox" checked="@_state.Shows(s)" @onchange="() => Change(() => _state.ToggleSource(s))" />
+                        <input type="checkbox" checked="@_state.Shows(s)" @onchange="() => ToggleSourceAsync(s)" />
                     }
                     <span class="relations-swatch @DiagramStyle.KindClass(s)"></span>
                     @DiagramStyle.SourceLabel(s)
@@ -42,13 +53,63 @@
             <button class="btn @(_query.Active ? "primary" : "ghost")" aria-pressed="@(_query.Active ? "true" : "false")" title="@SchemaViewText.Query_BuildTitle"
                     @onclick="ToggleQueryAsync">@SchemaViewText.Query_Build</button>
             <DiagramZoomBar Zoom="_state.Zoom" OnChange="() => { }" />
-            <button class="btn ghost" title="@TextFormat.Format(SchemaViewText.Relations_ResetTitle, Label(_state.Home))" disabled="@(!_state.Changed)"
-                    @onclick="() => Change(_state.Reset, scroll: true)">@CommonText.Reset</button>
-            <button class="btn ghost" title="@SchemaViewText.Relations_CopyMermaidTitle" @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
+            @if (!pathMode)
+            {
+                <button class="btn ghost" title="@TextFormat.Format(SchemaViewText.Relations_ResetTitle, Label(_state.Home))" disabled="@(!_state.Changed)"
+                        @onclick="() => Change(_state.Reset, scroll: true)">@CommonText.Reset</button>
+            }
+            <button class="btn ghost" title="@(pathMode ? SchemaViewText.Paths_CopyMermaidTitle : SchemaViewText.Relations_CopyMermaidTitle)" disabled="@(pathMode && _paths.Paths.Count == 0)"
+                    @onclick="CopyMermaidAsync">@SchemaViewText.Relations_CopyMermaid</button>
         </div>
 
-        <div class="relations-body @(_query.Active ? "with-query" : "")">
-        @if (diagram.Tables.Count == 1 && diagram.Groups.Count == 0)
+        <div class="relations-body @(_query.Active ? "with-query" : pathMode ? "with-paths" : "")">
+        @if (pathMode)
+        {
+            <RelationPathsPanel State="_paths" Label="Label" OnHover="p => _hoverPath = p" OnSelect="p => _paths.Select(p)"
+                                OnMore="RunPathsAsync" OnCancel="_paths.Cancel" OnAllow="t => SetAvoidedAsync(t, avoid: false)"
+                                OnBuildQuery="BuildQueryAsync" OnCopyText="CopyPathTextAsync" OnCopyMermaid="CopyPathMermaidAsync" />
+            @if (_paths.Placement is { } paths && _paths.Diagram is { } pathDiagram)
+            {
+                @if (_paths.Paths.Count == 0 && _paths.Done)
+                {
+                    <div class="relations-empty">
+                        <EmptyState Title="@SchemaViewText.Paths_NoneTitle"
+                                    Text="@TextFormat.Format(_state.Sources.All(_state.Shows) && _paths.Avoided.Count == 0 ? SchemaViewText.Paths_NoneText : SchemaViewText.Paths_NoneFilteredText, Label(_paths.Start), Label(_paths.Target!))" />
+                    </div>
+                }
+                else
+                {
+                    var onPath = ActivePath is { } active ? active.Tables.ToHashSet() : null;
+                    <DiagramCanvas Id="@CanvasId" Placement="paths" Zoom="_state.Zoom.Value" OnMouseLeave="() => _hover = null"
+                                   EdgeClass="edge => PathEdgeClass(pathDiagram, edge)" EdgeTitle="edge => pathDiagram.RelationOf(edge.Id) is { } r ? DiagramStyle.EdgeTitle(r, Label) : null">
+                        @foreach (var table in pathDiagram.Tables)
+                        {
+                            var t = table.Table;
+                            var box = paths.Nodes[RelationDiagram.IdOf(t)];
+                            var summary = Active.Schema?.Find(t);
+                            var state = onPath is not null ? (onPath.Contains(t) ? "lit" : "faded") : DiagramStyle.NodeState(t, _hover, PathNeighbours(pathDiagram));
+                            <div id="@(t == _paths.Start ? FocusId : null)" class="relations-node @(t == _paths.Start || t == _paths.Target ? "focus" : "") @state" style="@DiagramStyle.Box(box)"
+                                 @onmouseenter="() => _hover = t" @onmouseleave="() => Leave(t)" @oncontextmenu="e => _menu!.OpenAsync(e, t)" @oncontextmenu:preventDefault="true">
+                                @if (summary is not null)
+                                {
+                                    <button class="relations-name" title="@TextFormat.Format(SchemaViewText.Relations_OpenTitle, $"{t.Owner}.{t.Name}")"
+                                            @onclick="() => Shell.OpenTable(summary)">@Label(t)</button>
+                                }
+                                else
+                                {
+                                    <span class="relations-name" title="@SchemaViewText.TableLink_OtherSchema">@Label(t)</span>
+                                }
+                                @if (SubLabel(t) is { } sub)
+                                {
+                                    <span class="relations-sub">@sub</span>
+                                }
+                            </div>
+                        }
+                    </DiagramCanvas>
+                }
+            }
+        }
+        else if (diagram.Tables.Count == 1 && diagram.Groups.Count == 0)
         {
             <div class="relations-empty">
                 <EmptyState Title="@SchemaViewText.Relations_NoneTitle"
@@ -126,17 +187,38 @@
         var diagram = _state.Diagram;
     }
     <button class="menu-item" disabled="@(summary is null)" @onclick="() => FromMenu(() => Shell.OpenTable(summary!))">@TextFormat.Format(SchemaViewText.Relations_OpenTitle, Label(table))</button>
-    <button class="menu-item" disabled="@(table == _state.Focus)" @onclick="() => FromMenu(() => _state.Recenter(table), scroll: true)">@SchemaViewText.Relations_MenuCenter</button>
-    <div class="menu-sep"></div>
-    <button class="menu-item" disabled="@(diagram?.HiddenCount(table, DiagramSide.Parents) is not > 0)"
-            @onclick="() => FromMenu(() => _state.Expand(table, DiagramSide.Parents), anchor: table)">@SchemaViewText.Relations_MenuShowParents</button>
-    <button class="menu-item" disabled="@(diagram?.HiddenCount(table, DiagramSide.Children) is not > 0)"
-            @onclick="() => FromMenu(() => _state.Expand(table, DiagramSide.Children), anchor: table)">@SchemaViewText.Relations_MenuShowChildren</button>
+    @if (PathMode)
+    {
+        <button class="menu-item" disabled="@(table == _paths.Start || table == _paths.Target)" title="@TextFormat.Format(SchemaViewText.Paths_AvoidTitle, Label(table))"
+                @onclick="() => AvoidFromMenuAsync(table)">@SchemaViewText.Paths_Avoid</button>
+    }
+    else
+    {
+        <button class="menu-item" disabled="@(table == _state.Focus)" @onclick="() => FromMenu(() => _state.Recenter(table), scroll: true)">@SchemaViewText.Relations_MenuCenter</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" disabled="@(diagram?.HiddenCount(table, DiagramSide.Parents) is not > 0)"
+                @onclick="() => FromMenu(() => _state.Expand(table, DiagramSide.Parents), anchor: table)">@SchemaViewText.Relations_MenuShowParents</button>
+        <button class="menu-item" disabled="@(diagram?.HiddenCount(table, DiagramSide.Children) is not > 0)"
+                @onclick="() => FromMenu(() => _state.Expand(table, DiagramSide.Children), anchor: table)">@SchemaViewText.Relations_MenuShowChildren</button>
+    }
 </ContextMenuHost>
+
+@if (_replace is { } replace)
+{
+    <ConfirmDialog Title="@SchemaViewText.Paths_ReplaceTitle" ConfirmLabel="@SchemaViewText.Paths_Replace" SecondaryLabel="@SchemaViewText.Paths_Append"
+                   OnConfirm="() => TakePathAsync(replace, replace: true)" OnSecondary="() => TakePathAsync(replace, replace: false)" OnCancel="() => _replace = null">
+        <p>@SchemaViewText.Paths_ReplaceText</p>
+    </ConfirmDialog>
+}
 
 @code {
     private readonly string _id = "rel-" + Guid.NewGuid().ToString("N");
     private RelationsDiagramState _state = null!;
+    private RelationPathsState _paths = null!;
+    private RelationGraph? _graph;
+    private RelationPath? _hoverPath;
+    private RelationPath? _replace;
+    private bool _disposed;
     private IReadOnlyList<ForeignKeyInfo>? _loadedRelations;
     private int? _loadedVersion;
     private TableRef? _hover;
@@ -191,8 +273,12 @@
     protected override void OnInitialized()
     {
         _state = new RelationsDiagramState(Details.Table.Ref);
+        _paths = new RelationPathsState(Details.Table.Ref);
+        _paths.SetTarget(Tab.PathTarget);
+        _paths.SetAvoided(AvoidedNow);
         _query = new QueryDesignEditor(Tab);
         Presentations.Changed += OnPresentationChanged;
+        Settings.Changed += OnSettingsChanged;
     }
 
     /// <summary>
@@ -237,19 +323,190 @@
         }
 
         _loadedRelations = schema.ForeignKeys;
-        var graph = RelationGraph.Of(schema);
+        var graph = _graph = RelationGraph.Of(schema);
         _state.Load(graph);
         _query.Load(graph);
+        LoadPaths();
         if (_query.Active)
         {
             Fire(LoadColumnsAsync);
         }
     }
 
+    /// <summary>The ways follow the kinds of relationship the diagram shows; a new search runs its first block.</summary>
+    private void LoadPaths()
+    {
+        if (_graph is null)
+        {
+            return;
+        }
+
+        _paths.Load(new RelationGraph(_graph.Relations.Where(r => _state.Shows(r.Source))));
+        StartPaths();
+    }
+
+    /// <summary>The first block of a search that has none yet – for the path mode only, a hidden mode searches nothing.</summary>
+    private void StartPaths()
+    {
+        if (PathMode && _paths.Paths.Count == 0 && !_paths.Running && !_paths.Done && !_paths.Cancelled)
+        {
+            Fire(RunPathsAsync);
+        }
+    }
+
+    /// <summary>The diagram shows the ways to a target (WP-74); "Abfrage bauen" shows the neighbours with the query.</summary>
+    private bool PathMode => _paths.Target is not null && !_query.Active;
+
+    /// <summary>The way under the mouse in the list, else the one chosen.</summary>
+    private RelationPath? ActivePath => _hoverPath ?? _paths.Selected;
+
+    /// <summary>Searches one block; the list fills while it runs.</summary>
+    private async Task RunPathsAsync()
+    {
+        if (_paths.Running)
+        {
+            return;
+        }
+
+        var run = _paths.MoreAsync();
+        while (!run.IsCompleted)
+        {
+            await Task.WhenAny(run, Task.Delay(200));
+            if (_disposed)
+            {
+                return;
+            }
+
+            _paths.Collect();
+            StateHasChanged();
+        }
+
+        await run;
+        _paths.Collect();
+        StateHasChanged();
+    }
+
+    private Task PickTargetAsync(TableRef? target)
+    {
+        _hoverPath = null;
+        _hover = null;
+        _paths.SetTarget(target);
+        Tab.PathTarget = _paths.Target;
+        Shell.MarkDirty();
+        _scroll = true;
+        StartPaths();
+        return Task.CompletedTask;
+    }
+
+    private Task ToggleSourceAsync(FkSource source)
+    {
+        Change(() => _state.ToggleSource(source));
+        LoadPaths();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>The connection's tables no way goes through, from the settings.</summary>
+    private IReadOnlySet<TableRef> AvoidedNow =>
+        Active.Profile?.Id is { } id ? Settings.Current.PathAvoidedTables.Of(id.ToString()) : new HashSet<TableRef>();
+
+    private void OnSettingsChanged() => Fire(() =>
+    {
+        if (_disposed || AvoidedNow.SetEquals(_paths.Avoided))
+        {
+            return;
+        }
+
+        _hoverPath = null;
+        _paths.SetAvoided(AvoidedNow);
+        StartPaths();
+        StateHasChanged();
+    });
+
+    private async Task SetAvoidedAsync(TableRef table, bool avoid)
+    {
+        if (Active.Profile?.Id.ToString() is not { } key)
+        {
+            return;
+        }
+
+        var tables = AvoidedNow.ToHashSet();
+        if (!(avoid ? tables.Add(table) : tables.Remove(table)))
+        {
+            return;
+        }
+
+        // In effect at once (Changed starts the new search); only writing the file may fail.
+        await Shell.TrySaveSettingsAsync(
+            () => Settings.UpdateAsync(s => s with { PathAvoidedTables = s.PathAvoidedTables.With(key, tables) }, CancellationToken.None), Logger);
+    }
+
+    private Task AvoidFromMenuAsync(TableRef table)
+    {
+        _menu?.Close();
+        _hover = null;
+        return SetAvoidedAsync(table, avoid: true);
+    }
+
+    /// <summary>"Abfrage bauen" for a way: asks first if the tab has a query already.</summary>
+    private Task BuildQueryAsync(RelationPath path)
+    {
+        if (_query.HasSteps)
+        {
+            _replace = path;
+            return Task.CompletedTask;
+        }
+
+        return TakePathAsync(path, replace: true);
+    }
+
+    /// <summary>The way into the query; the neighbours diagram opens along it and shows the query.</summary>
+    private Task TakePathAsync(RelationPath path, bool replace)
+    {
+        _replace = null;
+        _hoverPath = null;
+        _hover = null;
+        _query.TakePath(path, replace);
+        Change(() => _state.ShowPath(path.Steps), scroll: true);
+        Shell.MarkDirty();
+        return LoadColumnsAsync();
+    }
+
+    private async Task CopyPathTextAsync(RelationPath path)
+    {
+        if (await Dom.CopyTextAsync(Shell, path.Text(Label)))
+        {
+            Shell.Notify(SchemaViewText.Paths_TextCopied);
+        }
+    }
+
+    private async Task CopyPathMermaidAsync(RelationPath path)
+    {
+        if (await Dom.CopyTextAsync(Shell, RelationMermaid.Write([path], Label)))
+        {
+            Shell.Notify(SchemaViewText.Relations_MermaidCopied);
+        }
+    }
+
+    /// <summary>An edge of the ways: its kind, lit on the way under the mouse or chosen, else by the table under the mouse.</summary>
+    private string PathEdgeClass(PathDiagram diagram, EdgePath edge)
+    {
+        var kind = diagram.RelationOf(edge.Id) is { } relation ? DiagramStyle.KindClass(relation.Source) : "group";
+        return ActivePath is { } path
+            ? $"{kind} {(path.Steps.Any(s => RelationGraph.KeyOf(s.Relation) == edge.Id) ? "lit" : "faded")}"
+            : $"{kind} {DiagramStyle.EdgeState(edge, HoverId)}";
+    }
+
+    /// <summary>The tables related to the one under the mouse in the diagram of the ways.</summary>
+    private IReadOnlySet<TableRef> PathNeighbours(PathDiagram diagram) =>
+        _hover is not { } hover ? new HashSet<TableRef>()
+        : diagram.Relations.Where(r => r.From == hover || r.To == hover).SelectMany(r => new[] { r.From, r.To }).ToHashSet();
+
     private Task ToggleQueryAsync()
     {
         _query.SetActive(!_query.Active);
         Shell.MarkDirty();
+        _scroll = true;
+        StartPaths(); // back to the ways, if there is a target
         return _query.Active ? LoadColumnsAsync() : Task.CompletedTask;
     }
 
@@ -353,7 +610,8 @@
             return;
         }
 
-        if (await Dom.CopyTextAsync(Shell, RelationMermaid.Write(diagram, schema.LabelOf)))
+        var text = PathMode ? RelationMermaid.Write(_paths.Paths, schema.LabelOf) : RelationMermaid.Write(diagram, schema.LabelOf);
+        if (await Dom.CopyTextAsync(Shell, text))
         {
             Shell.Notify(SchemaViewText.Relations_MermaidCopied);
         }
@@ -380,7 +638,10 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        _paths.Cancel();
         Presentations.Changed -= OnPresentationChanged;
+        Settings.Changed -= OnSettingsChanged;
         await Dom.DisposeAsync();
     }
 }

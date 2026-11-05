@@ -1911,7 +1911,28 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-swatch:not(.declared) { border-top-style: dashed; }
 .relations-zoom { min-width: 58px; font-variant-numeric: tabular-nums; }
 .relations-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.relations-body.with-query { flex-direction: row; }
+.relations-body.with-query, .relations-body.with-paths { flex-direction: row; }
+.path-target { display: inline-flex; align-items: center; gap: 2px; }
+.path-candidate { display: flex; align-items: baseline; gap: 8px; }
+.path-candidate .mono { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.path-candidate .muted { color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.paths-panel { flex: none; width: 420px; max-width: 45%; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden;
+    border-top: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--surface); padding: 10px 12px 0 0; font-size: 13px; }
+.paths-avoided { display: flex; align-items: baseline; gap: 8px; }
+.paths-avoided .muted, .paths-status .muted { color: var(--muted); font-size: 12px; }
+.paths-avoided .menu-chip .icon { width: 11px; height: 11px; }
+.paths-status { display: flex; align-items: center; gap: 8px; min-height: 26px; }
+.paths-status .spacer { flex: 1; }
+.paths-list { flex: 1; min-height: 0; overflow: auto; list-style: none; margin: 0; padding: 0 0 24px; }
+.paths-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+.paths-row:hover { background: var(--hover); }
+.paths-row.selected { background: var(--accent-weak); }
+.paths-chain { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.paths-arrow { color: var(--muted); }
+.paths-arrow.down { color: var(--warn); }
+.paths-facts { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.paths-facts .chip.many { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+.paths-row .more { opacity: 1; }
 .relations-body > .relations-canvas, .relations-body > .relations-empty { flex: 1; min-width: 0; }
 .relations-empty { position: relative; flex: 1; min-height: 0; }
 .relations-canvas { position: relative; flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--border); background: var(--bg); }
