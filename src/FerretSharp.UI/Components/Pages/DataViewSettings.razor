@@ -5,10 +5,19 @@
 
 <section class="settings-section">
     <h2>@SettingsViewText.Settings_DataView</h2>
-    <SettingsChoice TValue="TabMode" Filter="Filter" Key="SettingKey.OpenView" Label="@SettingsViewText.Settings_OpenView" Options="SettingsOptions.OpenViews"
-                    Value="Settings.Current.OpenView" OnChange="view => UpdateAsync(s => s with { OpenView = view })">
-        <Hint>@SettingsViewText.Settings_OpenViewHint</Hint>
-    </SettingsChoice>
+    @* Ten views: a list instead of segmented buttons, which pressed the hint into a narrow column. value, not selected= (ui.md). *@
+    <div class="settings-row @Filter.HideClass(SettingKey.OpenView)">
+        <div class="settings-label">
+            <span>@SettingsViewText.Settings_OpenView</span>
+            <span class="hint">@SettingsViewText.Settings_OpenViewHint</span>
+        </div>
+        <select class="field settings-select" aria-label="@SettingsViewText.Settings_OpenView" value="@Settings.Current.OpenView" @onchange="SetOpenViewAsync">
+            @foreach (var (view, label) in SettingsOptions.OpenViews)
+            {
+                <option value="@view">@label</option>
+            }
+        </select>
+    </div>
     <SettingsChoice TValue="RowLoadMode" Filter="Filter" Key="SettingKey.LoadRows" Label="@SettingsViewText.Settings_LoadRows" Options="SettingsOptions.LoadRows"
                     Value="Settings.Current.LoadRows" OnChange="mode => UpdateAsync(s => s with { LoadRows = mode })">
         <Hint>@SettingsViewText.Settings_LoadRowsHint</Hint>
@@ -33,6 +42,9 @@
 
     [Parameter, EditorRequired]
     public SettingsFilter Filter { get; set; } = null!;
+
+    private Task SetOpenViewAsync(ChangeEventArgs e) =>
+        Enum.TryParse<TabMode>(e.Value as string, out var view) ? UpdateAsync(s => s with { OpenView = view }) : Task.CompletedTask;
 
     private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
 }
