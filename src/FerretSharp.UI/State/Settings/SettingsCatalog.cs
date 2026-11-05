@@ -115,7 +115,7 @@ public static class SettingsCatalog
             Setting(SettingKey.ExplorerViews, SettingsPart.Appearance, SettingsViewText.Settings_ExplorerViews, SettingsViewText.Settings_ExplorerViewsHint),
             Setting(SettingKey.OpenView, SettingsPart.DataView, SettingsViewText.Settings_OpenView, SettingsViewText.Settings_OpenViewHint),
             Setting(SettingKey.LoadRows, SettingsPart.DataView, SettingsViewText.Settings_LoadRows, SettingsViewText.Settings_LoadRowsHint),
-            Setting(SettingKey.HeaderTypes, SettingsPart.DataView,SettingsViewText.Settings_HeaderTypes,
+            Setting(SettingKey.HeaderTypes, SettingsPart.DataView, SettingsViewText.Settings_HeaderTypes,
                 TextFormat.Format(SettingsViewText.Settings_HeaderTypesHint, HeaderTypeExample)),
             Setting(SettingKey.HeaderNotNull, SettingsPart.DataView, TextFormat.Format(SettingsViewText.Settings_HeaderNotNull, NotNull),
                 SettingsViewText.Settings_HeaderNotNullHint),
