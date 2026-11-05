@@ -81,7 +81,8 @@ public sealed class RelationPathsStateTests
         var state = Loaded(Kunde);
         await RunAsync(state);
 
-        state.Load(new RelationGraph(Graph.Relations)); // reloaded schema, nothing changed
+        // A reloaded schema or C# model: new records and column lists for the same relationships (review: compared by reference).
+        state.Load(new RelationGraph(Graph.Relations.Select(r => r with { FromColumns = [.. r.FromColumns], ToColumns = [.. r.ToColumns] })));
         state.SetTarget(Kunde);
         state.SetAvoided(new HashSet<TableRef>());
 

@@ -52,10 +52,13 @@ public sealed class RelationPathsState(TableRef start)
     /// <summary>The last block was cancelled; "More ways" goes on where it stopped.</summary>
     public bool Cancelled { get; private set; }
 
-    /// <summary>The relationships of the kinds shown: a new search if they are other ones than before.</summary>
+    /// <summary>
+    /// The relationships of the kinds shown: a new search if they are other ones than before – by content, since every
+    /// build of the linked project brings new records for the same relationships (review).
+    /// </summary>
     public void Load(RelationGraph graph)
     {
-        if (_graph is not null && _graph.Relations.SequenceEqual(graph.Relations))
+        if (_graph is not null && RelationGraph.SameRelations(_graph.Relations, graph.Relations))
         {
             return;
         }
