@@ -24,10 +24,13 @@ public class TableOpeningTests
 
     /// <summary>
     /// The grid's first request and a reload in the tab's order keep waiting; a click on a header comes with another order and
-    /// loads – from then on every request does.
+    /// loads – from then on every request does. So does a later block (code review: a counted total gives the grid a scroll
+    /// range only until its first block answers again with no rows; a request past it would be one of the user's).
     /// </summary>
-    [Fact]
-    public void Deferred_rows_wait_until_the_grid_asks_in_another_order()
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(500, false)]
+    public void Deferred_rows_wait_until_the_grid_asks_in_another_order_or_for_a_later_block(int startRow, bool descending)
     {
         var byId = new SortSpec("ID", false);
         var tab = new TableTab(Guid.NewGuid(), TestApp.Kunden) { RowsDeferred = true, Sorts = [byId] };
@@ -35,7 +38,7 @@ public class TableOpeningTests
         Assert.True(tab.StillDeferred(0, [byId]));
         Assert.True(tab.RowsDeferred);
 
-        Assert.False(tab.StillDeferred(0, [byId with { Descending = true }]));
+        Assert.False(tab.StillDeferred(startRow, [byId with { Descending = descending }]));
         Assert.False(tab.RowsDeferred);
         Assert.False(tab.StillDeferred(0, [byId]));
     }
