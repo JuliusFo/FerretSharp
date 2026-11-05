@@ -240,9 +240,9 @@ public sealed record AppSettings
     public FilterSqlColumns FilterSql { get; init; } = FilterSqlColumns.Listed;
 
     /// <summary>
-    /// The view a table tab opens on when nothing asks for another one (explorer, command palette, diagrams): the data
-    /// (default) or one of the detail views. An FK jump and a link with filters always open the data, a restored tab its
-    /// saved view.
+    /// The view a table tab opens on when nothing asks for another one (explorer, command palette, diagrams, a column
+    /// header's menu): the data (default) or one of the detail views. A jump to referencing or referenced rows opens the
+    /// data, a link its own view, a restored tab its saved view.
     /// </summary>
     public Workspaces.TabMode OpenView { get; init; } = Workspaces.TabMode.Data;
 

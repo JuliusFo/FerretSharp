@@ -535,13 +535,13 @@
     <value>View when opening a table</value>
   </data>
   <data name="Settings_OpenViewHint" xml:space="preserve">
-    <value>The view a table opens on from the explorer, the command palette or a diagram – the data or one of the detail views. An FK jump and a link with filters always open the data, a restored tab its saved view. Without a linked C# project, “Usage” opens the data.</value>
+    <value>The view a table opens on from the explorer, the command palette, a diagram or a column header’s menu – the data or one of the detail views. Jumps to referencing or referenced rows always open the data, a link its own view, a restored tab its saved view. Without a linked C# project, “Usage” opens the data.</value>
   </data>
   <data name="Settings_LoadRows" xml:space="preserve">
     <value>Load rows when opening</value>
   </data>
   <data name="Settings_LoadRowsHint" xml:space="preserve">
-    <value>“On request”: a newly opened table shows its columns without rows until “Load”, reloading, applying the filters or a click on a column header asks for them – on big tables and views, filter first. FK jumps and restored tabs load at once.</value>
+    <value>“On request”: a newly opened table shows its columns without rows until “Load”, reloading, applying the filters or a click on a column header asks for them – on big tables and views, filter first. Jumps to referencing or referenced rows, links and restored tabs load at once.</value>
   </data>
   <data name="Settings_LoadRowsImmediately" xml:space="preserve">
     <value>Immediately</value>
