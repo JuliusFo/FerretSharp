@@ -219,9 +219,6 @@
   <data name="Export_SqlScriptFilter" xml:space="preserve">
     <value>SQL-Skript</value>
   </data>
-  <data name="Form_ResizeWidth" xml:space="preserve">
-    <value>Breite ändern</value>
-  </data>
   <data name="Form_PreviousRow" xml:space="preserve">
     <value>Vorige Zeile{0}</value>
   </data>

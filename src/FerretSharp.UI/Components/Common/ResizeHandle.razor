@@ -1,0 +1,94 @@
+@* A handle on the edge of a panel or between two areas: dragging resizes (dom.js dragSize), a double click goes back to the
+   default. The owner keeps the size – in the settings or the tab – and renders it; this only reports it. *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="resize-handle @EdgeClass" title="@Title" @ref="_handle" @onpointerdown="StartAsync" @onclick="OnClickAsync"></div>
+
+@code {
+    /// <summary>The edge of the sized element the handle sits on; left and right change its width, bottom its height.</summary>
+    [Parameter, EditorRequired]
+    public ResizeEdge Edge { get; set; }
+
+    [Parameter, EditorRequired]
+    public int Min { get; set; }
+
+    /// <summary>Largest size as a fraction of <see cref="Within"/> (or of the sized element's parent).</summary>
+    [Parameter, EditorRequired]
+    public double MaxFraction { get; set; }
+
+    /// <summary>CSS custom property the size goes into while dragging (<see cref="PanelSizes"/>); null: the element's own size.</summary>
+    [Parameter]
+    public string? Variable { get; set; }
+
+    /// <summary>Selector of the handle's ancestor that carries <see cref="Variable"/> (and renders it); null: the app root.</summary>
+    [Parameter]
+    public string? VariableOn { get; set; }
+
+    /// <summary>Selector of the sized element inside <see cref="Within"/>; null: the handle's parent.</summary>
+    [Parameter]
+    public string? Measure { get; set; }
+
+    /// <summary>Selector of the handle's ancestor that limits the size; null: the sized element's parent.</summary>
+    [Parameter]
+    public string? Within { get; set; }
+
+    /// <summary>The new size in pixels once the handle is released after dragging.</summary>
+    [Parameter]
+    public EventCallback<int> OnResized { get; set; }
+
+    /// <summary>A double click on the handle: back to the default size.</summary>
+    [Parameter]
+    public EventCallback OnReset { get; set; }
+
+    private ElementReference _handle;
+    private DomModule? _dom;
+    private bool _disposed;
+    private (double X, double Y)? _press;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    private string EdgeClass => Edge switch
+    {
+        ResizeEdge.Left => "left",
+        ResizeEdge.Right => "right",
+        _ => "bottom",
+    };
+
+    private string Title => Edge == ResizeEdge.Bottom ? CommonText.Resize_Height : CommonText.Resize_Width;
+
+    private async Task StartAsync(PointerEventArgs e)
+    {
+        if (e.Button != 0)
+        {
+            return;
+        }
+
+        _press = (e.ClientX, e.ClientY); // before the await: the click that follows must find it
+        var options = new { edge = EdgeClass, min = Min, maxFraction = MaxFraction, variable = Variable, variableOn = VariableOn, measure = Measure, within = Within };
+        var size = await Dom.InvokeAsync<int>("dragSize", _handle, e.PointerId, e.ClientX, e.ClientY, options);
+        if (!_disposed && size > 0)
+        {
+            await OnResized.InvokeAsync(size);
+        }
+    }
+
+    /// <summary>
+    /// A double click as a click with <c>Detail</c> 2 where the button went down (<see cref="ResizeClick"/>). Neither click
+    /// changed the size: <c>dragSize</c> reports 0 when the pointer did not move.
+    /// </summary>
+    private async Task OnClickAsync(MouseEventArgs e)
+    {
+        if (ResizeClick.IsReset(e.Detail, e.Button, Edge == ResizeEdge.Bottom, _press, e.ClientX, e.ClientY))
+        {
+            await OnReset.InvokeAsync();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        await Dom.DisposeAsync();
+    }
+}

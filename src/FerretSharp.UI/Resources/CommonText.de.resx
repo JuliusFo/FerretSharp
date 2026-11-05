@@ -138,4 +138,10 @@ FerretSharp jetzt neu starten?</value>
   <data name="Choose" xml:space="preserve">
     <value>Auswählen…</value>
   </data>
+  <data name="Resize_Width" xml:space="preserve">
+    <value>Ziehen ändert die Breite, Doppelklick stellt die Standardbreite her</value>
+  </data>
+  <data name="Resize_Height" xml:space="preserve">
+    <value>Ziehen ändert die Höhe, Doppelklick stellt die Standardhöhe her</value>
+  </data>
 </root>

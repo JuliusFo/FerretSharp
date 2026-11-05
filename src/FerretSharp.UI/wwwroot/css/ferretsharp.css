@@ -164,7 +164,7 @@ button:disabled { cursor: default; opacity: .5; }
 
 .body { flex: 1; display: flex; min-height: 0; }
 
-.sidebar { width: 280px; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); }
+.sidebar { position: relative; width: var(--explorer-width, 280px); max-width: 50%; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); }
 .sidebar-head { padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
 .schema { display: flex; align-items: baseline; gap: 6px; font-weight: 600; }
 .sidebar-empty { padding: 4px 12px; color: var(--faint); }
@@ -1327,7 +1327,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .tab.linq .icon { color: var(--clr); }
 .tab-new { flex: none; align-self: center; margin: 0 8px; height: 26px; padding: 0 10px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent; color: var(--muted); font-size: 12px; }
 .tab-new:hover { color: var(--clr); border-color: var(--clr); background: var(--clr-weak); }
-.linqview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* A size container for the editor's limit (cqh); clip: what does not fit stays out of the status bar, without a scroll container. */
+.linqview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container-type: size; overflow: clip; }
 .linqview > .tab-toolbar .icon { color: var(--clr); }
 .linq-title { font: 600 13px var(--mono); }
 .title-btn { height: 24px; padding: 0 6px; margin-left: -6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--text); cursor: text; }
@@ -1340,14 +1341,18 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .linq-console.ready { color: var(--test); }
 .linq-console.failed { color: var(--danger); }
 .linq-console.warn { color: var(--warn); }
-.linq-editors { flex: none; display: flex; flex-direction: column; padding: 6px 12px 10px; gap: 4px; background: var(--surface); border-bottom: 1px solid var(--border); }
+/* Shrinks rather than push the results and its handle out of a small view: the query editor gives way (review 2026-11-04). */
+.linq-editors { position: relative; flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 6px 12px 10px; gap: 4px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .linq-label { display: flex; align-items: baseline; gap: 10px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .linq-label .hint { font-size: 11.5px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--faint); }
 .linq-label code { font-size: 11px; }
 .monaco-host { border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-.monaco-host.linq-variables { height: 62px; }
-.monaco-host.linq-code { height: clamp(110px, 22vh, 300px); }
-.linq-output { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.monaco-host.linq-variables { height: 62px; flex-shrink: 0; }
+/* At most 60 % of the view like the drag limit (LinqView.EditorMaxFraction), also when the window got smaller since. */
+.monaco-host.linq-code { height: min(var(--linq-editor-height, clamp(110px, 22vh, 300px)), 60cqh); }
+/* Results of the LINQ console and the SQL editor; a strip stays for them when the editor above is large and the view small.
+   It scrolls there, so the run progress with Cancel and Disconnect session stays reachable (review 2026-11-04). */
+.linq-output { flex: 1; display: flex; flex-direction: column; min-height: 48px; position: relative; overflow-y: auto; }
 /* RunProgress: where the result will appear while a statement runs. */
 .run-progress {
   align-self: center; width: min(640px, calc(100% - 32px)); margin: 28px 16px; padding: 16px 18px;
@@ -1399,15 +1404,18 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 
 /* ---------- SQL editor (WP-17) ---------- */
 .tab.sql .icon { color: var(--accent); }
-.sqlview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* As .linqview: a size container for the editor's limit, clipped. */
+.sqlview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; container-type: size; overflow: clip; }
 .sqlview > .tab-toolbar .icon { color: var(--accent); }
 /* On a filled button (Run) the toolbar's icon color would be the button's own background. */
 .tab-toolbar .btn.primary .icon { color: inherit; }
 .sqlview > .tab-toolbar .muted { font-size: 12px; color: var(--muted); }
 .sqlview > .tab-toolbar .btn.active { color: var(--accent); background: var(--accent-weak); }
-.sql-main { flex: none; display: flex; min-height: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+/* Shrinks like .linq-editors: the editor gives way to the bind variables and the results' strip. */
+.sql-main { position: relative; flex: 0 1 auto; display: flex; min-height: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
 .sql-editors { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 12px 10px; }
-.monaco-host.sql-code { height: clamp(140px, 30vh, 420px); }
+/* At most 75 % of the view like the drag limit (SqlView.EditorMaxFraction), also when the window got smaller since. */
+.monaco-host.sql-code { height: min(var(--sql-editor-height, clamp(140px, 30vh, 420px)), 75cqh); }
 .fs-ran-statement { background: var(--accent-weak); }
 .sql-runs { flex-wrap: wrap; }
 .chip-btn.failed { color: var(--danger); border-color: var(--danger); }
@@ -1418,7 +1426,7 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .sql-variable select.field { flex: none; width: 112px; height: 28px; }
 .sql-variable input.field { flex: 1; min-width: 0; height: 28px; font-family: var(--mono); font-size: 12px; }
 .sql-variable.unused { opacity: .55; }
-.sql-history { flex: none; width: 340px; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-left: 1px solid var(--border); max-height: clamp(180px, 42vh, 560px); }
+.sql-history { flex: none; width: 340px; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-left: 1px solid var(--border); contain: size; } /* as tall as the editor beside it, never taller: the list scrolls */
 .sql-history-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .sql-history-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; text-align: left; }
 .sql-history-item:hover { background: var(--hover); }
@@ -1510,8 +1518,6 @@ table.compare-matrix td.different.g3 { background: color-mix(in srgb, var(--test
 .result-split { height: 100%; }
 .tab-toolbar .btn.active, .tab-footer .btn.active { color: var(--accent); background: var(--accent-weak); }
 .form-panel { position: relative; flex: none; display: flex; flex-direction: column; min-height: 0; min-width: 300px; max-width: 75%; border-left: 1px solid var(--border); background: var(--surface); }
-.form-resize { position: absolute; left: -4px; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 2; touch-action: none; }
-.form-resize:hover { background: var(--accent-weak); }
 .form-head { display: flex; align-items: center; gap: 2px; height: 38px; flex: none; padding: 0 6px 0 8px; border-bottom: 1px solid var(--border); }
 .form-head .spacer { flex: 1; }
 .form-pos { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-left: 6px; overflow: hidden; white-space: nowrap; font-size: 12px; }
@@ -1577,6 +1583,14 @@ table.compare-rows td.ff-flushed { box-shadow: inset 2px 0 0 var(--accent); back
 .cr-type { display: block; font: 10.5px var(--mono); color: var(--faint); }
 .cr-row { padding: 0; font-weight: 600; }
 .cr-key { display: block; font: 11px var(--mono); color: var(--muted); }
+
+/* ---------- drag handles (ResizeHandle): on a panel's edge or between editor and results; sizes in PanelSizes ---------- */
+.resize-handle { position: absolute; z-index: 3; touch-action: none; }
+.resize-handle:hover { background: var(--accent-weak); }
+.resize-handle.left, .resize-handle.right { top: 0; bottom: 0; width: 7px; cursor: col-resize; }
+.resize-handle.left { left: -4px; }
+.resize-handle.right { right: -4px; }
+.resize-handle.bottom { left: 0; right: 0; bottom: -4px; height: 7px; cursor: row-resize; }
 
 /* Settings › Tastenkürzel (WP-25) */
 .shortcut-intro { max-width: 1100px; margin: 12px auto 0; }

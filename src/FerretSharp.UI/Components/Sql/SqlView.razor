@@ -14,7 +14,7 @@
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
 
-<div class="sqlview">
+<div class="sqlview" style="@PanelSizes.Property(PanelSizes.SqlEditorHeight, Tab.EditorHeight)">
     <div class="tab-toolbar">
         @Icons.Database
         <TabTitle Tab="Tab" />
@@ -44,6 +44,9 @@
         {
             <SqlHistoryPanel Entries="_history" OnAdopt="AdoptAsync" />
         }
+
+        <ResizeHandle Edge="ResizeEdge.Bottom" Min="EditorMinHeight" MaxFraction="EditorMaxFraction" Variable="@PanelSizes.SqlEditorHeight"
+                      VariableOn=".sqlview" Measure=".sql-code" Within=".sqlview" OnResized="h => SetEditorHeight(h)" OnReset="() => SetEditorHeight(null)" />
     </div>
 
     <div class="linq-output">
@@ -272,6 +275,23 @@
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    /// <summary>Height limits of the editor when its bottom edge is dragged; the default is in the stylesheet.</summary>
+    private const int EditorMinHeight = 80;
+    private const double EditorMaxFraction = 0.75;
+
+    /// <summary>
+    /// The dragged editor height, kept in the tab (per tab, decision of the user) and saved with the workspace; null for
+    /// the default. Rendered as <see cref="PanelSizes.SqlEditorHeight"/> on the view.
+    /// </summary>
+    private void SetEditorHeight(int? height)
+    {
+        if (Tab.EditorHeight != height)
+        {
+            Tab.EditorHeight = height;
+            Shell.MarkDirty();
+        }
+    }
 
     [CascadingParameter]
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;

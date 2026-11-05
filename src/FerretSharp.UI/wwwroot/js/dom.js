@@ -139,19 +139,56 @@ export function arrowsMoveList(id) {
   });
 }
 
+/** Pixels the pointer moves on a resize handle before it drags: a click – also either half of a double click – keeps the size. Same as ResizeClick.DragThreshold (C#). */
+const dragThreshold = 3;
+
+/** The nearest ancestor with a box of its own: `display: contents` has none (each connection's explorer sits in one). */
+function boxParent(element) {
+  let parent = element.parentElement;
+  while (parent && getComputedStyle(parent).display === 'contents') parent = parent.parentElement;
+  return parent ?? document.documentElement;
+}
+
 /**
- * Drags the left edge of a side panel (the form beside the grid, WP-21) while the pointer is down: the width follows
- * the pointer, between min and maxFraction of the parent. Resolves with the final width when the pointer is released.
+ * Drags a resize handle (ResizeHandle.razor: the form and the change overview at their left edge, WP-21/WP-30; the explorer
+ * at its right edge; the SQL and LINQ editors at their bottom edge) while the pointer is down. The size follows the pointer
+ * between min and maxFraction of `within` (a selector of an ancestor of the handle; else the nearest ancestor of the sized
+ * element with a box). The sized element is `measure` inside `within` (else the handle's parent). With `variable` the size
+ * goes into that CSS custom property on `variableOn` (an ancestor of the handle; else the app root), where the owner
+ * renders it too – the explorer's width on the app root for every connection, an editor's height on its tab's view –,
+ * else into the element's own width or height. Resolves with the final size, 0 if the pointer never moved past
+ * dragThreshold.
  */
-export function dragWidth(handle, panel, pointerId, startX, min, maxFraction) {
+export function dragSize(handle, pointerId, startX, startY, options) {
+  const { edge, min, maxFraction, variable, variableOn, measure, within } = options;
+  const container = within ? handle.closest(within) : null;
+  const element = measure ? (container ?? document).querySelector(measure) : handle.parentElement;
+  if (!element) return Promise.resolve(0);
+  const vertical = edge === 'bottom';
+  const length = rect => (vertical ? rect.height : rect.width);
+  const start = vertical ? startY : startX;
+  const startSize = length(element.getBoundingClientRect());
+  const max = Math.max(min, length((container ?? boxParent(element)).getBoundingClientRect()) * maxFraction);
+  const grow = edge === 'left' ? -1 : 1;
+  const host = variable ? (handle.closest(variableOn ?? '.app') ?? document.documentElement) : null;
+  let size = 0;
+  return trackDrag(handle, pointerId, start, e => (vertical ? e.clientY : e.clientX), at => {
+    size = Math.round(Math.min(max, Math.max(min, startSize + grow * (at - start))));
+    if (host) host.style.setProperty(variable, size + 'px');
+    else element.style[vertical ? 'height' : 'width'] = size + 'px';
+  }).then(moved => (moved ? size : 0));
+}
+
+/**
+ * Follows the pointer on a captured handle until it is released; `apply` gets the coordinate once the pointer moved
+ * dragThreshold pixels from `start`. Resolves with whether it did.
+ */
+function trackDrag(handle, pointerId, start, coordinate, apply) {
   return new Promise(resolve => {
-    const startWidth = panel.getBoundingClientRect().width;
-    const max = Math.max(min, panel.parentElement.getBoundingClientRect().width * maxFraction);
-    const widthAt = x => Math.round(Math.min(max, Math.max(min, startWidth + startX - x)));
-    let width = Math.round(startWidth);
+    let moved = false;
     let done = false;
     // Ends like dragToDrop (review 3.54.0, A27): also when the capture goes (Alt+Tab, the host) or the button came up
-    // unseen – the promise stayed open, the listeners on the handle, and the width was never kept.
+    // unseen – the promise stayed open, the listeners on the handle, and the size was never kept.
     const end = () => {
       if (done) return;
       done = true;
@@ -160,15 +197,20 @@ export function dragWidth(handle, panel, pointerId, startX, min, maxFraction) {
       handle.removeEventListener('pointercancel', end);
       handle.removeEventListener('lostpointercapture', end);
       if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
-      resolve(width);
+      resolve(moved);
     };
-    const move = e => { width = widthAt(e.clientX); panel.style.width = width + 'px'; };
+    const move = e => {
+      const at = coordinate(e);
+      if (!moved && Math.abs(at - start) < dragThreshold) return;
+      moved = true;
+      apply(at);
+    };
     const onMove = e => ((e.buttons & 1) === 0 ? end() : move(e));
     const up = e => { move(e); end(); };
     try {
       handle.setPointerCapture(pointerId);
     } catch {
-      resolve(width); // released before the capture: nothing to drag
+      resolve(false); // released before the capture: nothing to drag
       return;
     }
     handle.addEventListener('pointermove', onMove);

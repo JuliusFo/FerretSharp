@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- The explorer can be made wider or narrower: drag its right edge. The SQL editor and the LINQ console's query editor can be made taller or lower: drag the line between the editor and its results. The explorer's width holds for every connection; each SQL and LINQ tab keeps its own editor height, saved with the workspace. Both are kept after a restart. In a small window the editor gives way, so its results and the drag line stay in view. The statement history beside the SQL editor is as tall as the editor; its list scrolls.
+- A double click on a drag handle – also those of the form and of the change overview – goes back to the default size.
+
 ### Changed
 - `ALTER TABLE … ADD` for columns on another database (right-click in the "Columns" view or on a column header) brings along the foreign keys made only of the picked columns, after the columns and with their `ON DELETE` rule; a referenced table of the source's owner is the one in the target's owner. A foreign key whose columns all get a value at once (a default) warns that it checks the existing rows; one on a picked key column of its own table warns that the key is not in the script; one whose parent table cannot be read is named as a note. While the menu reads the constraints it says so, and Escape still closes it; the script goes to the clipboard also when the window is no longer in front. Should the constraints not be readable, the script says it has no foreign keys.
 

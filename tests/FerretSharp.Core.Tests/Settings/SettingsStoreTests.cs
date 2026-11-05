@@ -27,6 +27,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(
             (ShowColumnTypes: true, ShowNotNull: true, SyncAuditInDesigner: true, CreateAuditTables: true, CheckForUpdates: true, ChangesPanelOpen: false, ChangesPanelWidth: (int?)null),
             (settings.ShowColumnTypes, settings.ShowNotNull, settings.SyncAuditInDesigner, settings.CreateAuditTables, settings.CheckForUpdates, settings.ChangesPanelOpen, settings.ChangesPanelWidth));
+        Assert.Null(settings.ExplorerWidth);
     }
 
     [Theory]

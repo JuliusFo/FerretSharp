@@ -164,10 +164,12 @@ public sealed record PlSqlTabState(string Owner, string Name, PlSqlKind Kind, Pl
 }
 
 /// <summary>A SQL editor tab: its title, the script and the bind variables with their types and values.</summary>
-public sealed record SqlTabState(string Title, string Text, IReadOnlyList<Query.SqlVariable> Variables);
+/// <param name="EditorHeight">Height of the editor in CSS pixels as the user dragged it, per tab; null for the default.</param>
+public sealed record SqlTabState(string Title, string Text, IReadOnlyList<Query.SqlVariable> Variables, int? EditorHeight = null);
 
 /// <summary>A LINQ console tab: its title, the code and the variables the code uses.</summary>
-public sealed record LinqTabState(string Title, string Code, string Variables)
+/// <param name="EditorHeight">Height of the query editor in CSS pixels as the user dragged it, per tab; null for the default.</param>
+public sealed record LinqTabState(string Title, string Code, string Variables, int? EditorHeight = null)
 {
     public static readonly TableRef NoTable = new("", "");
 }

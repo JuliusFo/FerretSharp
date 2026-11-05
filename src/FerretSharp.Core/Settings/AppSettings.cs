@@ -147,6 +147,9 @@ public sealed record AppSettings
     /// <summary>Width of the change overview in pixels, as the user dragged it; null for the default.</summary>
     public int? ChangesPanelWidth { get; init; }
 
+    /// <summary>Width of the explorer in pixels, as the user dragged it; null for the default. One for every connection.</summary>
+    public int? ExplorerWidth { get; init; }
+
     /// <summary>
     /// Long lines wrap in the LOB editor – the dialog's switch for text with line breaks, kept for the next dialog and
     /// after a restart. Text without line breaks always starts wrapped.

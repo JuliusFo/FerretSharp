@@ -12,7 +12,7 @@
 
 @* tabindex: a click on a label keeps the focus in the form, so Ctrl+F opens its search, not the grid's column jump. *@
 <aside class="form-panel" style="@WidthStyle" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
-    <div class="form-resize" @ref="_handle" title="@GridText.Form_ResizeWidth" @onpointerdown="StartResizeAsync"></div>
+    <ResizeHandle Edge="ResizeEdge.Left" Min="MinWidth" MaxFraction="MaxFraction" OnResized="w => SetWidth(w)" OnReset="() => SetWidth(null)" />
     <header class="form-head">
         <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_PreviousRow, Shortcuts.Hint(ShortcutAction.FormPrevious))" disabled="@(!CanPrevious)" @onclick="() => OnMove.InvokeAsync(-1)">@Icons.ChevronUp</button>
         <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_NextRow, Shortcuts.Hint(ShortcutAction.FormNext))" disabled="@(!CanNext)" @onclick="() => OnMove.InvokeAsync(1)">@Icons.ChevronDown</button>
@@ -118,7 +118,6 @@
 
     private readonly string _idPrefix = "ff-" + Guid.NewGuid().ToString("N")[..8] + "-";
     private ElementReference _panel;
-    private ElementReference _handle;
     private ElementReference _fields;
     private SearchBox? _search;
     private DomModule? _dom;
@@ -275,15 +274,10 @@
         Shell.MarkDirty();
     }
 
-    private async Task StartResizeAsync(PointerEventArgs e)
+    /// <summary>The dragged width, kept in the tab; null for the default.</summary>
+    private void SetWidth(int? width)
     {
-        if (e.Button != 0)
-        {
-            return;
-        }
-
-        var width = await Dom.InvokeAsync<int>("dragWidth", _handle, _panel, e.PointerId, e.ClientX, MinWidth, MaxFraction);
-        if (!_disposed && width > 0)
+        if (Tab.FormWidth != width)
         {
             Tab.FormWidth = width;
             Shell.MarkDirty();

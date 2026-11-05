@@ -10,7 +10,7 @@
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
 
-<div class="linqview">
+<div class="linqview" style="@PanelSizes.Property(PanelSizes.LinqEditorHeight, Tab.EditorHeight)">
     <div class="tab-toolbar">
         @Icons.Code
         <TabTitle Tab="Tab" />
@@ -50,6 +50,8 @@
         </div>
         <MonacoEditor @ref="_codeEditor" Class="linq-code" Text="@Tab.Code" OnChange="OnCodeChanged" Completion="CompleteCodeAsync" Markers="Markers(LinqProtocol.CodeSection)"
                       Placeholder="return await db.Kunden.Where(k => k.KundeId == kundeId).ToListAsync(ct);" />
+        <ResizeHandle Edge="ResizeEdge.Bottom" Min="EditorMinHeight" MaxFraction="EditorMaxFraction" Variable="@PanelSizes.LinqEditorHeight"
+                      VariableOn=".linqview" Measure=".linq-code" Within=".linqview" OnResized="h => SetEditorHeight(h)" OnReset="() => SetEditorHeight(null)" />
     </div>
 
     <div class="linq-output">
@@ -277,6 +279,23 @@
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    /// <summary>Height limits of the query editor when the bottom edge is dragged; the default is in the stylesheet.</summary>
+    private const int EditorMinHeight = 60;
+    private const double EditorMaxFraction = 0.6;
+
+    /// <summary>
+    /// The dragged height of the query editor, kept in the tab (per tab, decision of the user) and saved with the workspace;
+    /// null for the default. Rendered as <see cref="PanelSizes.LinqEditorHeight"/> on the view.
+    /// </summary>
+    private void SetEditorHeight(int? height)
+    {
+        if (Tab.EditorHeight != height)
+        {
+            Tab.EditorHeight = height;
+            Shell.MarkDirty();
+        }
+    }
 
     [CascadingParameter]
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;

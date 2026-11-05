@@ -9,6 +9,8 @@
 
 @{ _shellKey = ShellKey(); _shownSeparateViews = SeparateViews; }
 <aside class="sidebar explorer">
+    <ResizeHandle Edge="ResizeEdge.Right" Min="MinWidth" MaxFraction="MaxFraction" Variable="@PanelSizes.ExplorerWidth"
+                  OnResized="w => SaveWidthAsync(w)" OnReset="() => SaveWidthAsync(null)" />
     <div class="sidebar-head">
         <div class="schema-row">
             <span class="schema">@(Schema?.Owner ?? "–")</span>
@@ -143,6 +145,22 @@
     private ExplorerSection Section => ExplorerList.Shown(_section, SeparateViews);
 
     private bool SeparateViews => Settings.Current.ViewsInOwnSection;
+
+    /// <summary>Width limits of the dragged right edge; the default (280 px) is in the stylesheet.</summary>
+    private const int MinWidth = 200;
+    private const double MaxFraction = 0.5;
+
+    /// <summary>
+    /// The dragged width, one for every connection's explorer, kept in the settings; null for the default. The shell renders
+    /// it as <see cref="PanelSizes.ExplorerWidth"/>, so the explorer itself does not render for it.
+    /// </summary>
+    private async Task SaveWidthAsync(int? width)
+    {
+        if (width != Settings.Current.ExplorerWidth)
+        {
+            await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { ExplorerWidth = width }, CancellationToken.None));
+        }
+    }
 
     /// <summary>In the PL/SQL section: the search field searches the source (Enter) instead of filtering by name.</summary>
     private bool _inSource;

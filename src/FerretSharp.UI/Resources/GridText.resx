@@ -283,10 +283,6 @@
     <value>SQL script</value>
     <comment>File type in the save dialog</comment>
   </data>
-  <data name="Form_ResizeWidth" xml:space="preserve">
-    <value>Change width</value>
-    <comment>Tooltip of the drag handle at the form's left edge</comment>
-  </data>
   <data name="Form_PreviousRow" xml:space="preserve">
     <value>Previous row{0}</value>
     <comment>Tooltip; {0}: the shortcut as " (Alt+↑)", or empty</comment>
