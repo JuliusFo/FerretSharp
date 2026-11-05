@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - Notes and warnings of a DDL script (schema comparison, designer, columns for another database) stay comments when a quoted name holds an unusual line break (a lone carriage return, NEL, LS or PS): the SQL editor broke the line there, and the rest of the name became a statement of the script.
+- "Copy as INSERT" and the SQL script leave out identity columns `GENERATED ALWAYS` and virtual columns: Oracle refuses any value for them (ORA-32795, ORA-54013), so the script failed on every row; it now runs, and Oracle assigns new keys. The header names each column left out and, for a primary key, that references to the old keys do not follow; a table of only such an identity gets `VALUES (DEFAULT)`. In the SQL editor the result's columns take this from the table's structure. An identity column `BY DEFAULT` keeps its values, and the header no longer claims it rejects them – it notes that the sequence does not advance. "Copy as C# objects" leaves these columns out too (EF Core would send a key set in the initializer); the `HasData` seed keeps the key, which it needs.
 
 ## [3.59.0] - 2026-11-03
 

@@ -47,6 +47,17 @@ public sealed class InsertExportTests(OracleContainerFixture oracle) : IAsyncLif
         """,
         "INSERT INTO EXPORT_SRC (ID, DBL, FLAG, NOTIZ) VALUES (2, BINARY_DOUBLE_INFINITY, FALSE, EMPTY_CLOB())",
         "INSERT INTO EXPORT_SRC (ID) VALUES (3)",
+        """
+        CREATE TABLE EXPORT_GEN (
+            ID         NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            NAME       VARCHAR2(20),
+            NAME_UPPER VARCHAR2(20) GENERATED ALWAYS AS (UPPER(NAME)) VIRTUAL)
+        """,
+        "INSERT INTO EXPORT_GEN (NAME) VALUES ('shelf')",
+        "INSERT INTO EXPORT_GEN (NAME) VALUES (NULL)",
+        "CREATE TABLE EXPORT_ID_ONLY (ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY)",
+        "INSERT INTO EXPORT_ID_ONLY VALUES (DEFAULT)",
+        "INSERT INTO EXPORT_ID_ONLY VALUES (DEFAULT)",
         "COMMIT",
     ];
 
@@ -132,6 +143,31 @@ public sealed class InsertExportTests(OracleContainerFixture oracle) : IAsyncLif
                     $"Row {r + 1}, {details.Columns[c].Name}: {Show(expected)} ≠ {Show(copied[r].Values[c])}");
             }
         }
+    }
+
+    /// <summary>
+    /// Identity GENERATED ALWAYS (ORA-32795) and virtual columns (ORA-54013) take no value: the script leaves them out, or
+    /// writes DEFAULT where the identity is the only column.
+    /// </summary>
+    [Theory]
+    [InlineData("EXPORT_GEN")]
+    [InlineData("EXPORT_ID_ONLY")]
+    public async Task Script_runs_on_a_table_with_columns_oracle_fills_itself(string table)
+    {
+        var (details, rows) = await ReadAsync(table);
+        Assert.True(details.Columns[0].IdentityAlways);
+
+        var export = InsertExport.Build(details, rows);
+        // Into the same table: Oracle assigns new IDs, so the copies sit beside the originals.
+        await ExecuteAsync(export.Text.Split("\r\n")
+            .Where(l => l.StartsWith("INSERT", StringComparison.Ordinal))
+            .Select(l => l.TrimEnd(';'))
+            .Append("COMMIT"));
+        var (_, after) = await ReadAsync(table);
+
+        Assert.Equal(rows.Count * 2, after.Count);
+        string Written(RowData r) => string.Join(" | ", details.Columns.Index().Where(c => !c.Item.IdentityAlways).Select(c => Show(r.Values[c.Index])));
+        Assert.Equal(rows.Concat(rows).Select(Written).Order(StringComparer.Ordinal), after.Select(Written).Order(StringComparer.Ordinal));
     }
 
     private static string Show(object? value) => value switch

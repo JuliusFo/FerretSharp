@@ -82,7 +82,102 @@ public class ExportTests
         var lines = export.Text.Split("\r\n");
         Assert.Equal("-- 1 Zeile aus \"APP\".\"KUNDEN\" (FerretSharp-Export)", lines[0]);
         Assert.Contains(lines, l => l.Contains("SET DEFINE OFF", StringComparison.Ordinal));
-        Assert.Contains(lines, l => l.StartsWith("-- ID ist eine Identity-Spalte", StringComparison.Ordinal));
+        Assert.Contains("-- ID ist eine Identity-Spalte (BY DEFAULT): Das Skript übernimmt die Werte, ihre Sequenz zählt dabei nicht weiter.", lines);
+    }
+
+    /// <summary>Oracle rejects any value for an identity GENERATED ALWAYS (ORA-32795) or a virtual column (ORA-54013).</summary>
+    [Fact]
+    public void Insert_script_leaves_out_columns_oracle_fills_itself()
+    {
+        var table = new TableDetails(
+            new TableSummary("APP", "LAGER", TableKind.Table),
+            [
+                Col("ID", "NUMBER", identity: true) with { IdentityAlways = true }, Col("NAME", "VARCHAR2"),
+                Col("NAME_GROSS", "VARCHAR2") with { IsVirtual = true, Default = "UPPER(\"NAME\")" }, Col("MENGE", "NUMBER"),
+            ],
+            ["ID"], [], false);
+
+        var export = InsertExport.Build(table, [Row(7m, "Regal", "REGAL", 3m), Row(8m, null, null, null)]);
+
+        Assert.Equal(
+            [
+                "-- 2 Zeilen aus \"APP\".\"LAGER\" (FerretSharp-Export)",
+                "-- ID weggelassen: Identity-Spalte GENERATED ALWAYS, Oracle vergibt neue Werte.",
+                "-- Neue Schlüssel: Verweise auf die alten Werte von ID ziehen nicht mit.",
+                "-- NAME_GROSS weggelassen: virtuelle Spalte, Oracle berechnet sie.",
+                "INSERT INTO \"APP\".\"LAGER\" (\"NAME\", \"MENGE\") VALUES ('Regal', 3);",
+                "INSERT INTO \"APP\".\"LAGER\" (\"NAME\", \"MENGE\") VALUES (NULL, NULL);",
+                "",
+            ],
+            export.Text.Split("\r\n"));
+        Assert.Empty(export.Warnings);
+    }
+
+    [Fact]
+    public void A_table_of_only_an_always_identity_gets_default()
+    {
+        var table = new TableDetails(
+            new TableSummary("APP", "NUMMERN", TableKind.Table), [Col("ID", "NUMBER", identity: true) with { IdentityAlways = true }], ["ID"], [], false);
+
+        var export = InsertExport.Build(table, [Row(1m), Row(2m)]);
+
+        Assert.Equal(
+            [
+                "-- 2 Zeilen aus \"APP\".\"NUMMERN\" (FerretSharp-Export)",
+                "-- ID bekommt DEFAULT: Identity-Spalte GENERATED ALWAYS, Oracle vergibt neue Werte.",
+                "-- Neue Schlüssel: Verweise auf die alten Werte von ID ziehen nicht mit.",
+                "INSERT INTO \"APP\".\"NUMMERN\" (\"ID\") VALUES (DEFAULT);",
+                "INSERT INTO \"APP\".\"NUMMERN\" (\"ID\") VALUES (DEFAULT);",
+                "",
+            ],
+            export.Text.Split("\r\n"));
+    }
+
+    /// <summary>Second review of the fix: a SQL editor result of only virtual columns gave <c>INSERT INTO t () VALUES ()</c>.</summary>
+    [Fact]
+    public void Only_virtual_columns_give_no_statement()
+    {
+        var table = new TableDetails(
+            new TableSummary("APP", "LAGER", TableKind.Table), [Col("NAME_GROSS", "VARCHAR2") with { IsVirtual = true }], [], [], false);
+
+        var export = InsertExport.Build(table, [Row("A"), Row("B")]);
+
+        Assert.Equal(
+            [
+                "-- 0 Zeilen aus \"APP\".\"LAGER\" (FerretSharp-Export)",
+                "-- NAME_GROSS weggelassen: virtuelle Spalte, Oracle berechnet sie.",
+                "-- Keine Spalte nimmt einen Wert an: Das Skript enthält keine Statements.",
+                "",
+            ],
+            export.Text.Split("\r\n"));
+        Assert.Equal(0, export.Rows);
+    }
+
+    /// <summary>Review of the fix: a SQL editor result knew no identity, so "Copy as INSERT" there still wrote it.</summary>
+    [Fact]
+    public void A_query_result_takes_identity_virtual_and_key_from_the_table_it_writes_into()
+    {
+        var table = new TableDetails(
+            new TableSummary("APP", "LAGER", TableKind.Table),
+            [
+                Col("ID", "NUMBER", identity: true) with { IdentityAlways = true }, Col("NAME", "VARCHAR2"),
+                Col("NAME_GROSS", "VARCHAR2") with { IsVirtual = true },
+            ],
+            ["ID"], [], false);
+        var result = new TableDetails(
+            new TableSummary("", "", TableKind.Table), [Col("ID", "NUMBER"), Col("NAME_GROSS", "VARCHAR2"), Col("KURZ", "VARCHAR2")], [], [], false);
+
+        var target = InsertExport.ForTable(result, table);
+
+        Assert.Equal(table.Table, target.Table);
+        Assert.Equal(["ID"], target.PrimaryKey);
+        Assert.Equal(["ID", "NAME_GROSS", "KURZ"], target.Columns.Select(c => c.Name));
+        Assert.True(target.Columns[0] is { IsIdentity: true, IdentityAlways: true });
+        Assert.True(target.Columns[1].IsVirtual);
+        Assert.Equal(result.Columns[2], target.Columns[2]);
+        Assert.Equal(
+            "INSERT INTO \"APP\".\"LAGER\" (\"KURZ\") VALUES ('k');",
+            InsertExport.Build(target, [Row(5m, "N", "k")]).Text.Split("\r\n").Single(l => l.StartsWith("INSERT", StringComparison.Ordinal)));
     }
 
     /// <summary>Review of R8: a quoted name with a line break left the rest of the header as an executable line.</summary>
