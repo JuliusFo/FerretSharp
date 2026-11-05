@@ -34,3 +34,44 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, dunkel), eigener
 - Ob die Spalte im Ziel schon existiert, prüft das Skript nicht – Oracle meldet ORA-01430 beim Ausführen, für den echten Abgleich bleibt der Schema-Vergleich.
 - Der Eintrag im Spaltenkopf-Menü des Grids (in WP-58 markierte Spalten) kommt mit WP-61 (dort vermerkt).
 - Tastatur in der Spaltenansicht (Ctrl+A, Pfeile mit Shift) gibt es nicht; bisher nur Maus.
+
+## Nachtrag: Fremdschlüssel (Branch `feat/add-columns-foreign-keys`, 2026-11-04)
+Wunsch des Nutzers: Das Skript soll den FK der Spalten mitnehmen (bisher bewusst nur `ADD` und Kommentare, siehe oben).
+
+Ohne Rückfrage entschieden:
+- **Nur FKs, deren Spalten alle gewählt sind.** Ein FK mit einer nicht gewählten Spalte bleibt still draußen: Die Spalte fehlt im Ziel womöglich, und der Nutzer hat sie bewusst nicht gewählt. PK, UNIQUE und CHECK kommen nicht mit (gefragt war der FK).
+- **Zieltabelle des FK** wie im Schema-Vergleich (`DdlWriter.MapTable`): eine Tabelle im Owner der Quelle → gleicher Name im Owner des Ziels; die Quelltabelle selbst (Selbstbezug) → die Zieltabelle; ein fremder Owner bleibt. Ob die Elterntabelle im Ziel existiert, prüft das Skript nicht (ORA-00942 beim Ausführen).
+- **Constraint-Klausel** aus `OracleDdl.ConstraintClause`: Name (außer `SYS_C…`), `ON DELETE`, `DEFERRABLE`, `DISABLE`/`NOVALIDATE` wie in der Quelle. Stufe `AddForeignKey` – nach den Spalten, vor den Kommentaren.
+- **Warnung** „Prüft die vorhandenen Zeilen …“ (Risiko `MayFailOnValues`) nur, wenn eine FK-Spalte durch Default, Identity oder Ausdruck sofort Werte bekommt und der FK aktiv und validiert ist – neue Spalten sind sonst NULL, der FK prüft nichts.
+- **Constraints lesen erst beim Klick** (Kopieren oder Verbindung), über `Shell.RunDbAsync` und `SchemaCache.GetConstraintsAsync`: Das Spaltenkopf-Menü jedes Grids zeigt dieselben Einträge, ein Lesen beim Öffnen hätte jedes Öffnen eine Abfrage gekostet. Scheitert das Lesen, entsteht das Skript ohne FKs mit einer zweiten Kopfzeile „Ohne Fremdschlüssel: …“ (`CompareText.AddColumnsWithoutForeignKeys`); schließt das Menü während des Lesens, passiert nichts.
+
+Gebaut: `AddColumnsScript.Write(source, target, columns, constraints)` (null = nicht lesbar), `AddColumnsMenuItems` liest die Constraints. Tests: `AddColumnsScriptTests` (FKs mit Owner-Zuordnung, Selbstbezug, fremdem Owner, teilweise gewählten Spalten; Warnung bei Default; Kopfzeile ohne Constraints).
+
+E2E (2026-11-04): eigene Instanz (`--data-dir`, deutsch, dunkel), eigener Container `ferret-e2e-fk` (Port 1531, danach entfernt) mit dem Beispielschema, dazu in `FERRET.RECHNUNG` ein Selbstbezug `STORNO_VON` (`ON DELETE SET NULL`) und `LAND` mit `DEFAULT 'DE'` und FK auf `LAND_IOT`, und ein User `FERRET2` mit den Elterntabellen und einem `RECHNUNG` ohne diese Spalten. Verbindungen „E2E Quelle“ (FERRET) und „E2E Ziel“ (FERRET2), Passwort ohne Credential Manager, bedient per CDP (Klicks über `Input.dispatchMouseEvent`).
+- Spaltenansicht `RECHNUNG`, vier FK-Spalten gewählt, „Kopieren“: vier `ADD`, danach `FK_RECHNUNG_AUFTRAG`, `FK_RECHNUNG_KUNDE`, `FK_RECHNUNG_LAND` (mit „⚠ Prüft die vorhandenen Zeilen …“) und `FK_RECHNUNG_STORNO … ON DELETE SET NULL`, alle unter `FERRET`; die Windows-Zwischenablage hatte das Skript.
+- „Im SQL-Editor öffnen von E2E Ziel“: dasselbe Skript mit `FERRET2` für Tabelle und Elterntabellen; „Skript“ → Bestätigung mit 8 Statements → alle liefen, in `ALL_CONSTRAINTS` von FERRET2 vier FKs `ENABLED`/`VALIDATED`, `SET NULL` am Selbstbezug, `LAND` mit `'DE'` gegen die Zeile im Ziel geprüft.
+- `LIEFERUNG`: nur `POS_NR` gewählt → kein FK; mit `AUFTRAG_ID` → `FK_LIEF_POS (AUFTRAG_ID, POS_NR)`. Ebenso im Spaltenkopf-Menü des Grids mit zwei per Ctrl+Klick markierten Spalten.
+- Container bei offenem Menü gestoppt, dann „Kopieren“: Skript ohne FK mit „-- Ohne Fremdschlüssel: Die Constraints der Tabelle ließen sich nicht lesen.“; im Log nur die erwartete Warnung ORA-03135.
+- Nicht mit echter Windows-Eingabe geprüft: Am Klickweg des Menüs hat sich nichts geändert, nur was der Klick danach liest.
+
+## Nachtrag: Code-Review (2026-11-04)
+Reviewer als eigener Agent über `c2e752c3..88d3cd06`, Befunde nachgeprüft. Entscheidung des Nutzers: „Alle, 8 nur Hinweis“.
+1. M – Kopieren nach dem Lesen über `navigator.clipboard` (scheitert, wenn das Fenster nicht vorn ist): behoben, jetzt `IClipboardService`; das Menü schließt vor dem Schreiben.
+2. M – Klick wartete ohne Rückmeldung auf die Explorer-Session: behoben, Chips deaktiviert und „Liest die Fremdschlüssel …“ während des Lesens (`SchemaViewText.Columns_ReadingForeignKeys`).
+3. K – Warnung bei zusammengesetztem FK schon, wenn eine Spalte einen Default hat (Oracle prüft keine Zeile mit NULL im Schlüssel): behoben, nur wenn alle Spalten sofort Werte bekommen; `[Theory]` scheitert ohne Fix.
+4. K – Tooltip des Kopieren-Chips ohne FKs: behoben (en, de).
+5. K – Tabelle und Spalten erst nach dem `await` gelesen (neue `Details` dazwischen): behoben, vorher festgehalten.
+6. K – FK ohne lesbare Elterntabelle fiel still weg: behoben, Hinweis am Ende des Skripts (`AddColumnsForeignKeyUnreadable`), auch bei ungleich vielen referenzierten Spalten; Test scheitert ohne Fix.
+7. K – Testlücken: ergänzt (zusammengesetzter FK in eigener Spaltenreihenfolge mit `DEFERRABLE INITIALLY DEFERRED DISABLE VALIDATE`, Warnung bei Identity/virtueller Spalte, keine Warnung bei `DISABLE`/`NOVALIDATE`).
+8. K – Selbstbezug auf eine mitgewählte Schlüsselspalte, der Schlüssel fehlt im Skript (ORA-02270): nur Hinweis, wie entschieden – Warnung „Braucht im Ziel einen Primär- oder eindeutigen Schlüssel auf (…)“ über dem FK, Risiko bleibt `Safe`.
+9. Verworfen – „abgelehntes Lesen ohne Spur“: Das Schema-Lesen der Explorer-Session hat keinen Ablehnungsweg.
+
+Zweiter Durchgang über die Fix-Commits, vier neue Befunde. Entscheidung des Nutzers: „Alle vier“.
+10. M – Hinweise und Warnungen wurden nur an LF getrennt; ein einzelnes CR (oder NEL, LS, PS) in einem gequoteten Namen aus dem Dictionary machte im SQL-Editor den Rest des Namens zur ausführbaren Zeile – auch bei den Hinweisen von Vergleich und Designer: behoben in `DdlScript` (Kommentare an jedem Zeilenende getrennt, ausführbare Statements unverändert, damit Literale ihre Werte behalten); `[Theory]` über CR, NEL, LS, PS scheitert ohne Fix.
+11. K – Ein `disabled` gewordener, fokussierter Chip gab den Fokus an die Seite ab, Esc erreichte das Menü während des Lesens nicht (im E2E nachgestellt: Fokus auf `BODY`, Menü blieb offen): behoben mit `aria-disabled` und Sperre im Handler; im E2E bleibt der Fokus am Chip, Esc schließt das Menü, nichts wird kopiert.
+12. K – Der Theory-Fall „virtual“ prüfte den `IsVirtual`-Zweig nicht (eine virtuelle Spalte trägt ihren Ausdruck als Default): Zweig und Fall entfernt.
+13. K – Der Hinweis bei ungleich vielen referenzierten Spalten war ungetestet und nannte nur die Elterntabelle: Text neutral („Elterntabelle oder ihre Schlüsselspalten“, en und de), Fall im Test.
+
+E2E der UI-Fixes (eigene Instanz, Container `ferret-e2e-fk` neu angelegt und danach entfernt, verzögernder TCP-Proxy 0,4 s je Paket vor einer dritten Verbindung): Während des Lesens beide Chips deaktiviert und der Hinweis im Menü, nach gut 4 s schließt das Menü, das Skript liegt mit Umlauten in der Windows-Zwischenablage, darin die Warnung zum fehlenden Schlüssel. Log ohne `[ERR]`/`[WRN]`.
+
+Offen: Ob der FK eine Elterntabelle anderen Namens im Ziel (Synonym) braucht, wie `AddColumnsTargets.Table` sie für die Zieltabelle sucht – bisher nur über den Owner.

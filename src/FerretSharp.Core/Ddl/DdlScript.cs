@@ -61,7 +61,7 @@ public static class DdlScript
                 lines.Add("");
             }
 
-            lines.AddRange(Lines(step.Warning).Select(warning => $"-- ⚠ {warning}"));
+            lines.AddRange(CommentLines(step.Warning).Select(warning => $"-- ⚠ {warning}"));
             lines.AddRange(Lines(Text(step)));
             if (step.IsExecutable)
             {
@@ -88,8 +88,17 @@ public static class DdlScript
 
     /// <summary>Comments every line that is not a comment yet.</summary>
     private static string Commented(string sql) =>
-        string.Join("\n", Lines(sql).Select(line => line.StartsWith("--", StringComparison.Ordinal) ? line : "-- " + line));
+        string.Join("\n", CommentLines(sql).Select(line => line.StartsWith("--", StringComparison.Ordinal) ? line : "-- " + line));
 
+    /// <summary>A statement's lines: CRLF and LF end one, a lone CR inside a quoted name or literal stays (it is part of the value).</summary>
     private static IEnumerable<string> Lines(string? text) =>
         text is null ? [] : text.Split('\n').Select(line => line.TrimEnd('\r'));
+
+    /// <summary>
+    /// The lines of a comment (a warning, a step that must not run): split at every line end – CR, NEL, LS and PS too. The
+    /// SQL editor breaks lines there, and the rest of a quoted name in a note became an executable line (review of the
+    /// column ADD script, finding 10; the header since review 3.54.0, A11).
+    /// </summary>
+    private static IEnumerable<string> CommentLines(string? text) =>
+        text is null ? [] : text.ReplaceLineEndings("\n").Split('\n');
 }

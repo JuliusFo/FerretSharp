@@ -1345,7 +1345,7 @@
     <comment>{0}: number of columns</comment>
   </data>
   <data name="Columns_CopyAddScriptTitle" xml:space="preserve">
-    <value>ALTER TABLE … ADD for the picked columns and COMMENT ON COLUMN for their comments – to add them to the same table on another database.</value>
+    <value>ALTER TABLE … ADD for the picked columns, the foreign keys made only of them and COMMENT ON COLUMN for their comments – to add them to the same table on another database.</value>
   </data>
   <data name="Columns_AddScriptCopied" xml:space="preserve">
     <value>ALTER TABLE for {0} copied.</value>
@@ -1358,6 +1358,10 @@
   <data name="Columns_OpenAddScriptTitle" xml:space="preserve">
     <value>Opens a SQL tab of {0} with the script for {1}, connecting if need be. Nothing runs until you run it there.</value>
     <comment>{0}: connection; {1}: target table as OWNER.TABLE</comment>
+  </data>
+  <data name="Columns_ReadingForeignKeys" xml:space="preserve">
+    <value>Reading the foreign keys …</value>
+    <comment>While the columns menu reads the constraints for the ALTER TABLE script</comment>
   </data>
   <data name="Columns_NoOtherConnection" xml:space="preserve">
     <value>No other connection</value>

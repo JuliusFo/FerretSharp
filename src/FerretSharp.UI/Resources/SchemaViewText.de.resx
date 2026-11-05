@@ -1096,7 +1096,7 @@
     <value>{0:N0} Spalten</value>
   </data>
   <data name="Columns_CopyAddScriptTitle" xml:space="preserve">
-    <value>ALTER TABLE … ADD für die gewählten Spalten und COMMENT ON COLUMN für ihre Kommentare – um sie in derselben Tabelle auf einer anderen Datenbank hinzuzufügen.</value>
+    <value>ALTER TABLE … ADD für die gewählten Spalten, die Fremdschlüssel nur aus ihnen und COMMENT ON COLUMN für ihre Kommentare – um sie in derselben Tabelle auf einer anderen Datenbank hinzuzufügen.</value>
   </data>
   <data name="Columns_AddScriptCopied" xml:space="preserve">
     <value>ALTER TABLE für {0} kopiert.</value>
@@ -1106,6 +1106,9 @@
   </data>
   <data name="Columns_OpenAddScriptTitle" xml:space="preserve">
     <value>Öffnet einen SQL-Tab von {0} mit dem Skript für {1} und verbindet bei Bedarf. Es läuft erst, wenn du es dort ausführst.</value>
+  </data>
+  <data name="Columns_ReadingForeignKeys" xml:space="preserve">
+    <value>Liest die Fremdschlüssel …</value>
   </data>
   <data name="Columns_NoOtherConnection" xml:space="preserve">
     <value>Keine andere Verbindung</value>
