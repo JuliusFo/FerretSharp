@@ -101,6 +101,37 @@ public class RelationPathsTests
         Assert.NotEqual(paths[0].Key, paths[1].Key);
     }
 
+    /// <summary>Review of WP-74: two relationships of the C# model with the same name on the same table had the same key (Blazor @key).</summary>
+    [Fact]
+    public void Two_relationships_with_the_same_key_make_two_ways_with_their_own_keys()
+    {
+        var current = new ForeignKeyInfo("Position.Auftrag", Position, ["AUFTRAG_ID"], Auftrag, ["ID"], FkSource.ClrModel);
+        var former = new ForeignKeyInfo("Position.Auftrag", Position, ["ALT_AUFTRAG_ID"], Auftrag, ["ID"], FkSource.ClrModel);
+        Assert.Equal(RelationGraph.KeyOf(current), RelationGraph.KeyOf(former));
+
+        var paths = All(new RelationGraph([current, former]), Position, Auftrag);
+
+        Assert.Equal(2, paths.Count);
+        Assert.NotEqual(paths[0].Key, paths[1].Key);
+    }
+
+    /// <summary>
+    /// Review of WP-74: the distances ran through the start, so a table hanging only on the start was entered at every
+    /// length – the search went on lengths after the last way before it saw that all were found.
+    /// </summary>
+    [Fact]
+    public void A_table_only_behind_the_start_does_not_keep_the_search_going()
+    {
+        var behind = new TableRef(Owner, "NOTIZ");
+        var below = new TableRef(Owner, "NOTIZ_ANHANG");
+        var graph = new RelationGraph([AuftragKunde, Fk("FK_NOTIZ_AUFTRAG", behind, Auftrag), Fk("FK_ANHANG_NOTIZ", below, behind)]);
+        var search = new RelationPathSearch(graph, Auftrag, Kunde);
+
+        Assert.Single(search.Next(10, TestContext.Current.CancellationToken));
+        Assert.True(search.Done);
+        Assert.Equal(1, search.Length);
+    }
+
     [Fact]
     public void No_way_to_an_unconnected_table_or_to_itself()
     {

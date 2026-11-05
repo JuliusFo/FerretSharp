@@ -37,7 +37,9 @@ public sealed class RelationPath
 
         Start = start;
         Steps = steps;
-        Key = string.Join('\u0002', steps.Select(s => $"{RelationGraph.KeyOf(s.Relation)}\u0003{(s.ToChild ? 'c' : 'p')}"));
+        // With the table it leads to and the columns: two relationships of the C# model may share a key (review, @key).
+        Key = string.Join('\u0002', steps.Select(s =>
+            $"{RelationGraph.KeyOf(s.Relation)}\u0003{s.To.Owner}\u0001{s.To.Name}\u0003{string.Join('\u0001', s.Relation.FromColumns)}\u0003{(s.ToChild ? 'c' : 'p')}"));
         SourceRank = steps.Max(s => RankOf(s.Relation.Source));
     }
 
@@ -271,7 +273,9 @@ public sealed class RelationPathSearch
 
     /// <summary>
     /// Steps from each table to the target, ignoring that a way takes each table once – never more than a way needs, so
-    /// nothing is cut that would fit. Tables without a distance cannot reach the target at all.
+    /// nothing is cut that would fit. Not through the start: no way comes back to it, so a table that reaches the target
+    /// only over the start gets no distance and is never entered (review: it cut ways short at every length, and "all
+    /// found" came only lengths later). Tables without a distance cannot reach the target at all.
     /// </summary>
     private Dictionary<TableRef, int> DistancesToTarget(CancellationToken cancellationToken)
     {
@@ -280,7 +284,7 @@ public sealed class RelationPathSearch
         while (queue.TryDequeue(out var table))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!_steps.TryGetValue(table, out var steps))
+            if (table == _start || !_steps.TryGetValue(table, out var steps))
             {
                 continue;
             }
