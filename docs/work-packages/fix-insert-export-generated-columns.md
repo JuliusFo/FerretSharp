@@ -1,4 +1,4 @@
-# Fix: INSERT-Export lässt Identity ALWAYS und virtuelle Spalten weg (`fix/insert-export-generated-columns`)
+# Fix: INSERT-Export lässt Identity ALWAYS und virtuelle Spalten weg (`fix/insert-export-generated-columns`) → Release 3.60.0
 
 Branch `fix/insert-export-generated-columns` (von `main`), 2026-11-04.
 
