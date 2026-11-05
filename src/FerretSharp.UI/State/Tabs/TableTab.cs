@@ -87,6 +87,13 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 
     public SynonymInfo? DropRequested { get; set; }
 
+    /// <summary>
+    /// The data view was shown once: from then on the grid stays mounted beside the other views, also when the tab's view
+    /// is mounted again (workspace or connection switch). A tab that opens on another view reads no rows until the data
+    /// view is shown. Not saved: a restored tab starts on its saved view.
+    /// </summary>
+    public bool DataShown { get; set; }
+
     /// <summary>The query built in the relationship view (WP-69), saved with the tab; null if none was started.</summary>
     public Core.Relations.QueryDesignState? Design { get; set; }
 
