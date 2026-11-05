@@ -6,6 +6,8 @@ Ideen und Themen, die während der Arbeit auftauchen, aber nicht zum aktuellen P
 
 Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen.
 
+- Ein unbekannter Enum-Wert in `settings.json` (von Hand geschrieben oder aus einer neueren Version) lässt die ganze Datei beim Lesen scheitern – gilt für jede Enum-Einstellung; FerretSharp behält eine Kopie und nimmt die Standards, alle anderen Einstellungen sind dann weg. Besser je Property auf den Standard zurückfallen (Code-Review von `small-tab-open-options.md`, 2026-11-05, vorher schon da).
+- Ein von Hand gebauter `ferretsharp://`-Link mit Ansicht „Verwendung“ öffnet sie auch ohne verknüpftes C#-Projekt (der Umschalter hat die Ansicht dann nicht). FerretSharp erzeugt solche Links nicht; harmlos, aber wie beim Öffnen nach der Einstellung auf „Daten“ zurückfallen (`TableOpening.Shown`; Code-Review von `small-tab-open-options.md`, 2026-11-05).
 - Eine `connections.json`, die sich nicht lesen lässt (z. B. ungültiges Escape in einem Pfad), zeigt nur „Verbindungen konnten nicht geladen werden“; der Grund (`ConnectionStoreException` mit Zeile/Position) steht weder im Log noch in der Oberfläche. Gefunden im E2E 2026-10-22 (von Hand geschriebene Datei).
 - Aus dem Gesamt-Review 3.31.0, nicht in R5a (selten oder ungeprüft, `docs/review-3.31.0.md`):
   - TIMESTAMP(8/9) als Schlüssel verliert Nanosekunden (`DateTime`), Schreiben meldet dann „inzwischen gelöscht“; Filter auf TIMESTAMP WITH TIME ZONE nimmt keinen Offset an (A33).
