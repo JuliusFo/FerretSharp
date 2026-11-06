@@ -1814,6 +1814,24 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-constraint > .field.grow { flex: 1; min-width: 240px; }
 .designer-fk { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .designer-fk .field { width: auto; height: 28px; }
+
+/* A table to pick from a long list (TablePicker: the designer's foreign key target) – a button that looks like a field. */
+.table-pick { display: inline-flex; align-items: center; gap: 6px; min-width: 160px; max-width: 320px; text-align: left; color: var(--text); cursor: pointer; }
+.table-pick:disabled { opacity: .55; cursor: default; }
+.table-pick.open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.table-pick .table-pick-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+.table-pick .table-pick-name.placeholder { font-family: inherit; color: var(--muted); }
+.table-pick .table-pick-hint { flex: none; font-size: 11px; color: var(--muted); }
+.table-pick.suggested { border-style: dashed; }
+.table-pick > .icon { flex: none; color: var(--muted); }
+.table-pick-list { max-height: min(360px, calc(100vh - 160px)); overflow-y: auto; padding: 2px 0 4px; }
+.table-pick-row .table-pick-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-pick-row mark { background: none; color: var(--accent); font-weight: 700; }
+.table-pick-row .table-pick-reason { flex: none; font-size: 11px; color: var(--muted); }
+.table-pick-row .table-pick-key { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--key); }
+.table-pick-row.keyless .table-pick-row-name, .table-pick-row.keyless .table-pick-key { color: var(--faint); }
+.table-pick-row.current { font-weight: 600; }
+.table-pick-row:focus-visible { outline: none; background: var(--accent-weak); }
 .property-suggestions { display: flex; flex-direction: column; gap: 6px; }
 
 /* Table designer, stage 3 (WP-23): a new table's head and the C# of "Entity". */

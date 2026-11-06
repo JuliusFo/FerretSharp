@@ -4,7 +4,8 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<button class="@(IsOpen && OpenClass is not null ? $"{Class} {OpenClass}" : Class)" title="@Title" @onclick="OpenAsync" @onclick:stopPropagation="StopPropagation">@Label</button>
+<button @ref="_button" type="button" class="@(IsOpen && OpenClass is not null ? $"{Class} {OpenClass}" : Class)" title="@Title" aria-label="@AriaLabel"
+        disabled="@Disabled" @onclick="OpenAsync" @onclick:stopPropagation="StopPropagation">@Label</button>
 
 @if (_at is { } at)
 {
@@ -16,6 +17,7 @@
 
 @code {
     private MenuPlacement? _at;
+    private ElementReference _button;
     private DomModule? _dom;
     private bool _disposed;
 
@@ -30,6 +32,19 @@
 
     [Parameter]
     public string? Title { get; set; }
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// The menu opens below the button, from its left edge – a picker that looks like a field –, not at the mouse; also when
+    /// the button is pressed with Enter or Space (no mouse position then).
+    /// </summary>
+    [Parameter]
+    public bool BelowButton { get; set; }
 
     /// <summary>What the button shows.</summary>
     [Parameter]
@@ -79,10 +94,13 @@
         StateHasChanged();
     }
 
+    /// <summary>Gives the button the focus – after a pick, so the keyboard goes on from there.</summary>
+    public ValueTask FocusAsync() => _disposed ? ValueTask.CompletedTask : _button.FocusAsync();
+
     private async Task OpenAsync(MouseEventArgs e)
     {
-        var size = await Dom.InvokeAsync<double[]>("viewportSize");
-        if (_disposed || size is not [var width, var height])
+        var size = BelowButton ? await Dom.InvokeAsync<double[]>("placeBelow", _button) : await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height, ..])
         {
             return;
         }
@@ -96,7 +114,9 @@
             }
         }
 
-        _at = MenuPlacement.Below(e.ClientX, e.ClientY, Width, ShiftX, ShiftY, width, height);
+        _at = BelowButton && size is [_, _, var left, var bottom]
+            ? new MenuPlacement(Math.Max(MenuPlacement.Margin, left), bottom + 2, width, height)
+            : MenuPlacement.Below(e.ClientX, e.ClientY, Width, ShiftX, ShiftY, width, height);
     }
 
     public async ValueTask DisposeAsync()

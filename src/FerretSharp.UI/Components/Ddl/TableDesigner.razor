@@ -182,6 +182,9 @@ else
     [CascadingParameter]
     public CodeUsageService Usage { get; set; } = null!;
 
+    [CascadingParameter]
+    public PresentationService Presentation { get; set; } = null!;
+
     /// <summary>Code using a column that is dropped or renamed (WP-40); empty until the index is read or without a model.</summary>
     private IReadOnlyList<string> UsageNotes(TableDesignerDraft designer) =>
         Models.Mapping is { } mapping && Usage.State.Result is { } usage && NewTab is null
@@ -209,6 +212,42 @@ else
 
     private IEnumerable<TableSummary> Tables => (Active.Schema?.Tables ?? []).Where(t => t.Kind == TableKind.Table && t.Synonym is null);
 
+    /// <summary>The tables a foreign key can reference, for the picker; built again when the schema's list changes.</summary>
+    private IReadOnlyList<TableSummary> ReferableTables
+    {
+        get
+        {
+            var all = Active.Schema?.Tables;
+            if (!ReferenceEquals(all, _referableFrom))
+            {
+                (_referableFrom, _referable) = (all, Tables.ToList());
+            }
+
+            return _referable;
+        }
+    }
+
+    private IReadOnlyList<TableSummary>? _referableFrom;
+    private IReadOnlyList<TableSummary> _referable = [];
+
+    private IReadOnlyList<string> KeyOf(TableRef table) => Active.Schema?.PrimaryKeyOf(table) ?? [];
+
+    /// <summary>
+    /// The tables suggested for a new foreign key's columns, from the schema cache (no round trip): relationships of this table
+    /// without constraint – a new table has none –, primary key names, names (<see cref="ForeignKeyTargets"/>).
+    /// </summary>
+    private IReadOnlyList<ForeignKeyTarget> TargetsFor(IReadOnlyList<string> columns)
+    {
+        if (Active.Schema is not { } schema || _designer is not { } designer)
+        {
+            return [];
+        }
+
+        var own = designer.Table.Table.Ref;
+        return ForeignKeyTargets.Suggest(own, columns, ReferableTables.Select(t => t.Ref), schema.PrimaryKeyOf,
+            NewTab is null ? schema.OutgoingOf(own) : []);
+    }
+
     /// <summary>A new table (WP-23, stage 3): the designer works on the tab's draft of it; nothing to load or count.</summary>
     [Parameter]
     public NewTableTab? NewTab { get; set; }
@@ -222,6 +261,7 @@ else
         if (NewTab is { } created)
         {
             (_designer, _failure) = (created.Designer, created.Failure);
+            _designer.TargetsFor = TargetsFor;
             Fire(() => LoadTablespacesAsync(new TableRef(created.Owner, "")));
             return;
         }
@@ -277,6 +317,7 @@ else
         (_constraints, _indexes, _elsewhere) = (constraints, indexes, elsewhere ?? SchemaNames.None);
         _incoming = schema.IncomingOf(Details.Table.Ref).Where(f => f.Source == FkSource.Declared).ToList();
         _designer = previous?.Rebase(table, constraints) ?? new TableDesignerDraft(table, constraints);
+        _designer.TargetsFor = TargetsFor; // this view's schema – a rebase brought the one of the view before
         _facts.Clear(); // the data may have changed with the DDL
         _failed.Clear();
         if (Tab is not null)
@@ -601,9 +642,8 @@ else
     /// The foreign key references another table; its structure is loaded after the render (<see cref="LearnAsync"/>) – also
     /// again, if loading it failed before.
     /// </summary>
-    private void Reference(TableDesignerDraft designer, DesignConstraint constraint, string? value)
+    private void Reference(TableDesignerDraft designer, DesignConstraint constraint, TableRef? references)
     {
-        var references = Tables.FirstOrDefault(t => $"{t.Owner}.{t.Name}" == value)?.Ref;
         if (references is not null)
         {
             _loads.Again(references);
@@ -838,13 +878,11 @@ else
                 else if (a.Type == ConstraintType.ForeignKey)
                 {
                     <span class="designer-fk">
-                        @Icons.ArrowRight <select class="field" value="@(a.References is { } r ? $"{r.Owner}.{r.Name}" : "")" @onchange="e => Reference(designer, a, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
-                            <option value="">@SchemaViewText.Designer_ChooseTable</option>
-                            @foreach (var table in Tables)
-                            {
-                                <option value="@($"{table.Owner}.{table.Name}")">@table.DisplayName</option>
-                            }
-                        </select>
+                        @Icons.ArrowRight
+                        <TablePicker Tables="ReferableTables" Value="a.References" ValueChanged="table => Reference(designer, a, table)"
+                                     Suggestions="designer.Suggestions(a)" Suggested="@(a.References is not null && !a.ReferenceChosen)"
+                                     KeyOf="KeyOf" EntityName="Presentation.ShownEntityNameOf" Placeholder="@SchemaViewText.Designer_ChooseTable"
+                                     AriaLabel="@SchemaViewText.Designer_References" />
                         @if (a.References is { } references && designer.ColumnsOf(references) is { } targetColumns)
                         {
                             @for (var i = 0; i < a.Columns.Count; i++)

@@ -80,6 +80,12 @@ export function viewportSize() {
   return [window.innerWidth, window.innerHeight];
 }
 
+/** The window's size and the element's box below which a menu opens (MenuButton BelowButton): width, height, left, bottom. */
+export function placeBelow(element) {
+  const rect = element?.getBoundingClientRect();
+  return [window.innerWidth, window.innerHeight, rect?.left ?? 0, rect?.bottom ?? 0];
+}
+
 /** Drops the text selection: Shift+click on rows that are picked (the columns view) would extend it over them. */
 export function clearTextSelection() {
   window.getSelection()?.removeAllRanges();
