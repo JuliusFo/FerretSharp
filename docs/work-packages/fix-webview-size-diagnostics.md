@@ -13,8 +13,8 @@ Meldungen des Nutzers (2026-11-03 und 2026-11-06, Arbeits-Laptop per RDP): Die V
 3. **WPF:** Bild und Aufnahme haben die neue Größe, WPF zeigt aber ein altes Bild (`D3DImage.PixelWidth` alt).
 
 ## Gebaut
-- `WebViewSizeWatch` (App), immer an, neben `WebViewCapture` (eigene Klasse, damit PR #132 in `WebViewCapture.cs` nicht kollidiert). Je Zeile die ganze Kette: Fensterzustand, Größe des Controls in Pixeln samt DPI (auch `_dpiScale` des Controls), `Bounds`/`RasterizationScale`/`IsVisible` des Controllers, Größe des letzten kopierten Bildes (`_lastSize` = `ContentSize`), Größe des gezeigten Bildes (`D3DImage.PixelWidth/Height`), Front Buffer.
-- Zeilen: „WebView sizes (…, changing)“ beim ersten Größen- oder Zustandswechsel einer Folge; „WebView sizes (…, settled after N ms)“ nach 1 s Ruhe, zusätzlich mit dem Viewport der Seite (`innerWidth`×`innerHeight` @`devicePixelRatio` per `ExecuteScriptAsync`, höchstens 1 s warten, sonst „?“) und der Zahl der Bildwechsel; „WebView picture now WxH (N ms after …)“, sobald das gezeigte Bild nach einem Wechsel die neue Größe annimmt, und immer, wenn es außerhalb eines Wechsels die Größe ändert (auch 0×0, wenn ein Neustart den Back Buffer freigibt). Beim Start eine Zeile „start“.
+- `WebViewSizeWatch` (App), immer an, neben `WebViewCapture` (eigene Klasse, damit PR #132 in `WebViewCapture.cs` nicht kollidiert). Je Zeile die ganze Kette: Fensterzustand, Größe des Controls in Pixeln wie das Control sie rechnet (abgeschnitten, mit seinem `_dpiScale`; daneben die DPI von WPF), `Bounds`/`RasterizationScale`/`IsVisible` des Controllers, `frame` (`_lastSize`: zuletzt eingerichtete oder kopierte Größe), Back Buffer gesetzt, Größe des gezeigten Bildes (`D3DImage.PixelWidth/Height`), Front Buffer.
+- Zeilen: „WebView sizes (…, changing)“ beim ersten Größen- oder Zustandswechsel einer Folge (bei einem Zustandswechsel noch mit den alten Größen, das Layout folgt danach); „WebView sizes (…, settled N ms after it began)“ nach 1 s Ruhe, zusätzlich mit dem Viewport der Seite (`innerWidth`×`innerHeight` @`devicePixelRatio` per `ExecuteScriptAsync`, höchstens 1 s warten, sonst „?“), den in der Folge angekommenen und kopierten Bildern und der Zahl der Bildwechsel; „WebView picture now WxH (N ms after the last change began)“, sobald das gezeigte Bild nach einem Wechsel die neue Größe annimmt, und immer, wenn es außerhalb eines Wechsels die Größe ändert (auch 0×0, wenn ein Neustart den Back Buffer freigibt). Beim Start eine Zeile „start“.
 - Private Member per Reflection wie in `WebViewCapture`; fehlt einer, steht „?“ und einmal eine Warnung.
 - Ein JS-Ausdruck vom Host (`ExecuteScriptAsync`) nur für die Diagnose, keine Logik.
 
@@ -23,5 +23,24 @@ Meldungen des Nutzers (2026-11-03 und 2026-11-06, Arbeits-Laptop per RDP): Die V
 - Nicht geprüft: eine echte RDP-Sitzung (der Fehler kam dort nur sporadisch).
 
 ## Zu prüfen beim nächsten Auftreten
-- Die „settled“-Zeile nach dem Wechsel lesen: Wo weicht die Größe zuerst von `control` ab? `browser`/`page` → Stelle 1, `frame` → Stelle 2, nur `picture` → Stelle 3. Kommt nach „changing“ keine „picture now“-Zeile, hat das gezeigte Bild die Größe nie gewechselt.
-- Beim leeren Start: „picture“ in der Start-Zeile (0×0 = nie ein Back Buffer gesetzt) und der Front Buffer (seit PR #132 auch eigene Zeilen dazu).
+- Die „settled“-Zeile nach dem Wechsel lesen. `control` ist genau die Größe, die das Control dem Browser (`Bounds`) und dem Frame-Pool (`UpdateSize`) gibt. Wo weicht es zuerst ab?
+  - `browser`/`page` → Stelle 1.
+  - `frames arrived 0` → die Aufnahme liefert nichts (Stelle 2).
+  - Bilder angekommen, `copied 0` → das Control kopiert nicht (kein Front Buffer, `TryLock`), Stelle 2.
+  - kopiert, aber `frame` alt → die Bilder haben die alte `ContentSize` (Stelle 2). Achtung: `CopyResource` tut bei abweichenden Maßen von Pool und Bild still nichts – ein „kopiertes“ Bild ändert dann das gezeigte nicht.
+  - nur `picture` alt bei neuem `frame` → Stelle 3.
+- `frame` allein beweist kein kopiertes Bild: Das Control setzt `_lastSize` auch beim Start und Neuaufbau der Aufnahme.
+- Kommt nach „changing“ keine „picture now“-Zeile, hat das gezeigte Bild die Größe nie gewechselt.
+- Beim leeren Start: Start-Zeile mit `picture 0x0`/`back buffer none` = nie ein Bild gesetzt; dazu die Zähler und der Front Buffer (seit PR #132 auch eigene Zeilen dazu).
+
+## Nachtrag: Code-Review (2026-11-06)
+Entscheidung des Nutzers: „Jop, fix alles.“
+1. M – `CoreWebView2` nach einem Absturz des Browser-Prozesses las vor dem `try` und warf aus dem `async void`-Handler: bei jedem Wechsel der Dialog „Unerwarteter Fehler“ (vor dem Fix nachgestellt: Browser-Prozess beendet, maximiert → `[ERR] Unhandled exception on UI thread`). Behoben: Zugriff im `try`, die Zeile „settled“ als Ganzes abgesichert (Debug-Zeile).
+2. M – `frame` (`_lastSize`) setzt das Control auch beim Start und Neuaufbau der Aufnahme; „nur picture weicht ab“ bewies kein WPF-Problem. Behoben: die Zeile „settled“ zählt angekommene (`WebViewCapture.FramesArrived`) und kopierte Bilder (`D3DImage.Changed` kommt mit jeder Kopie) und nennt den Back Buffer; „Zu prüfen“ unten angepasst.
+3. M – Ein Wechsel, während die Zeile „settled“ auf die Seite wartete, übernahm deren Werte und verschluckte sein erstes „picture now“. Behoben: Werte vor dem `await`, `_pictureSeen` davor gesetzt.
+4. K – Der Grund wuchs bei einem Drag nach einem Zustandswechsel um „, size“ je Ereignis. Behoben: jeder Grund einmal.
+5. K – Die Größe des Controls war gerundet, das Control schneidet ab (Scheinabweichung 1 px zu `browser`). Behoben: dieselbe Formel wie das Control.
+6. K – Kommentare (Takt von `D3DImage.Changed`, alte Werte bei Zustandswechsel, „settled“ ab Beginn der Folge). Behoben.
+7. K (Verdacht) – Eine verwaiste `ExecuteScriptAsync`-Task nach der Zeitgrenze könnte als „Unobserved task exception“ ins Log kommen. Nicht nachgestellt (Seite 8 s blockiert, nach der Grenze Browser-Prozess beendet: 60 s lang keine Zeile), daher nicht geändert.
+
+Geprüft in der Testinstanz (Konsole, Tier 2): Drag nach Maximieren/Wiederherstellen („state Maximized, size, state Normal“), zweite Folge während des Wartens auf eine blockierte Seite (eigenes „picture now“), Absturz des Browser-Prozesses (kein `[ERR]`, `browser`/`page` „?“).
