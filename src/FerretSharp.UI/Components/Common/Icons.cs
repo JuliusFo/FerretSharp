@@ -285,21 +285,17 @@ internal static class Icons
     public static readonly MarkupString DataView = Svg(
         """<path d="M15 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M21 9H3"/><path d="M21 15H3"/>""");
 
-    /// <summary>Lucide <c>square-code</c>: the section "C# model" of the settings.</summary>
+    /// <summary>Lucide <c>file-code</c>: the section "C# model" of the settings.</summary>
     public static readonly MarkupString ClrModel = Svg(
-        """<path d="m10 9-3 3 3 3"/><path d="m14 15 3-3-3-3"/><rect x="3" y="3" width="18" height="18" rx="2"/>""");
+        """<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/>""");
 
     /// <summary>Lucide <c>server</c>: the section "connection" of the settings.</summary>
     public static readonly MarkupString Connection = Svg(
         """<rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>""");
 
-    /// <summary>Lucide <c>history</c>: the section "audit tables" of the settings.</summary>
+    /// <summary>Lucide <c>file-clock</c>: the section "audit tables" of the settings.</summary>
     public static readonly MarkupString Audit = Svg(
-        """<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>""");
-
-    /// <summary>Lucide <c>columns-3</c>: the section "display columns" of the settings.</summary>
-    public static readonly MarkupString DisplayColumns = Svg(
-        """<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>""");
+        """<path d="M16 22h2a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v2.85"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M8 14v2.2l1.6 1"/><circle cx="8" cy="16" r="6"/>""");
 
     /// <summary>Lucide <c>circle-arrow-up</c>: the section "updates" of the settings.</summary>
     public static readonly MarkupString Updates = Svg(
@@ -313,7 +309,10 @@ internal static class Icons
     public static readonly MarkupString Shortcuts = Svg(
         """<path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>""");
 
-    /// <summary>The icon of a section in the list of the settings page.</summary>
+    /// <summary>
+    /// The icon of a section in the list of the settings page. Display columns take <see cref="Star"/>, their icon in the
+    /// column menu. Every section is named: a new one without an icon fails <c>IconsTests</c> instead of showing another's.
+    /// </summary>
     public static MarkupString For(SettingsPart part) => part switch
     {
         SettingsPart.Appearance => Appearance,
@@ -321,10 +320,11 @@ internal static class Icons
         SettingsPart.ClrModel => ClrModel,
         SettingsPart.Connection => Connection,
         SettingsPart.Audit => Audit,
-        SettingsPart.DisplayColumns => DisplayColumns,
+        SettingsPart.DisplayColumns => Star,
         SettingsPart.Updates => Updates,
         SettingsPart.Diagnostics => Diagnostics,
-        _ => Shortcuts,
+        SettingsPart.Shortcuts => Shortcuts,
+        _ => throw new ArgumentOutOfRangeException(nameof(part), part, null),
     };
 
     public static MarkupString For(PlSqlKind kind) => kind switch
