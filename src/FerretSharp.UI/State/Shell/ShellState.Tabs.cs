@@ -443,13 +443,7 @@ public sealed partial class ShellState
             Visited = true,
         };
         copy.SetFilterRows(source.AppliedFilters);
-        Set(() =>
-        {
-            workspace.Tabs.Insert(Math.Max(workspace.Tabs.IndexOf(source) + 1, workspace.PinnedCount), copy);
-            workspace.ActiveTab = copy;
-            Page = ShellPage.Explorer;
-        });
-        return copy;
+        return Insert(workspace, copy, workspace.Tabs.IndexOf(source) + 1);
     }
 
     /// <summary>The last "Show in explorer" (WP-70): the explorer of <see cref="ExplorerReveal.ConnectionId"/> takes it once, by its id.</summary>
