@@ -12,5 +12,16 @@ Entscheidung des Nutzers: „Nur leere Tabs“. Alles andere, was hinter dem akt
 - `InsertAfterActive` und `AddAtEnd` teilen sich `Insert` (nie zwischen die angehefteten Tabs, WP-34).
 - Test: `ShellStateTabsTests.Empty_sql_and_linq_tabs_open_at_the_end_and_ones_with_content_after_the_active_tab` (ersetzt den Test der alten Reihenfolge).
 
+- `dom.js scrollableTabs` (aus dem Review, K1): Wird der letzte Tab aktiv, holt `reveal` auch die Knöpfe dahinter samt ihrem Rand ins Bild; vorher nur den Tab selbst.
+
 ## Nicht geprüft
-- Kein E2E. Zu prüfen: „+ SQL“/„+ LINQ“ und die Kürzel bei aktivem Tab in der Mitte, die Leiste scrollt zum neuen Tab ganz rechts.
+- Kein E2E in der App. Zu prüfen mit echter Maus im WPF-Host: „+ SQL“/„+ LINQ“ und die Kürzel bei aktivem Tab in der Mitte (neuer Tab ganz rechts); volle Leiste, ganz rechts gescrollt, „+ SQL“ zweimal klicken – die Knöpfe bleiben sichtbar, ohne zu scrollen.
+
+## Nachtrag: Code-Review (2026-11-06)
+Ein unabhängiger Reviewer-Agent (`/branch-code-review`), zwei Durchgänge; kein S/M. Entscheidungen des Nutzers: „Alle drei“, danach „Beide“.
+- **K1 Volle Leiste: neuer Tab am Ende schob „+ SQL“/„+ LINQ“ aus dem Bild:** behoben. `reveal` scrollte nur, bis der Tab selbst sichtbar war. In einer statischen Seite mit echtem `ferretsharp.css` und `dom.js` nachgestellt (600 px, zehn Tabs, ganz rechts): vorher lagen die Knöpfe bei 610/686 px, danach sichtbar. Kein automatischer Test: `dom.js` braucht das DOM (ADR 0031).
+- **K2 `DuplicateTab` baute das Einfügen nach:** behoben, über `Insert`.
+- **K3 Kommentar „after the tab it came from“ stimmte nicht für den DDL-Vorschlag des Schemavergleichs** (`OpenSqlIn`, andere Verbindung): Kommentar und Protokoll korrigiert. Das Verhalten bleibt (mit Text hinter dem aktiven Tab).
+- **K4 Doku zum K1-Fix:** behoben – `architecture.md` (volle Tab-Leiste), CHANGELOG („after the active tab“), dieser Nachtrag.
+- **K5 Letzter Knopf bündig am Rand:** behoben, `reveal` rechnet seinen `margin-right` mit (in der Nachstellung 592 von 600 px wie beim Scrollen von Hand, Leiste ganz am Ende).
+- Learnings: keine neue Regel – K1 hing an dieser Änderung, K2–K5 waren Einzelfälle.

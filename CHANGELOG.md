@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Changed
 - The list of ways beside the diagram of *Relations › Path to …* and the side panel of *Relations › Build query* can be made wider or narrower like the other side panels: drag the edge toward the diagram, a double click goes back to the default. Each width holds for every relationship view and is kept after a restart.
-- A new empty SQL or LINQ tab ("+ SQL", "+ LINQ" and their shortcuts) opens at the end of the tab list, beside the buttons, instead of after the active tab. One opened with a statement or code – "Open in SQL editor", a query from the diagram – still opens after the tab it came from.
+- A new empty SQL or LINQ tab ("+ SQL", "+ LINQ" and their shortcuts) opens at the end of the tab list, beside the buttons, instead of after the active tab. One opened with a statement or code – "Open in SQL editor", a query from the diagram – still opens after the active tab. When the bar is full, it scrolls far enough to keep the buttons in view.
 
 ## [3.61.0] - 2026-11-06
 
