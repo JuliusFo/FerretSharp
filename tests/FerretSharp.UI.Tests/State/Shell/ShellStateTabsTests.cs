@@ -239,8 +239,12 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         Assert.Single(_app.WorkspaceOf(test).Tabs.OfType<SqlTab>()); // opened once
     }
 
+    /// <summary>
+    /// New SQL and LINQ tabs take the first free number. Empty ones ("+ SQL", "+ LINQ") go to the end, beside the buttons
+    /// (user feedback); one with a statement or code goes right after the tab it came from.
+    /// </summary>
     [Fact]
-    public async Task New_sql_and_linq_tabs_take_the_first_free_number_after_the_active_tab()
+    public async Task Empty_sql_and_linq_tabs_open_at_the_end_and_ones_with_content_after_the_active_tab()
     {
         await _app.OpenAsync(TestApp.Profile("Test"));
 
@@ -248,10 +252,18 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         var linq = _app.Shell.OpenLinq()!;
         _app.Shell.ActivateTab(first);
         var second = _app.Shell.OpenSql()!;
+        var linq2 = _app.Shell.OpenLinq()!;
 
-        Assert.Equal(["SQL 1", "LINQ 1", "SQL 2"], new[] { first.Title, linq.Title, second.Title });
-        Assert.Equal([first, second, linq], _app.Shell.Tabs.ToList<WorkspaceTab>()); // right after the active one
-        Assert.Same(second, _app.Shell.ActiveTab);
+        Assert.Equal(["SQL 1", "LINQ 1", "SQL 2", "LINQ 2"], new[] { first.Title, linq.Title, second.Title, linq2.Title });
+        Assert.Equal([first, linq, second, linq2], _app.Shell.Tabs.ToList<WorkspaceTab>());
+        Assert.Same(linq2, _app.Shell.ActiveTab);
+
+        _app.Shell.ActivateTab(first);
+        var statement = _app.Shell.OpenSql("SELECT 1 FROM dual;")!;
+        _app.Shell.ActivateTab(first);
+        var code = _app.Shell.OpenLinq("db.Kunden")!;
+
+        Assert.Equal([first, code, statement, linq, second, linq2], _app.Shell.Tabs.ToList<WorkspaceTab>());
     }
 
     public ValueTask DisposeAsync() => _app.DisposeAsync();

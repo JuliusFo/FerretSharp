@@ -47,7 +47,7 @@ public sealed class PinnedTabsTests : IAsyncDisposable
         _app.Shell.SetPinned(b, true);
         _app.Shell.ActivateTab(a);
 
-        var d = _app.Shell.OpenSql()!;
+        var d = _app.Shell.OpenSql("SELECT 1 FROM dual;")!; // with a statement: after the active tab, not at the end
 
         Assert.Equal(d, TabsOf(scope)[2]);
         Assert.False(d.Pinned);
