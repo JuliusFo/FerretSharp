@@ -17,7 +17,7 @@
     </Label>
     <ChildContent Context="menu">
         @{ var list = TablePickList.Of(Tables, _query, Suggestions, KeyOf, EntityName); var search = new TextSearch(_query); }
-        <div @onkeydown="e => OnSearchKey(e, menu, list)">
+        <div @onkeydown="e => OnSearchKey(e, menu)">
             <SearchBox Class="popover-search ctx-filter" @bind-Value="_query" Placeholder="@SchemaViewText.TablePicker_Search" />
         </div>
         <div class="table-pick-list">
@@ -125,9 +125,13 @@
         _ => SchemaViewText.TablePicker_ReasonColumnName,
     };
 
-    private async Task OnSearchKey(KeyboardEventArgs e, MenuButton menu, TablePickList list)
+    /// <summary>
+    /// Enter in the field takes the first line for the text as it is now – not the list of the last render, which a quick
+    /// Enter after typing or pasting can still have (code review).
+    /// </summary>
+    private async Task OnSearchKey(KeyboardEventArgs e, MenuButton menu)
     {
-        if (e.Key == "Enter" && list.First is { } first)
+        if (e.Key == "Enter" && TablePickList.Of(Tables, _query, Suggestions, KeyOf, EntityName).First is { } first)
         {
             await PickAsync(menu, first.Table.Ref);
         }
