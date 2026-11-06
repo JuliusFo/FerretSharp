@@ -48,11 +48,19 @@ Ein unabhängiger Reviewer-Agent (`/branch-code-review`), vier Durchgänge. Ents
 ## Nachtrag: Liste der Wege und „Abfrage bauen“ ziehbar (2026-11-06, unveröffentlicht)
 Branch `fix/resizable-paths-panel`. Anlass: Die Liste der Wege neben dem Diagramm von „Weg zu …“ (WP-74, 3.61.0) ließ sich nicht verbreitern.
 
-Ohne Rückfrage entschieden (einfachste Variante, wie die Änderungsübersicht):
-- **Eine Breite für die ganze App** in den Einstellungen: `AppSettings.PathsPanelWidth`, null = Standard 420 px aus dem CSS. `RelationsView` speichert sie, `RelationPathsPanel` rendert sie als `style` nur, wenn gesetzt – beim Zurücksetzen fällt das Attribut weg und mit ihm die Breite aus `dom.js`.
+Zuerst ohne Rückfrage gebaut (einfachste Variante, wie die Änderungsübersicht), nach dem Code-Review vom Nutzer bestätigt („Deine Vorschläge passen“):
+- **Eine Breite je Feld für die ganze App** in den Einstellungen: `AppSettings.PathsPanelWidth`, null = Standard 420 px aus dem CSS. `RelationsView` speichert sie, `RelationPathsPanel` rendert sie als `style` nur, wenn gesetzt – beim Zurücksetzen fällt das Attribut weg und mit ihm die Breite aus `dom.js`.
 - Griff am rechten Rand (`ResizeEdge.Right`), Grenzen 280 px bis 60 % von `.relations-body` (vorher `max-width: 45%`), dieselben Grenzen im CSS. `overflow: hidden` an `.paths-panel` entfernt, sonst wäre die äußere Hälfte des Griffs abgeschnitten; die Liste scrollt weiter selbst.
-- Nicht geprüft: kein E2E (Docker lief nicht). Zu prüfen: Ziehen, Grenzen, Doppelklick, Neustart; liegt der Griff über dem Diagramm rechts daneben?
-- Das Seitenfeld von „Abfrage bauen“ (`.query-panel`, WP-69) war ebenso fest breit (460 px, rechts). Entscheidung des Nutzers: „Ja, auch dort“. Eigene Einstellung `AppSettings.QueryPanelWidth`, Griff am linken Rand, 320 px bis 60 %. Das Feld scrollte als Ganzes, ein Griff darin wäre mit dem Inhalt weggescrollt: Der Inhalt steht jetzt in `.query-panel-body`, das selbst scrollt (Abstände und Polster von `.query-panel` dorthin verschoben).
+- Das Seitenfeld von „Abfrage bauen“ (`.query-panel`, WP-69) war ebenso fest breit (460 px, rechts). Entscheidung des Nutzers: „Ja, auch dort“. Eigene Einstellung `AppSettings.QueryPanelWidth`, Griff am linken Rand **innen** (`left: 0`, siehe Review), 320 px bis 60 %. Das Feld scrollte als Ganzes, ein Griff darin wäre mit dem Inhalt weggescrollt: Der Inhalt steht jetzt in `.query-panel-body`, das selbst scrollt (Abstände und Polster von `.query-panel` dorthin verschoben).
+- Nicht geprüft: kein E2E (Docker lief nicht). Zu prüfen: Ziehen beider Griffe, Grenzen, Doppelklick, Neustart; bei „Abfrage bauen“ eine lange Abfrage scrollen, der Griff bleibt stehen.
+
+### Code-Review (2026-11-06)
+Ein unabhängiger Reviewer-Agent (`/branch-code-review`), zwei Durchgänge; kein S/M. Entscheidung des Nutzers: „Deine Vorschläge passen“ (alle vier mit den vorgeschlagenen Lösungen, Griff nach innen, CHANGELOG unter „Changed“, eine Breite je Feld für die ganze App).
+- **1 (K) Langer Name in „Nicht über …“ ragte aus der Liste:** behoben. Ohne `overflow: hidden` und mit 280 px Mindestbreite lief ein Chip über den Rand, das Diagramm daneben verdeckte das ✕. Vor dem Fix in einer statischen Seite mit dem echten Stylesheet nachgestellt (Chip endet bei 318 px, Leiste bei 280 px). Jetzt höchstens so breit wie die Leiste, der Name mit „…“ (`.paths-chip-name`, voller Name im Tooltip); danach gemessen: Ende bei 267 px, ✕ sichtbar. Dabei gefunden: „Nicht über:“ brach daneben in zwei Zeilen um (schon vorher), jetzt `flex: none`.
+- **2 (K) Griff von „Abfrage bauen“ über der Scrollleiste des Diagramms:** behoben, der Griff liegt innen (`.query-panel > .resize-handle.left { left: 0 }`). Bei Änderungsübersicht und Formular ist es noch so (vorher schon da, Backlog).
+- **3 (K) Breite als `style` doppelt und ungetestet:** behoben, `PanelSizes.Width` für beide Felder, `PanelSizesTests.A_panel_width_is_a_style_only_when_dragged` (null, 0, negativ → kein Attribut, sonst bliebe nach dem Doppelklick die Breite aus `dom.js`).
+- **4 (K) Doku:** behoben – Überschrift nennt beide Felder, README „wider or narrower“, CHANGELOG unter „Changed“.
+- Zweiter Durchgang: Fixes decken ihre Befunde; nachgetragen wurde nur dieser Abschnitt.
 
 ## Nachtrag: Editorhöhe je Tab (2026-11-04)
 Entscheidung des Nutzers nach dem Code-Review: „Ich würde erstmal je Tab eine eigene Höhe machen.“
