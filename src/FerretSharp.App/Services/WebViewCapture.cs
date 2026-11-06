@@ -395,6 +395,8 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
         {
             System.Windows.Media.RenderCapability.TierChanged += OnTierChanged;
             _tierTaken = true;
+            logger.LogInformation("WebView's front buffer at the start: {FrontBuffer}, render tier {Tier}",
+                image.IsFrontBufferAvailable ? "available" : "gone", Tier);
             ShowWithoutFrontBuffer(image);
         }
 
@@ -416,8 +418,22 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
     /// front buffer it now copies too: WPF shows the back buffer in software then (the control sets it with
     /// <c>enableSoftwareFallback</c>), as it does at tier 0 all the time. Back, the control's rule applies again.
     /// </summary>
-    private void ShowWithoutFrontBuffer(D3DImage image) =>
-        SoftwareField?.SetValue(image, Tier == 0 || !image.IsFrontBufferAvailable);
+    private void ShowWithoutFrontBuffer(D3DImage image)
+    {
+        if (SoftwareField is null)
+        {
+            return;
+        }
+
+        var software = Tier == 0 || !image.IsFrontBufferAvailable;
+        if (SoftwareField.GetValue(image) is not bool before || before != software)
+        {
+            logger.LogInformation("WebView frames copied without a front buffer: {State} (front buffer {FrontBuffer}, render tier {Tier})",
+                software ? "on" : "off", image.IsFrontBufferAvailable ? "available" : "gone", Tier);
+        }
+
+        SoftwareField.SetValue(image, software);
+    }
 
     /// <summary>After the control's handler, which sets the flag by the tier alone.</summary>
     private void OnTierChanged(object? sender, EventArgs e)
