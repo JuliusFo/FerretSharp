@@ -39,7 +39,7 @@ namespace FerretSharp.App.Services;
 /// <item>Empty picture over RDP (2026-11-06, GPU in the remote session, tier 2): while the RDP window was in the
 /// background on the user's PC, WPF had no front buffer. A restart then (back from minimized) dropped the back buffer,
 /// the control set none again without a front buffer – and only a set back buffer reports the front buffer's return. Here
-/// a restart waits for the front buffer, and without one the frames are shown in software, as at tier 0.</item>
+/// the frames are shown in software without one, as at tier 0, so the next frame sets a back buffer again.</item>
 /// </list>
 /// </summary>
 public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
@@ -69,8 +69,9 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
 
     /// <summary>
     /// Whether it copies a frame without WPF's front buffer: the control sets it only at render tier 0. Without, a back
-    /// buffer once cleared is never set again while the front buffer is gone – and only a set back buffer reports it back
-    /// (<c>D3DImage.Callback</c> checks its version), so the picture stayed empty for good (RDP, 2026-11-06).
+    /// buffer once cleared (a restart, a display change) is never set again while the front buffer is gone – and only a set
+    /// back buffer reports its return (without one there is no <c>InteropDeviceBitmap</c>, so no callback), so the picture
+    /// stayed empty for good (RDP, 2026-11-06).
     /// </summary>
     private static readonly FieldInfo? SoftwareField = ImageField?.FieldType.GetField("_useSoftwareRendering", Private);
 
@@ -166,8 +167,9 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
             };
             _rebuild = new DispatcherTimer(DispatcherPriority.Normal, control.Dispatcher) { Interval = RebuildStep };
             _rebuild.Tick += (_, _) => RebuildNow();
-            WatchImage();
         }
+
+        WatchImage();
 
         if (PoolField is null || FrameArrived is null || RequestRender is null)
         {
@@ -358,8 +360,9 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
     }
 
     /// <summary>
-    /// The image exists only after the control has loaded: watched from the first chance on, once – its front buffer, and its
-    /// handler of a display change replaced (the delegate compares equal to the one the control added, as for the frames).
+    /// The image exists only after the control has loaded: watched from the first chance on, once – its front buffer and the
+    /// render tier (also when a restart is not possible, <see cref="SoftwareField"/> does not need one), and, when it is,
+    /// its handler of a display change replaced (the delegate compares equal to the one the control added, as for the frames).
     /// </summary>
     private void WatchImage()
     {
@@ -395,6 +398,11 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
             ShowWithoutFrontBuffer(image);
         }
 
+        if (!CanRestart)
+        {
+            return; // the control keeps its own handler of a display change
+        }
+
         SystemEvents.DisplaySettingsChanged -= (EventHandler)Delegate.CreateDelegate(typeof(EventHandler), image, DisplayChanged!);
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         _displayChangeTaken = true;
@@ -422,13 +430,19 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
     }
 
     /// <summary>
-    /// A restart drops the back buffer; without the front buffer, nothing reports its return then – and before the frames
-    /// were shown in software (<see cref="SoftwareField"/>) the picture stayed empty. So it waits: the front buffer's return
-    /// restarts anyway. At tier 0 WPF never has one, a restart runs as before.
+    /// A restart drops the back buffer. With <see cref="SoftwareField"/> the next frame sets a new one, also without the
+    /// front buffer – a restart runs as always (minimizing stays the way out). Only should the member be missing, the
+    /// control sets none again and nothing reports the front buffer's return: then the restart waits for it (its return
+    /// restarts anyway). At tier 0 WPF never has one and the control copies regardless.
     /// </summary>
-    private bool WaitsForFrontBuffer() => _watched is { IsFrontBufferAvailable: false } && Tier != 0;
+    private bool WaitsForFrontBuffer() => SoftwareField is null && _watched is { IsFrontBufferAvailable: false } && Tier != 0;
 
-    /// <summary>Static events: they would keep the control alive.</summary>
+    /// <summary>
+    /// <see cref="SystemEvents"/> are static and would keep the control alive. <c>RenderCapability.TierChanged</c> belongs to
+    /// the dispatcher of the thread it is called on: removed only on the UI thread – at the end of the app this runs on a pool
+    /// thread (<c>App.OnExit</c>), where it would set up a dispatcher and media context of its own and remove nothing; the
+    /// UI thread's goes with the process.
+    /// </summary>
     public void Dispose()
     {
         if (_displayChangeTaken)
@@ -436,7 +450,7 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         }
 
-        if (_tierTaken)
+        if (_tierTaken && _control?.Dispatcher.CheckAccess() == true)
         {
             System.Windows.Media.RenderCapability.TierChanged -= OnTierChanged;
         }
@@ -499,7 +513,7 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
         }
 
         _hold!.Stop();
-        Render(); // past the limit (front buffer gone): the control drops it as it would have
+        Render(); // past the limit (the render thread does not present): the control drops it as it would have
         NoteHeld(waited, dropped: !free);
     }
 
