@@ -65,7 +65,7 @@
         <div class="relations-body @(_query.Active ? "with-query" : pathMode ? "with-paths" : "")">
         @if (pathMode)
         {
-            <RelationPathsPanel State="_paths" Label="Label" LabelKey="@Active.Schema?.Tables" OnHover="p => _hoverPath = p" OnSelect="p => _paths.Select(p)"
+            <RelationPathsPanel State="_paths" Width="Settings.Current.PathsPanelWidth" OnWidthChanged="SavePathsWidthAsync" Label="Label" LabelKey="@Active.Schema?.Tables" OnHover="p => _hoverPath = p" OnSelect="p => _paths.Select(p)"
                                 OnMore="RunPathsAsync" OnCancel="_paths.Cancel" OnAllow="t => SetAvoidedAsync(t, avoid: false)"
                                 OnBuildQuery="BuildQueryAsync" OnCopyText="CopyPathTextAsync" OnCopyMermaid="CopyPathMermaidAsync" />
             @if (_paths.Placement is { } paths && _paths.Diagram is { } pathDiagram)
@@ -448,6 +448,17 @@
         // In effect at once (Changed starts the new search); only writing the file may fail.
         await Shell.TrySaveSettingsAsync(
             () => Settings.UpdateAsync(s => s with { PathAvoidedTables = s.PathAvoidedTables.With(key, tables) }, CancellationToken.None), Logger);
+    }
+
+    /// <summary>The dragged width of the list of ways – one for the whole app, kept in the settings; null for the default.</summary>
+    private async Task SavePathsWidthAsync(int? width)
+    {
+        if (width == Settings.Current.PathsPanelWidth)
+        {
+            return;
+        }
+
+        await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { PathsPanelWidth = width }, CancellationToken.None), Logger);
     }
 
     private Task AvoidFromMenuAsync(TableRef table)

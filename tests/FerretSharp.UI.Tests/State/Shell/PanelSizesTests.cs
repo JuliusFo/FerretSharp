@@ -15,4 +15,12 @@ public sealed class PanelSizesTests
         Assert.Null(PanelSizes.Property(PanelSizes.LinqEditorHeight, null));
         Assert.Null(PanelSizes.Property(PanelSizes.LinqEditorHeight, -5)); // a hand-edited workspace file
     }
+
+    [Theory]
+    [InlineData(340, "width: 340px;")]
+    [InlineData(null, null)] // the default: no attribute, so a double click drops the width dom.js set while dragging
+    [InlineData(0, null)]
+    [InlineData(-5, null)] // a hand-edited settings file
+    public void A_panel_width_is_a_style_only_when_dragged(int? pixels, string? expected) =>
+        Assert.Equal(expected, PanelSizes.Width(pixels));
 }

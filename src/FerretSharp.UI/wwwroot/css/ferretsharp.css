@@ -1932,11 +1932,17 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .relations-body.with-query, .relations-body.with-paths { flex-direction: row; }
 .path-target { display: inline-flex; align-items: center; gap: 2px; }
-.paths-panel { flex: none; width: 420px; max-width: 45%; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden;
+.paths-panel { position: relative; flex: none; width: 420px; min-width: 280px; max-width: 60%; min-height: 0; display: flex; flex-direction: column; gap: 8px;
     border-top: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--surface); padding: 10px 12px 0 0; font-size: 13px; }
 .paths-avoided { display: flex; align-items: baseline; gap: 8px; }
 .paths-avoided .muted, .paths-status .muted { color: var(--muted); font-size: 12px; }
-.paths-avoided .menu-chip .icon { width: 11px; height: 11px; }
+.paths-avoided .menu-chip .icon { flex: none; width: 11px; height: 11px; }
+/* A long name stops at the edge of the panel (the full one is in the title): the panel no longer clips, and the diagram
+   beside it would cover the ✕ (review). */
+.paths-avoided > .muted { flex: none; }
+.paths-avoided .chips { min-width: 0; }
+.paths-avoided .menu-chip { max-width: 100%; }
+.paths-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .paths-status { display: flex; align-items: center; gap: 8px; min-height: 26px; }
 .paths-status .spacer { flex: 1; }
 .paths-list { flex: 1; min-height: 0; overflow: auto; list-style: none; margin: 0; padding: 0 0 24px; }
@@ -1959,8 +1965,11 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-edge.clickable:hover .line { stroke-width: 2.6; }
 .relations-edge.in-query .line { stroke-width: 3.2; stroke-dasharray: none; }
 .relations-node.in-query { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
-.query-panel { flex: none; width: 460px; max-width: 50%; min-height: 0; overflow: auto; border-top: 1px solid var(--border); border-left: 1px solid var(--border);
-    background: var(--surface); padding: 10px 14px 24px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.query-panel { position: relative; flex: none; display: flex; flex-direction: column; width: 460px; min-width: 320px; max-width: 60%; min-height: 0;
+    border-top: 1px solid var(--border); border-left: 1px solid var(--border); background: var(--surface); font-size: 13px; }
+/* The handle inside the panel: half of it outside would lie on the diagram's vertical scrollbar (review). */
+.query-panel > .resize-handle.left { left: 0; }
+.query-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 10px 14px 24px; display: flex; flex-direction: column; gap: 8px; }
 .query-panel h3 { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .query-panel h4 { margin: 8px 0 2px; font-size: 12px; font-weight: 600; }
 .query-tree { list-style: none; margin: 0; padding: 0; }
