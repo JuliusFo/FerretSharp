@@ -14,8 +14,11 @@ Entscheidung des Nutzers: „Nur leere Tabs“. Alles andere, was hinter dem akt
 
 - `dom.js scrollableTabs` (aus dem Review, K1): Wird der letzte Tab aktiv, holt `reveal` auch die Knöpfe dahinter samt ihrem Rand ins Bild; vorher nur den Tab selbst.
 
-## Nicht geprüft
-- Kein E2E in der App. Zu prüfen mit echter Maus im WPF-Host: „+ SQL“/„+ LINQ“ und die Kürzel bei aktivem Tab in der Mitte (neuer Tab ganz rechts); volle Leiste, ganz rechts gescrollt, „+ SQL“ zweimal klicken – die Knöpfe bleiben sichtbar, ohne zu scrollen.
+## Prüfung
+- E2E 2026-11-06 (nach dem Code-Review) mit echter Maus (`SendInput`, Testinstanz 1440×900, eigener Container):
+  - Vier Tabellen-Tabs, „AKTE“ (zweiter) per Klick aktiv, Klick auf „+ SQL“: „SQL 1“ öffnet ganz rechts. Dasselbe mit Ctrl+Shift+Q (per CDP): „SQL 2“ ganz rechts.
+  - Volle Leiste (19 Tabs, 1144 px), ganz rechts gescrollt, zweimal „+ SQL“ an derselben Stelle geklickt: „SQL 3“ und „SQL 4“ ganz rechts, der Knopf bleibt bei 1081–1136 px stehen, die Leiste am Ende. Log ohne `[ERR]`/`[WRN]`.
+- Nicht in der App geprüft: „+ LINQ“ (ohne verknüpftes Projekt kein Knopf; derselbe Weg wie „+ SQL“, Unit-Test) und Tabs mit Inhalt (Unit-Test).
 
 ## Nachtrag: Code-Review (2026-11-06)
 Ein unabhängiger Reviewer-Agent (`/branch-code-review`), zwei Durchgänge; kein S/M. Entscheidungen des Nutzers: „Alle drei“, danach „Beide“.
