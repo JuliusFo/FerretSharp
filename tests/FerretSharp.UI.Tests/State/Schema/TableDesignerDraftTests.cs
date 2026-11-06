@@ -282,6 +282,13 @@ public sealed class TableDesignerDraftTests
         designer.AddColumn(fk, "BETRAG");
         Assert.Equal(ort, fk.References);
 
+        // Picking a suggestion takes its key – a relationship's columns, not the primary key once the table is known (code
+        // review: a relationship to a unique key referenced the primary key, a two-column one swapped its pairs).
+        designer.TargetsFor = _ => [new(Land.Table.Ref, ["ISO"], ForeignKeyTargetReason.Relation)];
+        designer.Reference(fk, Land.Table.Ref);
+        designer.Learn(Land);
+        Assert.Equal(["ISO"], fk.ReferencedColumns);
+
         var fromModel = designer.AddForeignKey(new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL"], Land.Table.Ref, ["ISO"], FkSource.ClrModel))!;
         designer.RemoveColumn(fromModel, 0);
         Assert.Equal(Land.Table.Ref, fromModel.References);

@@ -252,15 +252,23 @@ public sealed class TableDesignerDraft
 
     /// <summary>
     /// The user chose <paramref name="table"/> as the table the foreign key references (null: none – it follows its columns
-    /// again). Its referenced columns are the table's primary key, in key order, as soon as the table's structure is known –
-    /// this table's at once; another one the view loads if <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
+    /// again). A suggested table brings its key (a relationship's own columns, in the order of the key columns – code review:
+    /// picking the suggestion of a relationship to a unique key referenced the primary key); otherwise the referenced columns
+    /// are the table's primary key, in key order, as soon as the table's structure is known – this table's at once; another
+    /// one the view loads if <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
     /// </summary>
     public void Reference(DesignConstraint constraint, TableRef? table)
     {
         ArgumentNullException.ThrowIfNull(constraint);
+        var suggested = table is null ? null : Suggestions(constraint).FirstOrDefault(s => s.Table == table);
         constraint.ReferencedColumns.Clear();
         constraint.References = table;
         constraint.ReferenceChosen = table is not null;
+        if (suggested is not null)
+        {
+            constraint.ReferencedColumns.AddRange(suggested.Key);
+        }
+
         SuggestName(constraint);
         FillReferenced(constraint);
     }
