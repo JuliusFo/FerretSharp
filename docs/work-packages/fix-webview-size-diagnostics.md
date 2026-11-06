@@ -30,6 +30,7 @@ Meldungen des Nutzers (2026-11-03 und 2026-11-06, Arbeits-Laptop per RDP): Die V
   - kopiert, aber `frame` alt → die Bilder haben die alte `ContentSize` (Stelle 2). Achtung: `CopyResource` tut bei abweichenden Maßen von Pool und Bild still nichts – ein „kopiertes“ Bild ändert dann das gezeigte nicht.
   - nur `picture` alt bei neuem `frame` → Stelle 3.
 - `frame` allein beweist kein kopiertes Bild: Das Control setzt `_lastSize` auch beim Start und Neuaufbau der Aufnahme.
+- `copied` > `arrived`: Das Control hatte selbst einen neuen Frame-Pool angelegt, den `WebViewCapture` erst bei der nächsten Prüfung (höchstens 2 s) übernimmt; bis dahin zählt `arrived` zu wenig. Das Freigeben des Back Buffers (Neustart, `WM_SIZE`) zählt nicht als Kopie.
 - Kommt nach „changing“ keine „picture now“-Zeile, hat das gezeigte Bild die Größe nie gewechselt.
 - Beim leeren Start: Start-Zeile mit `picture 0x0`/`back buffer none` = nie ein Bild gesetzt; dazu die Zähler und der Front Buffer (seit PR #132 auch eigene Zeilen dazu).
 
@@ -42,5 +43,6 @@ Entscheidung des Nutzers: „Jop, fix alles.“
 5. K – Die Größe des Controls war gerundet, das Control schneidet ab (Scheinabweichung 1 px zu `browser`). Behoben: dieselbe Formel wie das Control.
 6. K – Kommentare (Takt von `D3DImage.Changed`, alte Werte bei Zustandswechsel, „settled“ ab Beginn der Folge). Behoben.
 7. K (Verdacht) – Eine verwaiste `ExecuteScriptAsync`-Task nach der Zeitgrenze könnte als „Unobserved task exception“ ins Log kommen. Nicht nachgestellt (Seite 8 s blockiert, nach der Grenze Browser-Prozess beendet: 60 s lang keine Zeile), daher nicht geändert.
+8. K (zweiter Durchgang) – `copied` zählte das Freigeben des Back Buffers mit (`SetBackBuffer(IntPtr.Zero)` löst ebenfalls `Changed` aus): über RDP mit flackerndem Front Buffer „copied 1“ ohne Kopie. Entscheidung des Nutzers: „Jop“. Behoben: nur gezählt, wenn danach ein Bild da ist.
 
 Geprüft in der Testinstanz (Konsole, Tier 2): Drag nach Maximieren/Wiederherstellen („state Maximized, size, state Normal“), zweite Folge während des Wartens auf eine blockierte Seite (eigenes „picture now“), Absturz des Browser-Prozesses (kein `[ERR]`, `browser`/`page` „?“).
