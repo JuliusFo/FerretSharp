@@ -1,4 +1,4 @@
-# WP-74 Wege zwischen zwei Tabellen → Release offen
+# WP-74 Wege zwischen zwei Tabellen → Release 3.61.0
 
 Branch `wp/74-relation-paths` (von `main`), 2026-11-06. ADR 0044. Baut auf WP-46 (Beziehungsdiagramm) und WP-69 (Abfrage aus dem Diagramm).
 
