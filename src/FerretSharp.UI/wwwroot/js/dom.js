@@ -479,7 +479,8 @@ export function scrollableTabs(element) {
     const left = bar.left + (element.querySelector('.tabs-pinned')?.offsetWidth ?? 0);
     const right = bar.left + element.clientWidth;
     // The last tab brings the buttons for new tabs with it: an empty SQL/LINQ tab opens there, the next click needs them.
-    const end = (tab.nextElementSibling?.classList.contains('tab') ? tab : element.lastElementChild).getBoundingClientRect().right;
+    const last = tab.nextElementSibling?.classList.contains('tab') ? tab : element.lastElementChild;
+    const end = last.getBoundingClientRect().right + (last === tab ? 0 : parseFloat(getComputedStyle(last).marginRight) || 0);
     if (rect.left < left) {
       element.scrollLeft -= left - rect.left;
     } else if (end > right) {
