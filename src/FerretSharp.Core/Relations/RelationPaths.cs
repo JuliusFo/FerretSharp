@@ -39,7 +39,7 @@ public sealed class RelationPath
         Steps = steps;
         // With the table it leads to and the columns: two relationships of the C# model may share a key (review, @key).
         Key = string.Join('\u0002', steps.Select(s =>
-            $"{RelationGraph.KeyOf(s.Relation)}\u0003{s.To.Owner}\u0001{s.To.Name}\u0003{string.Join('\u0001', s.Relation.FromColumns)}\u0003{(s.ToChild ? 'c' : 'p')}"));
+            $"{RelationGraph.KeyOf(s.Relation)}\u0003{s.To.Owner}\u0001{s.To.Name}\u0003{string.Join('\u0001', s.Relation.FromColumns)}\u0003{string.Join('\u0001', s.Relation.ToColumns)}\u0003{(s.ToChild ? 'c' : 'p')}"));
         SourceRank = steps.Max(s => RankOf(s.Relation.Source));
     }
 

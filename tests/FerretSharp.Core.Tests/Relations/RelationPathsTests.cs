@@ -113,6 +113,12 @@ public class RelationPathsTests
 
         Assert.Equal(2, paths.Count);
         Assert.NotEqual(paths[0].Key, paths[1].Key);
+
+        // The same columns to two keys of the table (second review pass).
+        var byNumber = new ForeignKeyInfo("Position.Auftrag", Position, ["AUFTRAG_ID"], Auftrag, ["NR"], FkSource.ClrModel);
+        var both = All(new RelationGraph([current, byNumber]), Position, Auftrag);
+        Assert.Equal(2, both.Count);
+        Assert.NotEqual(both[0].Key, both[1].Key);
     }
 
     /// <summary>
