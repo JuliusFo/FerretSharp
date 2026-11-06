@@ -230,7 +230,7 @@ internal static class Icons
     public static readonly MarkupString SelectColumn = Svg(
         """<rect width="6" height="18" x="9" y="3" fill="currentColor" stroke="none" opacity=".35"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>""");
 
-    /// <summary>Lucide <c>star</c>: the table's display column (WP-61).</summary>
+    /// <summary>Lucide <c>star</c>: the table's display column (WP-61), the settings section of the display columns.</summary>
     public static readonly MarkupString Star = Svg(
         """<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>""");
 
