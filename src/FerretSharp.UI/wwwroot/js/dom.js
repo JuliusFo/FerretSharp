@@ -478,10 +478,13 @@ export function scrollableTabs(element) {
     const rect = tab.getBoundingClientRect();
     const left = bar.left + (element.querySelector('.tabs-pinned')?.offsetWidth ?? 0);
     const right = bar.left + element.clientWidth;
+    // The last tab brings the buttons for new tabs with it: an empty SQL/LINQ tab opens there, the next click needs them.
+    const last = tab.nextElementSibling?.classList.contains('tab') ? tab : element.lastElementChild;
+    const end = last.getBoundingClientRect().right + (last === tab ? 0 : parseFloat(getComputedStyle(last).marginRight) || 0);
     if (rect.left < left) {
       element.scrollLeft -= left - rect.left;
-    } else if (rect.right > right) {
-      element.scrollLeft += Math.min(rect.right - right, rect.left - left);
+    } else if (end > right) {
+      element.scrollLeft += Math.min(end - right, rect.left - left);
     }
   };
   new MutationObserver(reveal).observe(element, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });

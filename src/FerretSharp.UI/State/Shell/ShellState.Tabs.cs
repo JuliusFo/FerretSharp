@@ -168,8 +168,9 @@ public sealed partial class ShellState
     }
 
     /// <summary>
-    /// Opens a new LINQ console tab ("LINQ 1", "LINQ 2" …) after the active tab (WP-13), optionally with code and the
-    /// declarations of its variables (a query from the diagram, WP-69).
+    /// Opens a new LINQ console tab ("LINQ 1", "LINQ 2" …) (WP-13), optionally with code and the declarations of its
+    /// variables (a query from the diagram, WP-69). An empty one ("+ LINQ", shortcut) goes to the end, beside the button;
+    /// one with code after the active tab.
     /// </summary>
     public LinqTab? OpenLinq(string? code = null, string? variables = null)
     {
@@ -179,12 +180,15 @@ public sealed partial class ShellState
         }
 
         var title = Workspace.FirstFreeName("LINQ ", workspace.Tabs.OfType<LinqTab>().Select(t => t.Title));
-        return InsertAfterActive(workspace, new LinqTab(workspace.WorkspaceId, title) { Code = code ?? "", Variables = variables ?? "", Visited = true });
+        var tab = new LinqTab(workspace.WorkspaceId, title) { Code = code ?? "", Variables = variables ?? "", Visited = true };
+        return code is null ? AddAtEnd(workspace, tab) : InsertAfterActive(workspace, tab);
     }
 
     /// <summary>
-    /// Opens a new SQL editor tab ("SQL 1", "SQL 2" …) after the active tab (WP-17), optionally with a statement and its
-    /// variables ("Open in SQL editor" from a table tab's SQL preview). The editor takes the focus (WP-73).
+    /// Opens a new SQL editor tab ("SQL 1", "SQL 2" …) (WP-17), optionally with a statement and its variables ("Open in SQL
+    /// editor" from a table tab's SQL preview). An empty one ("+ SQL", shortcut) goes to the end, beside the button; one
+    /// with a statement after the active tab – also the DDL proposal of the schema comparison in its target connection
+    /// (<see cref="OpenSqlIn"/>). The editor takes the focus (WP-73).
     /// </summary>
     public SqlTab? OpenSql(string? text = null, IReadOnlyList<Core.Query.SqlVariable>? variables = null)
     {
@@ -194,7 +198,8 @@ public sealed partial class ShellState
         }
 
         var title = Workspace.FirstFreeName("SQL ", workspace.Tabs.OfType<SqlTab>().Select(t => t.Title));
-        return InsertAfterActive(workspace, new SqlTab(workspace.WorkspaceId, title) { Text = text ?? "", Variables = variables ?? [], Visited = true, FocusOnOpen = true });
+        var tab = new SqlTab(workspace.WorkspaceId, title) { Text = text ?? "", Variables = variables ?? [], Visited = true, FocusOnOpen = true };
+        return text is null ? AddAtEnd(workspace, tab) : InsertAfterActive(workspace, tab);
     }
 
     /// <summary>
@@ -334,13 +339,17 @@ public sealed partial class ShellState
     }
 
     /// <summary>A new tab right after the active one (or at the end) – after the pinned tabs, if the active one is pinned –, activated, with the explorer shown.</summary>
-    private T InsertAfterActive<T>(WorkspaceTabs workspace, T tab) where T : WorkspaceTab
+    private T InsertAfterActive<T>(WorkspaceTabs workspace, T tab) where T : WorkspaceTab =>
+        Insert(workspace, tab, workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count);
+
+    /// <summary>A new tab at the end of the list, activated, with the explorer shown.</summary>
+    private T AddAtEnd<T>(WorkspaceTabs workspace, T tab) where T : WorkspaceTab => Insert(workspace, tab, workspace.Tabs.Count);
+
+    private T Insert<T>(WorkspaceTabs workspace, T tab, int index) where T : WorkspaceTab
     {
         Set(() =>
         {
-            var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
-            index = Math.Max(index, workspace.PinnedCount); // never among the pinned tabs (WP-34)
-            workspace.Tabs.Insert(index, tab);
+            workspace.Tabs.Insert(Math.Max(index, workspace.PinnedCount), tab); // never among the pinned tabs (WP-34)
             workspace.ActiveTab = tab;
             Page = ShellPage.Explorer;
         });
@@ -435,13 +444,7 @@ public sealed partial class ShellState
             Visited = true,
         };
         copy.SetFilterRows(source.AppliedFilters);
-        Set(() =>
-        {
-            workspace.Tabs.Insert(Math.Max(workspace.Tabs.IndexOf(source) + 1, workspace.PinnedCount), copy);
-            workspace.ActiveTab = copy;
-            Page = ShellPage.Explorer;
-        });
-        return copy;
+        return Insert(workspace, copy, workspace.Tabs.IndexOf(source) + 1);
     }
 
     /// <summary>The last "Show in explorer" (WP-70): the explorer of <see cref="ExplorerReveal.ConnectionId"/> takes it once, by its id.</summary>
