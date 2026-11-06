@@ -31,5 +31,22 @@ Rückmeldung des Nutzers: Das Anlegen eines FK im Designer ist fummelig. Die Zie
 ## E2E
 Eigene Testinstanz (`--lang=de`) mit eigenem Container (Beispielschema, Port 1533) und zwei Zusatztabellen (`BANKEN` neben `BANK`, `E2E_FK` mit `KUNDE_ID`, `LAGER_ID`, `BANK_ID`); Öffnen und Wählen mit echter Windows-Maus, Tastatur per CDP.
 - Gefunden und behoben: Unten im Designer passte das Menü nicht unter den Knopf, `menuKeys` schob es nach oben über den Knopf – es verdeckte das eigene Feld. Jetzt über dem Knopf (siehe oben), geprüft: Unterkante 2 px über dem Knopf, beim Filtern bleibt sie dort.
-- Enter auf dem Knopf öffnet per CDP nur mit `text: ""` im `keyDown` (sonst kein `click`) – eine Eigenheit von CDP, keine der App.
+- Enter auf dem Knopf öffnet per CDP nur mit `text: "\r"` im `keyDown` (sonst kein `click`) – eine Eigenheit von CDP, keine der App.
 - Nicht geprüft: helles Theme (nur Tokens), Öffnen per Leertaste.
+
+## Nachtrag: Code-Review (2026-11-06)
+Getrennter Reviewer über den Branch (vor dem Merge von `main` mit WP-74), zweiter Durchgang über die Korrekturen. Entscheidung des Nutzers: „Lass uns mal alle mitmachen, auch 3.“; nach dem zweiten Durchgang „Ja, beide“. Bei Nr. 6 meine Empfehlung umgesetzt (der Nutzer hat keine andere genannt).
+1. M Eine Vorschlagszeile „Beziehung“ zeigte ihren Schlüssel, die Wahl nahm den PK (`REFERENCES KUNDE (ID)` statt des eindeutigen Schlüssels, mehrspaltig vertauscht). **Behoben** (`ab026f37`): `TableDesignerDraft.Reference` übernimmt den Schlüssel eines Vorschlags. Test scheitert ohne den Fix.
+2. M Eine Beziehung auf eine Tabelle außerhalb der Liste (View, anderer Owner) wurde sofort übernommen, der Knopf zeigte „Tabelle …“, das DDL scheiterte erst beim Ausführen. **Behoben** (`dae1f716`): `ForeignKeyTargets.Suggest` nimmt nur Beziehungen auf angebotene Tabellen. Test scheitert ohne den Fix.
+3. M Zwei Auswahlen mit Suche nach dem Merge (FK-Ziel und „Weg zu …“ aus WP-74) mit verschiedener Rangfolge, Grenze, Leertext und Bedienung. **Behoben** (`c53f9896`): „Weg zu …“ über `TablePicker` (neue Parameter `Class`, `ButtonContent`, `Title`, `SearchPlaceholder`, `ShowKeys`; `KeyOf` optional), `RelationPathsState.TargetChoices` statt `Candidates`; Nachtrag im WP-74-Protokoll.
+4. K Ein nach halbem Lauf wieder angelegter FK galt als vorgeschlagen und konnte seine Tabelle an einen Namensvorschlag verlieren. **Behoben** (`2f2e0be1`): `ReferenceChosen = true` in `TakeOverReplacements`. Test scheitert ohne den Fix.
+5. K Enter im Suchfeld nahm die Liste des letzten Renderns (Verdacht: schnelles Tippen/Einfügen + Enter). **Behoben** (`44ca98c1`): die Liste wird beim Enter aus dem aktuellen Text berechnet. Ohne Test – nicht ohne Rendern prüfbar (kein bUnit); nicht nachgestellt.
+6. K Mit Suchtext nahm Enter einen schwach passenden Vorschlag vor dem genau getippten Namen. **Behoben** (`388681ab`): ein Vorschlag bleibt nur oben, solange er mindestens so gut passt wie der beste andere Treffer (`ObjectSearch.Rank`). Test scheitert ohne den Fix.
+7. K „no PK“/„kein PK“ doppelt (`ModelViewText.Report_NoKey`). **Behoben** (`455e4d39`): `CommonText.NoPrimaryKeyShort` für Auswahl und Modellbericht.
+- Zweiter Durchgang, A (K): Ein bei der Suche nach unten gerutschter Vorschlag zeigte den PK, die Wahl nahm den Schlüssel der Beziehung. **Behoben** (`df7245cf`): die Zeile behält Schlüssel und Grund. Test scheitert ohne den Fix.
+- Zweiter Durchgang, B (K): WP-74-Protokoll nannte das entfernte `Candidates`; „Weg zu …“ nach dem Umbau ohne E2E. **Behoben**: Protokoll angepasst, E2E unten.
+- Vorher schon da, in den Backlog: ein FK aus „Als Constraint anlegen“ auf eine Tabelle außerhalb der Liste (zeigt den Platzhalter, wie im alten `<select>`); zweite FK-Spalte auf eine Tabelle mit einspaltigem PK bekommt deren erste Spalte; nach Esc in einem Menü geht der Fokus bei keinem Menüknopf zurück.
+- Konfliktauflösung des Merges geprüft (je 643 Schlüssel in beiden resx, nichts verloren oder doppelt); ein dabei verlorenes `</data>` war schon vor dem Push ergänzt.
+
+E2E nach den Korrekturen (eigene Instanz und eigener Container, wieder entfernt; Log ohne `[ERR]`/`[WRN]`): „Weg zu …“ mit echter Maus geöffnet (unter dem Knopf, Start nicht in der Liste, keine PK-Spalte), Enter auf einem Treffer (Wege gefunden, Knopf hervorgehoben, Fokus auf dem Knopf), ✕ zurück. Nicht geprüft: schmales Fenster, ein Vorschlag aus einer Beziehung in der App (kein verknüpftes C#-Projekt; Unit-Tests).
+
