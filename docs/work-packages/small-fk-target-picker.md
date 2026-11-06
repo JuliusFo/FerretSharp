@@ -20,10 +20,16 @@ Rückmeldung des Nutzers: Das Anlegen eines FK im Designer ist fummelig. Die Zie
 - UI State: `TableDesignerDraft.TargetsFor` (setzt die Komponente) und `Suggestions`; `FollowColumns` bei Spalte hinzu/weg und Typwechsel: Ein FK ohne gewählte Tabelle (`DesignConstraint.ReferenceChosen`) übernimmt den eindeutigen Vorschlag mit dessen Schlüssel, ohne Spalten hat er keine Tabelle; ohne eindeutigen Vorschlag bleibt eine vorgeschlagene Tabelle (eine zweite Schlüsselspalte nennt selten eine eigene Tabelle). Gewählt ist eine Tabelle aus der Auswahl und die aus „Als Constraint anlegen“. `Rebase` behält `TargetsFor`.
 - `TablePickList`: Vorschläge oben, dann alle Tabellen (ohne Suche in Listenreihenfolge) bzw. die Treffer nach `ObjectSearch.FindTables` (wie die Befehlspalette, auch nach Entity-Name); höchstens 100 Zeilen, der Rest gezählt.
 - `TablePicker` (Components/Schema): Knopf im Aussehen eines Feldes, gestrichelt mit „vorgeschlagen“, solange die Tabelle nicht gewählt ist; Menü mit Suchfeld (`ctx-filter`, ↑ ↓ über `menuKeys`), Enter im Feld nimmt die erste Zeile, PK neben dem Namen, Tabellen ohne PK blass mit Tooltip (ORA-02270), danach Fokus zurück auf den Knopf.
-- `MenuButton.BelowButton`: Menü unter dem Knopf statt an der Maus – auch beim Öffnen per Enter/Leertaste (sonst ohne Mausposition oben links); dazu `Disabled`, `AriaLabel`, `FocusAsync`, `type="button"`. dom.js `placeBelow`.
+- `MenuButton.BelowButton`: Menü unter dem Knopf statt an der Maus – auch beim Öffnen per Enter/Leertaste (sonst ohne Mausposition oben links); passt es unten nicht, geht es über den Knopf (`PopoverMenu.Above`, dom.js `menuKeys`/`keepInViewport`: einmal beim ersten Messen entschieden, danach wächst und schrumpft es vom Knopf aus nach oben). Dazu `Disabled`, `AriaLabel`, `FocusAsync`, `type="button"`. dom.js `placeBelow`.
 - Texte EN/DE, CSS `.table-pick*`.
 - Tests: `ForeignKeyTargetsTests`, `TablePickListTests`, `TableDesignerDraftTests.A_foreign_key_takes_the_clear_suggestion_until_a_table_is_chosen`.
 
 ## Offen
 - Kein Weg zurück zu „keine Tabelle“ in der Auswahl (das alte `<select>` hatte die Leerzeile); Backlog mit den Spaltenlisten.
 - Tabellen ohne PK, aber mit eindeutigem Schlüssel erscheinen blass – UKs kennt der Cache ohne Abfrage nicht.
+
+## E2E
+Eigene Testinstanz (`--lang=de`) mit eigenem Container (Beispielschema, Port 1533) und zwei Zusatztabellen (`BANKEN` neben `BANK`, `E2E_FK` mit `KUNDE_ID`, `LAGER_ID`, `BANK_ID`); Öffnen und Wählen mit echter Windows-Maus, Tastatur per CDP.
+- Gefunden und behoben: Unten im Designer passte das Menü nicht unter den Knopf, `menuKeys` schob es nach oben über den Knopf – es verdeckte das eigene Feld. Jetzt über dem Knopf (siehe oben), geprüft: Unterkante 2 px über dem Knopf, beim Filtern bleibt sie dort.
+- Enter auf dem Knopf öffnet per CDP nur mit `text: ""` im `keyDown` (sonst kein `click`) – eine Eigenheit von CDP, keine der App.
+- Nicht geprüft: helles Theme (nur Tokens), Öffnen per Leertaste.
