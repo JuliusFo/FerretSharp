@@ -342,6 +342,8 @@ dotnet run --project src/FerretSharp.App
   `artifacts/coverage/report`. The coverage badge counts unit and integration tests over `FerretSharp.Core` and
   `FerretSharp.UI` without generated code and Razor markup (`tests/coverage.config`); the report of each CI run is
   attached to it as an artifact.
+- `tools/linux/Test-Linux.ps1` builds and runs the unit tests under Linux in Docker, like the first CI job, on the
+  working tree including uncommitted changes – CI tests on Linux first, so platform differences show up before a push.
 - `tools/sample-db/New-SampleDb.ps1` creates a local sample database with the schema used in the screenshots;
   `samples/` contains a matching EF Core project.
 - A release build is a self-contained folder:
