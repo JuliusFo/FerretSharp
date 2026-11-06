@@ -113,6 +113,10 @@ public class ForeignKeyTargetsTests
     {
         var kunden = new TableRef("SHOP", "KUNDEN");
 
+        // Code review: a relationship to a table the designer does not offer (a view, another owner's) was taken at once.
+        Assert.Empty(Suggest(["DATUM"], Relation(new("OTHER", "KUNDEN"), ["DATUM"], ["ID"])));
+        Assert.Empty(Suggest(["DATUM"], Relation(new("SHOP", "V_KUNDEN"), ["DATUM"], ["ID"])));
+
         Assert.Empty(Suggest(["DATUM"], Relation(kunden, ["DATUM"], ["ID"], FkSource.Declared)));
         Assert.Empty(Suggest(["DATUM"], Relation(kunden, ["KUNDE_ID"], ["ID"])));
         Assert.Empty(Suggest(["DATUM"], Relation(kunden, ["DATUM", "KUNDE_ID"], ["ID", "X"])));

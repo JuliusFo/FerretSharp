@@ -43,7 +43,11 @@ public static class ForeignKeyTargets
     /// <summary>The suggested targets, most certain first; each table once, with its best reason. Empty without columns.</summary>
     /// <param name="table">The table that gets the foreign key.</param>
     /// <param name="columns">Its key columns as chosen.</param>
-    /// <param name="tables">The tables that can be referenced (the schema's own tables).</param>
+    /// <param name="tables">
+    /// The tables that can be referenced (the schema's own tables); a relationship to anything else – a view, another owner's
+    /// table, a synonym's target – is no suggestion: the designer offers only these (code review: one was taken at once and
+    /// the DDL failed on running).
+    /// </param>
     /// <param name="primaryKeyOf">The primary key columns of a table, in key order; empty without one.</param>
     /// <param name="relations">The relationships from <paramref name="table"/> (<see cref="SchemaCache.OutgoingOf"/>); declared ones are left out.</param>
     public static IReadOnlyList<ForeignKeyTarget> Suggest(
@@ -59,8 +63,10 @@ public static class ForeignKeyTargets
             return [];
         }
 
+        var referable = tables as IReadOnlyCollection<TableRef> ?? tables.ToList();
+        var known = referable.ToHashSet();
         var found = new List<ForeignKeyTarget>();
-        foreach (var relation in relations.Where(r => r.Source != FkSource.Declared && r.Audit is null && r.From == table))
+        foreach (var relation in relations.Where(r => r.Source != FkSource.Declared && r.Audit is null && r.From == table && known.Contains(r.To)))
         {
             if (KeyFor(columns, relation) is { } key)
             {
@@ -71,7 +77,7 @@ public static class ForeignKeyTargets
         if (columns is [var column])
         {
             var stems = Stems(column);
-            var keyed = tables.Select(t => (Table: t, Key: primaryKeyOf(t))).Where(t => t.Key.Count == 1).ToList();
+            var keyed = referable.Select(t => (Table: t, Key: primaryKeyOf(t))).Where(t => t.Key.Count == 1).ToList();
             var sameName = keyed.Where(t => Same(t.Key[0], column)).ToList();
             if (sameName.Count <= SpecificKeyTables) // ID and the like name the key of many tables: they say nothing
             {
