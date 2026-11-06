@@ -170,7 +170,7 @@ public sealed partial class ShellState
     /// <summary>
     /// Opens a new LINQ console tab ("LINQ 1", "LINQ 2" …) (WP-13), optionally with code and the declarations of its
     /// variables (a query from the diagram, WP-69). An empty one ("+ LINQ", shortcut) goes to the end, beside the button;
-    /// one with code after the active tab it came from.
+    /// one with code after the active tab.
     /// </summary>
     public LinqTab? OpenLinq(string? code = null, string? variables = null)
     {
@@ -187,7 +187,8 @@ public sealed partial class ShellState
     /// <summary>
     /// Opens a new SQL editor tab ("SQL 1", "SQL 2" …) (WP-17), optionally with a statement and its variables ("Open in SQL
     /// editor" from a table tab's SQL preview). An empty one ("+ SQL", shortcut) goes to the end, beside the button; one
-    /// with a statement after the active tab it came from. The editor takes the focus (WP-73).
+    /// with a statement after the active tab – also the DDL proposal of the schema comparison in its target connection
+    /// (<see cref="OpenSqlIn"/>). The editor takes the focus (WP-73).
     /// </summary>
     public SqlTab? OpenSql(string? text = null, IReadOnlyList<Core.Query.SqlVariable>? variables = null)
     {
