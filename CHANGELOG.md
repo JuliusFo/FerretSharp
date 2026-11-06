@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- The list of ways beside the diagram of *Relations › Path to …* can be made wider or narrower like the other side panels: drag its right edge, a double click goes back to the default. The width holds for every relationship view and is kept after a restart.
+
 ## [3.61.0] - 2026-11-06
 
 Every way between two tables in the relationship view, a searchable list with suggestions for the table of a new foreign key, and a table can open on another view or without rows.

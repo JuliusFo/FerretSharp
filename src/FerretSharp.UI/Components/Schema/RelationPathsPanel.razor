@@ -1,11 +1,13 @@
 @* The list of ways beside the diagram of the relationship view (WP-74): the tables left out as chips, the progress of
    the search with "Cancel" and "More ways", and one row per way – its tables with ↑ for a step to the parent and ↓ for
    one to a child, its length, "1 : 1" or "1 : n", and a menu (build the query, copy). Hovering a row lights the way in
-   the diagram, a click chooses it. Each way is a RelationPathRow that renders only when it changes (review). *@
+   the diagram, a click chooses it. Each way is a RelationPathRow that renders only when it changes (review). Its right
+   edge drags the width; the owner keeps it (in the settings) and hands it back as Width. *@
 @using FerretSharp.Core.Relations
 @using FerretSharp.Core.Schema
 
-<aside class="paths-panel">
+<aside class="paths-panel" style="@WidthStyle">
+    <ResizeHandle Edge="ResizeEdge.Right" Min="MinWidth" MaxFraction="MaxFraction" OnResized="w => OnWidthChanged.InvokeAsync(w)" OnReset="() => OnWidthChanged.InvokeAsync(null)" />
     @if (State.Avoided.Count > 0)
     {
         <div class="paths-avoided">
@@ -50,8 +52,22 @@
 </aside>
 
 @code {
+    private const int MinWidth = 280;
+    private const double MaxFraction = 0.6;
+
     [Parameter, EditorRequired]
     public RelationPathsState State { get; set; } = null!;
+
+    /// <summary>The dragged width in pixels; null (or not positive) for the default of the stylesheet.</summary>
+    [Parameter]
+    public int? Width { get; set; }
+
+    /// <summary>The width once a drag ends, null after a double click on the edge (back to the default).</summary>
+    [Parameter]
+    public EventCallback<int?> OnWidthChanged { get; set; }
+
+    /// <summary>No style for the default: going back to it drops the attribute, and with it the width dom.js set.</summary>
+    private string? WidthStyle => Width is > 0 and var w ? FormattableString.Invariant($"width: {w}px;") : null;
 
     [Parameter, EditorRequired]
     public Func<TableRef, string> Label { get; set; } = null!;

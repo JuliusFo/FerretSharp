@@ -170,6 +170,12 @@ public sealed record AppSettings
     public int? ExplorerWidth { get; init; }
 
     /// <summary>
+    /// Width of the list of ways beside the diagram of "Path to …" (WP-74) in pixels, as the user dragged it; null for the
+    /// default. One for every relationship view.
+    /// </summary>
+    public int? PathsPanelWidth { get; init; }
+
+    /// <summary>
     /// Long lines wrap in the LOB editor – the dialog's switch for text with line breaks, kept for the next dialog and
     /// after a restart. Text without line breaks always starts wrapped.
     /// </summary>
