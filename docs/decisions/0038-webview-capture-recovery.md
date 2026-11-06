@@ -42,3 +42,11 @@ Log des Nutzers beim Wechsel von RDP zurück an die Konsole (ohne GPU-Schalter, 
 - **Handler der Anzeigeänderung ersetzt:** `WebViewCapture` hängt `OnDisplaySettingsChanged` des Controls von `SystemEvents.DisplaySettingsChanged` ab (`SystemEvents` vergleicht die Delegaten mit `Equals`, in Microsoft.Win32.SystemEvents 10.0.12 nachgelesen) und baut selbst neu auf. `OnDisplaySettingsChanging` des Controls bleibt. Seine Wiederholungen nach `COMException` laufen damit nicht mehr; die eigenen decken sie ab.
 - **Neustart nach einem Sitzungswechsel:** `ConsoleConnect`, `RemoteConnect` und `SessionUnlock` starten die Aufnahme 3 s später neu, wie nach dem Ruhezustand; mehrere Wechsel kurz hintereinander ergeben einen Neustart.
 - Beim Heben von WebView2 zusätzlich: „Display changes of the WebView's capture taken over“ (Debug) im Log.
+
+## Nachtrag: Leeres Fenster über RDP (2026-11-06, `fix/webview-rdp-front-buffer`)
+
+Über RDP mit GPU-Schalter (ADR 0043, Tier 2) wurde das Fenster dauerhaft leer, nachdem der Nutzer am PC zwischen dem RDP-Fenster und anderen gewechselt hatte; Minimieren half nicht. Das Control kopiert nur mit Front Buffer oder bei Tier 0 (`_useSoftwareRendering`). Ein Neustart ohne Front Buffer gab den Back Buffer frei – ebenso eine Anzeigeänderung (`OnDisplaySettingsChanging`, `WM_DISPLAYCHANGE` im `WndProc` des Controls). Ohne Back Buffer gibt es keine `InteropDeviceBitmap` und damit keinen Callback, der die Rückkehr des Front Buffers meldet (PresentationCore 10.0.12): Das Bild blieb leer (`fix-webview-rdp-front-buffer.md`).
+
+- **Ohne Front Buffer in Software zeigen:** `WebViewCapture` setzt `_useSoftwareRendering` des Controls, solange der Front Buffer fehlt; WPF zeigt den Back Buffer dann per `enableSoftwareFallback`, wie bei Tier 0, und nach jeder Freigabe setzt das nächste Bild einen neuen. Mit dem Front Buffer gilt wieder der Tier. Nach jedem `RenderCapability.TierChanged` nachgezogen (der Handler des Controls setzt es nach dem Tier allein). Das gilt auch, wenn die Member des Neustarts fehlen.
+- **Neustart wie bisher**, auch ohne Front Buffer: Minimieren bleibt der Ausweg (Review). Nur wenn `_useSoftwareRendering` fehlt, wartet ein Neustart ohne Front Buffer bei Tier ≠ 0 auf ihn („postponed“).
+- Beim Heben von WebView2 zusätzlich: keine Warnung „cannot be shown without a front buffer“ im Log.
