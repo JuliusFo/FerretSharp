@@ -499,8 +499,17 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
         }
     }
 
+    /// <summary>
+    /// Frames the capture delivered since the start, of any pool (<see cref="WebViewSizeWatch"/> tells "none arrived" from
+    /// "arrived, not shown"); null while the frames are not taken over (then the control's own handler gets them).
+    /// </summary>
+    public long? FramesArrived => _pool is null ? null : _framesArrived;
+
+    private long _framesArrived;
+
     private void OnFrameArrived(Direct3D11CaptureFramePool pool, object args)
     {
+        _framesArrived++;
         NoteArrived();
         if (!ReferenceEquals(pool, _pool) || _hold is not { } hold || hold.IsEnabled)
         {

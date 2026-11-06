@@ -192,6 +192,7 @@ public partial class App : Application
         builder.Services.AddSingleton<UpdateState>();
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton<WebViewCapture>();
+        builder.Services.AddSingleton<WebViewSizeWatch>();
         builder.Services.AddSingleton(sp => new UiStallMonitor(
             Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>(), paths.LogsDirectory, sp.GetRequiredService<AppSettingsService>()));
         builder.Services.AddSingleton(sp => new UiHangWatch(Dispatcher, sp.GetRequiredService<ILogger<UiHangWatch>>()));

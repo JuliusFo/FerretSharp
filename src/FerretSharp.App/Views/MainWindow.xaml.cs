@@ -10,7 +10,8 @@ public partial class MainWindow : Window
 {
     private bool _exitApproved;
 
-    public MainWindow(IServiceProvider services, WindowTheme theme, WebViewCapture capture, ExitGuard exitGuard, ILogger<MainWindow> logger)
+    public MainWindow(IServiceProvider services, WindowTheme theme, WebViewCapture capture, WebViewSizeWatch sizes, ExitGuard exitGuard,
+        ILogger<MainWindow> logger)
     {
         theme.PrepareWebViewBackground();
         InitializeComponent();
@@ -22,6 +23,7 @@ public partial class MainWindow : Window
             theme.AttachWebView(e.WebView.CoreWebView2);
             HoldMouseWhileDragging(e.WebView);
             capture.Attach(e.WebView);
+            sizes.Attach(this, e.WebView);
         };
         // Back from minimized, the picture is captured anew: the way out should it have frozen after all (2026-10-30).
         var minimized = false;
