@@ -181,7 +181,7 @@ public sealed class RelationPathsStateTests
     }
 
     [Fact]
-    public void Candidates_are_found_by_table_and_entity_name_without_the_start()
+    public void Targets_are_found_by_table_and_entity_name_without_the_start()
     {
         TableSummary[] tables =
         [
@@ -192,10 +192,13 @@ public sealed class RelationPathsStateTests
         ];
         string? Entity(TableRef t) => t.Name == "AUFTRAG" ? "Bestellung" : null;
 
-        Assert.Equal(["KUNDE", "KUNDE_ADRESSE"], RelationPathsState.Candidates(tables, Entity, "kunde", Artikel).Select(t => t.Name));
-        Assert.Equal(["KUNDE_ADRESSE"], RelationPathsState.Candidates(tables, Entity, "kundeadresse", Artikel).Select(t => t.Name));
-        Assert.Equal(["AUFTRAG"], RelationPathsState.Candidates(tables, Entity, "bestell", Artikel).Select(t => t.Name));
-        Assert.Equal(["AUFTRAG", "KUNDE"], RelationPathsState.Candidates(tables, Entity, "", Artikel, limit: 2).Select(t => t.Name));
+        string[] Found(string query) =>
+            [.. TablePickList.Of(RelationPathsState.TargetChoices(tables, Artikel), query, [], _ => [], Entity).Rest.Select(r => r.Table.Name)];
+
+        Assert.Equal(["KUNDE", "KUNDE_ADRESSE"], Found("kunde"));
+        Assert.Equal(["KUNDE_ADRESSE"], Found("kundeadresse"));
+        Assert.Equal(["AUFTRAG"], Found("bestell"));
+        Assert.Equal(["KUNDE", "KUNDE_ADRESSE", "AUFTRAG"], Found("")); // list order, without the start
     }
 
     [Fact]

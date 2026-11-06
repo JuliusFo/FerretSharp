@@ -90,32 +90,12 @@ public sealed class RelationPathsState(TableRef start)
         Restart();
     }
 
-    /// <summary>Tables shown in the menu "Path to": at most this many.</summary>
-    public const int CandidateLimit = 30;
-
     /// <summary>
-    /// The tables to choose a target from for <paramref name="query"/>, as the quick open finds them: by table name (or
-    /// synonym) and entity name, the best match first, then by name; the start left out.
+    /// The tables to choose a target from: the schema's, without the start (the table picker searches them like the quick
+    /// open; code review of the foreign key target picker: "Path to" had its own ranking and limit).
     /// </summary>
-    public static IReadOnlyList<TableSummary> Candidates(
-        IEnumerable<TableSummary> tables, Func<TableRef, string?> entityOf, string? query, TableRef start, int limit = CandidateLimit)
-    {
-        var terms = Core.Query.NameRank.Terms(query);
-        return
-        [
-            .. tables
-                .Where(t => t.Ref != start)
-                .Select(t => (Table: t, Match: Core.Query.NameRank.Best(
-                    Core.Query.NameRank.Of(t.DisplayName, terms),
-                    entityOf(t.Ref) is { } entity ? Core.Query.NameRank.OfClrName(entity, terms) : null)))
-                .Where(c => c.Match is not null)
-                .OrderBy(c => c.Match)
-                .ThenBy(c => c.Table.DisplayName, StringComparer.Ordinal)
-                .ThenBy(c => c.Table.Owner, StringComparer.Ordinal)
-                .Take(limit)
-                .Select(c => c.Table),
-        ];
-    }
+    public static IReadOnlyList<TableSummary> TargetChoices(IEnumerable<TableSummary> tables, TableRef start) =>
+        [.. tables.Where(t => t.Ref != start)];
 
     public void Select(RelationPath? path) => Selected = path is null ? null : _paths.FirstOrDefault(p => p.Key == path.Key);
 
