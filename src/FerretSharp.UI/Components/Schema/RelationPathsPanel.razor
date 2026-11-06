@@ -66,8 +66,7 @@
     [Parameter]
     public EventCallback<int?> OnWidthChanged { get; set; }
 
-    /// <summary>No style for the default: going back to it drops the attribute, and with it the width dom.js set.</summary>
-    private string? WidthStyle => Width is > 0 and var w ? FormattableString.Invariant($"width: {w}px;") : null;
+    private string? WidthStyle => PanelSizes.Width(Width);
 
     [Parameter, EditorRequired]
     public Func<TableRef, string> Label { get; set; } = null!;

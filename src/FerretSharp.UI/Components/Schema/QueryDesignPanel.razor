@@ -133,8 +133,7 @@
     private const int MinWidth = 320;
     private const double MaxFraction = 0.6;
 
-    /// <summary>No style for the default: going back to it drops the attribute, and with it the width dom.js set.</summary>
-    private string? WidthStyle => Settings.Current.QueryPanelWidth is > 0 and var w ? FormattableString.Invariant($"width: {w}px;") : null;
+    private string? WidthStyle => PanelSizes.Width(Settings.Current.QueryPanelWidth);
 
     /// <summary>Dragging the left edge sets the width – one for the whole app, kept in the settings; null for the default.</summary>
     private async Task SaveWidthAsync(int? width)
