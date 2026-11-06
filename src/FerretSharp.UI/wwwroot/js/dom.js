@@ -80,10 +80,10 @@ export function viewportSize() {
   return [window.innerWidth, window.innerHeight];
 }
 
-/** The window's size and the element's box below which a menu opens (MenuButton BelowButton): width, height, left, bottom. */
+/** The window's size and the element's box below which a menu opens (MenuButton BelowButton): width, height, left, bottom, top. */
 export function placeBelow(element) {
   const rect = element?.getBoundingClientRect();
-  return [window.innerWidth, window.innerHeight, rect?.left ?? 0, rect?.bottom ?? 0];
+  return [window.innerWidth, window.innerHeight, rect?.left ?? 0, rect?.bottom ?? 0, rect?.top ?? 0];
 }
 
 /** Drops the text selection: Shift+click on rows that are picked (the columns view) would extend it over them. */
@@ -91,23 +91,35 @@ export function clearTextSelection() {
   window.getSelection()?.removeAllRanges();
 }
 
-/** Moves a fixed popup up if it reaches below the window (its height is only known once rendered). */
-export function keepInViewport(id, margin = 8) {
+/**
+ * Moves a fixed popup up if it reaches below the window (its height is only known once rendered). With `above` (the top of
+ * the button it opens below) it goes above the button instead, if it fits there – it would cover the button otherwise.
+ */
+export function keepInViewport(id, margin = 8, above = null) {
   const element = document.getElementById(id);
   if (!element) return;
   const rect = element.getBoundingClientRect();
   if (rect.bottom > window.innerHeight - margin) {
-    element.style.top = Math.max(margin, window.innerHeight - rect.height - margin) + 'px';
+    element.style.top = (fitsAbove(above, rect.height, margin)
+      ? above - rect.height - 2
+      : Math.max(margin, window.innerHeight - rect.height - margin)) + 'px';
   }
+}
+
+/** A popup of this height fits between the window's top and `above` (null: no button to open above). */
+function fitsAbove(above, height, margin) {
+  return above != null && above - height - 2 >= margin;
 }
 
 /**
  * The keys of a right-click menu with a filter field (WP-61), which gets the focus: ↑ ↓ move it through the entries (buttons
  * and the field as shown, disabled ones skipped), Enter and Space click the focused one as browsers do; a character or
  * Backspace while an entry has the focus focuses the field first, so the key lands there. The menu stays in the window as it
- * grows or shrinks (a folded list opened, the filter typed): at `top` if it fits, else as far up as needed.
+ * grows or shrinks (a folded list opened, the filter typed): at `top` if it fits, else as far up as needed. With `above` (the
+ * top of the button it opens below) a menu that does not fit below goes above the button – decided once, at its first size,
+ * so it does not jump sides while the filter shrinks it; it then grows and shrinks upwards from the button.
  */
-export function menuKeys(id, top) {
+export function menuKeys(id, top, above = null) {
   const menu = document.getElementById(id);
   if (!menu) return;
   const field = () => menu.querySelector('.ctx-filter input');
@@ -129,9 +141,13 @@ export function menuKeys(id, top) {
     if (!input || document.activeElement === input || e.ctrlKey || e.altKey || e.metaKey) return;
     if ((e.key.length === 1 && e.key !== ' ') || e.key === 'Backspace') input.focus();
   });
+  let upwards = null;
   new ResizeObserver(() => {
     const height = menu.getBoundingClientRect().height;
-    menu.style.top = Math.max(8, Math.min(top, window.innerHeight - height - 8)) + 'px';
+    upwards ??= top + height > window.innerHeight - 8 && fitsAbove(above, height, 8);
+    menu.style.top = (upwards
+      ? Math.max(8, above - height - 2)
+      : Math.max(8, Math.min(top, window.innerHeight - height - 8))) + 'px';
   }).observe(menu);
 }
 
