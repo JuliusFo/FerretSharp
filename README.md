@@ -173,7 +173,8 @@ developer works with an Oracle database day to day:
       descending) or create a new table. Choose the tablespace of a new table, of a new index and of the indexes new keys
       and foreign keys bring along – suggested from where the table's or schema's others lie. Rename
       existing constraints (a key takes its index along), give a check a new condition – added before the old one goes –
-      or a foreign key another delete rule. You see the DDL before it runs – and the property and configuration lines
+      or a foreign key another delete rule. A new foreign key finds its table in a searchable list (also by C# name, each
+      table with its primary key) and suggests it from the column's name or a relationship of your C# model. You see the DDL before it runs – and the property and configuration lines
       for your entity – and what Oracle would refuse with the data at hand is reported up front. Run, Save and Close stay
       in view at the top, and a locked workspace shows as a bar across the designer.<br><br>
       <b>Audit tables</b> and their trigger come from a template file (your company's pattern, or a built-in one) and
