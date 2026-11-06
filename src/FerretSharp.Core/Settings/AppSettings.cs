@@ -176,6 +176,12 @@ public sealed record AppSettings
     public int? PathsPanelWidth { get; init; }
 
     /// <summary>
+    /// Width of the side panel of "Build query" in the relationship view (WP-69) in pixels, as the user dragged it; null for
+    /// the default. One for every relationship view.
+    /// </summary>
+    public int? QueryPanelWidth { get; init; }
+
+    /// <summary>
     /// Long lines wrap in the LOB editor – the dialog's switch for text with line breaks, kept for the next dialog and
     /// after a restart. Text without line breaks always starts wrapped.
     /// </summary>

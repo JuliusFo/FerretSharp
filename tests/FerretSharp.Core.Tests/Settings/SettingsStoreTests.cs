@@ -30,6 +30,7 @@ public sealed class SettingsStoreTests : IDisposable
             (settings.ShowColumnTypes, settings.ShowNotNull, settings.SyncAuditInDesigner, settings.CreateAuditTables, settings.CheckForUpdates, settings.ChangesPanelOpen, settings.ChangesPanelWidth));
         Assert.Null(settings.ExplorerWidth);
         Assert.Null(settings.PathsPanelWidth);
+        Assert.Null(settings.QueryPanelWidth);
         Assert.Equal((TabMode.Data, RowLoadMode.Immediately), (settings.OpenView, settings.LoadRows));
     }
 

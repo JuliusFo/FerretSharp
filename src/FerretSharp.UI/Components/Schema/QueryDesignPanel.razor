@@ -1,6 +1,7 @@
 @* The side panel of "Abfrage bauen" in the relationship view (WP-69): the query as a tree (root, parents, chosen children),
    for the selected node its columns, conditions and – for a chosen child – its order, and below the output as LINQ, SQL
-   or a preview of the rows. Logic in QueryDesignEditor (State), SQL and C# in Core; this only shows and forwards. *@
+   or a preview of the rows. Logic in QueryDesignEditor (State), SQL and C# in Core; this only shows and forwards. The left
+   edge drags the width (in the settings). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -16,105 +17,109 @@
 @inject AppSettingsService Settings
 @inject ILogger<QueryDesignPanel> Logger
 
-<aside class="query-panel">
-    @if (Editor.Design is { } design)
-    {
-        <ul class="query-tree">
-            @foreach (var node in design.Nodes)
-            {
-                var n = node;
-                <li class="query-node @(ReferenceEquals(n, Editor.Selected) ? "selected" : "")" style="@($"padding-left:{n.Path.Count * 14 + 4}px")">
-                    <button class="link-btn query-node-name" @onclick="() => Change(() => Editor.Select(n))">@NodeLabel(n)</button>
-                    @if (n.State.Columns.Count > 0)
-                    {
-                        <span class="fs-badge">@n.State.Columns.Count</span>
-                    }
-                    @if (!n.IsRoot)
-                    {
-                        <button class="icon-btn" title="@SchemaViewText.Query_Remove" @onclick="() => Change(() => Editor.Remove(n))">@Icons.Close</button>
-                    }
-                </li>
-            }
-        </ul>
-
-        @foreach (var note in Editor.Notes)
+<aside class="query-panel" style="@WidthStyle">
+    <ResizeHandle Edge="ResizeEdge.Left" Min="MinWidth" MaxFraction="MaxFraction" OnResized="w => SaveWidthAsync(w)" OnReset="() => SaveWidthAsync(null)" />
+    @* Scrolls inside the panel: a handle in a scrolling element would scroll away with its content. *@
+    <div class="query-panel-body">
+        @if (Editor.Design is { } design)
         {
-            <p class="hint small warn">@note</p>
-        }
-        @if (Editor.Notes.Count > 0)
-        {
-            <div class="query-actions">
-                <button class="btn" @onclick="() => Change(Editor.DropMissing)">@SchemaViewText.Query_DropMissing</button>
-            </div>
-        }
-
-        @if (Editor.Selected is { } selected)
-        {
-            var next = Editor.NextSteps(selected);
-            @if (next.Count > 0)
-            {
-                @* Keyed on the query: the same value "" again would not reset the choice the browser shows (ui.md). *@
-                <select @key="Editor.State" class="field query-add" value="" @onchange="e => AddStep(selected, next, e.Value as string)">
-                    <option value="">@SchemaViewText.Query_AddStep</option>
-                    @for (var i = 0; i < next.Count; i++)
-                    {
-                        var (step, relation) = next[i];
-                        <option value="@i">@StepOption(step, relation)</option>
-                    }
-                </select>
-            }
-
-            @if (Editor.DetailsOf(selected.Table) is { } details)
-            {
-                <QueryNodeEditor Node="selected" Details="details" Editor="Editor" OnChanged="Changed" />
-            }
-        }
-
-        <div class="query-output">
-            @if (!Editor.Complete && Editor.ColumnsFailed)
-            {
-                <p class="error small">@SchemaViewText.Query_ColumnsFailed</p>
-                <div class="query-actions">
-                    <button class="btn" @onclick="() => OnChanged.InvokeAsync()">@CommonText.TryAgain</button>
-                </div>
-            }
-            else if (!Editor.Complete)
-            {
-                <p class="muted"><span class="spinner"></span> @SchemaViewText.Query_LoadingColumns</p>
-            }
-            else if (!Editor.HasColumns)
-            {
-                <p class="muted">@SchemaViewText.Query_NoColumns</p>
-            }
-            else if (Editor.Problem is { } problem)
-            {
-                <p class="error small">@problem</p>
-            }
-            else
-            {
-                <div class="segmented small" role="tablist">
-                    @foreach (var (output, label) in Outputs)
-                    {
-                        var o = output;
-                        <button class="seg @(_output == o ? "active" : "")" role="tab" aria-selected="@(_output == o ? "true" : "false")"
-                                @onclick="() => { _output = o; _outputChosen = true; }">@label</button>
-                    }
-                </div>
-                @switch (_output)
+            <ul class="query-tree">
+                @foreach (var node in design.Nodes)
                 {
-                    case Output.Linq:
-                        @LinqOutput()
-                        break;
-                    case Output.Sql:
-                        @SqlOutput()
-                        break;
-                    case Output.Preview:
-                        @PreviewOutput()
-                        break;
+                    var n = node;
+                    <li class="query-node @(ReferenceEquals(n, Editor.Selected) ? "selected" : "")" style="@($"padding-left:{n.Path.Count * 14 + 4}px")">
+                        <button class="link-btn query-node-name" @onclick="() => Change(() => Editor.Select(n))">@NodeLabel(n)</button>
+                        @if (n.State.Columns.Count > 0)
+                        {
+                            <span class="fs-badge">@n.State.Columns.Count</span>
+                        }
+                        @if (!n.IsRoot)
+                        {
+                            <button class="icon-btn" title="@SchemaViewText.Query_Remove" @onclick="() => Change(() => Editor.Remove(n))">@Icons.Close</button>
+                        }
+                    </li>
+                }
+            </ul>
+
+            @foreach (var note in Editor.Notes)
+            {
+                <p class="hint small warn">@note</p>
+            }
+            @if (Editor.Notes.Count > 0)
+            {
+                <div class="query-actions">
+                    <button class="btn" @onclick="() => Change(Editor.DropMissing)">@SchemaViewText.Query_DropMissing</button>
+                </div>
+            }
+
+            @if (Editor.Selected is { } selected)
+            {
+                var next = Editor.NextSteps(selected);
+                @if (next.Count > 0)
+                {
+                    @* Keyed on the query: the same value "" again would not reset the choice the browser shows (ui.md). *@
+                    <select @key="Editor.State" class="field query-add" value="" @onchange="e => AddStep(selected, next, e.Value as string)">
+                        <option value="">@SchemaViewText.Query_AddStep</option>
+                        @for (var i = 0; i < next.Count; i++)
+                        {
+                            var (step, relation) = next[i];
+                            <option value="@i">@StepOption(step, relation)</option>
+                        }
+                    </select>
+                }
+
+                @if (Editor.DetailsOf(selected.Table) is { } details)
+                {
+                    <QueryNodeEditor Node="selected" Details="details" Editor="Editor" OnChanged="Changed" />
                 }
             }
-        </div>
-    }
+
+            <div class="query-output">
+                @if (!Editor.Complete && Editor.ColumnsFailed)
+                {
+                    <p class="error small">@SchemaViewText.Query_ColumnsFailed</p>
+                    <div class="query-actions">
+                        <button class="btn" @onclick="() => OnChanged.InvokeAsync()">@CommonText.TryAgain</button>
+                    </div>
+                }
+                else if (!Editor.Complete)
+                {
+                    <p class="muted"><span class="spinner"></span> @SchemaViewText.Query_LoadingColumns</p>
+                }
+                else if (!Editor.HasColumns)
+                {
+                    <p class="muted">@SchemaViewText.Query_NoColumns</p>
+                }
+                else if (Editor.Problem is { } problem)
+                {
+                    <p class="error small">@problem</p>
+                }
+                else
+                {
+                    <div class="segmented small" role="tablist">
+                        @foreach (var (output, label) in Outputs)
+                        {
+                            var o = output;
+                            <button class="seg @(_output == o ? "active" : "")" role="tab" aria-selected="@(_output == o ? "true" : "false")"
+                                    @onclick="() => { _output = o; _outputChosen = true; }">@label</button>
+                        }
+                    </div>
+                    @switch (_output)
+                    {
+                        case Output.Linq:
+                            @LinqOutput()
+                            break;
+                        case Output.Sql:
+                            @SqlOutput()
+                            break;
+                        case Output.Preview:
+                            @PreviewOutput()
+                            break;
+                    }
+                }
+            </div>
+        }
+    </div>
 </aside>
 
 @code {
@@ -123,6 +128,23 @@
         Linq,
         Sql,
         Preview,
+    }
+
+    private const int MinWidth = 320;
+    private const double MaxFraction = 0.6;
+
+    /// <summary>No style for the default: going back to it drops the attribute, and with it the width dom.js set.</summary>
+    private string? WidthStyle => Settings.Current.QueryPanelWidth is > 0 and var w ? FormattableString.Invariant($"width: {w}px;") : null;
+
+    /// <summary>Dragging the left edge sets the width – one for the whole app, kept in the settings; null for the default.</summary>
+    private async Task SaveWidthAsync(int? width)
+    {
+        if (width == Settings.Current.QueryPanelWidth)
+        {
+            return;
+        }
+
+        await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { QueryPanelWidth = width }, CancellationToken.None), Logger);
     }
 
     private Output _output = Output.Sql;
