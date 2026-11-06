@@ -44,6 +44,13 @@
     [Parameter]
     public bool KeyNavigation { get; set; }
 
+    /// <summary>
+    /// The top of the button the menu opens below (<see cref="MenuButton.BelowButton"/>): a menu that does not fit below goes
+    /// above it instead of over it. Null: kept in the window from <see cref="Y"/>.
+    /// </summary>
+    [Parameter]
+    public double? Above { get; set; }
+
     [Parameter]
     public EventCallback OnClose { get; set; }
 
@@ -68,12 +75,12 @@
     {
         if (firstRender && KeyNavigation)
         {
-            await Dom.InvokeVoidAsync("menuKeys", _id, Math.Max(8, Y)); // Escape outside the field's text closes
+            await Dom.InvokeVoidAsync("menuKeys", _id, Math.Max(8, Y), Above); // Escape outside the field's text closes
         }
         else if (firstRender)
         {
             await Dom.InvokeVoidAsync("focusById", _id); // Escape closes
-            await Dom.InvokeVoidAsync("keepInViewport", _id);
+            await Dom.InvokeVoidAsync("keepInViewport", _id, 8, Above);
         }
     }
 

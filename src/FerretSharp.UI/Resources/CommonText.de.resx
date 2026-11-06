@@ -144,4 +144,7 @@ FerretSharp jetzt neu starten?</value>
   <data name="Resize_Height" xml:space="preserve">
     <value>Ziehen ändert die Höhe, Doppelklick stellt die Standardhöhe her</value>
   </data>
+  <data name="NoPrimaryKeyShort" xml:space="preserve">
+    <value>kein PK</value>
+  </data>
 </root>

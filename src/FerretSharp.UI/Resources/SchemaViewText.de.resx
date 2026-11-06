@@ -1785,6 +1785,45 @@
   <data name="Query_ViewCreated" xml:space="preserve">
     <value>View {0} angelegt.</value>
   </data>
+  <data name="TablePicker_Suggested" xml:space="preserve">
+    <value>vorgeschlagen</value>
+  </data>
+  <data name="TablePicker_SuggestedTitle" xml:space="preserve">
+    <value>Aus dem Spaltennamen oder einer Beziehung ohne Constraint vorgeschlagen – eine Tabelle wählen, um eine andere zu nehmen</value>
+  </data>
+  <data name="TablePicker_Search" xml:space="preserve">
+    <value>Tabellen suchen, auch nach C#-Namen</value>
+  </data>
+  <data name="TablePicker_SuggestedHead" xml:space="preserve">
+    <value>Vorschläge</value>
+  </data>
+  <data name="TablePicker_AllHead" xml:space="preserve">
+    <value>Alle Tabellen</value>
+  </data>
+  <data name="TablePicker_MatchesHead" xml:space="preserve">
+    <value>Weitere Treffer</value>
+  </data>
+  <data name="TablePicker_MoreOne" xml:space="preserve">
+    <value>1 weitere – Suche eingrenzen</value>
+  </data>
+  <data name="TablePicker_MoreOther" xml:space="preserve">
+    <value>{0} weitere – Suche eingrenzen</value>
+  </data>
+  <data name="TablePicker_None" xml:space="preserve">
+    <value>Keine Tabelle gefunden</value>
+  </data>
+  <data name="TablePicker_NoKey" xml:space="preserve">
+    <value>Kein Primärschlüssel: Ein FK braucht in der referenzierten Tabelle einen Primär- oder eindeutigen Schlüssel (ORA-02270)</value>
+  </data>
+  <data name="TablePicker_ReasonRelation" xml:space="preserve">
+    <value>Beziehung</value>
+  </data>
+  <data name="TablePicker_ReasonKeyName" xml:space="preserve">
+    <value>PK-Name</value>
+  </data>
+  <data name="TablePicker_ReasonColumnName" xml:space="preserve">
+    <value>Spaltenname</value>
+  </data>
   <data name="Paths_To" xml:space="preserve">
     <value>Weg zu …</value>
   </data>

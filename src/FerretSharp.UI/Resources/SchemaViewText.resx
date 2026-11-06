@@ -2177,6 +2177,53 @@
     <value>View {0} created.</value>
     <comment>{0}: name of the view</comment>
   </data>
+  <data name="TablePicker_Suggested" xml:space="preserve">
+    <value>suggested</value>
+    <comment>Small marker in the picker button: the table was suggested, not chosen</comment>
+  </data>
+  <data name="TablePicker_SuggestedTitle" xml:space="preserve">
+    <value>Suggested from the column's name or a relationship without constraint – pick a table to choose another</value>
+  </data>
+  <data name="TablePicker_Search" xml:space="preserve">
+    <value>Search tables, also by C# name</value>
+  </data>
+  <data name="TablePicker_SuggestedHead" xml:space="preserve">
+    <value>Suggested</value>
+    <comment>Group heading in the table picker</comment>
+  </data>
+  <data name="TablePicker_AllHead" xml:space="preserve">
+    <value>All tables</value>
+    <comment>Group heading in the table picker</comment>
+  </data>
+  <data name="TablePicker_MatchesHead" xml:space="preserve">
+    <value>Other matches</value>
+    <comment>Group heading in the table picker, below the suggestions</comment>
+  </data>
+  <data name="TablePicker_MoreOne" xml:space="preserve">
+    <value>1 more – narrow the search</value>
+  </data>
+  <data name="TablePicker_MoreOther" xml:space="preserve">
+    <value>{0} more – narrow the search</value>
+    <comment>{0}: number of tables not shown</comment>
+  </data>
+  <data name="TablePicker_None" xml:space="preserve">
+    <value>No table found</value>
+  </data>
+  <data name="TablePicker_NoKey" xml:space="preserve">
+    <value>No primary key: a foreign key needs a primary or unique key in the referenced table (ORA-02270)</value>
+  </data>
+  <data name="TablePicker_ReasonRelation" xml:space="preserve">
+    <value>relationship</value>
+    <comment>Why a table is suggested: a relationship without constraint (C# model)</comment>
+  </data>
+  <data name="TablePicker_ReasonKeyName" xml:space="preserve">
+    <value>key name</value>
+    <comment>Why a table is suggested: its primary key column has the column's name</comment>
+  </data>
+  <data name="TablePicker_ReasonColumnName" xml:space="preserve">
+    <value>column name</value>
+    <comment>Why a table is suggested: the column is named after it (KUNDE_ID)</comment>
+  </data>
   <data name="Paths_To" xml:space="preserve">
     <value>Path to …</value>
   </data>

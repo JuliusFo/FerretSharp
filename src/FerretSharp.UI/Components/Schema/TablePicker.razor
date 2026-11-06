@@ -1,0 +1,184 @@
+@* A table to pick from a long list (the designer's foreign key target, the relationship view's "Path to"): a button – like a
+   field, or the caller's – that opens a menu with a search field, ranked like the quick open, also by C# entity name; the
+   suggested tables on top and each table's primary key beside its name (or its entity name). ↑ ↓ move through the lines,
+   Enter in the field takes the first one, Escape clears the field, then closes. One picker for both (code review: "Path to"
+   had its own ranking, limit, empty text and keys). *@
+@using FerretSharp.Core.Design
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+
+<MenuButton @ref="_button" Class="@(Class ?? $"field table-pick{(Suggested ? " suggested" : "")}")" OpenClass="open" Title="@ButtonTitle" AriaLabel="@AriaLabel"
+            Disabled="Disabled" BelowButton="true" Width="380" EstimatedHeight="340" KeyNavigation="true" OnOpening="Opening">
+    <Label>
+        @if (ButtonContent is not null)
+        {
+            @ButtonContent
+        }
+        else
+        {
+            <span class="table-pick-name @(Chosen is null ? "placeholder" : "")">@(Chosen?.DisplayName ?? Placeholder)</span>
+            @if (Suggested && Chosen is not null)
+            {
+                <span class="table-pick-hint">@SchemaViewText.TablePicker_Suggested</span>
+            }
+            @Icons.ChevronDown
+        }
+    </Label>
+    <ChildContent Context="menu">
+        @{ var list = TablePickList.Of(Tables, _query, Suggestions, KeyOf, EntityName); var search = new TextSearch(_query); }
+        <div @onkeydown="e => OnSearchKey(e, menu)">
+            <SearchBox Class="popover-search ctx-filter" @bind-Value="_query" Placeholder="@(SearchPlaceholder ?? SchemaViewText.TablePicker_Search)" />
+        </div>
+        <div class="table-pick-list">
+            @if (list.Suggested.Count > 0)
+            {
+                <div class="group-head-btn static">@SchemaViewText.TablePicker_SuggestedHead</div>
+                @foreach (var row in list.Suggested)
+                {
+                    @Row(menu, row, search)
+                }
+
+                @if (list.Rest.Count > 0)
+                {
+                    <div class="group-head-btn static">@(search.IsActive ? SchemaViewText.TablePicker_MatchesHead : SchemaViewText.TablePicker_AllHead)</div>
+                }
+            }
+
+            @foreach (var row in list.Rest)
+            {
+                @Row(menu, row, search)
+            }
+
+            @if (list.More > 0)
+            {
+                <div class="palette-more">@TextFormat.Plural(list.More, SchemaViewText.TablePicker_MoreOne, SchemaViewText.TablePicker_MoreOther)</div>
+            }
+
+            @if (list.First is null)
+            {
+                <div class="popover-empty">@SchemaViewText.TablePicker_None</div>
+            }
+        </div>
+    </ChildContent>
+</MenuButton>
+
+@code {
+    private MenuButton? _button;
+    private string _query = "";
+
+    /// <summary>The tables to choose from, in list order.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<TableSummary> Tables { get; set; } = [];
+
+    /// <summary>The table chosen; null for none.</summary>
+    [Parameter]
+    public TableRef? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<TableRef?> ValueChanged { get; set; }
+
+    /// <summary>The suggested tables, most certain first (<see cref="ForeignKeyTargets"/>).</summary>
+    [Parameter]
+    public IReadOnlyList<ForeignKeyTarget> Suggestions { get; set; } = [];
+
+    /// <summary>The value was suggested, not chosen: the button says so.</summary>
+    [Parameter]
+    public bool Suggested { get; set; }
+
+    /// <summary>The primary key columns of a table, shown beside its name (<see cref="ShowKeys"/>).</summary>
+    [Parameter]
+    public Func<TableRef, IReadOnlyList<string>> KeyOf { get; set; } = _ => [];
+
+    /// <summary>The C# entity name of a table, found by the search too; null if it has none.</summary>
+    [Parameter]
+    public Func<TableRef, string?>? EntityName { get; set; }
+
+    [Parameter]
+    public string Placeholder { get; set; } = "";
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>The button's class; null: the field look (with "suggested").</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>What the button shows instead of the chosen table's name.</summary>
+    [Parameter]
+    public RenderFragment? ButtonContent { get; set; }
+
+    /// <summary>The button's tooltip; null: "suggested" or <see cref="AriaLabel"/>.</summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? SearchPlaceholder { get; set; }
+
+    /// <summary>Each line shows the table's primary key (dimmed without one); false: its entity name instead.</summary>
+    [Parameter]
+    public bool ShowKeys { get; set; } = true;
+
+    private TableSummary? Chosen => Value is { } value ? Tables.FirstOrDefault(t => t.Ref == value) : null;
+
+    private string? ButtonTitle => Title ?? (Suggested && Chosen is not null ? SchemaViewText.TablePicker_SuggestedTitle : AriaLabel);
+
+    /// <summary>Each opening starts with an empty field.</summary>
+    private Task Opening()
+    {
+        _query = "";
+        return Task.CompletedTask;
+    }
+
+    private RenderFragment Row(MenuButton menu, TablePickRow row, TextSearch search) => __builder =>
+    {
+        var keyless = ShowKeys && row.Key.Count == 0;
+        <button type="button" class="menu-item table-pick-row @(keyless ? "keyless" : "") @(row.Table.Ref == Value ? "current" : "")"
+                title="@(keyless ? SchemaViewText.TablePicker_NoKey : null)" @onclick="() => PickAsync(menu, row.Table.Ref)">
+            <span class="table-pick-row-name mono"><Highlight Text="@row.Table.DisplayName" Search="search" /></span>
+            @if (row.Reason is { } reason)
+            {
+                <span class="table-pick-reason">@ReasonLabel(reason)</span>
+            }
+            @if (ShowKeys)
+            {
+                <span class="table-pick-key mono">@(keyless ? CommonText.NoPrimaryKeyShort : string.Join(", ", row.Key))</span>
+            }
+            else if (EntityName?.Invoke(row.Table.Ref) is { } entity)
+            {
+                <span class="table-pick-entity">@entity</span>
+            }
+        </button>
+    };
+
+    private static string ReasonLabel(ForeignKeyTargetReason reason) => reason switch
+    {
+        ForeignKeyTargetReason.Relation => SchemaViewText.TablePicker_ReasonRelation,
+        ForeignKeyTargetReason.KeyName => SchemaViewText.TablePicker_ReasonKeyName,
+        _ => SchemaViewText.TablePicker_ReasonColumnName,
+    };
+
+    /// <summary>
+    /// Enter in the field takes the first line for the text as it is now – not the list of the last render, which a quick
+    /// Enter after typing or pasting can still have (code review).
+    /// </summary>
+    private async Task OnSearchKey(KeyboardEventArgs e, MenuButton menu)
+    {
+        if (e.Key == "Enter" && TablePickList.Of(Tables, _query, Suggestions, KeyOf, EntityName).First is { } first)
+        {
+            await PickAsync(menu, first.Table.Ref);
+        }
+    }
+
+    private async Task PickAsync(MenuButton menu, TableRef table)
+    {
+        menu.Close();
+        await ValueChanged.InvokeAsync(table);
+        if (_button is not null)
+        {
+            await _button.FocusAsync();
+        }
+    }
+}
