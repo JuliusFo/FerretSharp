@@ -52,7 +52,7 @@ Ohne Rückfrage entschieden (einfachste Variante, wie die Änderungsübersicht):
 - **Eine Breite für die ganze App** in den Einstellungen: `AppSettings.PathsPanelWidth`, null = Standard 420 px aus dem CSS. `RelationsView` speichert sie, `RelationPathsPanel` rendert sie als `style` nur, wenn gesetzt – beim Zurücksetzen fällt das Attribut weg und mit ihm die Breite aus `dom.js`.
 - Griff am rechten Rand (`ResizeEdge.Right`), Grenzen 280 px bis 60 % von `.relations-body` (vorher `max-width: 45%`), dieselben Grenzen im CSS. `overflow: hidden` an `.paths-panel` entfernt, sonst wäre die äußere Hälfte des Griffs abgeschnitten; die Liste scrollt weiter selbst.
 - Nicht geprüft: kein E2E (Docker lief nicht). Zu prüfen: Ziehen, Grenzen, Doppelklick, Neustart; liegt der Griff über dem Diagramm rechts daneben?
-- Offen: Das Seitenfeld von „Abfrage bauen“ (`.query-panel`) ist ebenfalls fest breit (460 px, rechts). Es scrollt als Ganzes, ein Griff bräuchte dort einen inneren Scroll-Bereich.
+- Das Seitenfeld von „Abfrage bauen“ (`.query-panel`, WP-69) war ebenso fest breit (460 px, rechts). Entscheidung des Nutzers: „Ja, auch dort“. Eigene Einstellung `AppSettings.QueryPanelWidth`, Griff am linken Rand, 320 px bis 60 %. Das Feld scrollte als Ganzes, ein Griff darin wäre mit dem Inhalt weggescrollt: Der Inhalt steht jetzt in `.query-panel-body`, das selbst scrollt (Abstände und Polster von `.query-panel` dorthin verschoben).
 
 ## Nachtrag: Editorhöhe je Tab (2026-11-04)
 Entscheidung des Nutzers nach dem Code-Review: „Ich würde erstmal je Tab eine eigene Höhe machen.“
