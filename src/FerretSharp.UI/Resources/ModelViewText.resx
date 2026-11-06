@@ -866,10 +866,6 @@
   <data name="Report_CreateConstraintTitle" xml:space="preserve">
     <value>Opens the table designer with the foreign key: nothing runs before you look at the DDL</value>
   </data>
-  <data name="Report_NoKey" xml:space="preserve">
-    <value>no PK</value>
-    <comment>Tag: the referenced columns are not the primary key</comment>
-  </data>
   <data name="Report_NoKeyTitle" xml:space="preserve">
     <value>The referenced columns are not the primary key of a table (or one end is a view): a constraint needs a key there</value>
   </data>

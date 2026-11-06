@@ -1815,9 +1815,6 @@
   <data name="TablePicker_NoKey" xml:space="preserve">
     <value>Kein Primärschlüssel: Ein FK braucht in der referenzierten Tabelle einen Primär- oder eindeutigen Schlüssel (ORA-02270)</value>
   </data>
-  <data name="TablePicker_NoKeyShort" xml:space="preserve">
-    <value>kein PK</value>
-  </data>
   <data name="TablePicker_ReasonRelation" xml:space="preserve">
     <value>Beziehung</value>
   </data>

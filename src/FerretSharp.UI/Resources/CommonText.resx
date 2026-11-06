@@ -169,4 +169,8 @@ Restart FerretSharp now?</value>
     <value>Drag to change the height, double-click for the default</value>
     <comment>Tooltip of the drag handle between the SQL or LINQ editor and its results</comment>
   </data>
+  <data name="NoPrimaryKeyShort" xml:space="preserve">
+    <value>no PK</value>
+    <comment>Short marker beside a table or relationship: there is no primary key (table picker, model report)</comment>
+  </data>
 </root>

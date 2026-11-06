@@ -2212,10 +2212,6 @@
   <data name="TablePicker_NoKey" xml:space="preserve">
     <value>No primary key: a foreign key needs a primary or unique key in the referenced table (ORA-02270)</value>
   </data>
-  <data name="TablePicker_NoKeyShort" xml:space="preserve">
-    <value>no PK</value>
-    <comment>Beside a table name in the picker: the table has no primary key</comment>
-  </data>
   <data name="TablePicker_ReasonRelation" xml:space="preserve">
     <value>relationship</value>
     <comment>Why a table is suggested: a relationship without constraint (C# model)</comment>

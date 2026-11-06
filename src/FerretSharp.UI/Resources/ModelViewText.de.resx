@@ -756,9 +756,6 @@
   <data name="Report_CreateConstraintTitle" xml:space="preserve">
     <value>Öffnet den Tabellen-Designer mit dem Fremdschlüssel: Nichts läuft, bevor du die DDL gesehen hast</value>
   </data>
-  <data name="Report_NoKey" xml:space="preserve">
-    <value>kein PK</value>
-  </data>
   <data name="Report_NoKeyTitle" xml:space="preserve">
     <value>Die referenzierten Spalten sind nicht der Primärschlüssel einer Tabelle (oder ein Ende ist eine View): ein Constraint braucht dort einen Schlüssel</value>
   </data>
