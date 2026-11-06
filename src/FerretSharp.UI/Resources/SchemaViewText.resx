@@ -2177,4 +2177,138 @@
     <value>View {0} created.</value>
     <comment>{0}: name of the view</comment>
   </data>
+  <data name="Paths_To" xml:space="preserve">
+    <value>Path to …</value>
+  </data>
+  <data name="Paths_ToTable" xml:space="preserve">
+    <value>Path to {0}</value>
+    <comment>{0}: the target table</comment>
+  </data>
+  <data name="Paths_ToTitle" xml:space="preserve">
+    <value>Show every way from this table to another one over relationships</value>
+  </data>
+  <data name="Paths_FindTable" xml:space="preserve">
+    <value>Find a table</value>
+  </data>
+  <data name="Paths_ClearTitle" xml:space="preserve">
+    <value>Back to the neighbours of {0}</value>
+    <comment>{0}: the tab's table</comment>
+  </data>
+  <data name="Paths_Searching" xml:space="preserve">
+    <value>Searching ways of length {0} …</value>
+    <comment>{0}: number of steps</comment>
+  </data>
+  <data name="Paths_CountOne" xml:space="preserve">
+    <value>{0} way</value>
+    <comment>{0}: number of ways found</comment>
+  </data>
+  <data name="Paths_CountOther" xml:space="preserve">
+    <value>{0} ways</value>
+    <comment>{0}: number of ways found</comment>
+  </data>
+  <data name="Paths_AllFound" xml:space="preserve">
+    <value>all found</value>
+    <comment>after the number of ways: the search is complete</comment>
+  </data>
+  <data name="Paths_Paused" xml:space="preserve">
+    <value>longest so far: {0} steps</value>
+    <comment>{0}: length the search paused at</comment>
+  </data>
+  <data name="Paths_Cancelled" xml:space="preserve">
+    <value>cancelled</value>
+    <comment>after the number of ways: the search was stopped</comment>
+  </data>
+  <data name="Paths_More" xml:space="preserve">
+    <value>More ways</value>
+  </data>
+  <data name="Paths_MoreTitle" xml:space="preserve">
+    <value>Search the next {0} ways, longer ones after the shorter</value>
+    <comment>{0}: block size</comment>
+  </data>
+  <data name="Paths_CancelTitle" xml:space="preserve">
+    <value>Stop searching – “More ways” goes on where it stopped</value>
+  </data>
+  <data name="Paths_NoneTitle" xml:space="preserve">
+    <value>No way</value>
+  </data>
+  <data name="Paths_NoneText" xml:space="preserve">
+    <value>No relationships lead from {0} to {1}.</value>
+    <comment>{0}: the tab's table, {1}: the target</comment>
+  </data>
+  <data name="Paths_NoneFilteredText" xml:space="preserve">
+    <value>No relationships lead from {0} to {1} – with the kinds shown and without the tables left out.</value>
+    <comment>{0}: the tab's table, {1}: the target</comment>
+  </data>
+  <data name="Paths_StepsOne" xml:space="preserve">
+    <value>{0} step</value>
+    <comment>{0}: length of a way</comment>
+  </data>
+  <data name="Paths_StepsOther" xml:space="preserve">
+    <value>{0} steps</value>
+    <comment>{0}: length of a way</comment>
+  </data>
+  <data name="Paths_SingleRow" xml:space="preserve">
+    <value>1 : 1</value>
+    <comment>a way over parents only</comment>
+  </data>
+  <data name="Paths_SingleRowTitle" xml:space="preserve">
+    <value>Only steps to parents: at most one row of {1} for each row of {0}</value>
+    <comment>{0}: start table, {1}: target table</comment>
+  </data>
+  <data name="Paths_ManyRows" xml:space="preserve">
+    <value>1 : n</value>
+    <comment>a way with a step to children</comment>
+  </data>
+  <data name="Paths_ManyRowsTitle" xml:space="preserve">
+    <value>A step to children: one row of {0} can meet several rows of {1}</value>
+    <comment>{0}: start table, {1}: target table</comment>
+  </data>
+  <data name="Paths_Avoided" xml:space="preserve">
+    <value>Not via:</value>
+    <comment>before the chips of the tables left out</comment>
+  </data>
+  <data name="Paths_AllowTitle" xml:space="preserve">
+    <value>Allow ways through {0} again</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="Paths_Avoid" xml:space="preserve">
+    <value>Not via this table</value>
+  </data>
+  <data name="Paths_AvoidTitle" xml:space="preserve">
+    <value>Leave out every way through {0} – kept for this connection</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="Paths_MenuTitle" xml:space="preserve">
+    <value>Actions for this way</value>
+  </data>
+  <data name="Paths_BuildQueryTitle" xml:space="preserve">
+    <value>Open the way as a query: each table on it becomes a node</value>
+  </data>
+  <data name="Paths_BuildQueryChildTitle" xml:space="preserve">
+    <value>Open the way as a query: each table on it becomes a node, a step to children takes one child (the first by order)</value>
+  </data>
+  <data name="Paths_CopyText" xml:space="preserve">
+    <value>Copy as text</value>
+  </data>
+  <data name="Paths_CopyTextTitle" xml:space="preserve">
+    <value>The columns of each step, one line per step</value>
+  </data>
+  <data name="Paths_TextCopied" xml:space="preserve">
+    <value>Way copied.</value>
+  </data>
+  <data name="Paths_ReplaceTitle" xml:space="preserve">
+    <value>Replace the query?</value>
+  </data>
+  <data name="Paths_ReplaceText" xml:space="preserve">
+    <value>The tab has a query already. Replace it with the way, or add the way to it?</value>
+  </data>
+  <data name="Paths_Replace" xml:space="preserve">
+    <value>Replace</value>
+  </data>
+  <data name="Paths_Append" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Paths_CopyMermaidTitle" xml:space="preserve">
+    <value>All ways found as a Mermaid diagram (erDiagram) for documentation and tickets</value>
+  </data>
 </root>

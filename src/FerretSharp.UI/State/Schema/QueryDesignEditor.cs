@@ -43,6 +43,16 @@ public sealed class QueryDesignEditor(TableTab tab)
 
     public void SetActive(bool active) => Set(State with { Active = active });
 
+    /// <summary>A way between two tables as the query (WP-74), replacing it or added to it (<see cref="RelationPath.ToQuery"/>); its target is selected.</summary>
+    public void TakePath(RelationPath path, bool replace)
+    {
+        Set(path.ToQuery(replace ? null : State));
+        _selected = path.QueryPath;
+    }
+
+    /// <summary>The query has more than its root: taking a way asks whether to replace it.</summary>
+    public bool HasSteps => State.Nodes.Count > 1;
+
     public void Select(QueryNode node) => _selected = node.Path;
 
     /// <summary>
