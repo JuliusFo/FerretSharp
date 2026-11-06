@@ -43,7 +43,7 @@
     <ol class="paths-list" @onmouseleave="() => OnHover.InvokeAsync(null)">
         @foreach (var path in State.Paths)
         {
-            <RelationPathRow @key="path.Key" Path="path" Selected="@(State.Selected?.Key == path.Key)" Label="Label" OnHover="OnHover" OnSelect="OnSelect"
+            <RelationPathRow @key="path.Key" Path="path" Selected="@(State.Selected?.Key == path.Key)" Label="Label" LabelKey="LabelKey" OnHover="OnHover" OnSelect="OnSelect"
                              OnBuildQuery="OnBuildQuery" OnCopyText="OnCopyText" OnCopyMermaid="OnCopyMermaid" />
         }
     </ol>
@@ -55,6 +55,10 @@
 
     [Parameter, EditorRequired]
     public Func<TableRef, string> Label { get; set; } = null!;
+
+    /// <summary>Changes when the names of <see cref="Label"/> may change (<see cref="RelationPathRow.LabelKey"/>).</summary>
+    [Parameter]
+    public object? LabelKey { get; set; }
 
     [Parameter]
     public EventCallback<RelationPath?> OnHover { get; set; }

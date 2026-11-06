@@ -20,6 +20,7 @@
 
 @code {
     private RelationPath? _built;
+    private object? _builtLabels;
     private bool _builtSelected;
     private bool _changed = true;
     private string _title = "";
@@ -34,6 +35,13 @@
 
     [Parameter, EditorRequired]
     public Func<TableRef, string> Label { get; set; } = null!;
+
+    /// <summary>
+    /// Changes when the names <see cref="Label"/> gives may change (the schema's table list: a synonym came or went);
+    /// the row builds its text again then, also for the same way (second review pass).
+    /// </summary>
+    [Parameter]
+    public object? LabelKey { get; set; }
 
     [Parameter]
     public EventCallback<RelationPath?> OnHover { get; set; }
@@ -57,12 +65,13 @@
             (_builtSelected, _changed) = (Selected, true);
         }
 
-        if (ReferenceEquals(Path, _built))
+        if (ReferenceEquals(Path, _built) && ReferenceEquals(LabelKey, _builtLabels))
         {
             return;
         }
 
         var path = _built = Path;
+        _builtLabels = LabelKey;
         _changed = true;
         _title = path.Text(Label);
         _rowsTitle = TextFormat.Format(path.SingleRow ? SchemaViewText.Paths_SingleRowTitle : SchemaViewText.Paths_ManyRowsTitle, Label(path.Start), Label(path.Target));

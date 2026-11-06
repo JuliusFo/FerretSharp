@@ -65,7 +65,7 @@
         <div class="relations-body @(_query.Active ? "with-query" : pathMode ? "with-paths" : "")">
         @if (pathMode)
         {
-            <RelationPathsPanel State="_paths" Label="Label" OnHover="p => _hoverPath = p" OnSelect="p => _paths.Select(p)"
+            <RelationPathsPanel State="_paths" Label="Label" LabelKey="@Active.Schema?.Tables" OnHover="p => _hoverPath = p" OnSelect="p => _paths.Select(p)"
                                 OnMore="RunPathsAsync" OnCancel="_paths.Cancel" OnAllow="t => SetAvoidedAsync(t, avoid: false)"
                                 OnBuildQuery="BuildQueryAsync" OnCopyText="CopyPathTextAsync" OnCopyMermaid="CopyPathMermaidAsync" />
             @if (_paths.Placement is { } paths && _paths.Diagram is { } pathDiagram)
