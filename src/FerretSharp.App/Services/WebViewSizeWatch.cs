@@ -165,13 +165,18 @@ public sealed class WebViewSizeWatch(WebViewCapture capture, ILogger<WebViewSize
 
         _image = image;
         _picture = (image.PixelWidth, image.PixelHeight);
-        image.Changed += (_, _) => PictureChanged(image); // with every copied frame (AddDirtyRect), and when a back buffer is set or dropped
+        // With every copied frame (AddDirtyRect; setting a new back buffer comes in the same lock) and when the back buffer is dropped.
+        image.Changed += (_, _) => PictureChanged(image);
     }
 
     private void PictureChanged(D3DImage image)
     {
-        _copies++;
         var picture = (image.PixelWidth, image.PixelHeight);
+        if (picture.PixelWidth > 0)
+        {
+            _copies++; // a dropped back buffer (a restart, WM_SIZE in the control's hook) leaves 0x0 and is no copy
+        }
+
         if (picture == _picture)
         {
             return;
