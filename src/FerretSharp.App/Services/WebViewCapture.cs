@@ -36,6 +36,10 @@ namespace FerretSharp.App.Services;
 /// the picture stood until the window was minimized. Here every rebuild – also the one after a display change, the
 /// control's handler replaced – is tried again until it works (<see cref="RebuildLimit"/>), and the capture restarts after
 /// a session switch.</item>
+/// <item>Empty picture over RDP (2026-11-06, GPU in the remote session, tier 2): while the RDP window was in the
+/// background on the user's PC, WPF had no front buffer. A restart then (back from minimized) dropped the back buffer,
+/// the control set none again without a front buffer – and only a set back buffer reports the front buffer's return. Here
+/// a restart waits for the front buffer, and without one the frames are shown in software, as at tier 0.</item>
 /// </list>
 /// </summary>
 public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
@@ -62,6 +66,13 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
     private static readonly FieldInfo? PoolField = ImageField?.FieldType.GetField("_framePool", Private);
     private static readonly MethodInfo? FrameArrived = ImageField?.FieldType.GetMethod("OnFrameArrived", Private, [typeof(Direct3D11CaptureFramePool), typeof(object)]);
     private static readonly MethodInfo? RequestRender = ImageField?.FieldType.GetMethod("RequestRender", BindingFlags.Instance | BindingFlags.Public, Type.EmptyTypes);
+
+    /// <summary>
+    /// Whether it copies a frame without WPF's front buffer: the control sets it only at render tier 0. Without, a back
+    /// buffer once cleared is never set again while the front buffer is gone – and only a set back buffer reports it back
+    /// (<c>D3DImage.Callback</c> checks its version), so the picture stayed empty for good (RDP, 2026-11-06).
+    /// </summary>
+    private static readonly FieldInfo? SoftwareField = ImageField?.FieldType.GetField("_useSoftwareRendering", Private);
 
     /// <summary>Its Direct3D 11 device and context (new with every rebuild), which do the copy (ADR 0039).</summary>
     private static readonly FieldInfo? DeviceField = ImageField?.FieldType.GetField("_d3d11Device", Private);
@@ -115,6 +126,7 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
     private long _rebuildSince;
     private int _rebuildAttempts;
     private bool _displayChangeTaken;
+    private bool _tierTaken;
 
     private Direct3D11CaptureFramePool? _pool;
     private DispatcherTimer? _hold;
@@ -222,6 +234,14 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
 
     private void RestartWhenFree()
     {
+        if (WaitsForFrontBuffer())
+        {
+            _restart!.Stop();
+            logger.LogInformation("Restarting the WebView's capture ({Reason}) postponed: no front buffer, the restart follows once it is back",
+                _restartReason);
+            return;
+        }
+
         if (CanWrite())
         {
             _restart!.Stop();
@@ -351,11 +371,29 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
         _watched = image;
         image.IsFrontBufferAvailableChanged += (_, e) =>
         {
+            // After the control's handler (added in its constructor), which copies the next frame only by the old rule.
+            ShowWithoutFrontBuffer(image);
             if (e.NewValue is true)
             {
                 Restart("front buffer available again");
             }
+            else
+            {
+                logger.LogInformation("The WebView's front buffer is gone (render tier {Tier}): {Frames}", Tier,
+                    SoftwareField is null ? "no new frames until it is back" : "frames shown in software until it is back");
+            }
         };
+
+        if (SoftwareField is null)
+        {
+            logger.LogWarning("The WebView's frames cannot be shown without a front buffer with this WebView2 version (member not found)");
+        }
+        else
+        {
+            System.Windows.Media.RenderCapability.TierChanged += OnTierChanged;
+            _tierTaken = true;
+            ShowWithoutFrontBuffer(image);
+        }
 
         SystemEvents.DisplaySettingsChanged -= (EventHandler)Delegate.CreateDelegate(typeof(EventHandler), image, DisplayChanged!);
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
@@ -363,12 +401,44 @@ public sealed class WebViewCapture(ILogger<WebViewCapture> logger) : IDisposable
         logger.LogDebug("Display changes of the WebView's capture taken over");
     }
 
-    /// <summary>A static event: it would keep the control alive.</summary>
+    private static int Tier => System.Windows.Media.RenderCapability.Tier >> 16;
+
+    /// <summary>
+    /// The control copies a frame only with WPF's front buffer or at render tier 0 (<see cref="SoftwareField"/>). Without the
+    /// front buffer it now copies too: WPF shows the back buffer in software then (the control sets it with
+    /// <c>enableSoftwareFallback</c>), as it does at tier 0 all the time. Back, the control's rule applies again.
+    /// </summary>
+    private void ShowWithoutFrontBuffer(D3DImage image) =>
+        SoftwareField?.SetValue(image, Tier == 0 || !image.IsFrontBufferAvailable);
+
+    /// <summary>After the control's handler, which sets the flag by the tier alone.</summary>
+    private void OnTierChanged(object? sender, EventArgs e)
+    {
+        logger.LogInformation("Render tier changed to {Tier}", Tier);
+        if (_watched is { } image)
+        {
+            ShowWithoutFrontBuffer(image);
+        }
+    }
+
+    /// <summary>
+    /// A restart drops the back buffer; without the front buffer, nothing reports its return then – and before the frames
+    /// were shown in software (<see cref="SoftwareField"/>) the picture stayed empty. So it waits: the front buffer's return
+    /// restarts anyway. At tier 0 WPF never has one, a restart runs as before.
+    /// </summary>
+    private bool WaitsForFrontBuffer() => _watched is { IsFrontBufferAvailable: false } && Tier != 0;
+
+    /// <summary>Static events: they would keep the control alive.</summary>
     public void Dispose()
     {
         if (_displayChangeTaken)
         {
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        }
+
+        if (_tierTaken)
+        {
+            System.Windows.Media.RenderCapability.TierChanged -= OnTierChanged;
         }
     }
 
