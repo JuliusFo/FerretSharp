@@ -24,7 +24,7 @@
             var value = part;
             var current = !Filter.IsActive && _part == value;
             <button class="settings-nav-item @(current ? "active" : "") @(Filter.IsActive && !ShowSection(value) ? "dim" : "")"
-                    aria-current="@(current ? "page" : null)" @onclick="() => Select(value)">@label</button>
+                    aria-current="@(current ? "page" : null)" @onclick="() => Select(value)">@Icons.For(value)<span>@label</span></button>
         }
     </nav>
 
