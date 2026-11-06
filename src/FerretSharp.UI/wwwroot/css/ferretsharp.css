@@ -1939,6 +1939,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .paths-avoided .menu-chip .icon { flex: none; width: 11px; height: 11px; }
 /* A long name stops at the edge of the panel (the full one is in the title): the panel no longer clips, and the diagram
    beside it would cover the ✕ (review). */
+.paths-avoided > .muted { flex: none; }
 .paths-avoided .chips { min-width: 0; }
 .paths-avoided .menu-chip { max-width: 100%; }
 .paths-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
