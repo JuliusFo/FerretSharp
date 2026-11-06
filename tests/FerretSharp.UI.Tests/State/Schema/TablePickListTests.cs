@@ -47,13 +47,16 @@ public sealed class TablePickListTests
     [Fact]
     public void A_suggestion_that_matches_worse_than_another_table_takes_its_place_among_them()
     {
-        var adresse = new ForeignKeyTarget(new("SHOP", "KUNDEN_ADRESSE"), ["ID"], ForeignKeyTargetReason.KeyName);
+        var adresse = new ForeignKeyTarget(new("SHOP", "KUNDEN_ADRESSE"), ["KUNDE_NR"], ForeignKeyTargetReason.Relation);
 
         var list = TablePickList.Of(Tables, "kunde", [adresse], KeyOf);
 
         Assert.Empty(list.Suggested);
         Assert.Equal(["KUNDE", "KUNDEN_ADRESSE"], list.Rest.Select(r => r.Table.Name)); // exact before prefix
         Assert.Equal("KUNDE", list.First?.Table.Name);
+        // It shows the key picking it takes – the relationship's, not the primary key (code review, second pass).
+        Assert.Equal(["KUNDE_NR"], list.Rest[1].Key);
+        Assert.Equal(ForeignKeyTargetReason.Relation, list.Rest[1].Reason);
     }
 
     [Fact]

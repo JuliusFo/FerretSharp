@@ -50,9 +50,12 @@ public sealed record TablePickList(IReadOnlyList<TablePickRow> Suggested, IReadO
         var top = candidates.Select(s => new TablePickRow(byRef[s.Table], s.Key, s.Reason)).ToList();
         var shown = top.Select(r => r.Table.Ref).ToHashSet();
         var rest = matching.Where(t => !shown.Contains(t.Ref)).ToList();
+        // A suggestion that slipped down keeps its key and reason: picking it takes that key (a relationship's columns), so the
+        // line shows it (code review, second pass).
+        var slipped = suggested.DistinctBy(s => s.Table).ToDictionary(s => s.Table);
         return new TablePickList(
             top,
-            rest.Take(Limit).Select(t => new TablePickRow(t, keyOf(t.Ref))).ToList(),
+            rest.Take(Limit).Select(t => slipped.TryGetValue(t.Ref, out var s) ? new TablePickRow(t, s.Key, s.Reason) : new TablePickRow(t, keyOf(t.Ref))).ToList(),
             Math.Max(0, rest.Count - Limit));
     }
 }
