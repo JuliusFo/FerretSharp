@@ -416,6 +416,7 @@ public sealed class TableDesignerDraft
                     Type = ConstraintType.ForeignKey,
                     Name = row.Name,
                     References = row.Before.References,
+                    ReferenceChosen = true, // the table's own foreign key: never replaced by a suggestion (code review)
                     DeleteRule = row.DeleteRule,
                     WithIndex = false,
                 };

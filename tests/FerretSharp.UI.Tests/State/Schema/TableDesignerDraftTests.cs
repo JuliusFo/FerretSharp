@@ -516,6 +516,13 @@ public sealed class TableDesignerDraftTests
         Assert.Equal(("FK_KUNDE_LAND", "CASCADE", false), (fk.Name, fk.DeleteRule, fk.WithIndex));
         Assert.Equal(["LAND"], fk.Columns);
         Assert.Equal(["CODE"], fk.ReferencedColumns);
+
+        // The table's own foreign key: chosen, a suggestion never replaces its table (code review).
+        Assert.True(fk.ReferenceChosen);
+        rest.TargetsFor = _ => [new(new TableRef("SHOP", "ORT"), ["ID"], ForeignKeyTargetReason.Convention)];
+        rest.RemoveColumn(fk, 0);
+        rest.AddColumn(fk, "LAND");
+        Assert.Equal(FkLand.References, fk.References);
     }
 
     private static IReadOnlyList<string> Plan(TableDesignerDraft designer, IReadOnlyList<ConstraintInfo> constraints) =>
