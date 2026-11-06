@@ -31,6 +31,12 @@ public sealed class DesignConstraint
 
     public TableRef? References { get; set; }
 
+    /// <summary>
+    /// The referenced table was chosen – by the user, or with the relationship the foreign key came from –, not suggested from
+    /// the columns' names (<see cref="TableDesignerDraft.Suggestions"/>): it stays when the columns change.
+    /// </summary>
+    public bool ReferenceChosen { get; set; }
+
     /// <summary>Referenced columns, one per entry of <see cref="Columns"/>.</summary>
     public List<string> ReferencedColumns { get; } = [];
 

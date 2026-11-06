@@ -128,7 +128,7 @@ public sealed class TableDesignerDraft
             return twin;
         }
 
-        var constraint = new DesignConstraint { Type = ConstraintType.ForeignKey, References = relation.To };
+        var constraint = new DesignConstraint { Type = ConstraintType.ForeignKey, References = relation.To, ReferenceChosen = true };
         constraint.Columns.AddRange(relation.FromColumns);
         constraint.ReferencedColumns.AddRange(relation.ToColumns);
         AddedConstraints.Add(constraint);
@@ -172,7 +172,50 @@ public sealed class TableDesignerDraft
     {
         ArgumentNullException.ThrowIfNull(constraint);
         constraint.Type = type;
+        FollowColumns(constraint);
         SuggestName(constraint);
+    }
+
+    /// <summary>
+    /// The targets the schema suggests for key columns (<see cref="ForeignKeyTargets"/> over the schema cache, no round trip);
+    /// set by the view, kept across a <see cref="Rebase"/>. Null: no suggestions (no schema).
+    /// </summary>
+    public Func<IReadOnlyList<string>, IReadOnlyList<ForeignKeyTarget>>? TargetsFor { get; set; }
+
+    /// <summary>The tables suggested for a foreign key's columns, most certain first; none for other constraints or without columns.</summary>
+    public IReadOnlyList<ForeignKeyTarget> Suggestions(DesignConstraint constraint)
+    {
+        ArgumentNullException.ThrowIfNull(constraint);
+        return constraint.Type == ConstraintType.ForeignKey && constraint.Columns.Count > 0 && TargetsFor is { } targets ? targets(constraint.Columns) : [];
+    }
+
+    /// <summary>
+    /// A foreign key whose table was not chosen follows its columns: the one clear suggestion (<see cref="ForeignKeyTargets.Clear"/>)
+    /// becomes its table, with that table's key as referenced columns; without columns it has no table. Without a clear
+    /// suggestion a table suggested before stays (a second key column rarely names a table of its own).
+    /// </summary>
+    private void FollowColumns(DesignConstraint constraint)
+    {
+        if (constraint.Type != ConstraintType.ForeignKey || constraint.ReferenceChosen)
+        {
+            return;
+        }
+
+        if (constraint.Columns.Count == 0)
+        {
+            constraint.References = null;
+            constraint.ReferencedColumns.Clear();
+            return;
+        }
+
+        if (ForeignKeyTargets.Clear(Suggestions(constraint)) is not { } target || target.Table == constraint.References)
+        {
+            return;
+        }
+
+        constraint.References = target.Table;
+        constraint.ReferencedColumns.Clear();
+        constraint.ReferencedColumns.AddRange(target.Key);
     }
 
     /// <summary>
@@ -188,6 +231,7 @@ public sealed class TableDesignerDraft
         }
 
         constraint.Columns.Add(column);
+        FollowColumns(constraint);
         FillReferenced(constraint);
         SuggestName(constraint);
     }
@@ -202,19 +246,21 @@ public sealed class TableDesignerDraft
             constraint.ReferencedColumns.RemoveAt(at);
         }
 
+        FollowColumns(constraint);
         SuggestName(constraint);
     }
 
     /// <summary>
-    /// The foreign key references <paramref name="table"/> (null: none chosen). Its referenced columns are the table's
-    /// primary key, in key order, as soon as the table's structure is known – this table's at once; another one the view
-    /// loads if <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
+    /// The user chose <paramref name="table"/> as the table the foreign key references (null: none – it follows its columns
+    /// again). Its referenced columns are the table's primary key, in key order, as soon as the table's structure is known –
+    /// this table's at once; another one the view loads if <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
     /// </summary>
     public void Reference(DesignConstraint constraint, TableRef? table)
     {
         ArgumentNullException.ThrowIfNull(constraint);
         constraint.ReferencedColumns.Clear();
         constraint.References = table;
+        constraint.ReferenceChosen = table is not null;
         SuggestName(constraint);
         FillReferenced(constraint);
     }
@@ -318,7 +364,7 @@ public sealed class TableDesignerDraft
             next.Referenced[reference] = details;
         }
 
-        (next.WithAudit, next.Section, next.IndexTablespace, next.Tablespaces) = (WithAudit, Section, IndexTablespace, Tablespaces);
+        (next.WithAudit, next.Section, next.IndexTablespace, next.Tablespaces, next.TargetsFor) = (WithAudit, Section, IndexTablespace, Tablespaces, TargetsFor);
         return next;
     }
 

@@ -235,6 +235,60 @@ public sealed class TableDesignerDraftTests
     }
 
     /// <summary>
+    /// The table of a new foreign key follows its columns until one is chosen: the one clear suggestion with its key at once
+    /// (loaded after, for the column lists), not one of two; a table chosen by the user or taken from a relationship stays.
+    /// </summary>
+    [Fact]
+    public void A_foreign_key_takes_the_clear_suggestion_until_a_table_is_chosen()
+    {
+        var ort = new TableRef("SHOP", "ORT");
+        var designer = new TableDesignerDraft(Kunde, [])
+        {
+            TargetsFor = columns => columns switch
+            {
+                ["KUERZEL"] => [new(Land.Table.Ref, ["CODE"], ForeignKeyTargetReason.Convention)],
+                ["NAME"] => [new(Land.Table.Ref, ["CODE"], ForeignKeyTargetReason.KeyName), new(ort, ["ID"], ForeignKeyTargetReason.KeyName)],
+                ["BETRAG"] => [new(ort, ["ID"], ForeignKeyTargetReason.Convention)],
+                _ => [],
+            },
+        };
+        var fk = designer.AddConstraint(ConstraintType.Unique);
+        designer.AddColumn(fk, "KUERZEL");
+        Assert.Null(fk.References); // not a foreign key yet
+        Assert.Empty(designer.Suggestions(fk));
+
+        designer.SetType(fk, ConstraintType.ForeignKey);
+        Assert.Equal((Land.Table.Ref, "FK_KUNDE_LAND"), (fk.References, fk.Name));
+        Assert.Equal(["CODE"], fk.ReferencedColumns);
+        Assert.Equal([Land.Table.Ref], designer.UnknownReferences());
+
+        designer.RemoveColumn(fk, 0);
+        Assert.Equal((null, 0), (fk.References, fk.ReferencedColumns.Count));
+        designer.AddColumn(fk, "NAME"); // two tables alike: the user chooses
+        Assert.Null(fk.References);
+        Assert.Equal(2, designer.Suggestions(fk).Count);
+
+        designer.RemoveColumn(fk, 0);
+        designer.AddColumn(fk, "BETRAG");
+        Assert.Equal(ort, fk.References);
+
+        designer.Reference(fk, Land.Table.Ref);
+        designer.RemoveColumn(fk, 0);
+        designer.AddColumn(fk, "BETRAG");
+        Assert.Equal(Land.Table.Ref, fk.References); // chosen: stays
+
+        designer.Reference(fk, null); // none chosen: follows again
+        designer.RemoveColumn(fk, 0);
+        designer.AddColumn(fk, "BETRAG");
+        Assert.Equal(ort, fk.References);
+
+        var fromModel = designer.AddForeignKey(new ForeignKeyInfo("Kunde.Land", Kunde.Table.Ref, ["KUERZEL"], Land.Table.Ref, ["ISO"], FkSource.ClrModel))!;
+        designer.RemoveColumn(fromModel, 0);
+        Assert.Equal(Land.Table.Ref, fromModel.References);
+        Assert.Same(designer.TargetsFor, designer.Rebase(Kunde, []).TargetsFor);
+    }
+
+    /// <summary>
     /// "Create constraint" at a relationship of the C# model: the foreign key starts with the relationship's columns on both
     /// sides – not the referenced key's order once the table is known – and with an index; asked for again, it is not doubled.
     /// </summary>
