@@ -35,6 +35,10 @@ public static class ObjectSearch
     public static bool Matches(PlSqlObjectSummary unit, string? query) =>
         NameRank.Terms(query) is var terms && (terms.Length == 0 || RankOf(unit, terms) is not null);
 
+    /// <summary>How well a table matches <paramref name="query"/>, by the rule of <see cref="FindTables"/>; null if it does not.</summary>
+    public static NameMatch? Rank(TableSummary table, string? query, string? entityName) =>
+        RankOf(table, NameRank.Terms(query), entityName);
+
     private static NameMatch? RankOf(TableSummary table, IReadOnlyList<string> terms, string? entityName) => NameRank.Best(
         NameRank.Best(NameRank.Of(table.DisplayName, terms), NameRank.Of(table.Name, terms)),
         entityName is not null ? NameRank.OfClrName(entityName, terms) : null);

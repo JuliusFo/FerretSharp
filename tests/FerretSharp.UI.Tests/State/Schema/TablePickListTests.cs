@@ -32,6 +32,7 @@ public sealed class TablePickListTests
     [InlineData("lieferort", new[] { "LIEFER_ORT" }, new string[0])] // underscores may be left out
     [InlineData("kunde", new[] { "KUNDEN_ADRESSE" }, new[] { "KUNDE" })] // a suggestion stays on top while it matches
     [InlineData("adr", new[] { "KUNDEN_ADRESSE" }, new string[0])] // a suggestion that does not match goes
+    [InlineData("kun", new[] { "KUNDEN_ADRESSE" }, new[] { "KUNDE" })] // as good as the best other (start of the name): on top
     [InlineData("vertrag", new string[0], new string[0])]
     public void A_query_keeps_the_matches(string query, string[] rest, string[] suggested)
     {
@@ -40,6 +41,19 @@ public sealed class TablePickListTests
         Assert.Equal(suggested, list.Suggested.Select(r => r.Table.Name));
         Assert.Equal(rest, list.Rest.Select(r => r.Table.Name));
         Assert.Equal(suggested.Concat(rest).FirstOrDefault(), list.First?.Table.Name);
+    }
+
+    /// <summary>Code review: Enter took a suggestion that barely matched over the table typed in full.</summary>
+    [Fact]
+    public void A_suggestion_that_matches_worse_than_another_table_takes_its_place_among_them()
+    {
+        var adresse = new ForeignKeyTarget(new("SHOP", "KUNDEN_ADRESSE"), ["ID"], ForeignKeyTargetReason.KeyName);
+
+        var list = TablePickList.Of(Tables, "kunde", [adresse], KeyOf);
+
+        Assert.Empty(list.Suggested);
+        Assert.Equal(["KUNDE", "KUNDEN_ADRESSE"], list.Rest.Select(r => r.Table.Name)); // exact before prefix
+        Assert.Equal("KUNDE", list.First?.Table.Name);
     }
 
     [Fact]

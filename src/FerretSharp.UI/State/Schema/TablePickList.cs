@@ -8,9 +8,12 @@ namespace FerretSharp.UI.State;
 public sealed record TablePickRow(TableSummary Table, IReadOnlyList<string> Key, ForeignKeyTargetReason? Reason = null);
 
 /// <summary>
-/// The lines of the table picker (the designer's foreign key target): the suggested tables first, then the rest – every table
-/// in list order without a query, the matches ranked like the quick open with one (<see cref="ObjectSearch.FindTables"/>,
-/// also by C# entity name). At most <see cref="Limit"/> lines of the rest; <see cref="More"/> says how many are left out.
+/// The lines of the table picker (the designer's foreign key target, the relationship view's "Path to"): the suggested tables
+/// first, then the rest – every table in list order without a query, the matches ranked like the quick open with one
+/// (<see cref="ObjectSearch.FindTables"/>, also by C# entity name). With a query a suggestion stays on top only while it
+/// matches at least as well as the best other table; otherwise it takes its place among them (code review: Enter took a
+/// suggestion that barely matched over the table typed in full). At most <see cref="Limit"/> lines of the rest;
+/// <see cref="More"/> says how many are left out.
 /// </summary>
 public sealed record TablePickList(IReadOnlyList<TablePickRow> Suggested, IReadOnlyList<TablePickRow> Rest, int More)
 {
@@ -32,11 +35,19 @@ public sealed record TablePickList(IReadOnlyList<TablePickRow> Suggested, IReadO
         ArgumentNullException.ThrowIfNull(tables);
         ArgumentNullException.ThrowIfNull(suggested);
         ArgumentNullException.ThrowIfNull(keyOf);
-        var matching = NameRank.Terms(query).Length == 0 ? tables : ObjectSearch.FindTables(tables, query, entityName);
+        var searching = NameRank.Terms(query).Length > 0;
+        var matching = searching ? ObjectSearch.FindTables(tables, query, entityName) : tables;
         var byRef = matching.DistinctBy(t => t.Ref).ToDictionary(t => t.Ref);
-        var top = suggested.Where(s => byRef.ContainsKey(s.Table))
-            .Select(s => new TablePickRow(byRef[s.Table], s.Key, s.Reason))
-            .ToList();
+        var candidates = suggested.Where(s => byRef.ContainsKey(s.Table)).ToList();
+        if (searching && candidates.Count > 0)
+        {
+            NameMatch? RankOf(TableRef table) => ObjectSearch.Rank(byRef[table], query, entityName?.Invoke(table));
+            var suggestedRefs = candidates.Select(s => s.Table).ToHashSet();
+            var bestOther = matching.Where(t => !suggestedRefs.Contains(t.Ref)).Select(t => RankOf(t.Ref)).Min();
+            candidates = candidates.Where(s => bestOther is null || RankOf(s.Table) <= bestOther).ToList();
+        }
+
+        var top = candidates.Select(s => new TablePickRow(byRef[s.Table], s.Key, s.Reason)).ToList();
         var shown = top.Select(r => r.Table.Ref).ToHashSet();
         var rest = matching.Where(t => !shown.Contains(t.Ref)).ToList();
         return new TablePickList(
