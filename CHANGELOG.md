@@ -14,6 +14,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Changed
 - A table tab reads its rows only once its data view is shown: a tab opened on another view – the columns from a link in the designer, the synonyms or privileges from the object menu – ran the grid's query in the background.
 
+### Internal
+- `tools/linux/Test-Linux.ps1` builds and runs the unit tests under Linux in Docker like the first CI job, on the working tree; `ship-wp` runs it before the push, and the test rules name the Linux traps.
+
 ## [3.60.0] - 2026-11-05
 
 Drag the explorer wider and the SQL and LINQ editors taller, foreign keys come along in the column ADD script, and INSERT exports leave out identity ALWAYS and virtual columns.
