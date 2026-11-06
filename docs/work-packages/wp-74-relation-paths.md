@@ -34,3 +34,16 @@ Branch `wp/74-relation-paths` (von `main`), 2026-11-06. ADR 0044. Baut auf WP-46
 - Nicht geprüft: „Abbrechen“ in der Oberfläche – ein Block ist im Beispielschema in Millisekunden fertig (Abbrechen und Fortsetzen nur in `RelationPathsTests`/`RelationPathsStateTests`).
 - Werkzeug: `Start-TestInstance.ps1` beendete die eigene Instanz wieder als fremd (Backlog, ergänzt); von Hand gestartet.
 - Offene UX-Frage: „Weitere Wege“ steht über der Liste, nach dem Scrollen ans Ende also außer Sicht. Zusätzlich am Ende der Liste?
+
+## Nachtrag: Code-Review (2026-11-06)
+Review per `/branch-code-review` (eigener Reviewer-Agent), Entscheidung des Nutzers: „Alle beheben“; für die weiteren Durchgänge: „Wenn dir bei den nachfolgenden Reviews Dinge auffallen, die behoben werden müssen, setze deine Empfehlung um.“
+1. S `Collect` ersetzte die Liste, in die der laufende Block schrieb – nach dem ersten Sammeln (alle 200 ms) gingen alle Wege des Blocks verloren, das Durchlaufen konnte auf „Collection was modified“ treffen. **Behoben** (Liste unter der Sperre leeren), Test `Collecting_while_a_block_runs_loses_no_way` (ohne Fix 20 statt 1000 Wege).
+2. M Jeder Build des C#-Projekts startete die Suche neu: `ForeignKeyInfo` vergleicht seine Spaltenlisten nach Referenz. **Behoben** (`RelationGraph.SameRelations` nach Inhalt), Test mit kopierten Listen.
+3. M Hover und der 200-ms-Takt renderten die ganze Liste samt Tooltip-Texten und Menüs neu. **Behoben:** `RelationPathRow` rendert nur bei neuem Weg, neuer Auswahl oder neuen Namen, Text und Menü einmal je Weg; der Takt rendert nur bei neuen Wegen oder neuer Länge; die Kanten des aktiven Wegs zwischengespeichert. Nicht gemessen, im E2E mit 150 Wegen Hover, Auswahl und Menü geprüft.
+4. K Die Abstände liefen durch den Start, „alle gefunden“ kam erst Längen nach dem letzten Weg. **Behoben** (die Breitensuche geht über den Start nicht weiter), Test (ohne Fix Länge 5 statt 1).
+5. K Der Weg unter der Maus blieb nach F5 oder einem Build hervorgehoben. **Behoben** (`LoadPaths` verwirft ihn, wenn er nicht mehr unter den Wegen ist).
+6. K Zwei Beziehungen des C#-Modells mit gleichem Namen an einer Tabelle ergaben dieselbe `RelationPath.Key` (doppelter `@key`). **Behoben** (Zieltabelle, FromColumns und – im zweiten Durchgang – ToColumns in der Key), Tests.
+7. K `docs/architecture.md` ohne `PathAvoidedTables` und `TabState.PathTarget`. **Behoben.**
+- Zweiter Durchgang: alle sieben Fixes bestätigt; zwei Reste, nach Empfehlung behoben – `ToColumns` in der Key (siehe 6) und die Zeile baut ihren Text neu, wenn sich die Tabellenliste des Schemas ändert (ein Synonym kam oder ging, die Wege bleiben).
+- Dritter Durchgang (nur diese beiden Fixes): ohne Befund.
+- Vorher schon da, unverändert: Beziehungen mit derselben `KeyOf` teilen im Diagramm eine Kante (wie im Nachbarschaftsdiagramm).
