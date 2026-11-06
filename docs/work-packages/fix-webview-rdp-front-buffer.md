@@ -18,6 +18,8 @@ Meldung des Nutzers (2026-11-06, 3.61.0): FerretSharp läuft auf dem Arbeitslapt
 
 ## E2E (2026-11-06)
 - Lokal (Konsole, Tier 2): Start ohne Warnung, also Member gefunden. Dreimal minimiert und wiederhergestellt, danach ein Element per CDP eingefügt; es ist im Fensterbild (`PrintWindow`) zu sehen. Log ohne `[WRN]`/`[ERR]`.
+- Beim Nutzer über RDP (2026-11-06): test.2 startete einmal leer; das Log zeigte keinen Verlust des Front Buffers, also lief der neue Weg nicht – ob er schon vor der Überwachung fehlte, war nicht zu sehen. test.3 schreibt deshalb den Zustand beim Start und jedes Umschalten des Flags. Mit test.3 nicht leer: Front Buffer beim Start da; beim Zurückholen des RDP-Fensters zweimal für rund 40 ms weg (Flag an und wieder aus), danach Neustart ohne Fehler. Solange das RDP-Fenster im Hintergrund lag, fehlte der Front Buffer nicht, es kamen nur kaum Bilder (0,1/s) – die befürchtete Last ohne Front Buffer trat nicht auf. Der Ausfall vom Vormittag (Bild dauerhaft leer) ist damit nicht nachgestellt.
+- Nebenbefund, schon vor 3.61.0: Über RDP steht der Inhalt nach dem Maximieren manchmal in alter Größe oben links oder halb abgeschnitten in der Mitte. Nicht Teil dieses Fixes.
 
 ## Nicht geprüft
 - Der eigentliche Weg ohne Front Buffer: Lokal lässt er sich nicht auslösen. Nachzuprüfen mit einer Testversion beim Nutzer über RDP: das RDP-Fenster am PC in den Hintergrund legen bzw. minimieren, zurückholen, FerretSharp minimieren und wiederherstellen. Im Log dann „front buffer is gone“, danach „front buffer available again“; das Bild darf nie leer werden.
