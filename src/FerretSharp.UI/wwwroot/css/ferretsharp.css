@@ -1936,7 +1936,12 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
     border-top: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--surface); padding: 10px 12px 0 0; font-size: 13px; }
 .paths-avoided { display: flex; align-items: baseline; gap: 8px; }
 .paths-avoided .muted, .paths-status .muted { color: var(--muted); font-size: 12px; }
-.paths-avoided .menu-chip .icon { width: 11px; height: 11px; }
+.paths-avoided .menu-chip .icon { flex: none; width: 11px; height: 11px; }
+/* A long name stops at the edge of the panel (the full one is in the title): the panel no longer clips, and the diagram
+   beside it would cover the ✕ (review). */
+.paths-avoided .chips { min-width: 0; }
+.paths-avoided .menu-chip { max-width: 100%; }
+.paths-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .paths-status { display: flex; align-items: center; gap: 8px; min-height: 26px; }
 .paths-status .spacer { flex: 1; }
 .paths-list { flex: 1; min-height: 0; overflow: auto; list-style: none; margin: 0; padding: 0 0 24px; }

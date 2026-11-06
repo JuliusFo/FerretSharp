@@ -16,7 +16,7 @@
                 @foreach (var table in State.Avoided.OrderBy(t => t.Name, StringComparer.Ordinal).ThenBy(t => t.Owner, StringComparer.Ordinal))
                 {
                     var t = table;
-                    <button type="button" class="menu-chip mono" title="@TextFormat.Format(SchemaViewText.Paths_AllowTitle, Label(t))" @onclick="() => OnAllow.InvokeAsync(t)">@Label(t) @Icons.Close</button>
+                    <button type="button" class="menu-chip mono" title="@TextFormat.Format(SchemaViewText.Paths_AllowTitle, Label(t))" @onclick="() => OnAllow.InvokeAsync(t)"><span class="paths-chip-name">@Label(t)</span>@Icons.Close</button>
                 }
             </div>
         </div>
