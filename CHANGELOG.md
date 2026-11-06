@@ -5,7 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 - The list of ways beside the diagram of *Relations › Path to …* and the side panel of *Relations › Build query* can be made wider or narrower like the other side panels: drag the edge toward the diagram, a double click goes back to the default. Each width holds for every relationship view and is kept after a restart.
 
 ## [3.61.0] - 2026-11-06
