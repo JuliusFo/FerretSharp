@@ -1,0 +1,86 @@
+@* The list of ways beside the diagram of the relationship view (WP-74): the tables left out as chips, the progress of
+   the search with "Cancel" and "More ways", and one row per way – its tables with ↑ for a step to the parent and ↓ for
+   one to a child, its length, "1 : 1" or "1 : n", and a menu (build the query, copy). Hovering a row lights the way in
+   the diagram, a click chooses it. Each way is a RelationPathRow that renders only when it changes (review). *@
+@using FerretSharp.Core.Relations
+@using FerretSharp.Core.Schema
+
+<aside class="paths-panel">
+    @if (State.Avoided.Count > 0)
+    {
+        <div class="paths-avoided">
+            <span class="muted">@SchemaViewText.Paths_Avoided</span>
+            <div class="chips">
+                @foreach (var table in State.Avoided.OrderBy(t => t.Name, StringComparer.Ordinal).ThenBy(t => t.Owner, StringComparer.Ordinal))
+                {
+                    var t = table;
+                    <button type="button" class="menu-chip mono" title="@TextFormat.Format(SchemaViewText.Paths_AllowTitle, Label(t))" @onclick="() => OnAllow.InvokeAsync(t)">@Label(t) @Icons.Close</button>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="paths-status">
+        <span>@TextFormat.Plural(State.Paths.Count, SchemaViewText.Paths_CountOne, SchemaViewText.Paths_CountOther)</span>
+        @if (State.Running)
+        {
+            <span class="muted">@TextFormat.Format(SchemaViewText.Paths_Searching, State.Length)</span>
+            <span class="spacer"></span>
+            <button class="btn small ghost" title="@SchemaViewText.Paths_CancelTitle" @onclick="() => OnCancel.InvokeAsync()">@CommonText.Cancel</button>
+        }
+        else if (State.Done)
+        {
+            <span class="muted">@SchemaViewText.Paths_AllFound</span>
+        }
+        else
+        {
+            <span class="muted">@(State.Cancelled ? SchemaViewText.Paths_Cancelled : TextFormat.Format(SchemaViewText.Paths_Paused, State.Length))</span>
+            <span class="spacer"></span>
+            <button class="btn small" title="@TextFormat.Format(SchemaViewText.Paths_MoreTitle, RelationPathsState.BlockSize)" @onclick="() => OnMore.InvokeAsync()">@SchemaViewText.Paths_More</button>
+        }
+    </div>
+
+    <ol class="paths-list" @onmouseleave="() => OnHover.InvokeAsync(null)">
+        @foreach (var path in State.Paths)
+        {
+            <RelationPathRow @key="path.Key" Path="path" Selected="@(State.Selected?.Key == path.Key)" Label="Label" LabelKey="LabelKey" OnHover="OnHover" OnSelect="OnSelect"
+                             OnBuildQuery="OnBuildQuery" OnCopyText="OnCopyText" OnCopyMermaid="OnCopyMermaid" />
+        }
+    </ol>
+</aside>
+
+@code {
+    [Parameter, EditorRequired]
+    public RelationPathsState State { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<TableRef, string> Label { get; set; } = null!;
+
+    /// <summary>Changes when the names of <see cref="Label"/> may change (<see cref="RelationPathRow.LabelKey"/>).</summary>
+    [Parameter]
+    public object? LabelKey { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath?> OnHover { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback OnMore { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public EventCallback<TableRef> OnAllow { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath> OnBuildQuery { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath> OnCopyText { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath> OnCopyMermaid { get; set; }
+}

@@ -38,6 +38,7 @@ public sealed class SettingsStore(string filePath)
                     {
                         Shortcuts = settings.Shortcuts ?? SettingsMap.Empty,
                         ConnectionShortcuts = settings.ConnectionShortcuts ?? SettingsMap.Empty,
+                        PathAvoidedTables = settings.PathAvoidedTables ?? TableListMap.Empty,
                         AuditTemplateGroups = settings.AuditTemplateGroups ?? SettingsMap.Empty,
                         ReportExceptionsGroups = settings.ReportExceptionsGroups ?? SettingsMap.Empty,
                     };

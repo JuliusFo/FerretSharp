@@ -1,0 +1,94 @@
+@* One way in the list of the relationship view (WP-74): its tables with ↑/↓, its length, "1 : 1" or "1 : n" and its
+   menu. A row of its own that renders only when its way or its choice changes (review: every hover rendered every row,
+   hundreds after a few "More ways"); text and menu are built once per way. *@
+@using FerretSharp.Core.Relations
+@using FerretSharp.Core.Schema
+
+<li class="paths-row @(Selected ? "selected" : "")" @onmouseenter="() => OnHover.InvokeAsync(Path)" @onclick="() => OnSelect.InvokeAsync(Path)">
+    <span class="paths-chain mono" title="@_title">
+        @Label(Path.Start)@foreach (var step in Path.Steps)
+        {
+            <span class="paths-arrow @(step.ToChild ? "down" : "up")">@(step.ToChild ? " ↓ " : " ↑ ")</span>@Label(step.To)
+        }
+    </span>
+    <span class="paths-facts">
+        <span class="muted">@TextFormat.Plural(Path.Length, SchemaViewText.Paths_StepsOne, SchemaViewText.Paths_StepsOther)</span>
+        <span class="chip @(Path.SingleRow ? "" : "many")" title="@_rowsTitle">@(Path.SingleRow ? SchemaViewText.Paths_SingleRow : SchemaViewText.Paths_ManyRows)</span>
+        <MoreMenu Title="@SchemaViewText.Paths_MenuTitle" Width="240" Items="_items" />
+    </span>
+</li>
+
+@code {
+    private RelationPath? _built;
+    private object? _builtLabels;
+    private bool _builtSelected;
+    private bool _changed = true;
+    private string _title = "";
+    private string _rowsTitle = "";
+    private IReadOnlyList<MoreMenuItem> _items = [];
+
+    [Parameter, EditorRequired]
+    public RelationPath Path { get; set; } = null!;
+
+    [Parameter]
+    public bool Selected { get; set; }
+
+    [Parameter, EditorRequired]
+    public Func<TableRef, string> Label { get; set; } = null!;
+
+    /// <summary>
+    /// Changes when the names <see cref="Label"/> gives may change (the schema's table list: a synonym came or went);
+    /// the row builds its text again then, also for the same way (second review pass).
+    /// </summary>
+    [Parameter]
+    public object? LabelKey { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath?> OnHover { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath> OnBuildQuery { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath> OnCopyText { get; set; }
+
+    [Parameter]
+    public EventCallback<RelationPath> OnCopyMermaid { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (Selected != _builtSelected)
+        {
+            (_builtSelected, _changed) = (Selected, true);
+        }
+
+        if (ReferenceEquals(Path, _built) && ReferenceEquals(LabelKey, _builtLabels))
+        {
+            return;
+        }
+
+        var path = _built = Path;
+        _builtLabels = LabelKey;
+        _changed = true;
+        _title = path.Text(Label);
+        _rowsTitle = TextFormat.Format(path.SingleRow ? SchemaViewText.Paths_SingleRowTitle : SchemaViewText.Paths_ManyRowsTitle, Label(path.Start), Label(path.Target));
+        _items =
+        [
+            new(SchemaViewText.Query_Build, () => OnBuildQuery.InvokeAsync(path))
+            {
+                Strong = true,
+                Title = path.SingleRow ? SchemaViewText.Paths_BuildQueryTitle : SchemaViewText.Paths_BuildQueryChildTitle,
+            },
+            new(SchemaViewText.Paths_CopyText, () => OnCopyText.InvokeAsync(path)) { Title = SchemaViewText.Paths_CopyTextTitle },
+            new(SchemaViewText.Relations_CopyMermaid, () => OnCopyMermaid.InvokeAsync(path)),
+        ];
+    }
+
+    /// <summary>Only a new way or a changed choice; the parent renders on every hover and every collected block.</summary>
+    protected override bool ShouldRender() => _changed;
+
+    protected override void OnAfterRender(bool firstRender) => _changed = false;
+}

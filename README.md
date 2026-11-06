@@ -103,6 +103,8 @@ developer works with an Oracle database day to day:
 - Sort the results of the SQL editor and the LINQ console by a click on a header.
 - **Relationship diagram**: the "Relations" view of a table – parents left, children right, one or two levels, "+n"
   handles to go further, kinds of relationship to switch off, zoom, copy as Mermaid for a ticket.
+- **Every way between two tables**: "Path to …" lists each chain of relationships to another table, shortest first and
+  without a limit, in a diagram of all of them; leave out tables every way passes, and turn a way into a query.
 - **Build a query in the diagram**: click the relationships to its parents (and to children, of which one row is
   chosen by condition and order), tick columns, add conditions – and get LINQ in the style of query extensions (an
   expression per value, LinqKit, a DTO or your own mapping lines), the SQL with the right joins, a preview of the rows

@@ -89,6 +89,9 @@ public sealed record TabState(
     /// </summary>
     public Relations.QueryDesignState? Design { get; init; }
 
+    /// <summary>The table the relationship view of a table tab shows the ways to (WP-74); null for its neighbours.</summary>
+    public Schema.TableRef? PathTarget { get; init; }
+
     /// <summary>A LINQ console tab in the file format of table tabs.</summary>
     public static TabState OfLinq(LinqTabState linq) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Linq = linq };
 
@@ -220,6 +223,7 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
                 Depth = Relations.RecordDiagram.ClampDepth(records.Depth),
             } : null,
             Design = tab.Design?.Normalized(),
+            PathTarget = tab.PathTarget is { Owner: not null, Name: not null } target ? target : null,
         }).ToList(),
     };
 

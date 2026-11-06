@@ -50,6 +50,15 @@ public sealed class RelationGraph
     /// <summary>Identifies a path of relationships (children of children …) by the keys of its relationships.</summary>
     public static string PathKey(IReadOnlyList<ForeignKeyInfo> path) => string.Join('\u0002', path.Select(KeyOf));
 
+    /// <summary>
+    /// The same relationships in the same order, by content: tables, name, columns and source. The records compare their
+    /// column lists by reference, and a reloaded C# model or schema brings new lists for the same relationships (WP-74 review).
+    /// </summary>
+    public static bool SameRelations(IReadOnlyList<ForeignKeyInfo> a, IReadOnlyList<ForeignKeyInfo> b) =>
+        a.Count == b.Count && a.Zip(b).All(p =>
+            p.First.From == p.Second.From && p.First.To == p.Second.To && p.First.Name == p.Second.Name && p.First.Source == p.Second.Source
+            && p.First.FromColumns.SequenceEqual(p.Second.FromColumns) && p.First.ToColumns.SequenceEqual(p.Second.ToColumns));
+
     /// <summary>The row references a row of its own table (an employee's manager).</summary>
     public static bool IsSelfReference(ForeignKeyInfo relation) => relation.From == relation.To;
 

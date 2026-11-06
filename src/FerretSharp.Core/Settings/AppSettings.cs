@@ -154,6 +154,12 @@ public sealed record AppSettings
     /// </summary>
     public SettingsMap ConnectionShortcuts { get; init; } = SettingsMap.Empty;
 
+    /// <summary>
+    /// Tables no way between two tables goes through (WP-74), per connection id: e.g. who created a row or the client,
+    /// which would be on every way. In the settings like <see cref="ConnectionShortcuts"/>; forgotten with the connection.
+    /// </summary>
+    public TableListMap PathAvoidedTables { get; init; } = TableListMap.Empty;
+
     /// <summary>The change overview (WP-30) is open beside the tabs – it opens again after a restart.</summary>
     public bool ChangesPanelOpen { get; init; }
 

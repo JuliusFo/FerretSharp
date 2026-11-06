@@ -203,11 +203,23 @@ public sealed class ConnectionGroups : IDisposable
         try
         {
             await _shortcuts.ForgetConnectionsExceptAsync(existing);
+            await ForgetAvoidedTablesExceptAsync(existing);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) // a moved connection is saved: awaited, it must not fail
         {
             // In effect for this session; tried again with the next change of the list.
         }
+    }
+
+    /// <summary>The tables ways avoid (WP-74) of connections that are gone.</summary>
+    private Task ForgetAvoidedTablesExceptAsync(IReadOnlySet<Guid> existing)
+    {
+        bool Gone(string key) => Guid.TryParse(key, out var id) && !existing.Contains(id);
+        return _settings.Current.PathAvoidedTables.Keys.Any(Gone)
+            ? _settings.UpdateAsync(
+                s => s with { PathAvoidedTables = s.PathAvoidedTables.Keys.Where(Gone).ToList().Aggregate(s.PathAvoidedTables, (map, key) => map.Without(key)) },
+                CancellationToken.None)
+            : Task.CompletedTask;
     }
 
     public void Dispose()

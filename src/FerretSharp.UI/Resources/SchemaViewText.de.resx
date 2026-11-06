@@ -1827,4 +1827,118 @@
   <data name="TablePicker_ReasonColumnName" xml:space="preserve">
     <value>Spaltenname</value>
   </data>
+  <data name="Paths_To" xml:space="preserve">
+    <value>Weg zu …</value>
+  </data>
+  <data name="Paths_ToTable" xml:space="preserve">
+    <value>Weg zu {0}</value>
+  </data>
+  <data name="Paths_ToTitle" xml:space="preserve">
+    <value>Alle Wege von dieser Tabelle zu einer anderen über Beziehungen zeigen</value>
+  </data>
+  <data name="Paths_FindTable" xml:space="preserve">
+    <value>Tabelle suchen</value>
+  </data>
+  <data name="Paths_ClearTitle" xml:space="preserve">
+    <value>Zurück zu den Nachbarn von {0}</value>
+  </data>
+  <data name="Paths_Searching" xml:space="preserve">
+    <value>Suche Wege der Länge {0} …</value>
+  </data>
+  <data name="Paths_CountOne" xml:space="preserve">
+    <value>{0} Weg</value>
+  </data>
+  <data name="Paths_CountOther" xml:space="preserve">
+    <value>{0} Wege</value>
+  </data>
+  <data name="Paths_AllFound" xml:space="preserve">
+    <value>alle gefunden</value>
+  </data>
+  <data name="Paths_Paused" xml:space="preserve">
+    <value>bisher bis {0} Schritte</value>
+  </data>
+  <data name="Paths_Cancelled" xml:space="preserve">
+    <value>abgebrochen</value>
+  </data>
+  <data name="Paths_More" xml:space="preserve">
+    <value>Weitere Wege</value>
+  </data>
+  <data name="Paths_MoreTitle" xml:space="preserve">
+    <value>Die nächsten {0} Wege suchen, längere nach den kürzeren</value>
+  </data>
+  <data name="Paths_CancelTitle" xml:space="preserve">
+    <value>Suche anhalten – „Weitere Wege“ macht dort weiter</value>
+  </data>
+  <data name="Paths_NoneTitle" xml:space="preserve">
+    <value>Kein Weg</value>
+  </data>
+  <data name="Paths_NoneText" xml:space="preserve">
+    <value>Keine Beziehungen führen von {0} zu {1}.</value>
+  </data>
+  <data name="Paths_NoneFilteredText" xml:space="preserve">
+    <value>Keine Beziehungen führen von {0} zu {1} – mit den gezeigten Arten und ohne die ausgeschlossenen Tabellen.</value>
+  </data>
+  <data name="Paths_StepsOne" xml:space="preserve">
+    <value>{0} Schritt</value>
+  </data>
+  <data name="Paths_StepsOther" xml:space="preserve">
+    <value>{0} Schritte</value>
+  </data>
+  <data name="Paths_SingleRow" xml:space="preserve">
+    <value>1 : 1</value>
+  </data>
+  <data name="Paths_SingleRowTitle" xml:space="preserve">
+    <value>Nur Schritte zu Eltern: höchstens eine Zeile von {1} je Zeile von {0}</value>
+  </data>
+  <data name="Paths_ManyRows" xml:space="preserve">
+    <value>1 : n</value>
+  </data>
+  <data name="Paths_ManyRowsTitle" xml:space="preserve">
+    <value>Ein Schritt zu Kindern: Eine Zeile von {0} kann mehrere Zeilen von {1} treffen</value>
+  </data>
+  <data name="Paths_Avoided" xml:space="preserve">
+    <value>Nicht über:</value>
+  </data>
+  <data name="Paths_AllowTitle" xml:space="preserve">
+    <value>Wege über {0} wieder zulassen</value>
+  </data>
+  <data name="Paths_Avoid" xml:space="preserve">
+    <value>Nicht über diese Tabelle</value>
+  </data>
+  <data name="Paths_AvoidTitle" xml:space="preserve">
+    <value>Alle Wege über {0} auslassen – gilt für diese Verbindung</value>
+  </data>
+  <data name="Paths_MenuTitle" xml:space="preserve">
+    <value>Aktionen für diesen Weg</value>
+  </data>
+  <data name="Paths_BuildQueryTitle" xml:space="preserve">
+    <value>Den Weg als Abfrage öffnen: Jede Tabelle darauf wird ein Knoten</value>
+  </data>
+  <data name="Paths_BuildQueryChildTitle" xml:space="preserve">
+    <value>Den Weg als Abfrage öffnen: Jede Tabelle darauf wird ein Knoten, ein Schritt zu Kindern nimmt ein Kind (das erste nach Sortierung)</value>
+  </data>
+  <data name="Paths_CopyText" xml:space="preserve">
+    <value>Als Text kopieren</value>
+  </data>
+  <data name="Paths_CopyTextTitle" xml:space="preserve">
+    <value>Die Spalten jedes Schritts, eine Zeile je Schritt</value>
+  </data>
+  <data name="Paths_TextCopied" xml:space="preserve">
+    <value>Weg kopiert.</value>
+  </data>
+  <data name="Paths_ReplaceTitle" xml:space="preserve">
+    <value>Abfrage ersetzen?</value>
+  </data>
+  <data name="Paths_ReplaceText" xml:space="preserve">
+    <value>Der Tab hat schon eine Abfrage. Durch den Weg ersetzen oder den Weg anhängen?</value>
+  </data>
+  <data name="Paths_Replace" xml:space="preserve">
+    <value>Ersetzen</value>
+  </data>
+  <data name="Paths_Append" xml:space="preserve">
+    <value>Anhängen</value>
+  </data>
+  <data name="Paths_CopyMermaidTitle" xml:space="preserve">
+    <value>Alle gefundenen Wege als Mermaid-Diagramm (erDiagram) für Doku und Tickets</value>
+  </data>
 </root>

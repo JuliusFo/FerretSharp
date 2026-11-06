@@ -104,19 +104,26 @@ public sealed class ConnectionGroupsTests : IAsyncDisposable
         Assert.Equal(1, changed);
     }
 
-    /// <summary>The key of a deleted connection would stay in the settings and could not be given to another one.</summary>
+    /// <summary>
+    /// The key of a deleted connection would stay in the settings and could not be given to another one; the tables its
+    /// ways avoided (WP-74) leave with it.
+    /// </summary>
     [Fact]
     public async Task A_deleted_connections_key_leaves_the_settings()
     {
         await SaveAllAsync();
         await _app.Shortcuts.SetConnectionAsync(Kasse.Id, KeyChord.Parse("alt+1"));
         await _app.Shortcuts.SetConnectionAsync(Zoll.Id, KeyChord.Parse("alt+2"));
+        Core.Schema.TableRef[] benutzer = [new("APP", "BENUTZER")];
+        await _app.Settings.UpdateAsync(
+            s => s with { PathAvoidedTables = s.PathAvoidedTables.With(Kasse.Id.ToString(), benutzer).With(Zoll.Id.ToString(), benutzer) }, Ct);
 
         await _app.Connections.DeleteAsync(Kasse.Id, Ct);
 
         await Groups.Cleanup;
         Assert.False(_app.Settings.Current.ConnectionShortcuts.ContainsKey(Kasse.Id.ToString()));
         Assert.Equal("alt+2", _app.Settings.Current.ConnectionShortcuts[Zoll.Id.ToString()]);
+        Assert.Equal([Zoll.Id.ToString()], _app.Settings.Current.PathAvoidedTables.Keys);
     }
 
     public async ValueTask DisposeAsync()
