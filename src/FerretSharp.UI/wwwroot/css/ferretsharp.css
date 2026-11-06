@@ -1966,6 +1966,8 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-node.in-query { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .query-panel { position: relative; flex: none; display: flex; flex-direction: column; width: 460px; min-width: 320px; max-width: 60%; min-height: 0;
     border-top: 1px solid var(--border); border-left: 1px solid var(--border); background: var(--surface); font-size: 13px; }
+/* The handle inside the panel: half of it outside would lie on the diagram's vertical scrollbar (review). */
+.query-panel > .resize-handle.left { left: 0; }
 .query-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 10px 14px 24px; display: flex; flex-direction: column; gap: 8px; }
 .query-panel h3 { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .query-panel h4 { margin: 8px 0 2px; font-size: 12px; font-weight: 600; }
