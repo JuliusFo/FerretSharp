@@ -45,6 +45,15 @@ Ein unabhängiger Reviewer-Agent (`/branch-code-review`), vier Durchgänge. Ents
 - Werkzeug: `Invoke-RealClick.ps1` kann vor einem Ziehen klicken (`-Clicks 2` mit `-ToX/-ToY`).
 - Vorher schon da, nicht geändert: `ChangesPanelWidth` und `FormWidth` werden ohne Prüfung auf > 0 gerendert (ein negativer Wert von Hand ergibt nur die automatische Breite). Viele Bind-Variablen konnten den SQL-Bereich schon mit der alten Standardhöhe über die Ansicht schieben; das fängt jetzt A ab.
 
+## Nachtrag: Liste der Wege ziehbar (2026-11-06, unveröffentlicht)
+Branch `fix/resizable-paths-panel`. Anlass: Die Liste der Wege neben dem Diagramm von „Weg zu …“ (WP-74, 3.61.0) ließ sich nicht verbreitern.
+
+Ohne Rückfrage entschieden (einfachste Variante, wie die Änderungsübersicht):
+- **Eine Breite für die ganze App** in den Einstellungen: `AppSettings.PathsPanelWidth`, null = Standard 420 px aus dem CSS. `RelationsView` speichert sie, `RelationPathsPanel` rendert sie als `style` nur, wenn gesetzt – beim Zurücksetzen fällt das Attribut weg und mit ihm die Breite aus `dom.js`.
+- Griff am rechten Rand (`ResizeEdge.Right`), Grenzen 280 px bis 60 % von `.relations-body` (vorher `max-width: 45%`), dieselben Grenzen im CSS. `overflow: hidden` an `.paths-panel` entfernt, sonst wäre die äußere Hälfte des Griffs abgeschnitten; die Liste scrollt weiter selbst.
+- Nicht geprüft: kein E2E (Docker lief nicht). Zu prüfen: Ziehen, Grenzen, Doppelklick, Neustart; liegt der Griff über dem Diagramm rechts daneben?
+- Offen: Das Seitenfeld von „Abfrage bauen“ (`.query-panel`) ist ebenfalls fest breit (460 px, rechts). Es scrollt als Ganzes, ein Griff bräuchte dort einen inneren Scroll-Bereich.
+
 ## Nachtrag: Editorhöhe je Tab (2026-11-04)
 Entscheidung des Nutzers nach dem Code-Review: „Ich würde erstmal je Tab eine eigene Höhe machen.“
 - `AppSettings.SqlEditorHeight`/`LinqEditorHeight` entfernt (nie veröffentlicht; ein Wert in einer vorhandenen `settings.json` wird beim Lesen übergangen, im E2E geprüft).
