@@ -8,6 +8,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Changed
 - The list of ways beside the diagram of *Relations › Path to …* and the side panel of *Relations › Build query* can be made wider or narrower like the other side panels: drag the edge toward the diagram, a double click goes back to the default. Each width holds for every relationship view and is kept after a restart.
 
+### Fixed
+- Over RDP the window could go empty for good after switching between the remote desktop and other windows on the PC, also after minimizing and restoring: without WPF's front buffer the WebView's picture is now shown in software, and its capture restarts only once the front buffer is back. The log notes when the front buffer goes and when the render tier changes.
+
 ## [3.61.0] - 2026-11-06
 
 Every way between two tables in the relationship view, a searchable list with suggestions for the table of a new foreign key, and a table can open on another view or without rows.
