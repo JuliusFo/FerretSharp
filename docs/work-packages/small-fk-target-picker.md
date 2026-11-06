@@ -1,4 +1,4 @@
-# Klein: Zieltabelle eines neuen FK mit Suche und Vorschlag
+# Klein: Zieltabelle eines neuen FK mit Suche und Vorschlag → Release 3.61.0
 
 Branch `feat/fk-target-picker` (von `main`), 2026-11-06.
 

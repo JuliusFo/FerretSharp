@@ -1,4 +1,4 @@
-# Klein: Ansicht und Zeilen beim Öffnen einer Tabelle → Release offen
+# Klein: Ansicht und Zeilen beim Öffnen einer Tabelle → Release 3.61.0
 
 Branch `feat/tab-open-options` (von `main`), 2026-11-05.
 
