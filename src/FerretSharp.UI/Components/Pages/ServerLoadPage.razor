@@ -94,13 +94,13 @@
             }
         </div>
 
-        @if (latest is null)
+        @if (latest is null && !view.Stopped) @* stopped: no next look to promise *@
         {
             <section class="settings-section">
                 <p class="hint load-wait">@ServerLoadText.ServerLoad_NoSampleYet</p>
             </section>
         }
-        else
+        else if (latest is not null)
         {
             @Tiles(latest)
             @Chart(history, latest)
