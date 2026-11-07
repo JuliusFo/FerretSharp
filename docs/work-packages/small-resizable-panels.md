@@ -45,7 +45,7 @@ Ein unabhängiger Reviewer-Agent (`/branch-code-review`), vier Durchgänge. Ents
 - Werkzeug: `Invoke-RealClick.ps1` kann vor einem Ziehen klicken (`-Clicks 2` mit `-ToX/-ToY`).
 - Vorher schon da, nicht geändert: `ChangesPanelWidth` und `FormWidth` werden ohne Prüfung auf > 0 gerendert (ein negativer Wert von Hand ergibt nur die automatische Breite). Viele Bind-Variablen konnten den SQL-Bereich schon mit der alten Standardhöhe über die Ansicht schieben; das fängt jetzt A ab.
 
-## Nachtrag: Liste der Wege und „Abfrage bauen“ ziehbar (2026-11-06, unveröffentlicht)
+## Nachtrag: Liste der Wege und „Abfrage bauen“ ziehbar (2026-11-06, Release 3.62.0)
 Branch `fix/resizable-paths-panel`. Anlass: Die Liste der Wege neben dem Diagramm von „Weg zu …“ (WP-74, 3.61.0) ließ sich nicht verbreitern.
 
 Zuerst ohne Rückfrage gebaut (einfachste Variante, wie die Änderungsübersicht), nach dem Code-Review vom Nutzer bestätigt („Deine Vorschläge passen“):

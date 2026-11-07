@@ -1,4 +1,4 @@
-# Klein: Tab-Leiste – breitere Scrollbars, mehrzeilig, Tabs ziehen
+# Klein: Tab-Leiste – breitere Scrollbars, mehrzeilig, Tabs ziehen → Release 3.62.0
 
 Branch `feat/tab-bar` (von `main`), 2026-11-07. Ohne WP-Nummer.
 

@@ -1,4 +1,4 @@
-# Fix: Neue leere SQL- und LINQ-Tabs am Ende der Tab-Leiste
+# Fix: Neue leere SQL- und LINQ-Tabs am Ende der Tab-Leiste → Release 3.62.0
 
 Branch `fix/new-tabs-at-end` (von `main`), 2026-11-06, unveröffentlicht.
 
