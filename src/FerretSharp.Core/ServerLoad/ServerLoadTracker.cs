@@ -34,6 +34,7 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
     private readonly Dictionary<string, StatementInfo?> _info = [];
     private LoadCounters? _load;
     private DateTime? _statementsAt;
+    private DateTime? _fullAt;
     private long _version;
     private (long Version, TimeSpan? Window, TopStatementSort Sort, StatementFilter Filter, int Count, IReadOnlyList<StatementRow> Rows)? _top;
 
@@ -63,6 +64,22 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
             lock (_gate)
             {
                 return _statementsAt;
+            }
+        }
+    }
+
+    /// <summary>
+    /// An hour since all cursors were read (second review of WP-75): read them all again (<c>AddStatements(all, complete: true)</c>),
+    /// which drops those gone from <c>V$SQLSTATS</c> – else every cursor ever seen stays, with literal SQL tens of thousands an
+    /// hour. Dropping a cursor still there would count all its figures since loading again when it comes back.
+    /// </summary>
+    public bool FullReadDue
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _load is { } load && _fullAt is { } full && load.At - full >= HistoryLength;
             }
         }
     }
@@ -103,6 +120,7 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
 
             _load = load;
             _statementsAt = load.At;
+            _fullAt = load.At;
             StartedAt ??= load.At;
             NeedsBaseline = false;
             _version++;
@@ -142,7 +160,11 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
     /// The cursors active since <see cref="StatementsSince"/>, as read in the latest look: what each did since then. A cursor
     /// not held, or with a smaller figure than held, was loaded (again) meanwhile and counts from 0. Needs a baseline.
     /// </summary>
-    public void AddStatements(IReadOnlyList<StatementCounters> changed)
+    /// <param name="complete">
+    /// <paramref name="changed"/> holds every cursor of <c>V$SQLSTATS</c> (<see cref="FullReadDue"/>): those held but missing are
+    /// gone and dropped; should one come back, it was loaded again and counts from 0.
+    /// </param>
+    public void AddStatements(IReadOnlyList<StatementCounters> changed, bool complete = false)
     {
         lock (_gate)
         {
@@ -167,6 +189,17 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
                 Count(_sinceStart, cursor.SqlId, cursor.PlanHash, delta, to);
             }
 
+            if (complete)
+            {
+                var present = changed.Select(CursorKey.Of).ToHashSet();
+                foreach (var gone in _cursors.Keys.Where(k => !present.Contains(k)).ToList())
+                {
+                    _cursors.Remove(gone);
+                }
+
+                _fullAt = to;
+            }
+
             _looks.Add(look);
             _looks.RemoveAll(l => l.From < to - HistoryLength);
             _statementsAt = to;
@@ -183,7 +216,15 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
     {
         lock (_gate)
         {
-            return [.. _sinceStart.Where(s => !_info.ContainsKey(s.Key)).OrderByDescending(s => s.Value.Figures.CpuTime).ThenBy(s => s.Key, StringComparer.Ordinal)
+            // Also those of the window that left „since opened“ (second review of WP-75): a window sorted by executions or reads
+            // can show one at the top.
+            var cpu = new Dictionary<string, long>();
+            foreach (var (sqlId, activity) in _sinceStart.Concat(_looks.SelectMany(l => l.Deltas)))
+            {
+                cpu[sqlId] = Math.Max(cpu.GetValueOrDefault(sqlId), activity.Figures.CpuTime);
+            }
+
+            return [.. cpu.Where(s => !_info.ContainsKey(s.Key)).OrderByDescending(s => s.Value).ThenBy(s => s.Key, StringComparer.Ordinal)
                 .Take(max).Select(s => s.Key)];
         }
     }
@@ -193,12 +234,12 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
     {
         lock (_gate)
         {
-            foreach (var sqlId in asked.Where(_sinceStart.ContainsKey))
+            foreach (var sqlId in asked.Where(Known))
             {
                 _info.TryAdd(sqlId, null);
             }
 
-            foreach (var info in found.Where(i => _sinceStart.ContainsKey(i.SqlId)))
+            foreach (var info in found.Where(i => Known(i.SqlId)))
             {
                 _info[info.SqlId] = info;
             }
@@ -251,7 +292,13 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
         }
     }
 
-    /// <summary>Past <c>maxStatements</c>, the cheapest statements (CPU) leave „since opened“ with their text, down to nine tenths.</summary>
+    /// <summary>A statement of „since opened“ or of a window: one whose info is worth keeping.</summary>
+    private bool Known(string sqlId) => _sinceStart.ContainsKey(sqlId) || _looks.Any(l => l.Deltas.ContainsKey(sqlId));
+
+    /// <summary>
+    /// Past <c>maxStatements</c>, the cheapest statements (CPU) leave „since opened“ with their text, down to nine tenths; one
+    /// still in a window keeps its text.
+    /// </summary>
     private void Trim()
     {
         if (_sinceStart.Count <= maxStatements)
@@ -263,7 +310,10 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
                      .Take(_sinceStart.Count - maxStatements * 9 / 10).Select(s => s.Key).ToList())
         {
             _sinceStart.Remove(sqlId);
-            _info.Remove(sqlId);
+            if (!Known(sqlId))
+            {
+                _info.Remove(sqlId);
+            }
         }
     }
 

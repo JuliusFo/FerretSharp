@@ -167,7 +167,7 @@ public sealed class ServerLoadTrackerTests
 
         // Review of WP-75: down to nine tenths, the most expensive kept.
         Assert.Equal(Enumerable.Range(4, 9).Select(i => $"s{i:00}").Reverse(), tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 100).Select(r => r.SqlId));
-        Assert.Equal(9, tracker.SqlIdsWithoutInfo(100).Count);
+        Assert.Equal(12, tracker.SqlIdsWithoutInfo(100).Count); // all of them are still in the window: their text is asked for
     }
 
     [Fact]
@@ -181,5 +181,37 @@ public sealed class ServerLoadTrackerTests
         Assert.Same(first, tracker.Top(null, TopStatementSort.Cpu, new StatementFilter(), 10));
         Look(tracker, 30, Cursor("a", 2, 20));
         Assert.Equal(20, Assert.Single(tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10)).Figures.CpuTime);
+    }
+
+    [Fact]
+    public void Every_hour_a_full_read_drops_the_cursors_gone_and_one_coming_back_counts_from_zero()
+    {
+        var tracker = Started(Cursor("kept", 10, 100), Cursor("gone", 50, 5000));
+        Assert.False(tracker.FullReadDue);
+        Look(tracker, 3600);
+        Assert.True(tracker.FullReadDue);
+
+        tracker.AddLoad(Counters(tracker.LastLookAt!.Value.AddSeconds(30)));
+        tracker.AddStatements([Cursor("kept", 11, 110)], complete: true); // "gone" left V$SQLSTATS
+        Assert.False(tracker.FullReadDue);
+        Look(tracker, 30, Cursor("gone", 2, 40)); // loaded again: its figures since then
+
+        Assert.Equal([("gone", 40L), ("kept", 10L)], tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10).Select(r => (r.SqlId, r.Figures.CpuTime)));
+    }
+
+    [Fact]
+    public void A_statement_trimmed_from_since_opened_but_still_in_a_window_gets_its_text()
+    {
+        var tracker = new ServerLoadTracker(maxStatements: 2);
+        tracker.AddLoad(Counters(T0));
+        tracker.Rebase(Counters(T0), []);
+        tracker.AddLoad(Counters(T0.AddSeconds(30)));
+        tracker.AddStatements([Cursor("busy", 1000, 1), Cursor("dear", 1, 500), Cursor("mid", 1, 50)]); // "busy" is the cheapest by CPU
+
+        Assert.Contains("busy", tracker.SqlIdsWithoutInfo(10));
+        tracker.AddInfo(["busy"], [new StatementInfo("busy", "SELECT 1", null, "APP")]);
+
+        var top = tracker.Top(TimeSpan.FromMinutes(5), TopStatementSort.Executions, StatementFilter.None, 10);
+        Assert.Equal(("busy", "SELECT 1"), (top[0].SqlId, top[0].Info?.Text)); // sorted by executions it leads the window
     }
 }

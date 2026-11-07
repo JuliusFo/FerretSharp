@@ -1,3 +1,4 @@
+using System.Text;
 using FerretSharp.Core.Connections;
 
 namespace FerretSharp.Core.ServerLoad;
@@ -28,10 +29,10 @@ public interface IServerLoadReader
 
     /// <summary>
     /// The whole text of a statement (<c>SQL_FULLTEXT</c> of <c>V$SQL</c>, else of <c>V$SQLSTATS</c> – also when the cursor left
-    /// the library cache and figures and plan are gone); null when it is gone everywhere. From <c>V$SQLSTATS</c> it may be cut
-    /// at 1000 characters (<see cref="StatementInfo.TextLength"/>).
+    /// the library cache and figures and plan are gone); null when it is gone everywhere. What <c>V$SQLSTATS</c> keeps may be cut
+    /// (<see cref="StatementText.MayBeCut"/>).
     /// </summary>
-    Task<string?> ReadFullTextAsync(string sqlId, CancellationToken cancellationToken);
+    Task<StatementText?> ReadFullTextAsync(string sqlId, CancellationToken cancellationToken);
 
     /// <summary>
     /// The top statements by the figures since each was loaded into the shared pool (<c>V$SQLSTATS</c>, like the reports of
@@ -184,12 +185,25 @@ public sealed record StatementCounters(string SqlId, long PlanHash, int Containe
 /// <param name="Schema">The parsing schema (the user the statement ran as), from <c>V$SQL</c> like the module.</param>
 public sealed record StatementInfo(string SqlId, string? Text, string? Module, string? Schema)
 {
-    /// <summary>The length of <c>SQL_TEXT</c>: a text that long may be cut.</summary>
+    /// <summary>The size of <c>SQL_TEXT</c> – in bytes of the database character set, not in characters.</summary>
     public const int TextLength = 1000;
 
     /// <summary>The text may be cut (review of WP-75): never take it for the whole statement, e.g. to run it.</summary>
-    public bool MayBeCut => Text?.Length >= TextLength;
+    public bool MayBeCut => MayBeCutText(Text);
+
+    /// <summary>
+    /// Whether a text of <c>SQL_TEXT</c> (or what <c>V$SQLSTATS.SQL_FULLTEXT</c> keeps) may be cut. Oracle cuts after 1000
+    /// <b>bytes</b>: with umlauts in AL32UTF8 that are 511 characters (second review of WP-75, measured). The database character
+    /// set is not known here, so a text that reaches 1000 characters, or nearly 1000 bytes in UTF-8 (a character takes up to
+    /// four), counts as maybe cut – a single-byte database may flag a whole text with many umlauts, never miss a cut one.
+    /// </summary>
+    public static bool MayBeCutText(string? text) =>
+        text is not null && (text.Length >= TextLength || Encoding.UTF8.GetByteCount(text) >= TextLength - 3);
 }
+
+/// <summary>The whole text of a statement, or what is left of it.</summary>
+/// <param name="MayBeCut">From <c>V$SQLSTATS</c>, which may keep only the first 1000 bytes: never take it for the whole statement.</param>
+public sealed record StatementText(string Text, bool MayBeCut);
 
 /// <summary>Filters the top list by parts of the parsing schema and of the module, ignoring case; empty matches all.</summary>
 public sealed record StatementFilter(string? Schema = null, string? Module = null)

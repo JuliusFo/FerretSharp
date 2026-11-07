@@ -85,11 +85,13 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
         """;
 
     // The whole text of a statement: from V$SQL while the cursor is there – V$SQLSTATS.SQL_FULLTEXT keeps only the first
-    // 1000 characters after a while (E2E of the review of WP-75: 1000 there, 1539 in V$SQL for the same SQL_ID).
+    // 1000 bytes after a while (E2E of the review of WP-75: 1000 there, 1539 in V$SQL for the same SQL_ID). The second only
+    // when the first is gone, so the source says whether it may be cut.
     public const string FullTextSql = """
-        SELECT COALESCE((SELECT sql_fulltext FROM v$sql WHERE sql_id = :sql_id AND ROWNUM = 1),
-                        (SELECT sql_fulltext FROM v$sqlstats WHERE sql_id = :sql_id AND ROWNUM = 1))
+        SELECT v.sql_fulltext,
+               CASE WHEN v.sql_fulltext IS NULL THEN (SELECT sql_fulltext FROM v$sqlstats WHERE sql_id = :sql_id AND ROWNUM = 1) END
           FROM dual
+          LEFT JOIN v$sql v ON v.sql_id = :sql_id AND v.child_number = (SELECT MIN(child_number) FROM v$sql WHERE sql_id = :sql_id)
         """;
 
     /// <summary>
@@ -201,11 +203,17 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
             reader => new StatementInfo(Text(reader, 0) ?? "", Text(reader, 1), Text(reader, 2), Text(reader, 3)), cancellationToken));
     }
 
-    public Task<string?> ReadFullTextAsync(string sqlId, CancellationToken cancellationToken) =>
+    public Task<StatementText?> ReadFullTextAsync(string sqlId, CancellationToken cancellationToken) =>
         GuardAsync(async () =>
         {
-            var texts = await session.ReadListAsync(FullTextSql, [new QueryParameter("sql_id", sqlId)], reader => Text(reader, 0), cancellationToken);
-            return texts is [var text] ? text : null;
+            var rows = await session.ReadListAsync(FullTextSql, [new QueryParameter("sql_id", sqlId)], reader => (Whole: Text(reader, 0), Kept: Text(reader, 1)),
+                cancellationToken);
+            return rows.FirstOrDefault() switch
+            {
+                { Whole: { } whole } => new StatementText(whole, false),
+                { Kept: { } kept } => new StatementText(kept, StatementInfo.MayBeCutText(kept)),
+                _ => null,
+            };
         });
 
     public Task<IReadOnlyList<StatementRow>> ReadTopSinceLoadAsync(TopStatementSort sort, StatementFilter filter, int count, CancellationToken cancellationToken) =>

@@ -95,4 +95,18 @@ public sealed class ServerLoadMonitorTests
         Assert.Equal(Enumerable.Repeat(ServerLoadMonitor.InfoBatch, ServerLoadMonitor.InfoPerLook / ServerLoadMonitor.InfoBatch), asked);
         Assert.Equal(30, _tracker.SqlIdsWithoutInfo(1000).Count);
     }
+
+    [Fact]
+    public async Task An_hour_after_the_baseline_a_look_reads_all_cursors_again()
+    {
+        CountersAt(T0, T0.AddMinutes(61), T0.AddMinutes(62));
+        var monitor = Monitor();
+        await monitor.OpenAsync(null, TestContext.Current.CancellationToken);
+        await monitor.LookAsync(_steps.Add, TestContext.Current.CancellationToken); // decided before it, at the baseline: changed ones
+        await monitor.LookAsync(_steps.Add, TestContext.Current.CancellationToken); // an hour after the baseline: all
+
+        await _reader.Received(2).ReadStatementsAsync(null, Arg.Any<CancellationToken>());
+        Assert.Equal([ServerLoadStep.Baseline], _steps);
+        Assert.False(_tracker.FullReadDue);
+    }
 }

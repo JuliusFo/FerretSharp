@@ -74,11 +74,13 @@ public sealed partial class OracleSchemaReader
         }
     }
 
-    // The whole text of a cursor: from V$SQL, V$SQLSTATS only as a fallback (it may keep just 1000 characters, WP-75).
+    // The whole text of a cursor, from V$SQL: without a child there are no figures and no plan either. A statement gone from
+    // V$SQL keeps its text in V$SQLSTATS, maybe cut – that is the server load's (OracleServerLoadReader.FullTextSql, WP-75).
     private const string CursorTextSql = """
-        SELECT COALESCE((SELECT sql_fulltext FROM v$sql WHERE sql_id = :sql_id AND ROWNUM = 1),
-                        (SELECT sql_fulltext FROM v$sqlstats WHERE sql_id = :sql_id AND ROWNUM = 1))
-          FROM dual
+        SELECT sql_fulltext
+          FROM v$sql
+         WHERE sql_id = :sql_id
+         FETCH FIRST 1 ROW ONLY
         """;
 
     public Task<CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken) =>

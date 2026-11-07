@@ -17,6 +17,15 @@ public sealed class ServerLoadExportTests
     public void Times_are_seconds_and_per_execution_milliseconds(StatementColumn column, double expected) =>
         Assert.Equal((decimal)expected, ServerLoadExport.ValueOf(Row, column));
 
+    [Theory]
+    [InlineData('x', 1000, true)]
+    [InlineData('x', 996, false)]
+    [InlineData('ä', 511, true)] // measured: SQL_TEXT keeps 1000 bytes, 511 characters with umlauts in AL32UTF8
+    [InlineData('ä', 400, false)]
+    [InlineData('€', 333, true)] // three bytes each
+    public void A_text_may_be_cut_from_a_thousand_characters_or_nearly_a_thousand_bytes(char letter, int count, bool mayBeCut) =>
+        Assert.Equal(mayBeCut, StatementInfo.MayBeCutText(new string(letter, count)));
+
     [Fact]
     public void A_text_that_may_be_cut_ends_in_an_ellipsis() =>
         Assert.Equal(new string('x', 1000) + " …",

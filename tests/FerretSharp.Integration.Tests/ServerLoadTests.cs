@@ -81,8 +81,9 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         Assert.Equal(1, monitor.Environment!.Instances);
         Assert.True(monitor.Environment.Cpus > 0);
 
-        // Longer than SQL_TEXT (1000 characters): the details must bring the whole text (review of WP-75).
-        var sql = $"SELECT /* fs_load_{Guid.NewGuid():N} {new string('x', 1200)} */ COUNT(*) FROM all_objects WHERE ROWNUM <= 50";
+        // Longer than SQL_TEXT, which keeps 1000 bytes – with umlauts about 500 characters (second review of WP-75): the list
+        // marks it as maybe cut, the details bring the whole text.
+        var sql = $"SELECT /* fs_load_{Guid.NewGuid():N} {new string('ä', 700)} */ COUNT(*) FROM all_objects WHERE ROWNUM <= 50";
         await using (var other = new OracleConnection(oracle.RequireConnectionString()))
         {
             await other.OpenAsync(Ct);
@@ -102,11 +103,12 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         var sqlId = Plans.SqlId(sql);
         var row = Assert.Single(monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000), r => r.SqlId == sqlId);
         Assert.Equal(12, row.Figures.Executions);
-        Assert.Equal(sql[..1000], row.Info?.Text);
-        Assert.True(row.Info!.MayBeCut);
+        Assert.StartsWith(row.Info!.Text!, sql, StringComparison.Ordinal);
+        Assert.True(row.Info.Text!.Length < 1000);
+        Assert.True(row.Info.MayBeCut);
         Assert.Equal(Owner, row.Info?.Schema);
 
-        Assert.Equal(sql, await connection.ServerLoad.ReadFullTextAsync(sqlId, Ct));
+        Assert.Equal(new StatementText(sql, false), await connection.ServerLoad.ReadFullTextAsync(sqlId, Ct));
         Assert.Null(await connection.ServerLoad.ReadFullTextAsync("0000000000000", Ct));
         var cursor = await connection.Schema.GetCursorByIdAsync(sqlId, Ct);
         Assert.Equal(sql, cursor!.Plan.Sql);

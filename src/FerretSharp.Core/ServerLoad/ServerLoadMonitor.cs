@@ -39,12 +39,18 @@ public sealed class ServerLoadMonitor(IServerLoadReader reader, ServerLoadTracke
     /// <returns>The load since the look before; null for the first look and after a restart of the instance.</returns>
     public async Task<LoadSample?> LookAsync(Action<ServerLoadStep>? step, CancellationToken cancellationToken)
     {
+        var full = tracker.FullReadDue; // decided before the look, as the page's time limit is (ServerLoadService)
         var load = await reader.ReadCountersAsync(cancellationToken);
         var sample = tracker.AddLoad(load);
         if (tracker.NeedsBaseline)
         {
             step?.Invoke(ServerLoadStep.Baseline);
             tracker.Rebase(load, await reader.ReadStatementsAsync(null, cancellationToken));
+        }
+        else if (full)
+        {
+            step?.Invoke(ServerLoadStep.Baseline);
+            tracker.AddStatements(await reader.ReadStatementsAsync(null, cancellationToken), complete: true);
         }
         else
         {
