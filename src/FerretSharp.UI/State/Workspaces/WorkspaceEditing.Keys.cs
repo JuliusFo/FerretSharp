@@ -162,8 +162,12 @@ public sealed partial class WorkspaceEditing
 
         try
         {
-            var target = await schema.GetDetailsAsync(FkTargets.SummaryOf(active, jump.Table), CancellationToken.None);
-            return await TimedQuery.RunAsync<long?>(async ct => await data.CountAsync(target, jump.Filters, ct), timeout, CancellationToken.None, _time) is { } rows
+            // The referencing table's structure too, inside the time limit (review of `small-pk-edit`, 12: over a silent VPN it hung).
+            return await TimedQuery.RunAsync<long?>(async ct =>
+            {
+                var target = await schema.GetDetailsAsync(FkTargets.SummaryOf(active, jump.Table), ct);
+                return await data.CountAsync(target, jump.Filters, ct);
+            }, timeout, CancellationToken.None, _time) is { } rows
                 ? new FkCount.Done(rows)
                 : new FkCount.TimedOut();
         }
@@ -176,14 +180,17 @@ public sealed partial class WorkspaceEditing
     /// <summary>How long counting the rows behind changed keys may take in all, before writing (the user's decision).</summary>
     public static readonly TimeSpan KeyCountBudget = TimeSpan.FromSeconds(10);
 
-    /// <summary>The write counts (or no longer counts) the rows behind changed keys; afterwards it runs anew for the stuck check.</summary>
+    /// <summary>
+    /// The write counts the rows behind changed keys: it may take <see cref="KeyCountBudget"/> without counting as stuck, but no
+    /// longer (review of `small-pk-edit`, 4 and 12: "give up the session" came after 5 s, then never). Afterwards its stuck clock
+    /// starts anew.
+    /// </summary>
     private void SetCounting(IReadOnlyList<Work> writes, bool counting)
     {
-        var now = _time.GetUtcNow();
+        var started = _time.GetUtcNow() + (counting ? KeyCountBudget : TimeSpan.Zero);
         foreach (var work in writes)
         {
-            work.Counting = counting;
-            work.Started = now;
+            work.Started = started;
         }
 
         shell.NotifyChanged();

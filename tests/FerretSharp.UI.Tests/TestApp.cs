@@ -77,6 +77,11 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>The structure of tables other than KUNDEN by name; KUNDEN's (<see cref="KundenDetails"/>) for any other.</summary>
     public Dictionary<string, TableDetails> OtherDetails { get; } = [];
 
+    /// <summary>A table whose structure never arrives (a silent VPN); <see cref="DetailsHung"/> once it was asked for.</summary>
+    public string? HangDetailsOf { get; set; }
+
+    public bool DetailsHung { get; private set; }
+
     /// <summary>Rows a count on a workspace session finds (FK counts, references of changed keys); none unless a test says otherwise.</summary>
     public Func<IReadOnlyList<FilterCondition>, long> CountRows { get; set; } = _ => 0;
 
@@ -224,8 +229,17 @@ internal sealed class TestApp : IAsyncDisposable
         var reader = FakeDatabase.Reader(Kunden);
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => Tables);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
-        reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>())
-            .Returns(call => OtherDetails.GetValueOrDefault(call.Arg<TableSummary>().Name) ?? KundenDetails);
+        reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            var name = call.Arg<TableSummary>().Name;
+            if (name == HangDetailsOf)
+            {
+                DetailsHung = true;
+                return new TaskCompletionSource<TableDetails>().Task;
+            }
+
+            return Task.FromResult(OtherDetails.GetValueOrDefault(name) ?? KundenDetails);
+        });
         reader.GetLockHoldersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(_ => LockHolders);
         reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(_ => ForeignKeys);
         var editor = new FakeDataEditor(() => OnCommit, sql =>

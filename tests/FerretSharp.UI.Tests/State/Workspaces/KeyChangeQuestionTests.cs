@@ -235,5 +235,49 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
         Assert.StartsWith("Die Beziehungen des C#-Modells", question.Unchecked);
     }
 
+    /// <summary>
+    /// Review of `small-pk-edit`, 12: the referencing table's structure was read without a time limit – over a silent VPN the
+    /// write hung, and as counting never counted as stuck, "give up the session" never came. It ends with the count's limit
+    /// now, and the write counts as stuck again once the budget and the usual 5 s are over.
+    /// </summary>
+    [Fact]
+    public async Task A_structure_that_never_arrives_ends_with_the_time_limit()
+    {
+        _app.HangDetailsOf = "AUFTRAG";
+        var (workspace, tab, _) = await OpenAsync();
+        tab.Changes!.SetValue(Row(1, "Meier"), 0, "7");
+
+        var flush = _app.Editing.FlushAsync(workspace);
+        await Wait.UntilAsync(() => _app.DetailsHung, "the structure is asked for");
+        Assert.False(_app.Editing.IsStuck(workspace.WorkspaceId));
+        for (var i = 0; i < 100 && !flush.IsCompleted; i++)
+        {
+            _app.Time.Advance(TimeSpan.FromSeconds(1)); // in steps: the time limit's timer may start after the first one
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
+
+        Assert.True(flush.IsCompleted, "The write still waits for the structure."); // fails instead of hanging
+        Assert.False(await flush);
+        Assert.IsType<FkCount.TimedOut>(Assert.Single(_app.Editing.KeyQuestion!.References).Count);
+    }
+
+    [Fact]
+    public async Task Counting_longer_than_the_budget_and_5_s_counts_as_stuck()
+    {
+        var (workspace, tab, _) = await OpenAsync();
+        var stuck = false;
+        _app.CountRows = _ =>
+        {
+            _app.Time.Advance(WorkspaceEditing.KeyCountBudget + WorkspaceEditing.StuckAfter + TimeSpan.FromSeconds(1));
+            stuck = _app.Editing.IsStuck(workspace.WorkspaceId);
+            return 1;
+        };
+        tab.Changes!.SetValue(Row(1, "Meier"), 0, "7");
+
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+
+        Assert.True(stuck);
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }
