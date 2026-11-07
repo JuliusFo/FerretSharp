@@ -225,6 +225,10 @@
             case FormFollow.Moved when _cursor.Cell is { } moved:
                 Fire(() => Grid.FocusRowAsync(moved, keepFocus: true));
                 break;
+            case FormFollow.MovedWithNewKey when _cursor.Cell is { } moved:
+                StartCounts(); // the focus stays on the shown row: Show() does not run again
+                Fire(() => Grid.FocusRowAsync(moved, keepFocus: true));
+                break;
         }
 
         StateHasChanged();

@@ -93,9 +93,6 @@
   <data name="NotEditableIdentity" xml:space="preserve">
     <value>Identity-Spalte – Oracle vergibt den Wert.</value>
   </data>
-  <data name="NotEditablePrimaryKey" xml:space="preserve">
-    <value>Primärschlüssel sind nur bei neuen Zeilen änderbar.</value>
-  </data>
   <data name="NotEditableType" xml:space="preserve">
     <value>{0} lässt sich hier nicht bearbeiten.</value>
   </data>

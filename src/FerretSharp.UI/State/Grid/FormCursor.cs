@@ -28,6 +28,9 @@ public interface IFormGrid
 
     /// <summary>The number of loaded rows once the last block was read; null while the end is not known.</summary>
     int? RowCount { get; }
+
+    /// <summary>The key a row has now that had <paramref name="key"/> (its primary key was changed and written); the same otherwise.</summary>
+    RowKey KeyNow(RowKey key) => key;
 }
 
 /// <summary>What became of the shown row after the grid's rows changed (<see cref="FormCursor.RowsChanged"/>).</summary>
@@ -39,8 +42,14 @@ public enum FormFollow
     /// <summary>Its block arrived: the row's key is known now (incoming FKs can be counted).</summary>
     KeyKnown,
 
-    /// <summary>The row is somewhere else now (written, inserted): move the grid's focus to <see cref="FormCursor.Cell"/>.</summary>
+    /// <summary>The row is somewhere else now (written, reloaded): move the grid's focus to <see cref="FormCursor.Cell"/>.</summary>
     Moved,
+
+    /// <summary>
+    /// The row is somewhere else with another key (inserted, or its primary key written): move the focus and count what points
+    /// to it again – the incoming jumps still held the old values (E2E of `small-pk-edit`).
+    /// </summary>
+    MovedWithNewKey,
 
     /// <summary>The row is gone from the grid; <see cref="FormCursor.Lost"/> says why.</summary>
     Lost,
@@ -102,7 +111,7 @@ public sealed class FormCursor(IFormGrid grid)
                 NewRow = null;
                 Key = added.Key;
                 Cell = new GridCell(index, null, cell.Column);
-                return FormFollow.Moved;
+                return FormFollow.MovedWithNewKey;
             }
 
             if (!added.IsInserted || grid.RowAt(0) is not null)
@@ -135,6 +144,23 @@ public sealed class FormCursor(IFormGrid grid)
         {
             Cell = cell with { RowIndex = at2 };
             return FormFollow.Moved;
+        }
+
+        // Not loaded under its key any more: its changed primary key may have been written, the row goes on with the new one
+        // (review of `small-pk-edit`, 3). Only now – after a rollback the old key is the row's again (review, 11).
+        if (grid.KeyNow(Key) is var now && !Equals(now, Key))
+        {
+            Key = now;
+            if (Equals(loaded.Key, Key))
+            {
+                return FormFollow.KeyKnown; // in place with its new key: count what points to it
+            }
+
+            if (grid.IndexOf(Key) is { } at3)
+            {
+                Cell = cell with { RowIndex = at3 };
+                return FormFollow.MovedWithNewKey;
+            }
         }
 
         return LoseRow(GridText.Form_RowNotLoaded);

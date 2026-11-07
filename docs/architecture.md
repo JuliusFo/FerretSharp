@@ -152,6 +152,7 @@ record PendingOperation(RowChange Change, OperationKind Kind, RowKey Key, IReadO
   - vor jedem Update/Delete `SELECT … FOR UPDATE WAIT n` (n in den Einstellungen, Default 3 s) → `ORA-30006` (Oracle 23: `ORA-00054`) statt endlosem Warten; die Sperrhalter zeigt der Schreibproblem-Dialog (`LockHolderList`)
   - Concurrency-Check in .NET: Das Sperr-SELECT liefert die aktuellen Werte der geänderten Spalten, weichen sie vom erwarteten Stand ab (`PendingOperation.Expected`), gibt es eine `ConcurrencyConflictException` – „Überschreiben“ (`FlushOptions.Overwrite`) schreibt trotzdem
   - `UPDATE t SET c=:v WHERE <RowKey>`, `DELETE FROM t WHERE <RowKey>` – trifft eins davon nicht genau eine Zeile, geht der Flush zum Savepoint zurück (`RowGoneException`/`KeyNotUniqueException`, R5a)
+  - ein UPDATE, das den PK (als Row-Key) ändert, liefert `RETURNING ROWID`; die Zeile wird darüber neu gelesen und geht mit dem gespeicherten Schlüssel weiter (`FlushResult.NewKeys`, Tracker hängt um, Undo zurück). Vorher zählt die UI die Zeilen, die über eingehende Beziehungen noch auf den alten Wert zeigen, und fragt bei Treffern (`KeyChanges`, `WorkspaceEditing.KeyQuestion`; ADR 0007, Nachtrag)
   - `INSERT INTO t (...) VALUES (...) RETURNING ROWID INTO :rid`, danach die Zeile neu lesen (Defaults, Identity, Trigger)
   - SQL aus `DmlBuilder` (Core/Query), alles mit `BindByName = true`
 - Commit/Rollback nur auf expliziten Nutzerbefehl. Nach Rollback die betroffenen Tabs neu abfragen.

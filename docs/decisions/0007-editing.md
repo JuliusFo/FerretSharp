@@ -17,7 +17,7 @@ Gemessen mit Oracle 23 (`EditingTests`): Ein abgelaufenes `SELECT … FOR UPDATE
 - **Sperren:** Wartezeit 3 s (Einstellung, max. 60 s), ORA-00054 und ORA-30006 gelten beide als Sperrkonflikt. Die sperrende Session wird über `V$LOCKED_OBJECT`/`V$SESSION` ermittelt (dank MODULE/ACTION mit Workspace-Namen); ohne `SELECT_CATALOG_ROLE` steht ein Hinweis im Dialog.
 - **Einfügen:** `INSERT … RETURNING ROWID INTO :p_rowid`, danach wird die Zeile über die ROWID neu gelesen (Defaults, Trigger, Identity), ihr Row-Key ersetzt den vorläufigen.
 - **Commit** schreibt Ausstehendes vorher (Entscheidung des Nutzers); scheitert das, wird nicht committed. Auf Prod-Profilen ohne „Schreibgeschützt“ fragt FerretSharp vor dem Commit nach.
-- **PK bestehender Zeilen ist nicht editierbar** (Entscheidung des Nutzers): Er ist die Zeilenidentität und Ziel referenzierender FKs.
+- ~~**PK bestehender Zeilen ist nicht editierbar** (Entscheidung des Nutzers): Er ist die Zeilenidentität und Ziel referenzierender FKs.~~ Ersetzt durch den Nachtrag vom 2026-11-07.
 - **Grid:** AG Grid im `readOnlyEdit`-Modus; jede Eingabe geht als `cellEditRequest` an .NET, das den Wert prüft (`OracleTypeMapper`) und die Zeile neu liefert. Der Editor prüft beim Enter selbst (`ValidateEdit`) und bleibt bei Fehlern offen – ein späteres Neustarten des Editors durch AG Grid hätte die Eingabe verloren.
 - **Kein stiller Datenverlust:** Schließen von Tab (Ausstehendes), Workspace, Verbindung und App fragt, solange es ungeschriebene oder nicht committete Änderungen gibt.
 
@@ -25,4 +25,13 @@ Gemessen mit Oracle 23 (`EditingTests`): Ein abgelaufenes `SELECT … FOR UPDATE
 
 - Geschriebene Zeilen bleiben bis Commit/Rollback gesperrt; die Statusleiste zeigt das Alter der Transaktion und warnt ab 10 Minuten. Der Keep-alive hält solche Sessions offen (Backlog: Erinnerung/automatischer Rollback).
 - Bei Verbindungsverlust ist die Transaktion weg; das Banner sagt das, die Schutzabfragen entfallen dann.
-- LOBs, exotische Typen und PK-Änderungen bleiben vorerst nur lesbar (LOB-Editor in WP-10, Rest im Backlog).
+- LOBs und exotische Typen bleiben vorerst nur lesbar (LOB-Editor in WP-10, Rest im Backlog); PK-Änderungen seit dem Nachtrag vom 2026-11-07.
+
+## Nachtrag: PK bestehender Zeilen änderbar (2026-11-07, `feat/pk-edit`)
+
+Entscheidung des Nutzers: PK-Werte müssen sich ab und zu ändern lassen, der Umweg über den SQL-Editor ist zu umständlich. Ersetzt die Sperre oben.
+
+- **Bearbeitbar** sind PK-Spalten bestehender Zeilen wie jede andere Spalte – auch über die Befehle für viele Zellen („Wert setzen…“, Nach unten füllen, Entf; Entscheidung des Nutzers: überall). Doppelte Schlüssel meldet Oracle beim Schreiben (ORA-00001). Identity- und virtuelle Spalten bleiben gesperrt.
+- **Schreiben:** Sperr-SELECT und UPDATE laufen über den alten Schlüssel; ein UPDATE, das den Row-Key ändert (`DmlBuilder.ChangesKey`: PK ist Row-Key und eine PK-Spalte ist dabei), endet mit `RETURNING ROWID INTO :p_rowid`, die Zeile wird darüber neu gelesen (wie beim INSERT – Trigger, CHAR-Auffüllung), ihr Schlüssel kommt in `FlushResult.NewKeys`. Ein nicht erzwungener PK (ROWID ist Row-Key) ändert keine Zeilenidentität.
+- **Tracker:** `MarkFlushed` hängt die Änderung auf den neuen Schlüssel um, `UndoFlush` zurück auf den alten; Redo schreibt wieder über den alten.
+- **Verweisende Zeilen prüfen und warnen** (Entscheidung des Nutzers): Vor dem Schreiben zählt FerretSharp je eingehender Beziehung in die geänderten Spalten – deklariert, manuell, nach Konvention, aus dem C#-Modell – die Zeilen mit dem alten Wert (in der Transaktion des Workspaces, Zeitlimit wie bei den FK-Zählungen). Gibt es welche oder ließ sich etwas nicht zählen, fragt ein Dialog mit Tabelle, Spalten, Art und Anzahl („Trotzdem schreiben“ / Abbrechen); sonst wird ohne Frage geschrieben. Hinter einem Constraint lehnt Oracle ab (ORA-02292), Verweise ohne Constraint zeigen danach ins Leere – mitgezogen wird nichts (Kinder mitziehen wäre ein eigenes Paket, Backlog).

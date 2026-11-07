@@ -131,8 +131,8 @@ public class EditingTests
     public void Timestamps_with_time_zone_are_editable_bind_and_compare_with_their_offset()
     {
         var table = new TableDetails(new TableSummary("APP", "ZEITEN", TableKind.Table), [Col("ID", "NUMBER", nullable: false), Tz, Ltz], ["ID"], [], false);
-        Assert.Null(OracleTypeMapper.NotEditableReason(table, Tz, newRow: false));
-        Assert.Null(OracleTypeMapper.NotEditableReason(table, Ltz, newRow: false));
+        Assert.Null(OracleTypeMapper.NotEditableReason(table, Tz));
+        Assert.Null(OracleTypeMapper.NotEditableReason(table, Ltz));
         Assert.Equal(OracleTypeHint.TimeStampTZ, OracleTypeMapper.BindType(Tz));
         Assert.Equal(OracleTypeHint.TimeStampLTZ, OracleTypeMapper.BindType(Ltz));
 
@@ -162,15 +162,14 @@ public class EditingTests
     }
 
     [Theory]
-    [InlineData("NAME", false, null)]
-    [InlineData("ID", false, "nur bei neuen Zeilen")]
-    [InlineData("ID", true, null)]
-    [InlineData("NOTIZ", false, null)] // whole value in the LOB editor
-    [InlineData("LFD", true, "Identity")]
-    [InlineData("GROSS", false, "Virtuelle Spalte")]
-    public void Editable_columns(string column, bool newRow, string? reason)
+    [InlineData("NAME", null)]
+    [InlineData("ID", null)] // the primary key too (ADR 0007 addendum)
+    [InlineData("NOTIZ", null)] // whole value in the LOB editor
+    [InlineData("LFD", "Identity")]
+    [InlineData("GROSS", "Virtuelle Spalte")]
+    public void Editable_columns(string column, string? reason)
     {
-        var actual = OracleTypeMapper.NotEditableReason(Kunden, C(column), newRow);
+        var actual = OracleTypeMapper.NotEditableReason(Kunden, C(column));
         if (reason is null)
         {
             Assert.Null(actual);
@@ -183,13 +182,13 @@ public class EditingTests
 
     [Fact]
     public void Special_types_are_not_editable() =>
-        Assert.Contains("lässt sich hier nicht bearbeiten", OracleTypeMapper.NotEditableReason(Kunden, Col("X", "XMLTYPE"), false));
+        Assert.Contains("lässt sich hier nicht bearbeiten", OracleTypeMapper.NotEditableReason(Kunden, Col("X", "XMLTYPE")));
 
     [Fact]
     public void Views_and_tables_without_key_are_read_only()
     {
         var view = Kunden with { Table = new TableSummary("APP", "V", TableKind.View), PrimaryKey = [] };
-        Assert.Contains("nur lesbar", OracleTypeMapper.NotEditableReason(view, C("NAME"), false));
+        Assert.Contains("nur lesbar", OracleTypeMapper.NotEditableReason(view, C("NAME")));
     }
 
     [Fact]
@@ -250,7 +249,7 @@ public class EditingTests
         var tracker = new ChangeTracker(Kunden);
         var row = Row(1, "Müller");
 
-        Assert.False(tracker.SetValue(row, I("ID"), "2").IsValid);
+        Assert.False(tracker.SetValue(row, I("LFD"), "2").IsValid);
         Assert.False(tracker.SetValue(row, I("BETRAG"), "abc").IsValid);
         Assert.False(tracker.HasChanges);
     }

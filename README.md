@@ -154,6 +154,9 @@ developer works with an Oracle database day to day:
 - Lock conflicts are detected after a short wait (`SELECT … FOR UPDATE WAIT n`) and shown with the blocking session.
 - Optimistic concurrency check on the changed columns; insert and delete rows; edit CLOBs and BLOBs in a dialog
   (text in the code editor with line wrap, JSON/XML coloring and JSON indenting).
+- **Change primary keys** of existing rows like any other value. Before writing, FerretSharp counts the rows that still
+  point to the old key – along constraints and relationships without one (manual, by convention, from the C# model) –
+  and asks first if there are any; behind a constraint Oracle refuses the change, nothing is changed along.
 - **One value for many cells**: type it into one of the marked cells and press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, or
   paste a copied value with <kbd>Ctrl</kbd>+<kbd>V</kbd> – into the marked cells, the selected rows or just the focused
   cell, no double click needed (a cell copied with <kbd>Ctrl</kbd>+<kbd>C</kbd> pastes back whole, line breaks and

@@ -720,9 +720,9 @@ export function create(elementId, dotnet, columns, options) {
     sortIndex: sortById.get(meta.id)?.index ?? null,
     cellClass: () => meta.numeric ? 'fs-num' : meta.category === 'Date' || meta.category.startsWith('Timestamp') ? 'fs-date' : undefined,
     cellRenderer: p => renderCell(p, texts),
-    // Editing (v2): new rows (pinned at the top) may fill the key; loaded rows not deleted and not too large a number.
+    // Editing (v2): new rows (pinned at the top); loaded rows not deleted and not too large a number.
     editable: p => !editState.enabled ? false : p.node.rowPinned === 'top'
-      ? meta.editableNew
+      ? meta.editable
       : meta.editable && !!p.data && !p.data.__d && !(p.data.__ro ?? []).includes(meta.id),
     // Enum and bool columns of a C# model pick from their members, flags enums tick theirs (the model may arrive after
     // the grid was built).

@@ -186,8 +186,7 @@
             Pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
             Comment = c.Comment,
             // LOBs are not edited in the cell: they open the LOB editor (also to read them whole on a locked workspace).
-            Editable = !lob && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
-            EditableNew = !lob && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
+            Editable = !lob && OracleTypeMapper.NotEditableReason(Details, c) is null,
             Lob = lob,
             Multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
             Options = values?.Options,
@@ -771,6 +770,9 @@
 
     /// <summary>Grid index of a loaded row by its key (the form finds its row again after writing or reloading).</summary>
     public int? IndexOf(RowKey key) => _blocks.IndexOf(key);
+
+    /// <summary>The key a row has now whose primary key was changed and written (the form follows it).</summary>
+    public RowKey KeyNow(RowKey key) => Tab.Changes?.KeyNow(key) ?? key;
 
     /// <summary>The grid position of a new row that is not inserted yet; null if it is gone (inserted or removed).</summary>
     public GridCell? CellOf(RowChange newRow, int? column) =>

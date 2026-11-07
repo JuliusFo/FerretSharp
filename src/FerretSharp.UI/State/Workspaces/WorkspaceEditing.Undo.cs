@@ -114,7 +114,7 @@ public sealed partial class WorkspaceEditing
             return false;
         }
 
-        Overwrites(id).Clear();
+        ClearDecisions(id);
         shell.Notify(TextFormat.Format(GridText.Editing_Redone, next.Display));
         return true;
     });

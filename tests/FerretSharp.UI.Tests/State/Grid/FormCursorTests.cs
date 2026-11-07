@@ -115,7 +115,7 @@ public sealed class FormCursorTests
         _grid.Changes.MarkFlushed(operations, new Dictionary<Guid, RowKey> { [added.Id] = Row(99).Key });
         _grid.Load(Row(10), Row(99));
 
-        Assert.Equal(FormFollow.Moved, cursor.RowsChanged());
+        Assert.Equal(FormFollow.MovedWithNewKey, cursor.RowsChanged()); // its incoming jumps are counted now
         Assert.Null(cursor.NewRow);
         Assert.Equal(new GridCell(1, null, 1), cursor.Cell);
     }
@@ -153,6 +153,53 @@ public sealed class FormCursorTests
         Assert.Null(cursor.Target(2, newRows, 1)); // past the last row
     }
 
+    /// <summary>
+    /// Review of `small-pk-edit`, 3: the form remembered the old key of a row whose primary key was changed and written, and
+    /// said "no longer loaded" after the reload. It follows the new key – in place or where the new key sorts the row to –,
+    /// also after the commit has cleared the tab's changes.
+    /// </summary>
+    [Fact]
+    public void A_row_whose_primary_key_was_written_is_followed_by_its_new_key()
+    {
+        _grid.Load(Row(10), Row(20));
+        var cursor = new FormCursor(_grid);
+        cursor.Show(new GridCell(0, null, 1));
+        var change = _grid.Changes.SetValue(Row(10), 0, "15").Change!;
+        _grid.Changes.MarkFlushed(_grid.Changes.PendingOperations(), new Dictionary<Guid, RowKey> { [change.Id] = Row(15).Key });
+
+        _grid.Load(Row(15), Row(20)); // reloaded: same place, new key
+        Assert.Equal(FormFollow.KeyKnown, cursor.RowsChanged());
+        Assert.Equal(Row(15).Key, cursor.Key);
+
+        _grid.Changes.SetValue(Row(15), 0, "30");
+        _grid.Changes.MarkFlushed(_grid.Changes.PendingOperations(), new Dictionary<Guid, RowKey> { [change.Id] = Row(30).Key });
+        _grid.Changes.Clear(); // committed
+        _grid.Load(Row(20), Row(30)); // sorted after the other row now
+        Assert.Equal(FormFollow.MovedWithNewKey, cursor.RowsChanged()); // the jumps still held key 15
+        Assert.Equal((new GridCell(1, null, 1), Row(30).Key), (cursor.Cell, cursor.Key));
+        Assert.Null(cursor.Lost);
+    }
+
+    /// <summary>
+    /// Review of `small-pk-edit`, 11: after a rollback the row has its old key again, but the tracker still knew it had moved –
+    /// the form shown on it turned to the new key at every reload and lost the row.
+    /// </summary>
+    [Fact]
+    public void After_a_rollback_the_row_keeps_its_old_key_in_the_form()
+    {
+        _grid.Load(Row(10), Row(20));
+        var cursor = new FormCursor(_grid);
+        var change = _grid.Changes.SetValue(Row(10), 0, "15").Change!;
+        _grid.Changes.MarkFlushed(_grid.Changes.PendingOperations(), new Dictionary<Guid, RowKey> { [change.Id] = Row(15).Key });
+        _grid.Changes.Clear(); // rolled back
+
+        cursor.Show(new GridCell(0, null, 1)); // the row as the reload shows it: key 10 again
+        Assert.Equal(FormFollow.Unchanged, cursor.RowsChanged()); // F5
+
+        Assert.Equal(Row(10).Key, cursor.Key);
+        Assert.Null(cursor.Lost);
+    }
+
     /// <summary>Loaded rows by position and the tab's changes, like FerretGrid's blocks.</summary>
     private sealed class FakeGrid : IFormGrid
     {
@@ -174,5 +221,7 @@ public sealed class FormCursorTests
             Changes.NewRows.Contains(newRow) ? new GridCell(-1, GridRows.NewRowId(newRow), column) : null;
 
         public int? RowCount { get; set; }
+
+        public RowKey KeyNow(RowKey key) => Changes.KeyNow(key);
     }
 }

@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Primary key values of existing rows can be edited in the grid and the form, also with one value for many cells. Before writing, the rows that still point to the old key are counted along every relationship into the changed columns – foreign key constraints as well as manual ones, ones by convention and those of the C# model. If there are any, or a count does not finish, a dialog lists them with their numbers and asks whether to write anyway; with a constraint behind it Oracle refuses the change, rows referencing without one point nowhere afterwards. After the write the row goes on with its new key, and undo gives it the old one back.
+
 ## [3.62.0] - 2026-11-07
 
 Drag tabs to another place and show the tab bar in several rows, icons for the sections of the settings page, the side panels of the relationship view can be dragged wider, and the window no longer goes empty over Remote Desktop.
