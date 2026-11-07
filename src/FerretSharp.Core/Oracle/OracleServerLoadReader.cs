@@ -84,12 +84,12 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
          FETCH FIRST 200 ROWS ONLY
         """;
 
-    // The whole text of a statement; any plan has it.
+    // The whole text of a statement: from V$SQL while the cursor is there – V$SQLSTATS.SQL_FULLTEXT keeps only the first
+    // 1000 characters after a while (E2E of the review of WP-75: 1000 there, 1539 in V$SQL for the same SQL_ID).
     public const string FullTextSql = """
-        SELECT sql_fulltext
-          FROM v$sqlstats
-         WHERE sql_id = :sql_id
-         FETCH FIRST 1 ROW ONLY
+        SELECT COALESCE((SELECT sql_fulltext FROM v$sql WHERE sql_id = :sql_id AND ROWNUM = 1),
+                        (SELECT sql_fulltext FROM v$sqlstats WHERE sql_id = :sql_id AND ROWNUM = 1))
+          FROM dual
         """;
 
     /// <summary>

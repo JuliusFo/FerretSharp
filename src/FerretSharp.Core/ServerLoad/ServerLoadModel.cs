@@ -27,8 +27,9 @@ public interface IServerLoadReader
     Task<IReadOnlyList<StatementInfo>> ReadStatementInfoAsync(IReadOnlyList<string> sqlIds, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The whole text of a statement (<c>V$SQLSTATS.SQL_FULLTEXT</c>), also when its cursor has left the library cache and
-    /// figures and plan are gone; null when it is gone from <c>V$SQLSTATS</c> too.
+    /// The whole text of a statement (<c>SQL_FULLTEXT</c> of <c>V$SQL</c>, else of <c>V$SQLSTATS</c> – also when the cursor left
+    /// the library cache and figures and plan are gone); null when it is gone everywhere. From <c>V$SQLSTATS</c> it may be cut
+    /// at 1000 characters (<see cref="StatementInfo.TextLength"/>).
     /// </summary>
     Task<string?> ReadFullTextAsync(string sqlId, CancellationToken cancellationToken);
 

@@ -305,6 +305,10 @@ public sealed class ServerLoadService(
             cursor = await Task.Run(() => connection.Schema.GetCursorByIdAsync(sqlId!, timeout.Token), CancellationToken.None);
             fullText = cursor?.Plan.Sql
                        ?? await Task.Run(() => connection.ServerLoad.ReadFullTextAsync(sqlId!, timeout.Token), CancellationToken.None);
+            if (fullText?.Length == StatementInfo.TextLength)
+            {
+                fullText = null; // as long as V$SQLSTATS keeps of a cursor gone from V$SQL: maybe cut, never as if whole
+            }
             error = cursor is null ? ServerLoadText.ServerLoad_NotInPool : null;
         }
         catch (Exception ex) when (ex is OperationCanceledException or DatabaseException or RefusedException)

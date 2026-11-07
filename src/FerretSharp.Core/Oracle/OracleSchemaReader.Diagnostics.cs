@@ -74,12 +74,11 @@ public sealed partial class OracleSchemaReader
         }
     }
 
-    // The whole text of a cursor (CLOB); any child has it.
+    // The whole text of a cursor: from V$SQL, V$SQLSTATS only as a fallback (it may keep just 1000 characters, WP-75).
     private const string CursorTextSql = """
-        SELECT sql_fulltext
-          FROM v$sqlstats
-         WHERE sql_id = :sql_id
-         FETCH FIRST 1 ROW ONLY
+        SELECT COALESCE((SELECT sql_fulltext FROM v$sql WHERE sql_id = :sql_id AND ROWNUM = 1),
+                        (SELECT sql_fulltext FROM v$sqlstats WHERE sql_id = :sql_id AND ROWNUM = 1))
+          FROM dual
         """;
 
     public Task<CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken) =>

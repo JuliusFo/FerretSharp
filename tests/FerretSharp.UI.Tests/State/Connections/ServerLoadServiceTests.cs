@@ -206,6 +206,7 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         await ParkedAsync();
         _connection.Schema.GetCursorByIdAsync("abc", Arg.Any<CancellationToken>()).Returns((Core.Query.CursorInfo?)null);
         _reader.ReadFullTextAsync("abc", Arg.Any<CancellationToken>()).Returns("SELECT the whole text FROM dual");
+        _reader.ReadFullTextAsync("cut", Arg.Any<CancellationToken>()).Returns(new string('x', StatementInfo.TextLength));
 
         await _service.SelectAsync(_profile, "abc");
 
@@ -213,6 +214,10 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.Equal("SELECT the whole text FROM dual", view.FullText);
         Assert.False(view.CursorLoading);
         Assert.NotNull(view.CursorError); // not in the shared pool: no figures, no plan
+
+        // What V$SQLSTATS keeps of a cursor gone from V$SQL may be cut at 1000 characters: never taken as the whole text.
+        await _service.SelectAsync(_profile, "cut");
+        Assert.Null(view.FullText);
     }
 
     [Fact]
