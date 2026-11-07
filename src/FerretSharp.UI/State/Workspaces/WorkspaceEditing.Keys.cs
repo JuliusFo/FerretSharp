@@ -26,12 +26,16 @@ public sealed record KeyChangeQuestion(
 {
     /// <summary>The grid write a redo applied again: "write anyway" continues that redo.</summary>
     public Guid? RedoOf { get; init; }
+
+    /// <summary>The values "write anyway" confirms per row (<see cref="RowChange.Id"/>): another value later is asked about again.</summary>
+    internal IReadOnlyDictionary<Guid, IReadOnlyDictionary<int, object?>> Confirms { get; init; } = new Dictionary<Guid, IReadOnlyDictionary<int, object?>>();
 }
 
 /// <summary>Changed primary keys: count the rows still pointing to the old keys before writing (ADR 0007 addendum).</summary>
 public sealed partial class WorkspaceEditing
 {
-    private readonly Dictionary<Guid, HashSet<Guid>> _keysConfirmed = [];
+    /// <summary>Per workspace: the rows whose changed key the user chose to write anyway, with the values confirmed.</summary>
+    private readonly Dictionary<Guid, Dictionary<Guid, IReadOnlyDictionary<int, object?>>> _keysConfirmed = [];
 
     /// <summary>Asked before a write of changed primary keys; null while nothing waits for an answer.</summary>
     public KeyChangeQuestion? KeyQuestion { get; private set; }
@@ -56,7 +60,10 @@ public sealed partial class WorkspaceEditing
             return;
         }
 
-        KeysConfirmed(question.WorkspaceId).UnionWith(question.Changes);
+        foreach (var (change, values) in question.Confirms)
+        {
+            KeysConfirmed(question.WorkspaceId)[change] = values;
+        }
         if (question.RedoOf is { } redo)
         {
             await RedoGridAsync(workspace, redo);
@@ -76,7 +83,7 @@ public sealed partial class WorkspaceEditing
     {
         var id = workspace.WorkspaceId;
         var table = tab.Changes!.Table;
-        var changes = KeyChanges.Of(table, operations).Where(o => !KeysConfirmed(id).Contains(o.Change.Id)).ToList();
+        var changes = KeyChanges.Of(table, operations).Where(o => !IsConfirmed(id, o)).ToList();
         var active = ScopeOf(id).Active;
         if (changes.Count == 0 || active.Schema is not { } schema)
         {
@@ -117,7 +124,11 @@ public sealed partial class WorkspaceEditing
 
         return references.Count == 0
             ? null
-            : new KeyChangeQuestion(id, tab, [.. changes.Select(o => o.Change.Id)], references, duringCommit) { RedoOf = redoOf };
+            : new KeyChangeQuestion(id, tab, [.. changes.Select(o => o.Change.Id)], references, duringCommit)
+            {
+                RedoOf = redoOf,
+                Confirms = changes.ToDictionary(o => o.Change.Id, o => (IReadOnlyDictionary<int, object?>)new Dictionary<int, object?>(o.Values)),
+            };
     }
 
     /// <summary>
@@ -162,8 +173,17 @@ public sealed partial class WorkspaceEditing
         shell.NotifyChanged();
     }
 
-    private HashSet<Guid> KeysConfirmed(Guid workspaceId) =>
+    private Dictionary<Guid, IReadOnlyDictionary<int, object?>> KeysConfirmed(Guid workspaceId) =>
         _keysConfirmed.TryGetValue(workspaceId, out var set) ? set : _keysConfirmed[workspaceId] = [];
+
+    /// <summary>
+    /// The user chose to write exactly these values of the row anyway. A confirmation that outlived its write (the commit was
+    /// refused before writing) does not let another value through unasked (review of `small-pk-edit`, 7).
+    /// </summary>
+    private bool IsConfirmed(Guid workspaceId, PendingOperation operation) =>
+        KeysConfirmed(workspaceId).TryGetValue(operation.Change.Id, out var values)
+        && values.Count == operation.Values.Count
+        && operation.Values.All(v => values.TryGetValue(v.Key, out var confirmed) && Core.Oracle.OracleTypeMapper.ValuesEqual(confirmed, v.Value));
 
     /// <summary>
     /// What the user decided for this attempt to write – "overwrite" a row, "write anyway" a changed key – no longer holds: a

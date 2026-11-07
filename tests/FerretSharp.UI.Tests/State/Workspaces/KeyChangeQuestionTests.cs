@@ -190,5 +190,28 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
         Assert.Contains("10 s", Assert.IsType<FkCount.Failed>(counts[2]).Message);
     }
 
+    /// <summary>
+    /// Review of `small-pk-edit`, 7: "write anyway" stayed confirmed for the row when the commit was refused before writing (the
+    /// transaction had ended) – a later, other key of the same row was written without counting.
+    /// </summary>
+    [Fact]
+    public async Task A_confirmation_covers_only_the_values_confirmed()
+    {
+        var (workspace, tab, _) = await OpenAsync();
+        _app.CountRows = _ => 1;
+        tab.Changes!.SetValue(Row(2, "Lang"), 1, "Kurz");
+        Assert.True(await _app.Editing.FlushAsync(workspace)); // something written: the commit checks the transaction
+        tab.Changes.SetValue(Row(1, "Meier"), 0, "7");
+        Assert.False(await _app.Editing.CommitAsync(workspace));
+        _app.EndTransactions();
+
+        await _app.Editing.AnswerKeyQuestionAsync(write: true); // refused before writing: the transaction is gone
+        Assert.StartsWith("Nicht committet: Die Transaktion endete ohne Commit", _app.Shell.Notice?.Text);
+
+        tab.Changes.SetValue(Row(1, "Meier"), 0, "8");
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+        Assert.NotNull(_app.Editing.KeyQuestion);
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }
