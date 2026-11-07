@@ -42,8 +42,14 @@ public enum FormFollow
     /// <summary>Its block arrived: the row's key is known now (incoming FKs can be counted).</summary>
     KeyKnown,
 
-    /// <summary>The row is somewhere else now (written, inserted): move the grid's focus to <see cref="FormCursor.Cell"/>.</summary>
+    /// <summary>The row is somewhere else now (written, reloaded): move the grid's focus to <see cref="FormCursor.Cell"/>.</summary>
     Moved,
+
+    /// <summary>
+    /// The row is somewhere else with another key (inserted, or its primary key written): move the focus and count what points
+    /// to it again – the incoming jumps still held the old values (E2E of `small-pk-edit`).
+    /// </summary>
+    MovedWithNewKey,
 
     /// <summary>The row is gone from the grid; <see cref="FormCursor.Lost"/> says why.</summary>
     Lost,
@@ -105,7 +111,7 @@ public sealed class FormCursor(IFormGrid grid)
                 NewRow = null;
                 Key = added.Key;
                 Cell = new GridCell(index, null, cell.Column);
-                return FormFollow.Moved;
+                return FormFollow.MovedWithNewKey;
             }
 
             if (!added.IsInserted || grid.RowAt(0) is not null)
@@ -153,7 +159,7 @@ public sealed class FormCursor(IFormGrid grid)
             if (grid.IndexOf(Key) is { } at3)
             {
                 Cell = cell with { RowIndex = at3 };
-                return FormFollow.Moved;
+                return FormFollow.MovedWithNewKey;
             }
         }
 

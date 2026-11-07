@@ -115,7 +115,7 @@ public sealed class FormCursorTests
         _grid.Changes.MarkFlushed(operations, new Dictionary<Guid, RowKey> { [added.Id] = Row(99).Key });
         _grid.Load(Row(10), Row(99));
 
-        Assert.Equal(FormFollow.Moved, cursor.RowsChanged());
+        Assert.Equal(FormFollow.MovedWithNewKey, cursor.RowsChanged()); // its incoming jumps are counted now
         Assert.Null(cursor.NewRow);
         Assert.Equal(new GridCell(1, null, 1), cursor.Cell);
     }
@@ -175,7 +175,7 @@ public sealed class FormCursorTests
         _grid.Changes.MarkFlushed(_grid.Changes.PendingOperations(), new Dictionary<Guid, RowKey> { [change.Id] = Row(30).Key });
         _grid.Changes.Clear(); // committed
         _grid.Load(Row(20), Row(30)); // sorted after the other row now
-        Assert.Equal(FormFollow.Moved, cursor.RowsChanged());
+        Assert.Equal(FormFollow.MovedWithNewKey, cursor.RowsChanged()); // the jumps still held key 15
         Assert.Equal((new GridCell(1, null, 1), Row(30).Key), (cursor.Cell, cursor.Key));
         Assert.Null(cursor.Lost);
     }
