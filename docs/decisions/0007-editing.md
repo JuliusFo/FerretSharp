@@ -25,7 +25,7 @@ Gemessen mit Oracle 23 (`EditingTests`): Ein abgelaufenes `SELECT … FOR UPDATE
 
 - Geschriebene Zeilen bleiben bis Commit/Rollback gesperrt; die Statusleiste zeigt das Alter der Transaktion und warnt ab 10 Minuten. Der Keep-alive hält solche Sessions offen (Backlog: Erinnerung/automatischer Rollback).
 - Bei Verbindungsverlust ist die Transaktion weg; das Banner sagt das, die Schutzabfragen entfallen dann.
-- LOBs, exotische Typen und PK-Änderungen bleiben vorerst nur lesbar (LOB-Editor in WP-10, Rest im Backlog).
+- LOBs und exotische Typen bleiben vorerst nur lesbar (LOB-Editor in WP-10, Rest im Backlog); PK-Änderungen seit dem Nachtrag vom 2026-11-07.
 
 ## Nachtrag: PK bestehender Zeilen änderbar (2026-11-07, `feat/pk-edit`)
 

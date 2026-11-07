@@ -13,7 +13,10 @@ namespace FerretSharp.Core.Data;
 /// </param>
 public sealed record FlushOptions(int LockWaitSeconds = DmlBuilder.DefaultLockWaitSeconds, IReadOnlySet<Guid>? Overwrite = null, Guid? RedoOf = null);
 
-/// <param name="NewKeys">Key of each inserted row by <see cref="RowChange.Id"/> – as Oracle stored it (identity, triggers).</param>
+/// <param name="NewKeys">
+/// Key of each inserted row and of each row whose primary key changed, by <see cref="RowChange.Id"/> – as Oracle stored it
+/// (identity, triggers, CHAR padding).
+/// </param>
 public sealed record FlushResult(IReadOnlyDictionary<Guid, RowKey> NewKeys)
 {
     public static readonly FlushResult Empty = new(new Dictionary<Guid, RowKey>());
