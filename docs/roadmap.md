@@ -65,7 +65,6 @@ Branch `wp/47-since-last-visit`.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
 ## Offene UX-Fragen
-- Serverlast (WP-75): Verlässt man die Seite, schließt ihre Session, der Verlauf bleibt und zeigt danach eine Lücke; „Seit Öffnen“ heißt seit dem ersten Öffnen in diesem Lauf der App. So lassen, oder die Session im Hintergrund weiterlaufen lassen (kostet eine Session und alle 30 s fünf Roundtrips je Verbindung)?
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
 - Verwendung im Code, „kein Index“ (small-usage-filter-without-index): die Markierung auch in der Spaltenansicht und im Hinweis des Designers? Ein Knopf „Index anlegen“ (Entwurf in der Index-Ansicht wie bei Fremdschlüsseln ohne Index)?
 - Markierte ganze Spalten (WP-58): Ctrl+C bei bekannter Zeilenzahl über der Grenze gar nicht erst lesen? Heute liest es bis zur Grenze und meldet dann „nichts kopiert“.
