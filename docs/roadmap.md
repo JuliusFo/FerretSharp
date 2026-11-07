@@ -80,7 +80,7 @@ Branch `wp/75-server-load`. Idee des Nutzers (2026-11-07): Auslastung des Datenb
 - **Umgebung:** In einer PDB zeigen `V$SQLSTATS`/`V$SESSION` nur diese PDB, `V$OSSTAT` aber den ganzen Host – Last anderer PDBs erscheint in der CPU, nicht in den Statements; die Ansicht sagt das. RAC: zunächst nur die eigene Instanz mit Hinweis, `GV$` wie bei WP-52 im Backlog.
 - **Prod:** erlaubt (nur lesend). SQL-Texte fremder Sessions enthalten Literale: nur im Speicher, nicht ins Log und nicht in den SQL-Verlauf.
 - Entscheidungen des Nutzers (2026-11-07): Platz, Intervall, Top 50, Zeitfenster, Excel-Export, RAC zunächst ohne `GV$`, `V$SYSMETRIC*` meiden, Test gegen Pack-Views – wie oben beschrieben.
-- Offen: Rechte auf den Verbindungen des Nutzers (Edition dort: 19c EE) – ohne sie zeigt die Seite nur die Meldung.
+- Geprüft auf einer Verbindung des Nutzers (2026-11-07): 19c EE, keine CDB (`CON_ID` 0), eine Instanz; `SELECT_CATALOG_ROLE` reicht für alle Views oben. Der PDB-Hinweis bleibt trotzdem drin (ab 21c gibt es nur noch CDBs). Ohne Rechte zeigt die Seite nur die Meldung.
 
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
