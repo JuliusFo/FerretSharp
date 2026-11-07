@@ -179,6 +179,10 @@ internal static class Icons
     public static readonly MarkupString Pulse = Svg(
         """<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>""");
 
+    /// <summary>Lucide <c>gauge</c>: the load of the database server and its top statements (WP-75).</summary>
+    public static readonly MarkupString Gauge = Svg(
+        """<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>""");
+
     /// <summary>Lucide <c>pin</c>: a pinned tab (WP-34), a pinned column.</summary>
     public static readonly MarkupString Pin = Svg(
         """<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>""");

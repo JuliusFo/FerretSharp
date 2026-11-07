@@ -40,6 +40,8 @@
                         disabled="@(QuickOpenUnavailable is not null)" @onclick="() => RunAction(ShortcutAction.QuickOpen)">@Icons.Search</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.AppStatements ? "active" : "")" title="@AppStatementsText.AppStatements_Title"
                         @onclick="() => ToggleSidePage(ShellPage.AppStatements)">@Icons.Pulse</button>
+                <button class="icon-btn ghost @(_state.Page == ShellPage.ServerLoad ? "active" : "")" title="@ServerLoadText.ServerLoad_Title"
+                        @onclick="() => ToggleSidePage(ShellPage.ServerLoad)">@Icons.Gauge</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="@ShellText.Shell_SchemaComparison"
                         @onclick="() => ToggleSidePage(ShellPage.Compare)">@Icons.SchemaCompare</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Report ? "active" : "")" title="@ShellText.Shell_Report"
@@ -156,6 +158,16 @@
                         else if (_state.Page == ShellPage.AppStatements)
                         {
                             <AppStatementsPage OnBack="LeaveSidePage" />
+                        }
+                        else if (_state.Page == ShellPage.ServerLoad && Active is { IsConnected: true, Profile: { } loadProfile })
+                        {
+                            <ServerLoadPage @key="loadProfile.Id" Profile="loadProfile" OnBack="LeaveSidePage" />
+                        }
+                        else if (_state.Page == ShellPage.ServerLoad)
+                        {
+                            <EmptyState Title="@ServerLoadText.ServerLoad_Title" Text="@ServerLoadText.ServerLoad_NotConnected">
+                                <button class="btn" @onclick="LeaveSidePage">@CommonText.Back</button>
+                            </EmptyState>
                         }
                         else if (_state.Page == ShellPage.Report && Active.IsConnected)
                         {
@@ -703,6 +715,9 @@
             case ShellPage.Report:
                 _state.ShowReport();
                 break;
+            case ShellPage.ServerLoad:
+                _state.ShowServerLoad();
+                break;
             default:
                 _state.ShowSettings();
                 break;
@@ -761,7 +776,7 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private static bool IsSidePage(ShellPage page) => page is ShellPage.Settings or ShellPage.Compare or ShellPage.AppStatements or ShellPage.Report;
+    private static bool IsSidePage(ShellPage page) => page is ShellPage.Settings or ShellPage.Compare or ShellPage.AppStatements or ShellPage.Report or ShellPage.ServerLoad;
 
     public async ValueTask DisposeAsync()
     {

@@ -1,0 +1,31 @@
+@* What the shared pool knows of a statement (V$SQL figures and the plan of the child used last): the app statements (WP-33)
+   and the server load (WP-75) show it alike. *@
+
+<div class="app-trace-figures">
+    <span>@AppStatementsText.AppStatements_Executions <b>@PlanTable.Count(Cursor.Executions)</b></span>
+    <span>@AppStatementsText.AppStatements_RowsProcessed <b>@PlanTable.Count(Cursor.RowsProcessed)</b></span>
+    <span>Buffer Gets <b>@PlanTable.Count(Cursor.BufferGets)</b></span>
+    <span>Disk Reads <b>@PlanTable.Count(Cursor.DiskReads)</b></span>
+    <span>@AppStatementsText.AppStatements_Elapsed <b>@PlanTable.Time(Cursor.Elapsed)</b> (Ø @PlanTable.Time(Cursor.AverageElapsed))</span>
+    <span>CPU <b>@PlanTable.Time(Cursor.Cpu)</b></span>
+    <span>@AppStatementsText.AppStatements_Children <b>@Cursor.Children</b></span>
+</div>
+@ChildContent
+@if (!Cursor.HasActualFigures)
+{
+    <p class="hint">@AppStatementsText.AppStatements_NoActualFigures</p>
+}
+<PlanTable Plan="Cursor.Plan" ShowActual="Cursor.HasActualFigures" Owner="@Owner" />
+
+@code {
+    [Parameter, EditorRequired]
+    public Core.Query.CursorInfo Cursor { get; set; } = null!;
+
+    /// <summary>The schema of the connection: objects in it are shown without owner.</summary>
+    [Parameter]
+    public string? Owner { get; set; }
+
+    /// <summary>Hints between the figures and the plan.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

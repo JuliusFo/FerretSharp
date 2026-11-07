@@ -19,6 +19,9 @@ public interface IDatabaseConnection : IAsyncDisposable
 
     IDataAccess Data { get; }
 
+    /// <summary>The server's load and its statements (WP-75); read on a session of its own, never a workspace's.</summary>
+    ServerLoad.IServerLoadReader ServerLoad { get; }
+
     /// <summary>Updates ACTION in <c>V$SESSION</c>, e.g. after the workspace was renamed.</summary>
     Task SetActionAsync(string action, CancellationToken cancellationToken);
 

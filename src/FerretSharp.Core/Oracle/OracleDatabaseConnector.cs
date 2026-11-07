@@ -37,6 +37,8 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public IDataAccess Data { get; } = new OracleDataAccess(session);
 
+        public ServerLoad.IServerLoadReader ServerLoad { get; } = new OracleServerLoadReader(session);
+
         public IDataEditor Editor { get; } = new OracleDataEditor(session);
 
         public TransactionInfo Transaction => session.Transaction;

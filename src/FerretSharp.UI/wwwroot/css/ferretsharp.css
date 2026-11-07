@@ -1901,6 +1901,60 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .app-trace-processes-head .check { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
 .app-statements-page .settings-section h2 .count { margin-left: 8px; font-weight: 500; color: var(--faint); }
 
+/* Server load (WP-75): tiles like the report, two charts of the last hour, the top statements and the active sessions. */
+.server-load-page .load-status { white-space: nowrap; }
+.server-load-page .settings-section > p.hint { margin: 10px 16px; }
+.server-load-page .settings-section > .test-result { margin: 10px 16px; }
+.load-notes { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.load-notes:empty { display: none; }
+.load-notes + .report-tiles, .load-notes:empty + .report-tiles { margin-top: 12px; }
+.load-tile { cursor: default; }
+.load-tile:hover { background: transparent; }
+.load-activity { padding: 4px 8px 2px; display: flex; flex-direction: column; gap: 6px; }
+.load-activity-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); }
+.load-activity-bar > span { display: block; height: 100%; }
+.load-legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--muted); }
+.load-legend b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.load-legend i, .load-axis i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: baseline; }
+.load-activity .c0, .load-legend .c0 { background: var(--green); }
+.load-activity .c1, .load-legend .c1 { background: var(--accent); }
+.load-activity .c2, .load-legend .c2 { background: var(--warn); }
+.load-activity .c3, .load-legend .c3 { background: var(--danger); }
+.load-activity .c4, .load-legend .c4 { background: var(--yellow); }
+.load-activity .c5, .load-legend .c5 { background: var(--faint); }
+.load-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; padding: 12px 16px 14px; }
+.load-charts figure { margin: 0; min-width: 0; }
+.load-charts figcaption { font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.load-chart { display: block; width: 100%; height: 110px; background: var(--surface-2); border-radius: 6px; }
+.load-chart polyline { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.load-chart polyline.cpu, .load-chart polyline.sessions { stroke: var(--accent); }
+.load-chart polyline.on-cpu { stroke: var(--green); }
+.load-chart line { stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
+.load-chart line.grid { stroke: var(--border); }
+.load-chart line.limit { stroke: var(--danger); }
+.load-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 11px; color: var(--faint); }
+.load-axis i.sessions { background: var(--accent); }
+.load-axis i.on-cpu { background: var(--green); margin-left: 8px; }
+.load-axis i.limit { background: var(--danger); margin-left: 8px; height: 2px; vertical-align: middle; }
+.load-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.load-toolbar select.field { height: 28px; }
+.load-filter { width: 140px; height: 28px; }
+.load-table-wrap { overflow-x: auto; }
+.load-table th, .load-table td { padding-left: 10px; padding-right: 10px; }
+.load-table th:first-child, .load-table td:first-child { padding-left: 16px; }
+/* The statement takes the remaining width and ends in an ellipsis (max-width 0 lets the cell shrink in an auto table). */
+.load-sql { width: 100%; max-width: 0; min-width: 220px; }
+.load-sql .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.load-sql .plan-badge { margin: 0 6px 0 0; }
+.load-sql small { display: block; color: var(--faint); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.load-detail { border-top: 1px solid var(--border); padding-bottom: 6px; }
+.load-detail > .sql-block { margin: 0 16px; }
+.load-detail > p.hint, .load-detail > .test-result { margin: 10px 16px; }
+.load-detail table.plan { width: calc(100% - 32px); margin: 6px 16px 14px; }
+.load-sessions h2 .count { margin-left: 8px; font-weight: 500; color: var(--faint); }
+.load-sessions .link-btn { padding: 0; color: var(--accent); }
+.load-license, .load-wait { max-width: 1100px; margin: 12px auto 0; }
+
 /* Updates (WP-32): Settings › Updates, the status bar link and the dialog with the release notes. */
 .settings-value { margin-left: auto; font-family: var(--mono); font-size: 12.5px; }
 .settings-note.update-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

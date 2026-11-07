@@ -74,9 +74,36 @@ public sealed partial class OracleSchemaReader
         }
     }
 
-    public async Task<CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken)
+    // The whole text of a cursor, from V$SQL: without a child there are no figures and no plan either. A statement gone from
+    // V$SQL keeps its text in V$SQLSTATS, maybe cut – that is the server load's (OracleServerLoadReader.FullTextSql, WP-75).
+    private const string CursorTextSql = """
+        SELECT sql_fulltext
+          FROM v$sql
+         WHERE sql_id = :sql_id
+         FETCH FIRST 1 ROW ONLY
+        """;
+
+    public Task<CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken) =>
+        ReadCursorAsync(Plans.SqlId(sql), sql, cancellationToken);
+
+    public async Task<CursorInfo?> GetCursorByIdAsync(string sqlId, CancellationToken cancellationToken)
     {
-        var sqlId = Plans.SqlId(sql);
+        string? text;
+        try
+        {
+            var texts = await session.ReadListAsync(CursorTextSql, [new QueryParameter("sql_id", sqlId)], reader => Text(reader, 0), cancellationToken);
+            text = texts is [var found] ? found : null;
+        }
+        catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
+        {
+            throw new PlanUnavailableException(OracleText.CursorNoRights, ex);
+        }
+
+        return text is null ? null : await ReadCursorAsync(sqlId, text, cancellationToken);
+    }
+
+    private async Task<CursorInfo?> ReadCursorAsync(string sqlId, string sql, CancellationToken cancellationToken)
+    {
         IReadOnlyList<QueryParameter> byId = [new("sql_id", sqlId)];
         try
         {

@@ -176,6 +176,8 @@ public partial class App : Application
         // App statements (WP-33): one trace for the whole app, over EventPipe.
         builder.Services.AddSingleton<FerretSharp.Core.AppTrace.IAppTraceSource, FerretSharp.AppTrace.EventPipeTraceSource>();
         builder.Services.AddSingleton<AppTraceService>();
+        // Server load (WP-75, ADR 0045): a session of its own per shown page, the history per connection for the run.
+        builder.Services.AddSingleton<ServerLoadService>();
         builder.Services.AddScoped<ClrModelManager>();
         builder.Services.AddScoped<PresentationService>();
         builder.Services.AddScoped<LinqConsoleService>();

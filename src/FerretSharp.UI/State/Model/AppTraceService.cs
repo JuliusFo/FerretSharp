@@ -140,6 +140,37 @@ public sealed class AppTraceService(IAppTraceSource source, ConnectionManager co
         }
     }
 
+    private (long Version, IReadOnlySet<string> SqlIds)? _sqlIds;
+
+    /// <summary>
+    /// The SQL_IDs of the recorded statements if the app works on <paramref name="profileId"/>, else none: the server load
+    /// (WP-75) marks them as the app's. Computed once per recording.
+    /// </summary>
+    public IReadOnlySet<string> SqlIdsOn(Guid profileId)
+    {
+        if (Match.Profile?.Id != profileId)
+        {
+            return new HashSet<string>();
+        }
+
+        var snapshot = Snapshot;
+        lock (_lock)
+        {
+            if (_sqlIds is { } known && known.Version == snapshot.Version)
+            {
+                return known.SqlIds;
+            }
+        }
+
+        var ids = snapshot.Statements.Select(s => Core.Query.Plans.SqlId(s.Text)).ToHashSet(StringComparer.Ordinal);
+        lock (_lock)
+        {
+            _sqlIds = (snapshot.Version, ids);
+        }
+
+        return ids;
+    }
+
     /// <summary>
     /// The connection of the app: the one the user chose, else by the app's environment or the data source of its
     /// commands (<see cref="AppConnectionMatch.Find"/>).
