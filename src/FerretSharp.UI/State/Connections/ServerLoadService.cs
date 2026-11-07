@@ -368,8 +368,10 @@ public sealed class ServerLoadService(
         {
             try
             {
-                // Paused: no look, and nothing claims one – „As of“ stays at the latest real look (review of WP-75).
-                if (view.Monitor is null || !view.Paused || view.TakeLookOnce())
+                // Paused: no look, and nothing claims one – „As of“ stays at the latest real look (review of WP-75). The wish to
+                // look once is used up every round: one left from a „Refresh“ before pausing must not look later (E2E).
+                var once = view.TakeLookOnce();
+                if (view.Monitor is null || !view.Paused || once)
                 {
                     await WithinLimitAsync(view, token => view.Monitor is { } monitor ? LookAsync(view, monitor, token) : OpenAsync(view, profile, token),
                         cancellationToken);

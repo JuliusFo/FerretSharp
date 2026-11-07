@@ -67,16 +67,19 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.Equal(2, Looks);
         Assert.NotNull(view.Tracker.Latest);
 
+        await _service.RefreshAsync(_profile); // looks at once; its wish to look must not outlive this round (E2E)
+        await ParkedAsync(3);
+        Assert.Equal(3, Looks);
         _service.SetPaused(_profile.Id, true);
         var lastLook = view.LastLookAt;
         _time.Advance(ServerLoadService.Interval);
-        await ParkedAsync(3);
-        Assert.Equal(2, Looks);
+        await ParkedAsync(4);
+        Assert.Equal(3, Looks);
         Assert.Equal(lastLook, view.LastLookAt); // review of WP-75: paused, "As of" stays at the latest real look
 
         await _service.RefreshAsync(_profile); // while paused: one look
-        await ParkedAsync(4);
-        Assert.Equal(3, Looks);
+        await ParkedAsync(5);
+        Assert.Equal(4, Looks);
         Assert.NotEqual(lastLook, view.LastLookAt);
 
         await _service.HideAsync(_profile.Id);
