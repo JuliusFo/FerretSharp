@@ -3,9 +3,9 @@ namespace FerretSharp.Core.ServerLoad;
 /// <summary>
 /// The load of one server over time and the statements that caused it (WP-75, ADR 0045), from the counters the page reads
 /// every look. Oracle's counters only grow, so everything here is a difference between two looks: the load as averages per
-/// second, the statements as what each cursor did since the look before. The cursors need a baseline (all of them, read
-/// once): a cursor first seen later was loaded into the shared pool meanwhile and counts from 0 – without the baseline a
-/// single expensive run would become its own starting point and never show up.
+/// second, the statements as what each did since the look before (per statement, not per plan: <see cref="CursorKey"/>).
+/// The statements need a baseline (all of them, read once): one first seen later was loaded into the shared pool meanwhile
+/// and counts from 0 – without the baseline a single expensive run would become its own starting point and never show up.
 /// </summary>
 /// <remarks>
 /// Kept per connection while the app runs; the page's session comes and goes. A look after a gap (page closed) spans the
@@ -383,8 +383,9 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
     private readonly record struct CursorKey(string SqlId, int ContainerId);
 
     /// <summary>
-    /// The rows read, summed per statement with the plans they name. Should a version keep a row per plan, the sum still only
-    /// grows; <see cref="IServerLoadReader.ReadStatementsAsync"/> then brings every row of a statement active since.
+    /// The rows read, summed per statement with the plans they name – a no-op with one row per statement; should a version
+    /// keep a row per plan, a look brings only the active ones and a smaller sum counts again from 0 (review of
+    /// fix-server-load-plan-change: accepted, documented one row per SQL_ID).
     /// </summary>
     private static Dictionary<CursorKey, (StatementFigures Figures, HashSet<long> Plans)> Statements(IReadOnlyList<StatementCounters> rows)
     {

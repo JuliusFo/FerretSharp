@@ -61,12 +61,13 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
           FROM v$sqlstats
         """;
 
-    // Every row of a statement active since: the tracker sums them per statement (one row per SQL_ID as seen after WP-75; should a version
-    // keep one per plan, the plans not active would else drop out of the sum).
+    // One scan, every 30 s also on Prod: V$SQLSTATS keeps one row per SQL_ID and container (documented since 11g, seen on the
+    // user's database), so the rows active since are whole statements. A self-join to bring every row of a statement would
+    // only matter for a row per plan, and cost a join over fixed tables (review of fix-server-load-plan-change).
     public const string StatementsSinceSql = $"""
         SELECT {StatementColumns}
           FROM v$sqlstats
-         WHERE sql_id IN (SELECT sql_id FROM v$sqlstats WHERE last_active_time >= :since)
+         WHERE last_active_time >= :since
         """;
 
     /// <summary>The columns of <see cref="StatementFigures"/> in their order.</summary>
