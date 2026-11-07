@@ -1,4 +1,4 @@
-# Klein: Icons in der Bereichsliste der Einstellungen
+# Klein: Icons in der Bereichsliste der Einstellungen → Release 3.62.0
 
 Branch `feat/settings-area-icons` (von `main`), 2026-11-06, unveröffentlicht. PR #134.
 

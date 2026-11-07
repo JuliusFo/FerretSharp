@@ -1,4 +1,4 @@
-# Diagnose: WebView-Bild hängt über RDP einen Schritt hinterher (`fix/webview-size-diagnostics`)
+# Diagnose: WebView-Bild hängt über RDP einen Schritt hinterher (`fix/webview-size-diagnostics`) → Release 3.62.0
 Meldungen des Nutzers (2026-11-03 und 2026-11-06, Arbeits-Laptop per RDP): Die Verbindungsübersicht war nach dem Start (auch direkt nach einem Update) oder nach längerem Liegenlassen leer. Nach dem Maximieren stand das Bild der alten Größe oben links, der Rest war leer; nach dem Wiederherstellen stand das maximierte Layout rechts abgeschnitten im kleinen Fenster. Minimieren und Wiederherstellen (Neustart der Aufnahme) brachte das richtige Bild. Tritt nur sporadisch auf. Auftrag: Diagnose einbauen und mit dem Front-Buffer-Fix (PR #132) als Patch ausliefern, keine Testversion.
 
 ## Befunde

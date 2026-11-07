@@ -1,4 +1,4 @@
-# Fix: Leeres Fenster über RDP (`fix/webview-rdp-front-buffer`) → Release offen
+# Fix: Leeres Fenster über RDP (`fix/webview-rdp-front-buffer`) → Release 3.62.0
 
 Meldung des Nutzers (2026-11-06, 3.61.0): FerretSharp läuft auf dem Arbeitslaptop, er wechselt am PC zwischen der RDP-Verbindung und anderen Fenstern. Plötzlich war der ganze Inhalt des Fensters weg, nur der Fensterhintergrund blieb, auch nach Minimieren und Wiederherstellen. Startzeile: remote session yes, render tier 2, GPU in a remote session on (ADR 0043). Nachtrag zu ADR 0038.
 
