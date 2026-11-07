@@ -103,7 +103,7 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         var sqlId = Plans.SqlId(sql);
 
         // V$SQLSTATS updates its figures with a delay (CI on main after WP-75: 4 of 12 executions right after): the next looks
-        // bring the rest – and never more.
+        // bring the rest.
         StatementRow? row = null;
         await Wait.UntilAsync(async () =>
         {
