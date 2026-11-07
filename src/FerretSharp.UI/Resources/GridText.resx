@@ -1714,27 +1714,34 @@
   </data>
   <data name="KeyChange_RowsOne" xml:space="preserve">
     <value>{0} row with a changed primary key</value>
+    <comment>{0}: number of rows whose primary key changes (1)</comment>
   </data>
   <data name="KeyChange_RowsOther" xml:space="preserve">
     <value>{0} rows with a changed primary key</value>
+    <comment>{0}: number of rows whose primary key changes</comment>
   </data>
   <data name="KeyChange_Text" xml:space="preserve">
     <value>Rows still point to the old keys:</value>
   </data>
   <data name="KeyChange_Table" xml:space="preserve">
     <value>Referencing table</value>
+    <comment>Column header: the table whose rows point to the changed key</comment>
   </data>
   <data name="KeyChange_Columns" xml:space="preserve">
     <value>Columns</value>
+    <comment>Column header: the columns of the referencing table</comment>
   </data>
   <data name="KeyChange_Kind" xml:space="preserve">
     <value>Kind</value>
+    <comment>Column header: constraint or a relationship without one</comment>
   </data>
   <data name="KeyChange_Rows" xml:space="preserve">
     <value>Rows</value>
+    <comment>Column header: number of rows still pointing to the old key</comment>
   </data>
   <data name="KeyChange_Declared" xml:space="preserve">
-    <value>Constraint – Oracle refuses</value>
+    <value>Constraint</value>
+    <comment>Kind of relationship: a foreign key constraint in the database</comment>
   </data>
   <data name="KeyChange_NoConstraint" xml:space="preserve">
     <value>No constraint ({0})</value>
@@ -1744,7 +1751,7 @@
     <value>not counted</value>
   </data>
   <data name="KeyChange_Hint" xml:space="preserve">
-    <value>Where a constraint stands behind the relationship, Oracle refuses the write (ORA-02292). Rows referencing without a constraint point nowhere afterwards – FerretSharp does not change them along.</value>
+    <value>An active constraint makes Oracle refuse the write (ORA-02292), a deferred one the commit. Rows referencing without a constraint point nowhere afterwards – FerretSharp does not change them along.</value>
   </data>
   <data name="KeyChange_WriteAnyway" xml:space="preserve">
     <value>Write anyway</value>

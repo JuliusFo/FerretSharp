@@ -1363,7 +1363,7 @@
     <value>Zeilen</value>
   </data>
   <data name="KeyChange_Declared" xml:space="preserve">
-    <value>Constraint – Oracle lehnt ab</value>
+    <value>Constraint</value>
   </data>
   <data name="KeyChange_NoConstraint" xml:space="preserve">
     <value>Ohne Constraint ({0})</value>
@@ -1372,7 +1372,7 @@
     <value>nicht gezählt</value>
   </data>
   <data name="KeyChange_Hint" xml:space="preserve">
-    <value>Steht ein Constraint hinter der Beziehung, lehnt Oracle das Schreiben ab (ORA-02292). Verweise ohne Constraint zeigen danach ins Leere – FerretSharp ändert sie nicht mit.</value>
+    <value>Ein aktiver Constraint lässt Oracle das Schreiben ablehnen (ORA-02292), ein aufgeschobener den Commit. Verweise ohne Constraint zeigen danach ins Leere – FerretSharp ändert sie nicht mit.</value>
   </data>
   <data name="KeyChange_WriteAnyway" xml:space="preserve">
     <value>Trotzdem schreiben</value>
