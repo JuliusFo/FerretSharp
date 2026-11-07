@@ -100,6 +100,22 @@ public sealed class ServerLoadTrackerTests
     }
 
     [Fact]
+    public void A_statement_whose_one_row_names_another_plan_counts_only_what_it_did_since()
+    {
+        // V$SQLSTATS keeps one row per SQL_ID; a bind-aware statement switches its PLAN_HASH_VALUE between child cursors while
+        // the figures run on (E2E after WP-75: twice its whole figures within 15 minutes).
+        var tracker = Started(Cursor("bind_aware", 2_000_000, 60_000_000, plan: 1));
+
+        Look(tracker, 30, Cursor("bind_aware", 2_000_100, 60_003_000, plan: 2));
+        Look(tracker, 30, Cursor("bind_aware", 2_000_150, 60_004_500, plan: 3));
+        Look(tracker, 30, Cursor("bind_aware", 2_000_160, 60_004_800, plan: 1));
+
+        var row = Assert.Single(tracker.Top(TimeSpan.FromMinutes(5), TopStatementSort.Executions, StatementFilter.None, 10));
+        Assert.Equal((160, 4800, 3), (row.Figures.Executions, row.Figures.CpuTime, row.Plans));
+        Assert.Equal(160, tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10)[0].Figures.Executions);
+    }
+
+    [Fact]
     public void A_window_counts_only_the_looks_lying_in_it_completely()
     {
         var tracker = Started(Cursor("early", 0, 0), Cursor("late", 0, 0));

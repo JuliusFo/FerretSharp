@@ -20,7 +20,8 @@ public interface IServerLoadReader
 
     /// <summary>
     /// The figures of every cursor in the shared pool (<paramref name="activeSince"/> null: the baseline, thousands of rows) or of
-    /// those active since a server time (<c>LAST_ACTIVE_TIME</c>, whole seconds). Numbers only, no text.
+    /// the statements active since a server time (<c>LAST_ACTIVE_TIME</c>, whole seconds) – with all their rows, as the tracker
+    /// sums them per statement. Numbers only, no text.
     /// </summary>
     Task<IReadOnlyList<StatementCounters>> ReadStatementsAsync(DateTime? activeSince, CancellationToken cancellationToken);
 
