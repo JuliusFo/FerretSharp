@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@v6.1.0
         with:
           global-json-file: global.json
           # Runtime for the model host, which runs in the sample project's .NET 8, and for the app the trace tests attach to (WP-33).
@@ -117,7 +117,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@v6.1.0
         with:
           global-json-file: global.json
 
