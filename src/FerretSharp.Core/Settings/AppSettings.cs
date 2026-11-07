@@ -72,6 +72,19 @@ public enum FilterSqlColumns
     Star,
 }
 
+/// <summary>How the tab bar shows more tabs than fit its width.</summary>
+public enum TabBarLayout
+{
+    /// <summary>One row that scrolls sideways (default).</summary>
+    SingleRow,
+
+    /// <summary>
+    /// The tabs wrap onto further rows in their order (no row moves when a tab becomes active); past
+    /// three rows the bar scrolls up and down.
+    /// </summary>
+    MultiRow,
+}
+
 /// <summary>User preferences of the app (not per connection). Saved as <c>settings.json</c> in the data directory.</summary>
 public sealed record AppSettings
 {
@@ -93,6 +106,9 @@ public sealed record AppSettings
     /// the tables. Off by default.
     /// </summary>
     public bool ViewsInOwnSection { get; init; }
+
+    /// <summary>One row of tabs that scrolls sideways (default) or several rows.</summary>
+    public TabBarLayout TabBar { get; init; } = TabBarLayout.SingleRow;
 
     /// <summary>
     /// Ping idle sessions regularly (<see cref="Connections.ConnectionKeepAlive"/>): a lost connection shows up at once,

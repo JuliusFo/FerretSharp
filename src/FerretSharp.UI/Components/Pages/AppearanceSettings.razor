@@ -1,4 +1,5 @@
-@* Settings › Appearance: language, light/dark, the group in front of a connection's name, views in the explorer (R6b: a section of its own). *@
+@* Settings › Appearance: language, light/dark, the group in front of a connection's name, views in the explorer, one or several
+   rows of tabs (R6b: a section of its own). *@
 @using FerretSharp.Core.Settings
 @inject IThemeService Theme
 @inject AppSettingsService Settings
@@ -33,6 +34,10 @@
     <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.ExplorerViews" Label="@SettingsViewText.Settings_ExplorerViews" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.ViewsInOwnSection" OnChange="on => UpdateAsync(s => s with { ViewsInOwnSection = on })">
         <Hint>@SettingsViewText.Settings_ExplorerViewsHint</Hint>
+    </SettingsChoice>
+    <SettingsChoice TValue="TabBarLayout" Filter="Filter" Key="SettingKey.TabBar" Label="@SettingsViewText.Settings_TabBar" Options="SettingsOptions.TabBars"
+                    Value="Settings.Current.TabBar" OnChange="layout => UpdateAsync(s => s with { TabBar = layout })">
+        <Hint>@SettingsViewText.Settings_TabBarHint</Hint>
     </SettingsChoice>
 </section>
 

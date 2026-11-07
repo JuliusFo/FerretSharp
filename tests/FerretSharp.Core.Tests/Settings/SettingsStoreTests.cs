@@ -32,6 +32,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Null(settings.PathsPanelWidth);
         Assert.Null(settings.QueryPanelWidth);
         Assert.Equal((TabMode.Data, RowLoadMode.Immediately), (settings.OpenView, settings.LoadRows));
+        Assert.Equal(TabBarLayout.SingleRow, settings.TabBar);
     }
 
     [Theory]
