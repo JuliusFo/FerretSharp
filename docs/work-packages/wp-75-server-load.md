@@ -1,4 +1,4 @@
-# WP-75 Serverlast und Top-Statements
+# WP-75 Serverlast und Top-Statements → Release 3.63.0
 
 Branch `wp/75-server-load` (von `main`), 2026-11-07. ADR 0045. Baut auf WP-33 (Werte und Plan eines Cursors) und WP-52 (`V$SESSION`, Rechte).
 
