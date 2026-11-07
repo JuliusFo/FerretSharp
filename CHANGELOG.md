@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- *Server load*, top statements while the page was watching: a statement whose plan changes with its bind values (adaptive cursor sharing) counted all its figures since it was loaded once more with every plan it had not used before – millions of executions within a few minutes. The figures are now kept per statement, whatever plan Oracle shows for it.
+
 ## [3.63.0] - 2026-11-07
 
 A server load page with the top statements of the database without management packs, primary keys of existing rows can be edited, and cancelling a query inside Oracle’s own lookups stops cleanly.

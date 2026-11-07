@@ -61,6 +61,9 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
           FROM v$sqlstats
         """;
 
+    // One scan, every 30 s also on Prod: V$SQLSTATS keeps one row per SQL_ID and container (documented since 11g, seen on the
+    // user's database), so the rows active since are whole statements. A self-join to bring every row of a statement would
+    // only matter for a row per plan, and cost a join over fixed tables (review of fix-server-load-plan-change).
     public const string StatementsSinceSql = $"""
         SELECT {StatementColumns}
           FROM v$sqlstats

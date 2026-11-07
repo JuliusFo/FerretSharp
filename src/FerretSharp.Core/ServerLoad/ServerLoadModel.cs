@@ -19,8 +19,8 @@ public interface IServerLoadReader
     Task<LoadCounters> ReadCountersAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// The figures of every cursor in the shared pool (<paramref name="activeSince"/> null: the baseline, thousands of rows) or of
-    /// those active since a server time (<c>LAST_ACTIVE_TIME</c>, whole seconds). Numbers only, no text.
+    /// The figures of every statement in the shared pool (<paramref name="activeSince"/> null: the baseline, thousands of rows)
+    /// or of those active since a server time (<c>LAST_ACTIVE_TIME</c>, whole seconds). Numbers only, no text.
     /// </summary>
     Task<IReadOnlyList<StatementCounters>> ReadStatementsAsync(DateTime? activeSince, CancellationToken cancellationToken);
 
@@ -173,7 +173,10 @@ public enum TopStatementSort
     ApplicationWait,
 }
 
-/// <summary>One cursor of <c>V$SQLSTATS</c>: a statement with one plan (in a container database per container).</summary>
+/// <summary>
+/// One row of <c>V$SQLSTATS</c>: a statement (in a container database per container) with its figures over all its plans;
+/// <paramref name="PlanHash"/> is the plan of the child cursor active last, not the one the figures belong to.
+/// </summary>
 public sealed record StatementCounters(string SqlId, long PlanHash, int ContainerId, StatementFigures Figures);
 
 /// <summary>What is known of a statement besides its figures.</summary>
@@ -221,7 +224,10 @@ public sealed record StatementFilter(string? Schema = null, string? Module = nul
 }
 
 /// <summary>A line of the top list.</summary>
-/// <param name="Plans">The plans seen in the window, or all plans of the statement in the list since loading.</param>
+/// <param name="Plans">
+/// The plans seen while the page watched, or in the list since loading the plans <c>V$SQLSTATS</c> names – with one row per
+/// statement and container 1, in the root of a container database one per container the statement ran in (backlog).
+/// </param>
 /// <param name="Info">Null while it is being read, or when the cursor left the shared pool before.</param>
 public sealed record StatementRow(string SqlId, int? Plans, StatementFigures Figures, StatementInfo? Info, DateTime? LastActive);
 

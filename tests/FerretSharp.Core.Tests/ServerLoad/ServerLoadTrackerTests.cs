@@ -12,8 +12,8 @@ public sealed class ServerLoadTrackerTests
         IReadOnlyDictionary<string, long>? waits = null, DateTime? startedAt = null) =>
         new(at, startedAt ?? Startup, 4, busy, idle, dbTime, dbCpu, executions, executions * 10, executions / 10, waits ?? new Dictionary<string, long>());
 
-    internal static StatementCounters Cursor(string sqlId, long executions, long cpu, long plan = 1, long gets = 0) =>
-        new(sqlId, plan, 0, new StatementFigures(executions, cpu, cpu * 2, gets, 0, executions, executions, 0, 0, 0));
+    internal static StatementCounters Cursor(string sqlId, long executions, long cpu, long plan = 1, long gets = 0, int con = 0) =>
+        new(sqlId, plan, con, new StatementFigures(executions, cpu, cpu * 2, gets, 0, executions, executions, 0, 0, 0));
 
     /// <summary>A tracker with a baseline at <see cref="T0"/>.</summary>
     private static ServerLoadTracker Started(params StatementCounters[] cursors)
@@ -97,6 +97,36 @@ public sealed class ServerLoadTrackerTests
 
         var row = Assert.Single(tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10));
         Assert.Equal((7, 70, 2), (row.Figures.Executions, row.Figures.CpuTime, row.Plans));
+    }
+
+    [Fact]
+    public void A_statement_whose_one_row_names_another_plan_counts_only_what_it_did_since()
+    {
+        // V$SQLSTATS keeps one row per SQL_ID; a bind-aware statement switches its PLAN_HASH_VALUE between child cursors while
+        // the figures run on (E2E after WP-75: twice its whole figures within 15 minutes).
+        var tracker = Started(Cursor("bind_aware", 2_000_000, 60_000_000, plan: 1));
+
+        Look(tracker, 30, Cursor("bind_aware", 2_000_100, 60_003_000, plan: 2));
+        Look(tracker, 30, Cursor("bind_aware", 2_000_150, 60_004_500, plan: 3));
+        Look(tracker, 30, Cursor("bind_aware", 2_000_160, 60_004_800, plan: 1));
+
+        var row = Assert.Single(tracker.Top(TimeSpan.FromMinutes(5), TopStatementSort.Executions, StatementFilter.None, 10));
+        Assert.Equal((160, 4800, 3), (row.Figures.Executions, row.Figures.CpuTime, row.Plans));
+        Assert.Equal(160, tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10)[0].Figures.Executions);
+    }
+
+    [Fact]
+    public void The_same_statement_in_two_containers_counts_per_container_and_adds_up_in_the_list()
+    {
+        // In the root of a container database V$SQLSTATS shows the same SQL_ID once per pluggable database.
+        var tracker = Started(Cursor("shared", 1000, 10_000, con: 3), Cursor("shared", 500, 5000, con: 4));
+
+        Look(tracker, 30,
+            Cursor("shared", 2, 20, con: 3), // smaller than held: loaded again in this container, counts from 0
+            Cursor("shared", 510, 5100, con: 4)); // +10, +100
+
+        var row = Assert.Single(tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10));
+        Assert.Equal((12, 120), (row.Figures.Executions, row.Figures.CpuTime));
     }
 
     [Fact]

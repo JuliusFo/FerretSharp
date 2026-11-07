@@ -3,9 +3,9 @@ namespace FerretSharp.Core.ServerLoad;
 /// <summary>
 /// The load of one server over time and the statements that caused it (WP-75, ADR 0045), from the counters the page reads
 /// every look. Oracle's counters only grow, so everything here is a difference between two looks: the load as averages per
-/// second, the statements as what each cursor did since the look before. The cursors need a baseline (all of them, read
-/// once): a cursor first seen later was loaded into the shared pool meanwhile and counts from 0 – without the baseline a
-/// single expensive run would become its own starting point and never show up.
+/// second, the statements as what each did since the look before (per statement, not per plan: <see cref="CursorKey"/>).
+/// The statements need a baseline (all of them, read once): one first seen later was loaded into the shared pool meanwhile
+/// and counts from 0 – without the baseline a single expensive run would become its own starting point and never show up.
 /// </summary>
 /// <remarks>
 /// Kept per connection while the app runs; the page's session comes and goes. A look after a gap (page closed) spans the
@@ -113,9 +113,9 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
         lock (_gate)
         {
             _cursors.Clear();
-            foreach (var cursor in all)
+            foreach (var (key, statement) in Statements(all))
             {
-                _cursors[CursorKey.Of(cursor)] = cursor.Figures;
+                _cursors[key] = statement.Figures;
             }
 
             _load = load;
@@ -157,8 +157,9 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
     }
 
     /// <summary>
-    /// The cursors active since <see cref="StatementsSince"/>, as read in the latest look: what each did since then. A cursor
-    /// not held, or with a smaller figure than held, was loaded (again) meanwhile and counts from 0. Needs a baseline.
+    /// The cursors active since <see cref="StatementsSince"/>, as read in the latest look: what each statement did since then
+    /// (its rows summed, whatever plan they name). A statement not held, or with a smaller figure than held, was loaded (again)
+    /// meanwhile and counts from 0. Needs a baseline.
     /// </summary>
     /// <param name="complete">
     /// <paramref name="changed"/> holds every cursor of <c>V$SQLSTATS</c> (<see cref="FullReadDue"/>): those held but missing are
@@ -175,23 +176,24 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
 
             var to = _load.At;
             var look = new Look(from, to, []);
-            foreach (var cursor in changed)
+            var read = Statements(changed);
+            foreach (var (key, statement) in read)
             {
-                var key = CursorKey.Of(cursor);
-                var delta = _cursors.TryGetValue(key, out var held) && !cursor.Figures.AnyBelow(held) ? cursor.Figures - held : cursor.Figures;
-                _cursors[key] = cursor.Figures;
+                var figures = statement.Figures;
+                var delta = _cursors.TryGetValue(key, out var held) && !figures.AnyBelow(held) ? figures - held : figures;
+                _cursors[key] = figures;
                 if (delta.IsZero)
                 {
                     continue;
                 }
 
-                Count(look.Deltas, cursor.SqlId, cursor.PlanHash, delta, to);
-                Count(_sinceStart, cursor.SqlId, cursor.PlanHash, delta, to);
+                Count(look.Deltas, key.SqlId, statement.Plans, delta, to);
+                Count(_sinceStart, key.SqlId, statement.Plans, delta, to);
             }
 
             if (complete)
             {
-                var present = changed.Select(CursorKey.Of).ToHashSet();
+                var present = read.Keys.ToHashSet();
                 foreach (var gone in _cursors.Keys.Where(k => !present.Contains(k)).ToList())
                 {
                     _cursors.Remove(gone);
@@ -372,10 +374,31 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
             AfterGap: now.At - before.At > GapAfter || (previous is { } end && before.At > end));
     }
 
-    /// <summary>A cursor: one plan of a statement, in a container database per container.</summary>
-    private readonly record struct CursorKey(string SqlId, long PlanHash, int ContainerId)
+    /// <summary>
+    /// A statement, in a container database per container – not per plan: <c>V$SQLSTATS</c> keeps one row per SQL_ID whose
+    /// <c>PLAN_HASH_VALUE</c> follows the child cursor active last while its figures run on over all plans (E2E after WP-75:
+    /// a bind-aware statement with five plans in <c>V$SQL</c>, one row here). Keyed by plan, every plan not seen before counted
+    /// the statement's whole figures since loading again – twice within 15 minutes.
+    /// </summary>
+    private readonly record struct CursorKey(string SqlId, int ContainerId);
+
+    /// <summary>
+    /// The rows read, summed per statement with the plans they name – a no-op with one row per statement; should a version
+    /// keep a row per plan, a look brings only the active ones and a smaller sum counts again from 0 (review of
+    /// fix-server-load-plan-change: accepted, documented one row per SQL_ID).
+    /// </summary>
+    private static Dictionary<CursorKey, (StatementFigures Figures, HashSet<long> Plans)> Statements(IReadOnlyList<StatementCounters> rows)
     {
-        public static CursorKey Of(StatementCounters cursor) => new(cursor.SqlId, cursor.PlanHash, cursor.ContainerId);
+        var statements = new Dictionary<CursorKey, (StatementFigures Figures, HashSet<long> Plans)>();
+        foreach (var row in rows)
+        {
+            var key = new CursorKey(row.SqlId, row.ContainerId);
+            var (figures, plans) = statements.TryGetValue(key, out var known) ? known : (default, []);
+            plans.Add(row.PlanHash);
+            statements[key] = (figures + row.Figures, plans);
+        }
+
+        return statements;
     }
 
     /// <summary>What a statement did: its figures summed over its cursors, the plans it used, when it was last seen active.</summary>
@@ -399,11 +422,11 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
         return activity;
     }
 
-    private static void Count(Dictionary<string, Activity> map, string sqlId, long plan, StatementFigures delta, DateTime at)
+    private static void Count(Dictionary<string, Activity> map, string sqlId, IEnumerable<long> plans, StatementFigures delta, DateTime at)
     {
         var activity = Entry(map, sqlId);
         activity.Figures += delta;
-        activity.Plans.Add(plan);
+        activity.Plans.UnionWith(plans);
         activity.LastActive = at > activity.LastActive ? at : activity.LastActive;
     }
 
