@@ -270,6 +270,8 @@ changes, and a new build is picked up automatically:
   wait for, a chart of up to the last hour – and its top statements by CPU, time, executions or reads, either for the time
   you watch or since each was loaded (like SQL Developer’s reports), with plan, Excel export and the sessions running
   right now. Only views outside the Diagnostics and Tuning Pack; needs `SELECT_CATALOG_ROLE` or grants on the V$ views.
+  With a linked C# project, a statement's details name the methods of your solution that may send it – guessed from its
+  tables and the columns it filters by, best fit first – and a click opens the line in Visual Studio.
 - **Usage in the code**: per column, the methods of your solution that read or write its property or query the table,
   read from the compiled code – a click opens the line in Visual Studio. Properties no code uses are marked, and the
   designer warns before dropping a column the code still uses. Uses open in your *work clone* of the connection group.

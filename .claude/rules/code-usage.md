@@ -4,6 +4,8 @@ paths:
   - "src/FerretSharp.UI/Components/Schema/UsageView*"
   - "src/FerretSharp.UI/Components/Schema/UsageBuildNote*"
   - "src/FerretSharp.UI/State/**/CodeUsage*"
+  - "src/FerretSharp.UI/State/**/CodeOrigin*"
+  - "src/FerretSharp.UI/Components/Schema/CodeOrigins*"
   - "src/FerretSharp.App/Services/CodeEditorLauncher*"
 ---
 
