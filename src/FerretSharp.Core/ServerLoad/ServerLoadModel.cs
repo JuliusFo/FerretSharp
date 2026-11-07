@@ -5,7 +5,7 @@ namespace FerretSharp.Core.ServerLoad;
 /// <summary>
 /// Reads the load of the database server and the figures of its statements (WP-75, ADR 0045). Only views outside the
 /// Diagnostics and Tuning Pack: <c>V$OSSTAT</c>, <c>V$SYS_TIME_MODEL</c>, <c>V$SYSSTAT</c>, <c>V$SYSTEM_WAIT_CLASS</c>,
-/// <c>V$INSTANCE</c>, <c>V$SQLSTATS</c>, <c>V$SQLAREA</c>, <c>V$SQL</c>, <c>V$SESSION</c> – never ASH, AWR, the metric views
+/// <c>V$INSTANCE</c>, <c>V$SQLSTATS</c>, <c>V$SQL</c>, <c>V$SESSION</c> – never ASH, AWR, the metric views
 /// or the SQL monitor (<c>PackViewTests</c>).
 /// </summary>
 /// <remarks>Every method throws <see cref="ServerLoadUnavailableException"/> when the user may not read the V$ views.</remarks>
@@ -27,7 +27,7 @@ public interface IServerLoadReader
     Task<IReadOnlyList<StatementInfo>> ReadStatementInfoAsync(IReadOnlyList<string> sqlIds, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The top statements by the figures since each was loaded into the shared pool (<c>V$SQLAREA</c>, like the reports of
+    /// The top statements by the figures since each was loaded into the shared pool (<c>V$SQLSTATS</c>, like the reports of
     /// SQL Developer): sorted and cut on the server.
     /// </summary>
     Task<IReadOnlyList<StatementRow>> ReadTopSinceLoadAsync(TopStatementSort sort, StatementFilter filter, int count, CancellationToken cancellationToken);
@@ -189,7 +189,7 @@ public sealed record StatementFilter(string? Schema = null, string? Module = nul
 }
 
 /// <summary>A line of the top list.</summary>
-/// <param name="Plans">Plans seen in the window; null for the list since loading (<c>V$SQLAREA</c> sums them).</param>
+/// <param name="Plans">The plans seen in the window, or all plans of the statement in the list since loading.</param>
 /// <param name="Info">Null while it is being read, or when the cursor left the shared pool before.</param>
 public sealed record StatementRow(string SqlId, int? Plans, StatementFigures Figures, StatementInfo? Info, DateTime? LastActive);
 

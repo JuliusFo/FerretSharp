@@ -33,7 +33,7 @@ public enum ServerLoadMode
     /// <summary>What the statements did while the page looked (<see cref="ServerLoadTracker"/>).</summary>
     Window,
 
-    /// <summary>The figures since each statement was loaded into the shared pool (<c>V$SQLAREA</c>, like SQL Developer).</summary>
+    /// <summary>The figures since each statement was loaded into the shared pool (<c>V$SQLSTATS</c>, like SQL Developer).</summary>
     SinceLoad,
 }
 

@@ -195,6 +195,10 @@
 
     private static TimeSpan Micros(double micros) => TimeSpan.FromMicroseconds(micros);
 
+    /// <summary>A time per execution; empty for a statement not executed to the end yet (a running PL/SQL block).</summary>
+    private static string PerExecution(StatementFigures figures, long micros) =>
+        figures.Executions > 0 ? PlanTable.Time(Micros(figures.PerExecution(micros))) : "";
+
     private RenderFragment Tiles(LoadSample latest) => @<div class="report-tiles load-tiles">
         <div class="report-tile-group">
             <h3>@ServerLoadText.ServerLoad_TilesServer</h3>
@@ -378,11 +382,11 @@
                                     </td>
                                     <td class="num">@PlanTable.Count(f.Executions)</td>
                                     <td class="num">@PlanTable.Time(Micros(f.CpuTime))</td>
-                                    <td class="num">@PlanTable.Time(Micros(f.PerExecution(f.CpuTime)))</td>
+                                    <td class="num">@PerExecution(f, f.CpuTime)</td>
                                     <td class="num">@PlanTable.Time(Micros(f.ElapsedTime))</td>
-                                    <td class="num">@PlanTable.Time(Micros(f.PerExecution(f.ElapsedTime)))</td>
+                                    <td class="num">@PerExecution(f, f.ElapsedTime)</td>
                                     <td class="num">@PlanTable.Count(f.BufferGets)</td>
-                                    <td class="num">@Number(f.PerExecution(f.BufferGets), "N0")</td>
+                                    <td class="num">@(f.Executions > 0 ? Number(f.PerExecution(f.BufferGets), "N0") : "")</td>
                                     <td class="num">@PlanTable.Count(f.DiskReads)</td>
                                     <td class="num">@PlanTable.Count(f.Rows)</td>
                                     <td class="num">@PlanTable.Time(Micros(f.UserIoWait))</td>

@@ -139,7 +139,7 @@
     <value>Seit Laden</value>
   </data>
   <data name="ServerLoad_ModeSinceLoadTitle" xml:space="preserve">
-    <value>Werte seit dem Laden jedes Statements in den Shared Pool (V$SQLAREA), wie die Berichte von SQL Developer – ein altes Statement summiert sich über Wochen</value>
+    <value>Werte seit dem Laden jedes Statements in den Shared Pool (V$SQLSTATS), wie die Berichte von SQL Developer – ein altes Statement summiert sich über Wochen</value>
   </data>
   <data name="ServerLoad_WindowSinceOpened" xml:space="preserve">
     <value>Seit Öffnen</value>

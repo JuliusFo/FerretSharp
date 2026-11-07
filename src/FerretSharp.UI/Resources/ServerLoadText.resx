@@ -169,7 +169,7 @@
     <comment>Switch: figures since each statement was loaded into the shared pool</comment>
   </data>
   <data name="ServerLoad_ModeSinceLoadTitle" xml:space="preserve">
-    <value>Figures since each statement was loaded into the shared pool (V$SQLAREA), like the reports of SQL Developer – an old statement adds up over weeks</value>
+    <value>Figures since each statement was loaded into the shared pool (V$SQLSTATS), like the reports of SQL Developer – an old statement adds up over weeks</value>
   </data>
   <data name="ServerLoad_WindowSinceOpened" xml:space="preserve">
     <value>Since opened</value>

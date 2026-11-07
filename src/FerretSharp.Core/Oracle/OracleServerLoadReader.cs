@@ -19,7 +19,6 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
                (SELECT COUNT(*) FROM gv$instance),
                (SELECT MAX(value) FROM v$osstat WHERE stat_name = 'NUM_CPUS'),
                (SELECT COUNT(*) FROM v$sqlstats WHERE ROWNUM = 1)
-             + (SELECT COUNT(*) FROM v$sqlarea WHERE ROWNUM = 1)
              + (SELECT COUNT(*) FROM v$sql WHERE ROWNUM = 1)
              + (SELECT COUNT(*) FROM v$sys_time_model WHERE ROWNUM = 1)
              + (SELECT COUNT(*) FROM v$sysstat WHERE ROWNUM = 1)
@@ -68,11 +67,12 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
          WHERE last_active_time >= :since
         """;
 
-    // The columns of StatementFigures in their order, for V$SQLAREA (the figures of all children of a SQL_ID).
-    private const string FigureColumns = """
-        executions, cpu_time, elapsed_time, buffer_gets, disk_reads, rows_processed, parse_calls,
-               user_io_wait_time, concurrency_wait_time, application_wait_time
-        """;
+    /// <summary>The columns of <see cref="StatementFigures"/> in their order.</summary>
+    private static readonly string[] FigureColumns =
+    [
+        "executions", "cpu_time", "elapsed_time", "buffer_gets", "disk_reads", "rows_processed", "parse_calls",
+        "user_io_wait_time", "concurrency_wait_time", "application_wait_time",
+    ];
 
     public const string ActiveSessionsSql = """
         SELECT sid, serial#, username, osuser, machine, program, module, client_info, sql_id,
@@ -84,38 +84,53 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
          FETCH FIRST 200 ROWS ONLY
         """;
 
-    /// <summary>The top list since loading, with the sort column filled in (<see cref="SortExpression"/>, never text from outside).</summary>
+    /// <summary>
+    /// The top list since loading, with the sort column filled in (<see cref="SortExpression"/>, never text from outside).
+    /// The figures from <c>V$SQLSTATS</c>, summed over the plans: it keeps them after a cursor left the library cache, where
+    /// <c>V$SQLAREA</c> already lost it (E2E of WP-75: the most expensive statement of a finished batch was missing).
+    /// Module and schema come from <c>V$SQL</c>; a statement no longer there has none and drops out of a filter.
+    /// </summary>
     internal static string TopSinceLoadSql(TopStatementSort sort) => $"""
-        SELECT sql_id, {FigureColumns}, sql_text, module, parsing_schema_name, last_active_time
-          FROM v$sqlarea
-         WHERE (:schema_part IS NULL OR INSTR(UPPER(parsing_schema_name), UPPER(:schema_part)) > 0)
-           AND (:module_part IS NULL OR INSTR(UPPER(module), UPPER(:module_part)) > 0)
-         ORDER BY {SortExpression(sort)} DESC NULLS LAST, sql_id
+        SELECT s.sql_id, {string.Join(", ", FigureColumns.Select(c => "s." + c))}, s.plans, s.sql_text, i.module, i.parsing_schema_name, s.last_active_time
+          FROM (SELECT sql_id, {string.Join(", ", FigureColumns.Select(c => $"SUM({c}) {c}"))},
+                       COUNT(DISTINCT plan_hash_value) plans, MAX(sql_text) sql_text, MAX(last_active_time) last_active_time
+                  FROM v$sqlstats
+                 GROUP BY sql_id) s
+          LEFT JOIN (SELECT sql_id, MAX(module) module, MAX(parsing_schema_name) parsing_schema_name
+                       FROM v$sql
+                      GROUP BY sql_id) i ON i.sql_id = s.sql_id
+         WHERE (:schema_part IS NULL OR INSTR(UPPER(i.parsing_schema_name), UPPER(:schema_part)) > 0)
+           AND (:module_part IS NULL OR INSTR(UPPER(i.module), UPPER(:module_part)) > 0)
+         ORDER BY {SortExpression(sort)} DESC NULLS LAST, s.sql_id
          FETCH FIRST :top ROWS ONLY
         """;
 
-    /// <summary>Text, module and schema of up to <see cref="ServerLoadMonitor.InfoBatch"/> statements, one bind each.</summary>
+    /// <summary>
+    /// Text (from <c>V$SQLSTATS</c>, which keeps it longest), module and schema (from <c>V$SQL</c>) of up to
+    /// <see cref="ServerLoadMonitor.InfoBatch"/> statements, one bind each.
+    /// </summary>
     internal static string InfoSql(int count) => $"""
-        SELECT sql_id, MAX(sql_text), MAX(module), MAX(parsing_schema_name)
-          FROM v$sql
-         WHERE sql_id IN ({string.Join(", ", Enumerable.Range(0, count).Select(i => $":id{i}"))})
-         GROUP BY sql_id
+        SELECT s.sql_id, MAX(s.sql_text), MAX(i.module), MAX(i.parsing_schema_name)
+          FROM v$sqlstats s
+          LEFT JOIN v$sql i ON i.sql_id = s.sql_id
+         WHERE s.sql_id IN ({string.Join(", ", Enumerable.Range(0, count).Select(i => $":id{i}"))})
+         GROUP BY s.sql_id
         """;
 
     internal static string SortExpression(TopStatementSort sort) => sort switch
     {
-        TopStatementSort.Cpu => "cpu_time",
-        TopStatementSort.CpuPerExecution => "cpu_time / NULLIF(executions, 0)",
-        TopStatementSort.Elapsed => "elapsed_time",
-        TopStatementSort.ElapsedPerExecution => "elapsed_time / NULLIF(executions, 0)",
-        TopStatementSort.Executions => "executions",
-        TopStatementSort.BufferGets => "buffer_gets",
-        TopStatementSort.BufferGetsPerExecution => "buffer_gets / NULLIF(executions, 0)",
-        TopStatementSort.DiskReads => "disk_reads",
-        TopStatementSort.Rows => "rows_processed",
-        TopStatementSort.UserIoWait => "user_io_wait_time",
-        TopStatementSort.ConcurrencyWait => "concurrency_wait_time",
-        TopStatementSort.ApplicationWait => "application_wait_time",
+        TopStatementSort.Cpu => "s.cpu_time",
+        TopStatementSort.CpuPerExecution => "s.cpu_time / NULLIF(s.executions, 0)",
+        TopStatementSort.Elapsed => "s.elapsed_time",
+        TopStatementSort.ElapsedPerExecution => "s.elapsed_time / NULLIF(s.executions, 0)",
+        TopStatementSort.Executions => "s.executions",
+        TopStatementSort.BufferGets => "s.buffer_gets",
+        TopStatementSort.BufferGetsPerExecution => "s.buffer_gets / NULLIF(s.executions, 0)",
+        TopStatementSort.DiskReads => "s.disk_reads",
+        TopStatementSort.Rows => "s.rows_processed",
+        TopStatementSort.UserIoWait => "s.user_io_wait_time",
+        TopStatementSort.ConcurrencyWait => "s.concurrency_wait_time",
+        TopStatementSort.ApplicationWait => "s.application_wait_time",
         _ => throw new ArgumentOutOfRangeException(nameof(sort), sort, null),
     };
 
@@ -174,8 +189,8 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
             reader =>
             {
                 var sqlId = Text(reader, 0) ?? "";
-                return new StatementRow(sqlId, null, ReadFigures(reader, 1),
-                    new StatementInfo(sqlId, Text(reader, 11), Text(reader, 12), Text(reader, 13)), Date(reader, 14));
+                return new StatementRow(sqlId, Int(reader, 11), ReadFigures(reader, 1),
+                    new StatementInfo(sqlId, Text(reader, 12), Text(reader, 13), Text(reader, 14)), Date(reader, 15));
             }, cancellationToken));
 
     public Task<IReadOnlyList<ActiveSession>> ReadActiveSessionsAsync(CancellationToken cancellationToken) =>
@@ -189,7 +204,7 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
     private static StatementCounters ReadCounters(DbDataReader reader) =>
         new(Text(reader, 0) ?? "", Long(reader, 1) ?? 0, Int(reader, 2) ?? 0, ReadFigures(reader, 3));
 
-    /// <summary>The columns of <see cref="FigureColumns"/> from <paramref name="first"/> on.</summary>
+    /// <summary>The figures in the order of <see cref="FigureColumns"/> from <paramref name="first"/> on.</summary>
     private static StatementFigures ReadFigures(DbDataReader reader, int first) =>
         new(Long(reader, first) ?? 0, Long(reader, first + 1) ?? 0, Long(reader, first + 2) ?? 0, Long(reader, first + 3) ?? 0,
             Long(reader, first + 4) ?? 0, Long(reader, first + 5) ?? 0, Long(reader, first + 6) ?? 0, Long(reader, first + 7) ?? 0,
