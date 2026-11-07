@@ -365,6 +365,12 @@ export function dragTab(bar, pointerId, startX, startY, sourceId) {
       // Scrolls while the pointer rests near an end, a step every 30 ms; pointer moves alone would not scroll on.
       const edge = 28;
       const timer = setInterval(() => {
+        // The bar went away while dragging (disconnected, another connection shown): its own `lostpointercapture` never
+        // comes then (it goes to the document), and the timer ran on for the page's lifetime (code review #2).
+        if (!bar.isConnected) {
+          end();
+          return;
+        }
         const rect = bar.getBoundingClientRect();
         if (bar.classList.contains('multi')) {
           const step = y < rect.top + 10 ? -8 : y > rect.top + bar.clientHeight - 10 ? 8 : 0;
@@ -562,7 +568,9 @@ export function scrollableTabs(element) {
 
   element.addEventListener('wheel', e => {
     const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    if (e.ctrlKey || delta === 0 || element.scrollWidth <= element.clientWidth) {
+    // Several rows: the wheel scrolls the rows. Not by the widths – a tab wider than the bar made it scroll sideways
+    // there, with no scrollbar back (code review #1).
+    if (e.ctrlKey || delta === 0 || element.classList.contains('multi') || element.scrollWidth <= element.clientWidth) {
       return;
     }
     e.preventDefault();
