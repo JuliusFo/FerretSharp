@@ -200,4 +200,39 @@ public class KeyChangeTests
 
         Assert.Equal("KUNDE_ID = 7", jump.Condition);
     }
+
+    /// <summary>
+    /// Review of `small-pk-edit`, 2: a key that is not enforced finds no row (ROWID does), but relationships without a constraint
+    /// point to it all the same – its change was written without a look at them.
+    /// </summary>
+    [Fact]
+    public void A_key_that_is_not_enforced_is_a_key_change_too()
+    {
+        var notEnforced = Kunden with { PrimaryKeyEnforced = false };
+        var tracker = new ChangeTracker(notEnforced);
+        tracker.SetValue(new RowData(new RowKey.RowId("AAA"), [1m, "A", "Bonn"]), 0, "7");
+
+        var jump = Assert.Single(KeyChanges.References(notEnforced, KeyChanges.Of(notEnforced, tracker.PendingOperations()), [NotizKunde]));
+
+        Assert.Equal("KUNDE = 1", jump.Condition);
+    }
+
+    /// <summary>
+    /// Review of `small-pk-edit`, 6: a row inserted in this transaction is looked for by the key Oracle stored (a trigger filled
+    /// it), not by what was typed (nothing).
+    /// </summary>
+    [Fact]
+    public void A_row_inserted_in_the_transaction_is_looked_for_by_its_stored_key()
+    {
+        var tracker = new ChangeTracker(Kunden);
+        var added = tracker.AddRow();
+        tracker.SetValue(added, 1, "Neu"); // the key is left to the trigger
+        tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey> { [added.Id] = Key(9) });
+        tracker.SetValue(new RowData(Key(9), [9m, "Neu", null]), 0, "10");
+
+        var jump = Assert.Single(KeyChanges.References(Kunden, KeyChanges.Of(Kunden, tracker.PendingOperations()), [AuftragKunde]));
+
+        Assert.True(jump.IsAvailable, jump.Unavailable);
+        Assert.Equal("KUNDE_ID = 9", jump.Condition);
+    }
 }
