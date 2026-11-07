@@ -37,6 +37,29 @@ public sealed class MoveTabTests : IAsyncDisposable
         Assert.Same(d, _app.Shell.ActiveTab);
     }
 
+    /// <summary>
+    /// A drop moves and activates the dragged tab in one change: two would render every mounted tab twice (code review of
+    /// small-tab-bar-rework, #5). On its own place it is only activated, again once.
+    /// </summary>
+    [Fact]
+    public async Task A_dropped_tab_is_moved_and_activated_in_one_change()
+    {
+        var (scope, a, b, c, d) = await FourTabsAsync(); // d is active
+        var changes = 0;
+        _app.Shell.Changed += () => changes++;
+
+        Assert.True(_app.Shell.MoveTab(a, c, after: true, activate: true));
+        Assert.Equal([b, c, a, d], TabsOf(scope));
+        Assert.Same(a, _app.Shell.ActiveTab);
+        Assert.True(a.Visited);
+        Assert.Equal(1, changes);
+
+        Assert.False(_app.Shell.MoveTab(b, c, after: false, activate: true)); // own place, b not active yet
+        Assert.Equal([b, c, a, d], TabsOf(scope));
+        Assert.Same(b, _app.Shell.ActiveTab);
+        Assert.Equal(2, changes);
+    }
+
     [Fact]
     public async Task Dropped_on_its_own_place_nothing_changes()
     {

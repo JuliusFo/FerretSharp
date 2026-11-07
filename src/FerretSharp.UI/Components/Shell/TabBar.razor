@@ -425,8 +425,12 @@
             return;
         }
 
-        Shell.MoveTab(tab, target, after: drop[(cut + 1)..] == "after");
-        Shell.ActivateTab(tab);
+        // One change for moving and activating (code review #5); a drop that could not move (the tab went to another
+        // group or workspace meanwhile) still activates it.
+        if (!Shell.MoveTab(tab, target, after: drop[(cut + 1)..] == "after", activate: true) && Shell.ActiveTab != tab)
+        {
+            Shell.ActivateTab(tab);
+        }
     }
 
     /// <summary>A new model or name setting: titles and tooltips follow (the shell no longer renders for it).</summary>
