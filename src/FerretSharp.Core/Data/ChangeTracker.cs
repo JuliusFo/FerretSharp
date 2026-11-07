@@ -256,6 +256,12 @@ public sealed class ChangeTracker(TableDetails table)
     /// </summary>
     private readonly Dictionary<RowChange, RowState> _asUndone = [];
 
+    /// <summary>
+    /// Written changes whose key another written row took (a deleted row's key, inserted again or changed to): they stay
+    /// counted and come back under their key when that write is taken back (review of `small-pk-edit`, 5).
+    /// </summary>
+    private readonly List<RowChange> _displaced = [];
+
     /// <summary>Keys rows moved away from by a written change of their primary key, with the change that moved (<see cref="KeyNow"/>).</summary>
     private readonly Dictionary<RowKey, RowChange> _movedFrom = [];
 
@@ -264,7 +270,7 @@ public sealed class ChangeTracker(TableDetails table)
     /// <summary>New rows that are not inserted yet, in the order they were added.</summary>
     public IReadOnlyList<RowChange> NewRows => _newRows.Where(r => !r.IsInserted).ToList();
 
-    public IEnumerable<RowChange> Changes => _byKey.Values.Concat(_newRows.Where(r => !r.IsInserted));
+    public IEnumerable<RowChange> Changes => _byKey.Values.Concat(_displaced).Concat(_newRows.Where(r => !r.IsInserted));
 
     public int PendingCount => Changes.Count(c => c.HasPending);
 
@@ -734,7 +740,7 @@ public sealed class ChangeTracker(TableDetails table)
             if (operation.Kind == OperationKind.Insert)
             {
                 _newRows.Remove(change);
-                _byKey[change.Key] = change;
+                Place(change);
             }
             else if (!Equals(oldKey, change.Key))
             {
@@ -755,7 +761,7 @@ public sealed class ChangeTracker(TableDetails table)
             var writtenKey = change.Key;
             if (kind == OperationKind.Insert)
             {
-                _byKey.Remove(change.Key);
+                Vacate(change.Key, change);
             }
 
             change.Restore(before, values, kind);
@@ -800,6 +806,7 @@ public sealed class ChangeTracker(TableDetails table)
     public void Clear()
     {
         _byKey.Clear();
+        _displaced.Clear();
         _newRows.Clear();
         ForgetEdits();
         _asUndone.Clear();
@@ -864,14 +871,40 @@ public sealed class ChangeTracker(TableDetails table)
     /// <summary>The row's primary key changed (written, or taken back): it is tracked under the key it has now.</summary>
     private void Rekey(RowChange change, RowKey previous)
     {
-        if (_byKey.TryGetValue(previous, out var tracked) && ReferenceEquals(tracked, change))
-        {
-            _byKey.Remove(previous);
-        }
-
+        Vacate(previous, change);
         _movedFrom[previous] = change;
         _movedFrom.Remove(change.Key); // a row has this key now: nothing moved away from it any more
-        Keep(change);
+        if (change.HasPending || change.HasFlushed)
+        {
+            Place(change);
+        }
+    }
+
+    /// <summary>Tracks a written change under its key; a written change of another row there is kept aside (<see cref="_displaced"/>).</summary>
+    private void Place(RowChange change)
+    {
+        if (_byKey.TryGetValue(change.Key, out var other) && !ReferenceEquals(other, change) && other.HasFlushed)
+        {
+            _displaced.Add(other);
+        }
+
+        _byKey[change.Key] = change;
+    }
+
+    /// <summary><paramref name="change"/> leaves <paramref name="key"/>: a change kept aside under that key comes back.</summary>
+    private void Vacate(RowKey key, RowChange change)
+    {
+        if (!_byKey.TryGetValue(key, out var tracked) || !ReferenceEquals(tracked, change))
+        {
+            return;
+        }
+
+        _byKey.Remove(key);
+        if (_displaced.FindLast(d => Equals(d.Key, key)) is { } back)
+        {
+            _displaced.Remove(back);
+            _byKey[key] = back;
+        }
     }
 
     private void Keep(RowChange change)

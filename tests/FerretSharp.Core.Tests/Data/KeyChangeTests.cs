@@ -116,6 +116,41 @@ public class KeyChangeTests
         Assert.Equal(9m, Assert.Single(tracker.PendingOperations()).Values[0]); // the newest value stays pending
     }
 
+    /// <summary>
+    /// Review of `small-pk-edit`, 5: a row deleted and its key taken by another row in the same write (or inserted again) pushed
+    /// the written delete out of the tracker – one written change too few, missing in the change overview.
+    /// </summary>
+    [Fact]
+    public void A_written_delete_whose_key_another_row_takes_stays_counted_and_comes_back_on_undo()
+    {
+        var tracker = new ChangeTracker(Kunden);
+        var gone = Row(3, "Weg");
+        tracker.Delete(gone);
+        tracker.SetValue(Row(1, "Müller"), 0, "3");
+        var moved = tracker.Find(Key(1))!;
+        var deleted = tracker.Find(Key(3))!;
+
+        var batch = tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey> { [moved.Id] = Key(3) });
+
+        Assert.Equal(2, tracker.FlushedCount);
+        Assert.Contains(deleted, tracker.Changes);
+        Assert.Same(moved, tracker.Find(Key(3))); // the row the grid shows under that key
+
+        tracker.UndoFlush(batch);
+        Assert.Same(deleted, tracker.Find(Key(3)));
+        Assert.Same(moved, tracker.Find(Key(1)));
+        Assert.Equal(2, tracker.PendingCount);
+
+        // The same for a new row with the deleted row's key.
+        tracker.DiscardPending();
+        tracker.Delete(gone);
+        tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey>());
+        var added = tracker.AddRow();
+        tracker.SetValue(added, 0, "3");
+        tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey> { [added.Id] = Key(3) });
+        Assert.Equal(2, tracker.FlushedCount);
+    }
+
     [Fact]
     public void A_value_for_many_rows_may_go_into_the_key_too()
     {
