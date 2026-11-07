@@ -154,4 +154,32 @@ public sealed class ServerLoadTrackerTests
         Assert.Equal(["cheap"], tracker.SqlIdsWithoutInfo(10));
         Assert.Null(tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10).Single(r => r.SqlId == "mid").Info);
     }
+
+    [Fact]
+    public void Past_the_limit_the_cheapest_statements_leave_with_their_text()
+    {
+        var tracker = new ServerLoadTracker(maxStatements: 10);
+        tracker.AddLoad(Counters(T0));
+        tracker.Rebase(Counters(T0), []);
+        tracker.AddLoad(Counters(T0.AddSeconds(30)));
+
+        tracker.AddStatements([.. Enumerable.Range(1, 12).Select(i => Cursor($"s{i:00}", 1, i))]);
+
+        // Review of WP-75: down to nine tenths, the most expensive kept.
+        Assert.Equal(Enumerable.Range(4, 9).Select(i => $"s{i:00}").Reverse(), tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 100).Select(r => r.SqlId));
+        Assert.Equal(9, tracker.SqlIdsWithoutInfo(100).Count);
+    }
+
+    [Fact]
+    public void The_list_is_computed_once_per_look()
+    {
+        var tracker = Started(Cursor("a", 0, 0));
+        Look(tracker, 30, Cursor("a", 1, 10));
+
+        var first = tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10);
+
+        Assert.Same(first, tracker.Top(null, TopStatementSort.Cpu, new StatementFilter(), 10));
+        Look(tracker, 30, Cursor("a", 2, 20));
+        Assert.Equal(20, Assert.Single(tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10)).Figures.CpuTime);
+    }
 }

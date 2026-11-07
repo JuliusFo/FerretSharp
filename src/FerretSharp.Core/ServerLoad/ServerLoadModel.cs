@@ -27,6 +27,12 @@ public interface IServerLoadReader
     Task<IReadOnlyList<StatementInfo>> ReadStatementInfoAsync(IReadOnlyList<string> sqlIds, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The whole text of a statement (<c>V$SQLSTATS.SQL_FULLTEXT</c>), also when its cursor has left the library cache and
+    /// figures and plan are gone; null when it is gone from <c>V$SQLSTATS</c> too.
+    /// </summary>
+    Task<string?> ReadFullTextAsync(string sqlId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// The top statements by the figures since each was loaded into the shared pool (<c>V$SQLSTATS</c>, like the reports of
     /// SQL Developer): sorted and cut on the server.
     /// </summary>
@@ -169,9 +175,20 @@ public enum TopStatementSort
 public sealed record StatementCounters(string SqlId, long PlanHash, int ContainerId, StatementFigures Figures);
 
 /// <summary>What is known of a statement besides its figures.</summary>
-/// <param name="Text">The first 1000 characters (<c>V$SQL.SQL_TEXT</c>); the whole text comes with the cursor's details.</param>
-/// <param name="Schema">The parsing schema: the user the statement ran as.</param>
-public sealed record StatementInfo(string SqlId, string? Text, string? Module, string? Schema);
+/// <param name="Text">
+/// The first <see cref="TextLength"/> characters (<c>V$SQLSTATS.SQL_TEXT</c>); the whole text comes with the details
+/// (<see cref="IServerLoadReader.ReadFullTextAsync"/>).
+/// </param>
+/// <param name="Module">From <c>V$SQL</c>: none once the cursor left the library cache.</param>
+/// <param name="Schema">The parsing schema (the user the statement ran as), from <c>V$SQL</c> like the module.</param>
+public sealed record StatementInfo(string SqlId, string? Text, string? Module, string? Schema)
+{
+    /// <summary>The length of <c>SQL_TEXT</c>: a text that long may be cut.</summary>
+    public const int TextLength = 1000;
+
+    /// <summary>The text may be cut (review of WP-75): never take it for the whole statement, e.g. to run it.</summary>
+    public bool MayBeCut => Text?.Length >= TextLength;
+}
 
 /// <summary>Filters the top list by parts of the parsing schema and of the module, ignoring case; empty matches all.</summary>
 public sealed record StatementFilter(string? Schema = null, string? Module = null)

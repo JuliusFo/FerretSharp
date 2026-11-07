@@ -66,7 +66,7 @@ public static class ServerLoadExport
             StatementColumn.ApplicationWait => Seconds(f.ApplicationWait),
             StatementColumn.Plans => row.Plans,
             StatementColumn.LastActive => row.LastActive,
-            StatementColumn.Text => row.Info?.Text,
+            StatementColumn.Text => row.Info is { MayBeCut: true, Text: { } cut } ? cut + " …" : row.Info?.Text, // never as if whole
             _ => throw new ArgumentOutOfRangeException(nameof(column), column, null),
         };
     }

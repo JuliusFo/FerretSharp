@@ -12,8 +12,14 @@ namespace FerretSharp.Core.ServerLoad;
 /// whole gap: it counts towards „since opened“, not towards a window it does not lie in completely. Thread-safe: the looks
 /// come from the pool, the page reads on its own thread.
 /// </remarks>
-public sealed class ServerLoadTracker
+/// <param name="maxStatements">
+/// Statements kept for „since opened“ with their text (review of WP-75): an app sending literals instead of binds makes new
+/// SQL_IDs all day. Past it, the cheapest (CPU) go, down to nine tenths, so this does not sort on every look.
+/// </param>
+public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.DefaultMaxStatements)
 {
+    public const int DefaultMaxStatements = 20_000;
+
     /// <summary>How far back the load and the windows of the top list reach.</summary>
     public static readonly TimeSpan HistoryLength = TimeSpan.FromHours(1);
 
@@ -28,6 +34,8 @@ public sealed class ServerLoadTracker
     private readonly Dictionary<string, StatementInfo?> _info = [];
     private LoadCounters? _load;
     private DateTime? _statementsAt;
+    private long _version;
+    private (long Version, TimeSpan? Window, TopStatementSort Sort, StatementFilter Filter, int Count, IReadOnlyList<StatementRow> Rows)? _top;
 
     /// <summary>Server time of the first baseline: the start of „since opened“.</summary>
     public DateTime? StartedAt { get; private set; }
@@ -97,6 +105,7 @@ public sealed class ServerLoadTracker
             _statementsAt = load.At;
             StartedAt ??= load.At;
             NeedsBaseline = false;
+            _version++;
         }
     }
 
@@ -161,6 +170,8 @@ public sealed class ServerLoadTracker
             _looks.Add(look);
             _looks.RemoveAll(l => l.From < to - HistoryLength);
             _statementsAt = to;
+            Trim();
+            _version++;
         }
     }
 
@@ -182,15 +193,17 @@ public sealed class ServerLoadTracker
     {
         lock (_gate)
         {
-            foreach (var sqlId in asked)
+            foreach (var sqlId in asked.Where(_sinceStart.ContainsKey))
             {
                 _info.TryAdd(sqlId, null);
             }
 
-            foreach (var info in found)
+            foreach (var info in found.Where(i => _sinceStart.ContainsKey(i.SqlId)))
             {
                 _info[info.SqlId] = info;
             }
+
+            _version++;
         }
     }
 
@@ -202,6 +215,13 @@ public sealed class ServerLoadTracker
     {
         lock (_gate)
         {
+            // The page renders often (also on every change of the app trace): only a new look computes the list anew.
+            if (_top is { } cached && cached.Version == _version && cached.Window == window && cached.Sort == sort && cached.Filter == filter
+                && cached.Count == count)
+            {
+                return cached.Rows;
+            }
+
             Dictionary<string, Activity> source;
             if (window is { } length && _load is { } load)
             {
@@ -219,13 +239,31 @@ public sealed class ServerLoadTracker
                 source = _sinceStart;
             }
 
-            return [.. source
+            IReadOnlyList<StatementRow> rows = [.. source
                 .Select(s => (s.Key, s.Value, Info: _info.GetValueOrDefault(s.Key)))
                 .Where(s => filter.Matches(s.Info))
                 .OrderByDescending(s => s.Value.Figures.ValueOf(sort))
                 .ThenBy(s => s.Key, StringComparer.Ordinal)
                 .Take(count)
                 .Select(s => new StatementRow(s.Key, s.Value.Plans.Count, s.Value.Figures, s.Info, s.Value.LastActive))];
+            _top = (_version, window, sort, filter, count, rows);
+            return rows;
+        }
+    }
+
+    /// <summary>Past <c>maxStatements</c>, the cheapest statements (CPU) leave „since opened“ with their text, down to nine tenths.</summary>
+    private void Trim()
+    {
+        if (_sinceStart.Count <= maxStatements)
+        {
+            return;
+        }
+
+        foreach (var sqlId in _sinceStart.OrderBy(s => s.Value.Figures.CpuTime).ThenBy(s => s.Key, StringComparer.Ordinal)
+                     .Take(_sinceStart.Count - maxStatements * 9 / 10).Select(s => s.Key).ToList())
+        {
+            _sinceStart.Remove(sqlId);
+            _info.Remove(sqlId);
         }
     }
 

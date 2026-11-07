@@ -185,7 +185,7 @@ public class ReadOnlyTests
         { typeof(IDatabaseConnector), ["OpenAsync"] },
         {
             typeof(IServerLoadReader), [
-                "ReadActiveSessionsAsync", "ReadCountersAsync", "ReadEnvironmentAsync", "ReadStatementInfoAsync", "ReadStatementsAsync", "ReadTopSinceLoadAsync",
+                "ReadActiveSessionsAsync", "ReadCountersAsync", "ReadEnvironmentAsync", "ReadFullTextAsync", "ReadStatementInfoAsync", "ReadStatementsAsync", "ReadTopSinceLoadAsync",
             ]
         },
     };

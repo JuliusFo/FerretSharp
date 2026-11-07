@@ -84,26 +84,48 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
          FETCH FIRST 200 ROWS ONLY
         """;
 
+    // The whole text of a statement; any plan has it.
+    public const string FullTextSql = """
+        SELECT sql_fulltext
+          FROM v$sqlstats
+         WHERE sql_id = :sql_id
+         FETCH FIRST 1 ROW ONLY
+        """;
+
     /// <summary>
     /// The top list since loading, with the sort column filled in (<see cref="SortExpression"/>, never text from outside).
     /// The figures from <c>V$SQLSTATS</c>, summed over the plans: it keeps them after a cursor left the library cache, where
     /// <c>V$SQLAREA</c> already lost it (E2E of WP-75: the most expensive statement of a finished batch was missing).
-    /// Module and schema come from <c>V$SQL</c>; a statement no longer there has none and drops out of a filter.
+    /// Module and schema come from <c>V$SQL</c>; a statement no longer there has none and drops out of a filter. Without a
+    /// filter only the top statements look into <c>V$SQL</c> (review of WP-75: grouping all of it costs library cache
+    /// mutexes on a large shared pool); with one, all of them must.
     /// </summary>
-    internal static string TopSinceLoadSql(TopStatementSort sort) => $"""
-        SELECT s.sql_id, {string.Join(", ", FigureColumns.Select(c => "s." + c))}, s.plans, s.sql_text, i.module, i.parsing_schema_name, s.last_active_time
-          FROM (SELECT sql_id, {string.Join(", ", FigureColumns.Select(c => $"SUM({c}) {c}"))},
-                       COUNT(DISTINCT plan_hash_value) plans, MAX(sql_text) sql_text, MAX(last_active_time) last_active_time
-                  FROM v$sqlstats
-                 GROUP BY sql_id) s
-          LEFT JOIN (SELECT sql_id, MAX(module) module, MAX(parsing_schema_name) parsing_schema_name
-                       FROM v$sql
-                      GROUP BY sql_id) i ON i.sql_id = s.sql_id
-         WHERE (:schema_part IS NULL OR INSTR(UPPER(i.parsing_schema_name), UPPER(:schema_part)) > 0)
-           AND (:module_part IS NULL OR INSTR(UPPER(i.module), UPPER(:module_part)) > 0)
-         ORDER BY {SortExpression(sort)} DESC NULLS LAST, s.sql_id
-         FETCH FIRST :top ROWS ONLY
-        """;
+    internal static string TopSinceLoadSql(TopStatementSort sort, bool filtered)
+    {
+        var order = $"ORDER BY {SortExpression(sort)} DESC NULLS LAST, s.sql_id";
+        var columns = $"s.sql_id, {string.Join(", ", FigureColumns.Select(c => "s." + c))}, s.plans, s.sql_text, i.module, i.parsing_schema_name, s.last_active_time";
+        var figures = $"SELECT sql_id, {string.Join(", ", FigureColumns.Select(c => $"SUM({c}) {c}"))}, COUNT(DISTINCT plan_hash_value) plans, "
+            + "MAX(sql_text) sql_text, MAX(last_active_time) last_active_time FROM v$sqlstats GROUP BY sql_id";
+        const string Info = "SELECT sql_id, MAX(module) module, MAX(parsing_schema_name) parsing_schema_name FROM v$sql";
+        return filtered
+            ? $"""
+              SELECT {columns}
+                FROM ({figures}) s
+                LEFT JOIN ({Info} GROUP BY sql_id) i ON i.sql_id = s.sql_id
+               WHERE (:schema_part IS NULL OR INSTR(UPPER(i.parsing_schema_name), UPPER(:schema_part)) > 0)
+                 AND (:module_part IS NULL OR INSTR(UPPER(i.module), UPPER(:module_part)) > 0)
+               {order}
+               FETCH FIRST :top ROWS ONLY
+              """
+            : $"""
+              WITH a AS ({figures}),
+                   s AS (SELECT * FROM a s {order} FETCH FIRST :top ROWS ONLY)
+              SELECT {columns}
+                FROM s
+                LEFT JOIN ({Info} WHERE sql_id IN (SELECT sql_id FROM s) GROUP BY sql_id) i ON i.sql_id = s.sql_id
+               {order}
+              """;
+    }
 
     /// <summary>
     /// Text (from <c>V$SQLSTATS</c>, which keeps it longest), module and schema (from <c>V$SQL</c>) of up to
@@ -179,13 +201,22 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
             reader => new StatementInfo(Text(reader, 0) ?? "", Text(reader, 1), Text(reader, 2), Text(reader, 3)), cancellationToken));
     }
 
+    public Task<string?> ReadFullTextAsync(string sqlId, CancellationToken cancellationToken) =>
+        GuardAsync(async () =>
+        {
+            var texts = await session.ReadListAsync(FullTextSql, [new QueryParameter("sql_id", sqlId)], reader => Text(reader, 0), cancellationToken);
+            return texts is [var text] ? text : null;
+        });
+
     public Task<IReadOnlyList<StatementRow>> ReadTopSinceLoadAsync(TopStatementSort sort, StatementFilter filter, int count, CancellationToken cancellationToken) =>
-        GuardAsync<IReadOnlyList<StatementRow>>(async () => await session.ReadListAsync(TopSinceLoadSql(sort),
-            [
-                new QueryParameter("schema_part", Part(filter.Schema)),
-                new QueryParameter("module_part", Part(filter.Module)),
-                new QueryParameter("top", count),
-            ],
+        GuardAsync<IReadOnlyList<StatementRow>>(async () => await session.ReadListAsync(TopSinceLoadSql(sort, !filter.IsEmpty),
+            filter.IsEmpty
+                ? [new QueryParameter("top", count)]
+                : [
+                    new QueryParameter("schema_part", Part(filter.Schema)),
+                    new QueryParameter("module_part", Part(filter.Module)),
+                    new QueryParameter("top", count),
+                ],
             reader =>
             {
                 var sqlId = Text(reader, 0) ?? "";

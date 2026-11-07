@@ -104,6 +104,8 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         Assert.Equal(sql, row.Info?.Text);
         Assert.Equal(Owner, row.Info?.Schema);
 
+        Assert.Equal(sql, await connection.ServerLoad.ReadFullTextAsync(sqlId, Ct));
+        Assert.Null(await connection.ServerLoad.ReadFullTextAsync("0000000000000", Ct));
         var cursor = await connection.Schema.GetCursorByIdAsync(sqlId, Ct);
         Assert.Equal(sql, cursor!.Plan.Sql);
         Assert.NotEmpty(cursor.Plan.Steps);
@@ -128,10 +130,16 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         await using var connection = await OpenAsync();
 
         var rows = await connection.ServerLoad.ReadTopSinceLoadAsync(sort, new StatementFilter(Owner.ToLowerInvariant()), 5, Ct);
+        var all = await connection.ServerLoad.ReadTopSinceLoadAsync(sort, StatementFilter.None, 5, Ct); // review: the top first, then V$SQL
 
         Assert.InRange(rows.Count, 1, 5); // this session's own statements at least
         Assert.All(rows, r => Assert.Contains(Owner, r.Info!.Schema, StringComparison.Ordinal));
-        Assert.Equal(rows.Select(r => r.Figures.ValueOf(sort)).OrderDescending(), rows.Select(r => r.Figures.ValueOf(sort)));
+        Assert.Equal(5, all.Count);
+        foreach (var list in new[] { rows, all })
+        {
+            Assert.Equal(list.Select(r => r.Figures.ValueOf(sort)).OrderDescending(), list.Select(r => r.Figures.ValueOf(sort)));
+            Assert.All(list, r => Assert.True(r.Plans >= 1));
+        }
     }
 
     [Fact]

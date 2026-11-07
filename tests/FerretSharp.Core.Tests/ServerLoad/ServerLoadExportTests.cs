@@ -18,6 +18,11 @@ public sealed class ServerLoadExportTests
         Assert.Equal((decimal)expected, ServerLoadExport.ValueOf(Row, column));
 
     [Fact]
+    public void A_text_that_may_be_cut_ends_in_an_ellipsis() =>
+        Assert.Equal(new string('x', 1000) + " …",
+            ServerLoadExport.ValueOf(Row with { Info = Row.Info! with { Text = new string('x', 1000) } }, StatementColumn.Text));
+
+    [Fact]
     public async Task The_file_has_a_sheet_with_a_heading_per_column_and_a_row_per_statement()
     {
         using var stream = new MemoryStream();
