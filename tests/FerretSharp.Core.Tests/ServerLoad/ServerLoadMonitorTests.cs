@@ -43,8 +43,9 @@ public sealed class ServerLoadMonitorTests
         _reader.ReadStatementsAsync(Arg.Any<DateTime?>(), Arg.Any<CancellationToken>()).Returns([Cursor("a", 2, 30)]);
         await monitor.LookAsync(_steps.Add, TestContext.Current.CancellationToken);
 
-        // The second of the baseline and the one before it count again: LAST_ACTIVE_TIME has whole seconds.
-        await _reader.Received(1).ReadStatementsAsync(new DateTime(2026, 11, 7, 9, 59, 59), Arg.Any<CancellationToken>());
+        // LAST_ACTIVE_TIME has whole seconds, and V$SQLSTATS brings figures late, perhaps with an older LAST_ACTIVE_TIME: the
+        // 30 seconds before the second of the baseline count again.
+        await _reader.Received(1).ReadStatementsAsync(new DateTime(2026, 11, 7, 9, 59, 30), Arg.Any<CancellationToken>());
         Assert.Single(_steps);
         var row = Assert.Single(_tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10));
         Assert.Equal((20, "APP"), (row.Figures.CpuTime, row.Info!.Schema));
