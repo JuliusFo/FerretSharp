@@ -256,6 +256,9 @@ public sealed class ChangeTracker(TableDetails table)
     /// </summary>
     private readonly Dictionary<RowChange, RowState> _asUndone = [];
 
+    /// <summary>Keys rows moved away from by a written change of their primary key, with the change that moved (<see cref="KeyNow"/>).</summary>
+    private readonly Dictionary<RowKey, RowChange> _movedFrom = [];
+
     public TableDetails Table { get; } = table;
 
     /// <summary>New rows that are not inserted yet, in the order they were added.</summary>
@@ -283,6 +286,14 @@ public sealed class ChangeTracker(TableDetails table)
     internal bool CanRedoEdit => _edits.CanRedo;
 
     public RowChange? Find(RowKey key) => _byKey.GetValueOrDefault(key);
+
+    /// <summary>
+    /// The key a row has now that had <paramref name="key"/> when it was shown: its changed primary key was written (or taken
+    /// back); <paramref name="key"/> itself if no tracked row moved away from it. Kept past commit and rollback – the grid
+    /// reloads after them, and the form must still find its row (review of `small-pk-edit`, 3).
+    /// </summary>
+    public RowKey KeyNow(RowKey key) =>
+        !_byKey.ContainsKey(key) && _movedFrom.TryGetValue(key, out var change) ? change.Key : key;
 
     /// <summary>Edit a cell of a loaded row.</summary>
     public EditResult SetValue(RowData row, int column, string text)
@@ -858,6 +869,8 @@ public sealed class ChangeTracker(TableDetails table)
             _byKey.Remove(previous);
         }
 
+        _movedFrom[previous] = change;
+        _movedFrom.Remove(change.Key); // a row has this key now: nothing moved away from it any more
         Keep(change);
     }
 

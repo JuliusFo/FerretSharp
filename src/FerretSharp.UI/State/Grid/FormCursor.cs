@@ -28,6 +28,9 @@ public interface IFormGrid
 
     /// <summary>The number of loaded rows once the last block was read; null while the end is not known.</summary>
     int? RowCount { get; }
+
+    /// <summary>The key a row has now that had <paramref name="key"/> (its primary key was changed and written); the same otherwise.</summary>
+    RowKey KeyNow(RowKey key) => key;
 }
 
 /// <summary>What became of the shown row after the grid's rows changed (<see cref="FormCursor.RowsChanged"/>).</summary>
@@ -126,9 +129,17 @@ public sealed class FormCursor(IFormGrid grid)
             return FormFollow.KeyKnown;
         }
 
+        // A changed primary key written: the row goes on with its new key (review of `small-pk-edit`, 3: the form lost it).
+        var rekeyed = false;
+        if (grid.KeyNow(Key) is var now && !Equals(now, Key))
+        {
+            Key = now;
+            rekeyed = true;
+        }
+
         if (Key is RowKey.None || Equals(loaded.Key, Key))
         {
-            return FormFollow.Unchanged;
+            return rekeyed ? FormFollow.KeyKnown : FormFollow.Unchanged; // a new key: count what points to it
         }
 
         if (grid.IndexOf(Key) is { } at2)

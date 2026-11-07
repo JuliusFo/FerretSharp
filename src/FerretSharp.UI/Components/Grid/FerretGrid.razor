@@ -771,6 +771,9 @@
     /// <summary>Grid index of a loaded row by its key (the form finds its row again after writing or reloading).</summary>
     public int? IndexOf(RowKey key) => _blocks.IndexOf(key);
 
+    /// <summary>The key a row has now whose primary key was changed and written (the form follows it).</summary>
+    public RowKey KeyNow(RowKey key) => Tab.Changes?.KeyNow(key) ?? key;
+
     /// <summary>The grid position of a new row that is not inserted yet; null if it is gone (inserted or removed).</summary>
     public GridCell? CellOf(RowChange newRow, int? column) =>
         Tab.Changes?.NewRows.Contains(newRow) == true ? new GridCell(-1, GridRows.NewRowId(newRow), column) : null;
