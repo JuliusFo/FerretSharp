@@ -16,10 +16,20 @@ Entscheidung des Nutzers: Fix bauen (nach Bestätigung über `V$SQL`). Mein Vors
 
 ## Gebaut
 - `ServerLoadTracker`: Schlüssel `CursorKey(SqlId, ContainerId)` ohne Plan-Hash. Die Zeilen eines Blicks werden je Schlüssel summiert (`Statements`), die genannten Plan-Hashes gehen in die Menge `Plans` (Anzeige „N plans“ = Pläne, die während des Zuschauens auftauchten).
-- `OracleServerLoadReader.StatementsSinceSql` liest alle Zeilen der seit dem Blick davor aktiven SQL_IDs (`sql_id IN (SELECT … WHERE last_active_time >= :since)`). Bei einer Zeile je SQL_ID ändert das nichts; sollte eine Version eine Zeile je Plan führen, fehlen in der Summe sonst die gerade nicht aktiven Pläne, und sie würde kleiner.
 - ADR 0045 (Zeitfenster) nachgezogen.
 - Test: `ServerLoadTrackerTests.A_statement_whose_one_row_names_another_plan_counts_only_what_it_did_since`. Mit dem alten Tracker liefert er 4.000.410 statt 160 Ausführungen, also das Bild aus der DB des Nutzers.
 
 ## Offen
-- „Seit Laden“ zählt die Pläne mit `COUNT(DISTINCT plan_hash_value)` aus `V$SQLSTATS` und zeigt deshalb bei einer Zeile je SQL_ID immer einen Plan. Die Zahlen dort stimmen. Für die echte Planzahl bräuchte es `V$SQLSTATS_PLAN_HASH` oder `V$SQL`; nicht in diesem Fix.
+- „Seit Laden“ zählt die Pläne mit `COUNT(DISTINCT plan_hash_value)` aus `V$SQLSTATS` und zeigt deshalb bei einer Zeile je SQL_ID immer einen Plan. Die Zahlen dort stimmen. Im Backlog.
 - Nicht in der App gegen die DB des Nutzers geprüft; die Testcontainer-DB stellt Adaptive Cursor Sharing nicht verlässlich nach.
+
+## Nachtrag: Code-Review (2026-11-07)
+Ein unabhängiger Reviewer-Agent (`/branch-code-review`), zwei Durchgänge. Entscheidung des Nutzers: „Alle“.
+1. **M Die Abfrage der geänderten Statements las `V$SQLSTATS` zweimal** (Unterabfrage auf dieselbe View, alle 30 s, auch auf Prod; Kosten eines Joins über Fixed Tables nur vermutet). Ihr Nutzen galt nur für eine Zeile je Plan, und selbst dann zählte eine verschwundene Plan-Zeile wieder ab 0. **Behoben:** zurück zu `WHERE last_active_time >= :since`, die Annahme „eine Zeile je SQL_ID und Container“ steht am SQL, der Kommentar an `Statements` sagt, was sonst passierte.
+2. **K Die Unterabfrage war nicht nach `CON_ID` korreliert** (in der CDB-Root kamen die Zeilen aller PDBs mit). **Erledigt mit 1.**
+3. **K Die Falle fehlte in der Regel.** **Behoben:** Satz in `.claude/rules/oracle.md` (Cursor-Statistik).
+4. **K Drei Doku-Kommentare sprachen noch von „je Plan“/„je Cursor“** (`StatementCounters`, `StatementRow.Plans`, Tracker-Summary). **Behoben**, dazu `IServerLoadReader.ReadStatementsAsync`.
+5. **K Der Schlüssel war nur für Container 0 getestet.** **Behoben:** `Cursor(…, con:)` und `The_same_statement_in_two_containers_counts_per_container_and_adds_up_in_the_list` (scheitert, wenn `ContainerId` aus dem Schlüssel fällt).
+- Vorher schon da: Planzahl bei „Seit Laden“ immer 1 → `docs/backlog.md`.
+- Learnings: Die Falle (eine Zeile je SQL_ID, wechselnder Plan-Hash) steht jetzt in `oracle.md` (Punkt 3). Punkt 1 war ein Einzelfall (eine Absicherung für einen nur gedachten Fall), keine neue Regel.
+- CI: Der erste Lauf des PR scheiterte in `ServerLoadTests.A_statement_another_session_runs_…` an der 10-s-Grenze (die Werte in `V$SQLSTATS` kommen verzögert, wie nach WP-75). Lokal 6 von 6 Läufen grün; der Job wurde neu gestartet.
