@@ -1,6 +1,6 @@
-# Fix: Server-Load-Zeitfenster zählt bei Planwechsel die ganze Lebenssumme → Release offen
+# Fix: Server-Load-Zeitfenster zählt bei Planwechsel die ganze Lebenssumme → Release 3.63.1
 
-Branch `fix/server-load-plan-change` (von `main`), 2026-11-07, unveröffentlicht.
+Branch `fix/server-load-plan-change` (von `main`), 2026-11-07, Release 3.63.1.
 
 ## Anlass
 Nutzerfeedback nach 3.63.0 (WP-75): Im Zeitfenster „Seit Öffnen“ stand nach weniger als 5 Minuten ein Statement mit knapp 5 Mio. Ausführungen und 154.608 s CPU, also rund 43 CPU-Stunden.
