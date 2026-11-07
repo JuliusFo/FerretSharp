@@ -72,6 +72,7 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
         Assert.True(question.DuringCommit);
         var reference = Assert.Single(question.References);
         Assert.Equal(("AUFTRAG", new FkCount.Done(3)), (reference.Table, reference.Count));
+        Assert.True(question.Found);
         Assert.Empty(editor.Actions); // nothing written yet
         Assert.Equal(1, tab.Changes.PendingCount);
 
@@ -131,6 +132,7 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
 
         var failed = Assert.IsType<FkCount.Failed>(Assert.Single(_app.Editing.KeyQuestion!.References).Count);
         Assert.StartsWith("ORA-00942", failed.Message);
+        Assert.False(_app.Editing.KeyQuestion.Found); // only not counted
         await _app.Editing.AnswerKeyQuestionAsync(write: true);
         Assert.Equal(1, tab.Changes.FlushedCount);
     }
@@ -233,6 +235,7 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
         var question = _app.Editing.KeyQuestion!;
         Assert.Empty(question.References);
         Assert.StartsWith("Die Beziehungen des C#-Modells", question.Unchecked);
+        Assert.False(question.Found); // nothing counted: the title does not claim the key is in use
     }
 
     /// <summary>

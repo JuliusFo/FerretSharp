@@ -3,8 +3,8 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.Components.Schema
 
-<ModalFrame Label="@GridText.KeyChange_Title" Class="write-problem key-change" Alert="true">
-    <header><span>@GridText.KeyChange_Title</span></header>
+<ModalFrame Label="@Title" Class="write-problem key-change" Alert="true">
+    <header><span>@Title</span></header>
     <div class="dialog-body">
         <p class="problem-row">
             <span class="mono">@Question.Tab.Table.DisplayName</span> ·
@@ -16,7 +16,7 @@
         }
         @if (Question.References.Count > 0)
         {
-        <p>@GridText.KeyChange_Text</p>
+        <p>@(Question.Found ? GridText.KeyChange_Text : GridText.KeyChange_TextUnknown)</p>
         <table class="columns key-references">
             <thead>
                 <tr><th>@GridText.KeyChange_Table</th><th>@GridText.KeyChange_Columns</th><th>@GridText.KeyChange_Kind</th><th class="count">@GridText.KeyChange_Rows</th></tr>
@@ -69,6 +69,8 @@
     /// <summary>True: write anyway; false: cancel (the changes stay pending).</summary>
     [Parameter]
     public EventCallback<bool> OnAnswer { get; set; }
+
+    private string Title => Question.Found ? GridText.KeyChange_Title : GridText.KeyChange_TitleUnchecked;
 
     private static string Kind(ForeignKeyInfo fk) =>
         fk.Source == FkSource.Declared ? GridText.KeyChange_Declared : TextFormat.Format(GridText.KeyChange_NoConstraint, DiagramStyle.SourceLabel(fk.Source));

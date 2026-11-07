@@ -28,6 +28,13 @@ public sealed record KeyChangeQuestion(
     public Guid? RedoOf { get; init; }
 
     /// <summary>
+    /// A relationship counted rows that still point to an old key; false if the question comes only because something could
+    /// not be counted or looked at – then the dialog does not claim the key is in use (the user's decision, E2E of
+    /// `small-pk-edit`).
+    /// </summary>
+    public bool Found => References.Any(r => r.Count is FkCount.Done { Count: > 0 });
+
+    /// <summary>
     /// What could not be looked at at all: the schema or the C# model's relationships are not loaded (review of `small-pk-edit`,
     /// 8: then nothing was asked); null if every relationship was.
     /// </summary>

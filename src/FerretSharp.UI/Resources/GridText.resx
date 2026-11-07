@@ -1766,4 +1766,11 @@
   <data name="KeyChange_NoModel" xml:space="preserve">
     <value>The relationships of the C# model are not loaded (yet): rows pointing to the old keys along them were not looked for.</value>
   </data>
+  <data name="KeyChange_TitleUnchecked" xml:space="preserve">
+    <value>References not fully checked</value>
+    <comment>Dialog title: a primary key changes, but some relationships could not be counted or the C# model is not loaded</comment>
+  </data>
+  <data name="KeyChange_TextUnknown" xml:space="preserve">
+    <value>Relationships into the old keys:</value>
+  </data>
 </root>
