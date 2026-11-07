@@ -30,3 +30,13 @@ Testinstanz mit eigener DB (`New-SampleDb.ps1 -Name ferret-e2e-tabbar -Port 1531
 - Mehrere Zeilen: Umschalten wirkt sofort und steht als `"tabBar": "multiRow"` in `settings.json`; fünf Zeilen, drei sichtbar, senkrechter Daumen unter der Maus; Ziehen von der dritten in die erste sichtbare Zeile; Ziehen an den oberen Rand scrollt nach oben; Einfügemarke und halb durchsichtiger Tab im Bild während des Ziehens; Umschalten hin und zurück hält den aktiven Tab im Bild.
 - Explorer- und Grid-Scrollbars breiter, nichts abgeschnitten; Tab-Leiste hell per Emulation angesehen. Log der Testinstanz ohne `[ERR]`/`[WRN]`; Verbindung über die App gelöscht (Passwort mit), Container entfernt.
 - Nicht geprüft: RDP, Hochkontrast, 125/150 % Skalierung.
+
+## Nachtrag: Code-Review (2026-11-07)
+Ein unabhängiger Reviewer-Agent (`/branch-code-review`), zwei Durchgänge; kein S/M, sechs K. Entscheidung des Nutzers: „Behebe alles und #3 passt.“
+- **K1 Mehrzeilig: Mausrad schob die Leiste seitwärts, wenn ein Tab breiter war als sie** (schmales Fenster, langer Name mit Filter; keine Scrollbar zurück, ✕ abgeschnitten): behoben. Der Wheel-Handler lässt das Rad im Modus `multi` in Ruhe, ein Tab ist dort höchstens so breit wie die Leiste, Name und Filter kürzen sich (Ellipse), Symbol, Punkte und ✕ behalten ihre Größe. E2E mit einem künstlich langen Namen: Tab = Leistenbreite, ✕ sichtbar, Rad scrollt senkrecht, `scrollLeft` 0.
+- **K2 Auto-Scroll-Timer lief weiter, wenn die Leiste mitten im Ziehen verschwand** (Trennen, andere Verbindung): per CDP nachgestellt (ziehen, „Trennen“, loslassen → ein 30-ms-Intervall blieb), behoben mit `bar.isConnected` im Timer (danach 0). `lostpointercapture` geht bei einem entfernten Element ans Document, nicht ans Element.
+- **K3 „Der gezogene Tab wird aktiv“ stand als Tatsache in `architecture.md`:** vom Nutzer bestätigt, dort und oben als seine Entscheidung eingetragen.
+- **K4 Leerzeile in der Added-Liste des CHANGELOG:** entfernt.
+- **K5 Zwei volle Shell-Renders je Ablegen** (`MoveTab`, dann `ActivateTab`): behoben, `MoveTab(…, activate)` meldet einmal; Test `A_dropped_tab_is_moved_and_activated_in_one_change` (scheitert ohne den Fix, auch „eigener Platz, schon aktiv“ → keine Meldung).
+- **K6 Zeiger wurde beim Ziehen über ✕/Pin zur Hand:** behoben (`.tabs.dragging *` mit `!important` wie `.conn-table`), per CDP geprüft.
+- Learnings: eine Zeile in `.claude/rules/ui.md` (Ziehen mit Timer endet auch, wenn sein Element aus dem DOM fällt – kommt bei Auto-Scroll wieder); K1, K3–K6 waren Einzelfälle. In `docs/e2e-testing.md`: Ziehen per CDP braucht nach dem Drücken eine Pause, bis Blazor das Skript aufgerufen hat.
