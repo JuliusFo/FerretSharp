@@ -201,6 +201,10 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         await ParkedAsync(3);
         Assert.Equal(ServerLoadStatus.Watching, view.Status);
         await _connector.Received(2).OpenAsync(_profile, "secret", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
+
+        // Third review of WP-75: only the first opening read the baseline – the reopening has the short limit.
+        Assert.Equal(1, _time.DueTimes.Count(d => d == ServerLoadService.BaselineTimeout));
+        Assert.Equal(2, _time.DueTimes.Count(d => d == ServerLoadService.LookTimeout));
     }
 
     [Fact]
@@ -219,9 +223,10 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.False(view.CursorLoading);
         Assert.NotNull(view.CursorError); // not in the shared pool: no figures, no plan
 
-        // What V$SQLSTATS keeps of a cursor gone from V$SQL may be cut at 1000 bytes: never taken as the whole text.
+        // What V$SQLSTATS keeps of a cursor gone from V$SQL may be cut at 1000 bytes: never taken as the whole text, shown as cut.
         await _service.SelectAsync(_profile, "cut");
         Assert.Null(view.FullText);
+        Assert.Equal(new string('ä', 511), view.KeptText);
     }
 
     [Fact]

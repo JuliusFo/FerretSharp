@@ -353,4 +353,8 @@
     <value>Reading the figures of all statements took longer than {0} min twice; the page stops so as not to load the server and the line again and again.</value>
     <comment>{0}: minutes</comment>
   </data>
+  <data name="ServerLoad_FullRead" xml:space="preserve">
+    <value>Reading the figures of all statements again, as every hour …</value>
+    <comment>Status while the page reads all cursors again (hourly); what was seen is kept</comment>
+  </data>
 </root>

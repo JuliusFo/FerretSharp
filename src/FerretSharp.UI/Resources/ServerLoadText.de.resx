@@ -291,4 +291,7 @@
   <data name="ServerLoad_BaselineTooSlow" xml:space="preserve">
     <value>Die Werte aller Statements zu lesen, dauerte zweimal länger als {0} min; die Seite hält an, um Server und Leitung nicht immer wieder zu belasten.</value>
   </data>
+  <data name="ServerLoad_FullRead" xml:space="preserve">
+    <value>Werte aller Statements werden wie jede Stunde neu gelesen …</value>
+  </data>
 </root>

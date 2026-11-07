@@ -190,6 +190,7 @@
     {
         (ServerLoadStatus.Connecting, _) => ServerLoadText.ServerLoad_Connecting,
         (ServerLoadStatus.Baseline, _) => ServerLoadText.ServerLoad_Baseline,
+        (ServerLoadStatus.FullRead, _) => ServerLoadText.ServerLoad_FullRead,
         (_, null) => "",
         (_, { } at) when view.Stopped => TextFormat.Format(ServerLoadText.ServerLoad_StatusStopped, Clock(at)), // no „every 30 s“: it does not look
         (_, { } at) when view.Paused => TextFormat.Format(ServerLoadText.ServerLoad_StatusPaused, Clock(at)),
@@ -442,7 +443,7 @@
             <span class="grow"></span>
             @{
                 // The list's text may be cut at 1000 characters (review of WP-75): only the whole text goes to the editor.
-                var text = view.FullText ?? row?.Info?.Text;
+                var text = view.FullText ?? view.KeptText ?? row?.Info?.Text;
                 var whole = view.FullText ?? (row?.Info is { MayBeCut: false, Text: { } shortText } && !view.CursorLoading ? shortText : null);
             }
             <button class="btn" disabled="@(whole is null)" title="@(whole is null && text is not null ? ServerLoadText.ServerLoad_TextCutTitle : null)"

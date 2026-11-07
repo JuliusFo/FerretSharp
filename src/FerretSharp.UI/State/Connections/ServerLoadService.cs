@@ -18,6 +18,9 @@ public enum ServerLoadStatus
     /// <summary>Reading the figures of every cursor once (<see cref="ServerLoadStep.Baseline"/>).</summary>
     Baseline,
 
+    /// <summary>Reading every cursor again, as every hour (<see cref="ServerLoadStep.FullRead"/>).</summary>
+    FullRead,
+
     Watching,
 
     /// <summary>The user may not read the V$ views: nothing more is tried (<see cref="ServerLoadView.Error"/>).</summary>
@@ -92,6 +95,12 @@ public sealed class ServerLoadView(Guid profileId)
     /// it is gone from <c>V$SQLSTATS</c> too – the list's text may then be cut (<see cref="StatementInfo.MayBeCut"/>).
     /// </summary>
     public string? FullText { get; internal set; }
+
+    /// <summary>
+    /// What <c>V$SQLSTATS</c> keeps of <see cref="Selected"/> when <see cref="FullText"/> is not known: maybe cut, shown as such,
+    /// never opened (third review of WP-75: a statement from the active sessions has no line in the list to show).
+    /// </summary>
+    public string? KeptText { get; internal set; }
 
     /// <summary>The loop ended by itself (no rights, login refused): only „Refresh“ tries again.</summary>
     public bool Stopped { get; internal set; }
@@ -298,7 +307,7 @@ public sealed class ServerLoadService(
     public async Task SelectAsync(ConnectionProfile profile, string? sqlId)
     {
         var view = For(profile.Id);
-        (view.Selected, view.Cursor, view.FullText, view.CursorError) = (sqlId, null, null, null);
+        (view.Selected, view.Cursor, view.FullText, view.KeptText, view.CursorError) = (sqlId, null, null, null, null);
         view.CursorLoading = sqlId is not null && view.Connection is not null;
         if (sqlId is not null && view.Connection is null)
         {
@@ -313,7 +322,7 @@ public sealed class ServerLoadService(
 
         using var timeout = new CancellationTokenSource(LookupTimeout);
         CursorInfo? cursor = null;
-        string? fullText = null, error = null;
+        string? fullText = null, keptText = null, error = null;
         try
         {
             cursor = await Task.Run(() => connection.Schema.GetCursorByIdAsync(sqlId!, timeout.Token), CancellationToken.None);
@@ -321,9 +330,17 @@ public sealed class ServerLoadService(
             {
                 fullText = cursor.Plan.Sql; // from V$SQL: whole
             }
-            else if (await Task.Run(() => connection.ServerLoad.ReadFullTextAsync(sqlId!, timeout.Token), CancellationToken.None) is { MayBeCut: false } kept)
+            else if (await Task.Run(() => connection.ServerLoad.ReadFullTextAsync(sqlId!, timeout.Token), CancellationToken.None) is { } kept)
             {
-                fullText = kept.Text; // what V$SQLSTATS keeps may be cut: never taken as whole (second review of WP-75)
+                // What V$SQLSTATS keeps may be cut: never taken as whole (second review of WP-75), but shown as cut.
+                if (kept.MayBeCut)
+                {
+                    keptText = kept.Text;
+                }
+                else
+                {
+                    fullText = kept.Text;
+                }
             }
             error = cursor is null ? ServerLoadText.ServerLoad_NotInPool : null;
         }
@@ -336,7 +353,7 @@ public sealed class ServerLoadService(
             // Every end clears the spinner (review of WP-75: a cancel left it turning) – unless another statement was chosen meanwhile.
             if (view.Selected == sqlId)
             {
-                (view.Cursor, view.FullText, view.CursorError, view.CursorLoading) = (cursor, fullText, error, false);
+                (view.Cursor, view.FullText, view.KeptText, view.CursorError, view.CursorLoading) = (cursor, fullText, keptText, error, false);
                 Changed?.Invoke();
             }
         }
@@ -370,7 +387,7 @@ public sealed class ServerLoadService(
         await running.Loop;
         running.Stop.Dispose();
         await CloseAsync(running.View); // a session the loop opened meanwhile
-        if (running.View.Status is ServerLoadStatus.Connecting or ServerLoadStatus.Baseline or ServerLoadStatus.Watching)
+        if (running.View.Status is ServerLoadStatus.Connecting or ServerLoadStatus.Baseline or ServerLoadStatus.FullRead or ServerLoadStatus.Watching)
         {
             running.View.Status = ServerLoadStatus.Idle;
         }
@@ -385,7 +402,9 @@ public sealed class ServerLoadService(
         {
             // Before the look: a „Refresh“ during it wakes the wait after it, instead of a wake nobody waits for (second review).
             view.Wake = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var reading = view.Monitor is null || view.Tracker.NeedsBaseline || view.Tracker.FullReadDue;
+            // Only reading all cursors gets the long limit – not every reopening (third review of WP-75): after a hang it reads
+            // the changed ones only, and two hangs there are no slow baseline.
+            var reading = view.Tracker.NeedsBaseline || view.Tracker.FullReadDue;
             var limit = reading ? BaselineTimeout : LookTimeout;
             try
             {
@@ -481,13 +500,13 @@ public sealed class ServerLoadService(
         view.Connection = opened;
 
         var monitor = new ServerLoadMonitor(view.Connection.ServerLoad, view.Tracker);
-        await monitor.OpenAsync(_ => Set(view, ServerLoadStatus.Baseline), cancellationToken);
+        await monitor.OpenAsync(step => Set(view, StatusOf(step)), cancellationToken);
         (view.Monitor, view.Environment, view.Sessions) = (monitor, monitor.Environment, monitor.Sessions);
     }
 
     private async Task LookAsync(ServerLoadView view, ServerLoadMonitor monitor, CancellationToken cancellationToken)
     {
-        await monitor.LookAsync(_ => Set(view, ServerLoadStatus.Baseline), cancellationToken);
+        await monitor.LookAsync(step => Set(view, StatusOf(step)), cancellationToken);
         view.Sessions = monitor.Sessions;
     }
 
@@ -547,6 +566,9 @@ public sealed class ServerLoadService(
             }
         }
     }
+
+    private static ServerLoadStatus StatusOf(ServerLoadStep step) =>
+        step == ServerLoadStep.FullRead ? ServerLoadStatus.FullRead : ServerLoadStatus.Baseline;
 
     private void Set(ServerLoadView view, ServerLoadStatus status)
     {
