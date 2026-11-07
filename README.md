@@ -267,7 +267,7 @@ changes, and a new build is picked up automatically:
   most frequent and most expensive ones, and N+1 patterns. Look a statement up in V$SQL of the app's connection with its
   plan, or open it in the SQL editor. Local apps of your own user only, EF Core 7 or later for the origin.
 - **Server load**: how busy the database server is – host CPU, active sessions against the CPUs, what the sessions
-  wait for, the last hour as a chart – and its top statements by CPU, time, executions or reads, either for the time
+  wait for, a chart of up to the last hour – and its top statements by CPU, time, executions or reads, either for the time
   you watch or since each was loaded (like SQL Developer’s reports), with plan, Excel export and the sessions running
   right now. Only views outside the Diagnostics and Tuning Pack; needs `SELECT_CATALOG_ROLE` or grants on the V$ views.
 - **Usage in the code**: per column, the methods of your solution that read or write its property or query the table,
