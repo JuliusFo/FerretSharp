@@ -670,11 +670,15 @@ dl.keys dd { margin: 0; }
    down. Each tab draws its own line below; the bar's line is an inset shadow, painted under the tabs, so it shows only
    right of the last row. The pinned group wraps within itself and does not stick (all rows are in view). */
 .tabs.multi { flex-wrap: wrap; height: auto; max-height: 111px; overflow-x: hidden; overflow-y: auto; border-bottom: 0; box-shadow: inset 0 -1px var(--border); }
-.tabs.multi .tab { height: 37px; border-bottom: 1px solid var(--border); }
+/* A tab wider than the bar (long name with filters, narrow window) keeps its ✕ in view: the name and the filters give way. */
+.tabs.multi .tab { height: 37px; border-bottom: 1px solid var(--border); max-width: 100%; }
+.tabs.multi .tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tabs.multi .tab-filter { min-width: 0; }
+.tabs.multi .tab > :not(.tab-name, .tab-filter) { flex: none; } /* icon, dot, pill and ✕ keep their size */
 .tabs.multi .tabs-pinned { position: static; flex-wrap: wrap; max-width: 100%; }
 .tabs.multi::-webkit-scrollbar-thumb { border-width: 3px; }
 /* A dragged tab (dom.js dragTab): faded, a line at the side of the target where it would go. */
-.tabs.dragging, .tabs.dragging .tab { cursor: grabbing; }
+.tabs.dragging, .tabs.dragging * { cursor: grabbing !important; } /* also over ✕ and pin (buttons: pointer), like .conn-table */
 .tab.drag-source { opacity: .5; }
 .tab.drop-before { box-shadow: inset 3px 0 var(--accent); }
 .tab.drop-after { box-shadow: inset -3px 0 var(--accent); }
