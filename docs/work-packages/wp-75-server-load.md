@@ -46,3 +46,13 @@ Review per `/branch-code-review` (eigener Reviewer-Agent). Entscheidung des Nutz
 9. K „App“ fest im Markup. **Behoben** (`ServerLoad_AppBadge`).
 - Regeln ergänzt: `connections.md` (eigene Schleifen: nach Ablehnung anhalten, Zeitgrenze je Durchgang), `oracle.md` (`V$SQLSTATS` für Summen, Volltext aus `V$SQL`).
 
+### Zweiter Durchgang (2026-11-07)
+Der Reviewer prüfte die Fix-Commits. Entscheidung des Nutzers: „Mach ruhig alles.“
+1. M Zu 4: `SQL_TEXT` (und was `V$SQLSTATS` vom Volltext behält) schneidet nach **Bytes** ab – im Container gemessen 511 Zeichen / 999 Bytes mit Umlauten; die Prüfung auf 1000 Zeichen erkannte das nicht. **Behoben:** `StatementInfo.MayBeCutText` (≥ 1000 Zeichen oder ≥ 997 UTF-8-Bytes), `ReadFullTextAsync` liefert `StatementText` mit der Quelle (aus `V$SQL` ganz, aus `V$SQLSTATS` nach `MayBeCutText`); Integrationstest mit 700 „ä“.
+2. K Ein „Aktualisieren“ während eines Blicks ließ den Wunsch „einmal schauen“ stehen. **Behoben:** nur angehalten gesetzt, Anhalten verwirft ihn, `Wake` neu zu Beginn jeder Runde; Test `A_refresh_during_a_look_and_pausing_right_after_look_no_more`.
+3. K Nach abgelehnter Anmeldung stand weiter „alle 30 s“. **Behoben:** „Stand … · gestoppt“ und Hinweis „Aktualisieren versucht es noch einmal“; im E2E (Passwort im eigenen Container kurz geändert, ein Anmeldeversuch) geprüft, dabei die Zeile „erscheint mit dem nächsten Blick“ im gestoppten Zustand ausgeblendet.
+4. K Der Test zur Anmeldung belegte schwach und konnte flackern. **Behoben:** `Stopped` wird in `FailAsync` zuletzt gesetzt, der Test prüft, dass kein Intervall-Timer entsteht.
+5. K Die Speichergrenze erfasste die Cursor nicht, gekürzte Statements im Fenster bekamen keinen Text. **Behoben, anders als vorgeschlagen:** Cursor beim Kürzen zu entfernen hätte beim Wiederauftauchen alle Werte seit dem Laden noch einmal gezählt; stattdessen liest ein Blick stündlich alle Cursor (`FullReadDue`) und wirft die aus `V$SQLSTATS` verschwundenen heraus. Infos auch für Statements, die nur noch im Fenster stehen. Views getrennter Verbindungen bleiben (klein, mit der Grenze).
+6. K Der Grundstand hatte dieselben 2 min und wiederholte sich endlos; die Volltext-Abfrage stand doppelt. **Behoben:** 10 min für Blicke, die alle Cursor lesen, nach zwei Überschreitungen hält die Seite an; der Cursor-Text kommt in Diagnostics nur aus `V$SQL`, der Ersatz nur in `OracleServerLoadReader.FullTextSql`.
+- Dazu: Eine Session, die gerade beim Ablauf der Grenze aufging, wird in `OpenAsync` sofort geschlossen. Ein neuer Test flackerte, weil er die Uhr vorspulte, während `SessionOpening` noch lief (dann liefen dessen Grenzen ab), und weil die Attrappe den Abbruch ignorierte – er wartet jetzt auf den Grundstand.
+
