@@ -67,7 +67,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
   Oracle/ Query/ (SqlEditor/, Search/) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/ Ddl/
-  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ Relations/ ClrModel/ (Host/ CodeGen/ Usage/) – Unterordner ohne eigenen Namespace
+  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ Relations/ ServerLoad/ ClrModel/ (Host/ CodeGen/ Usage/) – Unterordner ohne eigenen Namespace
 src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/, Components/ (Ordner =
                             Namespace), State/ (Namespace `UI.State`), wwwroot/ (css, js als ES-Module, lib/)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)

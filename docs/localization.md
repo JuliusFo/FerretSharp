@@ -23,6 +23,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | UI | `SchemaViewText`, `ModelViewText`, `CompareViewText` | Explorer, Tab-Ansichten (Spalten, Constraints, Indizes, Abhängigkeiten, Beziehungsdiagramm, DDL), PL/SQL; Modellseite; Schema-Vergleich |
 | UI | `CopyViewText` | In andere Verbindung kopieren (WP-42): Ziel, Baum der Kind-Beziehungen, Lesen, Vorschau mit Konfliktmodus, Eltern, Prüfung |
 | UI | `AppStatementsText` | Statements der App (WP-33): Seite, Prozessliste, Verbindung, Herkunft, N+1-Hinweise, Nachsehen in V$SQL |
+| UI | `ServerLoadText` | Serverlast (WP-75): Kopf, Kacheln, Diagramme, Top-Statements, aktive Sessions, Hinweise zu PDB, RAC und Lizenz |
 | Core | `ClrModelText` | C#-Modell, LINQ-Konsole, Code-Generierung, Build-Ausgabe |
 | Core | `QueryText`, `DataText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms |
 | Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich und DDL (`Core/Ddl`), Verbindungen samt Import/Export, Einstellungen (Tastenkürzel), Workspaces und IO |
