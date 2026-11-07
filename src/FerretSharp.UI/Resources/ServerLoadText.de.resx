@@ -270,4 +270,16 @@
   <data name="ServerLoad_AxisTop" xml:space="preserve">
     <value>oben {0}</value>
   </data>
+  <data name="ServerLoad_LookTimedOut" xml:space="preserve">
+    <value>Der Server hat nicht innerhalb von {0} s geantwortet; der nächste Blick öffnet eine neue Session.</value>
+  </data>
+  <data name="ServerLoad_AppBadge" xml:space="preserve">
+    <value>App</value>
+  </data>
+  <data name="ServerLoad_TextCut" xml:space="preserve">
+    <value>Nur die ersten 1000 Zeichen: Der ganze Text ist nicht mehr im Shared Pool.</value>
+  </data>
+  <data name="ServerLoad_TextCutTitle" xml:space="preserve">
+    <value>Öffnen geht nur mit dem ganzen Text; dieser kann gekürzt sein.</value>
+  </data>
 </root>

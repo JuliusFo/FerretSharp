@@ -328,4 +328,18 @@
     <value>top {0}</value>
     <comment>{0}: the value at the top of the chart</comment>
   </data>
+  <data name="ServerLoad_LookTimedOut" xml:space="preserve">
+    <value>The server did not answer within {0} s; the next look opens a new session.</value>
+    <comment>{0}: seconds</comment>
+  </data>
+  <data name="ServerLoad_AppBadge" xml:space="preserve">
+    <value>App</value>
+    <comment>Badge on a statement your app runs</comment>
+  </data>
+  <data name="ServerLoad_TextCut" xml:space="preserve">
+    <value>Only the first 1000 characters: the whole text is no longer in the shared pool.</value>
+  </data>
+  <data name="ServerLoad_TextCutTitle" xml:space="preserve">
+    <value>Only the whole text can be opened; this one may be cut.</value>
+  </data>
 </root>

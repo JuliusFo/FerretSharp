@@ -386,7 +386,7 @@
                                         <div class="mono ellipsis">
                                             @if (appIds.Contains(row.SqlId))
                                             {
-                                                <span class="plan-badge" title="@ServerLoadText.ServerLoad_AppBadgeTitle">App</span>
+                                                <span class="plan-badge" title="@ServerLoadText.ServerLoad_AppBadgeTitle">@ServerLoadText.ServerLoad_AppBadge</span>
                                             }
                                             @(row.Info?.Text is { } text ? SqlScript.OneLine(text) : ServerLoadText.ServerLoad_NoText)
                                         </div>
@@ -431,13 +431,22 @@
         <div class="app-trace-actions">
             <b class="mono">SQL_ID @sqlId</b>
             <span class="grow"></span>
-            @{ var text = view.Cursor?.Plan.Sql ?? row?.Info?.Text; }
-            <button class="btn" disabled="@(text is null)" @onclick="() => Shell.OpenSqlIn(Profile.Id, text!)">@CommonText.OpenInSqlEditor</button>
+            @{
+                // The list's text may be cut at 1000 characters (review of WP-75): only the whole text goes to the editor.
+                var text = view.FullText ?? row?.Info?.Text;
+                var whole = view.FullText ?? (row?.Info is { MayBeCut: false, Text: { } shortText } && !view.CursorLoading ? shortText : null);
+            }
+            <button class="btn" disabled="@(whole is null)" title="@(whole is null && text is not null ? ServerLoadText.ServerLoad_TextCutTitle : null)"
+                    @onclick="() => Shell.OpenSqlIn(Profile.Id, whole!)">@CommonText.OpenInSqlEditor</button>
             <button class="btn ghost" title="@CommonText.Close" @onclick="() => SelectAsync(sqlId)">@Icons.Close</button>
         </div>
         @if (text is not null)
         {
-            <SqlCode Sql="@text" />
+            <SqlCode Sql="@(whole ?? text + " …")" />
+            @if (whole is null && !view.CursorLoading)
+            {
+                <p class="hint">@ServerLoadText.ServerLoad_TextCut</p>
+            }
         }
         @if (view.CursorLoading)
         {

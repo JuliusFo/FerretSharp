@@ -68,9 +68,16 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.NotNull(view.Tracker.Latest);
 
         _service.SetPaused(_profile.Id, true);
+        var lastLook = view.LastLookAt;
         _time.Advance(ServerLoadService.Interval);
         await ParkedAsync(3);
         Assert.Equal(2, Looks);
+        Assert.Equal(lastLook, view.LastLookAt); // review of WP-75: paused, "As of" stays at the latest real look
+
+        await _service.RefreshAsync(_profile); // while paused: one look
+        await ParkedAsync(4);
+        Assert.Equal(3, Looks);
+        Assert.NotEqual(lastLook, view.LastLookAt);
 
         await _service.HideAsync(_profile.Id);
 
@@ -140,5 +147,86 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.Equal(ServerLoadStatus.Idle, _service.For(_profile.Id).Status);
         Assert.Equal(ServerLoadStatus.Watching, _service.For(other.Id).Status);
         Assert.Equal(3, Looks);
+    }
+
+    [Fact]
+    public async Task A_refused_login_is_not_tried_again_by_itself()
+    {
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<IDatabaseConnection>(new DatabaseException("ORA-01017: invalid credential or not authorized", "ORA-01017")));
+
+        await _service.ShowAsync(_profile);
+        var view = _service.For(_profile.Id);
+        await Wait.UntilAsync(() => view.Status == ServerLoadStatus.Failed, "the refusal");
+        _time.Advance(ServerLoadService.Interval * 3);
+
+        // Review of WP-75: every 30 s a new login would lock the account after FAILED_LOGIN_ATTEMPTS.
+        await _connector.Received(1).OpenAsync(_profile, "secret", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
+        Assert.Contains("ORA-01017", view.Error, StringComparison.Ordinal);
+        Assert.True(view.Stopped);
+
+        await _service.RefreshAsync(_profile);
+        await Wait.UntilAsync(() => _connector.ReceivedCalls().Count() == 2, "the second attempt");
+    }
+
+    [Fact]
+    public async Task A_look_hanging_on_a_silent_line_gives_up_closes_the_session_and_the_next_look_opens_a_new_one()
+    {
+        var hang = new TaskCompletionSource<LoadCounters>();
+        _connection.DisposeAsync().Returns(_ =>
+        {
+            hang.TrySetCanceled(); // closing the session ends a call hanging on it (OracleSession.DisposeAsync)
+            return ValueTask.CompletedTask;
+        });
+        await _service.ShowAsync(_profile);
+        await ParkedAsync();
+        var view = _service.For(_profile.Id);
+        _reader.ReadCountersAsync(Arg.Any<CancellationToken>()).Returns(
+            hang.Task, Task.FromResult(new LoadCounters(T0.AddHours(1), T0, 4, 0, 0, 0, 0, 0, 0, 0, new Dictionary<string, long>())));
+
+        _time.Advance(ServerLoadService.Interval);
+        await Wait.UntilAsync(() => _time.DueTimes.Count(d => d == ServerLoadService.LookTimeout) >= 2, "the second look's limit");
+        _time.Advance(ServerLoadService.LookTimeout);
+        await ParkedAsync(2);
+
+        Assert.Equal(ServerLoadStatus.Failed, view.Status);
+        Assert.Contains("120", view.Error, StringComparison.Ordinal);
+        await _connection.Received().DisposeAsync();
+
+        _time.Advance(ServerLoadService.Interval);
+        await ParkedAsync(3);
+        Assert.Equal(ServerLoadStatus.Watching, view.Status);
+        await _connector.Received(2).OpenAsync(_profile, "secret", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task The_details_of_a_statement_whose_cursor_is_gone_still_bring_its_whole_text()
+    {
+        await _service.ShowAsync(_profile);
+        await ParkedAsync();
+        _connection.Schema.GetCursorByIdAsync("abc", Arg.Any<CancellationToken>()).Returns((Core.Query.CursorInfo?)null);
+        _reader.ReadFullTextAsync("abc", Arg.Any<CancellationToken>()).Returns("SELECT the whole text FROM dual");
+
+        await _service.SelectAsync(_profile, "abc");
+
+        var view = _service.For(_profile.Id);
+        Assert.Equal("SELECT the whole text FROM dual", view.FullText);
+        Assert.False(view.CursorLoading);
+        Assert.NotNull(view.CursorError); // not in the shared pool: no figures, no plan
+    }
+
+    [Fact]
+    public async Task A_lookup_ended_by_closing_the_session_clears_its_spinner()
+    {
+        await _service.ShowAsync(_profile);
+        await ParkedAsync();
+        _connection.Schema.GetCursorByIdAsync("abc", Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<Core.Query.CursorInfo?>(new OperationCanceledException()));
+
+        await _service.SelectAsync(_profile, "abc");
+
+        var view = _service.For(_profile.Id);
+        Assert.False(view.CursorLoading); // review of WP-75: it turned until the statement was clicked twice
+        Assert.Null(view.CursorError);
     }
 }
