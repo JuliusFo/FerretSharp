@@ -30,24 +30,34 @@
 @code {
     /// <summary>Renders once a running write would count as stuck, so "Disconnect session" appears without other changes.</summary>
     private Timer? _stuck;
+    private bool _disposed;
 
     protected override void OnParametersSet() => ArmStuckTimer();
 
     private void ArmStuckTimer()
     {
-        if (Editing.StuckIn(Workspace.WorkspaceId) is { } due && due > TimeSpan.Zero && _stuck is null)
+        if (!_disposed && Editing.StuckIn(Workspace.WorkspaceId) is { } due && due > TimeSpan.Zero && _stuck is null)
         {
             _stuck = new Timer(_ => Fire(() =>
             {
                 _stuck?.Dispose();
                 _stuck = null;
+                if (_disposed)
+                {
+                    return; // fired as the bar went away: nothing to set again (review of `small-pk-edit`, 14)
+                }
+
                 ArmStuckTimer(); // the due time moved meanwhile (counting the rows behind changed keys; review of `small-pk-edit`, 13)
                 StateHasChanged();
             }), null, due, Timeout.InfiniteTimeSpan);
         }
     }
 
-    public void Dispose() => _stuck?.Dispose();
+    public void Dispose()
+    {
+        _disposed = true;
+        _stuck?.Dispose();
+    }
 
     [Parameter, EditorRequired]
     public WorkspaceTabs Workspace { get; set; } = null!;
