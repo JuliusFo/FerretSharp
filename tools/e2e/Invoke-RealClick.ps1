@@ -32,6 +32,8 @@ param(
     # Drags with the button held from X,Y to ToX,ToY (CSS pixels) in small steps.
     [double]$ToX = [double]::NaN,
     [double]$ToY = [double]::NaN,
+    # With -ToX/-ToY: keeps the button down this long at the end before releasing (auto-scroll near an edge).
+    [int]$HoldMs = 0,
     # Only moves the mouse there (hover).
     [switch]$MoveOnly
 )
@@ -103,6 +105,7 @@ if (-not $MoveOnly) {
             [RealInput]::MoveTo($p)
             Start-Sleep -Milliseconds 30
         }
+        if ($HoldMs -gt 0) { Start-Sleep -Milliseconds $HoldMs }
         [RealInput]::Mouse($flags[1], 0, 0)
     } else {
         for ($i = 0; $i -lt $Clicks; $i++) {
