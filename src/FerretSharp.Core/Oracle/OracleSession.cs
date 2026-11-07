@@ -393,7 +393,8 @@ public sealed partial class OracleSession : IAsyncDisposable
             ended = "cancelled";
             throw new OperationCanceledException(ex.Message, ex, cancellationToken);
         }
-        catch (OracleException ex) when (ex.Number == OracleErrorCodes.UserCancelled)
+        catch (OracleException ex) when (ex.Number == OracleErrorCodes.UserCancelled
+                                         || (cancellationToken.IsCancellationRequested && OracleErrorCodes.IsCancel(ex.Number, ex.Message)))
         {
             ended = "with ORA-01013";
             throw new OperationCanceledException("The statement was cancelled.", ex, cancellationToken);
