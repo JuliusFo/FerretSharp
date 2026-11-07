@@ -229,7 +229,7 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
 
         var added = changes.AddRow();
         await grid.SetNewRowsAsync();
-        var first = displayOrder.FirstOrDefault(i => OracleTypeMapper.NotEditableReason(details, details.Columns[i], newRow: true) is null, -1);
+        var first = displayOrder.FirstOrDefault(i => OracleTypeMapper.NotEditableReason(details, details.Columns[i]) is null, -1);
         grid.ChangesMade();
         return new AddedRow(added, first >= 0 ? first : null, changes.NewRows.Count - 1);
     }

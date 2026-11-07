@@ -1709,4 +1709,44 @@
     <value>Reads the first rows with the applied filters</value>
     <comment>Tooltip of Footer_Load; the shortcut of "Reload" may follow in parentheses</comment>
   </data>
+  <data name="KeyChange_Title" xml:space="preserve">
+    <value>Primary key still in use</value>
+  </data>
+  <data name="KeyChange_RowsOne" xml:space="preserve">
+    <value>{0} row with a changed primary key</value>
+  </data>
+  <data name="KeyChange_RowsOther" xml:space="preserve">
+    <value>{0} rows with a changed primary key</value>
+  </data>
+  <data name="KeyChange_Text" xml:space="preserve">
+    <value>Rows still point to the old keys:</value>
+  </data>
+  <data name="KeyChange_Table" xml:space="preserve">
+    <value>Referencing table</value>
+  </data>
+  <data name="KeyChange_Columns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="KeyChange_Kind" xml:space="preserve">
+    <value>Kind</value>
+  </data>
+  <data name="KeyChange_Rows" xml:space="preserve">
+    <value>Rows</value>
+  </data>
+  <data name="KeyChange_Declared" xml:space="preserve">
+    <value>Constraint – Oracle refuses</value>
+  </data>
+  <data name="KeyChange_NoConstraint" xml:space="preserve">
+    <value>No constraint ({0})</value>
+    <comment>{0}: where the relationship comes from (C# model, manual, by convention)</comment>
+  </data>
+  <data name="KeyChange_NotCounted" xml:space="preserve">
+    <value>not counted</value>
+  </data>
+  <data name="KeyChange_Hint" xml:space="preserve">
+    <value>Where a constraint stands behind the relationship, Oracle refuses the write (ORA-02292). Rows referencing without a constraint point nowhere afterwards – FerretSharp does not change them along.</value>
+  </data>
+  <data name="KeyChange_WriteAnyway" xml:space="preserve">
+    <value>Write anyway</value>
+  </data>
 </root>

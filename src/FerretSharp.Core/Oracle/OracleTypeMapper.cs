@@ -23,9 +23,11 @@ public sealed record ParsedValue(object? Value, string? Error)
 /// </summary>
 public static class OracleTypeMapper
 {
-    /// <summary>Why a column cannot be edited; null if it can.</summary>
-    /// <param name="newRow">Primary key columns can be filled in new rows only.</param>
-    public static string? NotEditableReason(TableDetails table, ColumnInfo column, bool newRow)
+    /// <summary>
+    /// Why a column cannot be edited; null if it can. Primary key columns can be edited in loaded rows too (the user's
+    /// decision, ADR 0007 addendum): the write finds the row by its old key and goes on with the new one.
+    /// </summary>
+    public static string? NotEditableReason(TableDetails table, ColumnInfo column)
     {
         if (table.Table.Kind != TableKind.Table)
         {
@@ -45,11 +47,6 @@ public static class OracleTypeMapper
         if (column.IsIdentity)
         {
             return OracleText.NotEditableIdentity;
-        }
-
-        if (!newRow && table.PrimaryKey.Contains(column.Name))
-        {
-            return OracleText.NotEditablePrimaryKey;
         }
 
         return IsEditableType(column) || IsLob(column) ? null : TextFormat.Format(OracleText.NotEditableType, column.DisplayType);

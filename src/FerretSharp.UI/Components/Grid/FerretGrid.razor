@@ -186,8 +186,7 @@
             Pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
             Comment = c.Comment,
             // LOBs are not edited in the cell: they open the LOB editor (also to read them whole on a locked workspace).
-            Editable = !lob && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
-            EditableNew = !lob && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
+            Editable = !lob && OracleTypeMapper.NotEditableReason(Details, c) is null,
             Lob = lob,
             Multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
             Options = values?.Options,

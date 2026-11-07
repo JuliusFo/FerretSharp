@@ -100,9 +100,6 @@
   <data name="NotEditableIdentity" xml:space="preserve">
     <value>Identity column – Oracle assigns the value.</value>
   </data>
-  <data name="NotEditablePrimaryKey" xml:space="preserve">
-    <value>Primary keys can only be changed in new rows.</value>
-  </data>
   <data name="NotEditableType" xml:space="preserve">
     <value>{0} cannot be edited here.</value>
     <comment>{0}: Oracle data type, e.g. XMLTYPE</comment>

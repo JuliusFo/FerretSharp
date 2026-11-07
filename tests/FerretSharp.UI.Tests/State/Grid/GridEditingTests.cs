@@ -332,11 +332,11 @@ public sealed class GridEditingTests
     [Fact]
     public void The_notice_says_what_was_set_and_what_was_left_out()
     {
-        var result = new CellFillResult(1_234, [new SkippedColumn(1, "ID", "Primärschlüssel sind nur bei neuen Zeilen änderbar.")], 2, 1, null);
+        var result = new CellFillResult(1_234, [new SkippedColumn(1, "LFD", "Identity-Spalte – Oracle vergibt den Wert.")], 2, 1, null);
 
         Assert.Equal(
             $"{1_234.ToString("N0", CultureInfo.CurrentCulture)} Zellen gesetzt. 2 Zeilen ausgelassen: zum Löschen markiert. 1 Zelle ausgelassen: eine Zahl mit mehr als 28 Stellen. "
-            + "ID unverändert: Primärschlüssel sind nur bei neuen Zeilen änderbar.",
+            + "LFD unverändert: Identity-Spalte – Oracle vergibt den Wert.",
             FillNotice.Text(result));
         Assert.Equal("Keine Zelle gesetzt.", FillNotice.Text(new CellFillResult(0, [], 0, 0, null)));
     }

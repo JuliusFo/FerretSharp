@@ -57,6 +57,11 @@
     <WriteProblemDialog @key="problem" Problem="problem" Wait="Settings.Current.LockWaitSeconds" OnChoice="Editing.ResolveAsync" />
 }
 
+@if (Editing.KeyQuestion is { } keyQuestion)
+{
+    <KeyChangeDialog @key="keyQuestion" Question="keyQuestion" OnAnswer="Editing.AnswerKeyQuestionAsync" />
+}
+
 @if (Lifecycle.PendingLeave is { } leave)
 {
     var busy = leave.WorkspaceIds.Where(Editing.HoldsSession).ToList();

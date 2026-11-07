@@ -481,7 +481,14 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 }
 
                 var update = DmlBuilder.Update(table, operation.Key, operation.Values);
-                OneRow(operation, (await session.ExecuteNonQueryAsync(update.Sql, update.Parameters, cancellationToken)).Rows);
+                var updated = await session.ExecuteNonQueryAsync(update.Sql, update.Parameters, cancellationToken);
+                OneRow(operation, updated.Rows);
+                if (updated.Outputs.GetValueOrDefault(DmlBuilder.RowIdOutput) is string movedRowId)
+                {
+                    // The primary key changed: the row goes on with the key it has now (as stored – a trigger may have had a say).
+                    newKeys[operation.Change.Id] = await ReadKeyAsync(table, movedRowId, cancellationToken);
+                }
+
                 return update;
             }
 
@@ -493,24 +500,22 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                             ?? throw new RefusedException(OracleText.NoRowIdReturned);
 
                 // Reload: defaults, identity values and triggers decide what was stored – and the row's real key.
-                var query = QueryBuilder.BuildSelectByRowId(table, rowId);
-                var row = await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
-                    await reader.ReadAsync(ct) ? OracleDataAccess.ReadRow((OracleDataReader)reader, query, table) : null, cancellationToken);
-                if (row is not null)
-                {
-                    newKeys[operation.Change.Id] = row.Key;
-                }
-                else
-                {
-                    newKeys[operation.Change.Id] = new RowKey.RowId(rowId);
-                }
-
+                newKeys[operation.Change.Id] = await ReadKeyAsync(table, rowId, cancellationToken);
                 return insert;
             }
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(operation), operation.Kind, null);
         }
+    }
+
+    /// <summary>The key of the row at <paramref name="rowId"/> as stored; the ROWID itself if the row cannot be read back.</summary>
+    private async Task<RowKey> ReadKeyAsync(TableDetails table, string rowId, CancellationToken cancellationToken)
+    {
+        var query = QueryBuilder.BuildSelectByRowId(table, rowId);
+        var row = await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+            await reader.ReadAsync(ct) ? OracleDataAccess.ReadRow((OracleDataReader)reader, query, table) : null, cancellationToken);
+        return row?.Key ?? new RowKey.RowId(rowId);
     }
 
     /// <summary>Current values of <paramref name="columns"/> with the row locked; null if the row is gone.</summary>

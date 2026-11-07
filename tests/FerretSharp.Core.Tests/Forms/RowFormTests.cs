@@ -91,12 +91,12 @@ public sealed class RowFormTests
         var row = Row(8, "Meier");
 
         var writable = Fields(presentation, new FormRow(row, null));
-        Assert.Contains("Primärschlüssel", Field(writable, "KUNDE_ID").ReadOnlyReason);
+        Assert.True(Field(writable, "KUNDE_ID").IsEditable); // the primary key too (ADR 0007 addendum)
         Assert.True(Field(writable, "NAME").IsEditable);
 
         var locked = Fields(presentation, new FormRow(row, null), writable: false);
         Assert.Contains("schreibgeschützt", Field(locked, "NAME").ReadOnlyReason);
-        Assert.Contains("Primärschlüssel", Field(locked, "KUNDE_ID").ReadOnlyReason); // the table's own reason first
+        Assert.Contains("schreibgeschützt", Field(locked, "KUNDE_ID").ReadOnlyReason);
 
         var tracker = new ChangeTracker(Kunden);
         tracker.Delete(row);
@@ -104,7 +104,7 @@ public sealed class RowFormTests
         Assert.Equal("Die Zeile ist zum Löschen markiert.", Field(deleted, "NAME").ReadOnlyReason);
 
         var added = Fields(presentation, new FormRow(null, tracker.AddRow()));
-        Assert.True(Field(added, "KUNDE_ID").IsEditable); // keys are filled in new rows
+        Assert.True(Field(added, "KUNDE_ID").IsEditable);
         Assert.True(Field(added, "KUNDE_ID").IsNull);
 
         var big = Row(8, "Meier") with { Values = [.. row.Values.Take(3), new BigNumber("1" + new string('0', 30)), .. row.Values.Skip(4)] };

@@ -71,6 +71,12 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>The tables of the fake schema; KUNDEN unless a test adds some before connecting.</summary>
     public IReadOnlyList<TableSummary> Tables { get; set; } = [Kunden];
 
+    /// <summary>The declared foreign keys of the fake schema; none unless a test adds some before connecting.</summary>
+    public IReadOnlyList<ForeignKeyInfo> ForeignKeys { get; set; } = [];
+
+    /// <summary>Rows a count on a workspace session finds (FK counts, references of changed keys); none unless a test says otherwise.</summary>
+    public Func<IReadOnlyList<FilterCondition>, long> CountRows { get; set; } = _ => 0;
+
     /// <summary>The clock of the editing (stuck writes and statements, review 3.44.0, C2).</summary>
     public FakeTimeProvider Time { get; } = new();
 
@@ -217,6 +223,7 @@ internal sealed class TestApp : IAsyncDisposable
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
         reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(_ => KundenDetails);
         reader.GetLockHoldersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(_ => LockHolders);
+        reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(_ => ForeignKeys);
         var editor = new FakeDataEditor(() => OnCommit, sql =>
         {
             var failure = FailDdl?.Invoke(sql);
@@ -240,6 +247,8 @@ internal sealed class TestApp : IAsyncDisposable
             .Returns(call => StatementGuard.IsQuery(call.Arg<QuerySpec>().Sql)
                 ? ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>())
                 : throw new InvalidOperationException("Only plain queries are read (review 3.40.0, C1: as the session refuses them)."));
+        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<CancellationToken>())
+            .Returns(call => CountRows(call.Arg<IReadOnlyList<FilterCondition>>()));
         var connection = FakeDatabase.Connection(reader);
         connection.SessionTag.Returns("FerretSharp " + Guid.NewGuid().ToString("N")[..12]); // like the app: one tag per session (WP-52)
         connection.Data.Returns(data);

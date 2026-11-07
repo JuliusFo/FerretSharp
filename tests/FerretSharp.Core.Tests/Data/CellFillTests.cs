@@ -73,14 +73,14 @@ public sealed class CellFillTests
     {
         var changes = new ChangeTracker(Kunden);
 
-        var result = changes.SetCells(Rows, [I("ID"), I("NAME"), I("NOTIZ"), I("LFD"), I("GROSS")], CellFill.Value("X"));
+        var result = changes.SetCells(Rows, [I("NAME"), I("NOTIZ"), I("LFD"), I("GROSS")], CellFill.Value("X"));
 
         Assert.Null(result.Error);
         Assert.Equal(3, result.Cells);
-        Assert.Equal(["ID", "NOTIZ", "LFD", "GROSS"], result.Columns.Select(c => c.Name));
-        Assert.Contains("Primärschlüssel", result.Columns[0].Reason);
-        Assert.Contains("LOB-Editor", result.Columns[1].Reason);
-        Assert.All(Rows, r => Assert.Equal(r.Values[I("ID")], Value(changes, r, "ID")));
+        Assert.Equal(["NOTIZ", "LFD", "GROSS"], result.Columns.Select(c => c.Name));
+        Assert.Contains("LOB-Editor", result.Columns[0].Reason);
+        Assert.Contains("Identity", result.Columns[1].Reason);
+        Assert.All(Rows, r => Assert.Equal(r.Values[I("LFD")], Value(changes, r, "LFD")));
     }
 
     [Fact]

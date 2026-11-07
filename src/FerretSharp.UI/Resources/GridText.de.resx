@@ -1338,4 +1338,43 @@
   <data name="Footer_LoadTitle" xml:space="preserve">
     <value>Liest die ersten Zeilen mit den angewandten Filtern</value>
   </data>
+  <data name="KeyChange_Title" xml:space="preserve">
+    <value>Primärschlüssel wird noch verwendet</value>
+  </data>
+  <data name="KeyChange_RowsOne" xml:space="preserve">
+    <value>{0} Zeile mit geändertem Primärschlüssel</value>
+  </data>
+  <data name="KeyChange_RowsOther" xml:space="preserve">
+    <value>{0} Zeilen mit geändertem Primärschlüssel</value>
+  </data>
+  <data name="KeyChange_Text" xml:space="preserve">
+    <value>Auf die alten Schlüssel verweisen noch Zeilen:</value>
+  </data>
+  <data name="KeyChange_Table" xml:space="preserve">
+    <value>Verweisende Tabelle</value>
+  </data>
+  <data name="KeyChange_Columns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="KeyChange_Kind" xml:space="preserve">
+    <value>Art</value>
+  </data>
+  <data name="KeyChange_Rows" xml:space="preserve">
+    <value>Zeilen</value>
+  </data>
+  <data name="KeyChange_Declared" xml:space="preserve">
+    <value>Constraint – Oracle lehnt ab</value>
+  </data>
+  <data name="KeyChange_NoConstraint" xml:space="preserve">
+    <value>Ohne Constraint ({0})</value>
+  </data>
+  <data name="KeyChange_NotCounted" xml:space="preserve">
+    <value>nicht gezählt</value>
+  </data>
+  <data name="KeyChange_Hint" xml:space="preserve">
+    <value>Steht ein Constraint hinter der Beziehung, lehnt Oracle das Schreiben ab (ORA-02292). Verweise ohne Constraint zeigen danach ins Leere – FerretSharp ändert sie nicht mit.</value>
+  </data>
+  <data name="KeyChange_WriteAnyway" xml:space="preserve">
+    <value>Trotzdem schreiben</value>
+  </data>
 </root>

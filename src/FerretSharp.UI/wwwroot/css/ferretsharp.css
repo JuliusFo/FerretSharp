@@ -619,6 +619,7 @@ dl.keys dd { margin: 0; }
 .dialog.write-problem { width: min(720px, 94vw); }
 .dialog.write-problem table.columns { margin: 8px 0; }
 .dialog.write-problem .problem-row { margin-top: 0; color: var(--muted); }
+.dialog.write-problem table.key-references .count { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .leave-list { margin: 8px 0 0; padding-left: 18px; }
 .leave-list li { margin: 2px 0; }
 .spinner.small { width: 11px; height: 11px; border-width: 2px; }

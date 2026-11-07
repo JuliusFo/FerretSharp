@@ -241,7 +241,7 @@
                 : DataText.WorkspaceReadOnlyUnlockToEdit;
         }
 
-        if (OracleTypeMapper.NotEditableReason(_details!, _details!.Columns[lob.Column], newRow: lob.NewRow is not null) is { } reason)
+        if (OracleTypeMapper.NotEditableReason(_details!, _details!.Columns[lob.Column]) is { } reason)
         {
             return reason;
         }

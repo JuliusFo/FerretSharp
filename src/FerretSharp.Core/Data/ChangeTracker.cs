@@ -289,8 +289,7 @@ public sealed class ChangeTracker(TableDetails table)
     {
         var info = Table.Columns[column];
         var existing = _byKey.GetValueOrDefault(row.Key);
-        // A loaded row exists in the database (also one inserted in this transaction): its key stays as it is.
-        if (OracleTypeMapper.NotEditableReason(Table, info, newRow: false) is { } reason)
+        if (OracleTypeMapper.NotEditableReason(Table, info) is { } reason)
         {
             return new EditResult(null, reason);
         }
@@ -328,7 +327,7 @@ public sealed class ChangeTracker(TableDetails table)
     public EditResult SetValue(RowChange newRow, int column, string text)
     {
         var info = Table.Columns[column];
-        if (OracleTypeMapper.NotEditableReason(Table, info, newRow: true) is { } reason)
+        if (OracleTypeMapper.NotEditableReason(Table, info) is { } reason)
         {
             return new EditResult(null, reason);
         }
@@ -358,7 +357,7 @@ public sealed class ChangeTracker(TableDetails table)
             return new EditResult(null, TextFormat.Format(DataText.NotALobColumn, info.Name));
         }
 
-        if (OracleTypeMapper.NotEditableReason(Table, info, newRow: false) is { } reason)
+        if (OracleTypeMapper.NotEditableReason(Table, info) is { } reason)
         {
             return new EditResult(null, reason);
         }
@@ -393,7 +392,7 @@ public sealed class ChangeTracker(TableDetails table)
             return new EditResult(null, TextFormat.Format(DataText.NotALobColumn, info.Name));
         }
 
-        if (OracleTypeMapper.NotEditableReason(Table, info, newRow: true) is { } reason)
+        if (OracleTypeMapper.NotEditableReason(Table, info) is { } reason)
         {
             return new EditResult(null, reason);
         }
@@ -549,7 +548,7 @@ public sealed class ChangeTracker(TableDetails table)
     /// can. The cell menu asks it too, to grey out "Set value…".
     /// </summary>
     public static string? FillUnavailable(TableDetails table, ColumnInfo column) =>
-        OracleTypeMapper.NotEditableReason(table, column, newRow: false)
+        OracleTypeMapper.NotEditableReason(table, column)
         ?? (OracleTypeMapper.IsLob(column) ? TextFormat.Format(DataText.EditInLobEditor, column.DisplayType) : null);
 
     /// <summary>
@@ -705,8 +704,11 @@ public sealed class ChangeTracker(TableDetails table)
         _ => IsTracked(item.Change),
     });
 
-    /// <summary>After a successful flush: pending becomes flushed; inserted rows get the key Oracle gave them.</summary>
-    /// <param name="newKeys">Key of each inserted row (from <see cref="PendingOperation.Change"/>).</param>
+    /// <summary>
+    /// After a successful flush: pending becomes flushed; inserted rows get the key Oracle gave them, rows whose primary key
+    /// was changed go on with the new one.
+    /// </summary>
+    /// <param name="newKeys">Key of each inserted row and each row whose key changed (from <see cref="PendingOperation.Change"/>).</param>
     /// <returns>What changed, for <see cref="UndoFlush"/> after the transaction went back to the flush's savepoint.</returns>
     public FlushBatch MarkFlushed(IReadOnlyList<PendingOperation> operations, IReadOnlyDictionary<Guid, RowKey> newKeys)
     {
@@ -715,12 +717,17 @@ public sealed class ChangeTracker(TableDetails table)
         {
             var change = operation.Change;
             var written = operation.Written;
+            var oldKey = change.Key;
             batch.Items.Add((change, operation.Kind, change.Take(), new Dictionary<int, object?>(written ?? change.PendingValues)));
             change.MarkFlushed(written, newKeys.GetValueOrDefault(change.Id));
             if (operation.Kind == OperationKind.Insert)
             {
                 _newRows.Remove(change);
                 _byKey[change.Key] = change;
+            }
+            else if (!Equals(oldKey, change.Key))
+            {
+                Rekey(change, oldKey);
             }
         }
 
@@ -734,6 +741,7 @@ public sealed class ChangeTracker(TableDetails table)
     {
         foreach (var (change, kind, before, values) in Enumerable.Reverse(batch.Items))
         {
+            var writtenKey = change.Key;
             if (kind == OperationKind.Insert)
             {
                 _byKey.Remove(change.Key);
@@ -743,6 +751,10 @@ public sealed class ChangeTracker(TableDetails table)
             if (kind == OperationKind.Insert)
             {
                 _newRows.Add(change);
+            }
+            else if (!Equals(writtenKey, change.Key))
+            {
+                Rekey(change, writtenKey); // the changed primary key is pending again: the row has its old key back
             }
             else
             {
@@ -837,6 +849,17 @@ public sealed class ChangeTracker(TableDetails table)
     }
 
     private bool IsTracked(RowChange change) => _byKey.TryGetValue(change.Key, out var tracked) && ReferenceEquals(tracked, change);
+
+    /// <summary>The row's primary key changed (written, or taken back): it is tracked under the key it has now.</summary>
+    private void Rekey(RowChange change, RowKey previous)
+    {
+        if (_byKey.TryGetValue(previous, out var tracked) && ReferenceEquals(tracked, change))
+        {
+            _byKey.Remove(previous);
+        }
+
+        Keep(change);
+    }
 
     private void Keep(RowChange change)
     {

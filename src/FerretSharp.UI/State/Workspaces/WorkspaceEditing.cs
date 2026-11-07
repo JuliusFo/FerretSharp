@@ -326,7 +326,7 @@ public sealed partial class WorkspaceEditing(
         if (workspace is null || choice == ProblemChoice.Cancel)
         {
             // An "overwrite" chosen before belonged to this attempt: a later write checks the row again (review 3.31.0, A13).
-            Overwrites(problem.WorkspaceId).Clear();
+            ClearDecisions(problem.WorkspaceId);
             return;
         }
 
@@ -397,9 +397,15 @@ public sealed partial class WorkspaceEditing(
     {
         History.Forget(workspaceId);
         _overwrite.Remove(workspaceId);
+        _keysConfirmed.Remove(workspaceId);
         if (Problem?.WorkspaceId == workspaceId)
         {
             Problem = null;
+        }
+
+        if (KeyQuestion?.WorkspaceId == workspaceId)
+        {
+            KeyQuestion = null;
         }
     }
 
@@ -419,25 +425,34 @@ public sealed partial class WorkspaceEditing(
             {
                 if (!await FlushTabAsync(workspace, editor, tab, tab.Changes!.PendingOperations(), options, duringCommit))
                 {
-                    return false; // the problem dialog decides; "retry" keeps an "overwrite" chosen before
+                    return false; // the problem dialog (or the key question) decides; "retry" keeps an "overwrite" chosen before
                 }
             }
         }
         catch
         {
-            Overwrites(workspace.WorkspaceId).Clear(); // not a write problem (connection lost …): no decision carries over (A13)
+            ClearDecisions(workspace.WorkspaceId); // not a write problem (connection lost …): no decision carries over (A13)
             throw;
         }
 
-        Overwrites(workspace.WorkspaceId).Clear();
+        ClearDecisions(workspace.WorkspaceId);
         return true;
     }
 
-    /// <summary>Writes operations of one tab; false if a problem stopped it (see <see cref="Problem"/>).</summary>
+    /// <summary>
+    /// Writes operations of one tab; false if a problem stopped it (see <see cref="Problem"/>) or changed primary keys wait for
+    /// the user (<see cref="KeyQuestion"/>).
+    /// </summary>
     private async Task<bool> FlushTabAsync(
         WorkspaceTabs workspace, IDataEditor editor, TableTab tab, IReadOnlyList<PendingOperation> operations, FlushOptions options, bool duringCommit)
     {
         var tracker = tab.Changes!;
+        if (await KeyQuestionAsync(workspace, tab, operations, duringCommit, options.RedoOf) is { } question)
+        {
+            KeyQuestion = question; // nothing of the tab written; the tab keeps showing its pending changes
+            return false;
+        }
+
         try
         {
             var result = await editor.FlushAsync(tracker.Table, operations, options, CancellationToken.None);

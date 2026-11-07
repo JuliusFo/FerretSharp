@@ -60,6 +60,12 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
                 // A primary key over an INVISIBLE column, which the column list leaves out.
                 "CREATE TABLE ED_INVISIBLE (ID NUMBER INVISIBLE PRIMARY KEY, TXT VARCHAR2(10)) SEGMENT CREATION IMMEDIATE",
                 "INSERT INTO ED_INVISIBLE (ID, TXT) VALUES (1, 'a')",
+                // Changing primary keys (ADR 0007 addendum): a key of two columns, one of them blank-padded, and a child.
+                "CREATE TABLE ED_PARENT (MANDANT CHAR(3), NR NUMBER(10), TXT VARCHAR2(10), CONSTRAINT PK_ED_PARENT PRIMARY KEY (MANDANT, NR)) SEGMENT CREATION IMMEDIATE",
+                "CREATE TABLE ED_CHILD (ID NUMBER PRIMARY KEY, MANDANT CHAR(3), NR NUMBER(10), CONSTRAINT FK_ED_CHILD_PARENT FOREIGN KEY (MANDANT, NR) REFERENCES ED_PARENT) SEGMENT CREATION IMMEDIATE",
+                "INSERT INTO ED_PARENT VALUES ('A', 1, 'frei')",
+                "INSERT INTO ED_PARENT VALUES ('A', 2, 'verwendet')",
+                "INSERT INTO ED_CHILD VALUES (1, 'A', 2)",
             })
             {
                 await using var command = connection.CreateCommand();
@@ -629,6 +635,71 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         var after = (await a.Data.ReadPageAsync(table, [], [new SortSpec("TXT", false)], new PageSpec(0, 10), Ct)).Rows;
         Assert.Equal(["a", "b"], after.Select(r => r.Values[I(table, "TXT")]));
         Assert.Empty(a.Editor.Actions);
+        await a.Editor.RollbackAsync(Ct);
+    }
+
+    private static async Task<RowData> ParentAsync(IDatabaseConnection connection, TableDetails table, decimal nr) =>
+        Assert.Single((await connection.Data.ReadPageAsync(table, [FilterCondition.Of("NR", FilterOperator.Equals, nr.ToString(System.Globalization.CultureInfo.InvariantCulture))], [], new PageSpec(0, 10), Ct)).Rows);
+
+    /// <summary>
+    /// ADR 0007 addendum: the row is written by its old key and goes on with the key Oracle stored – CHAR blank-padded as a
+    /// reload reads it, so the tracker finds the reloaded row. Undo gives it the old key back.
+    /// </summary>
+    [Fact]
+    public async Task A_changed_primary_key_is_written_and_the_row_goes_on_with_the_stored_key()
+    {
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_PARENT");
+        var row = await ParentAsync(a, table, 1);
+        var tracker = new ChangeTracker(table);
+        Assert.True(tracker.SetValue(row, I(table, "MANDANT"), "B").IsValid);
+        Assert.True(tracker.SetValue(row, I(table, "NR"), "11").IsValid);
+        var change = tracker.Find(row.Key)!;
+
+        var batch = await FlushAsync(a, tracker);
+
+        var moved = await ParentAsync(a, table, 11);
+        Assert.Equal(new RowKey.PrimaryKey(["B  ", 11m]), moved.Key);
+        Assert.Same(change, tracker.Find(moved.Key));
+        Assert.Null(tracker.Find(row.Key));
+        Assert.Contains("RETURNING ROWID", Assert.Single(Assert.Single(a.Editor.Actions).Statements).Sql);
+
+        // Edited further by the new key; the concurrency check compares with what was written.
+        Assert.True(tracker.SetValue(moved, I(table, "TXT"), "neu").IsValid);
+        var further = await FlushAsync(a, tracker);
+        Assert.Equal("neu", (await ParentAsync(a, table, 11)).Values[I(table, "TXT")]);
+
+        await a.Editor.UndoLastAsync(null, Ct);
+        tracker.UndoFlush(further);
+        await a.Editor.UndoLastAsync(null, Ct);
+        tracker.UndoFlush(batch);
+        Assert.Same(change, tracker.Find(row.Key));
+        Assert.Equal("frei", (await ParentAsync(a, table, 1)).Values[I(table, "TXT")]);
+        await a.Editor.RollbackAsync(Ct);
+    }
+
+    /// <summary>
+    /// ADR 0007 addendum: the rows behind a changed key are counted along the relationship before writing; with a constraint
+    /// Oracle refuses the change itself (ORA-02292), and nothing of the write stays.
+    /// </summary>
+    [Fact]
+    public async Task A_key_child_rows_point_to_is_counted_and_refused_by_the_constraint()
+    {
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_PARENT");
+        var child = await DetailsAsync(a, "ED_CHILD");
+        var fk = Assert.Single(await a.Schema.GetForeignKeysAsync([Owner], Ct), f => f.Name == "FK_ED_CHILD_PARENT");
+        var row = await ParentAsync(a, table, 2);
+        var tracker = new ChangeTracker(table);
+        tracker.SetValue(row, I(table, "NR"), "12");
+
+        var jump = Assert.Single(KeyChanges.References(table, KeyChanges.Of(table, tracker.PendingOperations()), [fk]));
+        Assert.Equal(1, await FkNavigation.CountAsync(a.Data, child, jump, FkNavigation.CountTimeout, Ct));
+
+        var error = await Assert.ThrowsAsync<WriteFailedException>(() => FlushAsync(a, tracker));
+        Assert.Contains("ORA-02292", error.Message + error.InnerException?.Message);
+        Assert.Empty(a.Editor.Actions);
+        Assert.Equal(1, tracker.PendingCount);
         await a.Editor.RollbackAsync(Ct);
     }
 

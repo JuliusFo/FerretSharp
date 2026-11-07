@@ -75,9 +75,6 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
     /// <summary>Whether the cell can be edited at all; whether the workspace may write is switched in grid.js (setEditable).</summary>
     public bool Editable { get; init; }
 
-    /// <summary>The same for new rows (a key without default may be filled there).</summary>
-    public bool EditableNew { get; init; }
-
     /// <summary>Opens the LOB editor instead (also to read the whole value on a locked workspace).</summary>
     public bool Lob { get; init; }
 

@@ -204,8 +204,7 @@ public static class RowForm
 
     private static string? ReadOnlyReason(TableDetails table, ColumnInfo info, FormRow row, object? raw, bool writable)
     {
-        // A loaded row exists in the database (also one inserted in this transaction): its key stays as it is.
-        if (OracleTypeMapper.NotEditableReason(table, info, newRow: row.IsNew) is { } reason)
+        if (OracleTypeMapper.NotEditableReason(table, info) is { } reason)
         {
             return reason;
         }

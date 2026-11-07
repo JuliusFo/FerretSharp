@@ -107,8 +107,8 @@ public sealed class TimeZoneEditingTests(OracleContainerFixture oracle) : IAsync
         var row = await RowAsync(a, table, 1);
         Assert.Equal(new DateTimeOffset(2026, 10, 8, 12, 0, 0, 500, TimeSpan.FromHours(2)), row.Values[tz]);
         Assert.IsType<DateTime>(row.Values[ltz]); // in the session's time zone, without offset
-        Assert.Null(OracleTypeMapper.NotEditableReason(table, table.Columns[tz], newRow: false));
-        Assert.Null(OracleTypeMapper.NotEditableReason(table, table.Columns[ltz], newRow: false));
+        Assert.Null(OracleTypeMapper.NotEditableReason(table, table.Columns[tz]));
+        Assert.Null(OracleTypeMapper.NotEditableReason(table, table.Columns[ltz]));
 
         var tracker = new ChangeTracker(table);
         Assert.True(tracker.SetValue(row, tz, "09.10.2026 08:15:00,25 -05:00").IsValid);

@@ -37,6 +37,10 @@ public static class DmlBuilder
         return new QuerySpec(sql, parameters);
     }
 
+    /// <summary>
+    /// UPDATE by row key. One that changes the primary key the row is found by (<see cref="ChangesKey"/>) returns the
+    /// row's ROWID in <see cref="RowIdOutput"/>: the row is read again by it for its new key.
+    /// </summary>
     public static QuerySpec Update(TableDetails table, RowKey key, IReadOnlyDictionary<int, object?> values)
     {
         if (values.Count == 0)
@@ -49,10 +53,19 @@ public static class DmlBuilder
         var sql = new StringBuilder()
             .Append("UPDATE ").Append(Target(table))
             .Append("\n   SET ").AppendJoin(",\n       ", assignments)
-            .Append("\n WHERE ").Append(KeyCondition(table, key, parameters))
-            .ToString();
-        return new QuerySpec(sql, parameters);
+            .Append("\n WHERE ").Append(KeyCondition(table, key, parameters));
+        if (key is RowKey.PrimaryKey && ChangesKey(table, values.Keys))
+        {
+            sql.Append("\nRETURNING ROWID INTO :").Append(RowIdOutput);
+            parameters.Add(new QueryParameter(RowIdOutput, null, OracleTypeHint.RowId, Output: true));
+        }
+
+        return new QuerySpec(sql.ToString(), parameters);
     }
+
+    /// <summary>Whether writing <paramref name="columns"/> changes the primary key the table's rows are found by.</summary>
+    public static bool ChangesKey(TableDetails table, IEnumerable<int> columns) =>
+        QueryBuilder.RowKeyOf(table) == RowKeyKind.PrimaryKey && columns.Any(c => table.PrimaryKey.Contains(table.Columns[c].Name));
 
     public static QuerySpec Delete(TableDetails table, RowKey key)
     {

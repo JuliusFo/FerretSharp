@@ -1,0 +1,76 @@
+@* Changed primary keys that rows may still point to (ADR 0007 addendum): the user decides whether to write anyway. *@
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.Components.Schema
+
+<ModalFrame Label="@GridText.KeyChange_Title" Class="write-problem key-change" Alert="true">
+    <header><span>@GridText.KeyChange_Title</span></header>
+    <div class="dialog-body">
+        <p class="problem-row">
+            <span class="mono">@Question.Tab.Table.DisplayName</span> ·
+            @TextFormat.Plural(Question.Changes.Count, GridText.KeyChange_RowsOne, GridText.KeyChange_RowsOther)
+        </p>
+        <p>@GridText.KeyChange_Text</p>
+        <table class="columns key-references">
+            <thead>
+                <tr><th>@GridText.KeyChange_Table</th><th>@GridText.KeyChange_Columns</th><th>@GridText.KeyChange_Kind</th><th class="count">@GridText.KeyChange_Rows</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var reference in Question.References)
+                {
+                    <tr title="@ColumnFacts.Title(reference.ForeignKey)">
+                        <td class="mono">@reference.Table</td>
+                        <td class="mono">@string.Join(", ", reference.ForeignKey.FromColumns)</td>
+                        <td>@Kind(reference.ForeignKey)</td>
+                        <td class="count">
+                            @switch (reference.Count)
+                            {
+                                case FkCount.Done done:
+                                    <strong>@done.Count.ToString("N0", CultureInfo.CurrentCulture)</strong>
+                                    break;
+                                case FkCount.TimedOut:
+                                    <span class="muted" title="@TextFormat.Format(GridText.FkJump_CountTimedOut, FkNavigation.CountTimeout.TotalSeconds)">@GridText.KeyChange_NotCounted</span>
+                                    break;
+                                case FkCount.Failed failed:
+                                    <span class="muted" title="@failed.Message">@GridText.KeyChange_NotCounted</span>
+                                    break;
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="muted">@GridText.KeyChange_Hint</p>
+        @if (Question.DuringCommit)
+        {
+            <p class="muted">@GridText.Problem_DuringCommit</p>
+        }
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @ref="_cancel" @onclick="() => OnAnswer.InvokeAsync(false)">@CommonText.Cancel</button>
+        <button class="btn danger-solid" @onclick="() => OnAnswer.InvokeAsync(true)">@GridText.KeyChange_WriteAnyway</button>
+    </footer>
+</ModalFrame>
+
+@code {
+    private ElementReference _cancel;
+
+    [Parameter, EditorRequired]
+    public KeyChangeQuestion Question { get; set; } = null!;
+
+    /// <summary>True: write anyway; false: cancel (the changes stay pending).</summary>
+    [Parameter]
+    public EventCallback<bool> OnAnswer { get; set; }
+
+    private static string Kind(ForeignKeyInfo fk) =>
+        fk.Source == FkSource.Declared ? GridText.KeyChange_Declared : TextFormat.Format(GridText.KeyChange_NoConstraint, DiagramStyle.SourceLabel(fk.Source));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _cancel.FocusAsync();
+        }
+    }
+}
