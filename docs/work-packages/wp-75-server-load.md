@@ -65,3 +65,6 @@ Entscheidung des Nutzers: „Ja, alle fünf“. M1 und M2 kamen mit den Fixes de
 4. K ADR 0045 beschrieb stündliches Einlesen, Grenzen und Byte-Kürzung nicht. **Behoben.**
 5. K Das stündliche Einlesen sah aus wie ein neuer Grundstand. **Behoben:** eigener Schritt `FullRead` mit eigenem Text.
 - Vierter Durchgang: alle fünf Fixes ohne Befund; nur der Hinweis zum gekürzten Text nannte noch „1000 Zeichen“ – jetzt neutral („kann gekürzt sein; öffnen lässt sich nur der ganze“), als Folge des Byte-Fixes gleich mit behoben.
+
+## Nachtrag: CI auf main (2026-11-07)
+- Nach dem Merge scheiterte `ServerLoadTests.A_statement_another_session_runs_…` in der CI: Der erste Blick sah erst 4 der 12 Ausführungen – `V$SQLSTATS` aktualisiert seine Werte mit Verzögerung, die übrigen bringt der nächste Blick (die Seite zählt also richtig, nur später). Der Test schaut jetzt, bis alle 12 da sind; Regel in `oracle.md` ergänzt. Lokal nie aufgetreten.
