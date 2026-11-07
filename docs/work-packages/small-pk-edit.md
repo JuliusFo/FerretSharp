@@ -47,4 +47,9 @@ Zweiter Durchgang über die Fixes:
 12. M – Die Struktur der verweisenden Tabelle wurde ohne Zeitlimit gelesen, und Zählen galt nie als hängend: behoben, Struktur im Zeitlimit, „hängt“ nach Budget + 5 s (`A_structure_that_never_arrives_ends_with_the_time_limit`, `Counting_longer_than_the_budget_and_5_s_counts_as_stuck`).
 13. K – Der Timer für „Session trennen“ verpasste die verschobene Fälligkeit: behoben, er stellt sich neu (ohne Test, Komponente).
 
+Dritter Durchgang über die Fixes 11–13, Entscheidung des Nutzers „Jo, erledige das“:
+14. K – Ein Timer-Aufruf während des Abbaus der Leiste stellte einen neuen Timer, den niemand entsorgte: behoben, `_disposed` (ohne Test, Komponente).
+15. K – Schlüsseltausch über einen Zwischenwert in einem Schreibvorgang lässt das Formular auf die andere Zeile springen (vorher schon so): in den Backlog.
+16. K – Die Backlog-Einträge standen vor dem Einleitungssatz: verschoben.
+
 Nicht in der App geprüft: Formular nach PK-Änderung, Hinweis bei nicht geladenem C#-Modell, Zeitbudget und „Session trennen“ beim Zählen.
