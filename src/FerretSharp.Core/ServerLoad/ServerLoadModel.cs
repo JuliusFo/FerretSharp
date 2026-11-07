@@ -226,7 +226,7 @@ public sealed record StatementFilter(string? Schema = null, string? Module = nul
 /// <summary>A line of the top list.</summary>
 /// <param name="Plans">
 /// The plans seen while the page watched, or in the list since loading the plans <c>V$SQLSTATS</c> names – with one row per
-/// statement always 1 (backlog).
+/// statement and container 1, in the root of a container database one per container the statement ran in (backlog).
 /// </param>
 /// <param name="Info">Null while it is being read, or when the cursor left the shared pool before.</param>
 public sealed record StatementRow(string SqlId, int? Plans, StatementFigures Figures, StatementInfo? Info, DateTime? LastActive);

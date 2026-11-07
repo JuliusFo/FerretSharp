@@ -20,7 +20,7 @@ Entscheidung des Nutzers: Fix bauen (nach Bestätigung über `V$SQL`). Mein Vors
 - Test: `ServerLoadTrackerTests.A_statement_whose_one_row_names_another_plan_counts_only_what_it_did_since`. Mit dem alten Tracker liefert er 4.000.410 statt 160 Ausführungen, also das Bild aus der DB des Nutzers.
 
 ## Offen
-- „Seit Laden“ zählt die Pläne mit `COUNT(DISTINCT plan_hash_value)` aus `V$SQLSTATS` und zeigt deshalb bei einer Zeile je SQL_ID immer einen Plan. Die Zahlen dort stimmen. Im Backlog.
+- „Seit Laden“ zählt die Pläne mit `COUNT(DISTINCT plan_hash_value)` aus `V$SQLSTATS` und zeigt deshalb bei einer Zeile je SQL_ID und Container je Container einen Plan (in der Root einer Container-Datenbank die Pläne über die Container hinweg). Die Zahlen dort stimmen. Im Backlog.
 - Nicht in der App gegen die DB des Nutzers geprüft; die Testcontainer-DB stellt Adaptive Cursor Sharing nicht verlässlich nach.
 
 ## Nachtrag: Code-Review (2026-11-07)
@@ -30,6 +30,7 @@ Ein unabhängiger Reviewer-Agent (`/branch-code-review`), zwei Durchgänge. Ents
 3. **K Die Falle fehlte in der Regel.** **Behoben:** Satz in `.claude/rules/oracle.md` (Cursor-Statistik).
 4. **K Drei Doku-Kommentare sprachen noch von „je Plan“/„je Cursor“** (`StatementCounters`, `StatementRow.Plans`, Tracker-Summary). **Behoben**, dazu `IServerLoadReader.ReadStatementsAsync`.
 5. **K Der Schlüssel war nur für Container 0 getestet.** **Behoben:** `Cursor(…, con:)` und `The_same_statement_in_two_containers_counts_per_container_and_adds_up_in_the_list` (scheitert, wenn `ContainerId` aus dem Schlüssel fällt).
-- Vorher schon da: Planzahl bei „Seit Laden“ immer 1 → `docs/backlog.md`.
+6. **K (zweiter Durchgang) „Planzahl bei ‚Seit Laden‘ immer 1“ war zu absolut:** In der Root einer Container-Datenbank zählt `COUNT(DISTINCT plan_hash_value)` über die Container hinweg. **Behoben:** „je Container“ in `StatementRow.Plans`, Regel und Backlog. Entscheidung des Nutzers: „Ja, beides“ (beheben und pushen).
+- Vorher schon da: Planzahl bei „Seit Laden“ → `docs/backlog.md`.
 - Learnings: Die Falle (eine Zeile je SQL_ID, wechselnder Plan-Hash) steht jetzt in `oracle.md` (Punkt 3). Punkt 1 war ein Einzelfall (eine Absicherung für einen nur gedachten Fall), keine neue Regel.
 - CI: Der erste Lauf des PR scheiterte in `ServerLoadTests.A_statement_another_session_runs_…` an der 10-s-Grenze (die Werte in `V$SQLSTATS` kommen verzögert, wie nach WP-75). Lokal 6 von 6 Läufen grün; der Job wurde neu gestartet.
