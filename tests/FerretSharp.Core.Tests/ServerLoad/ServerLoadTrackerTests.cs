@@ -214,4 +214,21 @@ public sealed class ServerLoadTrackerTests
         var top = tracker.Top(TimeSpan.FromMinutes(5), TopStatementSort.Executions, StatementFilter.None, 10);
         Assert.Equal(("busy", "SELECT 1"), (top[0].SqlId, top[0].Info?.Text)); // sorted by executions it leads the window
     }
+
+    [Fact]
+    public void A_text_kept_for_a_window_goes_when_its_statement_left_the_window_too()
+    {
+        var tracker = new ServerLoadTracker(maxStatements: 2);
+        tracker.AddLoad(Counters(T0));
+        tracker.Rebase(Counters(T0), []);
+        tracker.AddLoad(Counters(T0.AddSeconds(30)));
+        tracker.AddStatements([Cursor("busy", 1000, 1), Cursor("dear", 1, 500), Cursor("mid", 1, 50)]);
+        tracker.AddInfo(["busy", "dear", "mid"], [.. new[] { "busy", "dear", "mid" }.Select(id => new StatementInfo(id, "SELECT", null, "APP"))]);
+        Assert.Equal(3, tracker.InfoCount); // "busy" and "mid" left „since opened“ but are still in the window
+
+        Look(tracker, 3600); // an hour later the window holds nothing of it any more
+
+        // Third review of WP-75: with literal SQL the texts would pile up again – only "dear" of „since opened“ keeps its text.
+        Assert.Equal(1, tracker.InfoCount);
+    }
 }

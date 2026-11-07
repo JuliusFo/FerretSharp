@@ -5,6 +5,9 @@ public enum ServerLoadStep
 {
     /// <summary>Reading the figures of every cursor once (thousands of rows, a few seconds over a VPN).</summary>
     Baseline,
+
+    /// <summary>Reading every cursor again, as every hour (<see cref="ServerLoadTracker.FullReadDue"/>): nothing seen is lost.</summary>
+    FullRead,
 }
 
 /// <summary>
@@ -49,7 +52,7 @@ public sealed class ServerLoadMonitor(IServerLoadReader reader, ServerLoadTracke
         }
         else if (full)
         {
-            step?.Invoke(ServerLoadStep.Baseline);
+            step?.Invoke(ServerLoadStep.FullRead);
             tracker.AddStatements(await reader.ReadStatementsAsync(null, cancellationToken), complete: true);
         }
         else

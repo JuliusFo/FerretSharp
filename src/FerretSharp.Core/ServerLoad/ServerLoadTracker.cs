@@ -204,6 +204,7 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
             _looks.RemoveAll(l => l.From < to - HistoryLength);
             _statementsAt = to;
             Trim();
+            DropUnusedInfo();
             _version++;
         }
     }
@@ -289,6 +290,31 @@ public sealed class ServerLoadTracker(int maxStatements = ServerLoadTracker.Defa
                 .Select(s => new StatementRow(s.Key, s.Value.Plans.Count, s.Value.Figures, s.Info, s.Value.LastActive))];
             _top = (_version, window, sort, filter, count, rows);
             return rows;
+        }
+    }
+
+    /// <summary>Texts held (for tests: they must go again).</summary>
+    internal int InfoCount
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _info.Count;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The texts of statements in neither „since opened“ nor a window go (third review of WP-75): one trimmed from „since
+    /// opened“ keeps its text only while a window shows it – else with literal SQL they would pile up again.
+    /// </summary>
+    private void DropUnusedInfo()
+    {
+        var inLooks = _looks.SelectMany(l => l.Deltas.Keys).ToHashSet(StringComparer.Ordinal);
+        foreach (var sqlId in _info.Keys.Where(k => !_sinceStart.ContainsKey(k) && !inLooks.Contains(k)).ToList())
+        {
+            _info.Remove(sqlId);
         }
     }
 

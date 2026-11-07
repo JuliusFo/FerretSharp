@@ -106,7 +106,7 @@ public sealed class ServerLoadMonitorTests
         await monitor.LookAsync(_steps.Add, TestContext.Current.CancellationToken); // an hour after the baseline: all
 
         await _reader.Received(2).ReadStatementsAsync(null, Arg.Any<CancellationToken>());
-        Assert.Equal([ServerLoadStep.Baseline], _steps);
+        Assert.Equal([ServerLoadStep.FullRead], _steps); // not a new baseline: nothing seen is lost
         Assert.False(_tracker.FullReadDue);
     }
 }
