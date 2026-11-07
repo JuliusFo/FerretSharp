@@ -129,23 +129,32 @@ public sealed class FormCursor(IFormGrid grid)
             return FormFollow.KeyKnown;
         }
 
-        // A changed primary key written: the row goes on with its new key (review of `small-pk-edit`, 3: the form lost it).
-        var rekeyed = false;
-        if (grid.KeyNow(Key) is var now && !Equals(now, Key))
-        {
-            Key = now;
-            rekeyed = true;
-        }
-
         if (Key is RowKey.None || Equals(loaded.Key, Key))
         {
-            return rekeyed ? FormFollow.KeyKnown : FormFollow.Unchanged; // a new key: count what points to it
+            return FormFollow.Unchanged;
         }
 
         if (grid.IndexOf(Key) is { } at2)
         {
             Cell = cell with { RowIndex = at2 };
             return FormFollow.Moved;
+        }
+
+        // Not loaded under its key any more: its changed primary key may have been written, the row goes on with the new one
+        // (review of `small-pk-edit`, 3). Only now – after a rollback the old key is the row's again (review, 11).
+        if (grid.KeyNow(Key) is var now && !Equals(now, Key))
+        {
+            Key = now;
+            if (Equals(loaded.Key, Key))
+            {
+                return FormFollow.KeyKnown; // in place with its new key: count what points to it
+            }
+
+            if (grid.IndexOf(Key) is { } at3)
+            {
+                Cell = cell with { RowIndex = at3 };
+                return FormFollow.Moved;
+            }
         }
 
         return LoseRow(GridText.Form_RowNotLoaded);

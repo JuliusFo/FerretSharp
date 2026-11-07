@@ -180,6 +180,26 @@ public sealed class FormCursorTests
         Assert.Null(cursor.Lost);
     }
 
+    /// <summary>
+    /// Review of `small-pk-edit`, 11: after a rollback the row has its old key again, but the tracker still knew it had moved –
+    /// the form shown on it turned to the new key at every reload and lost the row.
+    /// </summary>
+    [Fact]
+    public void After_a_rollback_the_row_keeps_its_old_key_in_the_form()
+    {
+        _grid.Load(Row(10), Row(20));
+        var cursor = new FormCursor(_grid);
+        var change = _grid.Changes.SetValue(Row(10), 0, "15").Change!;
+        _grid.Changes.MarkFlushed(_grid.Changes.PendingOperations(), new Dictionary<Guid, RowKey> { [change.Id] = Row(15).Key });
+        _grid.Changes.Clear(); // rolled back
+
+        cursor.Show(new GridCell(0, null, 1)); // the row as the reload shows it: key 10 again
+        Assert.Equal(FormFollow.Unchanged, cursor.RowsChanged()); // F5
+
+        Assert.Equal(Row(10).Key, cursor.Key);
+        Assert.Null(cursor.Lost);
+    }
+
     /// <summary>Loaded rows by position and the tab's changes, like FerretGrid's blocks.</summary>
     private sealed class FakeGrid : IFormGrid
     {

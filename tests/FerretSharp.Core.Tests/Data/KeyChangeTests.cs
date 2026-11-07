@@ -151,6 +151,25 @@ public class KeyChangeTests
         Assert.Equal(2, tracker.FlushedCount);
     }
 
+    /// <summary>Review of `small-pk-edit`, 11: a new row that takes a key some row moved away from is that key's row now.</summary>
+    [Fact]
+    public void A_key_a_row_moved_away_from_belongs_to_a_row_inserted_with_it()
+    {
+        var tracker = new ChangeTracker(Kunden);
+        tracker.SetValue(Row(1, "Müller"), 0, "3");
+        var moved = tracker.Find(Key(1))!;
+        tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey> { [moved.Id] = Key(3) });
+        Assert.Equal(Key(3), tracker.KeyNow(Key(1)));
+        tracker.Clear(); // committed
+
+        var added = tracker.AddRow();
+        tracker.SetValue(added, 0, "1");
+        tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey> { [added.Id] = Key(1) });
+        tracker.Clear();
+
+        Assert.Equal(Key(1), tracker.KeyNow(Key(1)));
+    }
+
     [Fact]
     public void A_value_for_many_rows_may_go_into_the_key_too()
     {

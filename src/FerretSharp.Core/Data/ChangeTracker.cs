@@ -889,6 +889,7 @@ public sealed class ChangeTracker(TableDetails table)
         }
 
         _byKey[change.Key] = change;
+        _movedFrom.Remove(change.Key); // a row has this key now – also a new row (review of `small-pk-edit`, 11)
     }
 
     /// <summary><paramref name="change"/> leaves <paramref name="key"/>: a change kept aside under that key comes back.</summary>
