@@ -1,4 +1,4 @@
-# Klein: Primärschlüssel bestehender Zeilen ändern → Release offen
+# Klein: Primärschlüssel bestehender Zeilen ändern → Release 3.63.0
 
 Branch `feat/pk-edit` (von `main`), 2026-11-07.
 
