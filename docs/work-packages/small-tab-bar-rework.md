@@ -18,7 +18,7 @@ Entscheidungen des Nutzers (2026-11-07):
 - **Tabs ziehen** (`dom.js dragTab`, `TabBar.DragAsync`, `ShellState.MoveTab`): ab 5px Weg (`movedAway`, auch von `dragAfter` genutzt), Ziele nur Tabs der eigenen Gruppe, die Hälfte unter der Maus beim Loslassen entscheidet vor/hinter; Linie in `--accent` an der Seite des Ziels, der gezogene Tab halb durchsichtig. Am Ende der Leiste scrollt sie alle 30 ms weiter (seitwärts neben der angehefteten Gruppe bzw. oben/unten). ✕ und Pin stoppen `pointerdown` (kein Ziehen), ein Tab im Umbenennen zieht nicht. `MoveTab` meldet nur eine echte Änderung (sonst kein Speichern); getestet in `MoveTabTests`.
 - `tools/e2e/Invoke-RealClick.ps1`: `-HoldMs` hält die Taste am Ende des Ziehens (Auto-Scroll prüfen).
 
-Ohne Rückfrage entschieden, Vorschlag (nicht bestätigt): Der gezogene Tab wird aktiv (wie in Visual Studio und Browsern), auch wenn er auf seinem Platz landet.
+Der gezogene Tab wird aktiv (wie in Visual Studio und Browsern), auch wenn er auf seinem Platz landet – zuerst ohne Rückfrage gebaut, im Code-Review vom Nutzer bestätigt („#3 passt“, 2026-11-07).
 
 ## Fallen
 - `dragTab` meldete anfangs immer „davor“: `end` setzte die Seite für die Markierung zurück, bevor sie gemeldet wurde. Und die letzte Bewegung lag oft wenige Pixel vor dem Loslassen auf der anderen Hälfte – die Position des `pointerup` zählt.

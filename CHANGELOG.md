@@ -7,7 +7,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Added
 - The log notes the sizes along the way from the page to the screen whenever the window changes size or state – window, browser, page, the last picture captured and the picture shown –, and when the picture shown takes a new size. Over Remote Desktop the window sometimes stayed empty after the start or showed the picture of the previous size until it was minimized; these lines show where the size gets stuck.
-
 - Drag a tab to another place in the tab bar: before or after another tab, the pinned ones among themselves. Near an end the bar scrolls along; the order is kept with the workspace.
 - The tab bar can show several rows (*Settings › Appearance › Tab bar*): the tabs wrap in their order and no row moves when you switch tabs; past three rows the bar scrolls up and down. One row that scrolls sideways stays the default.
 
