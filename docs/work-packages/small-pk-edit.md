@@ -52,4 +52,11 @@ Dritter Durchgang über die Fixes 11–13, Entscheidung des Nutzers „Jo, erled
 15. K – Schlüsseltausch über einen Zwischenwert in einem Schreibvorgang lässt das Formular auf die andere Zeile springen (vorher schon so): in den Backlog.
 16. K – Die Backlog-Einträge standen vor dem Einleitungssatz: verschoben.
 
-Nicht in der App geprüft: Formular nach PK-Änderung, Hinweis bei nicht geladenem C#-Modell, Zeitbudget und „Session trennen“ beim Zählen.
+## Nachtrag: E2E nach dem Review (2026-11-07)
+Wunsch des Nutzers: „Mach noch E2E“. Eigene Testinstanz, eigener Container mit denselben neutralen Tabellen plus einer dritten verweisenden Tabelle, drei Verbindungen: direkt, mit verknüpfter, nicht vorhandener Modelldatei, und über einen Proxy im Scratchpad, der jedes Paket um eine einstellbare Zeit verzögert. Klicks mit echter Windows-Eingabe, Tippen und Ctrl+S/Ctrl+Z per CDP.
+- **Gefunden und behoben:** Nach einer PK-Änderung, die die Zeile an eine andere Stelle sortiert (5 → 0), folgte das Formular der Zeile, „Referenziert von“ zeigte aber noch `TEIL_ID = 5` – der Grid-Fokus ging auf die schon gezeigte Zeile, das Formular baute die Sprünge nicht neu (bei einer eingefügten Zeile schon vorher so). Neuer Ausgang `FormFollow.MovedWithNewKey`: Fokus setzen und neu zählen. Danach im E2E: „Zeile 1 von 6“, Sprünge auf `= 0`; ohne Verschieben (6 → 7) „Zeile 6 von 6“, Sprünge auf `= 7`.
+- Formular: Das PK-Feld ist ein Eingabefeld; nach einem Rollback meldet das Formular auf der zurückgenommenen Zeile „nicht mehr geladen“ – den geschriebenen Schlüssel gibt es nicht mehr (wie bei einer zurückgenommenen neuen Zeile).
+- Modell nicht geladen (Statusleiste „C#-Modell“ rot): 6 → 60, worauf nichts verweist, fragt nur mit dem Hinweis, ohne Tabelle, „Abbrechen“ im Fokus.
+- Langsame Leitung (3 s je Paket ab Ctrl+S, 4 → 40 mit drei verweisenden Beziehungen): Rückfrage nach 10,5 s, die ersten zwei „nicht gezählt“ (Tooltip „Zählen nach 5 s abgebrochen“), die dritte „Nicht mehr gezählt: Das Zählen hat schon 10 s gedauert.“; „Session trennen“ während des Zählens nicht angeboten. Nach „Trotzdem schreiben“ erschien es nach 5 s; Verzögerung weg → ORA-02292 im Schreibproblem-Dialog.
+- Log ohne Warnungen und Fehler.
+- Offen (Frage an den Nutzer): Kommt die Rückfrage nur wegen des Hinweises (nichts gezählt), passt der Titel „Primärschlüssel wird noch verwendet“ nicht recht.
