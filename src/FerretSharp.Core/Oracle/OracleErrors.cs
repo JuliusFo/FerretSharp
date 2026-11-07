@@ -59,6 +59,16 @@ internal static class OracleErrorCodes
     /// <summary>"ORA-00942".</summary>
     public static string Code(int number) => $"ORA-{number:00000}";
 
+    /// <summary>
+    /// The error is a cancel: ORA-01013 on top, or further down the stack when the cancel hit recursive SQL – then Oracle reports
+    /// what the recursive call failed with first (CI, 2026-11-07: ORA-22303 type "XDB"."XDB$STRING_LIST_T" not found, ORA-00604,
+    /// ORA-01013 for a cancelled <c>COUNT(*)</c> over <c>all_objects</c>).
+    /// Only when the caller cancelled: the message is the server's text, and a PL/SQL error passing on another error's text can
+    /// carry ORA-01013 too – without a cancel of its own that is an error, not a cancel.
+    /// </summary>
+    public static bool IsCancel(int number, string? message) =>
+        number == UserCancelled || (message?.Contains(Code(UserCancelled), StringComparison.Ordinal) ?? false);
+
     /// <summary>The error is one of <paramref name="numbers"/>.</summary>
     public static bool IsAny(this DatabaseException error, IReadOnlySet<int> numbers) =>
         error.ErrorCode is { } code && numbers.Any(n => Code(n) == code);

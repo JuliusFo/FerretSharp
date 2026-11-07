@@ -101,8 +101,23 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         Assert.NotNull(sample);
         Assert.True(sample.ExecutionsPerSecond > 0);
         var sqlId = Plans.SqlId(sql);
-        var row = Assert.Single(monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000), r => r.SqlId == sqlId);
-        Assert.Equal(12, row.Figures.Executions);
+
+        // V$SQLSTATS updates its figures with a delay (CI on main after WP-75: 4 of 12 executions right after): the next looks
+        // bring the rest.
+        StatementRow? row = null;
+        await Wait.UntilAsync(async () =>
+        {
+            row = monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000).SingleOrDefault(r => r.SqlId == sqlId);
+            if (row?.Figures.Executions >= 12)
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1.1), Ct); // a second apart: LAST_ACTIVE_TIME has whole seconds
+            await monitor.LookAsync(null, Ct);
+            return false;
+        }, "all 12 executions in the window");
+        Assert.Equal(12, row!.Figures.Executions);
         Assert.StartsWith(row.Info!.Text!, sql, StringComparison.Ordinal);
         Assert.True(row.Info.Text!.Length < 1000);
         Assert.True(row.Info.MayBeCut);

@@ -72,9 +72,13 @@ public sealed class ServerLoadMonitor(IServerLoadReader reader, ServerLoadTracke
     }
 
     /// <summary>
-    /// <c>LAST_ACTIVE_TIME</c> is a DATE (whole seconds): the second of the look before and the one before it count again, so
-    /// nothing active in the same second as that look is missed. A cursor read twice adds nothing the second time.
+    /// <c>LAST_ACTIVE_TIME</c> is a DATE (whole seconds), and <c>V$SQLSTATS</c> brings its figures with a delay (CI after WP-75: 4 of
+    /// 12 executions seconds after them) – possibly with the time of the executions, before the look before. So the
+    /// <see cref="StatsLag"/> before the second of that look counts again. A cursor read twice adds nothing the second time.
     /// </summary>
     public static DateTime ActiveSince(DateTime statementsAt) =>
-        new DateTime(statementsAt.Ticks - statementsAt.Ticks % TimeSpan.TicksPerSecond, statementsAt.Kind).AddSeconds(-1);
+        new DateTime(statementsAt.Ticks - statementsAt.Ticks % TimeSpan.TicksPerSecond, statementsAt.Kind) - StatsLag;
+
+    /// <summary>How far before the look before a look reads changed cursors again (review of the CI fix after WP-75).</summary>
+    public static readonly TimeSpan StatsLag = TimeSpan.FromSeconds(30);
 }
