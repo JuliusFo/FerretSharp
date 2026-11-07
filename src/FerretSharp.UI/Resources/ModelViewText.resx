@@ -993,4 +993,40 @@
     <value>A pattern may have at most {0} *.</value>
     <comment>{0}: most * per pattern</comment>
   </data>
+  <data name="CodeOrigin_Heading" xml:space="preserve">
+    <value>Origin in code</value>
+  </data>
+  <data name="CodeOrigin_Limits" xml:space="preserve">
+    <value>Candidates, not a sure match: the statement’s tables and the columns it filters by, compared with the queries in the compiled code of the linked solution. Neither the order of calls nor the values are known; test and mapping code are left out. Best fit first.</value>
+  </data>
+  <data name="CodeOrigin_None" xml:space="preserve">
+    <value>No method in the code fits this statement.</value>
+  </data>
+  <data name="CodeOrigin_More" xml:space="preserve">
+    <value>{0} more</value>
+    <comment>{0} = number of further candidates</comment>
+  </data>
+  <data name="CodeOrigin_Fewer" xml:space="preserve">
+    <value>Show fewer</value>
+  </data>
+  <data name="CodeOrigin_Queries" xml:space="preserve">
+    <value>queries {0}</value>
+    <comment>{0} = table; lower case, joined with other reasons by ·</comment>
+  </data>
+  <data name="CodeOrigin_Joins" xml:space="preserve">
+    <value>reads {0} through {1}</value>
+    <comment>{0} = table, {1} = navigation (Order.Customer)</comment>
+  </data>
+  <data name="CodeOrigin_LazyLoads" xml:space="preserve">
+    <value>loads {0} on access to {1} (lazy loading)</value>
+    <comment>{0} = table, {1} = navigation (Order.Customer)</comment>
+  </data>
+  <data name="CodeOrigin_Filters" xml:space="preserve">
+    <value>filters by {0}</value>
+    <comment>{0} = columns</comment>
+  </data>
+  <data name="CodeOrigin_Writes" xml:space="preserve">
+    <value>writes {1} of {0}</value>
+    <comment>{0} = table, {1} = columns</comment>
+  </data>
 </root>

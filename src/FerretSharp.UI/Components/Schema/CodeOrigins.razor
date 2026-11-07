@@ -1,0 +1,176 @@
+@* Origin in code (WP-76, ADR 0030): methods of the linked solution that may have sent a statement, guessed from its tables
+   and the columns it filters by against the code usage index (CodeOriginFinder). Shown only with a linked project and a
+   table of the model in the statement – the solution is read for nothing else (an Oracle-internal statement needs none). *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@inherits FerretComponent
+@implements IDisposable
+@inject CodeUsageOpener Opener
+
+@if (Tables.Count > 0)
+{
+    var state = Usage.State;
+    var result = Origins(state.Result);
+    <section class="code-origins">
+        <h3 class="usage-subhead" title="@ModelViewText.CodeOrigin_Limits">
+            @ModelViewText.CodeOrigin_Heading
+            @if (result is not null)
+            {
+                <span class="count">@result.Candidates.Count</span>
+            }
+            <span class="usage-limits" aria-label="@ModelViewText.CodeOrigin_Limits">@Icons.Info</span>
+        </h3>
+        @if (state.Error is { } error)
+        {
+            <p class="hint">@TextFormat.Format(ModelViewText.Usage_Failed, error)</p>
+        }
+        else if (result is null)
+        {
+            <p class="hint"><span class="spinner small"></span> @ModelViewText.Usage_Building</p>
+        }
+        else if (result.Candidates.Count == 0)
+        {
+            <p class="hint">@ModelViewText.CodeOrigin_None</p>
+        }
+        else
+        {
+            <ul class="usage-list">
+                @foreach (var candidate in CodeOriginRows.Shown(result.Candidates, _expanded))
+                {
+                    var use = candidate.Use.Use;
+                    <li class="usage-item">
+                        <button class="link-btn mono" disabled="@(use.Document is null)" title="@(use.Document ?? ModelViewText.Usage_NoSourceFile)"
+                                @onclick="() => OpenAsync(use)">@CodeUsageRows.Caller(use)</button>
+                        <span class="muted mono">@CodeUsageRows.Location(use)</span>
+                        <span class="muted code-origin-reasons" title="@CodeOriginRows.Reasons(candidate)">@CodeOriginRows.Reasons(candidate)</span>
+                    </li>
+                }
+            </ul>
+            @if (result.Candidates.Count > CodeOriginRows.Initial)
+            {
+                <button class="link-btn" @onclick="() => _expanded = !_expanded">
+                    @(_expanded ? ModelViewText.CodeOrigin_Fewer : TextFormat.Format(ModelViewText.CodeOrigin_More, result.Candidates.Count - CodeOriginRows.Initial))
+                </button>
+            }
+        }
+    </section>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    /// <summary>The statement's text; one cut short still names its leading tables.</summary>
+    [Parameter]
+    public string? Sql { get; set; }
+
+    /// <summary>The schema the statement was parsed in: the owner of its unqualified tables.</summary>
+    [Parameter]
+    public string? Schema { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<string> _tables = [];
+    private (string? Sql, string? Schema, ModelExport? Model) _tablesFor;
+    private (string Sql, string? Schema, CodeUsageIndex Index, CodeOriginResult Result)? _origins;
+    private bool _expanded;
+
+    /// <summary>The statement's tables of the model; empty without a model or text.</summary>
+    private IReadOnlyList<string> Tables
+    {
+        get
+        {
+            var model = Models.Mapping?.Model;
+            if (_tablesFor != (Sql, Schema, model))
+            {
+                _tablesFor = (Sql, Schema, model);
+                _tables = Sql is null || model is null ? [] : CodeOriginFinder.TablesOf(Sql, Schema, model);
+            }
+
+            return _tables;
+        }
+    }
+
+    /// <summary>The candidates over the current index, worked out once per statement and index; null while there is none.</summary>
+    private CodeOriginResult? Origins(CodeUsageResult? result)
+    {
+        if (result is null || Sql is null)
+        {
+            return null;
+        }
+
+        if (_origins is not { } known || known.Sql != Sql || known.Schema != Schema || !ReferenceEquals(known.Index, result.Index))
+        {
+            _origins = known = (Sql, Schema, result.Index, CodeOriginFinder.Find(Sql, Schema, result.Index));
+        }
+
+        return known.Result;
+    }
+
+    protected override void OnInitialized()
+    {
+        Usage.Changed += OnChanged;
+        Models.Changed += OnChanged;
+    }
+
+    private string? _ensuredFor;
+
+    /// <summary>Another statement: bring the index up to date (built on first need, read again if the build changed).</summary>
+    protected override void OnParametersSet()
+    {
+        if (Sql != _ensuredFor)
+        {
+            _expanded = false;
+        }
+
+        if (Tables.Count > 0 && Sql != _ensuredFor)
+        {
+            _ensuredFor = Sql;
+            Fire(EnsureAsync);
+        }
+    }
+
+    private void OnChanged() => Fire(async () =>
+    {
+        StateHasChanged();
+        if (Tables.Count > 0 && Usage.State.Phase == CodeUsagePhase.NotBuilt)
+        {
+            await EnsureAsync();
+        }
+    });
+
+    private async Task EnsureAsync()
+    {
+        await Usage.EnsureAsync(_lifetime.Token);
+        StateHasChanged();
+    }
+
+    private async Task OpenAsync(CodeUse use)
+    {
+        if (Models.State.Link is not { } link)
+        {
+            return;
+        }
+
+        if (await Opener.OpenAsync(use, link, Usage.Solution, Active.Profile?.Group, _lifetime.Token) is { } notice)
+        {
+            Shell.Notify(notice);
+        }
+    }
+
+    public void Dispose()
+    {
+        Usage.Changed -= OnChanged;
+        Models.Changed -= OnChanged;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}
