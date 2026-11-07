@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.63.1] - 2026-11-07
+
+The top statements of the server load page no longer count a statement many times over when its plan changes with its bind values.
+
 ### Fixed
 - *Server load*, top statements while the page was watching: a statement whose plan changes with its bind values (adaptive cursor sharing) counted all its figures since it was loaded once more with every plan it had not used before – millions of executions within a few minutes. The figures are now kept per statement, whatever plan Oracle shows for it.
 
