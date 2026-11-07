@@ -83,7 +83,19 @@ public sealed partial class WorkspaceEditing(
     private readonly Dictionary<Guid, HashSet<Guid>> _overwrite = [];
 
     /// <summary>A write, commit or rollback (<see cref="RunAsync"/>) or a writing statement running on a workspace's session.</summary>
-    private sealed record Work(DateTimeOffset Started, bool Statement);
+    private sealed class Work(DateTimeOffset started, bool statement)
+    {
+        /// <summary>Since when it counts as running; counting the rows behind changed keys starts it anew.</summary>
+        public DateTimeOffset Started { get; set; } = started;
+
+        public bool Statement { get; } = statement;
+
+        /// <summary>
+        /// Counting the rows behind changed primary keys (<see cref="KeyQuestionAsync"/>): it may take its time budget without
+        /// hanging, and never counts as stuck (review of `small-pk-edit`, 4: "give up the session" was offered after 5 s).
+        /// </summary>
+        public bool Counting { get; set; }
+    }
 
     /// <summary>
     /// What runs on each workspace's session. Giving up the session (<see cref="SessionReset"/>) drops its entries: work that
@@ -127,7 +139,8 @@ public sealed partial class WorkspaceEditing(
     public static readonly TimeSpan StuckAfter = TimeSpan.FromSeconds(5);
 
     /// <summary>When the oldest work running on the workspace's session started; null if none runs.</summary>
-    public DateTimeOffset? BusySince(Guid workspaceId) => RunningOn(workspaceId).Select(w => (DateTimeOffset?)w.Started).Min();
+    public DateTimeOffset? BusySince(Guid workspaceId) =>
+        RunningOn(workspaceId).Where(w => !w.Counting).Select(w => (DateTimeOffset?)w.Started).Min();
 
     /// <summary>
     /// Work on the session has run for <see cref="StuckAfter"/> (review 3.40.0, A2; statements since 3.44.0, A1): over a silent

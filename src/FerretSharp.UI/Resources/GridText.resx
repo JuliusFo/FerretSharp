@@ -1749,4 +1749,8 @@
   <data name="KeyChange_WriteAnyway" xml:space="preserve">
     <value>Write anyway</value>
   </data>
+  <data name="KeyChange_BudgetSpent" xml:space="preserve">
+    <value>Not counted: counting took {0} s already.</value>
+    <comment>{0}: seconds all counts may take together</comment>
+  </data>
 </root>

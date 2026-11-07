@@ -1377,4 +1377,7 @@
   <data name="KeyChange_WriteAnyway" xml:space="preserve">
     <value>Trotzdem schreiben</value>
   </data>
+  <data name="KeyChange_BudgetSpent" xml:space="preserve">
+    <value>Nicht mehr gezählt: Das Zählen hat schon {0} s gedauert.</value>
+  </data>
 </root>

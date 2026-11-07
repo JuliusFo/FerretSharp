@@ -1,7 +1,9 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -89,13 +91,28 @@ public sealed partial class WorkspaceEditing
 
         var data = await WorkspacesOf(id).GetDataAsync(id, CancellationToken.None);
         var references = new List<KeyReference>();
-        foreach (var jump in jumps)
+        var writes = RunningOn(id).Where(w => !w.Statement).ToList();
+        SetCounting(writes, true);
+        try
         {
-            var count = await CountAsync(schema, active, data, jump);
-            if (count is not FkCount.Done { Count: 0 })
+            // One budget for all relationships (review of `small-pk-edit`, 4): unindexed columns over the VPN, one after the
+            // other, held the write for 5 s each. What is left over is shown as not counted.
+            var deadline = _time.GetUtcNow() + KeyCountBudget;
+            foreach (var jump in jumps)
             {
-                references.Add(new KeyReference(jump, FkTargets.Label(active, jump.Table), count));
+                var left = deadline - _time.GetUtcNow();
+                var count = left <= TimeSpan.Zero
+                    ? new FkCount.Failed(TextFormat.Format(GridText.KeyChange_BudgetSpent, KeyCountBudget.TotalSeconds))
+                    : await CountAsync(schema, active, data, jump, left < FkNavigation.CountTimeout ? left : FkNavigation.CountTimeout);
+                if (count is not FkCount.Done { Count: 0 })
+                {
+                    references.Add(new KeyReference(jump, FkTargets.Label(active, jump.Table), count));
+                }
             }
+        }
+        finally
+        {
+            SetCounting(writes, false);
         }
 
         return references.Count == 0
@@ -109,7 +126,7 @@ public sealed partial class WorkspaceEditing
     /// thrown: the user decides (review of `small-pk-edit`, 1: a refused filter stopped every write). Only a cancel and a lost
     /// connection go on.
     /// </summary>
-    private static async Task<FkCount> CountAsync(SchemaCache schema, ActiveConnection active, IDataAccess data, FkJump jump)
+    private async Task<FkCount> CountAsync(SchemaCache schema, ActiveConnection active, IDataAccess data, FkJump jump, TimeSpan timeout)
     {
         if (jump.Unavailable is { } reason)
         {
@@ -119,7 +136,7 @@ public sealed partial class WorkspaceEditing
         try
         {
             var target = await schema.GetDetailsAsync(FkTargets.SummaryOf(active, jump.Table), CancellationToken.None);
-            return await FkNavigation.CountAsync(data, target, jump, FkNavigation.CountTimeout, CancellationToken.None) is { } rows
+            return await TimedQuery.RunAsync<long?>(async ct => await data.CountAsync(target, jump.Filters, ct), timeout, CancellationToken.None, _time) is { } rows
                 ? new FkCount.Done(rows)
                 : new FkCount.TimedOut();
         }
@@ -127,6 +144,22 @@ public sealed partial class WorkspaceEditing
         {
             return new FkCount.Failed(ex.Message);
         }
+    }
+
+    /// <summary>How long counting the rows behind changed keys may take in all, before writing (the user's decision).</summary>
+    public static readonly TimeSpan KeyCountBudget = TimeSpan.FromSeconds(10);
+
+    /// <summary>The write counts (or no longer counts) the rows behind changed keys; afterwards it runs anew for the stuck check.</summary>
+    private void SetCounting(IReadOnlyList<Work> writes, bool counting)
+    {
+        var now = _time.GetUtcNow();
+        foreach (var work in writes)
+        {
+            work.Counting = counting;
+            work.Started = now;
+        }
+
+        shell.NotifyChanged();
     }
 
     private HashSet<Guid> KeysConfirmed(Guid workspaceId) =>

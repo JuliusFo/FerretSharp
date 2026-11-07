@@ -154,5 +154,41 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
         Assert.Equal(1, tab.Changes.FlushedCount);
     }
 
+    /// <summary>
+    /// Review of `small-pk-edit`, 4: every relationship was counted for up to 5 s, one after the other, and after 5 s the write
+    /// counted as stuck ("give up the session" rolls the transaction back). All counts share 10 s now; the rest is not counted.
+    /// </summary>
+    [Fact]
+    public async Task Counting_shares_one_budget_and_never_counts_as_stuck()
+    {
+        foreach (var name in new[] { "RECHNUNG", "VERTRAG" })
+        {
+            _app.OtherDetails[name] = Auftrag with { Table = new TableSummary("APP_USER", name, TableKind.Table) };
+        }
+
+        _app.ForeignKeys =
+        [
+            AuftragKunde,
+            AuftragKunde with { Name = "FK_RECHNUNG_KUNDE", From = new TableRef("APP_USER", "RECHNUNG") },
+            AuftragKunde with { Name = "FK_VERTRAG_KUNDE", From = new TableRef("APP_USER", "VERTRAG") },
+        ];
+        var (workspace, tab, _) = await OpenAsync();
+        var stuck = new List<bool>();
+        _app.CountRows = _ =>
+        {
+            _app.Time.Advance(TimeSpan.FromSeconds(6)); // an unindexed column over the VPN
+            stuck.Add(_app.Editing.IsStuck(workspace.WorkspaceId));
+            return 1;
+        };
+        tab.Changes!.SetValue(Row(1, "Meier"), 0, "7");
+
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+
+        Assert.Equal([false, false], stuck); // the third was not counted any more
+        var counts = _app.Editing.KeyQuestion!.References.Select(r => r.Count).ToList();
+        Assert.Equal([new FkCount.Done(1), new FkCount.Done(1)], counts.Take(2));
+        Assert.Contains("10 s", Assert.IsType<FkCount.Failed>(counts[2]).Message);
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }
