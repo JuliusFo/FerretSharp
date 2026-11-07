@@ -115,7 +115,7 @@
     <value>Keine Session war aktiv.</value>
   </data>
   <data name="ServerLoad_History" xml:space="preserve">
-    <value>Letzte Stunde</value>
+    <value>Verlauf</value>
   </data>
   <data name="ServerLoad_AxisNow" xml:space="preserve">
     <value>jetzt</value>
@@ -260,5 +260,14 @@
   </data>
   <data name="ServerLoad_License" xml:space="preserve">
     <value>Nur Views außerhalb von Diagnostics und Tuning Pack: kein ASH, kein AWR, kein SQL-Monitor.</value>
+  </data>
+  <data name="ServerLoad_AxisStart" xml:space="preserve">
+    <value>-{0} min</value>
+  </data>
+  <data name="ServerLoad_AxisHalf" xml:space="preserve">
+    <value>50 %</value>
+  </data>
+  <data name="ServerLoad_AxisTop" xml:space="preserve">
+    <value>oben {0}</value>
   </data>
 </root>

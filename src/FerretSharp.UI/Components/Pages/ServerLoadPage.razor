@@ -266,7 +266,9 @@
 
     private RenderFragment Chart(IReadOnlyList<LoadSample> history, LoadSample latest)
     {
-        var sessionsMax = LoadChart.SessionsMax(history, latest.Cpus);
+        var span = LoadChart.Span(history);
+        var sessionsMax = LoadChart.SessionsMax(history);
+        var startLabel = TextFormat.Format(ServerLoadText.ServerLoad_AxisStart, (int)span.TotalMinutes);
         return @<section class="settings-section load-history">
             <h2>@ServerLoadText.ServerLoad_History</h2>
             <div class="load-charts">
@@ -274,29 +276,39 @@
                     <figcaption>@ServerLoadText.ServerLoad_TileHostCpu</figcaption>
                     <svg viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none" class="load-chart">
                         <line class="grid" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(0.5, 1, ChartHeight)" y2="@LoadChart.Y(0.5, 1, ChartHeight)" />
-                        @foreach (var line in LoadChart.Lines(history, s => s.HostCpu, 1, ChartWidth, ChartHeight))
+                        @foreach (var line in LoadChart.Lines(history, s => s.HostCpu, 1, ChartWidth, ChartHeight, span))
                         {
                             <polyline class="cpu" points="@line" />
                         }
                     </svg>
-                    <div class="load-axis"><span>-60 min</span><span>50 %</span><span>@ServerLoadText.ServerLoad_AxisNow</span></div>
+                    <div class="load-axis"><span>@startLabel</span><span>@ServerLoadText.ServerLoad_AxisHalf</span><span>@ServerLoadText.ServerLoad_AxisNow</span></div>
                 </figure>
                 <figure>
                     <figcaption>@ServerLoadText.ServerLoad_TileActiveSessions</figcaption>
                     <svg viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none" class="load-chart">
-                        <line class="limit" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" y2="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" />
-                        @foreach (var line in LoadChart.Lines(history, s => s.ActiveSessions, sessionsMax, ChartWidth, ChartHeight))
+                        @if (latest.Cpus > 0 && latest.Cpus <= sessionsMax)
+                        {
+                            <line class="limit" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" y2="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" />
+                        }
+                        @foreach (var line in LoadChart.Lines(history, s => s.ActiveSessions, sessionsMax, ChartWidth, ChartHeight, span))
                         {
                             <polyline class="sessions" points="@line" />
                         }
-                        @foreach (var line in LoadChart.Lines(history, s => s.CpuSessions, sessionsMax, ChartWidth, ChartHeight))
+                        @foreach (var line in LoadChart.Lines(history, s => s.CpuSessions, sessionsMax, ChartWidth, ChartHeight, span))
                         {
                             <polyline class="on-cpu" points="@line" />
                         }
                     </svg>
                     <div class="load-axis">
-                        <span>-60 min</span>
-                        <span><i class="sessions"></i>@ServerLoadText.ServerLoad_LegendActive <i class="on-cpu"></i>@ServerLoadText.ServerLoad_LegendOnCpu <i class="limit"></i>@TextFormat.Plural(latest.Cpus, ServerLoadText.ServerLoad_CpusOne, ServerLoadText.ServerLoad_CpusOther)</span>
+                        <span>@startLabel</span>
+                        <span>
+                            <i class="sessions"></i>@ServerLoadText.ServerLoad_LegendActive <i class="on-cpu"></i>@ServerLoadText.ServerLoad_LegendOnCpu
+                            @if (latest.Cpus <= sessionsMax)
+                            {
+                                <i class="limit"></i>@TextFormat.Plural(latest.Cpus, ServerLoadText.ServerLoad_CpusOne, ServerLoadText.ServerLoad_CpusOther)
+                            }
+                            · @TextFormat.Format(ServerLoadText.ServerLoad_AxisTop, Number(sessionsMax, "0.#"))
+                        </span>
                         <span>@ServerLoadText.ServerLoad_AxisNow</span>
                     </div>
                 </figure>

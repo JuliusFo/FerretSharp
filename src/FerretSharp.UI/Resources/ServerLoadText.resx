@@ -138,7 +138,7 @@
     <value>No session was active.</value>
   </data>
   <data name="ServerLoad_History" xml:space="preserve">
-    <value>Last hour</value>
+    <value>History</value>
     <comment>Section heading of the charts</comment>
   </data>
   <data name="ServerLoad_AxisNow" xml:space="preserve">
@@ -315,5 +315,17 @@
   </data>
   <data name="ServerLoad_License" xml:space="preserve">
     <value>Only views outside the Diagnostics and Tuning Pack: no ASH, no AWR, no SQL monitor.</value>
+  </data>
+  <data name="ServerLoad_AxisStart" xml:space="preserve">
+    <value>-{0} min</value>
+    <comment>{0}: minutes before now at the left end of a time axis</comment>
+  </data>
+  <data name="ServerLoad_AxisHalf" xml:space="preserve">
+    <value>50 %</value>
+    <comment>Chart: the dashed line at half of the host CPU</comment>
+  </data>
+  <data name="ServerLoad_AxisTop" xml:space="preserve">
+    <value>top {0}</value>
+    <comment>{0}: the value at the top of the chart</comment>
   </data>
 </root>
