@@ -80,7 +80,7 @@ public sealed class ServerLoadTrackerTests
             Cursor("new", executions: 1, cpu: 5_000_000), // not in the baseline: loaded after it – one expensive run
             Cursor("idle", 7, 70)); // read again without change
 
-        var top = tracker.Top(null, StatementSort.Cpu, StatementFilter.None, 10);
+        var top = tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10);
 
         Assert.Equal(["new", "old", "reloaded"], top.Select(r => r.SqlId));
         Assert.Equal((10, 600), (top[1].Figures.Executions, top[1].Figures.CpuTime));
@@ -95,7 +95,7 @@ public sealed class ServerLoadTrackerTests
 
         Look(tracker, 30, Cursor("a", 15, 150, plan: 1), Cursor("a", 12, 120, plan: 2));
 
-        var row = Assert.Single(tracker.Top(null, StatementSort.Executions, StatementFilter.None, 10));
+        var row = Assert.Single(tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10));
         Assert.Equal((7, 70, 2), (row.Figures.Executions, row.Figures.CpuTime, row.Plans));
     }
 
@@ -107,9 +107,9 @@ public sealed class ServerLoadTrackerTests
         Look(tracker, 600, Cursor("late", 1, 100)); // after a gap of 10 min: spans more than the 5-min window
         Look(tracker, 30, Cursor("late", 2, 200));
 
-        Assert.Equal([("late", 100L)], tracker.Top(TimeSpan.FromMinutes(5), StatementSort.Cpu, StatementFilter.None, 10).Select(r => (r.SqlId, r.Figures.CpuTime)));
-        Assert.Equal([("late", 200L)], tracker.Top(TimeSpan.FromSeconds(640), StatementSort.Cpu, StatementFilter.None, 10).Select(r => (r.SqlId, r.Figures.CpuTime)));
-        Assert.Equal([("early", 900L), ("late", 200L)], tracker.Top(null, StatementSort.Cpu, StatementFilter.None, 10).Select(r => (r.SqlId, r.Figures.CpuTime)));
+        Assert.Equal([("late", 100L)], tracker.Top(TimeSpan.FromMinutes(5), TopStatementSort.Cpu, StatementFilter.None, 10).Select(r => (r.SqlId, r.Figures.CpuTime)));
+        Assert.Equal([("late", 200L)], tracker.Top(TimeSpan.FromSeconds(640), TopStatementSort.Cpu, StatementFilter.None, 10).Select(r => (r.SqlId, r.Figures.CpuTime)));
+        Assert.Equal([("early", 900L), ("late", 200L)], tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10).Select(r => (r.SqlId, r.Figures.CpuTime)));
         Assert.True(tracker.History[1].AfterGap);
     }
 
@@ -123,7 +123,7 @@ public sealed class ServerLoadTrackerTests
             Cursor("c", 0, 5000), // still running, not executed to the end: 0
             Cursor("z", 1, 300));
 
-        var top = tracker.Top(null, StatementSort.CpuPerExecution, StatementFilter.None, 3);
+        var top = tracker.Top(null, TopStatementSort.CpuPerExecution, StatementFilter.None, 3);
 
         Assert.Equal(["z", "a", "b"], top.Select(r => r.SqlId));
     }
@@ -136,9 +136,9 @@ public sealed class ServerLoadTrackerTests
         tracker.AddInfo(["app", "batch", "unknown"],
             [new StatementInfo("app", "SELECT 1", "Shop.Api", "SHOP"), new StatementInfo("batch", "SELECT 2", "SQL*Plus", "SHOP_BATCH")]);
 
-        Assert.Equal(["app"], tracker.Top(null, StatementSort.Cpu, new StatementFilter(" shop ", "API"), 10).Select(r => r.SqlId));
-        Assert.Equal(["batch", "app"], tracker.Top(null, StatementSort.Cpu, new StatementFilter("shop"), 10).Select(r => r.SqlId));
-        Assert.Equal(3, tracker.Top(null, StatementSort.Cpu, new StatementFilter(" ", ""), 10).Count);
+        Assert.Equal(["app"], tracker.Top(null, TopStatementSort.Cpu, new StatementFilter(" shop ", "API"), 10).Select(r => r.SqlId));
+        Assert.Equal(["batch", "app"], tracker.Top(null, TopStatementSort.Cpu, new StatementFilter("shop"), 10).Select(r => r.SqlId));
+        Assert.Equal(3, tracker.Top(null, TopStatementSort.Cpu, new StatementFilter(" ", ""), 10).Count);
     }
 
     [Fact]
@@ -152,6 +152,6 @@ public sealed class ServerLoadTrackerTests
         tracker.AddInfo(["dear", "mid"], [new StatementInfo("dear", "SELECT", null, "APP")]); // "mid" left the shared pool
 
         Assert.Equal(["cheap"], tracker.SqlIdsWithoutInfo(10));
-        Assert.Null(tracker.Top(null, StatementSort.Cpu, StatementFilter.None, 10).Single(r => r.SqlId == "mid").Info);
+        Assert.Null(tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10).Single(r => r.SqlId == "mid").Info);
     }
 }

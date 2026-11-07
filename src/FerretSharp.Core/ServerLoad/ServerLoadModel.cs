@@ -30,7 +30,7 @@ public interface IServerLoadReader
     /// The top statements by the figures since each was loaded into the shared pool (<c>V$SQLAREA</c>, like the reports of
     /// SQL Developer): sorted and cut on the server.
     /// </summary>
-    Task<IReadOnlyList<StatementRow>> ReadTopSinceLoadAsync(StatementSort sort, StatementFilter filter, int count, CancellationToken cancellationToken);
+    Task<IReadOnlyList<StatementRow>> ReadTopSinceLoadAsync(TopStatementSort sort, StatementFilter filter, int count, CancellationToken cancellationToken);
 
     /// <summary>The user sessions running a call now, without the reading session itself.</summary>
     Task<IReadOnlyList<ActiveSession>> ReadActiveSessionsAsync(CancellationToken cancellationToken);
@@ -128,20 +128,20 @@ public readonly record struct StatementFigures(
             a.ConcurrencyWait - b.ConcurrencyWait, a.ApplicationWait - b.ApplicationWait);
 
     /// <summary>The value a list is sorted by; per execution 0 for a statement not executed yet.</summary>
-    public double ValueOf(StatementSort sort) => sort switch
+    public double ValueOf(TopStatementSort sort) => sort switch
     {
-        StatementSort.Cpu => CpuTime,
-        StatementSort.CpuPerExecution => PerExecution(CpuTime),
-        StatementSort.Elapsed => ElapsedTime,
-        StatementSort.ElapsedPerExecution => PerExecution(ElapsedTime),
-        StatementSort.Executions => Executions,
-        StatementSort.BufferGets => BufferGets,
-        StatementSort.BufferGetsPerExecution => PerExecution(BufferGets),
-        StatementSort.DiskReads => DiskReads,
-        StatementSort.Rows => Rows,
-        StatementSort.UserIoWait => UserIoWait,
-        StatementSort.ConcurrencyWait => ConcurrencyWait,
-        StatementSort.ApplicationWait => ApplicationWait,
+        TopStatementSort.Cpu => CpuTime,
+        TopStatementSort.CpuPerExecution => PerExecution(CpuTime),
+        TopStatementSort.Elapsed => ElapsedTime,
+        TopStatementSort.ElapsedPerExecution => PerExecution(ElapsedTime),
+        TopStatementSort.Executions => Executions,
+        TopStatementSort.BufferGets => BufferGets,
+        TopStatementSort.BufferGetsPerExecution => PerExecution(BufferGets),
+        TopStatementSort.DiskReads => DiskReads,
+        TopStatementSort.Rows => Rows,
+        TopStatementSort.UserIoWait => UserIoWait,
+        TopStatementSort.ConcurrencyWait => ConcurrencyWait,
+        TopStatementSort.ApplicationWait => ApplicationWait,
         _ => throw new ArgumentOutOfRangeException(nameof(sort), sort, null),
     };
 
@@ -149,7 +149,7 @@ public readonly record struct StatementFigures(
 }
 
 /// <summary>What the top list is sorted by (descending).</summary>
-public enum StatementSort
+public enum TopStatementSort
 {
     Cpu,
     CpuPerExecution,

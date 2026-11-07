@@ -46,7 +46,7 @@ public sealed class ServerLoadMonitorTests
         // The second of the baseline and the one before it count again: LAST_ACTIVE_TIME has whole seconds.
         await _reader.Received(1).ReadStatementsAsync(new DateTime(2026, 11, 7, 9, 59, 59), Arg.Any<CancellationToken>());
         Assert.Single(_steps);
-        var row = Assert.Single(_tracker.Top(null, StatementSort.Cpu, StatementFilter.None, 10));
+        var row = Assert.Single(_tracker.Top(null, TopStatementSort.Cpu, StatementFilter.None, 10));
         Assert.Equal((20, "APP"), (row.Figures.CpuTime, row.Info!.Schema));
     }
 

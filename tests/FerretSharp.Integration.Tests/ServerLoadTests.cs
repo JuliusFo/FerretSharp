@@ -99,7 +99,7 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         Assert.NotNull(sample);
         Assert.True(sample.ExecutionsPerSecond > 0);
         var sqlId = Plans.SqlId(sql);
-        var row = Assert.Single(monitor.Tracker.Top(null, StatementSort.Executions, StatementFilter.None, 10_000), r => r.SqlId == sqlId);
+        var row = Assert.Single(monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000), r => r.SqlId == sqlId);
         Assert.Equal(12, row.Figures.Executions);
         Assert.Equal(sql, row.Info?.Text);
         Assert.Equal(Owner, row.Info?.Schema);
@@ -111,19 +111,19 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
     }
 
     [Theory]
-    [InlineData(StatementSort.Cpu)]
-    [InlineData(StatementSort.CpuPerExecution)]
-    [InlineData(StatementSort.Elapsed)]
-    [InlineData(StatementSort.ElapsedPerExecution)]
-    [InlineData(StatementSort.Executions)]
-    [InlineData(StatementSort.BufferGets)]
-    [InlineData(StatementSort.BufferGetsPerExecution)]
-    [InlineData(StatementSort.DiskReads)]
-    [InlineData(StatementSort.Rows)]
-    [InlineData(StatementSort.UserIoWait)]
-    [InlineData(StatementSort.ConcurrencyWait)]
-    [InlineData(StatementSort.ApplicationWait)]
-    public async Task The_list_since_loading_is_sorted_filtered_and_cut_on_the_server(StatementSort sort)
+    [InlineData(TopStatementSort.Cpu)]
+    [InlineData(TopStatementSort.CpuPerExecution)]
+    [InlineData(TopStatementSort.Elapsed)]
+    [InlineData(TopStatementSort.ElapsedPerExecution)]
+    [InlineData(TopStatementSort.Executions)]
+    [InlineData(TopStatementSort.BufferGets)]
+    [InlineData(TopStatementSort.BufferGetsPerExecution)]
+    [InlineData(TopStatementSort.DiskReads)]
+    [InlineData(TopStatementSort.Rows)]
+    [InlineData(TopStatementSort.UserIoWait)]
+    [InlineData(TopStatementSort.ConcurrencyWait)]
+    [InlineData(TopStatementSort.ApplicationWait)]
+    public async Task The_list_since_loading_is_sorted_filtered_and_cut_on_the_server(TopStatementSort sort)
     {
         await using var connection = await OpenAsync();
 

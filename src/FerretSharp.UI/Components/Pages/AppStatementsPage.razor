@@ -303,21 +303,9 @@
                         }
                         else
                         {
-                            <div class="app-trace-figures">
-                                <span>@AppStatementsText.AppStatements_Executions <b>@PlanTable.Count(cursor.Executions)</b></span>
-                                <span>@AppStatementsText.AppStatements_RowsProcessed <b>@PlanTable.Count(cursor.RowsProcessed)</b></span>
-                                <span>Buffer Gets <b>@PlanTable.Count(cursor.BufferGets)</b></span>
-                                <span>Disk Reads <b>@PlanTable.Count(cursor.DiskReads)</b></span>
-                                <span>@AppStatementsText.AppStatements_Elapsed <b>@PlanTable.Time(cursor.Elapsed)</b> (Ø @PlanTable.Time(cursor.AverageElapsed))</span>
-                                <span>CPU <b>@PlanTable.Time(cursor.Cpu)</b></span>
-                                <span>@AppStatementsText.AppStatements_Children <b>@cursor.Children</b></span>
-                            </div>
-                            <p class="hint">@AppStatementsText.AppStatements_InstanceWide</p>
-                            @if (!cursor.HasActualFigures)
-                            {
-                                <p class="hint">@AppStatementsText.AppStatements_NoActualFigures</p>
-                            }
-                            <PlanTable Plan="cursor.Plan" ShowActual="cursor.HasActualFigures" Owner="@Hub.Find(lookup.ProfileId)?.Active.Schema?.Owner" />
+                            <CursorDetails Cursor="cursor" Owner="@Hub.Find(lookup.ProfileId)?.Active.Schema?.Owner">
+                                <p class="hint">@AppStatementsText.AppStatements_InstanceWide</p>
+                            </CursorDetails>
                         }
                     }
                 </section>

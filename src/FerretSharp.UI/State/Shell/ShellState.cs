@@ -28,7 +28,7 @@ public sealed record PasswordRequest(ConnectionProfile Profile, bool ShowWhenCon
 /// <param name="Connection">Only this connection (WP-66, from its menu); the group is then not looked at.</param>
 public sealed record ConnectionExportRequest(bool OnlyGroup = false, string? Group = null, Guid? Connection = null);
 
-public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements, Report }
+public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements, Report, ServerLoad }
 
 /// <summary>The sections of the report page (WP-72), for a link that opens one.</summary>
 public enum ReportPart { Tables, Columns, Relations, Mismatches, ModelWithoutMatch, Entities, Unused }
@@ -171,6 +171,13 @@ public sealed partial class ShellState
     {
         SwitcherOpen = false;
         Page = ShellPage.AppStatements;
+    });
+
+    /// <summary>The load of the shown connection's database server and its top statements (WP-75).</summary>
+    public void ShowServerLoad() => Set(() =>
+    {
+        SwitcherOpen = false;
+        Page = ShellPage.ServerLoad;
     });
 
     /// <summary>The C# model of the connection's linked project and its differences to the schema (WP-11).</summary>

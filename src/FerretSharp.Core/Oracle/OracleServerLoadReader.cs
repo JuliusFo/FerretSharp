@@ -85,7 +85,7 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
         """;
 
     /// <summary>The top list since loading, with the sort column filled in (<see cref="SortExpression"/>, never text from outside).</summary>
-    internal static string TopSinceLoadSql(StatementSort sort) => $"""
+    internal static string TopSinceLoadSql(TopStatementSort sort) => $"""
         SELECT sql_id, {FigureColumns}, sql_text, module, parsing_schema_name, last_active_time
           FROM v$sqlarea
          WHERE (:schema_part IS NULL OR INSTR(UPPER(parsing_schema_name), UPPER(:schema_part)) > 0)
@@ -102,20 +102,20 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
          GROUP BY sql_id
         """;
 
-    internal static string SortExpression(StatementSort sort) => sort switch
+    internal static string SortExpression(TopStatementSort sort) => sort switch
     {
-        StatementSort.Cpu => "cpu_time",
-        StatementSort.CpuPerExecution => "cpu_time / NULLIF(executions, 0)",
-        StatementSort.Elapsed => "elapsed_time",
-        StatementSort.ElapsedPerExecution => "elapsed_time / NULLIF(executions, 0)",
-        StatementSort.Executions => "executions",
-        StatementSort.BufferGets => "buffer_gets",
-        StatementSort.BufferGetsPerExecution => "buffer_gets / NULLIF(executions, 0)",
-        StatementSort.DiskReads => "disk_reads",
-        StatementSort.Rows => "rows_processed",
-        StatementSort.UserIoWait => "user_io_wait_time",
-        StatementSort.ConcurrencyWait => "concurrency_wait_time",
-        StatementSort.ApplicationWait => "application_wait_time",
+        TopStatementSort.Cpu => "cpu_time",
+        TopStatementSort.CpuPerExecution => "cpu_time / NULLIF(executions, 0)",
+        TopStatementSort.Elapsed => "elapsed_time",
+        TopStatementSort.ElapsedPerExecution => "elapsed_time / NULLIF(executions, 0)",
+        TopStatementSort.Executions => "executions",
+        TopStatementSort.BufferGets => "buffer_gets",
+        TopStatementSort.BufferGetsPerExecution => "buffer_gets / NULLIF(executions, 0)",
+        TopStatementSort.DiskReads => "disk_reads",
+        TopStatementSort.Rows => "rows_processed",
+        TopStatementSort.UserIoWait => "user_io_wait_time",
+        TopStatementSort.ConcurrencyWait => "concurrency_wait_time",
+        TopStatementSort.ApplicationWait => "application_wait_time",
         _ => throw new ArgumentOutOfRangeException(nameof(sort), sort, null),
     };
 
@@ -164,7 +164,7 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
             reader => new StatementInfo(Text(reader, 0) ?? "", Text(reader, 1), Text(reader, 2), Text(reader, 3)), cancellationToken));
     }
 
-    public Task<IReadOnlyList<StatementRow>> ReadTopSinceLoadAsync(StatementSort sort, StatementFilter filter, int count, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<StatementRow>> ReadTopSinceLoadAsync(TopStatementSort sort, StatementFilter filter, int count, CancellationToken cancellationToken) =>
         GuardAsync<IReadOnlyList<StatementRow>>(async () => await session.ReadListAsync(TopSinceLoadSql(sort),
             [
                 new QueryParameter("schema_part", Part(filter.Schema)),

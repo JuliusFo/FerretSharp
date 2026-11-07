@@ -1,0 +1,552 @@
+@* Server load (WP-75, ADR 0045): the load of the shown connection's database server and its top statements, from views
+   outside the Diagnostics and Tuning Pack. A session of its own looks every 30 s while the page is shown (ServerLoadService);
+   what was seen stays when the page is left. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.ServerLoad
+@inherits FerretComponent
+@implements IAsyncDisposable
+@inject ServerLoadService Load
+@inject ConnectionHub Hub
+@inject AppTraceService Trace
+@inject AppSettingsService Settings
+@inject IFileSaveService Files
+@inject IJSRuntime JS
+@inject ILogger<ServerLoadPage> Logger
+
+@{ var view = View; }
+<div class="settings-page server-load-page">
+    <div class="page-head">
+        <h1>@ServerLoadText.ServerLoad_Title</h1>
+        @{ var connected = Hub.Open.Where(s => s.Active.IsConnected && s.Profile is not null).ToList(); }
+        @if (connected.Count > 1)
+        {
+            <select class="field report-conn" aria-label="@ServerLoadText.ServerLoad_Connection" value="@Profile.Id" @onchange="ShowConnection">
+                @foreach (var scope in connected)
+                {
+                    <option @key="scope.Id" value="@scope.Id">@ConnectionLabel.Of(scope.Profile!, Settings.Current)</option>
+                }
+            </select>
+        }
+        else
+        {
+            <span class="hint">@ConnectionLabel.Of(Profile, Settings.Current)</span>
+        }
+        <span class="hint load-status">@StatusText(view)</span>
+        <span class="grow"></span>
+        @if (view.Status != ServerLoadStatus.Unavailable)
+        {
+            <button class="btn" title="@ServerLoadText.ServerLoad_PauseTitle" @onclick="TogglePause">
+                @(view.Paused ? ServerLoadText.ServerLoad_Resume : ServerLoadText.ServerLoad_Pause)
+            </button>
+        }
+        <button class="btn" title="@ServerLoadText.ServerLoad_RefreshTitle" disabled="@(view.Status is ServerLoadStatus.Connecting or ServerLoadStatus.Baseline)"
+                @onclick="RefreshAsync">@ServerLoadText.ServerLoad_Refresh</button>
+        <button class="btn ghost" @onclick="OnBack">@CommonText.Back</button>
+    </div>
+
+    @if (view.Status == ServerLoadStatus.Unavailable)
+    {
+        <section class="settings-section">
+            <h2>@ServerLoadText.ServerLoad_NoRights</h2>
+            <div class="test-result error"><span>@view.Error</span></div>
+            <p class="hint">@ServerLoadText.ServerLoad_NoRightsRetry</p>
+        </section>
+    }
+    else if (view.Tracker.LastLookAt is null)
+    {
+        <section class="settings-section">
+            @if (view is { Status: ServerLoadStatus.Failed, Error: { } openError })
+            {
+                <div class="test-result error"><span>@openError</span></div>
+            }
+            else
+            {
+                <div class="model-status"><span class="spinner small"></span> @StatusText(view)</div>
+            }
+        </section>
+    }
+    else
+    {
+        var latest = view.Tracker.Latest;
+        var history = view.Tracker.History;
+        <div class="load-notes">
+            @if (view is { Status: ServerLoadStatus.Failed, Error: { } lookError })
+            {
+                <div class="test-result error"><span>@TextFormat.Format(ServerLoadText.ServerLoad_LookFailed, lookError)</span></div>
+            }
+            @if (view.Environment is { IsPluggable: true })
+            {
+                <div class="settings-note">@ServerLoadText.ServerLoad_Pluggable</div>
+            }
+            @if (view.Environment is { IsCluster: true } cluster)
+            {
+                <div class="settings-note">@TextFormat.Format(ServerLoadText.ServerLoad_Cluster, cluster.Instances)</div>
+            }
+        </div>
+
+        @if (latest is null)
+        {
+            <section class="settings-section">
+                <p class="hint load-wait">@ServerLoadText.ServerLoad_NoSampleYet</p>
+            </section>
+        }
+        else
+        {
+            @Tiles(latest)
+            @Chart(history, latest)
+        }
+
+        @Statements(view)
+        @Sessions(view)
+        <p class="hint load-license">@ServerLoadText.ServerLoad_License</p>
+    }
+</div>
+
+@code {
+    private const double ChartWidth = 600;
+    private const double ChartHeight = 110;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ConnectionProfile Profile { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    private DomModule? _dom;
+    private ExportActions? _export;
+    private string? _schemaFilter;
+    private string? _moduleFilter;
+
+    private ServerLoadView View => Load.For(Profile.Id);
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    private ExportActions Export => _export ??= new(Shell, Dom, Files, 0, () => Task.CompletedTask, Logger, Active);
+
+    /// <summary>The column headings, also of the Excel file (a property: the language is read when used).</summary>
+    private static string Header(StatementColumn column) => column switch
+    {
+        StatementColumn.SqlId => "SQL_ID",
+        StatementColumn.Schema => ServerLoadText.ServerLoad_ColumnSchema,
+        StatementColumn.Module => ServerLoadText.ServerLoad_ColumnModule,
+        StatementColumn.Executions => ServerLoadText.ServerLoad_ColumnExecutions,
+        StatementColumn.Cpu => "CPU",
+        StatementColumn.CpuPerExecution => ServerLoadText.ServerLoad_ColumnCpuPerExecution,
+        StatementColumn.Elapsed => ServerLoadText.ServerLoad_ColumnElapsed,
+        StatementColumn.ElapsedPerExecution => ServerLoadText.ServerLoad_ColumnElapsedPerExecution,
+        StatementColumn.BufferGets => "Buffer Gets",
+        StatementColumn.BufferGetsPerExecution => ServerLoadText.ServerLoad_ColumnGetsPerExecution,
+        StatementColumn.DiskReads => "Disk Reads",
+        StatementColumn.Rows => ServerLoadText.ServerLoad_ColumnRows,
+        StatementColumn.UserIoWait => "User I/O",
+        StatementColumn.ConcurrencyWait => "Concurrency",
+        StatementColumn.ApplicationWait => "Application",
+        StatementColumn.Plans => ServerLoadText.ServerLoad_ColumnPlans,
+        StatementColumn.LastActive => ServerLoadText.ServerLoad_ColumnLastActive,
+        StatementColumn.Text => ServerLoadText.ServerLoad_ColumnText,
+        _ => column.ToString(),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _schemaFilter = View.Filter.Schema;
+        _moduleFilter = View.Filter.Module;
+        Load.Changed += OnChanged;
+        Trace.Changed += OnChanged;
+        await Load.ShowAsync(Profile);
+    }
+
+    private void OnChanged() => Fire(StateHasChanged);
+
+    private void ShowConnection(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value as string, out var id) && Hub.Find(id) is { } scope)
+        {
+            Hub.Show(scope); // the pages follow the shown connection: this page starts anew for it
+        }
+    }
+
+    private void TogglePause() => Load.SetPaused(Profile.Id, !View.Paused);
+
+    private Task RefreshAsync() => Load.RefreshAsync(Profile);
+
+    private static string StatusText(ServerLoadView view) => (view.Status, view.LastLookAt) switch
+    {
+        (ServerLoadStatus.Connecting, _) => ServerLoadText.ServerLoad_Connecting,
+        (ServerLoadStatus.Baseline, _) => ServerLoadText.ServerLoad_Baseline,
+        (_, null) => "",
+        (_, { } at) when view.Paused => TextFormat.Format(ServerLoadText.ServerLoad_StatusPaused, Clock(at)),
+        (_, { } at) => TextFormat.Format(ServerLoadText.ServerLoad_StatusWatching, Clock(at), (int)ServerLoadService.Interval.TotalSeconds),
+    };
+
+    private static string Clock(DateTimeOffset at) => at.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
+
+    private static string Number(double value, string format = "0.0") => value.ToString(format, CultureInfo.CurrentCulture);
+
+    private static string Percent(double share) => share.ToString("0 %", CultureInfo.CurrentCulture);
+
+    private static TimeSpan Micros(double micros) => TimeSpan.FromMicroseconds(micros);
+
+    private RenderFragment Tiles(LoadSample latest) => @<div class="report-tiles load-tiles">
+        <div class="report-tile-group">
+            <h3>@ServerLoadText.ServerLoad_TilesServer</h3>
+            @Tile(latest.HostCpu is { } cpu ? Percent(cpu) : "–", latest.HostCpu > 0.85 ? "bad" : latest.HostCpu > 0.6 ? "warn" : "",
+                ServerLoadText.ServerLoad_TileHostCpu, TextFormat.Plural(latest.Cpus, ServerLoadText.ServerLoad_CpusOne, ServerLoadText.ServerLoad_CpusOther))
+            @Tile(Number(latest.ActiveSessions), latest.ActiveSessions > latest.Cpus ? "bad" : latest.ActiveSessions > latest.Cpus * 0.6 ? "warn" : "",
+                ServerLoadText.ServerLoad_TileActiveSessions, TextFormat.Format(ServerLoadText.ServerLoad_TileActiveSessionsHint, latest.Cpus))
+        </div>
+        <div class="report-tile-group">
+            <h3>@ServerLoadText.ServerLoad_TilesDatabase</h3>
+            @Tile(latest.DbCpuShare is { } share ? Percent(share) : "–", "", ServerLoadText.ServerLoad_TileDbCpu, ServerLoadText.ServerLoad_TileDbCpuHint)
+            @Tile(Number(latest.ExecutionsPerSecond, "N0"), "", ServerLoadText.ServerLoad_TileExecutions,
+                TextFormat.Format(ServerLoadText.ServerLoad_TileExecutionsHint, Number(latest.CommitsPerSecond), Number(latest.LogicalReadsPerSecond, "N0")))
+        </div>
+        <div class="report-tile-group">
+            <h3>@ServerLoadText.ServerLoad_TilesWaits</h3>
+            @if (latest.TopWaitClass is { } top)
+            {
+                @Tile(Number(top.Value), "warn", top.Key, ServerLoadText.ServerLoad_TileTopWaitHint)
+            }
+            else
+            {
+                @Tile("–", "", ServerLoadText.ServerLoad_TileNoWait, null)
+            }
+            @Activity(latest)
+        </div>
+    </div>;
+
+    private static RenderFragment Tile(string value, string tone, string label, string? hint) => @<div class="report-tile load-tile @tone">
+        <span class="num">@value</span>
+        <span class="label">@label @if (hint is not null) { <small>@hint</small> }</span>
+    </div>;
+
+    /// <summary>What the active sessions did on average: on CPU and per wait class, as one bar.</summary>
+    private static RenderFragment Activity(LoadSample latest)
+    {
+        var parts = new List<(string Name, double Sessions)> { ("CPU", latest.CpuSessions) };
+        parts.AddRange(latest.WaitingSessions.Where(w => w.Value >= 0.005).OrderByDescending(w => w.Value).Select(w => (w.Key, w.Value)));
+        var total = parts.Sum(p => p.Sessions);
+        return @<div class="load-activity" title="@ServerLoadText.ServerLoad_ActivityTitle">
+            @if (total <= 0)
+            {
+                <span class="hint">@ServerLoadText.ServerLoad_NoActivity</span>
+            }
+            else
+            {
+                <div class="load-activity-bar">
+                    @for (var i = 0; i < parts.Count; i++)
+                    {
+                        var part = parts[i];
+                        <span class="c@(Math.Min(i, 5))" style="width: @((part.Sessions / total * 100).ToString("0.##", CultureInfo.InvariantCulture))%"
+                              title="@($"{part.Name}: {Number(part.Sessions, "0.00")}")"></span>
+                    }
+                </div>
+                <div class="load-legend">
+                    @for (var i = 0; i < parts.Count; i++)
+                    {
+                        var part = parts[i];
+                        <span><i class="c@(Math.Min(i, 5))"></i>@part.Name <b>@Number(part.Sessions, "0.00")</b></span>
+                    }
+                </div>
+            }
+        </div>;
+    }
+
+    private RenderFragment Chart(IReadOnlyList<LoadSample> history, LoadSample latest)
+    {
+        var sessionsMax = LoadChart.SessionsMax(history, latest.Cpus);
+        return @<section class="settings-section load-history">
+            <h2>@ServerLoadText.ServerLoad_History</h2>
+            <div class="load-charts">
+                <figure>
+                    <figcaption>@ServerLoadText.ServerLoad_TileHostCpu</figcaption>
+                    <svg viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none" class="load-chart">
+                        <line class="grid" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(0.5, 1, ChartHeight)" y2="@LoadChart.Y(0.5, 1, ChartHeight)" />
+                        @foreach (var line in LoadChart.Lines(history, s => s.HostCpu, 1, ChartWidth, ChartHeight))
+                        {
+                            <polyline class="cpu" points="@line" />
+                        }
+                    </svg>
+                    <div class="load-axis"><span>-60 min</span><span>50 %</span><span>@ServerLoadText.ServerLoad_AxisNow</span></div>
+                </figure>
+                <figure>
+                    <figcaption>@ServerLoadText.ServerLoad_TileActiveSessions</figcaption>
+                    <svg viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none" class="load-chart">
+                        <line class="limit" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" y2="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" />
+                        @foreach (var line in LoadChart.Lines(history, s => s.ActiveSessions, sessionsMax, ChartWidth, ChartHeight))
+                        {
+                            <polyline class="sessions" points="@line" />
+                        }
+                        @foreach (var line in LoadChart.Lines(history, s => s.CpuSessions, sessionsMax, ChartWidth, ChartHeight))
+                        {
+                            <polyline class="on-cpu" points="@line" />
+                        }
+                    </svg>
+                    <div class="load-axis">
+                        <span>-60 min</span>
+                        <span><i class="sessions"></i>@ServerLoadText.ServerLoad_LegendActive <i class="on-cpu"></i>@ServerLoadText.ServerLoad_LegendOnCpu <i class="limit"></i>@TextFormat.Plural(latest.Cpus, ServerLoadText.ServerLoad_CpusOne, ServerLoadText.ServerLoad_CpusOther)</span>
+                        <span>@ServerLoadText.ServerLoad_AxisNow</span>
+                    </div>
+                </figure>
+            </div>
+        </section>;
+    }
+
+    private RenderFragment Statements(ServerLoadView view)
+    {
+        var rows = view.Top;
+        var appIds = Trace.SqlIdsOn(Profile.Id);
+        var loading = view.Mode == ServerLoadMode.SinceLoad && view.SinceLoadLoading;
+        return @<section class="settings-section load-statements">
+            <h2>@ServerLoadText.ServerLoad_Statements</h2>
+            <div class="load-toolbar">
+                <div class="segmented small">
+                    <button class="seg @(view.Mode == ServerLoadMode.Window ? "active" : "")" title="@ServerLoadText.ServerLoad_ModeWindowTitle"
+                            @onclick="() => SetModeAsync(ServerLoadMode.Window)">@ServerLoadText.ServerLoad_ModeWindow</button>
+                    <button class="seg @(view.Mode == ServerLoadMode.SinceLoad ? "active" : "")" title="@ServerLoadText.ServerLoad_ModeSinceLoadTitle"
+                            @onclick="() => SetModeAsync(ServerLoadMode.SinceLoad)">@ServerLoadText.ServerLoad_ModeSinceLoad</button>
+                </div>
+                @if (view.Mode == ServerLoadMode.Window)
+                {
+                    <select class="field" aria-label="@ServerLoadText.ServerLoad_ModeWindow" value="@WindowValue(view.Window)" @onchange="SetWindow">
+                        <option value="all">@ServerLoadText.ServerLoad_WindowSinceOpened</option>
+                        <option value="5">@TextFormat.Format(ServerLoadText.ServerLoad_WindowLast, 5)</option>
+                        <option value="15">@TextFormat.Format(ServerLoadText.ServerLoad_WindowLast, 15)</option>
+                        <option value="60">@TextFormat.Format(ServerLoadText.ServerLoad_WindowLast, 60)</option>
+                    </select>
+                }
+                <input class="field load-filter" placeholder="@ServerLoadText.ServerLoad_ColumnSchema" aria-label="@ServerLoadText.ServerLoad_FilterSchema"
+                       title="@ServerLoadText.ServerLoad_FilterSchema" @bind="_schemaFilter" @bind:after="ApplyFilterAsync" />
+                <input class="field load-filter" placeholder="@ServerLoadText.ServerLoad_ColumnModule" aria-label="@ServerLoadText.ServerLoad_FilterModule"
+                       title="@ServerLoadText.ServerLoad_FilterModule" @bind="_moduleFilter" @bind:after="ApplyFilterAsync" />
+                <span class="grow"></span>
+                <button class="btn" disabled="@(rows.Count == 0)" @onclick="() => SaveXlsxAsync(rows)">@GridText.GridMenu_SaveXlsx</button>
+            </div>
+            @if (view.Mode == ServerLoadMode.SinceLoad && view.SinceLoadError is { } listError)
+            {
+                <div class="test-result error"><span>@listError</span></div>
+            }
+            @if (loading)
+            {
+                <p class="hint"><span class="spinner small"></span> @ServerLoadText.ServerLoad_ReadingList</p>
+            }
+            else if (rows.Count == 0)
+            {
+                <p class="hint">@(view.Mode == ServerLoadMode.Window ? ServerLoadText.ServerLoad_NoStatementsYet : ServerLoadText.ServerLoad_NoStatements)</p>
+            }
+            else
+            {
+                <div class="load-table-wrap">
+                    <table class="app-trace-table load-table">
+                        <thead>
+                            <tr>
+                                <th>@ServerLoadText.ServerLoad_ColumnStatement</th>
+                                @SortHeader(view, TopStatementSort.Executions, StatementColumn.Executions)
+                                @SortHeader(view, TopStatementSort.Cpu, StatementColumn.Cpu)
+                                @SortHeader(view, TopStatementSort.CpuPerExecution, StatementColumn.CpuPerExecution)
+                                @SortHeader(view, TopStatementSort.Elapsed, StatementColumn.Elapsed)
+                                @SortHeader(view, TopStatementSort.ElapsedPerExecution, StatementColumn.ElapsedPerExecution)
+                                @SortHeader(view, TopStatementSort.BufferGets, StatementColumn.BufferGets)
+                                @SortHeader(view, TopStatementSort.BufferGetsPerExecution, StatementColumn.BufferGetsPerExecution)
+                                @SortHeader(view, TopStatementSort.DiskReads, StatementColumn.DiskReads)
+                                @SortHeader(view, TopStatementSort.Rows, StatementColumn.Rows)
+                                @SortHeader(view, TopStatementSort.UserIoWait, StatementColumn.UserIoWait)
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in rows)
+                            {
+                                var f = row.Figures;
+                                <tr @key="row.SqlId" class="clickable @(view.Selected == row.SqlId ? "selected" : "")" @onclick="() => SelectAsync(row.SqlId)">
+                                    <td class="load-sql">
+                                        <div class="mono ellipsis">
+                                            @if (appIds.Contains(row.SqlId))
+                                            {
+                                                <span class="plan-badge" title="@ServerLoadText.ServerLoad_AppBadgeTitle">App</span>
+                                            }
+                                            @(row.Info?.Text is { } text ? SqlScript.OneLine(text) : ServerLoadText.ServerLoad_NoText)
+                                        </div>
+                                        <small>@row.SqlId@Detail(row)</small>
+                                    </td>
+                                    <td class="num">@PlanTable.Count(f.Executions)</td>
+                                    <td class="num">@PlanTable.Time(Micros(f.CpuTime))</td>
+                                    <td class="num">@PlanTable.Time(Micros(f.PerExecution(f.CpuTime)))</td>
+                                    <td class="num">@PlanTable.Time(Micros(f.ElapsedTime))</td>
+                                    <td class="num">@PlanTable.Time(Micros(f.PerExecution(f.ElapsedTime)))</td>
+                                    <td class="num">@PlanTable.Count(f.BufferGets)</td>
+                                    <td class="num">@Number(f.PerExecution(f.BufferGets), "N0")</td>
+                                    <td class="num">@PlanTable.Count(f.DiskReads)</td>
+                                    <td class="num">@PlanTable.Count(f.Rows)</td>
+                                    <td class="num">@PlanTable.Time(Micros(f.UserIoWait))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            @if (view.Selected is { } selected)
+            {
+                @Details(view, selected, rows.FirstOrDefault(r => r.SqlId == selected))
+            }
+        </section>;
+    }
+
+    private static string Detail(StatementRow row)
+    {
+        var parts = new[] { row.Info?.Schema, row.Info?.Module, row.Plans > 1 ? TextFormat.Format(ServerLoadText.ServerLoad_Plans, row.Plans) : null }
+            .Where(p => !string.IsNullOrEmpty(p));
+        return string.Concat(parts.Select(p => " · " + p));
+    }
+
+    private RenderFragment SortHeader(ServerLoadView view, TopStatementSort sort, StatementColumn column) =>
+        @<th class="num sortable @(view.Sort == sort ? "sorted" : "")" title="@ServerLoadText.ServerLoad_SortTitle" @onclick="() => SortAsync(sort)">
+            @Header(column)@(view.Sort == sort ? " ↓" : "")
+        </th>;
+
+    private RenderFragment Details(ServerLoadView view, string sqlId, StatementRow? row) => @<div class="load-detail">
+        <div class="app-trace-actions">
+            <b class="mono">SQL_ID @sqlId</b>
+            <span class="grow"></span>
+            @{ var text = view.Cursor?.Plan.Sql ?? row?.Info?.Text; }
+            <button class="btn" disabled="@(text is null)" @onclick="() => Shell.OpenSqlIn(Profile.Id, text!)">@CommonText.OpenInSqlEditor</button>
+            <button class="btn ghost" title="@CommonText.Close" @onclick="() => SelectAsync(sqlId)">@Icons.Close</button>
+        </div>
+        @if (text is not null)
+        {
+            <SqlCode Sql="@text" />
+        }
+        @if (view.CursorLoading)
+        {
+            <p class="hint"><span class="spinner small"></span> @ServerLoadText.ServerLoad_LookingUp</p>
+        }
+        else if (view.CursorError is { } error)
+        {
+            <div class="test-result error"><span>@error</span></div>
+        }
+        else if (view.Cursor is { } cursor)
+        {
+            <CursorDetails Cursor="cursor" Owner="@Active.Schema?.Owner">
+                <p class="hint">@ServerLoadText.ServerLoad_CursorSinceLoad</p>
+            </CursorDetails>
+        }
+    </div>;
+
+    private RenderFragment Sessions(ServerLoadView view) => @<section class="settings-section load-sessions">
+        <h2>@ServerLoadText.ServerLoad_Sessions <span class="count">@view.Sessions.Count</span></h2>
+        @if (view.Sessions.Count == 0)
+        {
+            <p class="hint">@ServerLoadText.ServerLoad_NoSessions</p>
+        }
+        else
+        {
+            <div class="load-table-wrap">
+                <table class="app-trace-table">
+                    <thead>
+                        <tr>
+                            <th class="num">SID</th>
+                            <th>@ServerLoadText.ServerLoad_SessionUser</th>
+                            <th>@ServerLoadText.ServerLoad_SessionMachine</th>
+                            <th>@ServerLoadText.ServerLoad_ColumnModule</th>
+                            <th>@ServerLoadText.ServerLoad_SessionStatement</th>
+                            <th>@ServerLoadText.ServerLoad_SessionWaiting</th>
+                            <th class="num">@ServerLoadText.ServerLoad_SessionInCall</th>
+                            <th class="num">@ServerLoadText.ServerLoad_SessionBlockedBy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in view.Sessions)
+                        {
+                            <tr @key="(s.Sid, s.Serial)">
+                                <td class="num">@s.Sid</td>
+                                <td class="nowrap">@s.User</td>
+                                <td class="nowrap">@s.OsUser@(s.Machine is { } machine ? $" @ {machine}" : "")</td>
+                                <td class="nowrap">
+                                    @if (Hub.FindSession(s.ClientInfo) is var (_, workspace))
+                                    {
+                                        <span class="plan-badge">@TextFormat.Format(ServerLoadText.ServerLoad_OwnWorkspace, workspace.Name)</span>
+                                    }
+                                    else
+                                    {
+                                        @(s.Module ?? s.Program)
+                                    }
+                                </td>
+                                <td class="mono">
+                                    @if (s.SqlId is { } sqlId)
+                                    {
+                                        <button class="link-btn mono" title="@ServerLoadText.ServerLoad_ShowStatement" @onclick="() => ShowStatementAsync(sqlId)">@sqlId</button>
+                                    }
+                                </td>
+                                <td>@(s.OnCpu ? ServerLoadText.ServerLoad_OnCpu : $"{s.Event} ({s.WaitClass})")</td>
+                                <td class="num">@PlanTable.Time(s.InCall)</td>
+                                <td class="num">@s.BlockingSid</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>;
+
+    private static string WindowValue(TimeSpan? window) => window is { } w ? ((int)w.TotalMinutes).ToString(CultureInfo.InvariantCulture) : "all";
+
+    private void SetWindow(ChangeEventArgs e) =>
+        View.Window = int.TryParse(e.Value as string, NumberStyles.None, CultureInfo.InvariantCulture, out var minutes) ? TimeSpan.FromMinutes(minutes) : null;
+
+    private async Task SetModeAsync(ServerLoadMode mode)
+    {
+        View.Mode = mode;
+        if (mode == ServerLoadMode.SinceLoad)
+        {
+            await Load.LoadSinceLoadAsync(Profile);
+        }
+    }
+
+    private async Task SortAsync(TopStatementSort sort)
+    {
+        View.Sort = sort;
+        if (View.Mode == ServerLoadMode.SinceLoad)
+        {
+            await Load.LoadSinceLoadAsync(Profile);
+        }
+    }
+
+    private async Task ApplyFilterAsync()
+    {
+        View.Filter = new StatementFilter(_schemaFilter, _moduleFilter);
+        if (View.Mode == ServerLoadMode.SinceLoad)
+        {
+            await Load.LoadSinceLoadAsync(Profile);
+        }
+    }
+
+    /// <summary>Shows a statement's details; the same one again closes them.</summary>
+    private Task SelectAsync(string sqlId) => Load.SelectAsync(Profile, View.Selected == sqlId ? null : sqlId);
+
+    private Task ShowStatementAsync(string sqlId) => Load.SelectAsync(Profile, sqlId);
+
+    private Task SaveXlsxAsync(IReadOnlyList<StatementRow> rows)
+    {
+        var name = $"{ServerLoadText.ServerLoad_Statements} {Profile.Name}";
+        return Export.SaveRowsAsync(SuggestedFileName.Of(name) + ".xlsx", GridText.Export_XlsxFilter, rows.Count,
+            (stream, _, ct) => ServerLoadExport.WriteXlsxAsync(stream, rows, Header, ServerLoadText.ServerLoad_Statements, ct));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Load.Changed -= OnChanged;
+        Trace.Changed -= OnChanged;
+        await Load.HideAsync(Profile.Id);
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+}

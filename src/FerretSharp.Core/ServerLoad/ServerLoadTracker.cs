@@ -198,7 +198,7 @@ public sealed class ServerLoadTracker
     /// The top <paramref name="count"/> statements of the last <paramref name="window"/> (null: since opened), sorted
     /// descending by <paramref name="sort"/>. A window counts the looks lying in it completely.
     /// </summary>
-    public IReadOnlyList<StatementRow> Top(TimeSpan? window, StatementSort sort, StatementFilter filter, int count)
+    public IReadOnlyList<StatementRow> Top(TimeSpan? window, TopStatementSort sort, StatementFilter filter, int count)
     {
         lock (_gate)
         {

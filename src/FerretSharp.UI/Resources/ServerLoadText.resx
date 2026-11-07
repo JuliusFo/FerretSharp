@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ServerLoad_Title" xml:space="preserve">
+    <value>Server load</value>
+    <comment>Page title and tooltip of its button: the load of the database server and its top statements</comment>
+  </data>
+  <data name="ServerLoad_NotConnected" xml:space="preserve">
+    <value>Connect to a database to see the load of its server.</value>
+  </data>
+  <data name="ServerLoad_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Label of the connection list on the page</comment>
+  </data>
+  <data name="ServerLoad_Pause" xml:space="preserve">
+    <value>Pause</value>
+    <comment>Button: stop looking at the server every 30 s</comment>
+  </data>
+  <data name="ServerLoad_Resume" xml:space="preserve">
+    <value>Resume</value>
+    <comment>Button: look at the server again</comment>
+  </data>
+  <data name="ServerLoad_PauseTitle" xml:space="preserve">
+    <value>Stop or resume the look every 30 s; the page stays as it is meanwhile.</value>
+  </data>
+  <data name="ServerLoad_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+    <comment>Button</comment>
+  </data>
+  <data name="ServerLoad_RefreshTitle" xml:space="preserve">
+    <value>Look at the server now</value>
+  </data>
+  <data name="ServerLoad_Connecting" xml:space="preserve">
+    <value>Opening a session of its own …</value>
+  </data>
+  <data name="ServerLoad_Baseline" xml:space="preserve">
+    <value>Reading the figures of all statements once …</value>
+  </data>
+  <data name="ServerLoad_StatusWatching" xml:space="preserve">
+    <value>As of {0} · every {1} s</value>
+    <comment>{0}: time of the latest look; {1}: seconds between looks</comment>
+  </data>
+  <data name="ServerLoad_StatusPaused" xml:space="preserve">
+    <value>As of {0} · paused</value>
+    <comment>{0}: time of the latest look</comment>
+  </data>
+  <data name="ServerLoad_NoRights" xml:space="preserve">
+    <value>No access to the V$ views</value>
+    <comment>Section heading</comment>
+  </data>
+  <data name="ServerLoad_NoRightsRetry" xml:space="preserve">
+    <value>“Refresh” tries again, e.g. after a DBA granted the rights.</value>
+  </data>
+  <data name="ServerLoad_LookFailed" xml:space="preserve">
+    <value>The latest look at the server failed: {0}</value>
+    <comment>{0}: error message</comment>
+  </data>
+  <data name="ServerLoad_Pluggable" xml:space="preserve">
+    <value>A pluggable database: the statements and sessions are this PDB’s, the host CPU is the whole host’s – the load of other PDBs shows there too.</value>
+  </data>
+  <data name="ServerLoad_Cluster" xml:space="preserve">
+    <value>A RAC database with {0} instances: the page shows only the instance its session runs on.</value>
+    <comment>{0}: number of instances</comment>
+  </data>
+  <data name="ServerLoad_NoSampleYet" xml:space="preserve">
+    <value>The load shows with the next look, in 30 s at the latest.</value>
+  </data>
+  <data name="ServerLoad_TilesServer" xml:space="preserve">
+    <value>Server</value>
+    <comment>Heading of a group of tiles</comment>
+  </data>
+  <data name="ServerLoad_TilesDatabase" xml:space="preserve">
+    <value>Database</value>
+    <comment>Heading of a group of tiles</comment>
+  </data>
+  <data name="ServerLoad_TilesWaits" xml:space="preserve">
+    <value>Waits</value>
+    <comment>Heading of a group of tiles: what the sessions wait for</comment>
+  </data>
+  <data name="ServerLoad_TileHostCpu" xml:space="preserve">
+    <value>Host CPU</value>
+    <comment>Tile and chart: share of the host's CPU in use</comment>
+  </data>
+  <data name="ServerLoad_CpusOne" xml:space="preserve">
+    <value>{0} CPU</value>
+    <comment>{0}: number of CPUs</comment>
+  </data>
+  <data name="ServerLoad_CpusOther" xml:space="preserve">
+    <value>{0} CPUs</value>
+    <comment>{0}: number of CPUs</comment>
+  </data>
+  <data name="ServerLoad_TileActiveSessions" xml:space="preserve">
+    <value>Active sessions</value>
+    <comment>Tile and chart: average active sessions (DB time per second)</comment>
+  </data>
+  <data name="ServerLoad_TileActiveSessionsHint" xml:space="preserve">
+    <value>on average – above {0}, sessions queue for CPU</value>
+    <comment>{0}: number of CPUs</comment>
+  </data>
+  <data name="ServerLoad_TileDbCpu" xml:space="preserve">
+    <value>DB time on CPU</value>
+    <comment>Tile: share of the database time spent on CPU</comment>
+  </data>
+  <data name="ServerLoad_TileDbCpuHint" xml:space="preserve">
+    <value>the rest is waiting</value>
+  </data>
+  <data name="ServerLoad_TileExecutions" xml:space="preserve">
+    <value>Executions/s</value>
+    <comment>Tile: statement executions per second</comment>
+  </data>
+  <data name="ServerLoad_TileExecutionsHint" xml:space="preserve">
+    <value>{0} commits/s · {1} logical reads/s</value>
+    <comment>{0}: commits per second; {1}: logical reads per second</comment>
+  </data>
+  <data name="ServerLoad_TileTopWaitHint" xml:space="preserve">
+    <value>sessions waiting on average</value>
+    <comment>Hint under the tile with the wait class waited for most</comment>
+  </data>
+  <data name="ServerLoad_TileNoWait" xml:space="preserve">
+    <value>No waiting</value>
+    <comment>Tile: no session waited</comment>
+  </data>
+  <data name="ServerLoad_ActivityTitle" xml:space="preserve">
+    <value>What the active sessions did on average since the look before: on CPU or waiting, per wait class</value>
+  </data>
+  <data name="ServerLoad_NoActivity" xml:space="preserve">
+    <value>No session was active.</value>
+  </data>
+  <data name="ServerLoad_History" xml:space="preserve">
+    <value>Last hour</value>
+    <comment>Section heading of the charts</comment>
+  </data>
+  <data name="ServerLoad_AxisNow" xml:space="preserve">
+    <value>now</value>
+    <comment>Right end of a time axis</comment>
+  </data>
+  <data name="ServerLoad_LegendActive" xml:space="preserve">
+    <value>active</value>
+    <comment>Chart legend: active sessions</comment>
+  </data>
+  <data name="ServerLoad_LegendOnCpu" xml:space="preserve">
+    <value>on CPU</value>
+    <comment>Chart legend: sessions on CPU</comment>
+  </data>
+  <data name="ServerLoad_Statements" xml:space="preserve">
+    <value>Top statements</value>
+    <comment>Section heading; also the name of the Excel sheet</comment>
+  </data>
+  <data name="ServerLoad_ModeWindow" xml:space="preserve">
+    <value>Time window</value>
+    <comment>Switch: what the statements did while the page watched</comment>
+  </data>
+  <data name="ServerLoad_ModeWindowTitle" xml:space="preserve">
+    <value>What the statements did while this page was watching</value>
+  </data>
+  <data name="ServerLoad_ModeSinceLoad" xml:space="preserve">
+    <value>Since loaded</value>
+    <comment>Switch: figures since each statement was loaded into the shared pool</comment>
+  </data>
+  <data name="ServerLoad_ModeSinceLoadTitle" xml:space="preserve">
+    <value>Figures since each statement was loaded into the shared pool (V$SQLAREA), like the reports of SQL Developer – an old statement adds up over weeks</value>
+  </data>
+  <data name="ServerLoad_WindowSinceOpened" xml:space="preserve">
+    <value>Since opened</value>
+    <comment>Option: the time window since the page was first opened</comment>
+  </data>
+  <data name="ServerLoad_WindowLast" xml:space="preserve">
+    <value>Last {0} min</value>
+    <comment>{0}: minutes</comment>
+  </data>
+  <data name="ServerLoad_FilterSchema" xml:space="preserve">
+    <value>Only statements whose parsing schema contains this</value>
+  </data>
+  <data name="ServerLoad_FilterModule" xml:space="preserve">
+    <value>Only statements whose module contains this</value>
+  </data>
+  <data name="ServerLoad_ReadingList" xml:space="preserve">
+    <value>Reading the list …</value>
+  </data>
+  <data name="ServerLoad_NoStatementsYet" xml:space="preserve">
+    <value>No statement ran in this window yet.</value>
+  </data>
+  <data name="ServerLoad_NoStatements" xml:space="preserve">
+    <value>No statement matches.</value>
+  </data>
+  <data name="ServerLoad_ColumnStatement" xml:space="preserve">
+    <value>Statement</value>
+    <comment>Column heading</comment>
+  </data>
+  <data name="ServerLoad_ColumnSchema" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Column heading and filter placeholder: parsing schema</comment>
+  </data>
+  <data name="ServerLoad_ColumnModule" xml:space="preserve">
+    <value>Module</value>
+    <comment>Column heading and filter placeholder: MODULE of the session</comment>
+  </data>
+  <data name="ServerLoad_ColumnExecutions" xml:space="preserve">
+    <value>Executions</value>
+    <comment>Column heading</comment>
+  </data>
+  <data name="ServerLoad_ColumnCpuPerExecution" xml:space="preserve">
+    <value>CPU/exec.</value>
+    <comment>Column heading: CPU time per execution</comment>
+  </data>
+  <data name="ServerLoad_ColumnElapsed" xml:space="preserve">
+    <value>Time</value>
+    <comment>Column heading: elapsed time</comment>
+  </data>
+  <data name="ServerLoad_ColumnElapsedPerExecution" xml:space="preserve">
+    <value>Time/exec.</value>
+    <comment>Column heading: elapsed time per execution</comment>
+  </data>
+  <data name="ServerLoad_ColumnGetsPerExecution" xml:space="preserve">
+    <value>Gets/exec.</value>
+    <comment>Column heading: buffer gets per execution</comment>
+  </data>
+  <data name="ServerLoad_ColumnRows" xml:space="preserve">
+    <value>Rows</value>
+    <comment>Column heading</comment>
+  </data>
+  <data name="ServerLoad_ColumnPlans" xml:space="preserve">
+    <value>Plans</value>
+    <comment>Column heading (Excel): plans seen</comment>
+  </data>
+  <data name="ServerLoad_ColumnLastActive" xml:space="preserve">
+    <value>Last active</value>
+    <comment>Column heading (Excel)</comment>
+  </data>
+  <data name="ServerLoad_ColumnText" xml:space="preserve">
+    <value>Text</value>
+    <comment>Column heading (Excel): statement text</comment>
+  </data>
+  <data name="ServerLoad_SortTitle" xml:space="preserve">
+    <value>Sort by this, the largest first</value>
+  </data>
+  <data name="ServerLoad_Plans" xml:space="preserve">
+    <value>{0} plans</value>
+    <comment>{0}: number of plans (more than one)</comment>
+  </data>
+  <data name="ServerLoad_NoText" xml:space="preserve">
+    <value>(no text)</value>
+    <comment>Shown for a statement that left the shared pool before its text was read</comment>
+  </data>
+  <data name="ServerLoad_AppBadgeTitle" xml:space="preserve">
+    <value>Your app runs this statement (App statements)</value>
+  </data>
+  <data name="ServerLoad_LookingUp" xml:space="preserve">
+    <value>Reading text, figures and plan …</value>
+  </data>
+  <data name="ServerLoad_CursorSinceLoad" xml:space="preserve">
+    <value>These figures count since the statement was loaded into the shared pool, for every session.</value>
+  </data>
+  <data name="ServerLoad_NotInPool" xml:space="preserve">
+    <value>The statement is no longer in the shared pool.</value>
+  </data>
+  <data name="ServerLoad_NotWatching" xml:space="preserve">
+    <value>The page has no session to the server right now – “Refresh” opens one.</value>
+  </data>
+  <data name="ServerLoad_TimedOut" xml:space="preserve">
+    <value>The database did not answer within 30 s.</value>
+  </data>
+  <data name="ServerLoad_Sessions" xml:space="preserve">
+    <value>Active sessions now</value>
+    <comment>Section heading</comment>
+  </data>
+  <data name="ServerLoad_NoSessions" xml:space="preserve">
+    <value>No other session is running a call.</value>
+  </data>
+  <data name="ServerLoad_SessionUser" xml:space="preserve">
+    <value>User</value>
+    <comment>Column heading</comment>
+  </data>
+  <data name="ServerLoad_SessionMachine" xml:space="preserve">
+    <value>OS user @ machine</value>
+    <comment>Column heading</comment>
+  </data>
+  <data name="ServerLoad_SessionStatement" xml:space="preserve">
+    <value>Statement</value>
+    <comment>Column heading: SQL_ID of the running statement</comment>
+  </data>
+  <data name="ServerLoad_SessionWaiting" xml:space="preserve">
+    <value>Waiting for</value>
+    <comment>Column heading: wait event or on CPU</comment>
+  </data>
+  <data name="ServerLoad_SessionInCall" xml:space="preserve">
+    <value>In call</value>
+    <comment>Column heading: time in the current call</comment>
+  </data>
+  <data name="ServerLoad_SessionBlockedBy" xml:space="preserve">
+    <value>Blocked by</value>
+    <comment>Column heading: SID of the blocking session</comment>
+  </data>
+  <data name="ServerLoad_OnCpu" xml:space="preserve">
+    <value>on CPU</value>
+    <comment>A session that does not wait</comment>
+  </data>
+  <data name="ServerLoad_OwnWorkspace" xml:space="preserve">
+    <value>Your workspace “{0}”</value>
+    <comment>{0}: name of the workspace</comment>
+  </data>
+  <data name="ServerLoad_ShowStatement" xml:space="preserve">
+    <value>Show this statement</value>
+  </data>
+  <data name="ServerLoad_License" xml:space="preserve">
+    <value>Only views outside the Diagnostics and Tuning Pack: no ASH, no AWR, no SQL monitor.</value>
+  </data>
+</root>

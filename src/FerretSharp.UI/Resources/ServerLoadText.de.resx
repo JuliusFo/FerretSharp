@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ServerLoad_Title" xml:space="preserve">
+    <value>Serverlast</value>
+  </data>
+  <data name="ServerLoad_NotConnected" xml:space="preserve">
+    <value>Verbinde dich mit einer Datenbank, um die Last ihres Servers zu sehen.</value>
+  </data>
+  <data name="ServerLoad_Connection" xml:space="preserve">
+    <value>Verbindung</value>
+  </data>
+  <data name="ServerLoad_Pause" xml:space="preserve">
+    <value>Anhalten</value>
+  </data>
+  <data name="ServerLoad_Resume" xml:space="preserve">
+    <value>Fortsetzen</value>
+  </data>
+  <data name="ServerLoad_PauseTitle" xml:space="preserve">
+    <value>Den Blick alle 30 s anhalten oder fortsetzen; die Seite bleibt so lange, wie sie ist.</value>
+  </data>
+  <data name="ServerLoad_Refresh" xml:space="preserve">
+    <value>Aktualisieren</value>
+  </data>
+  <data name="ServerLoad_RefreshTitle" xml:space="preserve">
+    <value>Jetzt auf den Server schauen</value>
+  </data>
+  <data name="ServerLoad_Connecting" xml:space="preserve">
+    <value>Eigene Session wird geöffnet …</value>
+  </data>
+  <data name="ServerLoad_Baseline" xml:space="preserve">
+    <value>Werte aller Statements werden einmal gelesen …</value>
+  </data>
+  <data name="ServerLoad_StatusWatching" xml:space="preserve">
+    <value>Stand {0} · alle {1} s</value>
+  </data>
+  <data name="ServerLoad_StatusPaused" xml:space="preserve">
+    <value>Stand {0} · angehalten</value>
+  </data>
+  <data name="ServerLoad_NoRights" xml:space="preserve">
+    <value>Kein Zugriff auf die V$-Views</value>
+  </data>
+  <data name="ServerLoad_NoRightsRetry" xml:space="preserve">
+    <value>„Aktualisieren“ versucht es noch einmal, etwa nachdem ein DBA die Rechte gegeben hat.</value>
+  </data>
+  <data name="ServerLoad_LookFailed" xml:space="preserve">
+    <value>Der letzte Blick auf den Server ist fehlgeschlagen: {0}</value>
+  </data>
+  <data name="ServerLoad_Pluggable" xml:space="preserve">
+    <value>Eine Pluggable Database: Statements und Sessions sind die dieser PDB, die Host-CPU ist die des ganzen Hosts – die Last anderer PDBs zeigt sich dort mit.</value>
+  </data>
+  <data name="ServerLoad_Cluster" xml:space="preserve">
+    <value>Eine RAC-Datenbank mit {0} Instanzen: Die Seite zeigt nur die Instanz, auf der ihre Session läuft.</value>
+  </data>
+  <data name="ServerLoad_NoSampleYet" xml:space="preserve">
+    <value>Die Last erscheint mit dem nächsten Blick, spätestens in 30 s.</value>
+  </data>
+  <data name="ServerLoad_TilesServer" xml:space="preserve">
+    <value>Server</value>
+  </data>
+  <data name="ServerLoad_TilesDatabase" xml:space="preserve">
+    <value>Datenbank</value>
+  </data>
+  <data name="ServerLoad_TilesWaits" xml:space="preserve">
+    <value>Warten</value>
+  </data>
+  <data name="ServerLoad_TileHostCpu" xml:space="preserve">
+    <value>Host-CPU</value>
+  </data>
+  <data name="ServerLoad_CpusOne" xml:space="preserve">
+    <value>{0} CPU</value>
+  </data>
+  <data name="ServerLoad_CpusOther" xml:space="preserve">
+    <value>{0} CPUs</value>
+  </data>
+  <data name="ServerLoad_TileActiveSessions" xml:space="preserve">
+    <value>Aktive Sessions</value>
+  </data>
+  <data name="ServerLoad_TileActiveSessionsHint" xml:space="preserve">
+    <value>im Mittel – über {0} warten Sessions auf CPU</value>
+  </data>
+  <data name="ServerLoad_TileDbCpu" xml:space="preserve">
+    <value>DB-Zeit auf CPU</value>
+  </data>
+  <data name="ServerLoad_TileDbCpuHint" xml:space="preserve">
+    <value>der Rest ist Warten</value>
+  </data>
+  <data name="ServerLoad_TileExecutions" xml:space="preserve">
+    <value>Ausführungen/s</value>
+  </data>
+  <data name="ServerLoad_TileExecutionsHint" xml:space="preserve">
+    <value>{0} Commits/s · {1} Logical Reads/s</value>
+  </data>
+  <data name="ServerLoad_TileTopWaitHint" xml:space="preserve">
+    <value>Sessions warten im Mittel</value>
+  </data>
+  <data name="ServerLoad_TileNoWait" xml:space="preserve">
+    <value>Kein Warten</value>
+  </data>
+  <data name="ServerLoad_ActivityTitle" xml:space="preserve">
+    <value>Was die aktiven Sessions seit dem Blick davor im Mittel taten: auf CPU oder wartend, je Warteklasse</value>
+  </data>
+  <data name="ServerLoad_NoActivity" xml:space="preserve">
+    <value>Keine Session war aktiv.</value>
+  </data>
+  <data name="ServerLoad_History" xml:space="preserve">
+    <value>Letzte Stunde</value>
+  </data>
+  <data name="ServerLoad_AxisNow" xml:space="preserve">
+    <value>jetzt</value>
+  </data>
+  <data name="ServerLoad_LegendActive" xml:space="preserve">
+    <value>aktiv</value>
+  </data>
+  <data name="ServerLoad_LegendOnCpu" xml:space="preserve">
+    <value>auf CPU</value>
+  </data>
+  <data name="ServerLoad_Statements" xml:space="preserve">
+    <value>Top-Statements</value>
+  </data>
+  <data name="ServerLoad_ModeWindow" xml:space="preserve">
+    <value>Zeitfenster</value>
+  </data>
+  <data name="ServerLoad_ModeWindowTitle" xml:space="preserve">
+    <value>Was die Statements taten, während diese Seite zuschaute</value>
+  </data>
+  <data name="ServerLoad_ModeSinceLoad" xml:space="preserve">
+    <value>Seit Laden</value>
+  </data>
+  <data name="ServerLoad_ModeSinceLoadTitle" xml:space="preserve">
+    <value>Werte seit dem Laden jedes Statements in den Shared Pool (V$SQLAREA), wie die Berichte von SQL Developer – ein altes Statement summiert sich über Wochen</value>
+  </data>
+  <data name="ServerLoad_WindowSinceOpened" xml:space="preserve">
+    <value>Seit Öffnen</value>
+  </data>
+  <data name="ServerLoad_WindowLast" xml:space="preserve">
+    <value>Letzte {0} min</value>
+  </data>
+  <data name="ServerLoad_FilterSchema" xml:space="preserve">
+    <value>Nur Statements, deren Parsing-Schema dies enthält</value>
+  </data>
+  <data name="ServerLoad_FilterModule" xml:space="preserve">
+    <value>Nur Statements, deren Modul dies enthält</value>
+  </data>
+  <data name="ServerLoad_ReadingList" xml:space="preserve">
+    <value>Liste wird gelesen …</value>
+  </data>
+  <data name="ServerLoad_NoStatementsYet" xml:space="preserve">
+    <value>In diesem Zeitfenster lief noch kein Statement.</value>
+  </data>
+  <data name="ServerLoad_NoStatements" xml:space="preserve">
+    <value>Kein Statement passt.</value>
+  </data>
+  <data name="ServerLoad_ColumnStatement" xml:space="preserve">
+    <value>Statement</value>
+  </data>
+  <data name="ServerLoad_ColumnSchema" xml:space="preserve">
+    <value>Schema</value>
+  </data>
+  <data name="ServerLoad_ColumnModule" xml:space="preserve">
+    <value>Modul</value>
+  </data>
+  <data name="ServerLoad_ColumnExecutions" xml:space="preserve">
+    <value>Ausführungen</value>
+  </data>
+  <data name="ServerLoad_ColumnCpuPerExecution" xml:space="preserve">
+    <value>CPU/Ausf.</value>
+  </data>
+  <data name="ServerLoad_ColumnElapsed" xml:space="preserve">
+    <value>Zeit</value>
+  </data>
+  <data name="ServerLoad_ColumnElapsedPerExecution" xml:space="preserve">
+    <value>Zeit/Ausf.</value>
+  </data>
+  <data name="ServerLoad_ColumnGetsPerExecution" xml:space="preserve">
+    <value>Gets/Ausf.</value>
+  </data>
+  <data name="ServerLoad_ColumnRows" xml:space="preserve">
+    <value>Zeilen</value>
+  </data>
+  <data name="ServerLoad_ColumnPlans" xml:space="preserve">
+    <value>Pläne</value>
+  </data>
+  <data name="ServerLoad_ColumnLastActive" xml:space="preserve">
+    <value>Zuletzt aktiv</value>
+  </data>
+  <data name="ServerLoad_ColumnText" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="ServerLoad_SortTitle" xml:space="preserve">
+    <value>Danach sortieren, die größten zuerst</value>
+  </data>
+  <data name="ServerLoad_Plans" xml:space="preserve">
+    <value>{0} Pläne</value>
+  </data>
+  <data name="ServerLoad_NoText" xml:space="preserve">
+    <value>(kein Text)</value>
+  </data>
+  <data name="ServerLoad_AppBadgeTitle" xml:space="preserve">
+    <value>Deine App führt dieses Statement aus (Statements der App)</value>
+  </data>
+  <data name="ServerLoad_LookingUp" xml:space="preserve">
+    <value>Text, Werte und Plan werden gelesen …</value>
+  </data>
+  <data name="ServerLoad_CursorSinceLoad" xml:space="preserve">
+    <value>Diese Werte zählen seit dem Laden des Statements in den Shared Pool, für alle Sessions.</value>
+  </data>
+  <data name="ServerLoad_NotInPool" xml:space="preserve">
+    <value>Das Statement ist nicht mehr im Shared Pool.</value>
+  </data>
+  <data name="ServerLoad_NotWatching" xml:space="preserve">
+    <value>Die Seite hat gerade keine Session zum Server – „Aktualisieren“ öffnet eine.</value>
+  </data>
+  <data name="ServerLoad_TimedOut" xml:space="preserve">
+    <value>Die Datenbank hat nicht innerhalb von 30 s geantwortet.</value>
+  </data>
+  <data name="ServerLoad_Sessions" xml:space="preserve">
+    <value>Aktive Sessions jetzt</value>
+  </data>
+  <data name="ServerLoad_NoSessions" xml:space="preserve">
+    <value>Keine andere Session führt gerade etwas aus.</value>
+  </data>
+  <data name="ServerLoad_SessionUser" xml:space="preserve">
+    <value>Benutzer</value>
+  </data>
+  <data name="ServerLoad_SessionMachine" xml:space="preserve">
+    <value>OS-Benutzer @ Rechner</value>
+  </data>
+  <data name="ServerLoad_SessionStatement" xml:space="preserve">
+    <value>Statement</value>
+  </data>
+  <data name="ServerLoad_SessionWaiting" xml:space="preserve">
+    <value>Wartet auf</value>
+  </data>
+  <data name="ServerLoad_SessionInCall" xml:space="preserve">
+    <value>Im Aufruf</value>
+  </data>
+  <data name="ServerLoad_SessionBlockedBy" xml:space="preserve">
+    <value>Blockiert von</value>
+  </data>
+  <data name="ServerLoad_OnCpu" xml:space="preserve">
+    <value>auf CPU</value>
+  </data>
+  <data name="ServerLoad_OwnWorkspace" xml:space="preserve">
+    <value>Dein Workspace „{0}“</value>
+  </data>
+  <data name="ServerLoad_ShowStatement" xml:space="preserve">
+    <value>Dieses Statement zeigen</value>
+  </data>
+  <data name="ServerLoad_License" xml:space="preserve">
+    <value>Nur Views außerhalb von Diagnostics und Tuning Pack: kein ASH, kein AWR, kein SQL-Monitor.</value>
+  </data>
+</root>
