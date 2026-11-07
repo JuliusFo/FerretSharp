@@ -103,7 +103,12 @@ public sealed partial class WorkspaceEditing
             : new KeyChangeQuestion(id, tab, [.. changes.Select(o => o.Change.Id)], references, duringCommit) { RedoOf = redoOf };
     }
 
-    /// <summary>One relationship's rows; a refusal of Oracle (no rights on the table …) is shown, not thrown – the user decides.</summary>
+    /// <summary>
+    /// One relationship's rows. Whatever keeps it from being counted – Oracle refuses (no rights), the relationship no longer
+    /// fits the table (a column renamed: the filter check refuses), a value that does not fit the column – is shown, not
+    /// thrown: the user decides (review of `small-pk-edit`, 1: a refused filter stopped every write). Only a cancel and a lost
+    /// connection go on.
+    /// </summary>
     private static async Task<FkCount> CountAsync(SchemaCache schema, ActiveConnection active, IDataAccess data, FkJump jump)
     {
         if (jump.Unavailable is { } reason)
@@ -118,7 +123,7 @@ public sealed partial class WorkspaceEditing
                 ? new FkCount.Done(rows)
                 : new FkCount.TimedOut();
         }
-        catch (DatabaseException ex) when (!ex.IsConnectionLost)
+        catch (Exception ex) when (ex is not OperationCanceledException and not DatabaseException { IsConnectionLost: true })
         {
             return new FkCount.Failed(ex.Message);
         }

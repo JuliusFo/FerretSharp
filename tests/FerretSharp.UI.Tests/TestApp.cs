@@ -74,6 +74,9 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>The declared foreign keys of the fake schema; none unless a test adds some before connecting.</summary>
     public IReadOnlyList<ForeignKeyInfo> ForeignKeys { get; set; } = [];
 
+    /// <summary>The structure of tables other than KUNDEN by name; KUNDEN's (<see cref="KundenDetails"/>) for any other.</summary>
+    public Dictionary<string, TableDetails> OtherDetails { get; } = [];
+
     /// <summary>Rows a count on a workspace session finds (FK counts, references of changed keys); none unless a test says otherwise.</summary>
     public Func<IReadOnlyList<FilterCondition>, long> CountRows { get; set; } = _ => 0;
 
@@ -221,7 +224,8 @@ internal sealed class TestApp : IAsyncDisposable
         var reader = FakeDatabase.Reader(Kunden);
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => Tables);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
-        reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(_ => KundenDetails);
+        reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>())
+            .Returns(call => OtherDetails.GetValueOrDefault(call.Arg<TableSummary>().Name) ?? KundenDetails);
         reader.GetLockHoldersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(_ => LockHolders);
         reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(_ => ForeignKeys);
         var editor = new FakeDataEditor(() => OnCommit, sql =>
@@ -248,7 +252,12 @@ internal sealed class TestApp : IAsyncDisposable
                 ? ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>())
                 : throw new InvalidOperationException("Only plain queries are read (review 3.40.0, C1: as the session refuses them)."));
         data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<CancellationToken>())
-            .Returns(call => CountRows(call.Arg<IReadOnlyList<FilterCondition>>()));
+            .Returns(call =>
+            {
+                // The filters are checked like the session does (review of `small-pk-edit`, 1: a refused filter got past the tests).
+                QueryBuilder.BuildCount(call.Arg<TableDetails>(), call.Arg<IReadOnlyList<FilterCondition>>());
+                return CountRows(call.Arg<IReadOnlyList<FilterCondition>>());
+            });
         var connection = FakeDatabase.Connection(reader);
         connection.SessionTag.Returns("FerretSharp " + Guid.NewGuid().ToString("N")[..12]); // like the app: one tag per session (WP-52)
         connection.Data.Returns(data);

@@ -22,7 +22,22 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
     private static readonly ForeignKeyInfo AuftragKunde = new(
         "FK_AUFTRAG_KUNDE", new TableRef("APP_USER", "AUFTRAG"), ["KUNDE_ID"], new TableRef("APP_USER", "KUNDEN"), ["ID"], FkSource.Declared);
 
-    private readonly TestApp _app = new() { ForeignKeys = [AuftragKunde] };
+    private static readonly TableDetails Auftrag = new(
+        new TableSummary("APP_USER", "AUFTRAG", TableKind.Table),
+        [
+            new ColumnInfo("ID", "NUMBER", null, false, 10, 0, false, false, null, 1),
+            new ColumnInfo("KUNDE_ID", "NUMBER", null, false, 10, 0, true, false, null, 2),
+        ],
+        ["ID"], [], false);
+
+    private readonly TestApp _app = NewApp();
+
+    private static TestApp NewApp()
+    {
+        var app = new TestApp { ForeignKeys = [AuftragKunde] };
+        app.OtherDetails["AUFTRAG"] = Auftrag;
+        return app;
+    }
 
     private static RowData Row(decimal id, string name) => new(new RowKey.PrimaryKey([id]), [id, name]);
 
@@ -115,6 +130,26 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
 
         var failed = Assert.IsType<FkCount.Failed>(Assert.Single(_app.Editing.KeyQuestion!.References).Count);
         Assert.StartsWith("ORA-00942", failed.Message);
+        await _app.Editing.AnswerKeyQuestionAsync(write: true);
+        Assert.Equal(1, tab.Changes.FlushedCount);
+    }
+
+    /// <summary>
+    /// Review of `small-pk-edit`, 1: a relationship that no longer fits its table (here: the column is gone) made the filter
+    /// check refuse – not an Oracle error, so it stopped every write instead of being shown as not counted.
+    /// </summary>
+    [Fact]
+    public async Task A_relationship_the_table_no_longer_has_the_column_of_is_shown_as_not_counted()
+    {
+        var (workspace, tab, _) = await OpenAsync();
+        _app.OtherDetails["AUFTRAG"] = Auftrag with { Columns = [Auftrag.Columns[0]] };
+        tab.Changes!.SetValue(Row(1, "Meier"), 0, "7");
+
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+
+        Assert.Null(_app.Shell.ErrorDetails);
+        var failed = Assert.IsType<FkCount.Failed>(Assert.Single(_app.Editing.KeyQuestion!.References).Count);
+        Assert.Contains("KUNDE_ID", failed.Message);
         await _app.Editing.AnswerKeyQuestionAsync(write: true);
         Assert.Equal(1, tab.Changes.FlushedCount);
     }
