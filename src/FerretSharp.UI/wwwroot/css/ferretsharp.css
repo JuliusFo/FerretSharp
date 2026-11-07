@@ -1907,7 +1907,8 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .settings-layout { display: flex; align-items: flex-start; gap: 20px; max-width: 1340px; margin: 0 auto; }
 .settings-nav { position: sticky; top: 0; flex: none; width: 220px; display: flex; flex-direction: column; gap: 2px; padding-top: 12px; }
 .settings-nav .settings-search { margin-bottom: 8px; }
-.settings-nav-item { text-align: left; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.settings-nav-item { display: flex; align-items: center; gap: 8px; text-align: left; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.settings-nav-item .icon { flex: none; width: 16px; height: 16px; }
 .settings-nav-item:hover { background: var(--hover); color: var(--text); }
 .settings-nav-item.active { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
 .settings-nav-item.dim { color: var(--faint); }
