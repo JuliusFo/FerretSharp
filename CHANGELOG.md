@@ -7,8 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Added
 - The log notes the sizes along the way from the page to the screen whenever the window changes size or state – window, browser, page, the last picture captured and the picture shown –, and when the picture shown takes a new size. Over Remote Desktop the window sometimes stayed empty after the start or showed the picture of the previous size until it was minimized; these lines show where the size gets stuck.
+- Drag a tab to another place in the tab bar: before or after another tab, the pinned ones among themselves. Near an end the bar scrolls along; the order is kept with the workspace.
+- The tab bar can show several rows (*Settings › Appearance › Tab bar*): the tabs wrap in their order and no row moves when you switch tabs; past three rows the bar scrolls up and down. One row that scrolls sideways stays the default.
 
 ### Changed
+- Scrollbars are easier to grab: the thumb is twice as wide (8px instead of 4px), in the explorer, the grid and everywhere else. The tab bar's thumb, shown while the mouse is over the bar, now really shows – before it stayed invisible in the app.
 - Each section in the list of the settings page has an icon in front of its name, so a section is found at a glance.
 - The list of ways beside the diagram of *Relations › Path to …* and the side panel of *Relations › Build query* can be made wider or narrower like the other side panels: drag the edge toward the diagram, a double click goes back to the default. Each width holds for every relationship view and is kept after a restart.
 - A new empty SQL or LINQ tab ("+ SQL", "+ LINQ" and their shortcuts) opens at the end of the tab list, beside the buttons, instead of after the active tab. One opened with a statement or code – "Open in SQL editor", a query from the diagram – still opens after the active tab. When the bar is full, it scrolls far enough to keep the buttons in view.

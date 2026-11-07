@@ -23,6 +23,9 @@ public static class SettingsOptions
         [(CodeEditor.VisualStudio, SettingsViewText.Settings_CodeEditorVisualStudio), (CodeEditor.VsCode, SettingsViewText.Settings_CodeEditorVsCode),
             (CodeEditor.System, SettingsViewText.Settings_CodeEditorSystem)];
 
+    public static IReadOnlyList<(TabBarLayout Layout, string Label)> TabBars =>
+        [(TabBarLayout.SingleRow, SettingsViewText.Settings_TabBarSingleRow), (TabBarLayout.MultiRow, SettingsViewText.Settings_TabBarMultiRow)];
+
     public static IReadOnlyList<(int Seconds, string Label)> LockWaits => [.. new[] { 1, 3, 5, 10, 30 }.Select(s => (s, $"{s} s"))];
 
     public static IReadOnlyList<(FkCountMode Mode, string Label)> FkCounts =>

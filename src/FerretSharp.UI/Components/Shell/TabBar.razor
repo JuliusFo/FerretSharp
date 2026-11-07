@@ -1,11 +1,14 @@
 @* The tabs of the active workspace (R2, out of Shell.razor): table tabs with their filters and change dot, PL/SQL tabs, SQL and LINQ
-   tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
+   tabs that can be renamed, and the buttons for new SQL/LINQ tabs. One row or several (setting "Tab bar"); tabs are dragged
+   to another place within their group (small-tab-bar-rework). *@
 @using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Settings
 @implements IAsyncDisposable
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
 @inject IJSRuntime JS
 
-<nav class="tabs" @ref="_bar">
+<nav class="tabs @(_layout == TabBarLayout.MultiRow ? "multi" : "")" @ref="_bar">
     @if (Shell.Tabs.Any(t => t.Pinned))
     {
         @* WP-34: the pinned tabs stay at the left while the bar scrolls. *@
@@ -109,8 +112,8 @@
 
     /// <summary>One tab, in the pinned group or after it.</summary>
     private RenderFragment TabItem(WorkspaceTab tab) =>
-        @<div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "") @(tab.Pinned ? "pinned" : "")" title="@Tooltip(tab)"
-             @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)"
+        @<div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "") @(tab.Pinned ? "pinned" : "")" title="@Tooltip(tab)" data-drop="@tab.Id"
+             @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)" @onpointerdown="e => DragAsync(tab, e)"
              @oncontextmenu="e => OpenMenuAsync(e, tab)" @oncontextmenu:preventDefault="true">
             @switch (tab)
             {
@@ -171,12 +174,12 @@
             @if (tab.Pinned)
             {
                 @* WP-34: a pinned tab shows its pin where others have ✕; a click unpins it (closing stays in the menu and the shortcut). *@
-                <button class="tab-close tab-pin" title="@ShellText.TabBar_UnpinTitle"
+                <button class="tab-close tab-pin" title="@ShellText.TabBar_UnpinTitle" @onpointerdown:stopPropagation="true"
                         @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => Shell.SetPinned(tab, false)">@Icons.Pin</button>
             }
             else
             {
-                <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))"
+                <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))" @onpointerdown:stopPropagation="true"
                         @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">@Icons.Close</button>
             }
         </div>;
@@ -381,6 +384,55 @@
     /// <summary>The presentation subscribed to: the shown connection's, which changes on a switch.</summary>
     private PresentationService? _presentations;
 
+    /// <summary>One row or several, as last rendered.</summary>
+    private TabBarLayout _layout;
+
+    protected override void OnInitialized()
+    {
+        _layout = Settings.Current.TabBar;
+        Settings.Changed += OnSettingsChanged;
+    }
+
+    /// <summary>Renders only for the tab bar's own setting (any setting raises the event).</summary>
+    private void OnSettingsChanged()
+    {
+        if (Settings.Current.TabBar != _layout)
+        {
+            InvokeAsync(() =>
+            {
+                _layout = Settings.Current.TabBar;
+                StateHasChanged();
+            });
+        }
+    }
+
+    /// <summary>
+    /// Drags the tab before or after another of its group (pinned or not); a click without moving stays a click, and the
+    /// ✕ or pin does not start a drag. The moved tab becomes the active one. Not while the tab is being renamed: the mouse
+    /// selects text in the field there.
+    /// </summary>
+    private async Task DragAsync(WorkspaceTab tab, PointerEventArgs e)
+    {
+        if (e.Button != 0 || _renaming == tab)
+        {
+            return;
+        }
+
+        var drop = await Dom.InvokeAsync<string?>("dragTab", _bar, e.PointerId, e.ClientX, e.ClientY, tab.Id);
+        var cut = drop?.LastIndexOf(':') ?? -1;
+        if (_disposed || drop is null || cut <= 0 || Shell.Tabs.FirstOrDefault(t => t.Id == drop[..cut]) is not { } target)
+        {
+            return;
+        }
+
+        // One change for moving and activating (code review #5); a drop that could not move (the tab went to another
+        // group or workspace meanwhile) still activates it.
+        if (!Shell.MoveTab(tab, target, after: drop[(cut + 1)..] == "after", activate: true) && Shell.ActiveTab != tab)
+        {
+            Shell.ActivateTab(tab);
+        }
+    }
+
     /// <summary>A new model or name setting: titles and tooltips follow (the shell no longer renders for it).</summary>
     protected override void OnParametersSet()
     {
@@ -401,6 +453,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        Settings.Changed -= OnSettingsChanged;
         await Dom.DisposeAsync();
         if (_presentations is not null)
         {

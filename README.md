@@ -56,6 +56,8 @@ developer works with an Oracle database day to day:
   copy its name, `OWNER.NAME`, entity or link. A tab can be duplicated with its filters or shown in the explorer.
 - Drag the explorer wider or narrower (for every connection) and the SQL and LINQ editors taller or lower (each tab its
   own height) – kept after a restart; a double click on the edge goes back to the default.
+- Drag tabs into the order you like; many tabs in one row that scrolls sideways or in several rows (*Settings ›
+  Appearance*).
 - **Quick open and command palette**: one box at the top of the window – type a name to open a table, view or PL/SQL
   (also by its C# entity name), or ">" to find an action with its shortcut.
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,

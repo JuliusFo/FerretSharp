@@ -51,6 +51,18 @@
   <data name="Settings_ExplorerViewsHint" xml:space="preserve">
     <value>Der Explorer listet Views und Materialized Views in einem eigenen Bereich – Tabellen | Views | PL/SQL – statt bei den Tabellen. Die Namenssuche nennt weiterhin die Treffer in den anderen Bereichen.</value>
   </data>
+  <data name="Settings_TabBar" xml:space="preserve">
+    <value>Tab-Leiste</value>
+  </data>
+  <data name="Settings_TabBarHint" xml:space="preserve">
+    <value>Wenn mehr Tabs offen sind, als hineinpassen: eine Zeile, die seitwärts scrollt (Mausrad), oder mehrere Zeilen in der Reihenfolge der Tabs – beim Wechseln des Tabs springt keine Zeile. Ab drei Zeilen scrollt die Leiste auf und ab.</value>
+  </data>
+  <data name="Settings_TabBarSingleRow" xml:space="preserve">
+    <value>Eine Zeile</value>
+  </data>
+  <data name="Settings_TabBarMultiRow" xml:space="preserve">
+    <value>Mehrere Zeilen</value>
+  </data>
   <data name="Settings_DataView" xml:space="preserve">
     <value>Datenansicht</value>
   </data>

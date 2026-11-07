@@ -56,6 +56,18 @@
   <data name="Settings_ExplorerViewsHint" xml:space="preserve">
     <value>The explorer lists views and materialized views in a section of their own – Tables | Views | PL/SQL – instead of with the tables. The name search still names the hits in the other sections.</value>
   </data>
+  <data name="Settings_TabBar" xml:space="preserve">
+    <value>Tab bar</value>
+  </data>
+  <data name="Settings_TabBarHint" xml:space="preserve">
+    <value>When more tabs are open than fit: one row that scrolls sideways (mouse wheel), or several rows in the order of the tabs – no row moves when you switch tabs. Past three rows the bar scrolls up and down.</value>
+  </data>
+  <data name="Settings_TabBarSingleRow" xml:space="preserve">
+    <value>One row</value>
+  </data>
+  <data name="Settings_TabBarMultiRow" xml:space="preserve">
+    <value>Several rows</value>
+  </data>
   <data name="Settings_DataView" xml:space="preserve">
     <value>Data view</value>
     <comment>Settings section: the grid of a table and the result of a query</comment>

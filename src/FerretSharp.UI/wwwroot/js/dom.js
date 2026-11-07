@@ -297,6 +297,11 @@ export function dragToDrop(root, pointerId, selector, hoverClass) {
  * to the row as usual.
  */
 export function dragAfter(root, pointerId, startX, startY, selector, hoverClass, threshold = 5) {
+  return movedAway(pointerId, startX, startY, threshold).then(moved => (moved ? dragToDrop(root, pointerId, selector, hoverClass) : null));
+}
+
+/** Resolves true once the pointer moved `threshold` pixels with the button down, false when it was released before. */
+function movedAway(pointerId, startX, startY, threshold) {
   return new Promise(resolve => {
     const stop = () => {
       document.removeEventListener('pointermove', wait, true);
@@ -306,7 +311,7 @@ export function dragAfter(root, pointerId, startX, startY, selector, hoverClass,
     const release = e => {
       if (e.pointerId !== pointerId) return;
       stop();
-      resolve(null);
+      resolve(false);
     };
     const wait = e => {
       if (e.pointerId !== pointerId) return;
@@ -317,11 +322,116 @@ export function dragAfter(root, pointerId, startX, startY, selector, hoverClass,
       if (Math.hypot(e.clientX - startX, e.clientY - startY) < threshold) return;
       stop();
       window.getSelection()?.removeAllRanges();
-      dragToDrop(root, pointerId, selector, hoverClass).then(resolve);
+      resolve(true);
     };
     document.addEventListener('pointermove', wait, true);
     document.addEventListener('pointerup', release, true);
     document.addEventListener('pointercancel', release, true);
+  });
+}
+
+/**
+ * Drags a tab in the tab bar (small-tab-bar-rework) once the pointer moved 5 pixels; released before, the click goes to
+ * the tab as usual. Tabs carry their id in data-drop; targets are the tabs of the dragged one's group (pinned or not), the
+ * half under the pointer says the side, shown as a line (`drop-before`/`drop-after`). Near an end of the bar it scrolls –
+ * sideways in one row, up and down in several. Resolves with "id:before" or "id:after" when released over a tab, else null.
+ */
+export function dragTab(bar, pointerId, startX, startY, sourceId) {
+  return movedAway(pointerId, startX, startY, 5).then(moved => {
+    const source = moved ? [...bar.querySelectorAll('.tab[data-drop]')].find(t => t.dataset.drop === sourceId) : null;
+    if (!source) return null;
+    const selector = source.classList.contains('pinned') ? '.tab.pinned[data-drop]' : '.tab:not(.pinned)[data-drop]';
+    return new Promise(resolve => {
+      let over = null;
+      let side = null;
+      let x = startX;
+      let y = startY;
+      const mark = (target, newSide) => {
+        if (target === over && newSide === side) return;
+        over?.classList.remove('drop-before', 'drop-after');
+        over = target;
+        side = newSide;
+        over?.classList.add(side === 'after' ? 'drop-after' : 'drop-before');
+      };
+      const find = () => {
+        const target = document.elementFromPoint(x, y)?.closest(selector) ?? null;
+        if (!target || !bar.contains(target)) {
+          mark(null, null);
+          return;
+        }
+        const rect = target.getBoundingClientRect();
+        mark(target, x < rect.left + rect.width / 2 ? 'before' : 'after');
+      };
+      // Scrolls while the pointer rests near an end, a step every 30 ms; pointer moves alone would not scroll on.
+      const edge = 28;
+      const timer = setInterval(() => {
+        // The bar went away while dragging (disconnected, another connection shown): its own `lostpointercapture` never
+        // comes then (it goes to the document), and the timer ran on for the page's lifetime (code review #2).
+        if (!bar.isConnected) {
+          end();
+          return;
+        }
+        const rect = bar.getBoundingClientRect();
+        if (bar.classList.contains('multi')) {
+          const step = y < rect.top + 10 ? -8 : y > rect.top + bar.clientHeight - 10 ? 8 : 0;
+          if (step === 0) return;
+          bar.scrollTop += step;
+        } else {
+          const pinned = source.classList.contains('pinned') ? 0 : bar.querySelector('.tabs-pinned')?.offsetWidth ?? 0;
+          const step = x < rect.left + pinned + edge ? -12 : x > rect.left + bar.clientWidth - edge ? 12 : 0;
+          if (step === 0) return;
+          bar.scrollLeft += step;
+        }
+        find();
+      }, 30);
+      let done = false;
+      const end = e => {
+        if (done) return;
+        done = true;
+        clearInterval(timer);
+        if (e?.type === 'pointerup') {
+          // Where it is released counts: the last move may lie a few pixels before, on the other half of a tab.
+          x = e.clientX;
+          y = e.clientY;
+          find();
+        }
+        bar.removeEventListener('pointermove', onMove);
+        bar.removeEventListener('pointerup', end);
+        bar.removeEventListener('pointercancel', end);
+        bar.removeEventListener('lostpointercapture', end);
+        bar.classList.remove('dragging');
+        source.classList.remove('drag-source');
+        const drop = e?.type === 'pointerup' && over?.dataset.drop ? `${over.dataset.drop}:${side}` : null;
+        mark(null, null);
+        if (bar.hasPointerCapture(pointerId)) bar.releasePointerCapture(pointerId);
+        resolve(drop);
+      };
+      const onMove = e => {
+        if ((e.buttons & 1) === 0) {
+          end(e); // the button came up unseen: no drop
+          return;
+        }
+        x = e.clientX;
+        y = e.clientY;
+        find();
+      };
+      try {
+        bar.setPointerCapture(pointerId);
+      } catch {
+        // released before the capture: nothing to drag
+      }
+      if (!bar.hasPointerCapture(pointerId)) {
+        clearInterval(timer);
+        resolve(null);
+        return;
+      }
+      bar.classList.add('dragging');
+      source.classList.add('drag-source');
+      bar.addEventListener('pointermove', onMove);
+      bar.addEventListener('pointerup', end);
+      bar.addEventListener('pointercancel', end);
+      bar.addEventListener('lostpointercapture', end);
+    });
   });
 }
 
@@ -442,11 +552,12 @@ export function shareHeight(element, property) {
   update();
 }
 
-/** Makes the tab bar easy to scroll, its scrollbar being thin: the mouse wheel scrolls it sideways (a plain wheel only
- *  scrolls vertically, the bar could only be reached with Shift), and a newly activated tab – opened, or picked by
- *  shortcut – is scrolled into view next to the pinned group, which stays at the left (sticky). Only a change of the
- *  active tab scrolls, so a bar scrolled away by hand stays put while the tabs re-render. The class `hover` shows the
- *  thumb: Chromium does not repaint it for `:hover` on the bar. */
+/** Makes the tab bar easy to scroll: the mouse wheel scrolls it sideways (a plain wheel only scrolls vertically, the bar
+ *  could only be reached with Shift), and a newly activated tab – opened, or picked by shortcut – is scrolled into view
+ *  next to the pinned group, which stays at the left (sticky). With several rows (class `multi`) the wheel scrolls the
+ *  rows as usual and the tab's row comes into view. Only a change of the active tab scrolls, so a bar scrolled away by
+ *  hand stays put while the tabs re-render. The class `hover` shows the thumb: Chromium does not repaint it for `:hover`
+ *  on the bar. */
 export function scrollableTabs(element) {
   if (!element || element._scrollableTabs) {
     return;
@@ -457,7 +568,9 @@ export function scrollableTabs(element) {
 
   element.addEventListener('wheel', e => {
     const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    if (e.ctrlKey || delta === 0 || element.scrollWidth <= element.clientWidth) {
+    // Several rows: the wheel scrolls the rows. Not by the widths – a tab wider than the bar made it scroll sideways
+    // there, with no scrollbar back (code review #1).
+    if (e.ctrlKey || delta === 0 || element.classList.contains('multi') || element.scrollWidth <= element.clientWidth) {
       return;
     }
     e.preventDefault();
@@ -465,17 +578,35 @@ export function scrollableTabs(element) {
   }, { passive: false });
 
   let shown = null;
+  let shownMulti = null;
   const reveal = () => {
     const tab = element.querySelector('.tab.active');
-    if (tab === shown) {
+    const multi = element.classList.contains('multi');
+    // Hidden (the settings page in front, where the layout is switched): later, once the bar shows again (ResizeObserver).
+    if ((tab === shown && multi === shownMulti) || element.clientWidth === 0) {
       return;
     }
     shown = tab;
-    if (!tab || tab.classList.contains('pinned')) {
+    shownMulti = multi; // one row ↔ several: the active tab comes into view in the new layout
+
+    if (!tab) {
       return;
     }
     const bar = element.getBoundingClientRect();
     const rect = tab.getBoundingClientRect();
+    // Several rows (setting "Tab bar"): its row comes into view, the rows themselves never move.
+    if (multi) {
+      const bottom = bar.top + element.clientHeight;
+      if (rect.top < bar.top) {
+        element.scrollTop -= bar.top - rect.top;
+      } else if (rect.bottom > bottom) {
+        element.scrollTop += rect.bottom - bottom;
+      }
+      return;
+    }
+    if (tab.classList.contains('pinned')) {
+      return;
+    }
     const left = bar.left + (element.querySelector('.tabs-pinned')?.offsetWidth ?? 0);
     const right = bar.left + element.clientWidth;
     // The last tab brings the buttons for new tabs with it: an empty SQL/LINQ tab opens there, the next click needs them.
@@ -488,6 +619,7 @@ export function scrollableTabs(element) {
     }
   };
   new MutationObserver(reveal).observe(element, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  new ResizeObserver(reveal).observe(element);
   element._scrollableTabs = true;
   reveal();
 }

@@ -522,6 +522,46 @@ public sealed partial class ShellState
         workspace.Tabs.Insert(workspace.PinnedCount, tab);
     });
 
+    /// <summary>
+    /// Moves a tab before or after another one of its workspace (dragged in the tab bar). Only within its group: a pinned
+    /// tab among the pinned ones, another among the others, so the pinned ones stay first (WP-34); pinning stays with the
+    /// menu, the pin and the shortcut. With <paramref name="activate"/> the tab also becomes the active one, in the same
+    /// change (a drop: one render, code review #5). Returns false if nothing moved – then nothing is activated either,
+    /// except on its own place (dropped after its left neighbor, before its right one).
+    /// </summary>
+    public bool MoveTab(WorkspaceTab tab, WorkspaceTab target, bool after, bool activate = false)
+    {
+        if (tab.WorkspaceId != target.WorkspaceId || tab.Pinned != target.Pinned
+            || FindWorkspace(tab.WorkspaceId) is not { } workspace || !workspace.Tabs.Contains(target) || !workspace.Tabs.Contains(tab))
+        {
+            return false;
+        }
+
+        var moved = false;
+        if (tab != target)
+        {
+            var from = workspace.Tabs.IndexOf(tab);
+            workspace.Tabs.RemoveAt(from);
+            var to = workspace.Tabs.IndexOf(target) + (after ? 1 : 0);
+            workspace.Tabs.Insert(to, tab);
+            moved = to != from;
+        }
+
+        var activated = activate && workspace.ActiveTab != tab;
+        if (activated)
+        {
+            tab.Visited = true;
+            workspace.ActiveTab = tab;
+        }
+
+        if (moved || activated)
+        {
+            NotifyChanged();
+        }
+
+        return moved;
+    }
+
     /// <summary>Closes a tab of any open workspace (an error in a background connection's tab offers to close it too).</summary>
     public void CloseTab(WorkspaceTab tab) => Set(() =>
     {
