@@ -317,4 +317,11 @@ public interface ISchemaReader
     /// </summary>
     /// <exception cref="Query.PlanUnavailableException">No read access to the V$ views.</exception>
     Task<Query.CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The same for a statement known by its SQL_ID (the server load, WP-75): its whole text from <c>V$SQLSTATS</c>, then
+    /// figures and plan; null if it left the shared pool.
+    /// </summary>
+    /// <exception cref="Query.PlanUnavailableException">No read access to the V$ views.</exception>
+    Task<Query.CursorInfo?> GetCursorByIdAsync(string sqlId, CancellationToken cancellationToken);
 }

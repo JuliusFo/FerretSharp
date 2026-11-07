@@ -20,4 +20,15 @@ internal static class Wait
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }
+
+    /// <summary>The same for a condition that asks something asynchronously (a database), polled every 200 ms.</summary>
+    public static async Task UntilAsync(Func<Task<bool>> condition, string what = "the condition")
+    {
+        var watch = Stopwatch.StartNew();
+        while (!await condition())
+        {
+            Assert.True(watch.Elapsed < Limit, $"Timed out waiting for {what}.");
+            await Task.Delay(200, TestContext.Current.CancellationToken);
+        }
+    }
 }

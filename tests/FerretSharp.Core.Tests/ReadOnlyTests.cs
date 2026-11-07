@@ -4,6 +4,7 @@ using FerretSharp.Core.Data;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.ServerLoad;
 
 namespace FerretSharp.Core.Tests;
 
@@ -174,7 +175,7 @@ public class ReadOnlyTests
         { typeof(IRowLookup), ["LookupAsync"] },
         {
             typeof(ISchemaReader), [
-                "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetDdlAsync", "GetDependenciesAsync",
+                "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetCursorByIdAsync", "GetDdlAsync", "GetDependenciesAsync",
                 "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetGrantsAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetNameTakenAsync", "GetNamesElsewhereAsync", "GetObjectInfoAsync",
                 "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetPrimaryKeysAsync", "GetSchemaGrantsAsync", "GetSchemaSynonymsAsync", "GetSessionActivityAsync", "GetSourceAsync", "GetSubprogramsAsync",
                 "GetSynonymTargetsAsync", "GetSynonymsAsync", "GetTableTriggersAsync", "GetTablesAsync", "GetTablespacesAsync", "GetTriggerColumnsAsync", "GetUserNamesAsync", "ReadSnapshotAsync", "SearchSourceAsync",
@@ -182,6 +183,11 @@ public class ReadOnlyTests
         },
         { typeof(IDatabaseConnection), ["PingIfIdleAsync", "SetActionAsync", "StopReadOnlySnapshotsAsync", "UseReadOnlySnapshotsAsync"] },
         { typeof(IDatabaseConnector), ["OpenAsync"] },
+        {
+            typeof(IServerLoadReader), [
+                "ReadActiveSessionsAsync", "ReadCountersAsync", "ReadEnvironmentAsync", "ReadStatementInfoAsync", "ReadStatementsAsync", "ReadTopSinceLoadAsync",
+            ]
+        },
     };
 
     /// <summary>
@@ -198,6 +204,7 @@ public class ReadOnlyTests
     [Theory]
     [InlineData(typeof(OracleDataAccess), typeof(IDataAccess))]
     [InlineData(typeof(OracleSchemaReader), typeof(ISchemaReader))]
+    [InlineData(typeof(OracleServerLoadReader), typeof(IServerLoadReader))]
     public void Oracle_classes_offer_nothing_beyond_their_interface(Type type, Type contract) =>
         Assert.Empty(PlainPublicMethods(type).Except(contract.GetInterfaces().Prepend(contract).SelectMany(PlainPublicMethods)));
 
