@@ -1,6 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Schema;
+using FerretSharp.Testing;
 using FerretSharp.UI.State;
 
 namespace FerretSharp.UI.Tests.State;
@@ -211,6 +212,27 @@ public sealed class KeyChangeQuestionTests : IAsyncDisposable
         tab.Changes.SetValue(Row(1, "Meier"), 0, "8");
         Assert.False(await _app.Editing.FlushAsync(workspace));
         Assert.NotNull(_app.Editing.KeyQuestion);
+    }
+
+    /// <summary>
+    /// Review of `small-pk-edit`, 8: while the linked C# model is not loaded, its relationships were missing and the key was
+    /// written without a word. It asks, saying what was not looked at – also when nothing else points to the key.
+    /// </summary>
+    [Fact]
+    public async Task A_linked_model_that_is_not_loaded_is_named_and_asked_about()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test") with { ClrModelFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.json") });
+        await Wait.UntilAsync(() => scope.Models.State.IsLinked, "the model file is linked");
+        var workspace = _app.WorkspaceOf(scope);
+        var tab = new TableTab(workspace.WorkspaceId, TestApp.Kunden) { Changes = new ChangeTracker(Kunden) };
+        workspace.Tabs.Add(tab);
+        tab.Changes.SetValue(Row(1, "Meier"), 0, "7"); // nothing counted behind the declared relationship
+
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+
+        var question = _app.Editing.KeyQuestion!;
+        Assert.Empty(question.References);
+        Assert.StartsWith("Die Beziehungen des C#-Modells", question.Unchecked);
     }
 
     public ValueTask DisposeAsync() => _app.DisposeAsync();

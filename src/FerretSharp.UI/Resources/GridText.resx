@@ -1753,4 +1753,10 @@
     <value>Not counted: counting took {0} s already.</value>
     <comment>{0}: seconds all counts may take together</comment>
   </data>
+  <data name="KeyChange_NoSchema" xml:space="preserve">
+    <value>The schema is not loaded: rows pointing to the old keys were not looked for.</value>
+  </data>
+  <data name="KeyChange_NoModel" xml:space="preserve">
+    <value>The relationships of the C# model are not loaded (yet): rows pointing to the old keys along them were not looked for.</value>
+  </data>
 </root>

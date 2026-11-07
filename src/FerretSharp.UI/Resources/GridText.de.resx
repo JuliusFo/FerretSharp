@@ -1380,4 +1380,10 @@
   <data name="KeyChange_BudgetSpent" xml:space="preserve">
     <value>Nicht mehr gezählt: Das Zählen hat schon {0} s gedauert.</value>
   </data>
+  <data name="KeyChange_NoSchema" xml:space="preserve">
+    <value>Das Schema ist nicht geladen – verweisende Zeilen wurden nicht gesucht.</value>
+  </data>
+  <data name="KeyChange_NoModel" xml:space="preserve">
+    <value>Die Beziehungen des C#-Modells sind (noch) nicht geladen – Verweise über sie wurden nicht gesucht.</value>
+  </data>
 </root>

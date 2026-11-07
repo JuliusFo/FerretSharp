@@ -27,6 +27,12 @@ public sealed record KeyChangeQuestion(
     /// <summary>The grid write a redo applied again: "write anyway" continues that redo.</summary>
     public Guid? RedoOf { get; init; }
 
+    /// <summary>
+    /// What could not be looked at at all: the schema or the C# model's relationships are not loaded (review of `small-pk-edit`,
+    /// 8: then nothing was asked); null if every relationship was.
+    /// </summary>
+    public string? Unchecked { get; init; }
+
     /// <summary>The values "write anyway" confirms per row (<see cref="RowChange.Id"/>): another value later is asked about again.</summary>
     internal IReadOnlyDictionary<Guid, IReadOnlyDictionary<int, object?>> Confirms { get; init; } = new Dictionary<Guid, IReadOnlyDictionary<int, object?>>();
 }
@@ -84,20 +90,38 @@ public sealed partial class WorkspaceEditing
         var id = workspace.WorkspaceId;
         var table = tab.Changes!.Table;
         var changes = KeyChanges.Of(table, operations).Where(o => !IsConfirmed(id, o)).ToList();
+        if (changes.Count == 0)
+        {
+            return null;
+        }
+
         var active = ScopeOf(id).Active;
-        if (changes.Count == 0 || active.Schema is not { } schema)
-        {
-            return null;
-        }
-
-        var jumps = KeyChanges.References(table, changes, schema.IncomingOf(table.Table.Ref));
-        if (jumps.Count == 0)
-        {
-            return null;
-        }
-
-        var data = await WorkspacesOf(id).GetDataAsync(id, CancellationToken.None);
+        var schema = active.Schema;
+        var gap = schema is null ? GridText.KeyChange_NoSchema
+            : ScopeOf(id).Models.State is { IsLinked: true, Mapping: null } ? GridText.KeyChange_NoModel // loading, or it failed
+            : null;
+        var jumps = schema is null ? [] : KeyChanges.References(table, changes, schema.IncomingOf(table.Table.Ref));
         var references = new List<KeyReference>();
+        if (jumps.Count > 0)
+        {
+            await CountReferencesAsync(id, schema!, active, jumps, references);
+        }
+
+        return references.Count == 0 && gap is null
+            ? null
+            : new KeyChangeQuestion(id, tab, [.. changes.Select(o => o.Change.Id)], references, duringCommit)
+            {
+                RedoOf = redoOf,
+                Unchecked = gap,
+                Confirms = changes.ToDictionary(o => o.Change.Id, o => (IReadOnlyDictionary<int, object?>)new Dictionary<int, object?>(o.Values)),
+            };
+    }
+
+    /// <summary>Counts the rows behind each jump into <paramref name="references"/>, leaving out those counted 0.</summary>
+    private async Task CountReferencesAsync(
+        Guid id, SchemaCache schema, ActiveConnection active, IReadOnlyList<FkJump> jumps, List<KeyReference> references)
+    {
+        var data = await WorkspacesOf(id).GetDataAsync(id, CancellationToken.None);
         var writes = RunningOn(id).Where(w => !w.Statement).ToList();
         SetCounting(writes, true);
         try
@@ -121,14 +145,6 @@ public sealed partial class WorkspaceEditing
         {
             SetCounting(writes, false);
         }
-
-        return references.Count == 0
-            ? null
-            : new KeyChangeQuestion(id, tab, [.. changes.Select(o => o.Change.Id)], references, duringCommit)
-            {
-                RedoOf = redoOf,
-                Confirms = changes.ToDictionary(o => o.Change.Id, o => (IReadOnlyDictionary<int, object?>)new Dictionary<int, object?>(o.Values)),
-            };
     }
 
     /// <summary>

@@ -10,6 +10,12 @@
             <span class="mono">@Question.Tab.Table.DisplayName</span> ·
             @TextFormat.Plural(Question.Changes.Count, GridText.KeyChange_RowsOne, GridText.KeyChange_RowsOther)
         </p>
+        @if (Question.Unchecked is { } gap)
+        {
+            <p class="warn-text">@gap</p>
+        }
+        @if (Question.References.Count > 0)
+        {
         <p>@GridText.KeyChange_Text</p>
         <table class="columns key-references">
             <thead>
@@ -40,6 +46,7 @@
                 }
             </tbody>
         </table>
+        }
         <p class="muted">@GridText.KeyChange_Hint</p>
         @if (Question.DuringCommit)
         {
