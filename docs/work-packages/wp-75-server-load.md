@@ -56,3 +56,11 @@ Der Reviewer prüfte die Fix-Commits. Entscheidung des Nutzers: „Mach ruhig al
 6. K Der Grundstand hatte dieselben 2 min und wiederholte sich endlos; die Volltext-Abfrage stand doppelt. **Behoben:** 10 min für Blicke, die alle Cursor lesen, nach zwei Überschreitungen hält die Seite an; der Cursor-Text kommt in Diagnostics nur aus `V$SQL`, der Ersatz nur in `OracleServerLoadReader.FullTextSql`.
 - Dazu: Eine Session, die gerade beim Ablauf der Grenze aufging, wird in `OpenAsync` sofort geschlossen. Ein neuer Test flackerte, weil er die Uhr vorspulte, während `SessionOpening` noch lief (dann liefen dessen Grenzen ab), und weil die Attrappe den Abbruch ignorierte – er wartet jetzt auf den Grundstand.
 
+### Dritter Durchgang (2026-11-07)
+Entscheidung des Nutzers: „Ja, alle fünf“. M1 und M2 kamen mit den Fixes des zweiten Durchgangs.
+1. M Texte von Statements, die nur noch im Fenster standen, blieben für immer (die Grenze war bei Literal-SQL wieder aufgehoben). **Behoben:** `DropUnusedInfo` nach jedem Blick; Test `A_text_kept_for_a_window_goes_…`.
+2. M Jedes Wiederöffnen bekam die 10 min des Grundstands, zwei Hänger endeten als „Grundstand zu langsam“. **Behoben:** die lange Grenze nur, wenn wirklich alle Cursor gelesen werden (`NeedsBaseline`, `FullReadDue`); der Hänger-Test prüft beide Grenzen.
+3. K Ein Statement aus „Aktive Sessions“ ohne Zeile in der Liste zeigte keinen Text, wenn nur ein gekürzter da war. **Behoben:** `ServerLoadView.KeptText`, gezeigt mit „…“ und Hinweis, nie geöffnet.
+4. K ADR 0045 beschrieb stündliches Einlesen, Grenzen und Byte-Kürzung nicht. **Behoben.**
+5. K Das stündliche Einlesen sah aus wie ein neuer Grundstand. **Behoben:** eigener Schritt `FullRead` mit eigenem Text.
+- Vierter Durchgang: alle fünf Fixes ohne Befund; nur der Hinweis zum gekürzten Text nannte noch „1000 Zeichen“ – jetzt neutral („kann gekürzt sein; öffnen lässt sich nur der ganze“), als Folge des Byte-Fixes gleich mit behoben.

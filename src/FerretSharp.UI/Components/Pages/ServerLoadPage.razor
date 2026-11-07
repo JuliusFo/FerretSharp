@@ -442,7 +442,7 @@
             <b class="mono">SQL_ID @sqlId</b>
             <span class="grow"></span>
             @{
-                // The list's text may be cut at 1000 characters (review of WP-75): only the whole text goes to the editor.
+                // The list's text may be cut at 1000 bytes (review of WP-75): only the whole text goes to the editor.
                 var text = view.FullText ?? view.KeptText ?? row?.Info?.Text;
                 var whole = view.FullText ?? (row?.Info is { MayBeCut: false, Text: { } shortText } && !view.CursorLoading ? shortText : null);
             }

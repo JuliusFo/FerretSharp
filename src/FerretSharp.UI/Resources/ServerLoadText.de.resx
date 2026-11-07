@@ -277,7 +277,7 @@
     <value>App</value>
   </data>
   <data name="ServerLoad_TextCut" xml:space="preserve">
-    <value>Nur die ersten 1000 Zeichen: Der ganze Text ist nicht mehr im Shared Pool.</value>
+    <value>Der Text kann gekürzt sein; öffnen lässt sich nur der ganze.</value>
   </data>
   <data name="ServerLoad_TextCutTitle" xml:space="preserve">
     <value>Öffnen geht nur mit dem ganzen Text; dieser kann gekürzt sein.</value>

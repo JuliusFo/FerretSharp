@@ -337,7 +337,7 @@
     <comment>Badge on a statement your app runs</comment>
   </data>
   <data name="ServerLoad_TextCut" xml:space="preserve">
-    <value>Only the first 1000 characters: the whole text is no longer in the shared pool.</value>
+    <value>This text may be cut; only the whole text can be opened.</value>
   </data>
   <data name="ServerLoad_TextCutTitle" xml:space="preserve">
     <value>Only the whole text can be opened; this one may be cut.</value>
