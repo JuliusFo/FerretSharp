@@ -23,7 +23,10 @@ Die Werte in `V$SQL`/`V$SQLAREA` zählen seit dem Laden eines Cursors in den Sha
 ## Folgen
 
 - Ohne Pack gibt es keinen Verlauf von vor dem Öffnen der Seite und keine Antwort auf „wer hat gestern um 14 Uhr was getan“. Das bleibt eine Option für Verbindungen mit bestätigter Lizenz (Backlog).
-- Der Grundstand kostet beim ersten Öffnen einige Sekunden über das VPN (grob 5 MB bei 50 000 Cursors); danach kommen nur geänderte Cursor.
+- Der Grundstand kostet beim ersten Öffnen einige Sekunden über das VPN (grob 5 MB bei 50 000 Cursors); danach kommen nur geänderte Cursor – und einmal pro Stunde wieder alle (Review): Dabei fallen die aus `V$SQLSTATS` verschwundenen heraus, sonst hielte der Tracker jeden je gesehenen Cursor. Einen Cursor zu entfernen, der noch dort steht, ginge nicht: Er zählte beim Wiederauftauchen alle Werte seit dem Laden noch einmal.
+- Blicke, die alle Cursor lesen (Grundstand, Neustart der Instanz, stündlich), haben 10 min Zeit, alle anderen 2 min; zweimal über 10 min hält die Seite an. Ein Blick über der Grenze schließt die Session; eine abgelehnte Anmeldung versucht die Seite nie von selbst erneut.
+- `SQL_TEXT` (und was `V$SQLSTATS.SQL_FULLTEXT` nach einer Weile noch behält) sind 1000 **Bytes**, mit Umlauten 511 Zeichen. „Vielleicht gekürzt“ gilt deshalb ab 1000 Zeichen oder knapp 1000 UTF-8-Bytes (`StatementInfo.MayBeCutText`). Den ganzen Text lesen die Details aus `V$SQL`; was nur noch `V$SQLSTATS` hat, ist als gekürzt gekennzeichnet und geht nie in den SQL-Editor.
+- Höchstens 20 000 Statements bleiben für „seit Öffnen“; ein Text bleibt, solange sein Statement dort oder in einem Zeitfenster steht.
 - Ein Statement, das zwischen zwei Blicken geladen und wieder verdrängt wurde, fehlt im Zeitfenster.
 - In einer PDB gelten Statements und Sessions für die PDB, die Host-CPU für den ganzen Host; auf RAC zeigt die Seite nur die Instanz ihrer Session (Hinweise auf der Seite).
 - Rechte: `SELECT_CATALOG_ROLE` oder Grants auf die Views; ohne sie eine Meldung mit dem `GRANT`.
