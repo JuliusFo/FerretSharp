@@ -26,3 +26,25 @@ Eigene Testinstanz (`--lang=de`, eigener Datenordner) gegen einen eigenen Contai
 - Elterntabelle: 4 → 40 (eine Zeile der Verknüpfungstabelle zeigt darauf): Dialog listet nur die Beziehung über die betroffene Spalte mit 1 Zeile („Constraint – Oracle lehnt ab“), die zweite Beziehung (0 Zeilen) fehlt; Abbrechen hat den Fokus. „Trotzdem schreiben“ → Schreibproblem-Dialog mit ORA-02292 und Constraint-Namen, Änderung bleibt ausstehend. Erneutes Ctrl+S fragt wieder; Abbrechen lässt sie ausstehend. 6 → 60 (nichts verweist darauf) ohne Rückfrage geschrieben.
 - Log ohne Warnungen und Fehler.
 - Nicht geprüft: Verweise nur über eine Beziehung des C#-Modells (Weg wie bei deklarierten, im UI-Test abgedeckt), Zeitüberschreitung beim Zählen.
+
+## Nachtrag: Code-Review (2026-11-07)
+Unabhängiger Reviewer, jeder Befund nachgeprüft. Entscheidung des Nutzers: „Jo, passt.“ (alle Punkte 1–10, Zählbudget 10 s, bei nicht geladenem C#-Modell trotzdem fragen mit Hinweis); nach dem zweiten Durchgang „Jo, fix das“ (11–13).
+1. M – Zählfehler außer Oracle-Fehlern (Filterprüfung: Spalte einer Beziehung fehlt, Typ passt nicht) ließen jedes Schreiben scheitern: behoben, alles außer Abbruch/Verbindungsverlust ist „nicht gezählt“; `TestApp` prüft Filter wie die Session (`A_relationship_the_table_no_longer_has_the_column_of_is_shown_as_not_counted`).
+2. M – Nicht erzwungener PK: editierbar, aber ohne Prüfung der Verweise: behoben, `KeyChanges.Of` hängt nicht an der Erzwingung (`A_key_that_is_not_enforced_is_a_key_change_too`).
+3. M – Formular verlor die Zeile nach dem Schreiben einer PK-Änderung: behoben, `ChangeTracker.KeyNow` + `FormCursor` (`A_row_whose_primary_key_was_written_is_followed_by_its_new_key`).
+4. M – Zählen N × 5 s ohne Abbruch, nach 5 s „Session trennen“: behoben, ein Budget von 10 s, der Rest „nicht gezählt“ (`Counting_shares_one_budget_and_never_counts_as_stuck`).
+5. K – Geschriebene Löschung fiel aus dem Tracker, wenn eine andere Zeile ihren Schlüssel übernahm (auch INSERT, vorher schon so): behoben, `_displaced` (`A_written_delete_whose_key_another_row_takes_stays_counted_and_comes_back_on_undo`).
+6. K – Eingefügte Zeile wurde mit dem getippten statt dem gespeicherten Schlüssel gesucht: behoben (`A_row_inserted_in_the_transaction_is_looked_for_by_its_stored_key`).
+7. K – „Trotzdem schreiben“ blieb nach einem abgelehnten Commit bestätigt und ließ einen anderen Wert durch: behoben, die Bestätigung gilt für die Werte (`A_confirmation_covers_only_the_values_confirmed`).
+8. K – Ohne Schema bzw. ohne geladenes C#-Modell wurde still geschrieben: behoben, Frage mit Hinweis (`A_linked_model_that_is_not_loaded_is_named_and_asked_about`).
+9. K – „Oracle lehnt ab“ stimmte nicht für deaktivierte und aufgeschobene Constraints: Text geändert.
+10. K – ADR-Folgen, Backlog, `NewKeys`-Kommentar, resx-Kommentare: nachgezogen.
+- Verworfen: Zählen sieht ausstehende Änderungen anderer Tabs nicht – es zählt bewusst, was in der Transaktion steht.
+- Vorher schon da, in den Backlog: Redo-Eintrag nach einem Fehler, der kein Schreibproblem ist; Zeile, die sich nach dem Schreiben nicht zurücklesen lässt.
+
+Zweiter Durchgang über die Fixes:
+11. M – Nach einem Rollback machte das Formular aus dem alten Schlüssel wieder den neuen und verlor die Zeile; ein neu eingefügter Schlüssel löschte den Vermerk nicht: behoben, `KeyNow` nur, wenn der alte Schlüssel nicht mehr geladen ist (`After_a_rollback_the_row_keeps_its_old_key_in_the_form`, `A_key_a_row_moved_away_from_belongs_to_a_row_inserted_with_it`).
+12. M – Die Struktur der verweisenden Tabelle wurde ohne Zeitlimit gelesen, und Zählen galt nie als hängend: behoben, Struktur im Zeitlimit, „hängt“ nach Budget + 5 s (`A_structure_that_never_arrives_ends_with_the_time_limit`, `Counting_longer_than_the_budget_and_5_s_counts_as_stuck`).
+13. K – Der Timer für „Session trennen“ verpasste die verschobene Fälligkeit: behoben, er stellt sich neu (ohne Test, Komponente).
+
+Nicht in der App geprüft: Formular nach PK-Änderung, Hinweis bei nicht geladenem C#-Modell, Zeitbudget und „Session trennen“ beim Zählen.

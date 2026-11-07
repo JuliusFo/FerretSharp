@@ -4,6 +4,8 @@ Ideen und Themen, die während der Arbeit auftauchen, aber nicht zum aktuellen P
 
 ## Bekannte Fehler und Lücken
 
+- Redo eines Grid-Schreibvorgangs (Code-Review `small-pk-edit`, vorher schon so): Scheitert er mit etwas anderem als einem Schreibproblem (Verbindungsverlust), bleibt der Eintrag nach `History.StartRedo` ohne `RedoStopped` – der Redo-Knopf meldet danach „Tab geschlossen“.
+- Zeile nach dem Schreiben nicht zurückzulesen (Code-Review `small-pk-edit`, vorher schon so beim INSERT, z. B. VPD): Der Tracker nimmt dann die ROWID als Schlüssel, das Grid schlüsselt nach PK – die Änderung hängt nach dem Neuladen an keiner Zeile.
 Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen.
 
 - Grid fragt einmal ab Zeile −500 (`Rows -500+` im Log, E2E zu `small-tab-open-options.md`, 2026-11-05): AG Grid legte für MITARBEITER einen Block −1 an, jedes Neuladen fragte ihn wieder ab; die Startzeile geht ungeprüft als `OFFSET` an Oracle, die Fußzeile zeigte danach „0 Zeilen“, obwohl die Tabelle Zeilen hat. Vorher: per CDP schnell getippt (Text nach Tab ging verloren), neue Zeile ungeschrieben entfernt und neu angelegt, Schreiben am Pflichtfeld gescheitert. In vier weiteren Versuchen nicht nachgestellt. Vermutlich ein `getDisplayedRowAtIndex(-1)` (der Index −1 neuer Zeilen in .NET); `FerretGrid.GetRows` könnte eine negative Startzeile ohne Abfrage leer beantworten.
