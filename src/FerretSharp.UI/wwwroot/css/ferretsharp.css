@@ -633,10 +633,12 @@ dl.keys dd { margin: 0; }
 /* A scrollbar under the tabs (dom.js scrollableTabs adds the mouse wheel): `scroll`, not `auto`, so its 10px are always
    there and the tabs do not jump once the bar overflows; the thumb (8px, like the others) shows only while the mouse is
    over the bar. Class `hover` from dom.js, not `:hover`: Chromium does not repaint the thumb when only the bar's hover
-   state changes. The tabs keep 38px. */
+   state changes. Nor when only the thumb's own rule changes: the scrollbar itself has to change, so under the mouse its
+   track gets a tint too faint to see (in the app the thumb never showed before, small-tab-bar-rework). The tabs keep 37px. */
 .tabs { display: flex; flex: none; height: 48px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: scroll; overflow-y: hidden; }
 .tabs::-webkit-scrollbar { height: 10px; }
 .tabs::-webkit-scrollbar-thumb { background: transparent; border: 1px solid transparent; border-radius: 5px; }
+.tabs.hover::-webkit-scrollbar { background: color-mix(in srgb, var(--surface) 99%, var(--text)); }
 .tabs.hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .tabs::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 .tab {

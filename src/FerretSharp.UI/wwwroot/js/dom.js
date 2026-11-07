@@ -383,16 +383,22 @@ export function dragTab(bar, pointerId, startX, startY, sourceId) {
         if (done) return;
         done = true;
         clearInterval(timer);
+        if (e?.type === 'pointerup') {
+          // Where it is released counts: the last move may lie a few pixels before, on the other half of a tab.
+          x = e.clientX;
+          y = e.clientY;
+          find();
+        }
         bar.removeEventListener('pointermove', onMove);
         bar.removeEventListener('pointerup', end);
         bar.removeEventListener('pointercancel', end);
         bar.removeEventListener('lostpointercapture', end);
         bar.classList.remove('dragging');
         source.classList.remove('drag-source');
-        const target = over;
+        const drop = e?.type === 'pointerup' && over?.dataset.drop ? `${over.dataset.drop}:${side}` : null;
         mark(null, null);
         if (bar.hasPointerCapture(pointerId)) bar.releasePointerCapture(pointerId);
-        resolve(e?.type === 'pointerup' && target?.dataset.drop ? `${target.dataset.drop}:${side}` : null);
+        resolve(drop);
       };
       const onMove = e => {
         if ((e.buttons & 1) === 0) {
@@ -564,19 +570,24 @@ export function scrollableTabs(element) {
   }, { passive: false });
 
   let shown = null;
+  let shownMulti = null;
   const reveal = () => {
     const tab = element.querySelector('.tab.active');
-    if (tab === shown) {
+    const multi = element.classList.contains('multi');
+    // Hidden (the settings page in front, where the layout is switched): later, once the bar shows again (ResizeObserver).
+    if ((tab === shown && multi === shownMulti) || element.clientWidth === 0) {
       return;
     }
     shown = tab;
+    shownMulti = multi; // one row ↔ several: the active tab comes into view in the new layout
+
     if (!tab) {
       return;
     }
     const bar = element.getBoundingClientRect();
     const rect = tab.getBoundingClientRect();
     // Several rows (setting "Tab bar"): its row comes into view, the rows themselves never move.
-    if (element.classList.contains('multi')) {
+    if (multi) {
       const bottom = bar.top + element.clientHeight;
       if (rect.top < bar.top) {
         element.scrollTop -= bar.top - rect.top;
@@ -600,6 +611,7 @@ export function scrollableTabs(element) {
     }
   };
   new MutationObserver(reveal).observe(element, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  new ResizeObserver(reveal).observe(element);
   element._scrollableTabs = true;
   reveal();
 }
