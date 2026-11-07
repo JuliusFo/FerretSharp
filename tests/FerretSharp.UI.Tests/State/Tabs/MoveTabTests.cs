@@ -58,6 +58,9 @@ public sealed class MoveTabTests : IAsyncDisposable
         Assert.Equal([b, c, a, d], TabsOf(scope));
         Assert.Same(b, _app.Shell.ActiveTab);
         Assert.Equal(2, changes);
+
+        Assert.False(_app.Shell.MoveTab(b, c, after: false, activate: true)); // own place and already active: nothing
+        Assert.Equal(2, changes);
     }
 
     [Fact]
