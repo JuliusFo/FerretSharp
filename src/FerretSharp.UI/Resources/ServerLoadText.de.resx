@@ -282,4 +282,13 @@
   <data name="ServerLoad_TextCutTitle" xml:space="preserve">
     <value>Öffnen geht nur mit dem ganzen Text; dieser kann gekürzt sein.</value>
   </data>
+  <data name="ServerLoad_StatusStopped" xml:space="preserve">
+    <value>Stand {0} · gestoppt</value>
+  </data>
+  <data name="ServerLoad_StoppedRetry" xml:space="preserve">
+    <value>Die Seite schaut nicht mehr von selbst – „Aktualisieren“ versucht es noch einmal.</value>
+  </data>
+  <data name="ServerLoad_BaselineTooSlow" xml:space="preserve">
+    <value>Die Werte aller Statements zu lesen, dauerte zweimal länger als {0} min; die Seite hält an, um Server und Leitung nicht immer wieder zu belasten.</value>
+  </data>
 </root>

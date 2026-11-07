@@ -138,6 +138,12 @@ public sealed class ServerLoadService(
     /// </summary>
     public static readonly TimeSpan LookTimeout = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// The limit of a look that reads all cursors (opening with the baseline, a restart, the hourly full read): thousands of
+    /// rows over a VPN. Twice past it, the page stops until „Refresh“ (second review of WP-75).
+    /// </summary>
+    public static readonly TimeSpan BaselineTimeout = TimeSpan.FromMinutes(10);
+
     /// <summary>MODULE stays FerretSharp; ACTION tells a DBA what this session is for (ASCII only, <c>.claude/rules/oracle.md</c>).</summary>
     public const string SessionAction = "Serverlast";
 
@@ -225,7 +231,11 @@ public sealed class ServerLoadService(
             return;
         }
 
-        view.LookOnce();
+        if (view.Paused)
+        {
+            view.LookOnce(); // not running: a wish left over would look later while paused (second review of WP-75)
+        }
+
         view.Wake.TrySetResult();
         if (view.Mode == ServerLoadMode.SinceLoad)
         {
@@ -238,7 +248,11 @@ public sealed class ServerLoadService(
     {
         var view = For(profileId);
         view.Paused = paused;
-        if (!paused)
+        if (paused)
+        {
+            view.TakeLookOnce();
+        }
+        else
         {
             view.Wake.TrySetResult();
         }
@@ -303,11 +317,13 @@ public sealed class ServerLoadService(
         try
         {
             cursor = await Task.Run(() => connection.Schema.GetCursorByIdAsync(sqlId!, timeout.Token), CancellationToken.None);
-            fullText = cursor?.Plan.Sql
-                       ?? await Task.Run(() => connection.ServerLoad.ReadFullTextAsync(sqlId!, timeout.Token), CancellationToken.None);
-            if (fullText?.Length == StatementInfo.TextLength)
+            if (cursor is not null)
             {
-                fullText = null; // as long as V$SQLSTATS keeps of a cursor gone from V$SQL: maybe cut, never as if whole
+                fullText = cursor.Plan.Sql; // from V$SQL: whole
+            }
+            else if (await Task.Run(() => connection.ServerLoad.ReadFullTextAsync(sqlId!, timeout.Token), CancellationToken.None) is { MayBeCut: false } kept)
+            {
+                fullText = kept.Text; // what V$SQLSTATS keeps may be cut: never taken as whole (second review of WP-75)
             }
             error = cursor is null ? ServerLoadText.ServerLoad_NotInPool : null;
         }
@@ -364,20 +380,26 @@ public sealed class ServerLoadService(
 
     private async Task RunAsync(ServerLoadView view, ConnectionProfile profile, CancellationToken cancellationToken)
     {
+        var baselineTimeouts = 0;
         while (!cancellationToken.IsCancellationRequested)
         {
+            // Before the look: a „Refresh“ during it wakes the wait after it, instead of a wake nobody waits for (second review).
+            view.Wake = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var reading = view.Monitor is null || view.Tracker.NeedsBaseline || view.Tracker.FullReadDue;
+            var limit = reading ? BaselineTimeout : LookTimeout;
             try
             {
                 // Paused: no look, and nothing claims one – „As of“ stays at the latest real look (review of WP-75). The wish to
-                // look once is used up every round: one left from a „Refresh“ before pausing must not look later (E2E).
+                // look once is used up every round.
                 var once = view.TakeLookOnce();
                 if (view.Monitor is null || !view.Paused || once)
                 {
                     await WithinLimitAsync(view, token => view.Monitor is { } monitor ? LookAsync(view, monitor, token) : OpenAsync(view, profile, token),
-                        cancellationToken);
+                        limit, cancellationToken);
                     view.Status = ServerLoadStatus.Watching;
                     view.Error = null;
                     view.LastLookAt = _time.GetUtcNow();
+                    baselineTimeouts = 0;
                     Changed?.Invoke();
                 }
             }
@@ -385,15 +407,20 @@ public sealed class ServerLoadService(
             {
                 return;
             }
+            catch (LookTimedOutException) when (reading && ++baselineTimeouts >= 2)
+            {
+                // All cursors once more would load server and line again and again without a result (second review of WP-75).
+                await FailAsync(view, ServerLoadStatus.Failed, TextFormat.Format(ServerLoadText.ServerLoad_BaselineTooSlow, (int)limit.TotalMinutes), stop: true);
+                return;
+            }
             catch (LookTimedOutException)
             {
-                (view.Status, view.Error) = (ServerLoadStatus.Failed, TextFormat.Format(ServerLoadText.ServerLoad_LookTimedOut, (int)LookTimeout.TotalSeconds));
+                (view.Status, view.Error) = (ServerLoadStatus.Failed, TextFormat.Format(ServerLoadText.ServerLoad_LookTimedOut, (int)limit.TotalSeconds));
                 Changed?.Invoke();
             }
             catch (ServerLoadUnavailableException ex)
             {
-                await FailAsync(view, ServerLoadStatus.Unavailable, WithUser(ex.Message, profile));
-                view.Stopped = true;
+                await FailAsync(view, ServerLoadStatus.Unavailable, WithUser(ex.Message, profile), stop: true);
                 return;
             }
             catch (DatabaseException) when (cancellationToken.IsCancellationRequested)
@@ -405,8 +432,7 @@ public sealed class ServerLoadService(
                 // Never log in again by itself (review of WP-75): every refused login counts towards FAILED_LOGIN_ATTEMPTS,
                 // every 30 s the account would be locked in minutes (.claude/rules/connections.md).
                 logger.LogWarning(ex.InnerException, "Opening the server load session was refused");
-                await FailAsync(view, ServerLoadStatus.Failed, ex.Message);
-                view.Stopped = true;
+                await FailAsync(view, ServerLoadStatus.Failed, ex.Message, stop: true);
                 return;
             }
             catch (DatabaseException ex)
@@ -415,7 +441,6 @@ public sealed class ServerLoadService(
                 await FailAsync(view, ServerLoadStatus.Failed, ex.Message);
             }
 
-            view.Wake = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
                 await Task.WhenAny(Task.Delay(Interval, _time, cancellationToken), view.Wake.Task);
@@ -435,15 +460,25 @@ public sealed class ServerLoadService(
         }
 
         Set(view, ServerLoadStatus.Connecting);
+        IDatabaseConnection opened;
         try
         {
-            view.Connection = await SessionOpening.OpenAsync(
+            opened = await SessionOpening.OpenAsync(
                 (_, token) => connector.OpenAsync(profile, password, SessionAction, token), _time, null, cancellationToken);
         }
         catch (DatabaseException ex) when (ex is not SessionOpenTimeoutException && !ReconnectPolicy.IsNetworkError(ex.ErrorCode))
         {
             throw new LoginRefusedException(ex);
         }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            // Opened just as the limit ran or the page was left: closed here, never handed to the next round.
+            await Task.Run(() => opened.DisposeAsync().AsTask(), CancellationToken.None);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        view.Connection = opened;
 
         var monitor = new ServerLoadMonitor(view.Connection.ServerLoad, view.Tracker);
         await monitor.OpenAsync(_ => Set(view, ServerLoadStatus.Baseline), cancellationToken);
@@ -457,17 +492,17 @@ public sealed class ServerLoadService(
     }
 
     /// <summary>
-    /// Runs a look within <see cref="LookTimeout"/>. Past it the look is cancelled and the session closed: ODP.NET may wait
+    /// Runs a look within <paramref name="timeout"/>. Past it the look is cancelled and the session closed: ODP.NET may wait
     /// for a break on a silent line until TCP gives up, closing ends the call at once. A session opened meanwhile is closed too.
     /// </summary>
     /// <exception cref="LookTimedOutException">The look took too long; the session is closed.</exception>
-    private async Task WithinLimitAsync(ServerLoadView view, Func<CancellationToken, Task> look, CancellationToken cancellationToken)
+    private async Task WithinLimitAsync(ServerLoadView view, Func<CancellationToken, Task> look, TimeSpan timeout, CancellationToken cancellationToken)
     {
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var work = look(limit.Token);
         try
         {
-            await work.WaitAsync(LookTimeout, _time, cancellationToken);
+            await work.WaitAsync(timeout, _time, cancellationToken);
         }
         catch (TimeoutException)
         {
@@ -487,10 +522,12 @@ public sealed class ServerLoadService(
         }
     }
 
-    private async Task FailAsync(ServerLoadView view, ServerLoadStatus status, string error)
+    /// <param name="stop">The loop ends (no rights, login refused, baseline too slow): set last, so whoever sees it sees the rest too.</param>
+    private async Task FailAsync(ServerLoadView view, ServerLoadStatus status, string error, bool stop = false)
     {
         await CloseAsync(view);
         (view.Status, view.Error) = (status, error);
+        view.Stopped = stop;
         Changed?.Invoke();
     }
 

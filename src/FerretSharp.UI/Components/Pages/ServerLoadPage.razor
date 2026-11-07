@@ -35,7 +35,7 @@
         }
         <span class="hint load-status">@StatusText(view)</span>
         <span class="grow"></span>
-        @if (view.Status != ServerLoadStatus.Unavailable)
+        @if (!view.Stopped)
         {
             <button class="btn" title="@ServerLoadText.ServerLoad_PauseTitle" @onclick="TogglePause">
                 @(view.Paused ? ServerLoadText.ServerLoad_Resume : ServerLoadText.ServerLoad_Pause)
@@ -60,6 +60,10 @@
             @if (view is { Status: ServerLoadStatus.Failed, Error: { } openError })
             {
                 <div class="test-result error"><span>@openError</span></div>
+                @if (view.Stopped)
+                {
+                    <p class="hint">@ServerLoadText.ServerLoad_StoppedRetry</p>
+                }
             }
             else
             {
@@ -75,6 +79,10 @@
             @if (view is { Status: ServerLoadStatus.Failed, Error: { } lookError })
             {
                 <div class="test-result error"><span>@TextFormat.Format(ServerLoadText.ServerLoad_LookFailed, lookError)</span></div>
+                @if (view.Stopped)
+                {
+                    <p class="hint">@ServerLoadText.ServerLoad_StoppedRetry</p>
+                }
             }
             @if (view.Environment is { IsPluggable: true })
             {
@@ -183,6 +191,7 @@
         (ServerLoadStatus.Connecting, _) => ServerLoadText.ServerLoad_Connecting,
         (ServerLoadStatus.Baseline, _) => ServerLoadText.ServerLoad_Baseline,
         (_, null) => "",
+        (_, { } at) when view.Stopped => TextFormat.Format(ServerLoadText.ServerLoad_StatusStopped, Clock(at)), // no „every 30 s“: it does not look
         (_, { } at) when view.Paused => TextFormat.Format(ServerLoadText.ServerLoad_StatusPaused, Clock(at)),
         (_, { } at) => TextFormat.Format(ServerLoadText.ServerLoad_StatusWatching, Clock(at), (int)ServerLoadService.Interval.TotalSeconds),
     };

@@ -342,4 +342,15 @@
   <data name="ServerLoad_TextCutTitle" xml:space="preserve">
     <value>Only the whole text can be opened; this one may be cut.</value>
   </data>
+  <data name="ServerLoad_StatusStopped" xml:space="preserve">
+    <value>As of {0} · stopped</value>
+    <comment>{0}: time of the latest look; the page no longer looks by itself</comment>
+  </data>
+  <data name="ServerLoad_StoppedRetry" xml:space="preserve">
+    <value>The page no longer looks by itself – “Refresh” tries again.</value>
+  </data>
+  <data name="ServerLoad_BaselineTooSlow" xml:space="preserve">
+    <value>Reading the figures of all statements took longer than {0} min twice; the page stops so as not to load the server and the line again and again.</value>
+    <comment>{0}: minutes</comment>
+  </data>
 </root>

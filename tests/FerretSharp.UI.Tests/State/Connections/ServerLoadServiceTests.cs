@@ -160,13 +160,14 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
 
         await _service.ShowAsync(_profile);
         var view = _service.For(_profile.Id);
-        await Wait.UntilAsync(() => view.Status == ServerLoadStatus.Failed, "the refusal");
-        _time.Advance(ServerLoadService.Interval * 3);
+        await Wait.UntilAsync(() => view.Stopped, "the refusal");
 
-        // Review of WP-75: every 30 s a new login would lock the account after FAILED_LOGIN_ATTEMPTS.
+        // Review of WP-75: every 30 s a new login would lock the account after FAILED_LOGIN_ATTEMPTS – the loop does not wait
+        // for a next look at all (without the fix it set its timer).
+        Assert.DoesNotContain(ServerLoadService.Interval, _time.DueTimes);
         await _connector.Received(1).OpenAsync(_profile, "secret", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
+        Assert.Equal(ServerLoadStatus.Failed, view.Status);
         Assert.Contains("ORA-01017", view.Error, StringComparison.Ordinal);
-        Assert.True(view.Stopped);
 
         await _service.RefreshAsync(_profile);
         await Wait.UntilAsync(() => _connector.ReceivedCalls().Count() == 2, "the second attempt");
@@ -188,7 +189,7 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
             hang.Task, Task.FromResult(new LoadCounters(T0.AddHours(1), T0, 4, 0, 0, 0, 0, 0, 0, 0, new Dictionary<string, long>())));
 
         _time.Advance(ServerLoadService.Interval);
-        await Wait.UntilAsync(() => _time.DueTimes.Count(d => d == ServerLoadService.LookTimeout) >= 2, "the second look's limit");
+        await Wait.UntilAsync(() => _time.DueTimes.Count(d => d == ServerLoadService.LookTimeout) >= 1, "the look's limit (opening has the baseline's)");
         _time.Advance(ServerLoadService.LookTimeout);
         await ParkedAsync(2);
 
@@ -208,8 +209,8 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         await _service.ShowAsync(_profile);
         await ParkedAsync();
         _connection.Schema.GetCursorByIdAsync("abc", Arg.Any<CancellationToken>()).Returns((Core.Query.CursorInfo?)null);
-        _reader.ReadFullTextAsync("abc", Arg.Any<CancellationToken>()).Returns("SELECT the whole text FROM dual");
-        _reader.ReadFullTextAsync("cut", Arg.Any<CancellationToken>()).Returns(new string('x', StatementInfo.TextLength));
+        _reader.ReadFullTextAsync("abc", Arg.Any<CancellationToken>()).Returns(new StatementText("SELECT the whole text FROM dual", false));
+        _reader.ReadFullTextAsync("cut", Arg.Any<CancellationToken>()).Returns(new StatementText(new string('ä', 511), true));
 
         await _service.SelectAsync(_profile, "abc");
 
@@ -218,7 +219,7 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.False(view.CursorLoading);
         Assert.NotNull(view.CursorError); // not in the shared pool: no figures, no plan
 
-        // What V$SQLSTATS keeps of a cursor gone from V$SQL may be cut at 1000 characters: never taken as the whole text.
+        // What V$SQLSTATS keeps of a cursor gone from V$SQL may be cut at 1000 bytes: never taken as the whole text.
         await _service.SelectAsync(_profile, "cut");
         Assert.Null(view.FullText);
     }
@@ -236,5 +237,60 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         var view = _service.For(_profile.Id);
         Assert.False(view.CursorLoading); // review of WP-75: it turned until the statement was clicked twice
         Assert.Null(view.CursorError);
+    }
+
+    [Fact]
+    public async Task A_refresh_during_a_look_and_pausing_right_after_look_no_more()
+    {
+        await _service.ShowAsync(_profile);
+        await ParkedAsync();
+        var gate = new TaskCompletionSource<LoadCounters>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _reader.ReadCountersAsync(Arg.Any<CancellationToken>()).Returns(gate.Task);
+
+        _time.Advance(ServerLoadService.Interval);
+        await Wait.UntilAsync(() => Looks == 2, "the second look");
+        await _service.RefreshAsync(_profile); // falls into the running look (second review of WP-75)
+        _service.SetPaused(_profile.Id, true);
+        gate.SetResult(new LoadCounters(T0.AddHours(1), T0, 4, 0, 0, 0, 0, 0, 0, 0, new Dictionary<string, long>()));
+        await ParkedAsync(3); // the refresh woke the wait after the look; the round after it is paused
+        _time.Advance(ServerLoadService.Interval);
+        await ParkedAsync(4);
+
+        Assert.Equal(2, Looks);
+    }
+
+    [Fact]
+    public async Task Reading_all_cursors_gets_a_longer_limit_and_twice_past_it_the_page_stops()
+    {
+        var hang = new TaskCompletionSource<IReadOnlyList<StatementCounters>>();
+        _connection.DisposeAsync().Returns(_ =>
+        {
+            hang.TrySetCanceled(); // closing the session ends the read
+            hang = new TaskCompletionSource<IReadOnlyList<StatementCounters>>();
+            return ValueTask.CompletedTask;
+        });
+        // Like the session: a cancelled call ends at once.
+        _reader.ReadStatementsAsync(null, Arg.Any<CancellationToken>()).Returns(call => hang.Task.WaitAsync(call.Arg<CancellationToken>()));
+
+        await _service.ShowAsync(_profile);
+        var view = _service.For(_profile.Id);
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            // Reading the baseline, not still opening: moving the clock earlier would run out SessionOpening's own limits.
+            await Wait.UntilAsync(() => view.Status == ServerLoadStatus.Baseline
+                                        && _time.DueTimes.Count(d => d == ServerLoadService.BaselineTimeout) >= attempt, "the baseline being read");
+            _time.Advance(ServerLoadService.LookTimeout);
+            Assert.NotEqual(ServerLoadStatus.Failed, view.Status); // two minutes are not the baseline's limit
+            _time.Advance(ServerLoadService.BaselineTimeout - ServerLoadService.LookTimeout);
+            if (attempt == 1)
+            {
+                await ParkedAsync();
+                _time.Advance(ServerLoadService.Interval);
+            }
+        }
+
+        await Wait.UntilAsync(() => view.Stopped, "the stop");
+        Assert.Contains("10", view.Error, StringComparison.Ordinal);
+        await _connector.Received(2).OpenAsync(_profile, "secret", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
     }
 }
