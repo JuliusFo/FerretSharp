@@ -22,16 +22,26 @@
             {
                 <span class="count">@result.Candidates.Count</span>
             }
-            else if (state.Error is null)
+            else if (state.Error is { } headError)
+            {
+                @* review: folded, a failed index showed nothing at all *@
+                <span class="hint ellipsis" title="@TextFormat.Format(ModelViewText.Usage_Failed, headError)">@Icons.Warning</span>
+            }
+            else
             {
                 <span class="spinner small"></span>
             }
             <span class="usage-limits" title="@ModelViewText.CodeOrigin_Limits" aria-label="@ModelViewText.CodeOrigin_Limits">@Icons.Info</span>
             @if (!Open && result is { Candidates: [var best, ..] })
             {
+                // Review: the first of several level ones is no better than the others – its rank says so, as in the list.
+                var (bestRank, bestLevel) = CodeOriginRows.Ranks(result.Candidates)[0];
+                var bestName = CodeUsageRows.Caller(best.Use.Use);
                 <span class="code-origin-best">
+                    <span class="code-origin-rank @(bestLevel ? "level" : "")"
+                          title="@TextFormat.Format(bestLevel ? ModelViewText.CodeOrigin_RankLevel : ModelViewText.CodeOrigin_Rank, bestRank)">@(bestLevel ? "=" : "")@bestRank</span>
                     @Meter(best.Fit, qualify == true)
-                    <span class="mono ellipsis">@CodeUsageRows.Caller(best.Use.Use)</span>
+                    <span class="mono ellipsis" title="@bestName">@bestName</span>
                 </span>
             }
         </Summary>

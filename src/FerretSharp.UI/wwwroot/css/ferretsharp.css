@@ -1933,7 +1933,8 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .load-chart line.grid { stroke: var(--border); }
 .load-chart line.limit { stroke: var(--danger); }
 .load-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; padding-left: 46px; font-size: 11px; color: var(--faint); }
-/* The values of a chart's y axis beside it: top, middle, bottom (an SVG stretched without aspect would distort text) */
+/* The values of a chart's y axis beside it: top, middle, bottom (an SVG stretched without aspect would distort text).
+   The height is the chart's (.load-chart, ChartHeight in ServerLoadPage); .load-axis is indented by the column plus its gap. */
 .load-plot { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 6px; }
 .load-y { position: relative; height: 110px; font-size: 11px; line-height: 1; color: var(--faint); font-variant-numeric: tabular-nums; }
 .load-y span { position: absolute; right: 0; white-space: nowrap; }
@@ -1982,6 +1983,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .code-origin-item > .link-btn { justify-self: start; }
 .code-origin-rank { min-width: 2.2em; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; cursor: help; }
 .code-origin-rank.level { color: var(--warn); }
+.code-origin-best .code-origin-rank { min-width: 0; }
 .code-origin-reasons { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .code-origin-more { margin-top: 8px; }
 .code-origin-best { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin-left: 6px; font-weight: 400; font-size: 12.5px; color: var(--muted); }
