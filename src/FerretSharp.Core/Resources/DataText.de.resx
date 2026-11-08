@@ -144,4 +144,13 @@
   <data name="CopyFailed" xml:space="preserve">
     <value>Kopieren in {0} gescheitert, von der Kopie bleibt nichts: {1}</value>
   </data>
+  <data name="DiffNoFlashbackRight" xml:space="preserve">
+    <value>Der Vergleich von {0} mit einem früheren Stand braucht das Recht FLASHBACK darauf (oder FLASHBACK ANY TABLE): GRANT FLASHBACK ON {0} TO deinen Benutzer.</value>
+  </data>
+  <data name="DiffUndoTooShort" xml:space="preserve">
+    <value>Das Undo der Datenbank reicht nicht mehr bis zum Startpunkt ({0:g}) zurück. Wie weit es reicht, hängt von Tabelle und Last ab, oft wenige Stunden. Setze einen neuen Startpunkt.</value>
+  </data>
+  <data name="DiffTableChanged" xml:space="preserve">
+    <value>Die Tabelle wurde seit dem Startpunkt per DDL geändert (ORA-01466) – vergleichen lässt sie sich erst ab einem neuen Startpunkt.</value>
+  </data>
 </root>

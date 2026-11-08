@@ -291,6 +291,49 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         _ => driverType.ToUpperInvariant(),
     };
 
+    public async Task<long> CurrentScnAsync(CancellationToken cancellationToken)
+    {
+        await session.RefreshSnapshotAsync(cancellationToken); // in a locked session: now, not the start of the last snapshot
+        return await session.ExecuteReaderAsync(QueryBuilder.CurrentScnSql, [], async (reader, ct) =>
+        {
+            await reader.ReadAsync(ct);
+            return Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture);
+        }, cancellationToken);
+    }
+
+    /// <summary>Whether a table allows row movement (its ROWIDs may change without the row changing).</summary>
+    internal const string RowMovementSql = "SELECT row_movement FROM all_tables WHERE owner = :p_owner AND table_name = :p_table";
+
+    public async Task<DiffRead> ReadDiffAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, long scn, CancellationToken cancellationToken)
+    {
+        var query = QueryBuilder.BuildDiff(table, filters, scn, DataDiff.ReadLimit);
+        await session.RefreshSnapshotAsync(cancellationToken);
+        var (rows, more) = await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+        {
+            OracleReading.FetchManyRows(reader);
+            var oracle = (OracleDataReader)reader;
+            var read = new List<DiffSideRow>();
+            while (await reader.ReadAsync(ct))
+            {
+                if (read.Count == DataDiff.ReadLimit - 1)
+                {
+                    return (read, true); // the last row only tells there are more
+                }
+
+                var now = Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture) == QueryBuilder.DiffSideNow;
+                read.Add(new DiffSideRow(now, ReadRow(oracle, query.Columns, query.Omitted, query.HasRowId, query.RowKey, table, firstOrdinal: 1)));
+            }
+
+            return (read, false);
+        }, cancellationToken);
+
+        var rowMovement = query.RowKey == RowKeyKind.RowId && table.Table.Kind == TableKind.Table
+            && await session.ExecuteReaderAsync(RowMovementSql,
+                [new QueryParameter("p_owner", table.Table.Owner, OracleTypeHint.Varchar2), new QueryParameter("p_table", table.Table.Name, OracleTypeHint.Varchar2)],
+                async (reader, ct) => await reader.ReadAsync(ct) && !reader.IsDBNull(0) && reader.GetString(0) == "ENABLED", cancellationToken);
+        return new DiffRead(rows, more, query.Omitted, query.RowKey, rowMovement);
+    }
+
     public async Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken)
     {
         var query = QueryBuilder.BuildSelectLob(table, key, column);
@@ -419,19 +462,31 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }
     }
 
-    internal static RowData ReadRow(OracleDataReader reader, SelectQuery query, TableDetails table)
+    internal static RowData ReadRow(OracleDataReader reader, SelectQuery query, TableDetails table) =>
+        ReadRow(reader, query.Columns, omitted: null, query.HasRowId, query.RowKey, table, firstOrdinal: 0);
+
+    /// <param name="omitted">Columns not in the result (a diff, WP-44): NULL in the row.</param>
+    /// <param name="firstOrdinal">Where the row's columns start (a diff's side comes first).</param>
+    private static RowData ReadRow(
+        OracleDataReader reader, IReadOnlyList<ResultColumn> columns, IReadOnlySet<int>? omitted, bool hasRowId, RowKeyKind rowKey, TableDetails table,
+        int firstOrdinal)
     {
-        var ordinal = 0;
+        var ordinal = firstOrdinal;
         string? rowId = null;
-        if (query.HasRowId)
+        if (hasRowId)
         {
             rowId = Convert.ToString(reader.GetValue(ordinal++), CultureInfo.InvariantCulture);
         }
 
-        var values = new object?[query.Columns.Count];
-        for (var i = 0; i < query.Columns.Count; i++)
+        var values = new object?[columns.Count];
+        for (var i = 0; i < columns.Count; i++)
         {
-            var column = query.Columns[i];
+            if (omitted?.Contains(i) == true)
+            {
+                continue;
+            }
+
+            var column = columns[i];
             switch (column.Projection)
             {
                 case Projection.ClobPreview:
@@ -455,7 +510,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             }
         }
 
-        RowKey key = query.RowKey switch
+        RowKey key = rowKey switch
         {
             RowKeyKind.PrimaryKey => new RowKey.PrimaryKey(
                 table.PrimaryKey.Select(name => values[IndexOf(table, name)]).ToList()),

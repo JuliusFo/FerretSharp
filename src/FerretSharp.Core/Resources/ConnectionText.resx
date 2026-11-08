@@ -156,4 +156,7 @@
     <value>Opening the session did not finish in {0} attempts ({1} s in all). Last error: {2}</value>
     <comment>{0} = number of attempts, {1} = seconds of all attempts together, {2} = error message of the driver</comment>
   </data>
+  <data name="ReadSessionNotConnected" xml:space="preserve">
+    <value>The connection is not open.</value>
+  </data>
 </root>

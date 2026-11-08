@@ -179,4 +179,15 @@
     <value>Copying into {0} failed, nothing of the copy was kept: {1}</value>
     <comment>{0}: target table; {1}: the reason, a full sentence</comment>
   </data>
+  <data name="DiffNoFlashbackRight" xml:space="preserve">
+    <value>Comparing {0} with an earlier state needs the right FLASHBACK on it (or FLASHBACK ANY TABLE): GRANT FLASHBACK ON {0} TO your user.</value>
+    <comment>Data diff failed with ORA-01031; {0} = OWNER.TABLE</comment>
+  </data>
+  <data name="DiffUndoTooShort" xml:space="preserve">
+    <value>The database's undo no longer reaches back to the start point ({0:g}). How far it reaches depends on the table and the load, often a few hours. Set a new start point.</value>
+    <comment>Data diff failed with ORA-01555/08180/08181; {0} = time the start point was set</comment>
+  </data>
+  <data name="DiffTableChanged" xml:space="preserve">
+    <value>The table was changed by DDL since the start point (ORA-01466) – it can only be compared from a new start point.</value>
+  </data>
 </root>

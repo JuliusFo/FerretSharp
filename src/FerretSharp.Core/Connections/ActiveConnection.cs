@@ -89,6 +89,9 @@ public sealed class ActiveConnection(
 
     public bool IsConnected => Status == ConnectionStatus.Connected;
 
+    /// <summary>The session for reads of the committed state beside the workspaces (WP-44, ADR 0047); open while connected.</summary>
+    public ReadSession Reads { get; } = new(connections, connector, time);
+
     /// <summary>
     /// A session of this connection was found gone (a statement or the keep-alive) while it counts as connected: its
     /// transactions are lost, the banner offers to connect again. Kept per connection (WP-24: a connection in the
@@ -163,6 +166,7 @@ public sealed class ActiveConnection(
             await schema.LoadAsync(new SyncProgress<string>(StartStep), cts.Token);
             StartStep(ConnectionText.Step_RestoringWorkspaces);
             await workspaces.AttachAsync(profile, cts.Token);
+            Reads.Attach(profile);
 
             Schema = schema;
             ServerVersion = _connection.ServerVersion;
@@ -270,7 +274,7 @@ public sealed class ActiveConnection(
             return null;
         }
 
-        IDatabaseConnection[] sessions = [explorer, .. workspaces.OpenSessions()];
+        IDatabaseConnection[] sessions = [explorer, .. workspaces.OpenSessions(), .. Reads.Open is { } reads ? [reads] : Array.Empty<IDatabaseConnection>()];
         foreach (var session in sessions)
         {
             try
@@ -313,6 +317,7 @@ public sealed class ActiveConnection(
 
     private async Task CloseAsync()
     {
+        await Reads.DetachAsync();
         await workspaces.DetachAsync();
         Schema = null;
         ServerVersion = null;
