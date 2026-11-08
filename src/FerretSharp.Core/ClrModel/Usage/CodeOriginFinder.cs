@@ -17,7 +17,10 @@ public enum CodeOriginReasonKind
     /// <summary>The method filters by columns the statement filters by too.</summary>
     Filters,
 
-    /// <summary>The method writes properties of the table's entity (<c>SaveChanges</c>, <c>ExecuteUpdate</c>) – for DML only.</summary>
+    /// <summary>
+    /// The method writes properties whose columns a DML statement sets in its target table (<c>SaveChanges</c>,
+    /// <c>ExecuteUpdate</c>): the <c>SET</c> or <c>INSERT</c> columns, none for a <c>DELETE</c>.
+    /// </summary>
     Writes,
 }
 
@@ -39,15 +42,36 @@ public sealed record CodeOriginResult(IReadOnlyList<string> Tables, IReadOnlyLis
 }
 
 /// <summary>
+/// A statement read once for <see cref="CodeOriginFinder"/> (review WP-76: it was analysed twice per call, on the render
+/// thread): its queries and DML statements with their filter columns and DML targets.
+/// </summary>
+public sealed class CodeOriginStatement
+{
+    internal CodeOriginStatement(string? schema, IReadOnlyList<CodeOriginFinder.Piece> pieces)
+    {
+        Schema = schema;
+        Pieces = pieces;
+    }
+
+    public string? Schema { get; }
+
+    internal IReadOnlyList<CodeOriginFinder.Piece> Pieces { get; }
+
+    internal bool IsDml => Pieces.Any(p => p.Info.IsDml);
+}
+
+/// <summary>
 /// The methods of the linked solution that may have sent a statement (WP-76): its tables and the columns it filters by
 /// (<see cref="SqlAnalysis"/>, <see cref="SqlConditions"/>) against the code usage index (WP-40) – which methods query
 /// those tables, reach them over navigations and filter by the same columns. A guess ranked by how much fits, not a
 /// match: the index knows neither the order of calls nor the values. Test and mapping code are no candidates.
-/// <para>Score per method (proposal, not confirmed): +3 per table it queries, +2 per table it reaches over a navigation in
-/// a query or (lazy loading) outside one, +1 more for a lazy load if the statement filters only by key columns, +2 per
-/// column both filter by, +3 per table of a DML statement whose entity it writes, −1 per table of the statement it does
-/// not touch (by any of these), −1 per column it filters a table of the statement by that the statement does not and per
-/// navigation it follows in a query (<c>Include</c>) to a table the statement does not read – a method may hold several
+/// <para>Score per method (proposal, not confirmed): for a query +3 per table it queries, +2 per table it reaches over a
+/// navigation in a query or (lazy loading) outside one, +1 more for a lazy load if the statement filters only by key
+/// columns, +2 per column both filter by. For DML (review WP-76: a reader of the table ranked level with its writer) +3 per
+/// column of the target table it writes that the statement sets, +1 per table it queries and per column both filter by
+/// (loading the row before <c>SaveChanges</c>, <c>ExecuteUpdate</c>), navigations not at all. Either way −1 per table of
+/// the statement it does not touch, −1 per column it filters a table of the statement by that the statement does not and
+/// per navigation it follows in a query (<c>Include</c>) to a table the statement does not read – a method may hold several
 /// queries, so these cost little. A method needs one table it touches and a score above zero.</para>
 /// </summary>
 public static class CodeOriginFinder
@@ -56,30 +80,54 @@ public static class CodeOriginFinder
     private const int NavigationScore = 2;
     private const int KeyOnlyLazyScore = 1;
     private const int FilterScore = 2;
+    private const int DmlQueryScore = 1;
+    private const int DmlFilterScore = 1;
     private const int WriteScore = 3;
     private const int UntouchedScore = -1;
     private const int MismatchScore = -1;
 
-    /// <param name="sql">
-    /// The statement's text; a text cut short still yields its leading tables. A PL/SQL block counts by the INSERT, UPDATE,
-    /// DELETE and MERGE statements in it: EF Core's Oracle provider sends <c>SaveChanges</c> as <c>DECLARE … BEGIN UPDATE …</c>.
-    /// </param>
+    /// <summary>
+    /// Characters of a statement read at most (review WP-76): the text comes from any session on the server and has no limit;
+    /// its leading tables and conditions are in the first part.
+    /// </summary>
+    public const int MaxTextLength = 64 * 1024;
+
+    /// <summary>A query or DML statement of the text, with what the finder needs of it.</summary>
+    internal sealed record Piece(SqlStatementInfo Info, IReadOnlyList<SqlConditionColumn> Conditions, SqlDmlTarget? Target);
+
+    /// <summary>
+    /// Reads a statement once: cut to <see cref="MaxTextLength"/>, its queries and DML statements – the statement itself, or for
+    /// a PL/SQL block the DML statements in it: EF Core's Oracle provider sends <c>SaveChanges</c> as
+    /// <c>DECLARE … BEGIN UPDATE …; … END;</c>. A text cut short still yields its leading tables.
+    /// </summary>
     /// <param name="schema">The schema the statement was parsed in (<c>PARSING_SCHEMA_NAME</c>): owner of unqualified tables.</param>
-    public static CodeOriginResult Find(string sql, string? schema, CodeUsageIndex index)
+    public static CodeOriginStatement Prepare(string sql, string? schema)
     {
-        var pieces = PiecesOf(sql);
-        var tables = TablesOf(pieces, schema, index.Model);
+        var text = sql.Length > MaxTextLength ? sql[..MaxTextLength] : sql;
+        return new CodeOriginStatement(schema,
+            [.. PiecesOf(text).Select(p => new Piece(p.Info, SqlConditions.Of(p.Text), p.Info.IsDml ? SqlDmlTarget.Of(p.Text) : null))]);
+    }
+
+    public static CodeOriginResult Find(string sql, string? schema, CodeUsageIndex index) => Find(Prepare(sql, schema), index);
+
+    public static CodeOriginResult Find(CodeOriginStatement statement, CodeUsageIndex index)
+    {
+        var tables = TablesOf(statement.Pieces, statement.Schema, index.Model);
         if (tables.Count == 0)
         {
             return CodeOriginResult.None;
         }
 
-        foreach (var (text, info) in pieces)
+        foreach (var piece in statement.Pieces)
         {
-            AddConditions(tables, info, SqlConditions.Of(text));
+            AddConditions(tables, piece.Info, piece.Conditions);
+            if (piece.Target is { } target && tables.FirstOrDefault(t => t.Name == target.Table.Name) is { } written)
+            {
+                written.Set.UnionWith(target.Columns);
+            }
         }
 
-        var dml = pieces.Any(p => p.Info.IsDml);
+        var dml = statement.IsDml;
         var methods = new Dictionary<(string Type, string Method), Method>();
         foreach (var table in tables)
         {
@@ -87,7 +135,7 @@ public static class CodeOriginFinder
         }
 
         var candidates = methods.Values
-            .Select(m => m.ToCandidate(tables))
+            .Select(m => m.ToCandidate(tables, dml))
             .OfType<CodeOriginCandidate>()
             .OrderByDescending(c => c.Score)
             .ThenByDescending(c => c.Reasons.Count)
@@ -101,8 +149,10 @@ public static class CodeOriginFinder
     /// The statement's tables that belong to the model, without the code usage index: whether to read the solution at all
     /// (an Oracle-internal statement does not need it).
     /// </summary>
-    public static IReadOnlyList<string> TablesOf(string sql, string? schema, ModelExport model) =>
-        TablesOf(PiecesOf(sql), schema, model).Select(t => t.Name).ToList();
+    public static IReadOnlyList<string> TablesOf(string sql, string? schema, ModelExport model) => TablesOf(Prepare(sql, schema), model);
+
+    public static IReadOnlyList<string> TablesOf(CodeOriginStatement statement, ModelExport model) =>
+        TablesOf(statement.Pieces, statement.Schema, model).Select(t => t.Name).ToList();
 
     private static readonly string[] DmlWords = ["INSERT", "UPDATE", "DELETE", "MERGE"];
 
@@ -156,7 +206,7 @@ public static class CodeOriginFinder
         return pieces;
     }
 
-    private static List<StatementTable> TablesOf(List<(string Text, SqlStatementInfo Info)> pieces, string? schema, ModelExport model)
+    private static List<StatementTable> TablesOf(IReadOnlyList<Piece> pieces, string? schema, ModelExport model)
     {
         var tables = new List<StatementTable>();
         foreach (var reference in pieces.SelectMany(p => p.Info.Tables).Where(t => t.DbLink is null))
@@ -164,7 +214,7 @@ public static class CodeOriginFinder
             var entities = EntitiesOf(model, reference, schema);
             if (entities.Count > 0 && !tables.Any(t => t.Name == reference.Name && t.Entities.SequenceEqual(entities)))
             {
-                tables.Add(new StatementTable(reference.Name, entities, []));
+                tables.Add(new StatementTable(reference.Name, entities, [], []));
             }
         }
 
@@ -219,7 +269,7 @@ public static class CodeOriginFinder
                     method.Add(use);
                 }
 
-                foreach (var use in index.NavigationsTo(entity).Where(IsApplication))
+                foreach (var use in dml ? [] : index.NavigationsTo(entity).Where(IsApplication))
                 {
                     var method = MethodOf(methods, use);
                     var kind = use.Use.Kind == CodeUseKind.Read ? CodeOriginReasonKind.LazyLoads : CodeOriginReasonKind.Joins;
@@ -264,9 +314,9 @@ public static class CodeOriginFinder
                 }
             }
 
-            if (dml)
+            if (dml && table.Set.Count > 0)
             {
-                foreach (var property in entity.Properties.Where(p => ColumnOf(p) is not null))
+                foreach (var property in entity.Properties.Where(p => ColumnOf(p) is { } c && table.Set.Contains(c)))
                 {
                     foreach (var use in index.ForProperty(entity, property.Name).Where(u => u.Use.Kind == CodeUseKind.Write && IsApplication(u)))
                     {
@@ -315,7 +365,8 @@ public static class CodeOriginFinder
     /// <summary>The column a property has in the statement: its table's, else its view's.</summary>
     private static string? ColumnOf(PropertyExport property) => property.Column ?? property.ViewColumn;
 
-    private sealed record StatementTable(string Name, List<EntityExport> Entities, List<string> Filters)
+    /// <param name="Set">The columns a DML statement sets in this table, its target.</param>
+    private sealed record StatementTable(string Name, List<EntityExport> Entities, List<string> Filters, HashSet<string> Set)
     {
         public bool HasColumn(string column) =>
             Entities.Any(e => e.Properties.Any(p => p.Column == column || p.ViewColumn == column));
@@ -354,7 +405,7 @@ public static class CodeOriginFinder
             }
         }
 
-        public CodeOriginCandidate? ToCandidate(List<StatementTable> tables)
+        public CodeOriginCandidate? ToCandidate(List<StatementTable> tables, bool dml)
         {
             var reasons = new List<CodeOriginReason>();
             var score = 0;
@@ -365,7 +416,7 @@ public static class CodeOriginFinder
                 if (Queried.Contains(table.Name))
                 {
                     reasons.Add(new CodeOriginReason(CodeOriginReasonKind.Queries, table.Name, []));
-                    score += QueryScore;
+                    score += dml ? DmlQueryScore : QueryScore;
                     touches = true;
                 }
 
@@ -383,7 +434,7 @@ public static class CodeOriginFinder
                 if (written.Count > 0)
                 {
                     reasons.Add(new CodeOriginReason(CodeOriginReasonKind.Writes, table.Name, written));
-                    score += WriteScore;
+                    score += WriteScore * written.Count;
                     touches = true;
                 }
 
@@ -391,7 +442,7 @@ public static class CodeOriginFinder
                 if (filtered.Count > 0)
                 {
                     reasons.Add(new CodeOriginReason(CodeOriginReasonKind.Filters, table.Name, filtered));
-                    score += FilterScore * filtered.Count;
+                    score += (dml ? DmlFilterScore : FilterScore) * filtered.Count;
                     touches = true; // a filter is a query of the entity: Where takes an Expression<T> (generic repositories have no Set<T>)
                 }
 

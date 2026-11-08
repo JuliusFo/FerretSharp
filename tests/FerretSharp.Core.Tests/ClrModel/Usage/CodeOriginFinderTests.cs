@@ -108,6 +108,38 @@ public sealed class CodeOriginFinderTests
         Assert.DoesNotContain(query.Candidates, c => c.CallerMethod == "Rename");
     }
 
+    /// <summary>
+    /// Review WP-76: every write to the table counted, whatever column – the writer of EMAIL ranked level with the writer of
+    /// NAME for an UPDATE of NAME, a lazy loader (who never updates) ahead of both by its line, and a DELETE "wrote" NAME.
+    /// </summary>
+    [Fact]
+    public void Dml_counts_the_writers_of_the_columns_it_sets_and_no_reader_or_navigation()
+    {
+        var index = Index(
+            Use("Customer", "Email", CodeUseKind.Write, "ChangeEmail", 55),
+            Use("ShopContext", "Customers", CodeUseKind.Read, "FindCustomer", 65),
+            Use("Customer", "Id", CodeUseKind.Filter, "FindCustomer", 65));
+
+        var update = CodeOriginFinder.Find("""UPDATE "CUSTOMERS" SET "NAME" = :p0 WHERE "ID" = :p1""", null, index);
+        var delete = CodeOriginFinder.Find("""DELETE FROM "CUSTOMERS" WHERE "ID" = :p0""", null, index);
+
+        Assert.Equal("Rename", update.Candidates[0].CallerMethod); // 3 for NAME; FindCustomer: query 1 + filter 1
+        Assert.DoesNotContain(update.Candidates, c => c.CallerMethod is "ChangeEmail" or "Lazy" or "WithCustomer");
+        Assert.Equal(["FindCustomer"], delete.Candidates.Select(c => c.CallerMethod).ToList());
+        Assert.DoesNotContain(delete.Candidates.SelectMany(c => c.Reasons), r => r.Kind == CodeOriginReasonKind.Writes);
+    }
+
+    [Fact]
+    public void A_text_longer_than_the_limit_is_read_from_its_start()
+    {
+        var sql = """SELECT "o"."ID" FROM "ORDERS" "o" WHERE "o"."TOTAL" > :x OR "o"."TOTAL" IN (""" + new string('1', CodeOriginFinder.MaxTextLength) + ")";
+
+        var result = CodeOriginFinder.Find(sql, null, Index());
+
+        Assert.Equal(["ORDERS"], result.Tables);
+        Assert.Equal("ByTotal", result.Candidates[0].CallerMethod);
+    }
+
     [Fact]
     public void A_save_changes_block_counts_by_the_dml_statements_in_it()
     {
