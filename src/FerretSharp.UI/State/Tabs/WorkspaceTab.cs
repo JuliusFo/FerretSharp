@@ -9,7 +9,8 @@ namespace FerretSharp.UI.State;
 /// <summary>
 /// A tab of a workspace: a table (<see cref="TableTab"/>), a LINQ console (<see cref="LinqTab"/>), a SQL editor
 /// (<see cref="SqlTab"/>), a PL/SQL unit (<see cref="PlSqlTab"/>), a record diagram (<see cref="RecordTab"/>), the
-/// schema's synonyms (<see cref="SynonymListTab"/>) or the schema's object privileges (<see cref="GrantListTab"/>).
+/// schema's synonyms (<see cref="SynonymListTab"/>), the schema's object privileges (<see cref="GrantListTab"/>) or the
+/// workspace's data diff (<see cref="DataDiffTab"/>).
 /// </summary>
 public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
 {
@@ -52,6 +53,7 @@ public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
         RecordTab records => records.Title,
         SynonymListTab => SchemaViewText.SynonymList_Title,
         GrantListTab => SchemaViewText.GrantList_Title,
+        DataDiffTab => ShellText.DataDiff_Title,
         ITitledTab titled => titled.Title,
         _ => "",
     };

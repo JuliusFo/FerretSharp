@@ -23,10 +23,18 @@
                     <span class="ws-unlocked" aria-label="@ShellText.Workspace_Unlocked">@Icons.Unlocked</span>
                 }
                 <span class="ws-name">@w.Name</span>
+                @if (w.DataDiff is { } diff)
+                {
+                    @* WP-44: the start point of the data diff; a click compares. *@
+                    <button class="ws-diff" title="@TextFormat.Format(ShellText.DataDiff_ChipTitle, diff.StartedAt.LocalDateTime)"
+                            @onclick:stopPropagation="true" @onmouseup:stopPropagation="true" @onclick="() => Lifecycle.CompareDataDiffAsync(w.Id)">
+                        @Icons.DataDiff<span>@DataDiffRows.StartText(diff.StartedAt, DateTimeOffset.Now)</span>
+                    </button>
+                }
                 @* The menu sits in the chip: its clicks must not reach the chip (activate, middle-click closes). *@
                 <span class="ws-more-anchor" @onclick:stopPropagation="true" @onmouseup:stopPropagation="true">
                     <MenuButton Class="ws-more" Title="@ShellText.Actions" Label="Dots" Width="ActionsMenuWidth"
-                                EstimatedHeight="@(Workspaces.Profile?.ReadOnly == true ? 150 : 110)" ShiftX="@(ActionsMenuWidth - 16)" ShiftY="12">
+                                EstimatedHeight="@((Workspaces.Profile?.ReadOnly == true ? 150 : 110) + (w.DataDiff is null ? 40 : 70))" ShiftX="@(ActionsMenuWidth - 16)" ShiftY="12">
                         <ChildContent Context="menu">@ActionsMenu(menu, w)</ChildContent>
                     </MenuButton>
                 </span>
@@ -88,7 +96,7 @@
     private Workspace? _pendingDelete;
 
     private const double AddMenuWidth = 320;
-    private const double ActionsMenuWidth = 200;
+    private const double ActionsMenuWidth = 240;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -109,6 +117,19 @@
     <button class="menu-item" disabled="@(Workspaces.Open.Count <= 1)"
             title="@(Workspaces.Open.Count <= 1 ? ShellText.Workspaces_LastStaysOpen : ShellText.Workspaces_CloseHint)"
             @onclick="() => RunActionAsync(menu, () => CloseAsync(target))">@CommonText.Close</button>
+    <div class="menu-sep"></div>
+    @if (target.DataDiff is { } diff)
+    {
+        <button class="menu-item" title="@ShellText.DataDiff_CompareTitle" @onclick="() => RunActionAsync(menu, () => Lifecycle.CompareDataDiffAsync(target.Id))">
+            @TextFormat.Format(ShellText.DataDiff_CompareSince, DataDiffRows.StartText(diff.StartedAt, DateTimeOffset.Now))
+        </button>
+        <button class="menu-item" title="@ShellText.DataDiff_RestartTitle" @onclick="() => RunActionAsync(menu, () => Lifecycle.StartDataDiffAsync(target.Id))">@ShellText.DataDiff_Restart</button>
+        <button class="menu-item" title="@ShellText.DataDiff_DiscardTitle" @onclick="() => RunAction(menu, () => Lifecycle.DiscardDataDiff(target.Id))">@ShellText.DataDiff_Discard</button>
+    }
+    else
+    {
+        <button class="menu-item" title="@ShellText.DataDiff_StartTitle" @onclick="() => RunActionAsync(menu, () => Lifecycle.StartDataDiffAsync(target.Id))">@ShellText.DataDiff_Start</button>
+    }
     @if (lockItems)
     {
         <div class="menu-sep"></div>

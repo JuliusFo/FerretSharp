@@ -115,7 +115,19 @@ public sealed record TabState(
 
     /// <summary>The tab of the schema's privileges in the file format of table tabs.</summary>
     public static TabState OfGrantList(GrantListTabState list) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { GrantList = list };
+
+    /// <summary>
+    /// Set for the tab of the workspace's data diff (WP-44); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.
+    /// The start point and the tables live in <see cref="Workspace.DataDiff"/>, the results only in memory.
+    /// </summary>
+    public DataDiffTabState? DataDiff { get; init; }
+
+    /// <summary>The tab of the workspace's data diff in the file format of table tabs.</summary>
+    public static TabState OfDataDiff(DataDiffTabState diff) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { DataDiff = diff };
 }
+
+/// <summary>The tab of a workspace's data diff (WP-44): only that it is there – what it compares is the workspace's, its results are not saved.</summary>
+public sealed record DataDiffTabState;
 
 /// <summary>The tab of the schema's private synonyms (WP-68): whether it shows only those whose target is not there.</summary>
 public sealed record SynonymListTabState(bool OnlyBroken = false);

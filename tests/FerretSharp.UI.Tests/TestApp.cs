@@ -210,6 +210,13 @@ internal sealed class TestApp : IAsyncDisposable
         Task.FromResult(new SqlPage([new SqlColumn("ID", new ColumnInfo("ID", "NUMBER", null, false, null, null, false, false, null, 1))], [[1m]], IsLastPage: true, TimeSpan.FromMilliseconds(5)));
 
     /// <summary>Every session's transaction ends behind FerretSharp's back (<see cref="FakeDataEditor.Ended"/>).</summary>
+    /// <summary>The SCN a data diff starts at (WP-44).</summary>
+    public long CurrentScn { get; set; } = 4711;
+
+    /// <summary>What the read session finds for a data diff (WP-44): no differing rows unless a test says otherwise.</summary>
+    public Func<TableDetails, IReadOnlyList<FilterCondition>, long, Task<DiffRead>> ReadDiff { get; set; } = (_, _, _) =>
+        Task.FromResult(new DiffRead([], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false));
+
     public void EndTransactions()
     {
         foreach (var editor in Editors)
@@ -271,6 +278,13 @@ internal sealed class TestApp : IAsyncDisposable
                 // The filters are checked like the session does (review of `small-pk-edit`, 1: a refused filter got past the tests).
                 QueryBuilder.BuildCount(call.Arg<TableDetails>(), call.Arg<IReadOnlyList<FilterCondition>>());
                 return CountRows(call.Arg<IReadOnlyList<FilterCondition>>());
+            });
+        data.CurrentScnAsync(Arg.Any<CancellationToken>()).Returns(_ => CurrentScn);
+        data.ReadDiffAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                QueryBuilder.BuildDiff(call.Arg<TableDetails>(), call.Arg<IReadOnlyList<FilterCondition>>(), call.Arg<long>(), DataDiff.ReadLimit); // refuses like the session
+                return ReadDiff(call.Arg<TableDetails>(), call.Arg<IReadOnlyList<FilterCondition>>(), call.Arg<long>());
             });
         var connection = FakeDatabase.Connection(reader);
         connection.SessionTag.Returns("FerretSharp " + Guid.NewGuid().ToString("N")[..12]); // like the app: one tag per session (WP-52)

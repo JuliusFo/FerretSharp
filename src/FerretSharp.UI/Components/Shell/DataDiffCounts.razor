@@ -1,0 +1,26 @@
+@* The counts of a table's data diff (WP-44) in the list of the diff tab: new, changed, deleted rows, each only if any. *@
+@using FerretSharp.Core.Data
+
+<span class="diff-counts" title="@TextFormat.Format(ShellText.DataDiff_CountsTitle, Diff.Count(DiffStatus.Added), Diff.Count(DiffStatus.Changed), Diff.Count(DiffStatus.Deleted))">
+    @if (Diff.Count(DiffStatus.Added) is > 0 and var added)
+    {
+        <span class="new">+@added</span>
+    }
+    @if (Diff.Count(DiffStatus.Changed) is > 0 and var changed)
+    {
+        <span class="changed">~@changed</span>
+    }
+    @if (Diff.Count(DiffStatus.Deleted) is > 0 and var deleted)
+    {
+        <span class="deleted">−@deleted</span>
+    }
+    @if (Diff.Truncated)
+    {
+        <span class="faint">+</span>
+    }
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public TableDiff Diff { get; set; } = null!;
+}

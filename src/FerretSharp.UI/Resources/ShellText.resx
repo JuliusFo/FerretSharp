@@ -1220,4 +1220,186 @@
     <value>Report: C# model and database</value>
     <comment>Tooltip of the top bar button</comment>
   </data>
+  <data name="DataDiff_Title" xml:space="preserve">
+    <value>Data diff</value>
+    <comment>Title of the data diff tab (WP-44)</comment>
+  </data>
+  <data name="DataDiff_NoViews" xml:space="preserve">
+    <value>Views cannot be compared with an earlier state – compare their tables.</value>
+  </data>
+  <data name="DataDiff_StartedEmpty" xml:space="preserve">
+    <value>Start point set ({0:g}). Add the tables to compare in the tab "Data diff" or with "Compare this tab" in a tab's menu.</value>
+    <comment>{0} = time of the start point</comment>
+  </data>
+  <data name="DataDiff_Started" xml:space="preserve">
+    <value>Start point set ({0:g}) for {1}. "Compare" shows what changed since.</value>
+    <comment>{0} = time of the start point, {1} = table names</comment>
+  </data>
+  <data name="DataDiff_NoStartPoint" xml:space="preserve">
+    <value>No start point set</value>
+  </data>
+  <data name="DataDiff_AlreadyRunning" xml:space="preserve">
+    <value>A comparison is running – wait for it or cancel it in the tab "Data diff".</value>
+  </data>
+  <data name="DataDiff_Cancelled" xml:space="preserve">
+    <value>Cancelled.</value>
+  </data>
+  <data name="DataDiff_NotConnected" xml:space="preserve">
+    <value>The connection is not open.</value>
+  </data>
+  <data name="DataDiff_TableGone" xml:space="preserve">
+    <value>{0}.{1} no longer exists or is not visible.</value>
+    <comment>{0} = owner, {1} = table</comment>
+  </data>
+  <data name="TabBar_DataDiffTitle" xml:space="preserve">
+    <value>Data diff since the start point {0:g}</value>
+    <comment>Tooltip of the data diff tab; {0} = time of the start point</comment>
+  </data>
+  <data name="DataDiff_CompareTab" xml:space="preserve">
+    <value>Compare this tab</value>
+    <comment>Tab menu item (WP-44)</comment>
+  </data>
+  <data name="DataDiff_CompareTabTitle" xml:space="preserve">
+    <value>Compares the tab's table with its filter against the workspace's start point and adds it to the data diff</value>
+  </data>
+  <data name="DataDiff_ChipTitle" xml:space="preserve">
+    <value>Data diff since {0:g} – click to compare</value>
+    <comment>{0} = time of the start point</comment>
+  </data>
+  <data name="DataDiff_CompareTitle" xml:space="preserve">
+    <value>Compares the committed state of the tables now with the start point – in a session of its own, never with the workspace's uncommitted changes</value>
+  </data>
+  <data name="DataDiff_CompareSince" xml:space="preserve">
+    <value>Compare (since {0})</value>
+    <comment>Workspace menu item; {0} = time of the start point</comment>
+  </data>
+  <data name="DataDiff_Restart" xml:space="preserve">
+    <value>New start point</value>
+    <comment>Button</comment>
+  </data>
+  <data name="DataDiff_RestartTitle" xml:space="preserve">
+    <value>Sets the start point to now; the tables stay, what was found goes</value>
+  </data>
+  <data name="DataDiff_Discard" xml:space="preserve">
+    <value>Discard start point</value>
+    <comment>Button</comment>
+  </data>
+  <data name="DataDiff_DiscardTitle" xml:space="preserve">
+    <value>Ends the data diff: start point, tables and results go</value>
+  </data>
+  <data name="DataDiff_Start" xml:space="preserve">
+    <value>Start comparison</value>
+    <comment>Button/menu item: sets the start point of the data diff</comment>
+  </data>
+  <data name="DataDiff_StartTitle" xml:space="preserve">
+    <value>Remembers the database's state now (its SCN); later "Compare" shows which rows changed since – also those changed by other sessions or apps</value>
+  </data>
+  <data name="DataDiff_ScnTitle" xml:space="preserve">
+    <value>SCN {0}</value>
+    <comment>{0} = system change number</comment>
+  </data>
+  <data name="DataDiff_Since" xml:space="preserve">
+    <value>Since {0}</value>
+    <comment>{0} = time of the start point</comment>
+  </data>
+  <data name="DataDiff_Comparing" xml:space="preserve">
+    <value>Comparing …</value>
+  </data>
+  <data name="DataDiff_Compare" xml:space="preserve">
+    <value>Compare</value>
+    <comment>Button</comment>
+  </data>
+  <data name="DataDiff_ComparedAt" xml:space="preserve">
+    <value>Compared at {0:T}</value>
+    <comment>{0} = time of the comparison</comment>
+  </data>
+  <data name="DataDiff_AddPlaceholder" xml:space="preserve">
+    <value>+ Table</value>
+  </data>
+  <data name="DataDiff_AddTitle" xml:space="preserve">
+    <value>A table of the schema to compare as a whole – Enter adds and compares it</value>
+  </data>
+  <data name="DataDiff_Explain" xml:space="preserve">
+    <value>A start point remembers the database's state now. "Compare" then shows which rows of the chosen tables are new, changed or deleted since – whoever changed them. Over the line come only the rows that differ.</value>
+  </data>
+  <data name="DataDiff_NoTables" xml:space="preserve">
+    <value>No tables to compare</value>
+  </data>
+  <data name="DataDiff_NoTablesText" xml:space="preserve">
+    <value>Add a table with "+ Table" above, or use "Compare this tab" in a table tab's menu.</value>
+  </data>
+  <data name="DataDiff_Tables" xml:space="preserve">
+    <value>Compared tables</value>
+  </data>
+  <data name="DataDiff_RemoveTitle" xml:space="preserve">
+    <value>Remove from the data diff</value>
+  </data>
+  <data name="DataDiff_WholeTable" xml:space="preserve">
+    <value>whole table</value>
+  </data>
+  <data name="DataDiff_Unchanged" xml:space="preserve">
+    <value>Unchanged</value>
+  </data>
+  <data name="DataDiff_UnchangedText" xml:space="preserve">
+    <value>No row of the filter differs from the start point.</value>
+  </data>
+  <data name="DataDiff_NotComparedYet" xml:space="preserve">
+    <value>Not compared yet – "Compare" reads what changed since the start point.</value>
+  </data>
+  <data name="DataDiff_Reading" xml:space="preserve">
+    <value>Comparing {0} …</value>
+    <comment>{0} = table</comment>
+  </data>
+  <data name="DataDiff_UnknownTable" xml:space="preserve">
+    <value>No table {0} in the schema.</value>
+    <comment>{0} = typed name</comment>
+  </data>
+  <data name="DataDiff_All" xml:space="preserve">
+    <value>All {0:N0}</value>
+    <comment>Filter button; {0} = rows</comment>
+  </data>
+  <data name="DataDiff_Added" xml:space="preserve">
+    <value>New {0:N0}</value>
+    <comment>Filter button; {0} = rows</comment>
+  </data>
+  <data name="DataDiff_Changed" xml:space="preserve">
+    <value>Changed {0:N0}</value>
+    <comment>Filter button; {0} = rows</comment>
+  </data>
+  <data name="DataDiff_Deleted" xml:space="preserve">
+    <value>Deleted {0:N0}</value>
+    <comment>Filter button; {0} = rows</comment>
+  </data>
+  <data name="DataDiff_OnlyChangedColumns" xml:space="preserve">
+    <value>Only changed columns</value>
+  </data>
+  <data name="DataDiff_OnlyChangedColumnsTitle" xml:space="preserve">
+    <value>Shows the key and the columns that differ in a changed row</value>
+  </data>
+  <data name="DataDiff_Truncated" xml:space="preserve">
+    <value>More than {0:N0} rows differ – only the first are shown. Narrow the filter of the table ("Compare this tab").</value>
+    <comment>{0} = limit of rows</comment>
+  </data>
+  <data name="DataDiff_Omitted" xml:space="preserve">
+    <value>Not compared (a set operation cannot compare these types): {0}</value>
+    <comment>{0} = column names</comment>
+  </data>
+  <data name="DataDiff_RowMovement" xml:space="preserve">
+    <value>The table has no primary key and allows row movement: a row that moved shows as deleted and new.</value>
+  </data>
+  <data name="DataDiff_ByRowId" xml:space="preserve">
+    <value>The table has no primary key: rows are matched by their ROWID.</value>
+  </data>
+  <data name="DataDiff_Status" xml:space="preserve">
+    <value>Status</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="DataDiff_Before" xml:space="preserve">
+    <value>At the start: {0}</value>
+    <comment>Tooltip of a changed cell; {0} = value then</comment>
+  </data>
+  <data name="DataDiff_CountsTitle" xml:space="preserve">
+    <value>{0} new, {1} changed, {2} deleted</value>
+    <comment>{0}-{2} = rows</comment>
+  </data>
 </root>

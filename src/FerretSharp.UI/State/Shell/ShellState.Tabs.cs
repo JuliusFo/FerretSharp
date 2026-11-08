@@ -309,6 +309,26 @@ public sealed partial class ShellState
     }
 
     /// <summary>
+    /// Shows the data diff tab of <paramref name="workspace"/> (WP-44) or opens it after the active tab: one per workspace.
+    /// The workspace itself is activated by the caller.
+    /// </summary>
+    public DataDiffTab OpenDataDiff(WorkspaceTabs workspace)
+    {
+        if (workspace.Tabs.OfType<DataDiffTab>().FirstOrDefault() is { } open)
+        {
+            Set(() =>
+            {
+                open.Visited = true;
+                workspace.ActiveTab = open;
+                Page = ShellPage.Explorer;
+            });
+            return open;
+        }
+
+        return InsertAfterActive(workspace, new DataDiffTab(workspace.WorkspaceId) { Visited = true });
+    }
+
+    /// <summary>
     /// "Synonym löschen" in the object menu (WP-68): the object's tab in its "Synonyms" view, which shows the drop with its
     /// confirmation. A PL/SQL unit opens on that view as well.
     /// </summary>
@@ -675,7 +695,8 @@ public sealed partial class ShellState
     /// A saved tab on a table of another schema that no synonym reaches: it was opened by name and is restored the same way
     /// (review 3.40.0, A5) – before, it was dropped on every start. A table of the browsed schema that is gone stays dropped.
     /// </summary>
-    private static TableSummary? OpenedByName(TableRef table, SchemaCache schema) =>
+    /// <summary>A table of another schema that the cache does not know, as opened by name (an FK jump); null in the browsed schema.</summary>
+    internal static TableSummary? OpenedByName(TableRef table, SchemaCache schema) =>
         string.Equals(table.Owner, schema.Owner, StringComparison.Ordinal) ? null : new TableSummary(table.Owner, table.Name, TableKind.Table);
 
     /// <summary>
@@ -757,6 +778,10 @@ public sealed partial class ShellState
             else if (state.GrantList is { } grants)
             {
                 tab = GrantListTab.Restore(workspace.Id, grants);
+            }
+            else if (state.DataDiff is not null)
+            {
+                tab = new DataDiffTab(workspace.Id);
             }
             else if (state.PlSql is { } plSql)
             {

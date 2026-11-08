@@ -171,6 +171,10 @@ internal static class Icons
     public static readonly MarkupString Report = Svg(
         """<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>""");
 
+    /// <summary>Lucide <c>history</c>: the data diff of a workspace since its start point (WP-44).</summary>
+    public static readonly MarkupString DataDiff = Svg(
+        """<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>""");
+
     /// <summary>Lucide <c>git-compare</c>: compare the selected rows (WP-61).</summary>
     public static readonly MarkupString CompareRows = Svg(
         """<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/>""");

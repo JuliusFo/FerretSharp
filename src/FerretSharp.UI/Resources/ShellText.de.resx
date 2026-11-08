@@ -987,4 +987,160 @@
   <data name="Shell_Report" xml:space="preserve">
     <value>Bericht: C#-Modell und Datenbank</value>
   </data>
+  <data name="DataDiff_Title" xml:space="preserve">
+    <value>Daten-Diff</value>
+  </data>
+  <data name="DataDiff_NoViews" xml:space="preserve">
+    <value>Views lassen sich nicht mit einem früheren Stand vergleichen – vergleiche ihre Tabellen.</value>
+  </data>
+  <data name="DataDiff_StartedEmpty" xml:space="preserve">
+    <value>Startpunkt gesetzt ({0:g}). Die Tabellen zum Vergleichen im Tab „Daten-Diff“ hinzufügen oder mit „Diesen Tab vergleichen“ im Menü eines Tabs.</value>
+  </data>
+  <data name="DataDiff_Started" xml:space="preserve">
+    <value>Startpunkt gesetzt ({0:g}) für {1}. „Vergleichen“ zeigt, was sich seitdem geändert hat.</value>
+  </data>
+  <data name="DataDiff_NoStartPoint" xml:space="preserve">
+    <value>Kein Startpunkt gesetzt</value>
+  </data>
+  <data name="DataDiff_AlreadyRunning" xml:space="preserve">
+    <value>Ein Vergleich läuft schon – warte ihn ab oder brich ihn im Tab „Daten-Diff“ ab.</value>
+  </data>
+  <data name="DataDiff_Cancelled" xml:space="preserve">
+    <value>Abgebrochen.</value>
+  </data>
+  <data name="DataDiff_NotConnected" xml:space="preserve">
+    <value>Die Verbindung ist nicht geöffnet.</value>
+  </data>
+  <data name="DataDiff_TableGone" xml:space="preserve">
+    <value>{0}.{1} gibt es nicht mehr, oder sie ist nicht sichtbar.</value>
+  </data>
+  <data name="TabBar_DataDiffTitle" xml:space="preserve">
+    <value>Daten-Diff seit dem Startpunkt {0:g}</value>
+  </data>
+  <data name="DataDiff_CompareTab" xml:space="preserve">
+    <value>Diesen Tab vergleichen</value>
+  </data>
+  <data name="DataDiff_CompareTabTitle" xml:space="preserve">
+    <value>Vergleicht die Tabelle des Tabs mit ihrem Filter gegen den Startpunkt des Workspaces und nimmt sie in den Daten-Diff auf</value>
+  </data>
+  <data name="DataDiff_ChipTitle" xml:space="preserve">
+    <value>Daten-Diff seit {0:g} – Klick vergleicht</value>
+  </data>
+  <data name="DataDiff_CompareTitle" xml:space="preserve">
+    <value>Vergleicht den committeten Stand der Tabellen jetzt mit dem Startpunkt – in einer eigenen Session, nie mit den nicht committeten Änderungen des Workspaces</value>
+  </data>
+  <data name="DataDiff_CompareSince" xml:space="preserve">
+    <value>Vergleichen (seit {0})</value>
+  </data>
+  <data name="DataDiff_Restart" xml:space="preserve">
+    <value>Neuer Startpunkt</value>
+  </data>
+  <data name="DataDiff_RestartTitle" xml:space="preserve">
+    <value>Setzt den Startpunkt auf jetzt; die Tabellen bleiben, das Gefundene geht</value>
+  </data>
+  <data name="DataDiff_Discard" xml:space="preserve">
+    <value>Startpunkt verwerfen</value>
+  </data>
+  <data name="DataDiff_DiscardTitle" xml:space="preserve">
+    <value>Beendet den Daten-Diff: Startpunkt, Tabellen und Ergebnisse gehen</value>
+  </data>
+  <data name="DataDiff_Start" xml:space="preserve">
+    <value>Vergleich starten</value>
+  </data>
+  <data name="DataDiff_StartTitle" xml:space="preserve">
+    <value>Merkt sich den Stand der Datenbank jetzt (ihre SCN); später zeigt „Vergleichen“, welche Zeilen sich seitdem geändert haben – auch durch andere Sessions oder Apps</value>
+  </data>
+  <data name="DataDiff_ScnTitle" xml:space="preserve">
+    <value>SCN {0}</value>
+  </data>
+  <data name="DataDiff_Since" xml:space="preserve">
+    <value>Seit {0}</value>
+  </data>
+  <data name="DataDiff_Comparing" xml:space="preserve">
+    <value>Vergleiche …</value>
+  </data>
+  <data name="DataDiff_Compare" xml:space="preserve">
+    <value>Vergleichen</value>
+  </data>
+  <data name="DataDiff_ComparedAt" xml:space="preserve">
+    <value>Verglichen um {0:T}</value>
+  </data>
+  <data name="DataDiff_AddPlaceholder" xml:space="preserve">
+    <value>+ Tabelle</value>
+  </data>
+  <data name="DataDiff_AddTitle" xml:space="preserve">
+    <value>Eine Tabelle des Schemas, die ganz verglichen wird – Enter nimmt sie auf und vergleicht</value>
+  </data>
+  <data name="DataDiff_Explain" xml:space="preserve">
+    <value>Ein Startpunkt merkt sich den Stand der Datenbank jetzt. „Vergleichen“ zeigt danach, welche Zeilen der gewählten Tabellen seitdem neu, geändert oder gelöscht sind – egal, wer sie geändert hat. Über die Leitung kommen nur die Zeilen, die sich unterscheiden.</value>
+  </data>
+  <data name="DataDiff_NoTables" xml:space="preserve">
+    <value>Keine Tabellen zum Vergleichen</value>
+  </data>
+  <data name="DataDiff_NoTablesText" xml:space="preserve">
+    <value>Nimm oben mit „+ Tabelle“ eine Tabelle auf oder nutze „Diesen Tab vergleichen“ im Menü eines Tabellen-Tabs.</value>
+  </data>
+  <data name="DataDiff_Tables" xml:space="preserve">
+    <value>Verglichene Tabellen</value>
+  </data>
+  <data name="DataDiff_RemoveTitle" xml:space="preserve">
+    <value>Aus dem Daten-Diff entfernen</value>
+  </data>
+  <data name="DataDiff_WholeTable" xml:space="preserve">
+    <value>ganze Tabelle</value>
+  </data>
+  <data name="DataDiff_Unchanged" xml:space="preserve">
+    <value>Unverändert</value>
+  </data>
+  <data name="DataDiff_UnchangedText" xml:space="preserve">
+    <value>Keine Zeile des Filters unterscheidet sich vom Startpunkt.</value>
+  </data>
+  <data name="DataDiff_NotComparedYet" xml:space="preserve">
+    <value>Noch nicht verglichen – „Vergleichen“ liest, was sich seit dem Startpunkt geändert hat.</value>
+  </data>
+  <data name="DataDiff_Reading" xml:space="preserve">
+    <value>Vergleiche {0} …</value>
+  </data>
+  <data name="DataDiff_UnknownTable" xml:space="preserve">
+    <value>Keine Tabelle {0} im Schema.</value>
+  </data>
+  <data name="DataDiff_All" xml:space="preserve">
+    <value>Alle {0:N0}</value>
+  </data>
+  <data name="DataDiff_Added" xml:space="preserve">
+    <value>Neu {0:N0}</value>
+  </data>
+  <data name="DataDiff_Changed" xml:space="preserve">
+    <value>Geändert {0:N0}</value>
+  </data>
+  <data name="DataDiff_Deleted" xml:space="preserve">
+    <value>Gelöscht {0:N0}</value>
+  </data>
+  <data name="DataDiff_OnlyChangedColumns" xml:space="preserve">
+    <value>Nur geänderte Spalten</value>
+  </data>
+  <data name="DataDiff_OnlyChangedColumnsTitle" xml:space="preserve">
+    <value>Zeigt den Schlüssel und die Spalten, die sich in einer geänderten Zeile unterscheiden</value>
+  </data>
+  <data name="DataDiff_Truncated" xml:space="preserve">
+    <value>Mehr als {0:N0} Zeilen unterscheiden sich – gezeigt werden nur die ersten. Setze den Filter der Tabelle enger („Diesen Tab vergleichen“).</value>
+  </data>
+  <data name="DataDiff_Omitted" xml:space="preserve">
+    <value>Nicht verglichen (diese Typen kann eine Mengenoperation nicht vergleichen): {0}</value>
+  </data>
+  <data name="DataDiff_RowMovement" xml:space="preserve">
+    <value>Die Tabelle hat keinen Primärschlüssel und erlaubt Row Movement: Eine verschobene Zeile erscheint als gelöscht und neu.</value>
+  </data>
+  <data name="DataDiff_ByRowId" xml:space="preserve">
+    <value>Die Tabelle hat keinen Primärschlüssel: Zeilen werden über ihre ROWID zugeordnet.</value>
+  </data>
+  <data name="DataDiff_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="DataDiff_Before" xml:space="preserve">
+    <value>Am Startpunkt: {0}</value>
+  </data>
+  <data name="DataDiff_CountsTitle" xml:space="preserve">
+    <value>{0} neu, {1} geändert, {2} gelöscht</value>
+  </data>
 </root>
