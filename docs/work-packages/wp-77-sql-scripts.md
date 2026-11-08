@@ -32,6 +32,11 @@ Entscheidungen des Nutzers (2026-11-08):
   - Icons `Script` (`scroll-text`), `Folder`, `Save` (Lucide 1.55); Texte `ScriptViewText` (UI) und `ScriptText` (Core), Englisch und Deutsch.
 - **Tests:** Core `ScriptHeadersTests`, `ScriptPathsTests` (u. a. `..`, Laufwerk, UNC, `CON`, `.git`, symbolischer Link – ohne Entwicklermodus übersprungen), `ScriptFilesTests` (neu, BOM/LF erhalten, ANSI, Konflikt, Löschen), `ScriptLibraryTests`, `SqlScriptTests` (Insert), `ConnectionGroupRenameTests`, `WorkspaceStoreTests` (Link); UI `ScriptTreeTests`, `ScriptSaveDraftTests`, `ScriptTabsTests`, `ExplorerListTests`.
 
+## E2E
+2026-11-08, eigener Container (`New-SampleDb.ps1 -Name ferret-e2e-wp77 -Port 1577`), Testinstanz mit `--data-dir` (deutsch/dunkel, zum Schluss englisch/hell), Verbindung in der Gruppe ERP; Gruppen- und allgemeiner Ordner im Scratchpad (Unterordner, leerer Ordner, `.git`, UTF-8 mit BOM und LF, ANSI-Datei, Kopf mit Fehler). Klicks mit echter Windows-Eingabe (`Invoke-RealClick.ps1`, Probe vorher bestanden), Tippen in Monaco per CDP.
+- Gefunden und behoben: Die Einträge des Menüs neben „Speichern“ öffneten ihren Dialog erst beim nächsten Rendern – `MoreMenu` ruft ein `Func<Task>` im eigenen Handler und rendert nur sich (Falle aus `ui.md`); `SqlView` rendert jetzt nach jedem Eintrag selbst. Der Tab-Reiter zeigte den Punkt und nach „Fenster als Skript speichern“ den neuen Namen nicht (die Leiste rendert nur mit der Shell): `Shell.NotifyChanged`, wenn der Punkt kommt oder geht, Umbenennen über `Shell.RenameTab`. Im Kopf des Explorers stand „4 Objekte“ statt „4 Skripte“. Nach dem Hinweis „gibt es nicht mehr, Speichern legt es neu an“ fragte Speichern „inzwischen geändert“ – legt die Datei jetzt ohne Rückfrage an.
+- Nicht mit echter Eingabe geprüft: „Im Datei-Explorer zeigen“ (hätte ein Explorer-Fenster auf dem Bildschirm des Nutzers geöffnet).
+
 ## Offen / Backlog
 - Umbenennen und Verschieben von Skripten im Explorer (Entscheidung: später).
 - Ein mit einem Gruppen-Skript verbundener Tab findet nach dem Umbenennen der Gruppe seinen Ordner nicht mehr (bietet „Speichern unter“ an).
