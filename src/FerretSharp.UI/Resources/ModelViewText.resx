@@ -1029,4 +1029,8 @@
     <value>writes {1} of {0}</value>
     <comment>{0} = table, {1} = columns</comment>
   </data>
+  <data name="CodeOrigin_FiltersIn" xml:space="preserve">
+    <value>filters {0} by {1}</value>
+    <comment>{0} = table, {1} = columns; for statements with several tables</comment>
+  </data>
 </root>

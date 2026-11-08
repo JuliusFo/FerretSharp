@@ -30,6 +30,8 @@ public sealed class CodeOriginRowsTests
         }
 
         Assert.Equal("fragt ORDERS ab", CodeOriginRows.Reason(candidate.Reasons[0]));
+        // Several tables in the statement: the filter names its table (review WP-76).
+        Assert.Equal("filtert ORDERS nach CUSTOMER_ID, STATUS", CodeOriginRows.Reason(candidate.Reasons[3], qualify: true));
     }
 
     [Fact]

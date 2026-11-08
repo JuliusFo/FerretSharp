@@ -18,13 +18,16 @@ public static class CodeOriginRows
         expanded ? candidates : candidates.Take(Initial).ToList();
 
     /// <summary>Why the method fits, one phrase per reason: "queries ORDERS · filters by CUSTOMER_ID, STATUS".</summary>
-    public static string Reasons(CodeOriginCandidate candidate) => string.Join(" · ", candidate.Reasons.Select(Reason));
+    /// <param name="qualify">The statement has several tables: filters name theirs ("filters ORDERS by STATUS").</param>
+    public static string Reasons(CodeOriginCandidate candidate, bool qualify = false) =>
+        string.Join(" · ", candidate.Reasons.Select(r => Reason(r, qualify)));
 
-    public static string Reason(CodeOriginReason reason) => reason.Kind switch
+    public static string Reason(CodeOriginReason reason, bool qualify = false) => reason.Kind switch
     {
         CodeOriginReasonKind.Queries => TextFormat.Format(ModelViewText.CodeOrigin_Queries, reason.Table),
         CodeOriginReasonKind.Joins => TextFormat.Format(ModelViewText.CodeOrigin_Joins, reason.Table, reason.Navigation),
         CodeOriginReasonKind.LazyLoads => TextFormat.Format(ModelViewText.CodeOrigin_LazyLoads, reason.Table, reason.Navigation),
+        CodeOriginReasonKind.Filters when qualify => TextFormat.Format(ModelViewText.CodeOrigin_FiltersIn, reason.Table, Columns(reason.Columns)),
         CodeOriginReasonKind.Filters => TextFormat.Format(ModelViewText.CodeOrigin_Filters, Columns(reason.Columns)),
         CodeOriginReasonKind.Writes => TextFormat.Format(ModelViewText.CodeOrigin_Writes, reason.Table, Columns(reason.Columns)),
         _ => reason.Table,

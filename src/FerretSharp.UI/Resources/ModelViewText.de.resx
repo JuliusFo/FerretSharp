@@ -888,4 +888,7 @@
   <data name="CodeOrigin_Writes" xml:space="preserve">
     <value>schreibt {1} von {0}</value>
   </data>
+  <data name="CodeOrigin_FiltersIn" xml:space="preserve">
+    <value>filtert {0} nach {1}</value>
+  </data>
 </root>
