@@ -28,7 +28,8 @@ public sealed record ScriptLink(ScriptRootKind Root, string? Group, string Path,
     /// </summary>
     public bool IsComplete =>
         Path is not null && FileHash is not null && SavedHash is not null
-        && Header is { Parameters: not null, Other: not null } && Header.Parameters.All(p => p?.Name is not null);
+        && Header is { Parameters: not null, Other: not null } && Header.Parameters.All(p => p?.Name is not null)
+        && Header.Other.All(line => line is not null);
 
     /// <summary>The header to write for the tab's text: the file's, with the parameters of the text's binds.</summary>
     public ScriptHeader HeaderFor(string text, IReadOnlyList<SqlVariable> variables) =>

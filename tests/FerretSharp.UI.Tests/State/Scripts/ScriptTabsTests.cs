@@ -83,10 +83,12 @@ public sealed class ScriptTabsTests : IAsyncDisposable
         {
             Script = new ScriptLink(ScriptRootKind.Personal, null, null!, "F", "S", null!),
         };
+        var nullLine = state with { Script = new ScriptLink(ScriptRootKind.Personal, null, "a.sql", "F", "S", new ScriptHeader(null, [], [null!])) };
 
         var restored = SqlTab.Restore(Guid.NewGuid(), state);
 
         Assert.Null(restored.Script);
+        Assert.Null(SqlTab.Restore(Guid.NewGuid(), nullLine).Script); // second review pass: a null line broke the next save
         Assert.False(restored.ScriptChanged);
 
         await _app.OpenAsync(TestApp.Profile("Test"));
@@ -105,6 +107,8 @@ public sealed class ScriptTabsTests : IAsyncDisposable
         var tab = _app.Shell.OpenScript(Personal, "a.sql", Document("SELECT 1 FROM dual"))!;
 
         Assert.Null(CloseTabQuestion.For(tab, typedValue: false));
+        // Keys the editor has not reported yet (its debounce): the tab cannot know whether they change it (review WP-77).
+        Assert.Equal(CloseTabLoss.EditorText, CloseTabQuestion.For(tab, typedValue: true)?.Loss);
         tab.Text += " -- for one run";
         Assert.Equal(CloseTabLoss.EditorText, CloseTabQuestion.For(tab, typedValue: false)?.Loss);
     }

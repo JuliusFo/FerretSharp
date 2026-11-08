@@ -42,10 +42,11 @@ public static class ScriptRoots
     {
         ArgumentNullException.ThrowIfNull(settings);
         var roots = new List<ScriptRoot> { Personal(settings, defaultPersonal) };
-        if (AuditTemplateSource.GroupEntry(settings.SqlScriptsGroups, profile?.Group) is { } entry)
+        // As All() does (review WP-77, K4): a path in quotes otherwise named another root than the one the library reads;
+        // one of only quotes (set by hand) is none (second review pass: a root without path broke the explorer's render).
+        if (AuditTemplateSource.GroupEntry(settings.SqlScriptsGroups, profile?.Group) is { } entry && PathInput.Normalize(entry.Value) is { } groupPath)
         {
-            // As All() does (review WP-77, K4): a path in quotes otherwise named another root than the one the library reads.
-            roots.Add(new ScriptRoot(ScriptRootKind.Group, PathInput.Normalize(entry.Value)!, entry.Key));
+            roots.Add(new ScriptRoot(ScriptRootKind.Group, groupPath, entry.Key));
         }
 
         if (PathInput.Normalize(settings.SqlScriptsGeneralPath) is { } general)

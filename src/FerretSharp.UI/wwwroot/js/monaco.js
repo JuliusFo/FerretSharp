@@ -6,6 +6,10 @@
 const base = './_content/FerretSharp.UI/lib/monaco/vs';
 const editors = new Map();
 const pendingTexts = new Map(); // element id → sends the text if a change is still waiting for the debounce
+// Element ids of editors with typing not yet sent to .NET (the debounce): shortcuts.js reports them when a tab closes, so a
+// script tab without changes .NET knows of does not close without asking right after typing (review WP-77).
+const typing = new Set();
+globalThis.ferretSharpEditorTyping = typing;
 const startVersions = new Map(); // element id → the model's version when created (edited or not, reportEdits)
 const completions = new Map(); // model uri → { id, dotnet } of editors that ask .NET for completion items
 const providers = new Set(); // languages with a registered completion provider
@@ -183,6 +187,7 @@ export async function create(elementId, dotnet, text, options) {
   let timer = null;
   const send = () => {
     timer = null;
+    typing.delete(elementId);
     const sent = options.reportEdits
       ? dotnet.invokeMethodAsync('OnEdited', elementId, isEdited(elementId, editor), editor.getModel().getValueLength())
       : dotnet.invokeMethodAsync('OnTextChanged', elementId, editor.getValue());
@@ -190,6 +195,7 @@ export async function create(elementId, dotnet, text, options) {
   };
   editor.onDidChangeModelContent(() => {
     clearTimeout(timer);
+    typing.add(elementId);
     timer = setTimeout(send, 250);
   });
   // destroy sends what was typed in the last 250 ms instead of dropping it, and no timer runs on a disposed editor (R4a).
@@ -399,6 +405,7 @@ export function find(elementId) {
 export function destroy(elementId) {
   pendingTexts.get(elementId)?.();
   pendingTexts.delete(elementId);
+  typing.delete(elementId);
   startVersions.delete(elementId);
   const editor = editors.get(elementId);
   if (editor) {

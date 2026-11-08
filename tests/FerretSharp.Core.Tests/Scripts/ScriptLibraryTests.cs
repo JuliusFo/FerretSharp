@@ -117,6 +117,27 @@ public sealed class ScriptLibraryTests : IDisposable
         Assert.Equal("fixed", entry.Description);
     }
 
+    /// <summary>
+    /// Review WP-77, K4 and second pass: a group's folder set by hand in quotes is the same root the library reads, and
+    /// one of only quotes is none (it gave a root without path, which broke the explorer).
+    /// </summary>
+    [Theory]
+    [InlineData("\"C:\\repo\\erp\"", true)]
+    [InlineData("\"\"", false)]
+    [InlineData("  ", false)]
+    public void A_group_folder_in_quotes_is_the_folder_and_quotes_alone_are_none(string value, bool listed)
+    {
+        var settings = AppSettings.Default with { SqlScriptsGroups = SettingsMap.Empty.With("ERP", value) };
+        var profile = new ConnectionProfile(Guid.NewGuid(), "erp-dev", ConnectionKind.Dev, new HostPortAddress("h", 1521, "S", null), "u", null, ReadOnly: false, Group: "ERP");
+
+        var group = ScriptRoots.For(settings, Personal, profile).Where(r => r.Kind == ScriptRootKind.Group).ToList();
+
+        Assert.Equal(listed, group.Count == 1);
+        Assert.Equal(
+            group.Select(r => r.Path),
+            ScriptRoots.All(settings, Personal).Where(r => r.Kind == ScriptRootKind.Group).Select(r => r.Path));
+    }
+
     [Fact]
     public void A_folder_set_twice_is_listed_once()
     {

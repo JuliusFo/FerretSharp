@@ -358,10 +358,11 @@
     private async Task CloseAsync(WorkspaceTab tab)
     {
         var cellEditing = false;
-        if (tab is TableTab && tab == Shell.ActiveTab)
+        // A script tab without changes .NET knows of asks too if its editor still holds keys (review WP-77).
+        if (tab is TableTab or SqlTab { Script: not null } && tab == Shell.ActiveTab)
         {
             _shortcuts ??= new JsModule(JS, "./_content/FerretSharp.UI/js/shortcuts.js");
-            cellEditing = await _shortcuts.InvokeAsync<bool>("cellEditing");
+            cellEditing = await _shortcuts.InvokeAsync<bool>("typing"); // a cell being edited, or keys a SQL editor has not reported yet
             if (_disposed)
             {
                 return;

@@ -14,6 +14,13 @@ const modalOpen = () => [...document.querySelectorAll('.modal-backdrop')].some(e
 // are mounted but not displayed. Also asked by the tab bar before closing.
 export const cellEditing = () => [...document.querySelectorAll('.ag-cell-inline-editing, .ag-cell-popup-editing')].some(el => el.getClientRects().length > 0);
 
+/**
+ * Something typed that .NET does not have yet: a grid cell being edited, or a visible Monaco editor whose last keys still
+ * wait for its debounce (monaco.js) – closing the tab now would lose it (review WP-77).
+ */
+export const typing = () => cellEditing()
+  || [...(globalThis.ferretSharpEditorTyping ?? [])].some(id => (document.getElementById(id)?.getClientRects().length ?? 0) > 0);
+
 // Keys of Monaco's own (find, replace, undo, clipboard, …) that a global shortcut may also use (Ctrl+F is "find column").
 // In a Monaco editor inside a dialog (LOB editor) they stay with the editor: .NET ignores shortcuts behind a dialog
 // anyway, so taking them would only break the editor. Keys with a browser default (F5) are still taken. The settings
@@ -67,7 +74,8 @@ export function register(dotnet, combos, takeEditFirst = []) {
       // Taken also while a dialog is open (.NET then ignores it): F5 would reload the whole WebView otherwise.
       e.preventDefault();
       e.stopPropagation();
-      const send = () => dotnet.invokeMethodAsync('OnShortcut', combo, modalOpen(), cellEditing());
+      // The third value only decides whether closing a tab asks first (typed but not taken yet).
+      const send = () => dotnet.invokeMethodAsync('OnShortcut', combo, modalOpen(), typing());
       const fail = err => console.error('Shortcut failed', err);
       if (editFirst.has(combo) && finishEditing && !modalOpen() && cellEditing()) {
         // A refused value keeps its editor open with the reason: nothing is written then.
