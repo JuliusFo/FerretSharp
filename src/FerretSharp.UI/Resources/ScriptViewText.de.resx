@@ -204,4 +204,10 @@
   <data name="Confirm_Replace" xml:space="preserve">
     <value>Ersetzen</value>
   </data>
+  <data name="Explorer_CountOne" xml:space="preserve">
+    <value>{0} Skript</value>
+  </data>
+  <data name="Explorer_CountOther" xml:space="preserve">
+    <value>{0} Skripte</value>
+  </data>
 </root>

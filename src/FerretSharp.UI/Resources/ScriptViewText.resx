@@ -268,4 +268,12 @@
     <value>Replace</value>
     <comment>Button</comment>
   </data>
+  <data name="Explorer_CountOne" xml:space="preserve">
+    <value>{0} script</value>
+    <comment>Count in the explorer head; {0}: number of scripts</comment>
+  </data>
+  <data name="Explorer_CountOther" xml:space="preserve">
+    <value>{0} scripts</value>
+    <comment>Count in the explorer head; {0}: number of scripts</comment>
+  </data>
 </root>

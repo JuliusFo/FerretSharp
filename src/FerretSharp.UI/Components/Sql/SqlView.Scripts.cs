@@ -45,18 +45,52 @@ public partial class SqlView
     /// <summary>A change on disk the user chose to keep their own text over ("Keep"): not asked again for the same file.</summary>
     private string? _keptHash;
 
+    /// <summary>Whether the tab bar showed the tab as changed against its file, as of the last render.</summary>
+    private bool _shownScriptChanged;
+
+    /// <summary>
+    /// The tab bar draws the dot of a changed script tab too, and renders only with the shell: told when the dot comes or
+    /// goes – not on every keystroke (the shell renders every mounted tab of every connection).
+    /// </summary>
+    protected override void OnAfterRender(bool firstRender)
+    {
+        var changed = Tab.ScriptChanged;
+        if (changed != _shownScriptChanged)
+        {
+            _shownScriptChanged = changed;
+            if (!firstRender)
+            {
+                Shell.NotifyChanged(); // the tab bar asks the tab itself whenever it renders
+            }
+        }
+    }
+
     private string SaveTitle => Tab.Script is { } link
         ? TextFormat.Format(ScriptViewText.SqlView_SaveTitle, link.Path) + Shortcuts.Hint(ShortcutAction.SaveScript)
         : ScriptViewText.SqlView_SaveNewTitle + Shortcuts.Hint(ShortcutAction.SaveScript);
 
+    /// <summary>
+    /// The menu beside "Save". Its entries run inside the menu's own handler, which renders only the menu: each renders this
+    /// view afterwards, or the dialog it opens would show only at the next render (E2E of WP-77).
+    /// </summary>
     private IReadOnlyList<MoreMenuItem> ScriptMenu =>
     [
         Tab.Script is null
-            ? new MoreMenuItem(ScriptViewText.Menu_SaveWindow, SaveWindowAsAsync) { Strong = true }
-            : new MoreMenuItem(ScriptViewText.Menu_SaveAs, SaveWindowAsAsync),
-        new MoreMenuItem(ScriptViewText.Menu_SaveSelection, SaveSelectionAsync) { Title = ScriptViewText.Menu_SaveSelectionTitle },
-        new MoreMenuItem(ScriptViewText.Menu_Reveal, RevealScriptFile, Tab.Script is not null && RootOf(Tab.Script) is not null) { SeparatorBefore = true },
+            ? new MoreMenuItem(ScriptViewText.Menu_SaveWindow, Rendering(SaveWindowAsAsync)) { Strong = true }
+            : new MoreMenuItem(ScriptViewText.Menu_SaveAs, Rendering(SaveWindowAsAsync)),
+        new MoreMenuItem(ScriptViewText.Menu_SaveSelection, Rendering(SaveSelectionAsync)) { Title = ScriptViewText.Menu_SaveSelectionTitle },
+        new MoreMenuItem(ScriptViewText.Menu_Reveal, Rendering(() =>
+        {
+            RevealScriptFile();
+            return Task.CompletedTask;
+        }), Tab.Script is not null && RootOf(Tab.Script) is not null) { SeparatorBefore = true },
     ];
+
+    private Func<Task> Rendering(Func<Task> action) => async () =>
+    {
+        await action();
+        StateHasChanged();
+    };
 
     private string ScriptLinkTitle(ScriptLink link) => RootOf(link) is { } root
         ? TextFormat.Format(ScriptViewText.SqlView_LinkTitle, ScriptTree.RootLabel(root), link.Path)
@@ -106,7 +140,8 @@ public partial class SqlView
             return;
         }
 
-        await WriteLinkedAsync(root, link, text, ScriptWriteMode.Update);
+        // The bar said the file is gone and "Save creates it again": no question about a change on disk then (E2E of WP-77).
+        await WriteLinkedAsync(root, link, text, _scriptNotice?.Kind == ScriptNoticeKind.Missing ? ScriptWriteMode.Replace : ScriptWriteMode.Update);
     }
 
     private async Task SaveWindowAsAsync()
@@ -184,8 +219,8 @@ public partial class SqlView
             {
                 // The tab now shows the file: named after it, saved only by "Save" from here on.
                 Tab.Script = ScriptLink.To(root, path, header, text, result.FileHash!);
-                Tab.Title = ScriptPaths.NameOf(path);
                 (_checkedStamp, _keptHash) = (null, null);
+                Shell.RenameTab(Tab, ScriptPaths.NameOf(path)); // renders the shell: the tab bar shows the new name
                 Shell.MarkDirty();
                 _scriptNotice = null;
             }

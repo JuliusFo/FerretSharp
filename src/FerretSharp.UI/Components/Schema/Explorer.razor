@@ -193,12 +193,12 @@
                 return "";
             }
 
-            var count = Section switch
+            if (Section == ExplorerSection.Scripts)
             {
-                ExplorerSection.PlSql => schema.PlSqlObjects.Count,
-                ExplorerSection.Scripts => Scripts.For(Active.Profile).Sum(s => s.Scripts.Count),
-                _ => TablesIn(Section).Count(),
-            };
+                return TextFormat.Plural(Scripts.For(Active.Profile).Sum(s => s.Scripts.Count), ScriptViewText.Explorer_CountOne, ScriptViewText.Explorer_CountOther);
+            }
+
+            var count = Section == ExplorerSection.PlSql ? schema.PlSqlObjects.Count : TablesIn(Section).Count();
             return TextFormat.Plural(count, SchemaViewText.Explorer_ObjectCountOne, SchemaViewText.Explorer_ObjectCountOther);
         }
     }

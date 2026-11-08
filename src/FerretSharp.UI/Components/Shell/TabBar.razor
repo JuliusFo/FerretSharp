@@ -169,6 +169,11 @@
                     {
                         <span class="tab-name">@tab.Caption</span>
                     }
+                    @if (tab is SqlTab { ScriptChanged: true })
+                    {
+                        @* WP-77: the tab differs from its script file. *@
+                        <span class="dot pending" title="@ScriptViewText.SqlView_Unsaved"></span>
+                    }
                     break;
             }
             @if (tab.Pinned)
