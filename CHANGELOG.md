@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *SQL scripts*: the editor's right-click menu has *Save selection as script…* (without a selection, the statement at the cursor).
+
+### Fixed
+- The right-click menu of every code editor (SQL, LINQ, PL/SQL source, LOB text) had no background, border or separators – its entries floated over the text.
+- *Save as script*, description: the box was one line high with its text at the top edge and in a monospace font; it now shows two lines in the font of the other fields.
+
 ## [3.65.0] - 2026-11-08
 
 Save queries as SQL scripts in your own, a group’s or a shared folder and get them back from the explorer, the SQL editor and the quick open.
