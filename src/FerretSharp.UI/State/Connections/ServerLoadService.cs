@@ -136,6 +136,24 @@ public sealed class ServerLoadView(Guid profileId)
 
     internal IDatabaseConnection? Connection { get; set; }
 
+    /// <summary>The lookup of <see cref="Selected"/> still running: the next statement cancels it (review: stepping through the dialog).</summary>
+    internal CancellationTokenSource? Lookup { get; set; }
+
+    /// <summary>Cancels the running lookup; its end changes nothing any more.</summary>
+    internal void CancelLookup()
+    {
+        var lookup = Lookup;
+        Lookup = null;
+        try
+        {
+            lookup?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // it ended meanwhile
+        }
+    }
+
     internal ServerLoadMonitor? Monitor { get; set; }
 
     internal TaskCompletionSource Wake { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -260,6 +278,11 @@ public sealed class ServerLoadService(
             {
                 await StopAsync();
             }
+
+            // The statement dialog does not open by itself when the page is shown again (review: it came back as a modal).
+            var view = For(profileId);
+            view.CancelLookup();
+            (view.Selected, view.Cursor, view.FullText, view.KeptText, view.CursorError, view.CursorLoading) = (null, null, null, null, null, false);
         }
         finally
         {
@@ -348,6 +371,7 @@ public sealed class ServerLoadService(
     public async Task SelectAsync(ConnectionProfile profile, string? sqlId)
     {
         var view = For(profile.Id);
+        view.CancelLookup(); // review: each step through the dialog queued a lookup at the session's gate, all waited for
         (view.Selected, view.Cursor, view.FullText, view.KeptText, view.CursorError) = (sqlId, null, null, null, null);
         view.CursorLoading = sqlId is not null && view.Connection is not null;
         if (sqlId is not null && view.Connection is null)
@@ -362,16 +386,18 @@ public sealed class ServerLoadService(
         }
 
         using var timeout = new CancellationTokenSource(LookupTimeout);
+        using var lookup = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+        view.Lookup = lookup;
         CursorInfo? cursor = null;
         string? fullText = null, keptText = null, error = null;
         try
         {
-            cursor = await Task.Run(() => connection.Schema.GetCursorByIdAsync(sqlId!, timeout.Token), CancellationToken.None);
+            cursor = await Task.Run(() => connection.Schema.GetCursorByIdAsync(sqlId!, lookup.Token), CancellationToken.None);
             if (cursor is not null)
             {
                 fullText = cursor.Plan.Sql; // from V$SQL: whole
             }
-            else if (await Task.Run(() => connection.ServerLoad.ReadFullTextAsync(sqlId!, timeout.Token), CancellationToken.None) is { } kept)
+            else if (await Task.Run(() => connection.ServerLoad.ReadFullTextAsync(sqlId!, lookup.Token), CancellationToken.None) is { } kept)
             {
                 // What V$SQLSTATS keeps may be cut: never taken as whole (second review of WP-75), but shown as cut.
                 if (kept.MayBeCut)
@@ -387,13 +413,15 @@ public sealed class ServerLoadService(
         }
         catch (Exception ex) when (ex is OperationCanceledException or DatabaseException or RefusedException)
         {
-            error = Failure(ex, profile, timeout); // null for a cancel that is not the timeout's: the session was closed
+            error = Failure(ex, profile, timeout); // null for a cancel that is not the timeout's: the session was closed or another was chosen
         }
         finally
         {
-            // Every end clears the spinner (review of WP-75: a cancel left it turning) – unless another statement was chosen meanwhile.
-            if (view.Selected == sqlId)
+            // Every end clears the spinner (review of WP-75: a cancel left it turning) – unless another lookup took over meanwhile,
+            // also one of the same statement chosen again (review: the first one's end cleared the second one's spinner).
+            if (view.Lookup == lookup)
             {
+                view.Lookup = null;
                 (view.Cursor, view.FullText, view.KeptText, view.CursorError, view.CursorLoading) = (cursor, fullText, keptText, error, false);
                 Changed?.Invoke();
             }
