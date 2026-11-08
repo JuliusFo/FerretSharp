@@ -5,10 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
-### Added
-- *SQL scripts*: the editor's right-click menu has *Save selection as script…* (without a selection, the statement at the cursor).
+## [3.65.1] - 2026-11-08
+
+The right-click menu of the code editors looks like a menu again and saves the selection as a script; the script dialog's description box shows two lines.
 
 ### Fixed
+- *SQL scripts*: the editor's right-click menu had no way to save; it now has *Save selection as script…* (without a selection, the statement at the cursor).
 - The right-click menu of every code editor (SQL, LINQ, PL/SQL source, LOB text) had no background, border or separators – its entries floated over the text.
 - *Save as script*, description: the box was one line high with its text at the top edge and in a monospace font; it now shows two lines in the font of the other fields.
 
