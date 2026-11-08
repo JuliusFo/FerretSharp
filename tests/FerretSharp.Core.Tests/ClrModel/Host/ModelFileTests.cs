@@ -39,10 +39,13 @@ public sealed class ModelFileTests : IDisposable
     public async Task A_written_file_reads_back_with_model_and_origin()
     {
         var path = _folder.Combine("Shop.Data.ferretmodel.json");
+        // The file is passed on, often in a shared repository: never written through a file of a fixed temporary name (review WP-77).
+        await File.WriteAllTextAsync(path + ".tmp", "a colleague's notes", Ct);
 
         await ModelFile.WriteAsync(path, Model, Origin, Ct);
         var read = await ModelFile.ReadAsync(path, Ct);
 
+        Assert.Equal("a colleague's notes", await File.ReadAllTextAsync(path + ".tmp", Ct));
         Assert.Null(read.Error);
         Assert.Equal(Origin, read.Origin);
         var kunde = Assert.Single(read.Model!.Entities);

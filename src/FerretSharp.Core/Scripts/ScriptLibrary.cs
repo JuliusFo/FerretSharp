@@ -436,15 +436,28 @@ public sealed class ScriptLibrary : IDisposable
             return;
         }
 
+        // Only for a folder the settings still name (they may have dropped it while it was read), and switched on only once
+        // registered: an error right away then finds it and drops it (third review pass of WP-77).
+        bool added;
         lock (_lock)
         {
-            if (!_disposed && _watchers.TryAdd(path, watcher))
-            {
-                return;
-            }
+            added = !_disposed && ScriptRoots.All(_settings.Current, DefaultPersonal).Any(r => r.Path == path) && _watchers.TryAdd(path, watcher);
         }
 
-        watcher.Dispose();
+        if (!added)
+        {
+            watcher.Dispose();
+            return;
+        }
+
+        try
+        {
+            watcher.EnableRaisingEvents = true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or PlatformNotSupportedException)
+        {
+            Unwatch(path, watcher); // a share that cannot be watched: the poll still sees changes
+        }
     }
 
     /// <summary>A watcher that broke (a share went away, the buffer overflowed) goes: the next read sets up a new one.</summary>
@@ -479,8 +492,7 @@ public sealed class ScriptLibrary : IDisposable
                 Unwatch(path, watcher);
                 Touch(); // the next read (or the poll) sets up a new one
             };
-            watcher.EnableRaisingEvents = true;
-            return watcher;
+            return watcher; // switched on by WatchRoot once registered
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or PlatformNotSupportedException)
         {
