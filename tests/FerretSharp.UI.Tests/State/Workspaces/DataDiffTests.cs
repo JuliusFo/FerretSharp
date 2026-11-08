@@ -105,5 +105,91 @@ public sealed class DataDiffTests : IAsyncDisposable
         Assert.DoesNotContain(workspace.Tabs, t => t is DataDiffTab);
     }
 
+    /// <summary>Holds the next read of a diff until <see cref="TaskCompletionSource{TResult}.SetResult"/>; <c>Arrived</c> once it is read.</summary>
+    private (TaskCompletionSource<DiffRead> Release, TaskCompletionSource Arrived, List<string> Read) HoldReads()
+    {
+        var release = new TaskCompletionSource<DiffRead>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var read = new List<string>();
+        _app.ReadDiff = (table, _, _) =>
+        {
+            lock (read)
+            {
+                read.Add(table.Table.Name);
+            }
+
+            arrived.TrySetResult();
+            return release.Task;
+        };
+        return (release, arrived, read);
+    }
+
+    private static readonly DiffRead OneNew = new([Row(true, 11)], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false);
+
+    /// <summary>Review of WP-44: a comparison still running for the old start point filled the list of the new one.</summary>
+    [Fact]
+    public async Task A_new_start_point_drops_what_a_running_comparison_of_the_old_one_finds()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = scope.Workspaces.Active!.Id;
+        ActiveKunden(scope);
+        await Lifecycle.StartDataDiffAsync(id);
+        var (release, arrived, _) = HoldReads();
+
+        var comparing = Lifecycle.CompareDataDiffAsync(id);
+        await arrived.Task.WaitAsync(Wait.Limit, TestContext.Current.CancellationToken);
+        _app.CurrentScn = 4800;
+        await Lifecycle.StartDataDiffAsync(id);
+        release.SetResult(OneNew);
+        await comparing;
+
+        var tab = _app.WorkspaceOf(scope).Tabs.OfType<DataDiffTab>().Single();
+        Assert.Null(tab.ResultOf(TestApp.Kunden.Ref));
+        Assert.False(tab.Running);
+    }
+
+    /// <summary>Review of WP-44: a closed diff tab went on comparing, and nothing could cancel it any more.</summary>
+    [Fact]
+    public async Task Closing_the_diff_tab_stops_its_comparison_after_the_running_table()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = scope.Workspaces.Active!.Id;
+        ActiveKunden(scope);
+        _app.Tables = [TestApp.Kunden, new TableSummary("APP_USER", "AUFTRAG", TableKind.Table)];
+        await scope.Active.Schema!.RefreshAsync(TestContext.Current.CancellationToken);
+        await Lifecycle.StartDataDiffAsync(id);
+        scope.Workspaces.SetDataDiff(id, Lifecycle.DataDiffOf(id)!.WithEntry(new TableRef("APP_USER", "AUFTRAG"), []));
+        var (release, arrived, read) = HoldReads();
+
+        var comparing = Lifecycle.CompareDataDiffAsync(id);
+        await arrived.Task.WaitAsync(Wait.Limit, TestContext.Current.CancellationToken);
+        _app.Shell.CloseTab(_app.WorkspaceOf(scope).Tabs.OfType<DataDiffTab>().Single());
+        release.SetResult(OneNew);
+        await comparing;
+
+        Assert.Equal(["KUNDEN"], read);
+    }
+
+    /// <summary>Review of WP-44: a view in the start point (a file edited by hand) threw out of the comparison.</summary>
+    [Fact]
+    public async Task A_view_in_the_start_point_is_reported_and_the_other_tables_are_compared()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = scope.Workspaces.Active!.Id;
+        var view = new TableSummary("APP_USER", "V_KUNDEN", TableKind.View);
+        _app.Tables = [view, TestApp.Kunden];
+        await scope.Active.Schema!.RefreshAsync(TestContext.Current.CancellationToken);
+        ActiveKunden(scope);
+        await Lifecycle.StartDataDiffAsync(id);
+        var state = Lifecycle.DataDiffOf(id)!;
+        scope.Workspaces.SetDataDiff(id, state with { Entries = [new(view.Ref, []), .. state.Entries] });
+
+        await Lifecycle.CompareDataDiffAsync(id);
+
+        var tab = _app.WorkspaceOf(scope).Tabs.OfType<DataDiffTab>().Single();
+        Assert.Equal(ShellText.DataDiff_NoViews, tab.ResultOf(view.Ref)!.Error);
+        Assert.NotNull(tab.ResultOf(TestApp.Kunden.Ref)!.Diff);
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }

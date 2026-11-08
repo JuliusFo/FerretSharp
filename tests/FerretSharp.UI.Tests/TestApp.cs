@@ -209,7 +209,6 @@ internal sealed class TestApp : IAsyncDisposable
     public Func<QuerySpec, CancellationToken, Task<SqlPage>> ReadSql { get; set; } = (_, _) =>
         Task.FromResult(new SqlPage([new SqlColumn("ID", new ColumnInfo("ID", "NUMBER", null, false, null, null, false, false, null, 1))], [[1m]], IsLastPage: true, TimeSpan.FromMilliseconds(5)));
 
-    /// <summary>Every session's transaction ends behind FerretSharp's back (<see cref="FakeDataEditor.Ended"/>).</summary>
     /// <summary>The SCN a data diff starts at (WP-44).</summary>
     public long CurrentScn { get; set; } = 4711;
 
@@ -217,6 +216,7 @@ internal sealed class TestApp : IAsyncDisposable
     public Func<TableDetails, IReadOnlyList<FilterCondition>, long, Task<DiffRead>> ReadDiff { get; set; } = (_, _, _) =>
         Task.FromResult(new DiffRead([], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false));
 
+    /// <summary>Every session's transaction ends behind FerretSharp's back (<see cref="FakeDataEditor.Ended"/>).</summary>
     public void EndTransactions()
     {
         foreach (var editor in Editors)

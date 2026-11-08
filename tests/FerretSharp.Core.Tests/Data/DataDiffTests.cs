@@ -46,6 +46,22 @@ public sealed class DataDiffTests
         Assert.True(diff.Truncated);
     }
 
+    /// <summary>Review of WP-44: a workspace file edited by hand with a table twice broke the tab (its list is keyed by table).</summary>
+    [Fact]
+    public void A_start_point_from_the_file_keeps_each_table_once_and_none_without_a_scn()
+    {
+        var table = new TableRef("APP", "ORDERS");
+        var state = new Core.Workspaces.DataDiffState(4711, DateTimeOffset.UnixEpoch,
+            [new(table, [new FilterCondition("ID", FilterOperator.Equals, ["1"])]), new(table, []), null!, new(new TableRef("APP", "LOG"), null!)]);
+
+        var normalized = state.Normalized()!;
+
+        Assert.Equal([table, new TableRef("APP", "LOG")], normalized.Entries.Select(e => e.Table));
+        Assert.Single(normalized.Entries[0].Filters);
+        Assert.Empty(normalized.Entries[1].Filters);
+        Assert.Null((state with { Scn = 0 }).Normalized());
+    }
+
     [Fact]
     public void Errors_the_user_can_act_on_are_explained()
     {

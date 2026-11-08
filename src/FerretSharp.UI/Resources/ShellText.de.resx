@@ -1152,4 +1152,7 @@
   <data name="DataDiff_KindDeleted" xml:space="preserve">
     <value>gelöscht</value>
   </data>
+  <data name="DataDiff_Starting" xml:space="preserve">
+    <value>Startpunkt wird gesetzt …</value>
+  </data>
 </root>

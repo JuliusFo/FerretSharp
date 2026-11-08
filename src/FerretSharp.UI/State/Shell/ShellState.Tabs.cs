@@ -641,6 +641,7 @@ public sealed partial class ShellState
 
         var index = workspace.Tabs.IndexOf(tab);
         workspace.Tabs.Remove(tab);
+        StopWork(tab);
         if (workspace.ActiveTab == tab)
         {
             workspace.ActiveTab = workspace.Tabs.Count == 0 ? null : workspace.Tabs[Math.Min(index, workspace.Tabs.Count - 1)];
@@ -663,6 +664,11 @@ public sealed partial class ShellState
         var activeIndex = workspace.ActiveIndex;
         var after = workspace.Tabs.Skip(Math.Max(activeIndex, 0)).Where(t => !tabs.Contains(t)).ToList();
         workspace.Tabs.RemoveAll(tabs.Contains);
+        foreach (var closed in tabs)
+        {
+            StopWork(closed);
+        }
+
         if (workspace.ActiveTab is { } active && workspace.Tabs.Contains(active))
         {
             return;
@@ -695,6 +701,9 @@ public sealed partial class ShellState
     /// A saved tab on a table of another schema that no synonym reaches: it was opened by name and is restored the same way
     /// (review 3.40.0, A5) – before, it was dropped on every start. A table of the browsed schema that is gone stays dropped.
     /// </summary>
+    /// <summary>A closed tab's running work ends: a data diff (WP-44) could otherwise no longer be cancelled (review of WP-44).</summary>
+    private static void StopWork(WorkspaceTab tab) => (tab as DataDiffTab)?.Cancel();
+
     /// <summary>A table of another schema that the cache does not know, as opened by name (an FK jump); null in the browsed schema.</summary>
     internal static TableSummary? OpenedByName(TableRef table, SchemaCache schema) =>
         string.Equals(table.Owner, schema.Owner, StringComparison.Ordinal) ? null : new TableSummary(table.Owner, table.Name, TableKind.Table);
@@ -713,6 +722,11 @@ public sealed partial class ShellState
     {
         foreach (var workspace in _workspaces.Where(w => w.ConnectionId == connectionId))
         {
+            foreach (var removed in workspace.Tabs.Where(t => predicate(t)).ToList())
+            {
+                StopWork(removed);
+            }
+
             workspace.Tabs.RemoveAll(predicate);
             if (workspace.ActiveTab is not null && !workspace.Tabs.Contains(workspace.ActiveTab))
             {

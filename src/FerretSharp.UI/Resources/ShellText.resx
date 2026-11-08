@@ -1414,4 +1414,7 @@
     <value>deleted</value>
     <comment>Status of a row in the data diff</comment>
   </data>
+  <data name="DataDiff_Starting" xml:space="preserve">
+    <value>Setting the start point …</value>
+  </data>
 </root>

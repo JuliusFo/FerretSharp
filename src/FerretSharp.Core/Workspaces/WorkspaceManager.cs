@@ -414,7 +414,7 @@ public sealed class WorkspaceManager : IAsyncDisposable
 
     /// <summary>
     /// Sets or clears the start point of the workspace's data diff (WP-44) with what it compares; saved after
-    /// <see cref="SaveDelay"/>. Only the SCN and the tables with their filters, never values.
+    /// <see cref="SaveDelay"/>. Only the SCN and the tables with their filters, never row values.
     /// </summary>
     public void SetDataDiff(Guid workspaceId, DataDiffState? state)
     {

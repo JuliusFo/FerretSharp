@@ -171,6 +171,9 @@
 
     private void OnChanged() => Fire(StateHasChanged);
 
+    /// <summary>Only the shown tab renders: the shell changes with every edit in any tab (review of WP-44).</summary>
+    protected override bool ShouldRender() => Shell.ActiveTab == Tab;
+
     public void Dispose()
     {
         Shell.Changed -= OnChanged;

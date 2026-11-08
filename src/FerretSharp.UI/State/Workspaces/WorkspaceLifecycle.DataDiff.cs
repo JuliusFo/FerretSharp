@@ -26,6 +26,7 @@ public sealed partial class WorkspaceLifecycle
     public async Task StartDataDiffAsync(Guid workspaceId)
     {
         var scope = ScopeOf(workspaceId);
+        shell.Notify(ShellText.DataDiff_Starting); // the first read opens the read session: over the VPN that takes a moment
         var read = await shell.RunDbAsync(logger, scope.Active, () => scope.Active.Reads.ReadAsync((data, ct) => data.CurrentScnAsync(ct), CancellationToken.None));
         if (!shell.ShowFailure(read))
         {
@@ -40,7 +41,12 @@ public sealed partial class WorkspaceLifecycle
         }
 
         scope.Workspaces.SetDataDiff(workspaceId, state);
-        DiffTabOf(workspaceId)?.Clear();
+        if (DiffTabOf(workspaceId) is { } tab)
+        {
+            tab.Cancel(); // a comparison of the old start point must not fill the new one (review of WP-44)
+            tab.Clear();
+        }
+
         shell.Notify(state.Entries.Count == 0
             ? TextFormat.Format(ShellText.DataDiff_StartedEmpty, state.StartedAt.LocalDateTime)
             : TextFormat.Format(ShellText.DataDiff_Started, state.StartedAt.LocalDateTime, string.Join(", ", state.Entries.Select(e => e.Table.Name))));
@@ -146,10 +152,10 @@ public sealed partial class WorkspaceLifecycle
         {
             foreach (var entry in entries)
             {
-                tab.Set(DataDiffResult.Pending(entry));
+                tab.Set(DataDiffResult.Pending(entry), state.Scn);
                 tab.Selected ??= entry.Table;
                 shell.NotifyChanged();
-                tab.Set(await CompareOneAsync(scope.Active, state, entry, token));
+                tab.Set(await CompareOneAsync(scope.Active, state, entry, token), state.Scn);
                 if (token.IsCancellationRequested)
                 {
                     break;
@@ -160,7 +166,7 @@ public sealed partial class WorkspaceLifecycle
         {
             foreach (var entry in entries.Where(e => tab.ResultOf(e.Table) is { Reading: true }))
             {
-                tab.Set(new DataDiffResult(entry, null, ShellText.DataDiff_Cancelled));
+                tab.Set(new DataDiffResult(entry, null, ShellText.DataDiff_Cancelled), state.Scn);
             }
 
             tab.End(DateTimeOffset.Now);
@@ -178,6 +184,12 @@ public sealed partial class WorkspaceLifecycle
         if ((schema.Find(entry.Table) ?? ShellState.OpenedByName(entry.Table, schema)) is not { } summary)
         {
             return new DataDiffResult(entry, null, TextFormat.Format(ShellText.DataDiff_TableGone, entry.Table.Owner, entry.Table.Name));
+        }
+
+        if (summary.Kind == TableKind.View)
+        {
+            // A view from a workspace file edited by hand, or a table replaced by a view (review of WP-44): the query refuses it.
+            return new DataDiffResult(entry, null, ShellText.DataDiff_NoViews);
         }
 
         var read = await shell.RunDbAsync(logger, active, async () =>

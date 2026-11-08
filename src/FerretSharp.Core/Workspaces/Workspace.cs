@@ -294,16 +294,21 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
 
 /// <summary>
 /// The start point of a workspace's data diff (WP-44): the SCN and when it was set, and the tables it compares – each with the
-/// filter it was added with (empty for the whole table). Kept with the workspace, so it survives a restart; never values.
+/// filter it was added with (empty for the whole table). Kept with the workspace, so it survives a restart; no row values
+/// (the filters with their values, as in the tabs).
 /// </summary>
 /// <param name="Scn">The database's SCN at the start (<see cref="Data.IDataAccess.CurrentScnAsync"/>).</param>
 public sealed record DataDiffState(long Scn, DateTimeOffset StartedAt, IReadOnlyList<DataDiffEntry> Entries)
 {
-    /// <summary>Entries set to null in the file by hand are left out, their filters empty.</summary>
+    /// <summary>
+    /// Entries set to null in the file by hand are left out, their filters empty; a table twice keeps its first entry (the tab
+    /// keys its list by table – review of WP-44).
+    /// </summary>
     public DataDiffState? Normalized() =>
         Scn <= 0 ? null : this with
         {
             Entries = (Entries ?? []).Where(e => e is { Table: { Owner: not null, Name: not null } })
+                .DistinctBy(e => e.Table)
                 .Select(e => e with { Filters = (e.Filters ?? []).OfType<FilterCondition>().ToList() }).ToList(),
         };
 

@@ -57,7 +57,14 @@ public sealed class DataDiffTab(Guid workspaceId) : WorkspaceTab(workspaceId, "d
         return _running.Token;
     }
 
-    internal void Set(DataDiffResult result) => _results[result.Entry.Table] = result;
+    /// <summary>Keeps what a comparison of <paramref name="scn"/> found; dropped if the start point changed meanwhile (review of WP-44).</summary>
+    internal void Set(DataDiffResult result, long scn)
+    {
+        if (ResultsScn == scn)
+        {
+            _results[result.Entry.Table] = result;
+        }
+    }
 
     internal void End(DateTimeOffset at)
     {
