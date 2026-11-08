@@ -29,6 +29,12 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
     private int _reads;
     private ITimer? _idle;
 
+    /// <summary>
+    /// Why the database refused to log in (review of WP-44): no further attempt until the connection is opened again – a
+    /// comparison of twelve tables tried twelve logins, and every refused one counts towards <c>FAILED_LOGIN_ATTEMPTS</c>.
+    /// </summary>
+    private string? _refused;
+
     /// <summary>Whether a session is open or opening (tests, diagnostics).</summary>
     public bool HasSession
     {
@@ -60,6 +66,7 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
         {
             _profile = profile;
             _lifetime = new CancellationTokenSource();
+            _refused = null;
         }
     }
 
@@ -81,7 +88,7 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
     /// Runs <paramref name="read"/> on the session's read path, opening the session first if there is none (or the last one
     /// failed to open). Runs off the calling thread: opening and reading block on ODP.NET's synchronous parts.
     /// </summary>
-    /// <exception cref="RefusedException">The connection is not open.</exception>
+    /// <exception cref="RefusedException">The connection is not open, or the database refused to log in before.</exception>
     /// <exception cref="DatabaseException">Opening or reading failed; a lost session is dropped.</exception>
     public async Task<T> ReadAsync<T>(Func<IDataAccess, CancellationToken, Task<T>> read, CancellationToken cancellationToken)
     {
@@ -90,6 +97,11 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
         lock (_lock)
         {
             var profile = _profile ?? throw new RefusedException(ConnectionText.ReadSessionNotConnected);
+            if (_refused is { } refused)
+            {
+                throw new RefusedException(TextFormat.Format(ConnectionText.ReadSessionRefused, refused));
+            }
+
             if (_session is null or { IsFaulted: true } or { IsCanceled: true })
             {
                 var token = _lifetime.Token;
@@ -176,8 +188,30 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
     {
         var password = connections.GetPassword(profile.Id)
             ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
-        var connection = await SessionOpening.OpenAsync(
-            (_, token) => connector.OpenAsync(profile, password, Action, token), _time, retrying: null, cancellationToken);
+        IDatabaseConnection connection;
+        try
+        {
+            connection = await SessionOpening.OpenAsync(
+                (_, token) => connector.OpenAsync(profile, password, Action, token), _time, retrying: null, cancellationToken);
+        }
+        catch (DatabaseException ex) when (ex is not SessionOpenTimeoutException && !ReconnectPolicy.IsNetworkError(ex.ErrorCode))
+        {
+            lock (_lock)
+            {
+                if (_profile == profile)
+                {
+                    _refused = ex.Display;
+                }
+            }
+
+            if (ex.ErrorCode == ConnectionManager.WrongPasswordCode)
+            {
+                connections.ForgetSessionPassword(profile.Id); // asked again on the next connect, as ActiveConnection does
+            }
+
+            throw;
+        }
+
         if (!profile.ReadOnly)
         {
             return connection;

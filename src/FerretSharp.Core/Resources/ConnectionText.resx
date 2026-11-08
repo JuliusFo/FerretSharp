@@ -159,4 +159,8 @@
   <data name="ReadSessionNotConnected" xml:space="preserve">
     <value>The connection is not open.</value>
   </data>
+  <data name="ReadSessionRefused" xml:space="preserve">
+    <value>The database refused the login of the session for comparisons ({0}). Connect again to try once more.</value>
+    <comment>{0} = the database's error</comment>
+  </data>
 </root>

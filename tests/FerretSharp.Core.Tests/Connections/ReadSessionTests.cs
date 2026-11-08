@@ -73,6 +73,29 @@ public sealed class ReadSessionTests
         Assert.Equal(2, _opened.Count);
     }
 
+    /// <summary>Review of WP-44: a comparison of twelve tables tried twelve logins after a refused one – the account locks.</summary>
+    [Fact]
+    public async Task A_refused_login_is_not_tried_again_until_the_connection_opens_again()
+    {
+        var attempts = 0;
+        _connector.Opens(_ =>
+        {
+            Interlocked.Increment(ref attempts);
+            throw new DatabaseException("invalid username/password", ConnectionManager.WrongPasswordCode);
+        });
+        _reads.Attach(_profile);
+
+        await Assert.ThrowsAsync<DatabaseException>(ScnAsync);
+        await Assert.ThrowsAsync<RefusedException>(ScnAsync);
+        await Assert.ThrowsAsync<RefusedException>(ScnAsync);
+        Assert.Equal(1, attempts);
+
+        _connector.Opens(_ => FakeDatabase.Connection());
+        _reads.Attach(_profile); // connected again
+        await _reads.ReadAsync((_, _) => Task.FromResult(0), Ct);
+        Assert.Equal(1, attempts); // the new connector counts no more
+    }
+
     [Fact]
     public async Task On_a_read_only_profile_the_session_runs_in_read_only_snapshots_and_closes_with_the_connection()
     {
