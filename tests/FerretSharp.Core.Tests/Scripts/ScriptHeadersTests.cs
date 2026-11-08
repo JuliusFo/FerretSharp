@@ -95,4 +95,32 @@ public sealed class ScriptHeadersTests
         Assert.True(link.IsChanged(body + "-- more", variables));
         Assert.True(link.IsChanged(body, [new SqlVariable("id", SqlVariableType.Text, "1")]));
     }
+
+    /// <summary>
+    /// Review WP-77, M1: the dot showed right after opening a file without header (from VS Code) or with its parameters
+    /// in another order or spelling than the binds – and a pull asked instead of reloading quietly.
+    /// </summary>
+    [Fact]
+    public void Only_the_text_and_the_types_of_the_file_s_parameters_count_as_a_change()
+    {
+        var root = new ScriptRoot(ScriptRootKind.Personal, "/s");
+        const string body = "SELECT * FROM t WHERE id = :id AND name = :name;\n";
+        var variables = new[] { new SqlVariable("id", SqlVariableType.Number, ""), new SqlVariable("name", SqlVariableType.Text, "") };
+
+        var headerless = ScriptLink.To(root, "a.sql", ScriptHeader.Empty, body, "hash");
+        var reordered = ScriptLink.To(root, "a.sql", new ScriptHeader(null, [new("NAME", SqlVariableType.Text), new("ID", SqlVariableType.Number), new("gone", SqlVariableType.Date)], []), body, "hash");
+
+        Assert.False(headerless.IsChanged(body, variables));
+        Assert.False(reordered.IsChanged(body, variables));
+        Assert.True(reordered.IsChanged(body, [new SqlVariable("id", SqlVariableType.Text, ""), variables[1]]));
+    }
+
+    /// <summary>Review WP-77, K1: a header line from a workspace file edited by hand went into the shared script as SQL.</summary>
+    [Fact]
+    public void Only_directive_lines_are_kept_in_the_header()
+    {
+        var header = new ScriptHeader(null, [], ["-- @connections all", "GRANT DBA TO scott;", "-- a note"]);
+
+        Assert.Equal("-- @connections all\n\nSELECT 1 FROM dual", ScriptHeaders.Compose(header, "SELECT 1 FROM dual"));
+    }
 }
