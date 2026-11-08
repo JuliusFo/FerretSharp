@@ -145,7 +145,8 @@ media.addEventListener('change', () => { if (window.monaco) window.monaco.editor
  * Creates an editor in the element. options: { language, minimal (no line numbers/minimap, for the variables),
  * placeholder, readOnly (view only), readOnlyMessage (the hint when typing in it), wordWrap (long lines wrap at the
  * edge), lineFeed (new line breaks are \n unless the text has \r\n), reportEdits (see below), uiLanguage (Monaco's own
- * texts, see load) }. Text changes reach .NET through OnTextChanged(id, text), debounced; with reportEdits only
+ * texts, see load), contextActions ([{ id, label }] at the top of the context menu, run through OnContextAction(id,
+ * actionId)) }. Text changes reach .NET through OnTextChanged(id, text), debounced; with reportEdits only
  * OnEdited(id, edited, length) – a value editor (LOB) takes the text itself before a decision (getEditedText).
  */
 export async function create(elementId, dotnet, text, options) {
@@ -206,6 +207,14 @@ export async function create(elementId, dotnet, text, options) {
     }
   });
   dropRepeatedMouseDown(element, editor);
+  // Own entries ('0_ferret' sorts before Monaco's groups); .NET runs them (OnContextAction) and reports its own errors.
+  (options.contextActions ?? []).forEach((action, index) => editor.addAction({
+    id: `ferretsharp.${action.id}`,
+    label: action.label,
+    contextMenuGroupId: '0_ferret',
+    contextMenuOrder: index,
+    run: () => dotnet.invokeMethodAsync('OnContextAction', elementId, action.id).catch(err => console.error('Action not run', err)),
+  }));
   editors.set(elementId, editor);
   if (options.completion) {
     completions.set(editor.getModel().uri.toString(), { id: elementId, dotnet });

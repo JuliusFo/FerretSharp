@@ -82,6 +82,17 @@ public partial class SqlView
         new MoreMenuItem(ScriptViewText.Menu_Reveal, Rendering(RevealScriptFileAsync), Tab.Script is not null && RootOf(Tab.Script) is not null) { SeparatorBefore = true },
     ];
 
+    /// <summary>
+    /// Entries in the editor's own context menu (right click on a selection). They run in a JS callback: each renders this
+    /// view afterwards, like the menu entries.
+    /// </summary>
+    private IReadOnlyList<MonacoEditor.EditorAction> EditorActions => _editorActions ??=
+    [
+        new("save-selection", ScriptViewText.Menu_SaveSelection, Rendering(SaveSelectionAsync)),
+    ];
+
+    private IReadOnlyList<MonacoEditor.EditorAction>? _editorActions;
+
     private Func<Task> Rendering(Func<Task> action) => async () =>
     {
         await action();

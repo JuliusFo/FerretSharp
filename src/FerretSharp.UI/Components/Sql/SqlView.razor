@@ -66,7 +66,7 @@
     <div class="sql-main">
         <div class="sql-editors">
             <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync" FocusOnCreate="_focusOnCreate"
-                          Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
+                          ContextActions="EditorActions" Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
             <SqlVariablesEditor Variables="Tab.Variables" Binds="_binds" OnChange="SetVariables" />
         </div>
 
