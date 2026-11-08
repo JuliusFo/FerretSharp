@@ -1,6 +1,6 @@
 # Fix: Rechtsklick-Menü der Editoren, Speichern der Auswahl, Beschreibungsfeld
 
-Branch `fix/script-editor-menu` (von `main`), 2026-11-08, nach Release 3.65.0 (WP-77).
+Branch `fix/script-editor-menu` (von `main`), 2026-11-08, Release 3.65.1 (Feedback zu WP-77).
 
 ## Anlass
 Nutzerfeedback zu den SQL-Skripten (mit Screenshots):
