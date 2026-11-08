@@ -38,6 +38,7 @@ public sealed class ScriptSaveDraft
 
         Request = request;
         Roots = roots;
+        Parameters = ScriptHeaders.ParametersOf(request.Text, request.Variables);
         Name = request.Name;
         if (request.Link is { } link)
         {
@@ -52,6 +53,9 @@ public sealed class ScriptSaveDraft
     }
 
     public ScriptSaveRequest Request { get; }
+
+    /// <summary>The binds of the text with the types of its variables – worked out once, not on every keystroke (review WP-77, K8).</summary>
+    public IReadOnlyList<ScriptParameter> Parameters { get; }
 
     /// <summary>The folders of the settings the connection sees: personal, its group's, general.</summary>
     public IReadOnlyList<ScriptRoot> Roots { get; }
@@ -96,6 +100,6 @@ public sealed class ScriptSaveDraft
     /// </summary>
     public ScriptHeader Header => new(
         string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
-        ScriptHeaders.ParametersOf(Request.Text, Request.Variables),
+        Parameters,
         Request.Link?.Header.Other ?? []);
 }

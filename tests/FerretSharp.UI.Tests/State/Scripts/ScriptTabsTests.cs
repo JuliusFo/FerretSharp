@@ -60,6 +60,55 @@ public sealed class ScriptTabsTests : IAsyncDisposable
         Assert.True(restored.ScriptChanged);
     }
 
+    /// <summary>Review WP-77, M1 (tab side): a file without header shows no dot once its binds have variables.</summary>
+    [Fact]
+    public async Task A_file_without_header_is_not_changed_after_opening()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        var tab = _app.Shell.OpenScript(Personal, "a.sql", new ScriptDocument(new ParsedScript(ScriptHeader.Empty, "SELECT :id FROM dual", []), "HASH"))!;
+
+        tab.Variables = [new SqlVariable("id", SqlVariableType.Number, "")]; // what the view suggests for the bind
+
+        Assert.False(tab.ScriptChanged);
+    }
+
+    /// <summary>
+    /// Review WP-77, K2: a link without path or header (a workspace file edited by hand) broke the tab bar's render; the
+    /// tab is restored without it. A long script name fits the tab title (K5).
+    /// </summary>
+    [Fact]
+    public async Task An_incomplete_link_is_dropped_and_a_long_name_fits_the_title()
+    {
+        var state = new FerretSharp.Core.Workspaces.SqlTabState("x", "SELECT 1 FROM dual", [])
+        {
+            Script = new ScriptLink(ScriptRootKind.Personal, null, null!, "F", "S", null!),
+        };
+
+        var restored = SqlTab.Restore(Guid.NewGuid(), state);
+
+        Assert.Null(restored.Script);
+        Assert.False(restored.ScriptChanged);
+
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        var tab = _app.Shell.OpenScript(Personal, new string('n', 60) + ".sql", Document("SELECT 1 FROM dual"))!;
+        Assert.Equal(FerretSharp.Core.Workspaces.Workspace.MaxNameLength, tab.Title.Length);
+    }
+
+    /// <summary>
+    /// A script tab without changes of its own closes without asking – its text is in the file (decision of the user,
+    /// E2E of WP-77: the question for every SQL tab with text came up); with changes it asks as before.
+    /// </summary>
+    [Fact]
+    public async Task A_script_tab_asks_before_closing_only_with_changes_of_its_own()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        var tab = _app.Shell.OpenScript(Personal, "a.sql", Document("SELECT 1 FROM dual"))!;
+
+        Assert.Null(CloseTabQuestion.For(tab, typedValue: false));
+        tab.Text += " -- for one run";
+        Assert.Equal(CloseTabLoss.EditorText, CloseTabQuestion.For(tab, typedValue: false)?.Loss);
+    }
+
     [Fact]
     public async Task Insert_goes_to_the_active_sql_tab_only()
     {

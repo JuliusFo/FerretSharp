@@ -211,7 +211,10 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
     public static SqlTab Restore(Guid workspaceId, SqlTabState state, FormTabState? form = null, IReadOnlyList<ResultColumnPin>? pins = null) =>
         new SqlTab(workspaceId, state.Title)
         {
-            Text = state.Text, Variables = state.Variables, EditorHeight = state.EditorHeight, ResultPins = pins ?? [], Script = state.Script,
+            Text = state.Text, Variables = state.Variables, EditorHeight = state.EditorHeight, ResultPins = pins ?? [],
+
+            // A link from a workspace file edited by hand without path or header would break the tab bar (review WP-77, K2).
+            Script = state.Script is { IsComplete: true } link ? link : null,
         }.WithForm(form);
 }
 

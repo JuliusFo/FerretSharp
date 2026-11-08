@@ -79,11 +79,7 @@ public partial class SqlView
             ? new MoreMenuItem(ScriptViewText.Menu_SaveWindow, Rendering(SaveWindowAsAsync)) { Strong = true }
             : new MoreMenuItem(ScriptViewText.Menu_SaveAs, Rendering(SaveWindowAsAsync)),
         new MoreMenuItem(ScriptViewText.Menu_SaveSelection, Rendering(SaveSelectionAsync)) { Title = ScriptViewText.Menu_SaveSelectionTitle },
-        new MoreMenuItem(ScriptViewText.Menu_Reveal, Rendering(() =>
-        {
-            RevealScriptFile();
-            return Task.CompletedTask;
-        }), Tab.Script is not null && RootOf(Tab.Script) is not null) { SeparatorBefore = true },
+        new MoreMenuItem(ScriptViewText.Menu_Reveal, Rendering(RevealScriptFileAsync), Tab.Script is not null && RootOf(Tab.Script) is not null) { SeparatorBefore = true },
     ];
 
     private Func<Task> Rendering(Func<Task> action) => async () =>
@@ -201,7 +197,8 @@ public partial class SqlView
             ScriptWrite result;
             try
             {
-                result = await ScriptFiles.WriteAsync(root.Path, path, header, text, replace ? ScriptWriteMode.Replace : ScriptWriteMode.New, null, CancellationToken.None);
+                result = await ScriptFiles.WriteAsync(root.Path, path, header, text, replace ? ScriptWriteMode.Replace : ScriptWriteMode.New, null,
+                    CancellationToken.None, createRoot: root.Kind == ScriptRootKind.Personal);
             }
             catch (RefusedException ex)
             {
@@ -220,7 +217,8 @@ public partial class SqlView
                 // The tab now shows the file: named after it, saved only by "Save" from here on.
                 Tab.Script = ScriptLink.To(root, path, header, text, result.FileHash!);
                 (_checkedStamp, _keptHash) = (null, null);
-                Shell.RenameTab(Tab, ScriptPaths.NameOf(path)); // renders the shell: the tab bar shows the new name
+                // Renders the shell: the tab bar shows the new name, cut to fit a tab title (review WP-77, K5).
+                Shell.RenameTab(Tab, Workspace.FitName(ScriptPaths.NameOf(path)));
                 Shell.MarkDirty();
                 _scriptNotice = null;
             }
@@ -230,7 +228,7 @@ public partial class SqlView
             }
 
             _save = null;
-            await Library.RefreshAsync();
+            Fire(() => Library.RefreshAsync()); // all folders are read again: the dialog does not wait for them (review WP-77, M4)
         }
         finally
         {
@@ -245,7 +243,8 @@ public partial class SqlView
         ScriptWrite result;
         try
         {
-            result = await ScriptFiles.WriteAsync(root.Path, link.Path, header, text, mode, link.FileHash, CancellationToken.None);
+            result = await ScriptFiles.WriteAsync(root.Path, link.Path, header, text, mode, link.FileHash, CancellationToken.None,
+                createRoot: root.Kind == ScriptRootKind.Personal);
         }
         catch (RefusedException ex)
         {
@@ -262,7 +261,7 @@ public partial class SqlView
         Tab.Script = ScriptLink.To(root, link.Path, header, text, result.FileHash!);
         (_checkedStamp, _keptHash, _scriptNotice) = (null, null, null);
         Shell.MarkDirty();
-        await Library.RefreshAsync();
+        Fire(() => Library.RefreshAsync());
     }
 
     private string ScriptConfirmText(ScriptConfirm question) => question == ScriptConfirm.ReplaceExisting && _save is { } draft
@@ -380,9 +379,16 @@ public partial class SqlView
             return;
         }
 
+        // The editor reports typing only after a pause: decide on its text now (review WP-77, M3).
+        var decidedOn = await CurrentTextAsync();
+        if (Tab.Script != link)
+        {
+            return;
+        }
+
         if (!Tab.ScriptChanged)
         {
-            await ReloadAsync(root, link);
+            await ReloadAsync(root, link, quietlyOver: decidedOn, changedHash: hash);
         }
         else
         {
@@ -396,7 +402,7 @@ public partial class SqlView
     {
         if (Tab.Script is { } link && RootOf(link) is { } root)
         {
-            await ReloadAsync(root, link);
+            await ReloadAsync(root, link, quietlyOver: null, changedHash: null);
         }
     }
 
@@ -408,7 +414,11 @@ public partial class SqlView
     }
 
     /// <summary>The file's text and parameter types into the tab; values typed stay.</summary>
-    private async Task ReloadAsync(ScriptRoot root, ScriptLink link)
+    /// <param name="quietlyOver">
+    /// For the quiet reload: the text the tab had when it was found unchanged. Typed since (reading over the VPN takes a
+    /// while), the bar asks instead of replacing it (review WP-77, M3). Null for "Reload", which the user chose.
+    /// </param>
+    private async Task ReloadAsync(ScriptRoot root, ScriptLink link, string? quietlyOver, string? changedHash)
     {
         ScriptDocument document;
         try
@@ -418,6 +428,18 @@ public partial class SqlView
         catch (RefusedException ex)
         {
             _scriptNotice = new(ScriptNoticeKind.Error, ex.Message);
+            return;
+        }
+
+        if (Tab.Script != link)
+        {
+            return; // saved or relinked meanwhile
+        }
+
+        if (quietlyOver is not null && _editor is not null && await _editor.GetTextAsync() is { } now
+            && now.ReplaceLineEndings("\n") != quietlyOver.ReplaceLineEndings("\n"))
+        {
+            _scriptNotice = new(ScriptNoticeKind.ChangedOnDisk, TextFormat.Format(ScriptViewText.Notice_ChangedOnDisk, link.Path), changedHash);
             return;
         }
 
@@ -435,13 +457,14 @@ public partial class SqlView
         Shell.MarkDirty();
     }
 
-    private void RevealScriptFile()
+    private async Task RevealScriptFileAsync()
     {
         if (Tab.Script is { } link && RootOf(link) is { } root)
         {
             try
             {
-                FileReveal.Reveal(ScriptPaths.Resolve(root.Path, link.Path));
+                // Resolve looks at each part of the path: off the UI thread, a share may hang (review WP-77, K3).
+                FileReveal.Reveal(await Task.Run(() => ScriptPaths.Resolve(root.Path, link.Path)));
             }
             catch (RefusedException ex)
             {

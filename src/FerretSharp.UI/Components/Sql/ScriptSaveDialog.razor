@@ -10,7 +10,7 @@
     <div class="dialog-body form-grid">
         <label for="@($"{_id}-name")">@ScriptViewText.Save_Name</label>
         <div>
-            <input id="@($"{_id}-name")" @ref="_name" class="field" @bind="Draft.Name" @bind:event="oninput" @onkeydown="OnKeyDownAsync" autocomplete="off" />
+            <input id="@($"{_id}-name")" @ref="_name" class="field" @bind="Draft.Name" @bind:event="oninput" @onkeydown="OnKeyDownAsync" @onblur="() => _touched = true" autocomplete="off" />
             @if (_touched && Draft.NameError is { } nameError)
             {
                 <div class="field-error">@nameError</div>
@@ -50,7 +50,7 @@
             {
                 @TextFormat.Format(ScriptViewText.Save_Target, System.IO.Path.Combine(Draft.Root.Path, Draft.Path.Replace('/', System.IO.Path.DirectorySeparatorChar)))
             }
-            @if (ScriptHeaders.ParametersOf(Draft.Request.Text, Draft.Request.Variables) is { Count: > 0 } parameters)
+            @if (Draft.Parameters is { Count: > 0 } parameters)
             {
                 <div>@TextFormat.Format(ScriptViewText.Save_Parameters, string.Join(", ", parameters.Select(p => $"{p.Name} ({ScriptHeaders.TypeName(p.Type)})")))</div>
             }

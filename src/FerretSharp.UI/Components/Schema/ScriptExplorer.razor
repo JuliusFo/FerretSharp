@@ -4,6 +4,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Scripts
+@inherits FerretComponent
 @implements IDisposable
 @inject ScriptLibrary Library
 @inject IFileReveal FileReveal
@@ -26,7 +27,7 @@
             }
             @if (r.Expanded && r.Scan.Truncated)
             {
-                <div class="hint small script-note">@TextFormat.Format(ScriptViewText.Explorer_Truncated, ScriptLibrary.MaxFiles)</div>
+                <div class="hint small script-note">@TextFormat.Format(ScriptViewText.Explorer_Truncated, ScriptLibrary.MaxFiles, ScriptLibrary.MaxEntries)</div>
             }
             @if (r.Expanded && r.Scan.Loaded && r.Scan.Error is null && r.Scan.Scripts.Count == 0 && r.Scan.Folders.Count == 0 && !Searching)
             {
@@ -80,7 +81,7 @@
     <MenuEntry Label="@ScriptViewText.Explorer_Insert" Title="@ScriptViewText.Explorer_InsertTitle"
                Unavailable="@(Shell.ActiveTab is SqlTab ? null : ScriptViewText.Explorer_InsertNoSqlTab)"
                OnClick="() => RunAsync(() => Insert(context))" />
-    <MenuEntry Label="@ScriptViewText.Explorer_Reveal" OnClick="() => RunAsync(() => Reveal(context))" />
+    <MenuEntry Label="@ScriptViewText.Explorer_Reveal" OnClick="() => RunAsync(() => RevealAsync(context))" />
     <MenuEntry Label="@ScriptViewText.Explorer_Delete" Danger="true" OnClick="() => RunAsync(() => _delete = context)" />
 </ContextMenuHost>
 
@@ -170,11 +171,12 @@
 
     private void Insert(ScriptEntry script) => Shell.InsertScript(script);
 
-    private void Reveal(ScriptEntry script)
+    private async Task RevealAsync(ScriptEntry script)
     {
         try
         {
-            FileReveal.Reveal(ScriptPaths.Resolve(script.Root.Path, script.Path));
+            // Resolve looks at each part of the path: off the UI thread, a share may hang (review WP-77, K3).
+            FileReveal.Reveal(await Task.Run(() => ScriptPaths.Resolve(script.Root.Path, script.Path)));
         }
         catch (RefusedException ex)
         {
@@ -190,7 +192,7 @@
         try
         {
             await ScriptFiles.DeleteAsync(script.Root.Path, script.Path, CancellationToken.None);
-            await Library.RefreshAsync();
+            Fire(() => Library.RefreshAsync()); // the tree follows Changed; the dialog does not wait for all folders (review WP-77, M4)
         }
         catch (RefusedException ex)
         {

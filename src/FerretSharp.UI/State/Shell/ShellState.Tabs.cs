@@ -224,7 +224,7 @@ public sealed partial class ShellState
         }
 
         var script = document.Script;
-        var tab = new SqlTab(workspace.WorkspaceId, Core.Scripts.ScriptPaths.NameOf(path))
+        var tab = new SqlTab(workspace.WorkspaceId, Workspace.FitName(Core.Scripts.ScriptPaths.NameOf(path))) // review WP-77, K5
         {
             Text = script.Body,
             Variables = Core.Scripts.ScriptHeaders.Apply([], script.Header.Parameters),

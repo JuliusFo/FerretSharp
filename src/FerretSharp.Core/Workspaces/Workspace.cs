@@ -231,6 +231,27 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
         }).ToList(),
     };
 
+    /// <summary>
+    /// <paramref name="name"/> as a tab title: trimmed and, if longer than <see cref="MaxNameLength"/>, cut with "…" – never
+    /// inside a surrogate pair (review WP-77: a script's file name may be 255 characters).
+    /// </summary>
+    public static string FitName(string name)
+    {
+        var trimmed = name.Trim();
+        if (trimmed.Length <= MaxNameLength)
+        {
+            return trimmed;
+        }
+
+        var cut = MaxNameLength - 1;
+        if (char.IsHighSurrogate(trimmed[cut - 1]))
+        {
+            cut--;
+        }
+
+        return trimmed[..cut].TrimEnd() + "…";
+    }
+
     /// <summary>Trimmed name, or null if it is empty or longer than <see cref="MaxNameLength"/>.</summary>
     public static string? NormalizeName(string? name)
     {
