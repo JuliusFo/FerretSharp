@@ -1,7 +1,9 @@
 @* Origin in code (WP-76, ADR 0030): methods of the linked solution that may have sent a statement, guessed from its tables
    and the columns it filters by against the code usage index (CodeOriginFinder). Shown only with a linked project (a model
    file has no code to read) and a table of the model in the statement – the solution is read for nothing else. The text
-   comes from any session on the server: it is read off the render thread (review WP-76). *@
+   comes from any session on the server: it is parsed off the render thread (review WP-76). The candidates are worked out
+   on the render thread: the code usage index fills a cache while it is read, and the other views read it there too (second
+   pass of the review). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @inherits FerretComponent
@@ -11,7 +13,7 @@
 @if (_tables is { Count: > 0 } && Models.State.Link is not null)
 {
     var state = Usage.State;
-    var result = _origins?.Result;
+    var result = Origins(state.Result);
     <section class="code-origins">
         <h3 class="usage-subhead" title="@ModelViewText.CodeOrigin_Limits">
             @ModelViewText.CodeOrigin_Heading
@@ -93,7 +95,6 @@
 
     /// <summary>The candidates over an index, worked out once per statement and index.</summary>
     private (CodeOriginStatement Statement, CodeUsageIndex Index, CodeOriginResult Result)? _origins;
-    private (CodeOriginStatement Statement, CodeUsageIndex Index)? _finding;
 
     protected override void OnInitialized()
     {
@@ -115,8 +116,8 @@
     });
 
     /// <summary>
-    /// Brings everything up to the current statement, model and index: reads the statement (off the render thread), builds
-    /// the index when a table of the model is in it, works out the candidates once it is there.
+    /// Brings the statement and the index up to date: reads the statement (off the render thread) and builds the index when a
+    /// table of the model is in it; rendering then works out the candidates.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -160,26 +161,26 @@
             await Usage.EnsureAsync(_lifetime.Token); // a new model or build while shown
         }
 
-        await FindAsync();
-    }
-
-    private async Task FindAsync()
-    {
-        if (_disposed || _statement is not { } statement || _tables is not { Count: > 0 } || Usage.State.Result?.Index is not { } index
-            || (_origins is { } known && known.Statement == statement && known.Index == index)
-            || (_finding is { } running && running.Statement == statement && running.Index == index))
+        if (!_disposed)
         {
-            return;
-        }
-
-        _finding = (statement, index);
-        var result = await Task.Run(() => CodeOriginFinder.Find(statement, index), _lifetime.Token);
-        _finding = null;
-        if (!_disposed && _statement == statement)
-        {
-            _origins = (statement, index, result);
             StateHasChanged();
         }
+    }
+
+    /// <summary>The candidates over the current index, worked out once per statement and index; null while there is none.</summary>
+    private CodeOriginResult? Origins(CodeUsageResult? result)
+    {
+        if (_statement is not { } statement || result?.Index is not { } index)
+        {
+            return null;
+        }
+
+        if (_origins is not { } known || known.Statement != statement || known.Index != index)
+        {
+            _origins = known = (statement, index, CodeOriginFinder.Find(statement, index));
+        }
+
+        return known.Result;
     }
 
     private async Task OpenAsync(CodeUse use)
