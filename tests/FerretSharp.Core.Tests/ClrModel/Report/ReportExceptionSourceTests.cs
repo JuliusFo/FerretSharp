@@ -60,6 +60,7 @@ public sealed class ReportExceptionSourceTests : IDisposable
         var path = _folder.Combine("repo", "report-exceptions.json");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllTextAsync(path, """{ "version": 1, "tablesWithoutEntity": { "ZZ_OLD": "" }, "columnsWithoutProperty": { "X": "later" } }""", Ct);
+        await File.WriteAllTextAsync(path + ".tmp", "a colleague's notes", Ct); // review WP-77: never written through
         var source = Source(AppSettings.Default with { ReportExceptionsPath = path });
 
         await source.SetAsync(null, "AUD_*", "Audit tables", Ct);
@@ -81,6 +82,7 @@ public sealed class ReportExceptionSourceTests : IDisposable
             """.ReplaceLineEndings(),
             (await File.ReadAllTextAsync(path, Ct)).ReplaceLineEndings());
         Assert.Equal(2, source.For(null).Exceptions.Count);
+        Assert.Equal("a colleague's notes", await File.ReadAllTextAsync(path + ".tmp", Ct));
     }
 
     [Fact]

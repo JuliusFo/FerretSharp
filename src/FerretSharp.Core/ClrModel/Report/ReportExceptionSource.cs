@@ -91,7 +91,8 @@ public sealed class ReportExceptionSource(AppSettingsService settings, string de
             change(document);
             try
             {
-                await AtomicJsonFile.WriteAsync(path, document, ReportExceptionDocument.Options, cancellationToken);
+                // The file may lie in the company's repository: never through a file of a fixed temporary name (review WP-77).
+                await AtomicJsonFile.WriteInUserFolderAsync(path, document, ReportExceptionDocument.Options, cancellationToken);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {

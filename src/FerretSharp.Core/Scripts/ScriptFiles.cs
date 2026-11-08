@@ -123,9 +123,9 @@ public static class ScriptFiles
 
         try
         {
-            // A temporary file of its own name (review WP-77, S1): with the fixed "x.sql.tmp" a link of that name in a shared
-            // folder had the script written through it to a file outside, and a file of the user's of that name was replaced.
-            await AtomicFile.WriteExportAsync(path, async (stream, ct) =>
+            // A temporary file of its own name (review WP-77, S1): a link or a file of the user's called "x.sql.tmp" in a
+            // shared folder is never written through or replaced.
+            await AtomicFile.WriteInUserFolderAsync(path, async (stream, ct) =>
             {
                 await stream.WriteAsync(bytes, ct);
                 return true;

@@ -42,6 +42,8 @@ public sealed class DisplayColumnSourceTests : IDisposable
     public async Task Marking_writes_one_sorted_entry_per_table()
     {
         var path = _folder.Combine("repo", "ferretsharp", "display-columns.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(path + ".tmp", "a colleague's notes", Ct); // review WP-77: never written through
         var (source, _) = Source(path);
 
         await source.SetAsync("STAAT", "BEZEICHNUNG", Ct);
@@ -60,6 +62,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
             (await File.ReadAllTextAsync(path, Ct)).ReplaceLineEndings());
         Assert.Equal(["NAME"], source.Current().Columns.ColumnsOf("KUNDE"));
         Assert.NotEqual(DefaultPath, source.Current().Path);
+        Assert.Equal("a colleague's notes", await File.ReadAllTextAsync(path + ".tmp", Ct));
     }
 
     [Fact]

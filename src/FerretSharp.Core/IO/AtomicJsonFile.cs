@@ -15,4 +15,15 @@ public static class AtomicJsonFile
             await JsonSerializer.SerializeAsync(stream, value, options, ct);
             return true;
         }, cancellationToken);
+
+    /// <summary>
+    /// As <see cref="WriteAsync{T}"/>, for a file in a folder of the user's (a shared repository): see
+    /// <see cref="AtomicFile.WriteInUserFolderAsync{T}"/>.
+    /// </summary>
+    public static Task WriteInUserFolderAsync<T>(string path, T value, JsonSerializerOptions options, CancellationToken cancellationToken) =>
+        AtomicFile.WriteInUserFolderAsync(path, async (stream, ct) =>
+        {
+            await JsonSerializer.SerializeAsync(stream, value, options, ct);
+            return true;
+        }, cancellationToken);
 }
