@@ -6,6 +6,7 @@
 @inject IJSRuntime JS
 @inject ILogger<Explorer> Logger
 @inject AppSettingsService Settings
+@inject FerretSharp.Core.Scripts.ScriptLibrary Scripts
 
 @{ _shellKey = ShellKey(); _shownSeparateViews = SeparateViews; }
 <aside class="sidebar explorer">
@@ -51,7 +52,13 @@
         <div class="sidebar-error">@_refreshError</div>
     }
 
-    @if (Section == ExplorerSection.PlSql && _inSource)
+    @if (Section == ExplorerSection.Scripts)
+    {
+        <div class="sidebar-body">
+            <ScriptExplorer Query="@_query" />
+        </div>
+    }
+    else if (Section == ExplorerSection.PlSql && _inSource)
     {
         <div class="sidebar-body">
             <div class="table-list source-hits">
@@ -186,7 +193,12 @@
                 return "";
             }
 
-            var count = Section == ExplorerSection.PlSql ? schema.PlSqlObjects.Count : TablesIn(Section).Count();
+            var count = Section switch
+            {
+                ExplorerSection.PlSql => schema.PlSqlObjects.Count,
+                ExplorerSection.Scripts => Scripts.For(Active.Profile).Sum(s => s.Scripts.Count),
+                _ => TablesIn(Section).Count(),
+            };
             return TextFormat.Plural(count, SchemaViewText.Explorer_ObjectCountOne, SchemaViewText.Explorer_ObjectCountOther);
         }
     }
@@ -195,6 +207,7 @@
     {
         ExplorerSection.PlSql when _inSource => SchemaViewText.Explorer_SearchSourcePlaceholder,
         ExplorerSection.PlSql => SchemaViewText.Explorer_SearchPlSqlPlaceholder,
+        ExplorerSection.Scripts => ScriptViewText.Explorer_SearchPlaceholder,
         ExplorerSection.Views => SchemaViewText.Explorer_SearchViewPlaceholder,
         _ => SchemaViewText.Explorer_SearchTablePlaceholder,
     };
@@ -212,6 +225,7 @@
         var (label, title, invalid) = section switch
         {
             ExplorerSection.PlSql => ("PL/SQL", SchemaViewText.Explorer_PlSqlTitle, Schema?.PlSqlObjects.Count(u => u.IsInvalid) ?? 0),
+            ExplorerSection.Scripts => (ScriptViewText.Explorer_Section, ScriptViewText.Explorer_SectionTitle, 0),
             ExplorerSection.Views => (SchemaViewText.Explorer_Views, SchemaViewText.Explorer_ViewsTitle, TablesIn(section).Count(t => t.IsInvalid)),
             _ => (SchemaViewText.Explorer_Tables, SeparateViews ? null : SchemaViewText.Explorer_TablesTitle, 0),
         };
@@ -316,7 +330,17 @@
         _presentationWatch = new PresentationWatch(Presentation);
         Presentation.Changed += OnPresentationChanged;
         Settings.Changed += OnSettingsChanged;
+        Scripts.Changed += OnScriptsChanged;
     }
+
+    /// <summary>The script folders changed (WP-77): the count in the head and "N hits in Scripts" follow; the tree renders itself.</summary>
+    private void OnScriptsChanged() => InvokeAsync(() =>
+    {
+        if (Section == ExplorerSection.Scripts || !string.IsNullOrWhiteSpace(_query))
+        {
+            StateHasChanged();
+        }
+    });
 
     /// <summary>Whether the list showed views in a section of their own at its last render.</summary>
     private bool _shownSeparateViews;
@@ -439,15 +463,19 @@
             return null;
         }
 
-        return ExplorerList.OtherHits(Section, SeparateViews, section => section == ExplorerSection.PlSql
-            ? ExplorerList.Filter(schema.PlSqlObjects, _query).Count()
-            : TablesIn(section).Count(TableMatches));
+        return ExplorerList.OtherHits(Section, SeparateViews, section => section switch
+        {
+            ExplorerSection.PlSql => ExplorerList.Filter(schema.PlSqlObjects, _query).Count(),
+            ExplorerSection.Scripts => ScriptTree.Count(Scripts.For(Active.Profile), _query),
+            _ => TablesIn(section).Count(TableMatches),
+        });
     }
 
     private static string HitsText(ExplorerSection section, int count) => section switch
     {
         ExplorerSection.PlSql => TextFormat.Plural(count, SchemaViewText.Explorer_HitsInPlSqlOne, SchemaViewText.Explorer_HitsInPlSqlOther),
         ExplorerSection.Views => TextFormat.Plural(count, SchemaViewText.Explorer_HitsInViewsOne, SchemaViewText.Explorer_HitsInViewsOther),
+        ExplorerSection.Scripts => TextFormat.Plural(count, ScriptViewText.Explorer_HitsOne, ScriptViewText.Explorer_HitsOther),
         _ => TextFormat.Plural(count, SchemaViewText.Explorer_HitsInTablesOne, SchemaViewText.Explorer_HitsInTablesOther),
     };
 
@@ -579,6 +607,7 @@
         Shell.Changed -= OnShellChanged;
         Presentation.Changed -= OnPresentationChanged;
         Settings.Changed -= OnSettingsChanged;
+        Scripts.Changed -= OnScriptsChanged;
         _searchCts?.Cancel();
         await Dom.DisposeAsync();
     }

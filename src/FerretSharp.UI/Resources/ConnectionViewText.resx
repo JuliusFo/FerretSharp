@@ -679,4 +679,20 @@
     <value>Its report exceptions file {0} is dropped; “{1}” keeps its own.</value>
     <comment>{0}: the exceptions file dropped; {1}: the group that keeps its own</comment>
   </data>
+  <data name="GroupName_SqlScriptsDropped" xml:space="preserve">
+    <value>Its SQL script folder {0} is dropped; “{1}” keeps its own.</value>
+    <comment>{0}: the script folder dropped; {1}: the group that keeps its own</comment>
+  </data>
+  <data name="GroupMenu_SqlScripts" xml:space="preserve">
+    <value>Scripts: {0}</value>
+    <comment>Fact in the group menu; {0}: name of the group's script folder</comment>
+  </data>
+  <data name="GroupMenu_SqlScriptsSettings" xml:space="preserve">
+    <value>SQL scripts of the group…</value>
+    <comment>Menu entry</comment>
+  </data>
+  <data name="GroupMenu_SqlScriptsSettingsTitle" xml:space="preserve">
+    <value>Opens the settings, where each group can have its own script folder.</value>
+    <comment>Tooltip of the menu entry</comment>
+  </data>
 </root>

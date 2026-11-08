@@ -6,7 +6,7 @@ using FerretSharp.UI.Resources;
 namespace FerretSharp.UI.State;
 
 /// <summary>The sections of the settings page (WP-34), in the order of the list at the left.</summary>
-public enum SettingsPart { Appearance, DataView, ClrModel, Connection, Audit, DisplayColumns, Updates, Diagnostics, Shortcuts }
+public enum SettingsPart { Appearance, DataView, ClrModel, Connection, Audit, DisplayColumns, Scripts, Updates, Diagnostics, Shortcuts }
 
 /// <summary>The rows of the settings page outside the shortcuts; the page asks the filter by these keys.</summary>
 public enum SettingKey
@@ -38,6 +38,9 @@ public enum SettingKey
     AuditTemplateConnections,
     ShowDisplayNames,
     DisplayColumnsFile,
+    ScriptsPersonal,
+    ScriptsGeneral,
+    ScriptsGroups,
     Version,
     CheckForUpdates,
     UpdateCheckInterval,
@@ -78,6 +81,7 @@ public static class SettingsCatalog
         (SettingsPart.Connection, SettingsViewText.Settings_Connection),
         (SettingsPart.Audit, SettingsViewText.Settings_Audit),
         (SettingsPart.DisplayColumns, SettingsViewText.Settings_DisplayColumns),
+        (SettingsPart.Scripts, SettingsViewText.Settings_Scripts),
         (SettingsPart.Updates, SettingsViewText.Settings_Updates),
         (SettingsPart.Diagnostics, SettingsViewText.Settings_Diagnostics),
         (SettingsPart.Shortcuts, SettingsViewText.Settings_Shortcuts),
@@ -143,6 +147,9 @@ public static class SettingsCatalog
             Setting(SettingKey.ShowDisplayNames, SettingsPart.DisplayColumns, SettingsViewText.Settings_ShowDisplayNames,
                 TextFormat.Format(SettingsViewText.Settings_ShowDisplayNamesHint, DisplayNameExample)),
             Setting(SettingKey.DisplayColumnsFile, SettingsPart.DisplayColumns, SettingsViewText.Settings_DisplayColumnsFile, SettingsViewText.Settings_DisplayColumnsFileHint),
+            Setting(SettingKey.ScriptsPersonal, SettingsPart.Scripts, SettingsViewText.Settings_ScriptsPersonal, SettingsViewText.Settings_ScriptsPersonalHint),
+            Setting(SettingKey.ScriptsGeneral, SettingsPart.Scripts, SettingsViewText.Settings_ScriptsGeneral, SettingsViewText.Settings_ScriptsGeneralHint),
+            Setting(SettingKey.ScriptsGroups, SettingsPart.Scripts, SettingsViewText.Settings_ScriptsGroups, SettingsViewText.Settings_ScriptsGroupsHint),
             Setting(SettingKey.Version, SettingsPart.Updates, SettingsViewText.Settings_Version,
                 installed ? SettingsViewText.Settings_VersionInstalled : SettingsViewText.Settings_VersionNotInstalled),
             Setting(SettingKey.DiagnoseUiStalls, SettingsPart.Diagnostics, SettingsViewText.Settings_DiagnoseUiStalls,

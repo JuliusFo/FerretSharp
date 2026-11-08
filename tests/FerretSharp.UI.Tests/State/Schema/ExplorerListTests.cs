@@ -51,8 +51,8 @@ public class ExplorerListTests
     [Fact]
     public void The_views_section_is_only_in_the_switch_while_views_are_separated()
     {
-        Assert.Equal([ExplorerSection.Tables, ExplorerSection.PlSql], ExplorerList.Sections(separateViews: false));
-        Assert.Equal([ExplorerSection.Tables, ExplorerSection.Views, ExplorerSection.PlSql], ExplorerList.Sections(separateViews: true));
+        Assert.Equal([ExplorerSection.Tables, ExplorerSection.PlSql, ExplorerSection.Scripts], ExplorerList.Sections(separateViews: false));
+        Assert.Equal([ExplorerSection.Tables, ExplorerSection.Views, ExplorerSection.PlSql, ExplorerSection.Scripts], ExplorerList.Sections(separateViews: true));
         Assert.Equal(ExplorerSection.Tables, ExplorerList.Shown(ExplorerSection.Views, separateViews: false));
         Assert.Equal(ExplorerSection.Views, ExplorerList.Shown(ExplorerSection.Views, separateViews: true));
         Assert.Equal(ExplorerSection.PlSql, ExplorerList.Shown(ExplorerSection.PlSql, separateViews: false));
@@ -61,7 +61,7 @@ public class ExplorerListTests
     [Fact]
     public void Hits_in_the_other_sections_are_named_in_the_order_of_the_switch()
     {
-        var counts = new Dictionary<ExplorerSection, int> { [ExplorerSection.Tables] = 2, [ExplorerSection.Views] = 0, [ExplorerSection.PlSql] = 1 };
+        var counts = new Dictionary<ExplorerSection, int> { [ExplorerSection.Tables] = 2, [ExplorerSection.Views] = 0, [ExplorerSection.PlSql] = 1, [ExplorerSection.Scripts] = 0 };
 
         Assert.Equal([(ExplorerSection.PlSql, 1)], ExplorerList.OtherHits(ExplorerSection.Tables, separateViews: true, s => counts[s]));
         Assert.Equal([(ExplorerSection.Tables, 2), (ExplorerSection.PlSql, 1)], ExplorerList.OtherHits(ExplorerSection.Views, separateViews: true, s => counts[s]));

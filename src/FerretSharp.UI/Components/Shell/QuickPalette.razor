@@ -1,12 +1,15 @@
 @* The quick open box (WP-38), one box for two searches (decision of the user): without a prefix tables, views and PL/SQL of
    the shown connection, also by C# entity name; with ">" in front the command palette – the global actions with their
    keys, greyed out with the reason where they would do nothing now (the shell's own rule, ShellActions). Arrow keys,
-   Enter and Escape like the connection switcher. *@
+   Enter and Escape like the connection switcher. WP-77: the SQL scripts of the connection's folders by name – opened in a
+   new SQL tab, nothing runs. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@using FerretSharp.Core.Scripts
 @implements IAsyncDisposable
 @inject ShortcutService Shortcuts
+@inject ScriptLibrary Scripts
 @inject IJSRuntime JS
 
 @if (Shell.Palette is not null)
@@ -50,7 +53,8 @@
 
 @code {
     /// <summary>A row: an object to open, an open tab to show (<paramref name="Tab"/>, with its table or unit) or an action to run.</summary>
-    private sealed record PaletteRow(TableSummary? Table = null, PlSqlObjectSummary? Unit = null, PaletteCommand? Command = null, WorkspaceTab? Tab = null);
+    private sealed record PaletteRow(
+        TableSummary? Table = null, PlSqlObjectSummary? Unit = null, PaletteCommand? Command = null, WorkspaceTab? Tab = null, ScriptEntry? Script = null);
 
     private sealed record PaletteGroup(string Title, IReadOnlyList<PaletteRow> Rows, int More = 0);
 
@@ -209,6 +213,13 @@
             groups.Add(new PaletteGroup(ShellText.Palette_PlSql, [.. units.Take(QuickPaletteSearch.Limit).Select(u => new PaletteRow(Unit: u))], Math.Max(0, units.Count - QuickPaletteSearch.Limit)));
         }
 
+        var scripts = Scripts.For(Active.Profile).SelectMany(s => s.Scripts).Where(e => ScriptTree.NameMatches(e, query)).ToList();
+        if (scripts.Count > 0)
+        {
+            groups.Add(new PaletteGroup(ScriptViewText.Explorer_Section, [.. scripts.Take(QuickPaletteSearch.Limit).Select(e => new PaletteRow(Script: e))],
+                Math.Max(0, scripts.Count - QuickPaletteSearch.Limit)));
+        }
+
         return groups;
     }
 
@@ -217,6 +228,7 @@
         { Table: { } t } => TableRow(row, t, rowIndex),
         { Unit: { } u } => UnitRow(row, u, rowIndex),
         { Command: { } c } => CommandRow(row, c, rowIndex),
+        { Script: { } s } => ScriptRow(row, s, rowIndex),
         _ => _ => { },
     };
 
@@ -234,6 +246,14 @@
         @<button id="palette-row-@rowIndex" tabindex="-1" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
                  title="@($"{u.Owner}.{u.Name}")" @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
             <ObjectItemContent Unit="u" Search="_marks" />
+        </button>;
+
+    private RenderFragment ScriptRow(PaletteRow row, ScriptEntry s, int rowIndex) =>
+        @<button id="palette-row-@rowIndex" tabindex="-1" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "")"
+                 title="@(s.Description ?? s.Path)" @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
+            @Icons.Script
+            <span class="name"><Highlight Text="@s.Name" Search="_marks" /></span>
+            <span class="muted small">@ScriptTree.RootLabel(s.Root)@(s.Folder.Length > 0 ? " · " + s.Folder : "")</span>
         </button>;
 
     private RenderFragment CommandRow(PaletteRow row, PaletteCommand c, int rowIndex) =>
@@ -269,6 +289,17 @@
                 break;
             case { Command: { } command }:
                 await OnAction.InvokeAsync(command.Definition.Action);
+                break;
+            case { Script: { } script }:
+                try
+                {
+                    Shell.OpenScript(script.Root, script.Path, await ScriptFiles.ReadAsync(script.Root.Path, script.Path, CancellationToken.None));
+                }
+                catch (RefusedException ex)
+                {
+                    Shell.Notify(ex.Message);
+                }
+
                 break;
         }
     }

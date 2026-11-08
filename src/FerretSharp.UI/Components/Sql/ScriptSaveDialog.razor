@@ -1,0 +1,138 @@
+@* "Save as script" (WP-77): name, folder of the settings, folder below it (one of its folders or a new one) and description.
+   The caller writes the file; an error of the write comes back as Error and the dialog stays open. *@
+@using FerretSharp.Core.Scripts
+
+<ModalFrame Label="@Title" Class="script-save" OnCancel="OnCancel">
+    <header>
+        <span>@Title</span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnCancel">@Icons.Close</button>
+    </header>
+    <div class="dialog-body form-grid">
+        <label for="@($"{_id}-name")">@ScriptViewText.Save_Name</label>
+        <div>
+            <input id="@($"{_id}-name")" @ref="_name" class="field" @bind="Draft.Name" @bind:event="oninput" @onkeydown="OnKeyDownAsync" autocomplete="off" />
+            @if (_touched && Draft.NameError is { } nameError)
+            {
+                <div class="field-error">@nameError</div>
+            }
+        </div>
+
+        <label for="@($"{_id}-root")">@ScriptViewText.Save_Root</label>
+        <select id="@($"{_id}-root")" class="field" value="@RootIndex" @onchange="OnRootChanged">
+            @for (var i = 0; i < Draft.Roots.Count; i++)
+            {
+                <option value="@i" title="@Draft.Roots[i].Path">@ScriptTree.RootLabel(Draft.Roots[i])</option>
+            }
+        </select>
+
+        <label for="@($"{_id}-folder")">@ScriptViewText.Save_Folder</label>
+        <div>
+            <input id="@($"{_id}-folder")" class="field" list="@($"{_id}-folders")" @bind="Draft.Folder" @bind:event="oninput" @onkeydown="OnKeyDownAsync"
+                   placeholder="@ScriptViewText.Save_FolderPlaceholder" autocomplete="off" />
+            <datalist id="@($"{_id}-folders")">
+                @foreach (var folder in Folders(Draft.Root))
+                {
+                    <option value="@folder"></option>
+                }
+            </datalist>
+            @if (Draft.FolderError is { } folderError)
+            {
+                <div class="field-error">@folderError</div>
+            }
+        </div>
+
+        <label for="@($"{_id}-description")">@ScriptViewText.Save_Description</label>
+        <textarea id="@($"{_id}-description")" class="field" rows="2" @bind="Draft.Description" @bind:event="oninput"
+                  placeholder="@ScriptViewText.Save_DescriptionPlaceholder"></textarea>
+
+        <div class="hint small span-2" title="@Draft.Root.Path">
+            @if (Draft.CanSave)
+            {
+                @TextFormat.Format(ScriptViewText.Save_Target, System.IO.Path.Combine(Draft.Root.Path, Draft.Path.Replace('/', System.IO.Path.DirectorySeparatorChar)))
+            }
+            @if (ScriptHeaders.ParametersOf(Draft.Request.Text, Draft.Request.Variables) is { Count: > 0 } parameters)
+            {
+                <div>@TextFormat.Format(ScriptViewText.Save_Parameters, string.Join(", ", parameters.Select(p => $"{p.Name} ({ScriptHeaders.TypeName(p.Type)})")))</div>
+            }
+        </div>
+        @if (Error is not null)
+        {
+            <div class="settings-note error span-2" role="alert">@Error</div>
+        }
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="OnCancel">@CommonText.Cancel</button>
+        <button class="btn primary" disabled="@(Busy)" @onclick="SaveAsync">@CommonText.Save</button>
+    </footer>
+</ModalFrame>
+
+@code {
+    private readonly string _id = "script-save-" + Guid.NewGuid().ToString("N")[..8];
+    private ElementReference _name;
+
+    /// <summary>The name was left or saving was tried: an empty name is an error only then.</summary>
+    private bool _touched;
+
+    [Parameter, EditorRequired]
+    public ScriptSaveDraft Draft { get; set; } = null!;
+
+    /// <summary>The folders below a root as last read (<see cref="ScriptLibrary"/>), offered in the folder field.</summary>
+    [Parameter, EditorRequired]
+    public Func<ScriptRoot, IReadOnlyList<string>> Folders { get; set; } = _ => [];
+
+    [Parameter]
+    public string? Error { get; set; }
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private string Title => Draft.Request.Source switch
+    {
+        ScriptSaveSource.Selection => ScriptViewText.Save_TitleSelection,
+        ScriptSaveSource.History => ScriptViewText.Save_TitleHistory,
+        _ when Draft.Request.Link is not null => ScriptViewText.Save_TitleSaveAs,
+        _ => ScriptViewText.Save_TitleWindow,
+    };
+
+    private int RootIndex => Math.Max(0, Draft.Roots.ToList().IndexOf(Draft.Root));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _name.FocusAsync();
+        }
+    }
+
+    private void OnRootChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var index) && index >= 0 && index < Draft.Roots.Count)
+        {
+            Draft.Root = Draft.Roots[index];
+        }
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveAsync();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _touched = true;
+        if (Draft.CanSave && !Busy)
+        {
+            await OnSave.InvokeAsync();
+        }
+    }
+}

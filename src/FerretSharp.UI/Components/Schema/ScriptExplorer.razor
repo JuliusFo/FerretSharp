@@ -1,0 +1,202 @@
+@* The section "Scripts" of the explorer (WP-77): the connection's script folders (personal, its group's, general) as a tree
+   of folders and scripts, filtered by the explorer's name search. A click opens the script in a new SQL tab – nothing
+   runs; the right-click menu inserts it into the active SQL tab, shows the file or deletes it. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Scripts
+@implements IDisposable
+@inject ScriptLibrary Library
+@inject IFileReveal FileReveal
+
+<div class="table-list script-tree">
+    @{ var scans = Library.For(Active.Profile); var rows = ScriptTree.Rows(scans, Query, _collapsed); }
+    @foreach (var row in rows)
+    {
+        var r = row;
+        if (r.IsRoot)
+        {
+            <button @key="r.Key" class="group-head-btn script-root" title="@r.Scan.Root.Path" @onclick="() => Toggle(r)">
+                <span class="chev @(r.Expanded ? "" : "closed")">@Icons.ChevronDown</span>
+                <span>@r.Label</span>
+                <span class="count">@r.Scan.Scripts.Count</span>
+            </button>
+            @if (r.Expanded && r.Scan.Error is { } error)
+            {
+                <div class="sidebar-error small">@error</div>
+            }
+            @if (r.Expanded && r.Scan.Truncated)
+            {
+                <div class="hint small script-note">@TextFormat.Format(ScriptViewText.Explorer_Truncated, ScriptLibrary.MaxFiles)</div>
+            }
+            @if (r.Expanded && r.Scan.Loaded && r.Scan.Error is null && r.Scan.Scripts.Count == 0 && r.Scan.Folders.Count == 0 && !Searching)
+            {
+                <div class="hint small script-note">@(r.Scan.Root.Kind == ScriptRootKind.Personal ? ScriptViewText.Explorer_EmptyPersonal : ScriptViewText.Explorer_EmptyFolder)</div>
+            }
+        }
+        else if (r.Script is null)
+        {
+            <button @key="r.Key" class="table-item script-folder" style="@Indent(r)" title="@r.Folder" @onclick="() => Toggle(r)">
+                <span class="chev @(r.Expanded ? "" : "closed")">@Icons.ChevronDown</span>
+                @Icons.Folder
+                <span class="name">@r.Label</span>
+            </button>
+        }
+        else
+        {
+            var script = r.Script;
+            <button @key="r.Key" class="table-item script-item @(IsOpen(script) ? "open" : "") @(script.Problems.Count > 0 ? "invalid" : "")" style="@Indent(r)"
+                    title="@Tooltip(script)" @onclick="() => OpenAsync(script)" @oncontextmenu="e => _menu!.OpenAsync(e, script)" @oncontextmenu:preventDefault="true">
+                @Icons.Script
+                <span class="name">@script.Name</span>
+            </button>
+        }
+    }
+    @if (scans.Any(s => !s.Loaded) && rows.Count <= scans.Count)
+    {
+        <div class="sidebar-empty"><span class="spinner"></span> @ScriptViewText.Panel_Loading</div>
+    }
+    else if (Searching && rows.Count == 0)
+    {
+        <div class="sidebar-empty">@TextFormat.Format(SchemaViewText.Explorer_NothingFound, Query)</div>
+    }
+    @if (_error is not null)
+    {
+        <div class="sidebar-error">@_error</div>
+    }
+</div>
+
+<ContextMenuHost @ref="_menu" TItem="ScriptEntry" Width="260" EstimatedHeight="180">
+    <div class="ctx-head-block">
+        <div class="ctx-head"><span class="ctx-conn-name">@context.Name</span></div>
+        <div class="ctx-facts">
+            <span class="ctx-fact" title="@context.Root.Path">@ScriptTree.RootLabel(context.Root)@(context.Folder.Length > 0 ? " · " + context.Folder : "")</span>
+            @if (context.Parameters.Count > 0)
+            {
+                <span class="ctx-fact">@TextFormat.Plural(context.Parameters.Count, ScriptViewText.Explorer_ParametersOne, ScriptViewText.Explorer_ParametersOther)</span>
+            }
+        </div>
+    </div>
+    <MenuEntry Label="@ScriptViewText.Explorer_Open" OnClick="() => RunAsync(() => OpenAsync(context))" />
+    <MenuEntry Label="@ScriptViewText.Explorer_Insert" Title="@ScriptViewText.Explorer_InsertTitle"
+               Unavailable="@(Shell.ActiveTab is SqlTab ? null : ScriptViewText.Explorer_InsertNoSqlTab)"
+               OnClick="() => RunAsync(() => Insert(context))" />
+    <MenuEntry Label="@ScriptViewText.Explorer_Reveal" OnClick="() => RunAsync(() => Reveal(context))" />
+    <MenuEntry Label="@ScriptViewText.Explorer_Delete" Danger="true" OnClick="() => RunAsync(() => _delete = context)" />
+</ContextMenuHost>
+
+@if (_delete is { } doomed)
+{
+    <ConfirmDialog Title="@ScriptViewText.Delete_Title" ConfirmLabel="@ScriptViewText.Delete_Confirm" Danger="true"
+                   OnConfirm="() => DeleteAsync(doomed)" OnCancel="() => _delete = null">
+        <p>@TextFormat.Format(ScriptViewText.Delete_Text, doomed.Path, ScriptTree.RootLabel(doomed.Root))</p>
+        @if (doomed.Root.Kind != ScriptRootKind.Personal)
+        {
+            <p class="hint">@ScriptViewText.Delete_Shared</p>
+        }
+    </ConfirmDialog>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    /// <summary>The explorer's name search.</summary>
+    [Parameter]
+    public string Query { get; set; } = "";
+
+    private readonly HashSet<string> _collapsed = new(StringComparer.Ordinal);
+    private ContextMenuHost<ScriptEntry>? _menu;
+    private ScriptEntry? _delete;
+    private string? _error;
+
+    private bool Searching => new TextSearch(Query).IsActive;
+
+    protected override void OnInitialized() => Library.Changed += OnLibraryChanged;
+
+    private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
+
+    private static string Indent(ScriptRow row) => $"padding-left: {8 + (row.Depth - 1) * 14}px";
+
+    private void Toggle(ScriptRow row)
+    {
+        if (Searching)
+        {
+            return; // all open while searching
+        }
+
+        if (!_collapsed.Remove(row.Key))
+        {
+            _collapsed.Add(row.Key);
+        }
+    }
+
+    private bool IsOpen(ScriptEntry script) =>
+        Shell.Tabs.OfType<SqlTab>().Any(t => t.Script is { } link && script.Root.Is(link.Root, link.Group)
+                                             && string.Equals(link.Path, script.Path, StringComparison.OrdinalIgnoreCase));
+
+    private static string Tooltip(ScriptEntry script) =>
+        string.Join(Environment.NewLine, new[] { script.Description, script.Path }.Concat(script.Problems).OfType<string>());
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _menu?.Close();
+        await action();
+    }
+
+    private Task RunAsync(Action action)
+    {
+        _menu?.Close();
+        action();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>A new SQL tab with the script's text and its parameters as variables; nothing runs (decision of the user).</summary>
+    private async Task OpenAsync(ScriptEntry script)
+    {
+        _error = null;
+        try
+        {
+            var document = await ScriptFiles.ReadAsync(script.Root.Path, script.Path, CancellationToken.None);
+            Shell.OpenScript(script.Root, script.Path, document);
+        }
+        catch (RefusedException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private void Insert(ScriptEntry script) => Shell.InsertScript(script);
+
+    private void Reveal(ScriptEntry script)
+    {
+        try
+        {
+            FileReveal.Reveal(ScriptPaths.Resolve(script.Root.Path, script.Path));
+        }
+        catch (RefusedException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    /// <summary>Deletes the file after asking; a tab linked to it keeps its text (and "Save" creates the file again).</summary>
+    private async Task DeleteAsync(ScriptEntry script)
+    {
+        _delete = null;
+        _error = null;
+        try
+        {
+            await ScriptFiles.DeleteAsync(script.Root.Path, script.Path, CancellationToken.None);
+            await Library.RefreshAsync();
+        }
+        catch (RefusedException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    public void Dispose() => Library.Changed -= OnLibraryChanged;
+}

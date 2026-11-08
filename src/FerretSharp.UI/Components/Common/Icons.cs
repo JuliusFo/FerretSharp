@@ -253,6 +253,18 @@ internal static class Icons
     public static readonly MarkupString Package = Svg(
         """<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>""");
 
+    /// <summary>Lucide <c>scroll-text</c>: a SQL script of the library (WP-77: explorer, panel beside the SQL editor, the section of the settings).</summary>
+    public static readonly MarkupString Script = Svg(
+        """<path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>""");
+
+    /// <summary>Lucide <c>folder</c>: a folder of scripts (WP-77).</summary>
+    public static readonly MarkupString Folder = Svg(
+        """<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>""");
+
+    /// <summary>Lucide <c>save</c>: save the SQL tab into its script file (WP-77).</summary>
+    public static readonly MarkupString Save = Svg(
+        """<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>""");
+
     /// <summary>Lucide <c>square-play</c>: a stored procedure (beside <c>square-function</c>; <c>play</c> is Run).</summary>
     public static readonly MarkupString Procedure = Svg(
         """<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"/>""");
@@ -325,6 +337,7 @@ internal static class Icons
         SettingsPart.Connection => Connection,
         SettingsPart.Audit => Audit,
         SettingsPart.DisplayColumns => Star,
+        SettingsPart.Scripts => Script,
         SettingsPart.Updates => Updates,
         SettingsPart.Diagnostics => Diagnostics,
         SettingsPart.Shortcuts => Shortcuts,
