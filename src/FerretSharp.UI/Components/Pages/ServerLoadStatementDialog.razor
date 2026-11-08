@@ -163,7 +163,7 @@
         _could = (previous is not null, next is not null);
         if (!firstRender && lost && _frame is not null)
         {
-            await _frame.FocusAsync();
+            await _frame.FocusIfLostAsync();
         }
     }
 

@@ -273,7 +273,7 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         var first = _service.SelectAsync(_profile, "abc");
         var firstToken = await firstStarted.Task;
         var again = _service.SelectAsync(_profile, "abc");
-        await first;
+        await first.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken); // without the cancel it ends only with the lookup's 30 s limit
 
         var view = _service.For(_profile.Id);
         Assert.True(firstToken.IsCancellationRequested);

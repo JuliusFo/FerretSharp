@@ -25,7 +25,8 @@
             else if (state.Error is { } headError)
             {
                 @* review: folded, a failed index showed nothing at all *@
-                <span class="hint ellipsis" title="@TextFormat.Format(ModelViewText.Usage_Failed, headError)">@Icons.Warning</span>
+                var failed = TextFormat.Format(ModelViewText.Usage_Failed, headError);
+                <span class="hint ellipsis" title="@failed" aria-label="@failed">@Icons.Warning</span>
             }
             else
             {

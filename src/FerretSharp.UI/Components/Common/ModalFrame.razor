@@ -63,8 +63,11 @@
         }
     }
 
-    /// <summary>Puts the focus back on the dialog box, e.g. when the focused button inside was disabled (it drops it to the page).</summary>
-    public ValueTask FocusAsync() => _box.FocusAsync();
+    /// <summary>
+    /// Puts the focus back on the dialog box if it was lost – a focused button inside that was disabled drops it to the page,
+    /// where Escape and the Tab trap do not reach (review of the server load dialog); a focus elsewhere in the box stays.
+    /// </summary>
+    public async Task FocusIfLostAsync() => await Dom.InvokeVoidAsync("focusIfLost", _box);
 
     public ValueTask DisposeAsync() => _dom?.DisposeAsync() ?? ValueTask.CompletedTask;
 

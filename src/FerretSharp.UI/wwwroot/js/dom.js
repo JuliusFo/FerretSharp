@@ -435,6 +435,14 @@ export function dragTab(bar, pointerId, startX, startY, sourceId) {
   });
 }
 
+/** Puts the focus on the dialog box only when it was lost – on the page or on a button that was just disabled. */
+export function focusIfLost(box) {
+  const active = document.activeElement;
+  if (box?.isConnected && (!active || active === document.body || active.disabled)) {
+    box.focus();
+  }
+}
+
 /** Focuses the first enabled input, select or text area inside the element (a new row in the form). */
 export function focusFirstInput(element) {
   element?.querySelector('input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]):not([readonly])')?.focus();
@@ -456,7 +464,8 @@ export function trapFocus(box) {
 
   backdrop._focusTrap = true;
   let pressedInBox = false;
-  backdrop.addEventListener('pointerdown', e => { pressedInBox = box.contains(e.target); });
+  // Capture: a handler inside that stops the press (a menu, Monaco) must not leave the flag of the press before.
+  backdrop.addEventListener('pointerdown', e => { pressedInBox = box.contains(e.target); }, true);
   backdrop.addEventListener('click', e => {
     if (e.target === backdrop && pressedInBox) {
       e.stopPropagation();
