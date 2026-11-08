@@ -59,7 +59,8 @@ public sealed class DataDiffTests(OracleContainerFixture oracle) : IAsyncLifetim
 
     /// <summary>
     /// The start SCN once it is past everything committed so far: mapped from the time, it may lie a few seconds back (measured
-    /// here; the user is told in the plan of WP-44). The highest commit SCN of the table's rows is the mark.
+    /// here; the user is told in the plan of WP-44). The highest commit SCN of the table's rows is the mark – DDL on the table
+    /// therefore goes before its last rows, or the start may lie before it (ORA-01466).
     /// </summary>
     private async Task<long> StartAfterAsync(string table)
     {
@@ -123,8 +124,10 @@ public sealed class DataDiffTests(OracleContainerFixture oracle) : IAsyncLifetim
     [Fact]
     public async Task A_table_without_primary_key_is_compared_by_rowid_and_reports_row_movement()
     {
-        await CreateAsync("DIFF_LOG", "MSG VARCHAR2(40)", "INSERT INTO DIFF_LOG VALUES ('one')", "INSERT INTO DIFF_LOG VALUES ('two')");
-        await RunAsync("ALTER TABLE DIFF_LOG ENABLE ROW MOVEMENT");
+        // Row movement before the rows: the start point waits for their commit only, DDL after it could lie past the start
+        // (ORA-01466; flaky under the load of the whole suite).
+        await CreateAsync("DIFF_LOG", "MSG VARCHAR2(40)",
+            "ALTER TABLE DIFF_LOG ENABLE ROW MOVEMENT", "INSERT INTO DIFF_LOG VALUES ('one')", "INSERT INTO DIFF_LOG VALUES ('two')");
         var table = await DetailsAsync("DIFF_LOG");
         var scn = await StartAfterAsync("DIFF_LOG");
 
