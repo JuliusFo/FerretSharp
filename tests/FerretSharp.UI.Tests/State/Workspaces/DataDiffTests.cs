@@ -36,7 +36,7 @@ public sealed class DataDiffTests : IAsyncDisposable
         var id = scope.Workspaces.Active!.Id;
         ActiveKunden(scope);
         var read = new List<(IReadOnlyList<FilterCondition> Filters, long Scn)>();
-        _app.ReadDiff = (_, filters, scn) =>
+        _app.ReadDiff = (_, filters, scn, _) =>
         {
             read.Add((filters, scn));
             return Task.FromResult(new DiffRead([Row(true, 11), Row(false, 12)], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false));
@@ -68,7 +68,7 @@ public sealed class DataDiffTests : IAsyncDisposable
         var id = scope.Workspaces.Active!.Id;
         ActiveKunden(scope);
         await Lifecycle.StartDataDiffAsync(id);
-        _app.ReadDiff = (_, _, _) => Task.FromException<DiffRead>(new DatabaseException("insufficient privileges", "ORA-01031"));
+        _app.ReadDiff = (_, _, _, _) => Task.FromException<DiffRead>(new DatabaseException("insufficient privileges", "ORA-01031"));
 
         await Lifecycle.CompareDataDiffAsync(id);
 
@@ -111,7 +111,7 @@ public sealed class DataDiffTests : IAsyncDisposable
         var release = new TaskCompletionSource<DiffRead>(TaskCreationOptions.RunContinuationsAsynchronously);
         var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var read = new List<string>();
-        _app.ReadDiff = (table, _, _) =>
+        _app.ReadDiff = (table, _, _, ct) =>
         {
             lock (read)
             {
@@ -119,7 +119,7 @@ public sealed class DataDiffTests : IAsyncDisposable
             }
 
             arrived.TrySetResult();
-            return release.Task;
+            return release.Task.WaitAsync(ct); // like the session: a cancel ends the query
         };
         return (release, arrived, read);
     }
@@ -138,12 +138,14 @@ public sealed class DataDiffTests : IAsyncDisposable
 
         var comparing = Lifecycle.CompareDataDiffAsync(id);
         await arrived.Task.WaitAsync(Wait.Limit, TestContext.Current.CancellationToken);
+        var tab = _app.WorkspaceOf(scope).Tabs.OfType<DataDiffTab>().Single();
         _app.CurrentScn = 4800;
+        var runningAtScn = true;
+        _app.ScnRead = () => runningAtScn = !comparing.IsCompleted;
         await Lifecycle.StartDataDiffAsync(id);
-        release.SetResult(OneNew);
         await comparing;
 
-        var tab = _app.WorkspaceOf(scope).Tabs.OfType<DataDiffTab>().Single();
+        Assert.False(runningAtScn); // second review: the SCN waited behind the running query on the same session
         Assert.Null(tab.ResultOf(TestApp.Kunden.Ref));
         Assert.False(tab.Running);
     }
@@ -166,6 +168,30 @@ public sealed class DataDiffTests : IAsyncDisposable
         _app.Shell.CloseTab(_app.WorkspaceOf(scope).Tabs.OfType<DataDiffTab>().Single());
         release.SetResult(OneNew);
         await comparing;
+
+        Assert.Equal(["KUNDEN"], read);
+    }
+
+    /// <summary>Second review of WP-44: closing the workspace went on comparing as well.</summary>
+    [Fact]
+    public async Task Closing_the_workspace_stops_its_comparison()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = scope.Workspaces.Active!.Id;
+        ActiveKunden(scope);
+        _app.Tables = [TestApp.Kunden, new TableSummary("APP_USER", "AUFTRAG", TableKind.Table)];
+        await scope.Active.Schema!.RefreshAsync(TestContext.Current.CancellationToken);
+        await Lifecycle.StartDataDiffAsync(id);
+        scope.Workspaces.SetDataDiff(id, Lifecycle.DataDiffOf(id)!.WithEntry(new TableRef("APP_USER", "AUFTRAG"), []));
+        await scope.Workspaces.CreateAsync("Other");
+        var (release, arrived, read) = HoldReads();
+
+        var comparing = Lifecycle.CompareDataDiffAsync(id);
+        await arrived.Task.WaitAsync(Wait.Limit, TestContext.Current.CancellationToken);
+        await scope.Workspaces.CloseAsync(id);
+        _app.Shell.SyncWorkspaces(scope.Id, scope.Workspaces.Open, scope.Workspaces.Active?.Id, scope.Active.Schema!);
+        release.SetResult(OneNew);
+        await comparing.WaitAsync(Wait.Limit, TestContext.Current.CancellationToken);
 
         Assert.Equal(["KUNDEN"], read);
     }

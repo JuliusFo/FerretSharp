@@ -26,6 +26,10 @@ public sealed partial class WorkspaceLifecycle
     public async Task StartDataDiffAsync(Guid workspaceId)
     {
         var scope = ScopeOf(workspaceId);
+
+        // A comparison running on the read session first: the SCN is read on the same session and would wait behind it, the
+        // start point then lay long after the click (second review of WP-44).
+        DiffTabOf(workspaceId)?.Cancel();
         shell.Notify(ShellText.DataDiff_Starting); // the first read opens the read session: over the VPN that takes a moment
         var read = await shell.RunDbAsync(logger, scope.Active, () => scope.Active.Reads.ReadAsync((data, ct) => data.CurrentScnAsync(ct), CancellationToken.None));
         if (!shell.ShowFailure(read))

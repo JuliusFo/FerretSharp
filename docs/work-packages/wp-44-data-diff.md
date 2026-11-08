@@ -60,6 +60,12 @@ Review per `/branch-code-review` (eigener Reviewer-Agent, Befunde nachgeprüft).
 11. K Doku sagte „nie Werte“, die Filter enthalten Werte. **Behoben** (Architektur, ADR, Kommentare).
 12. K Verrutschter Doc-Kommentar in `TestApp`. **Behoben.**
 
+Zweiter Durchgang (derselbe Reviewer, nur die Fix-Commits): 1–5, 9, 11, 12 in Ordnung, die Tests scheitern ohne die Fixes.
+- A M „Neuer Startpunkt“ während eines Vergleichs las die SCN erst nach der laufenden Diff-Abfrage (dieselbe Session, ihr Gate) – der Startpunkt lag bis zur Dauer der Abfrage nach dem Klick, Änderungen dazwischen fehlten im Diff. **Behoben:** erst abbrechen, dann die SCN lesen; Test (der Fake folgt jetzt dem Abbruch-Token).
+- B K Befund 7 nur halb: Schließen des Workspaces verglich weiter. **Behoben** (`SyncWorkspaces` → `StopWork`); Test mit Gegenprobe.
+- C K Die Lese-Session sperrt sich bei jedem Öffnungsfehler, der kein Netzfehler ist – auch bei Limits wie `SESSIONS_PER_USER` (ORA-02391), die nicht für `FAILED_LOGIN_ATTEMPTS` zählen; „Verbinde neu“ beendet dann alle Workspace-Sessions. **Nicht geändert:** wie die Regel in `connections.md` und `ServerLoadService`, im Zweifel die sichere Seite; Frage unten.
+
 Fragen aus dem Review:
 - TIMESTAMP(9)-Spalten: Zeilen „geändert“ ohne markierte Zelle mit Hinweis kennzeichnen, oder so lassen?
 - Startpunkt an die Datenbank binden (z. B. `DBID`/Name mitspeichern und bei Abweichung verwerfen)?
+- Lese-Session nach einem Öffnungsfehler: nur echte Anmelde-Ablehnungen (ORA-01017, 28000, 28001 …) bis zum Neuverbinden sperren und Limits wie ORA-02391 beim nächsten Vergleich erneut versuchen lassen?

@@ -45,6 +45,11 @@ public sealed partial class ShellState
         var at = _workspaces.FindIndex(w => w.ConnectionId == connectionId);
         _workspaces.RemoveAll(w => w.ConnectionId == connectionId);
         var synced = open.Select(workspace => existing.GetValueOrDefault(workspace.Id) ?? Restore(workspace, connectionId, schema)).ToList();
+        foreach (var closed in existing.Values.Except(synced).SelectMany(w => w.Tabs))
+        {
+            StopWork(closed); // a workspace closed meanwhile (second review of WP-44)
+        }
+
         _schemas[connectionId] = schema;
         _workspaces.InsertRange(at < 0 ? _workspaces.Count : at, synced);
 
