@@ -10,7 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - A SQL tab opened from a script is named after it and marked with a dot while it differs from the file; it is saved only when you say so, and an unchanged one closes without asking. When the file changes outside FerretSharp (a `git pull`), an unchanged tab reloads it quietly, a changed one asks, and saving over a file changed since asks first. The action *Save SQL script* has no default key; assign one in the shortcuts.
 
 ### Fixed
-- Display columns and the report’s exceptions in a shared folder: saving wrote through a file named `….tmp` beside them – a link of that name in the repository sent the content to a file outside it, and a file of yours of that name was replaced. They are now written beside the file under a name of their own.
+- Display columns, the report’s exceptions and exported model files in a shared folder: saving wrote through a file named `….tmp` beside them – a link of that name in the repository sent the content to a file outside it, and a file of yours of that name was replaced. They are now written beside the file under a name of their own.
 
 ## [3.64.0] - 2026-11-08
 
