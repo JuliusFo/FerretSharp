@@ -264,12 +264,6 @@
   <data name="ServerLoad_AxisStart" xml:space="preserve">
     <value>-{0} min</value>
   </data>
-  <data name="ServerLoad_AxisHalf" xml:space="preserve">
-    <value>50 %</value>
-  </data>
-  <data name="ServerLoad_AxisTop" xml:space="preserve">
-    <value>oben {0}</value>
-  </data>
   <data name="ServerLoad_LookTimedOut" xml:space="preserve">
     <value>Der Server hat nicht innerhalb von {0} s geantwortet; der nächste Blick öffnet eine neue Session.</value>
   </data>
@@ -293,5 +287,23 @@
   </data>
   <data name="ServerLoad_FullRead" xml:space="preserve">
     <value>Werte aller Statements werden wie jede Stunde neu gelesen …</value>
+  </data>
+  <data name="ServerLoad_DetailLabel" xml:space="preserve">
+    <value>Statement {0}</value>
+  </data>
+  <data name="ServerLoad_Previous" xml:space="preserve">
+    <value>Vorheriges Statement der Liste</value>
+  </data>
+  <data name="ServerLoad_Next" xml:space="preserve">
+    <value>Nächstes Statement der Liste</value>
+  </data>
+  <data name="ServerLoad_PartSql" xml:space="preserve">
+    <value>SQL-Text</value>
+  </data>
+  <data name="ServerLoad_PartPlan" xml:space="preserve">
+    <value>Plan und Werte seit dem Laden</value>
+  </data>
+  <data name="ServerLoad_NotInList" xml:space="preserve">
+    <value>Nicht in der Liste, wie sie gerade gezeigt wird – daher keine Werte aus ihr.</value>
   </data>
 </root>

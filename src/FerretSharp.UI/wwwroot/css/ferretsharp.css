@@ -1932,7 +1932,14 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .load-chart line { stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
 .load-chart line.grid { stroke: var(--border); }
 .load-chart line.limit { stroke: var(--danger); }
-.load-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 11px; color: var(--faint); }
+.load-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; padding-left: 46px; font-size: 11px; color: var(--faint); }
+/* The values of a chart's y axis beside it: top, middle, bottom (an SVG stretched without aspect would distort text) */
+.load-plot { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 6px; }
+.load-y { position: relative; height: 110px; font-size: 11px; line-height: 1; color: var(--faint); font-variant-numeric: tabular-nums; }
+.load-y span { position: absolute; right: 0; white-space: nowrap; }
+.load-y span:nth-child(1) { top: 0; }
+.load-y span:nth-child(2) { top: 50%; transform: translateY(-50%); }
+.load-y span:nth-child(3) { bottom: 0; }
 .load-axis i.sessions { background: var(--accent); }
 .load-axis i.on-cpu { background: var(--green); margin-left: 8px; }
 .load-axis i.limit { background: var(--danger); margin-left: 8px; height: 2px; vertical-align: middle; }
@@ -1947,14 +1954,42 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .load-sql .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .load-sql .plan-badge { margin: 0 6px 0 0; }
 .load-sql small { display: block; color: var(--faint); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.load-detail { border-top: 1px solid var(--border); padding-bottom: 6px; }
-.load-detail > .sql-block { margin: 0 16px; }
-.load-detail > p.hint, .load-detail > .test-result { margin: 10px 16px; }
-.load-detail table.plan { width: calc(100% - 32px); margin: 6px 16px 14px; }
-/* Origin in code (WP-76) */
-.load-detail > .code-origins { margin: 6px 16px 10px; }
-.code-origins .usage-subhead { margin-top: 4px; }
+/* The statement dialog: figures of the line, then folding parts (FoldSection) */
+/* Anchored at the top: centred, it jumped with every part folded or another statement shown (E2E). */
+.load-statement-dialog { width: min(1180px, 96vw); max-height: 88vh; display: flex; flex-direction: column; align-self: start; margin-top: 6vh; }
+.load-statement-dialog header { gap: 8px; justify-content: flex-start; }
+.load-statement-dialog header .spacer { flex: 1; }
+.load-dialog-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.load-dialog-title .plan-badge { margin: 0; }
+.load-dialog-title small { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.load-dialog-body { overflow: auto; min-height: 120px; user-select: text; }
+.load-dialog-body .load-dialog-figures { margin: 0; padding: 10px 16px; }
+.load-dialog-body .fold-body > .sql-block { margin: 0; }
+.load-dialog-body .fold-body > p.hint, .load-dialog-body .fold-body > .test-result { margin: 8px 0; }
+.load-dialog-body .fold-body > .app-trace-figures { padding: 2px 0 4px; }
+.load-dialog-body table.plan { width: 100%; margin: 6px 0 4px; }
+.fold-section { border-top: 1px solid var(--border); }
+.fold-summary { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 10px 16px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.fold-summary:hover { background: var(--hover); }
+.fold-summary .chev { color: var(--faint); }
+.fold-summary .count { font-size: 11px; font-weight: 400; color: var(--faint); font-variant-numeric: tabular-nums; }
+.fold-summary .usage-limits { margin-left: 0; }
+.fold-summary .hint { font-weight: 400; font-size: 12px; min-width: 0; }
+.fold-body { padding: 0 16px 12px; }
+/* Origin in code (WP-76): rank, fit meter, method, place, reasons */
+.code-origin-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: auto auto auto auto minmax(0, 1fr); align-items: center; gap: 5px 10px; white-space: nowrap; }
+.code-origin-item { display: contents; }
+.code-origin-item > .link-btn { justify-self: start; }
+.code-origin-rank { min-width: 2.2em; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; cursor: help; }
+.code-origin-rank.level { color: var(--warn); }
 .code-origin-reasons { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.code-origin-more { margin-top: 8px; }
+.code-origin-best { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin-left: 6px; font-weight: 400; font-size: 12.5px; color: var(--muted); }
+.fit-meter { display: inline-flex; gap: 2px; cursor: help; }
+.fit-meter i { display: block; width: 7px; height: 11px; border-radius: 2px; border: 1px solid var(--border-strong); }
+.fit-meter.full i.on { background: var(--green); border-color: var(--green); }
+.fit-meter.half i.on { background: var(--accent); border-color: var(--accent); }
+.fit-meter.low i.on { background: var(--faint); border-color: var(--faint); }
 .load-sessions h2 .count { margin-left: 8px; font-weight: 500; color: var(--faint); }
 .load-sessions .link-btn { padding: 0; color: var(--accent); }
 .load-license, .load-wait { max-width: 1100px; margin: 12px auto 0; }

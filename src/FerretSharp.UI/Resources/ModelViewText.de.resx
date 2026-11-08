@@ -891,4 +891,19 @@
   <data name="CodeOrigin_FiltersIn" xml:space="preserve">
     <value>filtert {0} nach {1}</value>
   </data>
+  <data name="CodeOrigin_Fit" xml:space="preserve">
+    <value>Trifft {0} von {1} Merkmalen des Statements</value>
+  </data>
+  <data name="CodeOrigin_FitMissing" xml:space="preserve">
+    <value>Fehlt: {0}</value>
+  </data>
+  <data name="CodeOrigin_FitExtra" xml:space="preserve">
+    <value>Zusätzlich in der Methode: {0}</value>
+  </data>
+  <data name="CodeOrigin_Rank" xml:space="preserve">
+    <value>Rang {0} nach Wertung</value>
+  </data>
+  <data name="CodeOrigin_RankLevel" xml:space="preserve">
+    <value>Rang {0} nach Wertung, gleichauf mit einem anderen Kandidaten: Die Wertung entscheidet nicht zwischen ihnen</value>
+  </data>
 </root>

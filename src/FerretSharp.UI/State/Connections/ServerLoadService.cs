@@ -30,6 +30,14 @@ public enum ServerLoadStatus
     Failed,
 }
 
+/// <summary>The folding parts of the statement dialog of the server load.</summary>
+public enum StatementPart
+{
+    Sql,
+    Origin,
+    Plan,
+}
+
 /// <summary>Which top list the page shows.</summary>
 public enum ServerLoadMode
 {
@@ -109,6 +117,23 @@ public sealed class ServerLoadView(Guid profileId)
     public IReadOnlyList<StatementRow> Top =>
         Mode == ServerLoadMode.Window ? Tracker.Top(Window, Sort, Filter, ServerLoadService.TopCount) : SinceLoad;
 
+    /// <summary>
+    /// The statements before and after <paramref name="sqlId"/> in <paramref name="rows"/> (the list as shown): what the
+    /// statement dialog steps to; none for a statement not in it (one from the active sessions, one that left the window).
+    /// </summary>
+    public static (string? Previous, string? Next) Neighbours(IReadOnlyList<StatementRow> rows, string? sqlId)
+    {
+        for (var i = 0; i < rows.Count; i++)
+        {
+            if (rows[i].SqlId == sqlId)
+            {
+                return (i > 0 ? rows[i - 1].SqlId : null, i + 1 < rows.Count ? rows[i + 1].SqlId : null);
+            }
+        }
+
+        return (null, null);
+    }
+
     internal IDatabaseConnection? Connection { get; set; }
 
     internal ServerLoadMonitor? Monitor { get; set; }
@@ -165,6 +190,22 @@ public sealed class ServerLoadService(
     private (ServerLoadView View, CancellationTokenSource Stop, Task Loop)? _running;
 
     public event Action? Changed;
+
+    /// <summary>
+    /// The parts of the statement dialog unfolded, for the app's run and every connection: at first only the SQL text
+    /// (decision of the user); one unfolded stays so for the next statement.
+    /// </summary>
+    public IReadOnlySet<StatementPart> OpenParts => _openParts;
+
+    private readonly HashSet<StatementPart> _openParts = [StatementPart.Sql];
+
+    public void TogglePart(StatementPart part)
+    {
+        if (!_openParts.Remove(part))
+        {
+            _openParts.Add(part);
+        }
+    }
 
     public ServerLoadView For(Guid profileId)
     {

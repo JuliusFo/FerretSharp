@@ -1,0 +1,35 @@
+@* A part of a dialog that folds: a head with a chevron, its title and a short summary beside it, the content only when open.
+   The owner keeps whether it is open (the statement dialog of the server load remembers it for the app's run). *@
+
+<section class="fold-section @(Open ? "open" : "") @Class">
+    <button class="fold-summary" aria-expanded="@(Open ? "true" : "false")" @onclick="() => OnToggle.InvokeAsync()">
+        <span class="chev @(Open ? "" : "closed")">@Icons.ChevronDown</span>
+        <span class="fold-title">@Title</span>
+        @Summary
+    </button>
+    @if (Open)
+    {
+        <div class="fold-body">@ChildContent</div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggle { get; set; }
+
+    /// <summary>Beside the title, also while folded: counts, a spinner, the best candidate.</summary>
+    [Parameter]
+    public RenderFragment? Summary { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = null!;
+}

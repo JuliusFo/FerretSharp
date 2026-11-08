@@ -298,4 +298,15 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.Contains("10", view.Error, StringComparison.Ordinal);
         await _connector.Received(2).OpenAsync(_profile, "secret", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public void The_statement_dialog_steps_through_the_list_as_shown_and_not_from_a_statement_outside_it()
+    {
+        List<StatementRow> rows = [.. new[] { "a", "b", "c" }.Select(id => new StatementRow(id, 1, default, null, null))];
+
+        Assert.Equal((null, "b"), ServerLoadView.Neighbours(rows, "a"));
+        Assert.Equal(("a", "c"), ServerLoadView.Neighbours(rows, "b"));
+        Assert.Equal(("b", null), ServerLoadView.Neighbours(rows, "c"));
+        Assert.Equal((null, null), ServerLoadView.Neighbours(rows, "from-a-session"));
+    }
 }

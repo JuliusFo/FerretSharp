@@ -1,6 +1,6 @@
 @* Server load (WP-75, ADR 0045): the load of the shown connection's database server and its top statements, from views
    outside the Diagnostics and Tuning Pack. A session of its own looks every 30 s while the page is shown (ServerLoadService);
-   what was seen stays when the page is left. *@
+   what was seen stays when the page is left. A statement's details open in a dialog (ServerLoadStatementDialog). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
@@ -111,6 +111,11 @@
         <p class="hint load-license">@ServerLoadText.ServerLoad_License</p>
     }
 </div>
+@if (view.Selected is not null)
+{
+    <ServerLoadStatementDialog View="view" Rows="view.Top" IsApp="@Trace.SqlIdsOn(Profile.Id).Contains(view.Selected)"
+                               OnClose="() => SelectAsync(null)" OnSelect="SelectAsync" />
+}
 
 @code {
     private const double ChartWidth = 600;
@@ -140,7 +145,7 @@
     private ExportActions Export => _export ??= new(Shell, Dom, Files, 0, () => Task.CompletedTask, Logger, Active);
 
     /// <summary>The column headings, also of the Excel file (a property: the language is read when used).</summary>
-    private static string Header(StatementColumn column) => column switch
+    internal static string Header(StatementColumn column) => column switch
     {
         StatementColumn.SqlId => "SQL_ID",
         StatementColumn.Schema => ServerLoadText.ServerLoad_ColumnSchema,
@@ -203,7 +208,7 @@
 
     private static string Percent(double share) => share.ToString("0 %", CultureInfo.CurrentCulture);
 
-    private static TimeSpan Micros(double micros) => TimeSpan.FromMicroseconds(micros);
+    internal static TimeSpan Micros(double micros) => TimeSpan.FromMicroseconds(micros);
 
     /// <summary>A time per execution; empty for a statement not executed to the end yet (a running PL/SQL block).</summary>
     private static string PerExecution(StatementFigures figures, long micros) =>
@@ -284,31 +289,38 @@
             <div class="load-charts">
                 <figure>
                     <figcaption>@ServerLoadText.ServerLoad_TileHostCpu</figcaption>
-                    <svg viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none" class="load-chart">
-                        <line class="grid" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(0.5, 1, ChartHeight)" y2="@LoadChart.Y(0.5, 1, ChartHeight)" />
-                        @foreach (var line in LoadChart.Lines(history, s => s.HostCpu, 1, ChartWidth, ChartHeight, span))
-                        {
-                            <polyline class="cpu" points="@line" />
-                        }
-                    </svg>
-                    <div class="load-axis"><span>@startLabel</span><span>@ServerLoadText.ServerLoad_AxisHalf</span><span>@ServerLoadText.ServerLoad_AxisNow</span></div>
+                    <div class="load-plot">
+                        @YAxis(Percent(1), Percent(0.5), Percent(0))
+                        <svg viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none" class="load-chart">
+                            <line class="grid" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(0.5, 1, ChartHeight)" y2="@LoadChart.Y(0.5, 1, ChartHeight)" />
+                            @foreach (var line in LoadChart.Lines(history, s => s.HostCpu, 1, ChartWidth, ChartHeight, span))
+                            {
+                                <polyline class="cpu" points="@line" />
+                            }
+                        </svg>
+                    </div>
+                    <div class="load-axis"><span>@startLabel</span><span>@ServerLoadText.ServerLoad_AxisNow</span></div>
                 </figure>
                 <figure>
                     <figcaption>@ServerLoadText.ServerLoad_TileActiveSessions</figcaption>
-                    <svg viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none" class="load-chart">
-                        @if (latest.Cpus > 0 && latest.Cpus <= sessionsMax)
-                        {
-                            <line class="limit" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" y2="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" />
-                        }
-                        @foreach (var line in LoadChart.Lines(history, s => s.ActiveSessions, sessionsMax, ChartWidth, ChartHeight, span))
-                        {
-                            <polyline class="sessions" points="@line" />
-                        }
-                        @foreach (var line in LoadChart.Lines(history, s => s.CpuSessions, sessionsMax, ChartWidth, ChartHeight, span))
-                        {
-                            <polyline class="on-cpu" points="@line" />
-                        }
-                    </svg>
+                    <div class="load-plot">
+                        @YAxis(Number(sessionsMax, "0.##"), Number(sessionsMax / 2, "0.##"), Number(0, "0"))
+                        <svg viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none" class="load-chart">
+                            <line class="grid" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(0.5, 1, ChartHeight)" y2="@LoadChart.Y(0.5, 1, ChartHeight)" />
+                            @if (latest.Cpus > 0 && latest.Cpus <= sessionsMax)
+                            {
+                                <line class="limit" x1="0" x2="@ChartWidth" y1="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" y2="@LoadChart.Y(latest.Cpus, sessionsMax, ChartHeight)" />
+                            }
+                            @foreach (var line in LoadChart.Lines(history, s => s.ActiveSessions, sessionsMax, ChartWidth, ChartHeight, span))
+                            {
+                                <polyline class="sessions" points="@line" />
+                            }
+                            @foreach (var line in LoadChart.Lines(history, s => s.CpuSessions, sessionsMax, ChartWidth, ChartHeight, span))
+                            {
+                                <polyline class="on-cpu" points="@line" />
+                            }
+                        </svg>
+                    </div>
                     <div class="load-axis">
                         <span>@startLabel</span>
                         <span>
@@ -317,7 +329,6 @@
                             {
                                 <i class="limit"></i>@TextFormat.Plural(latest.Cpus, ServerLoadText.ServerLoad_CpusOne, ServerLoadText.ServerLoad_CpusOther)
                             }
-                            · @TextFormat.Format(ServerLoadText.ServerLoad_AxisTop, Number(sessionsMax, "0.#"))
                         </span>
                         <span>@ServerLoadText.ServerLoad_AxisNow</span>
                     </div>
@@ -325,6 +336,11 @@
             </div>
         </section>;
     }
+
+    /// <summary>The values at the top, the middle and the bottom of a chart, beside it (in the SVG they would stretch with it).</summary>
+    private static RenderFragment YAxis(string top, string half, string bottom) => @<div class="load-y" aria-hidden="true">
+        <span>@top</span><span>@half</span><span>@bottom</span>
+    </div>;
 
     private RenderFragment Statements(ServerLoadView view)
     {
@@ -418,14 +434,11 @@
                     </table>
                 </div>
             }
-            @if (view.Selected is { } selected)
-            {
-                @Details(view, selected, rows.FirstOrDefault(r => r.SqlId == selected))
-            }
         </section>;
     }
 
-    private static string Detail(StatementRow row)
+    /// <summary>Schema, module and plans of a line, each after „ · “.</summary>
+    internal static string Detail(StatementRow row)
     {
         var parts = new[] { row.Info?.Schema, row.Info?.Module, row.Plans > 1 ? TextFormat.Format(ServerLoadText.ServerLoad_Plans, row.Plans) : null }
             .Where(p => !string.IsNullOrEmpty(p));
@@ -436,45 +449,6 @@
         @<th class="num sortable @(view.Sort == sort ? "sorted" : "")" title="@ServerLoadText.ServerLoad_SortTitle" @onclick="() => SortAsync(sort)">
             @Header(column)@(view.Sort == sort ? " ↓" : "")
         </th>;
-
-    private RenderFragment Details(ServerLoadView view, string sqlId, StatementRow? row) => @<div class="load-detail">
-        <div class="app-trace-actions">
-            <b class="mono">SQL_ID @sqlId</b>
-            <span class="grow"></span>
-            @{
-                // The list's text may be cut at 1000 bytes (review of WP-75): only the whole text goes to the editor.
-                var text = view.FullText ?? view.KeptText ?? row?.Info?.Text;
-                var whole = view.FullText ?? (row?.Info is { MayBeCut: false, Text: { } shortText } && !view.CursorLoading ? shortText : null);
-            }
-            <button class="btn" disabled="@(whole is null)" title="@(whole is null && text is not null ? ServerLoadText.ServerLoad_TextCutTitle : null)"
-                    @onclick="() => Shell.OpenSqlIn(Profile.Id, whole!)">@CommonText.OpenInSqlEditor</button>
-            <button class="btn ghost" title="@CommonText.Close" @onclick="() => SelectAsync(sqlId)">@Icons.Close</button>
-        </div>
-        @if (text is not null)
-        {
-            <SqlCode Sql="@(whole ?? text + " …")" />
-            @if (whole is null && !view.CursorLoading)
-            {
-                <p class="hint">@ServerLoadText.ServerLoad_TextCut</p>
-            }
-        }
-        @* WP-76: methods of the linked solution that may send it; a text cut short still names its leading tables. *@
-        <CodeOrigins Sql="@(whole ?? text)" Schema="@row?.Info?.Schema" />
-        @if (view.CursorLoading)
-        {
-            <p class="hint"><span class="spinner small"></span> @ServerLoadText.ServerLoad_LookingUp</p>
-        }
-        else if (view.CursorError is { } error)
-        {
-            <div class="test-result error"><span>@error</span></div>
-        }
-        else if (view.Cursor is { } cursor)
-        {
-            <CursorDetails Cursor="cursor" Owner="@Active.Schema?.Owner">
-                <p class="hint">@ServerLoadText.ServerLoad_CursorSinceLoad</p>
-            </CursorDetails>
-        }
-    </div>;
 
     private RenderFragment Sessions(ServerLoadView view) => @<section class="settings-section load-sessions">
         <h2>@ServerLoadText.ServerLoad_Sessions <span class="count">@view.Sessions.Count</span></h2>
@@ -518,7 +492,7 @@
                                 <td class="mono">
                                     @if (s.SqlId is { } sqlId)
                                     {
-                                        <button class="link-btn mono" title="@ServerLoadText.ServerLoad_ShowStatement" @onclick="() => ShowStatementAsync(sqlId)">@sqlId</button>
+                                        <button class="link-btn mono" title="@ServerLoadText.ServerLoad_ShowStatement" @onclick="() => SelectAsync(sqlId)">@sqlId</button>
                                     }
                                 </td>
                                 <td>@(s.OnCpu ? ServerLoadText.ServerLoad_OnCpu : $"{s.Event} ({s.WaitClass})")</td>
@@ -564,10 +538,8 @@
         }
     }
 
-    /// <summary>Shows a statement's details; the same one again closes them.</summary>
-    private Task SelectAsync(string sqlId) => Load.SelectAsync(Profile, View.Selected == sqlId ? null : sqlId);
-
-    private Task ShowStatementAsync(string sqlId) => Load.SelectAsync(Profile, sqlId);
+    /// <summary>Shows a statement's details in the statement dialog.</summary>
+    private Task SelectAsync(string? sqlId) => Load.SelectAsync(Profile, sqlId);
 
     private Task SaveXlsxAsync(IReadOnlyList<StatementRow> rows)
     {
