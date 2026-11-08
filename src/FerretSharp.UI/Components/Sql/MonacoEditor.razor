@@ -6,7 +6,10 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div id="@_id" class="monaco-host @Class"></div>
+@* monaco-component: Monaco puts the shadow root of its context menu into this element, beside the editor – outside
+   '.monaco-editor', where the theme's --vscode-* colors are set (on '.monaco-editor, .monaco-component'). Without the
+   class the menu had no background, border or separators. *@
+<div id="@_id" class="monaco-host monaco-component @Class"></div>
 
 @code {
     private readonly string _id = "monaco-" + Guid.NewGuid().ToString("N");
@@ -85,6 +88,14 @@
     [Parameter]
     public bool FocusOnCreate { get; set; }
 
+    /// <summary>Own entries at the top of Monaco's context menu; read only when the editor is created.</summary>
+    [Parameter]
+    public IReadOnlyList<EditorAction> ContextActions { get; set; } = [];
+
+    /// <param name="Id">Unique within the editor.</param>
+    /// <param name="Run">Runs in the JS callback, not in a Blazor event: the owner renders itself afterwards.</param>
+    public sealed record EditorAction(string Id, string Label, Func<Task> Run);
+
     /// <summary>Completion items for (text, cursor offset); null = no completion from .NET.</summary>
     [Parameter]
     public Func<string, int, Task<IReadOnlyList<CompletionItem>>>? Completion { get; set; }
@@ -111,6 +122,7 @@
                     language = Language, minimal = Minimal, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly,
                     readOnlyMessage = ReadOnlyMessage, wordWrap = WordWrap, lineFeed = LineFeed, reportEdits = OnEdit.HasDelegate,
                     uiLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
+                    contextActions = ContextActions.Select(a => new { id = a.Id, label = a.Label }),
                 });
             _created = true;
             if (_pendingReveal is { } at)
@@ -155,6 +167,11 @@
 
     [JSInvokable]
     public Task OnEdited(string elementId, bool edited, int length) => GuardAsync(() => OnEdit.InvokeAsync(new EditState(edited, length)));
+
+    /// <summary>An entry of <see cref="ContextActions"/> was chosen in Monaco's context menu.</summary>
+    [JSInvokable]
+    public Task OnContextAction(string elementId, string actionId) =>
+        ContextActions.FirstOrDefault(a => a.Id == actionId) is { } action ? GuardAsync(action.Run) : Task.CompletedTask;
 
     /// <summary>Monaco's completion provider asks; the kind goes as text (Table, Column …) for the icon.</summary>
     [JSInvokable]
