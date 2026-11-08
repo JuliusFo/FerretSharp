@@ -36,6 +36,18 @@ public sealed class LoadChartTests
         Assert.Equal(TimeSpan.FromMinutes(expectedMinutes), LoadChart.Span([Sample(seenMinutes, 1), Sample(0, 1)]));
 
     [Fact]
-    public void The_scale_of_the_sessions_follows_the_most_active_with_room_and_is_at_least_one() =>
-        Assert.Equal([1.0, 12.5], [LoadChart.SessionsMax([Sample(0, 0.3)]), LoadChart.SessionsMax([Sample(1, 10), Sample(0, 2)])]);
+    public void The_scale_of_the_sessions_follows_the_most_active_with_room_rounded_up_and_is_at_least_one() =>
+        Assert.Equal([1.0, 15], [LoadChart.SessionsMax([Sample(0, 0.3)]), LoadChart.SessionsMax([Sample(1, 10), Sample(0, 2)])]);
+
+    [Theory]
+    [InlineData(0.07, 0.08)]
+    [InlineData(1.2, 1.5)]
+    [InlineData(2.2, 2.5)]
+    [InlineData(3, 3)] // exact: no step further
+    [InlineData(6.6, 8)]
+    [InlineData(8.8, 10)]
+    [InlineData(330, 400)]
+    [InlineData(0, 1)]
+    public void The_top_of_a_scale_rounds_up_to_a_value_whose_half_is_round_too(double value, double expected) =>
+        Assert.Equal(expected, LoadChart.RoundUp(value));
 }

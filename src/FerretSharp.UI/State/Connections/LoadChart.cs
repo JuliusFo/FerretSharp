@@ -68,11 +68,28 @@ public static class LoadChart
     }
 
     /// <summary>
-    /// The top of the scale for the active sessions: the most active sessions with some room, at least one. The CPUs are a
-    /// line only when they lie below it – 32 CPUs on a quiet server would press the line flat to the ground.
+    /// The top of the scale for the active sessions: the most active sessions with some room, rounded up to a value the axis
+    /// can name (<see cref="RoundUp"/>), at least one. The CPUs are a line only when they lie below it – 32 CPUs on a quiet
+    /// server would press the line flat to the ground.
     /// </summary>
     public static double SessionsMax(IReadOnlyList<LoadSample> history) =>
-        Math.Max(1, (history.Count == 0 ? 0 : history.Max(s => s.ActiveSessions)) * 1.25);
+        RoundUp(Math.Max(1, (history.Count == 0 ? 0 : history.Max(s => s.ActiveSessions)) * 1.1));
+
+    /// <summary>Steps of a decade the top of a scale may take: its half is a round number too.</summary>
+    private static readonly double[] Steps = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+
+    /// <summary>The smallest step (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8 times a power of ten) at or above <paramref name="value"/>.</summary>
+    public static double RoundUp(double value)
+    {
+        if (value <= 0 || !double.IsFinite(value))
+        {
+            return 1;
+        }
+
+        var decade = Math.Pow(10, Math.Floor(Math.Log10(value)));
+        var step = Steps.First(s => s * decade >= value * (1 - 1e-9)); // 10 always fits; the tolerance keeps 3 at 3, not 4
+        return Math.Round(step * decade, 6);
+    }
 
     /// <summary>The height of a horizontal line at <paramref name="value"/>.</summary>
     public static string Y(double value, double max, double height) =>
