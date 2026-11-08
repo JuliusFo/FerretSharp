@@ -128,6 +128,70 @@ public sealed class ScriptLibraryTests : IDisposable
         Assert.Equal(2, ScriptRoots.All(settings, Personal).Count); // the library reads both; the key tells them apart
     }
 
+    /// <summary>
+    /// Review WP-77, K9: only the first 16 KB are read for the header; a UTF-8 character cut at that edge made the whole
+    /// head read as Windows-1252 ("AuftrÃ¤ge").
+    /// </summary>
+    [Fact]
+    public async Task A_head_cut_inside_a_character_still_reads_as_utf8()
+    {
+        var head = "-- @description Aufträge\nSELECT ";
+        var fill = ScriptLibrary.HeaderBytes - 1 - System.Text.Encoding.UTF8.GetByteCount(head); // "ä" spans the edge
+        Write(Path.Combine(Personal, "big.sql"), head + new string('x', fill) + "ä;\n" + new string('y', 100));
+        var (library, _) = Library();
+
+        await library.RefreshAsync(Ct);
+
+        Assert.Equal("Aufträge", Assert.Single(library.For(null)[0].Scripts).Description);
+    }
+
+    /// <summary>Review WP-77, K11: one folder that cannot be listed made the whole root "unreadable".</summary>
+    [Fact]
+    public async Task A_folder_that_cannot_be_listed_is_left_out()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("The denying ACL is a Windows one (as root under Linux every folder can be listed).");
+            return;
+        }
+
+        Write(Path.Combine(Personal, "a.sql"), "SELECT 1 FROM dual");
+        var closed = new DirectoryInfo(Path.Combine(Personal, "closed"));
+        closed.Create();
+        using (DenyListing(closed))
+        {
+            var (library, _) = Library();
+
+            await library.RefreshAsync(Ct);
+
+            var scan = Assert.Single(library.For(null));
+            Assert.Null(scan.Error);
+            Assert.Equal(["a.sql"], scan.Scripts.Select(s => s.Path));
+        }
+    }
+
+    /// <summary>Denies the current user listing <paramref name="folder"/> until disposed (so the test folder can be removed).</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static IDisposable DenyListing(DirectoryInfo folder)
+    {
+        var rule = new System.Security.AccessControl.FileSystemAccessRule(
+            System.Security.Principal.WindowsIdentity.GetCurrent().User!, System.Security.AccessControl.FileSystemRights.ListDirectory,
+            System.Security.AccessControl.AccessControlType.Deny);
+        var acl = folder.GetAccessControl();
+        acl.AddAccessRule(rule);
+        folder.SetAccessControl(acl);
+        return new Undo(() =>
+        {
+            acl.RemoveAccessRule(rule);
+            folder.SetAccessControl(acl);
+        });
+    }
+
+    private sealed class Undo(Action undo) : IDisposable
+    {
+        public void Dispose() => undo();
+    }
+
     public void Dispose()
     {
         _libraries.ForEach(l => l.Dispose());

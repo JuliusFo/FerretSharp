@@ -37,7 +37,7 @@
     <value>{0} Treffer unter Skripte</value>
   </data>
   <data name="Explorer_Truncated" xml:space="preserve">
-    <value>Nur die ersten {0:N0} Skripte werden aufgelistet.</value>
+    <value>Dieser Ordner ist nicht vollständig aufgelistet: Er enthält mehr als {0:N0} Skripte oder {1:N0} Dateien und Ordner.</value>
   </data>
   <data name="Explorer_EmptyPersonal" xml:space="preserve">
     <value>Noch keine Skripte. Speichere eines aus dem SQL-Editor (Speichern).</value>

@@ -71,14 +71,17 @@ public static class ScriptTree
             }
 
             var folders = searching
-                ? scripts.SelectMany(e => Ancestors(e.Folder)).ToHashSet(StringComparer.Ordinal)
-                : scan.Folders.ToHashSet(StringComparer.Ordinal);
+                ? scripts.SelectMany(e => Ancestors(e.Folder)).Distinct(StringComparer.Ordinal)
+                : scan.Folders;
+
+            // Children by parent, once per render: a search over all folders per folder was quadratic (review WP-77, M4).
+            var children = folders.ToLookup(Parent, StringComparer.Ordinal);
+            var inFolder = scripts.ToLookup(e => e.Folder, StringComparer.Ordinal);
             Emit("", 1);
 
             void Emit(string folder, int depth)
             {
-                foreach (var child in folders.Where(f => Parent(f) == folder)
-                             .Order(StringComparer.CurrentCultureIgnoreCase))
+                foreach (var child in children[folder].Order(StringComparer.CurrentCultureIgnoreCase))
                 {
                     var key = KeyOf(scan.Root, child);
                     var open = searching || !collapsed.Contains(key);
@@ -89,7 +92,7 @@ public static class ScriptTree
                     }
                 }
 
-                foreach (var script in scripts.Where(e => e.Folder == folder))
+                foreach (var script in inFolder[folder])
                 {
                     rows.Add(new ScriptRow(scan, KeyOf(scan.Root, script.Path), depth, script.Name, null, script, false));
                 }

@@ -48,6 +48,12 @@ public sealed class ScriptLibrary : IDisposable
     /// <summary>At most this many scripts per folder are listed.</summary>
     public const int MaxFiles = 2000;
 
+    /// <summary>
+    /// At most this many files and folders of any kind are looked at per folder: a folder set to a whole repository
+    /// (<c>node_modules</c>, <c>bin</c>) was walked to depth 8 every 10 s (review WP-77, M4).
+    /// </summary>
+    public const int MaxEntries = 10_000;
+
     /// <summary>Of a file only this much is read for its header.</summary>
     internal const int HeaderBytes = 16 * 1024;
 
@@ -64,7 +70,10 @@ public sealed class ScriptLibrary : IDisposable
     private readonly Timer? _poll;
     private readonly bool _watch;
     private readonly Dictionary<string, (DateTime Written, long Length, ScriptEntry Entry)> _headers = new(StringComparer.Ordinal);
-    private Dictionary<string, ScriptScan> _scans = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ScriptScan> _scans = new(StringComparer.Ordinal);
+
+    /// <summary>1 when a refresh was asked for while one ran: one more read follows it.</summary>
+    private int _again;
     private Dictionary<string, FileSystemWatcher> _watchers = new(StringComparer.Ordinal);
     private bool _disposed;
 
@@ -126,52 +135,102 @@ public sealed class ScriptLibrary : IDisposable
         }
     }
 
-    /// <summary>Reads all folders now (after a save or delete; tests) and fires <see cref="Changed"/> if something differs.</summary>
+    /// <summary>
+    /// Reads all folders now (after a save or delete; tests) and fires <see cref="Changed"/> for each that differs. A call
+    /// while a read runs only asks for one more read after it: a share hanging over the VPN queued a read every 10 s, and
+    /// all of them ran one after the other once it answered (review WP-77, M4).
+    /// </summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        await _reading.WaitAsync(cancellationToken);
-        bool changed;
+        if (!await _reading.WaitAsync(0, cancellationToken))
+        {
+            Interlocked.Exchange(ref _again, 1);
+            return;
+        }
+
         try
         {
-            var roots = ScriptRoots.All(_settings.Current, DefaultPersonal);
-            var scans = await Task.Run(() => roots.Select(Read).ToList(), cancellationToken);
-            lock (_lock)
+            do
             {
-                if (_disposed)
-                {
-                    return;
-                }
-
-                var next = new Dictionary<string, ScriptScan>(StringComparer.Ordinal);
-                foreach (var scan in scans)
-                {
-                    next.TryAdd(Key(scan.Root), scan);
-                }
-
-                // Headers of files no longer listed go (a folder renamed in a pull leaves all its files behind).
-                var listed = scans.SelectMany(scan => scan.Scripts.Select(e => Key(scan.Root) + "|" + e.Path)).ToHashSet(StringComparer.Ordinal);
-                foreach (var stale in _headers.Keys.Where(k => !listed.Contains(k)).ToList())
-                {
-                    _headers.Remove(stale);
-                }
-
-                changed = next.Count != _scans.Count
-                          || next.Any(e => !_scans.TryGetValue(e.Key, out var old) || !old.SameAs(e.Value));
-                _scans = next;
-                if (changed)
-                {
-                    Version++;
-                }
+                Interlocked.Exchange(ref _again, 0);
+                await ReadAllAsync(cancellationToken);
             }
-
-            if (_watch)
-            {
-                Watch(roots);
-            }
+            while (Interlocked.Exchange(ref _again, 0) == 1);
         }
         finally
         {
             _reading.Release();
+        }
+    }
+
+    /// <summary>
+    /// Each folder on its own: one that hangs (a share over a quiet VPN) holds back only its own list, the others are
+    /// reported as soon as they are read.
+    /// </summary>
+    private async Task ReadAllAsync(CancellationToken cancellationToken)
+    {
+        var roots = ScriptRoots.All(_settings.Current, DefaultPersonal);
+        var keys = roots.Select(Key).ToHashSet(StringComparer.Ordinal);
+        bool removed;
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            var gone = _scans.Keys.Where(k => !keys.Contains(k)).ToList();
+            gone.ForEach(k => _scans.Remove(k));
+            foreach (var header in _headers.Keys.Where(h => !keys.Contains(h[..h.LastIndexOf('|')])).ToList())
+            {
+                _headers.Remove(header);
+            }
+
+            removed = gone.Count > 0;
+            if (removed)
+            {
+                Version++;
+            }
+        }
+
+        if (removed)
+        {
+            Changed?.Invoke();
+        }
+
+        await Task.WhenAll(roots.DistinctBy(Key).Select(root => Task.Run(() => Apply(Read(root)), cancellationToken)));
+        if (_watch)
+        {
+            Watch(roots);
+        }
+    }
+
+    /// <summary>Takes the read of one folder; reports it if it differs from the last.</summary>
+    private void Apply(ScriptScan scan)
+    {
+        bool changed;
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            var key = Key(scan.Root);
+            changed = !_scans.TryGetValue(key, out var old) || !old.SameAs(scan);
+            _scans[key] = scan;
+
+            // Headers of files no longer listed go (a folder renamed in a pull leaves all its files behind).
+            var listed = scan.Scripts.Select(e => key + "|" + e.Path).ToHashSet(StringComparer.Ordinal);
+            foreach (var stale in _headers.Keys.Where(k => k.StartsWith(key + "|", StringComparison.Ordinal) && !listed.Contains(k)).ToList())
+            {
+                _headers.Remove(stale);
+            }
+
+            if (changed)
+            {
+                Version++;
+            }
         }
 
         if (changed)
@@ -211,6 +270,7 @@ public sealed class ScriptLibrary : IDisposable
             var folders = new List<string>();
             var scripts = new List<ScriptEntry>();
             var truncated = false;
+            var seen = 0;
             var pending = new Stack<(DirectoryInfo Directory, string Relative, int Depth)>();
             pending.Push((new DirectoryInfo(root.Path), "", 0));
             var options = new EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System };
@@ -219,6 +279,12 @@ public sealed class ScriptLibrary : IDisposable
                 var (directory, relative, depth) = pending.Pop();
                 foreach (var info in directory.EnumerateFileSystemInfos("*", options))
                 {
+                    if (++seen > MaxEntries)
+                    {
+                        truncated = true;
+                        break;
+                    }
+
                     // Hidden by name (.git), links (they may lead out of the folder) and names a save would refuse are not listed.
                     if (ScriptPaths.NameProblem(info.Name) is not null || info.LinkTarget is not null)
                     {
@@ -282,7 +348,7 @@ public sealed class ScriptLibrary : IDisposable
                 using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 var buffer = new byte[(int)Math.Min(length, HeaderBytes)];
                 stream.ReadExactly(buffer);
-                var parsed = ScriptHeaders.Parse(ScriptFiles.Decode(buffer).Text);
+                var parsed = ScriptHeaders.Parse(ScriptFiles.DecodeHead(buffer, cut: buffer.Length < length));
                 entry = new ScriptEntry(root, path, parsed.Header.Description, parsed.Header.Parameters, [.. parsed.Errors.Select(e => e.ToString())], written, length);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

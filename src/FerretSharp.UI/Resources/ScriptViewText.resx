@@ -45,8 +45,8 @@
     <comment>Link to the other explorer section. {0} = number of hits</comment>
   </data>
   <data name="Explorer_Truncated" xml:space="preserve">
-    <value>Only the first {0:N0} scripts are listed.</value>
-    <comment>{0}: limit</comment>
+    <value>Not all of this folder is listed: it holds more than {0:N0} scripts or {1:N0} files and folders.</value>
+    <comment>{0}: limit of scripts; {1}: limit of files and folders looked at</comment>
   </data>
   <data name="Explorer_EmptyPersonal" xml:space="preserve">
     <value>No scripts yet. Save one from the SQL editor (Save).</value>
