@@ -42,6 +42,9 @@ public enum ShortcutAction
     NewLinq,
     RunScript,
 
+    /// <summary>Saves the SQL tab into its script file, or as a new script (WP-77); no default key (Ctrl+S writes the changes).</summary>
+    SaveScript,
+
     /// <summary>The work clone of the shown connection's group (WP-40); no default key.</summary>
     SwitchWorkClone,
 
@@ -131,6 +134,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.NewSql, SettingsText.GroupSqlAndLinq, SettingsText.ActionNewSql, "ctrl+shift+q", ShortcutScope.Global),
         new(ShortcutAction.NewLinq, SettingsText.GroupSqlAndLinq, SettingsText.ActionNewLinq, "ctrl+shift+l", ShortcutScope.Global, SettingsText.HintNewLinq),
         new(ShortcutAction.RunScript, SettingsText.GroupSqlAndLinq, SettingsText.ActionRunScript, "alt+x", ShortcutScope.Global, SettingsText.HintRunScript),
+        new(ShortcutAction.SaveScript, SettingsText.GroupSqlAndLinq, SettingsText.ActionSaveScript, null, ShortcutScope.Global, SettingsText.HintSaveScript),
         new(ShortcutAction.SwitchWorkClone, SettingsText.GroupSqlAndLinq, SettingsText.ActionSwitchWorkClone, null, ShortcutScope.Global, SettingsText.HintSwitchWorkClone),
         new(ShortcutAction.CopyColumnValues, SettingsText.GroupData, SettingsText.ActionCopyColumnValues, null, ShortcutScope.Grid, SettingsText.HintCopyColumnValues),
     ];

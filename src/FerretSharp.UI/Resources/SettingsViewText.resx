@@ -563,4 +563,52 @@
     <value>On request</value>
     <comment>Option of "Load rows when opening": only when the user asks</comment>
   </data>
+  <data name="Settings_Scripts" xml:space="preserve">
+    <value>SQL scripts</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_ScriptsPersonal" xml:space="preserve">
+    <value>Personal scripts</value>
+    <comment>Setting label</comment>
+  </data>
+  <data name="Settings_ScriptsPersonalHint" xml:space="preserve">
+    <value>Your own scripts, one .sql file each, folders as categories. Empty: the folder scripts in the data folder.</value>
+    <comment>Setting hint</comment>
+  </data>
+  <data name="Settings_ScriptsGeneral" xml:space="preserve">
+    <value>General scripts</value>
+    <comment>Setting label</comment>
+  </data>
+  <data name="Settings_ScriptsGeneralHint" xml:space="preserve">
+    <value>Scripts for any Oracle database (locks, sessions), e.g. in a shared repository. Every connection sees them.</value>
+    <comment>Setting hint</comment>
+  </data>
+  <data name="Settings_ScriptsGroups" xml:space="preserve">
+    <value>Scripts per connection group</value>
+    <comment>Setting label</comment>
+  </data>
+  <data name="Settings_ScriptsGroupsHint" xml:space="preserve">
+    <value>The scripts of a product: only the connections of the group see its folder.</value>
+    <comment>Setting hint</comment>
+  </data>
+  <data name="Settings_ScriptsOfGroup" xml:space="preserve">
+    <value>Script folder of the group {0}</value>
+    <comment>Accessible label; {0}: group name</comment>
+  </data>
+  <data name="Settings_ScriptsNone" xml:space="preserve">
+    <value>none</value>
+    <comment>Placeholder of an empty folder field</comment>
+  </data>
+  <data name="Settings_ScriptsShared" xml:space="preserve">
+    <value>FerretSharp writes into shared folders too (save, delete); committing and pulling is up to you. Write names without owner, then a script runs on every environment.</value>
+    <comment>Note below the script folders</comment>
+  </data>
+  <data name="Settings_ScriptsCountOne" xml:space="preserve">
+    <value>{0} script</value>
+    <comment>{0}: number of scripts in the folder</comment>
+  </data>
+  <data name="Settings_ScriptsCountOther" xml:space="preserve">
+    <value>{0} scripts</value>
+    <comment>{0}: number of scripts in the folder</comment>
+  </data>
 </root>

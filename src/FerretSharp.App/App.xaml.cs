@@ -142,6 +142,7 @@ public partial class App : Application
         // A factory, so the host disposes it (file watcher).
         builder.Services.AddSingleton(_ => new FerretSharp.Core.Display.DisplayColumnSource(settings, paths.DisplayColumnsFile));
         builder.Services.AddSingleton(_ => new FerretSharp.Core.ClrModel.ReportExceptionSource(settings, paths.ReportExceptionsFile));
+        builder.Services.AddSingleton(_ => new FerretSharp.Core.Scripts.ScriptLibrary(settings, paths.ScriptsDirectory));
         builder.Services.AddSingleton(theme);
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
@@ -149,6 +150,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IClipboardService, ClipboardService>();
         builder.Services.AddSingleton<IFileOpenService, FileOpenService>();
         builder.Services.AddSingleton<ICodeEditorLauncher, CodeEditorLauncher>();
+        builder.Services.AddSingleton<IFileReveal, FileReveal>();
         var modelHost = Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll");
         // The host runs from copies of the build output, so the linked project can be built meanwhile (ADR 0016).
         var shadow = new BuildOutputShadow(Path.Combine(Path.GetTempPath(), AppPaths.AppFolderName, "shadow"));

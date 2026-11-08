@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Root_Personal" xml:space="preserve">
+    <value>Persönlich</value>
+  </data>
+  <data name="Root_Group" xml:space="preserve">
+    <value>Gruppe {0}</value>
+  </data>
+  <data name="Root_General" xml:space="preserve">
+    <value>Allgemein</value>
+  </data>
+  <data name="Explorer_Section" xml:space="preserve">
+    <value>Skripte</value>
+  </data>
+  <data name="Explorer_SectionTitle" xml:space="preserve">
+    <value>SQL-Skripte deiner Ordner: persönlich, der Verbindungsgruppe und allgemein</value>
+  </data>
+  <data name="Explorer_SearchPlaceholder" xml:space="preserve">
+    <value>Skript suchen…</value>
+  </data>
+  <data name="Explorer_HitsOne" xml:space="preserve">
+    <value>{0} Treffer unter Skripte</value>
+  </data>
+  <data name="Explorer_HitsOther" xml:space="preserve">
+    <value>{0} Treffer unter Skripte</value>
+  </data>
+  <data name="Explorer_Truncated" xml:space="preserve">
+    <value>Dieser Ordner ist nicht vollständig aufgelistet: Er enthält mehr als {0:N0} Skripte oder {1:N0} Dateien und Ordner.</value>
+  </data>
+  <data name="Explorer_EmptyPersonal" xml:space="preserve">
+    <value>Noch keine Skripte. Speichere eines aus dem SQL-Editor (Speichern).</value>
+  </data>
+  <data name="Explorer_EmptyFolder" xml:space="preserve">
+    <value>Keine Skripte in diesem Ordner.</value>
+  </data>
+  <data name="Explorer_ParametersOne" xml:space="preserve">
+    <value>{0} Parameter</value>
+  </data>
+  <data name="Explorer_ParametersOther" xml:space="preserve">
+    <value>{0} Parameter</value>
+  </data>
+  <data name="Explorer_Open" xml:space="preserve">
+    <value>In neuem SQL-Tab öffnen</value>
+  </data>
+  <data name="Explorer_Insert" xml:space="preserve">
+    <value>In aktuellen SQL-Tab einfügen</value>
+  </data>
+  <data name="Explorer_InsertTitle" xml:space="preserve">
+    <value>Am Cursor oder anstelle der Markierung; die Parameter kommen zu den Variablen des Tabs.</value>
+  </data>
+  <data name="Explorer_InsertNoSqlTab" xml:space="preserve">
+    <value>Der aktive Tab ist kein SQL-Tab.</value>
+  </data>
+  <data name="Explorer_Reveal" xml:space="preserve">
+    <value>Im Datei-Explorer zeigen</value>
+  </data>
+  <data name="Explorer_Delete" xml:space="preserve">
+    <value>Löschen…</value>
+  </data>
+  <data name="Delete_Title" xml:space="preserve">
+    <value>Skript löschen?</value>
+  </data>
+  <data name="Delete_Text" xml:space="preserve">
+    <value>{0} im Ordner „{1}“ wird von der Festplatte gelöscht. Ein Tab, der es zeigt, behält seinen Text.</value>
+  </data>
+  <data name="Delete_Shared" xml:space="preserve">
+    <value>Der Ordner ist geteilt: Kollegen verlieren das Skript mit deinem nächsten Commit.</value>
+  </data>
+  <data name="Delete_Confirm" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
+  <data name="Panel_Search" xml:space="preserve">
+    <value>Name, Beschreibung, Ordner suchen</value>
+  </data>
+  <data name="Panel_Loading" xml:space="preserve">
+    <value>Skriptordner werden gelesen…</value>
+  </data>
+  <data name="Panel_Empty" xml:space="preserve">
+    <value>Noch keine Skripte.</value>
+  </data>
+  <data name="SqlView_Scripts" xml:space="preserve">
+    <value>Skripte</value>
+  </data>
+  <data name="SqlView_ScriptsTitle" xml:space="preserve">
+    <value>Ein gespeichertes Skript am Cursor einfügen</value>
+  </data>
+  <data name="SqlView_ScriptMenuTitle" xml:space="preserve">
+    <value>Als Skript speichern</value>
+  </data>
+  <data name="SqlView_SaveTitle" xml:space="preserve">
+    <value>In {0} speichern</value>
+  </data>
+  <data name="SqlView_SaveNewTitle" xml:space="preserve">
+    <value>Fenster als Skript speichern</value>
+  </data>
+  <data name="SqlView_LinkTitle" xml:space="preserve">
+    <value>Skript {1} in „{0}“</value>
+  </data>
+  <data name="SqlView_LinkNoRoot" xml:space="preserve">
+    <value>Skript {0}: Sein Ordner ist für diese Verbindung nicht gesetzt.</value>
+  </data>
+  <data name="SqlView_Unsaved" xml:space="preserve">
+    <value>Seit dem letzten Speichern geändert</value>
+  </data>
+  <data name="Menu_SaveWindow" xml:space="preserve">
+    <value>Fenster als Skript speichern…</value>
+  </data>
+  <data name="Menu_SaveAs" xml:space="preserve">
+    <value>Speichern unter…</value>
+  </data>
+  <data name="Menu_SaveSelection" xml:space="preserve">
+    <value>Auswahl als Skript speichern…</value>
+  </data>
+  <data name="Menu_SaveSelectionTitle" xml:space="preserve">
+    <value>Ohne Auswahl: das Statement am Cursor</value>
+  </data>
+  <data name="Menu_Reveal" xml:space="preserve">
+    <value>Datei im Datei-Explorer zeigen</value>
+  </data>
+  <data name="History_SaveAsScript" xml:space="preserve">
+    <value>Als Skript speichern…</value>
+  </data>
+  <data name="Save_TitleWindow" xml:space="preserve">
+    <value>Fenster als Skript speichern</value>
+  </data>
+  <data name="Save_TitleSaveAs" xml:space="preserve">
+    <value>Skript speichern unter</value>
+  </data>
+  <data name="Save_TitleSelection" xml:space="preserve">
+    <value>Auswahl als Skript speichern</value>
+  </data>
+  <data name="Save_TitleHistory" xml:space="preserve">
+    <value>Statement als Skript speichern</value>
+  </data>
+  <data name="Save_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Save_Root" xml:space="preserve">
+    <value>Ordner</value>
+  </data>
+  <data name="Save_Folder" xml:space="preserve">
+    <value>Unterordner</value>
+  </data>
+  <data name="Save_FolderPlaceholder" xml:space="preserve">
+    <value>keiner, oder z. B. Sperren/Sessions</value>
+  </data>
+  <data name="Save_Description" xml:space="preserve">
+    <value>Beschreibung</value>
+  </data>
+  <data name="Save_DescriptionPlaceholder" xml:space="preserve">
+    <value>Wofür das Skript ist (optional)</value>
+  </data>
+  <data name="Save_Target" xml:space="preserve">
+    <value>Wird gespeichert als {0}</value>
+  </data>
+  <data name="Save_Parameters" xml:space="preserve">
+    <value>Parameter (nur der Typ, nie ein Wert): {0}</value>
+  </data>
+  <data name="Notice_Reload" xml:space="preserve">
+    <value>Neu laden</value>
+  </data>
+  <data name="Notice_Keep" xml:space="preserve">
+    <value>Meine behalten</value>
+  </data>
+  <data name="Notice_ChangedOnDisk" xml:space="preserve">
+    <value>{0} wurde außerhalb von FerretSharp geändert (z. B. durch git pull), und dieser Tab hat eigene Änderungen.</value>
+  </data>
+  <data name="Notice_Missing" xml:space="preserve">
+    <value>{0} gibt es nicht mehr. Speichern legt es neu an.</value>
+  </data>
+  <data name="Notice_NoRoot" xml:space="preserve">
+    <value>Der Ordner von {0} ist für diese Verbindung nicht gesetzt: Speichere es woanders.</value>
+  </data>
+  <data name="Notice_NothingSelected" xml:space="preserve">
+    <value>Markiere die Statements, die du speichern willst, oder setze den Cursor in eines.</value>
+  </data>
+  <data name="Notice_Saved" xml:space="preserve">
+    <value>Als Skript „{0}“ in „{1}“ gespeichert.</value>
+  </data>
+  <data name="Confirm_ReplaceTitle" xml:space="preserve">
+    <value>Skript ersetzen?</value>
+  </data>
+  <data name="Confirm_ReplaceText" xml:space="preserve">
+    <value>{0} gibt es schon in „{1}“. Ersetzen?</value>
+  </data>
+  <data name="Confirm_ChangedTitle" xml:space="preserve">
+    <value>Datei inzwischen geändert</value>
+  </data>
+  <data name="Confirm_ChangedText" xml:space="preserve">
+    <value>{0} wurde außerhalb von FerretSharp geändert, seit du es geöffnet hast (z. B. durch git pull). Mit deinem Text ersetzen?</value>
+  </data>
+  <data name="Confirm_Replace" xml:space="preserve">
+    <value>Ersetzen</value>
+  </data>
+  <data name="Explorer_CountOne" xml:space="preserve">
+    <value>{0} Skript</value>
+  </data>
+  <data name="Explorer_CountOther" xml:space="preserve">
+    <value>{0} Skripte</value>
+  </data>
+</root>

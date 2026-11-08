@@ -544,6 +544,9 @@
             case ShortcutAction.RunScript:
                 _state.RequestTabCommand(TabCommand.RunScript);
                 break;
+            case ShortcutAction.SaveScript:
+                _state.RequestTabCommand(TabCommand.SaveScript);
+                break;
             case ShortcutAction.NewSql:
                 _state.OpenSql();
                 break;

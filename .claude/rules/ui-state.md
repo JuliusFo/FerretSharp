@@ -11,7 +11,7 @@ paths:
 Muster der Komponenten (Lebensdauer, Rendern, Bausteine, WebView2): `ui.md`; Tests der State-Klassen: `tests.md`.
 
 ## Ordner (R6b)
-- `State/` hat eigene Ordner (Connections, Copy, Export, Grid, Host = Schnittstellen zur App und ihre reinen Regeln, Links, Model, Schema, Settings, Shell, Tabs, Workspaces), der Namespace bleibt `FerretSharp.UI.State`. Neue Dateien in den passenden Ordner, sonst greifen die `paths` der Regeln nicht.
+- `State/` hat eigene Ordner (Connections, Copy, Export, Grid, Host = Schnittstellen zur App und ihre reinen Regeln, Links, Model, Schema, Scripts, Settings, Shell, Tabs, Workspaces), der Namespace bleibt `FerretSharp.UI.State`. Neue Dateien in den passenden Ordner, sonst greifen die `paths` der Regeln nicht.
 
 ## Zustand und Dienste
 - Dialoge und Bestätigungen fordern Komponenten über den kaskadierten `ShellState` an. Was mit Workspaces und ihren Änderungen passiert (Commit, Rollback, Sperren/Freischalten, Verbinden, Trennen, Löschen, Tab schließen, „vorher fragen“ über `GuardAsync`), liegt im kaskadierten `WorkspaceLifecycle`. `TabBar`, `StatusBar`, `WorkspaceBadge`, `ConnectionLostBanner`, `DialogHost` bekommen ihn als Parameter, damit sie mit der Shell neu rendern.

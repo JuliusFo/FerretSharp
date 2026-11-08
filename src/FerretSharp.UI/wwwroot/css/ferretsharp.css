@@ -1457,6 +1457,25 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .sql-history-sql { font: 12px var(--mono); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sql-history-meta { font-size: 11px; color: var(--faint); }
 .sql-history-item.failed .sql-history-meta { color: var(--danger); }
+/* WP-77: SQL scripts – the save button on a history entry, the scripts panel, the link of a tab to its file, the explorer tree. */
+.sql-history-row { display: flex; align-items: flex-start; gap: 2px; }
+.sql-history-row .sql-history-item { flex: 1; min-width: 0; }
+.sql-history-save { flex: none; margin-top: 4px; opacity: 0; }
+.sql-history-row:hover .sql-history-save, .sql-history-save:focus-visible { opacity: 1; }
+.sql-scripts .script-name { display: flex; align-items: center; gap: 6px; font-family: inherit; font-weight: 500; }
+.sql-scripts .script-name .icon { flex: none; color: var(--muted); }
+.sql-scripts .script-description { white-space: normal; color: var(--muted); }
+.script-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.script-notice { display: flex; align-items: center; gap: 12px; margin: 0; padding: 6px 12px; border-radius: 0; flex: none; }
+.script-notice > span { flex: 1; }
+.dialog.script-save { width: min(560px, 94vw); }
+.dialog.script-save .span-2 { grid-column: 1 / -1; }
+.script-tree .script-folder .chev, .script-tree .script-root .chev { width: 14px; flex: none; display: inline-flex; }
+.script-tree .script-folder .icon { color: var(--muted); }
+.script-tree .script-item .icon { flex: none; color: var(--muted); }
+.script-tree .script-item .name, .script-tree .script-folder .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.script-tree .script-item.open .name { font-weight: 600; }
+.script-tree .script-note { padding: 2px 12px 6px; }
 
 /* ---------- execution plan (WP-14) ---------- */
 .plan-dialog { width: min(1180px, 96vw); max-height: 88vh; display: flex; flex-direction: column; }

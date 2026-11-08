@@ -1,0 +1,539 @@
+using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
+using FerretSharp.Core.Settings;
+
+namespace FerretSharp.Core.Scripts;
+
+/// <summary>A script file as listed: its place and what its header says.</summary>
+/// <param name="Path">Relative to the root, with <c>/</c> (<see cref="ScriptPaths"/>).</param>
+/// <param name="Problems">Why the file cannot be opened (too large, unreadable) or header lines with errors; empty if fine.</param>
+public sealed record ScriptEntry(
+    ScriptRoot Root, string Path, string? Description, IReadOnlyList<ScriptParameter> Parameters, IReadOnlyList<string> Problems,
+    DateTime Written, long Length)
+{
+    /// <summary>The file name without <c>.sql</c>.</summary>
+    public string Name => ScriptPaths.NameOf(Path);
+
+    /// <summary>The folder below the root, "" for the root itself.</summary>
+    public string Folder => ScriptPaths.FolderOf(Path);
+
+    /// <summary>The same file as listed (records compare lists by reference).</summary>
+    public bool SameAs(ScriptEntry other) =>
+        Root == other.Root && Path == other.Path && Description == other.Description && Written == other.Written && Length == other.Length
+        && Parameters.SequenceEqual(other.Parameters) && Problems.SequenceEqual(other.Problems);
+}
+
+/// <summary>What a root holds as last read.</summary>
+/// <param name="Folders">Every folder below the root (relative, with <c>/</c>), also empty ones – the save dialog offers them.</param>
+/// <param name="Error">Why the folder cannot be read (missing, not absolute, no access); null if it was.</param>
+/// <param name="Truncated">More than <see cref="ScriptLibrary.MaxFiles"/> scripts: the rest is not listed.</param>
+/// <param name="Loaded">False until the first read finished (the explorer shows "loading").</param>
+public sealed record ScriptScan(
+    ScriptRoot Root, IReadOnlyList<string> Folders, IReadOnlyList<ScriptEntry> Scripts, string? Error, bool Truncated, bool Loaded = true)
+{
+    public bool SameAs(ScriptScan other) =>
+        Root == other.Root && Error == other.Error && Truncated == other.Truncated && Loaded == other.Loaded
+        && Folders.SequenceEqual(other.Folders) && Scripts.Count == other.Scripts.Count
+        && Scripts.Zip(other.Scripts).All(p => p.First.SameAs(p.Second));
+}
+
+/// <summary>
+/// The SQL scripts of all folders of the settings (WP-77, ADR 0046), read in the background: views ask for the last read
+/// (<see cref="For"/>, no file access on the UI thread). A folder is read again when something in it changes (a watcher,
+/// e.g. after <c>git pull</c>) and every <see cref="PollInterval"/> for folders that cannot be watched; <see cref="Changed"/>
+/// fires when what is listed differs. Of each file only the header is read, and only again when it changed.
+/// </summary>
+public sealed class ScriptLibrary : IDisposable
+{
+    /// <summary>At most this many scripts per folder are listed.</summary>
+    public const int MaxFiles = 2000;
+
+    /// <summary>
+    /// At most this many files and folders of any kind are looked at per folder: a folder set to a whole repository
+    /// (<c>node_modules</c>, <c>bin</c>) was walked to depth 8 every 10 s (review WP-77, M4).
+    /// </summary>
+    public const int MaxEntries = 10_000;
+
+    /// <summary>Of a file only this much is read for its header.</summary>
+    internal const int HeaderBytes = 16 * 1024;
+
+    /// <summary>How often the folders are read besides the watchers.</summary>
+    public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(10);
+
+    /// <summary>Changes on disk come in bursts (a pull, a save): read once after this pause.</summary>
+    public static readonly TimeSpan Quiet = TimeSpan.FromMilliseconds(300);
+
+    private readonly AppSettingsService _settings;
+    private readonly Lock _lock = new();
+    private readonly Timer _quiet;
+    private readonly Timer? _poll;
+    private readonly bool _watch;
+    private readonly Dictionary<string, (DateTime Written, long Length, ScriptEntry Entry)> _headers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ScriptScan> _scans = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The folders being read now, by key: true when another read of the folder was asked for meanwhile – it follows the
+    /// one running (a share hanging over the VPN no longer queues a read every 10 s, review WP-77, M4).
+    /// </summary>
+    private readonly Dictionary<string, bool> _reading = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, FileSystemWatcher> _watchers = new(StringComparer.Ordinal);
+    private bool _disposed;
+
+    /// <param name="defaultPersonal">The personal folder in the data folder (<see cref="AppPaths.ScriptsDirectory"/>).</param>
+    /// <param name="watch">Watch and poll the folders (off in tests, which call <see cref="RefreshAsync"/>).</param>
+    public ScriptLibrary(AppSettingsService settings, string defaultPersonal, bool watch = true)
+    {
+        _settings = settings;
+        DefaultPersonal = defaultPersonal;
+        _watch = watch;
+        _quiet = new Timer(_ => _ = RefreshQuietlyAsync());
+        if (watch)
+        {
+            _poll = new Timer(_ => _ = RefreshQuietlyAsync(), null, TimeSpan.Zero, PollInterval);
+        }
+
+        _settings.Changed += OnSettingsChanged;
+    }
+
+    /// <summary>The personal folder when the settings name none.</summary>
+    public string DefaultPersonal { get; }
+
+    /// <summary>What is listed changed. May fire on a background thread.</summary>
+    public event Action? Changed;
+
+    /// <summary>Changes whenever <see cref="Changed"/> fires.</summary>
+    public int Version { get; private set; }
+
+    /// <summary>The folders a connection sees (<see cref="ScriptRoots.For"/>).</summary>
+    public IReadOnlyList<ScriptRoot> RootsFor(ConnectionProfile? profile) => ScriptRoots.For(_settings.Current, DefaultPersonal, profile);
+
+    /// <summary>The folders of <paramref name="profile"/> as last read – no file access; one not read yet is "loading".</summary>
+    public IReadOnlyList<ScriptScan> For(ConnectionProfile? profile)
+    {
+        var roots = RootsFor(profile);
+        lock (_lock)
+        {
+            return [.. roots.Select(r => _scans.TryGetValue(Key(r), out var scan) && scan.Root == r ? scan : new ScriptScan(r, [], [], null, false, Loaded: false))];
+        }
+    }
+
+    /// <summary>A folder as last read (the settings page shows what it holds); "loading" if not read yet.</summary>
+    public ScriptScan ScanOf(ScriptRoot root)
+    {
+        lock (_lock)
+        {
+            return _scans.TryGetValue(Key(root), out var scan) && scan.Root == root ? scan : new ScriptScan(root, [], [], null, false, Loaded: false);
+        }
+    }
+
+    /// <summary>The script at <paramref name="path"/> of <paramref name="root"/> as last read; null if not listed.</summary>
+    public ScriptEntry? Find(ScriptRoot root, string path)
+    {
+        lock (_lock)
+        {
+            return _scans.TryGetValue(Key(root), out var scan)
+                ? scan.Scripts.FirstOrDefault(s => string.Equals(s.Path, path, StringComparison.OrdinalIgnoreCase))
+                : null;
+        }
+    }
+
+    /// <summary>
+    /// Reads all folders again (after a save or delete; tests) and fires <see cref="Changed"/> for each that differs. Each
+    /// folder on its own (review WP-77, second pass): one that hangs (a share over a quiet VPN) holds back neither the
+    /// others nor the caller's thread, and a folder being read when asked again is read once more after that read – never
+    /// twice at a time, and no request is lost.
+    /// </summary>
+    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        var roots = ScriptRoots.All(_settings.Current, DefaultPersonal);
+        var keys = roots.Select(Key).ToHashSet(StringComparer.Ordinal);
+        var paths = roots.Select(r => r.Path).ToHashSet(StringComparer.Ordinal);
+        bool removed;
+        List<FileSystemWatcher> unwatched;
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            var gone = _scans.Keys.Where(k => !keys.Contains(k)).ToList();
+            gone.ForEach(k => _scans.Remove(k));
+            foreach (var header in _headers.Keys.Where(h => !keys.Contains(h[..h.LastIndexOf('|')])).ToList())
+            {
+                _headers.Remove(header);
+            }
+
+            unwatched = [.. _watchers.Where(w => !paths.Contains(w.Key)).Select(w => w.Value)];
+            foreach (var path in _watchers.Keys.Where(k => !paths.Contains(k)).ToList())
+            {
+                _watchers.Remove(path);
+            }
+
+            removed = gone.Count > 0;
+            if (removed)
+            {
+                Version++;
+            }
+        }
+
+        unwatched.ForEach(w => w.Dispose());
+        if (removed)
+        {
+            Changed?.Invoke();
+        }
+
+        // ConfigureAwait: a caller on the UI thread (after a save) is not held by what follows (review WP-77, second pass).
+        await Task.WhenAll(roots.DistinctBy(Key).Select(root => ReadRootAsync(root, cancellationToken))).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads one folder on the thread pool – again as long as reads were asked for meanwhile – and watches it.</summary>
+    private async Task ReadRootAsync(ScriptRoot root, CancellationToken cancellationToken)
+    {
+        var key = Key(root);
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (_reading.ContainsKey(key))
+            {
+                _reading[key] = true; // the read running is followed by one more
+                return;
+            }
+
+            _reading[key] = false;
+        }
+
+        try
+        {
+            var done = false;
+            while (!done)
+            {
+                await Task.Run(() =>
+                {
+                    var scan = Read(root);
+                    AfterRead?.Invoke(root);
+                    Apply(scan);
+                    if (_watch)
+                    {
+                        WatchRoot(root.Path);
+                    }
+                }, cancellationToken).ConfigureAwait(false);
+
+                // In one lock with the check of a new request: none is lost between the last read and leaving.
+                lock (_lock)
+                {
+                    if (_reading.TryGetValue(key, out var again) && again)
+                    {
+                        _reading[key] = false;
+                    }
+                    else
+                    {
+                        _reading.Remove(key);
+                        done = true;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            lock (_lock)
+            {
+                _reading.Remove(key);
+            }
+
+            throw;
+        }
+    }
+
+    /// <summary>Tests: called on the thread pool after a folder was read, before it is taken (to hold a read as a hanging share would).</summary>
+    internal Action<ScriptRoot>? AfterRead { get; set; }
+
+    /// <summary>Takes the read of one folder; reports it if it differs from the last.</summary>
+    private void Apply(ScriptScan scan)
+    {
+        bool changed;
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            var key = Key(scan.Root);
+            if (!ScriptRoots.All(_settings.Current, DefaultPersonal).Any(r => Key(r) == key))
+            {
+                return; // the settings dropped the folder while it was read
+            }
+
+            changed = !_scans.TryGetValue(key, out var old) || !old.SameAs(scan);
+            _scans[key] = scan;
+
+            // Headers of files no longer listed go (a folder renamed in a pull leaves all its files behind).
+            var listed = scan.Scripts.Select(e => key + "|" + e.Path).ToHashSet(StringComparer.Ordinal);
+            foreach (var stale in _headers.Keys.Where(k => k.StartsWith(key + "|", StringComparison.Ordinal) && !listed.Contains(k)).ToList())
+            {
+                _headers.Remove(stale);
+            }
+
+            if (changed)
+            {
+                Version++;
+            }
+        }
+
+        if (changed)
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    private async Task RefreshQuietlyAsync()
+    {
+        try
+        {
+            await RefreshAsync();
+        }
+        catch (ObjectDisposedException)
+        {
+            // disposed while a timer fired
+        }
+    }
+
+    /// <summary>One root: its folders and scripts, sorted by name; never throws.</summary>
+    private ScriptScan Read(ScriptRoot root)
+    {
+        if (!Path.IsPathFullyQualified(root.Path))
+        {
+            return new ScriptScan(root, [], [], TextFormat.Format(ScriptText.RootNotAbsolute, root.Path), false);
+        }
+
+        try
+        {
+            if (!Directory.Exists(root.Path))
+            {
+                // The personal folder is created by the first save; a shared one that is missing is a wrong path.
+                return new ScriptScan(root, [], [], root.Kind == ScriptRootKind.Personal ? null : TextFormat.Format(ScriptText.FolderMissing, root.Path), false);
+            }
+
+            var folders = new List<string>();
+            var scripts = new List<ScriptEntry>();
+            var truncated = false;
+            var seen = 0;
+            var pending = new Stack<(DirectoryInfo Directory, string Relative, int Depth)>();
+            pending.Push((new DirectoryInfo(root.Path), "", 0));
+            var options = new EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System };
+            while (pending.Count > 0 && !truncated)
+            {
+                var (directory, relative, depth) = pending.Pop();
+                foreach (var info in directory.EnumerateFileSystemInfos("*", options))
+                {
+                    if (++seen > MaxEntries)
+                    {
+                        truncated = true;
+                        break;
+                    }
+
+                    // Hidden by name (.git), links (they may lead out of the folder) and names a save would refuse are not listed.
+                    if (ScriptPaths.NameProblem(info.Name) is not null || info.LinkTarget is not null)
+                    {
+                        continue;
+                    }
+
+                    var path = relative.Length == 0 ? info.Name : relative + "/" + info.Name;
+                    if (info is DirectoryInfo sub)
+                    {
+                        if (depth < ScriptPaths.MaxDepth)
+                        {
+                            folders.Add(path);
+                            pending.Push((sub, path, depth + 1));
+                        }
+                    }
+                    else if (info is FileInfo file && file.Extension.Equals(ScriptPaths.Extension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (scripts.Count >= MaxFiles)
+                        {
+                            truncated = true;
+                            break;
+                        }
+
+                        scripts.Add(Entry(root, path, file));
+                    }
+                }
+            }
+
+            var byName = StringComparer.CurrentCultureIgnoreCase;
+            return new ScriptScan(
+                root, [.. folders.Order(byName)], [.. scripts.OrderBy(s => s.Folder, byName).ThenBy(s => s.Name, byName)], null, truncated);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return new ScriptScan(root, [], [], TextFormat.Format(ScriptText.FolderUnreadable, root.Path, ex.Message), false);
+        }
+    }
+
+    /// <summary>The header of a file, read again only when its time or length changed.</summary>
+    private ScriptEntry Entry(ScriptRoot root, string path, FileInfo file)
+    {
+        var key = Key(root) + "|" + path;
+        var (written, length) = (file.LastWriteTimeUtc, file.Length);
+        lock (_lock)
+        {
+            if (_headers.TryGetValue(key, out var cached) && cached.Written == written && cached.Length == length && cached.Entry.Root == root)
+            {
+                return cached.Entry;
+            }
+        }
+
+        ScriptEntry entry;
+        if (length > ScriptFiles.MaxBytes)
+        {
+            entry = new ScriptEntry(root, path, null, [], [TextFormat.Format(ScriptText.FileTooLarge, path, ScriptFiles.MaxBytes / 1024)], written, length);
+        }
+        else
+        {
+            try
+            {
+                using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                var buffer = new byte[(int)Math.Min(length, HeaderBytes)];
+                stream.ReadExactly(buffer);
+                var parsed = ScriptHeaders.Parse(ScriptFiles.DecodeHead(buffer, cut: buffer.Length < length));
+                entry = new ScriptEntry(root, path, parsed.Header.Description, parsed.Header.Parameters, [.. parsed.Errors.Select(e => e.ToString())], written, length);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A file locked for a moment: read again at the next look (not kept).
+                return new ScriptEntry(root, path, null, [], [TextFormat.Format(ScriptText.FileUnreadable, path, ex.Message)], written, length);
+            }
+        }
+
+        lock (_lock)
+        {
+            _headers[key] = (written, length, entry);
+        }
+
+        return entry;
+    }
+
+    private void OnSettingsChanged() => _ = RefreshQuietlyAsync();
+
+    /// <summary>Watches a folder that exists, with its subfolders, unless it is watched already. On the thread pool.</summary>
+    private void WatchRoot(string path)
+    {
+        lock (_lock)
+        {
+            if (_disposed || _watchers.ContainsKey(path))
+            {
+                return;
+            }
+        }
+
+        if (!Path.IsPathFullyQualified(path) || !Directory.Exists(path) || Watcher(path) is not { } watcher)
+        {
+            return;
+        }
+
+        // Only for a folder the settings still name (they may have dropped it while it was read), and switched on only once
+        // registered: an error right away then finds it and drops it (third review pass of WP-77).
+        bool added;
+        lock (_lock)
+        {
+            added = !_disposed && ScriptRoots.All(_settings.Current, DefaultPersonal).Any(r => r.Path == path) && _watchers.TryAdd(path, watcher);
+        }
+
+        if (!added)
+        {
+            watcher.Dispose();
+            return;
+        }
+
+        try
+        {
+            watcher.EnableRaisingEvents = true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or PlatformNotSupportedException)
+        {
+            Unwatch(path, watcher); // a share that cannot be watched: the poll still sees changes
+        }
+    }
+
+    /// <summary>A watcher that broke (a share went away, the buffer overflowed) goes: the next read sets up a new one.</summary>
+    private void Unwatch(string path, FileSystemWatcher watcher)
+    {
+        lock (_lock)
+        {
+            if (_watchers.TryGetValue(path, out var current) && current == watcher)
+            {
+                _watchers.Remove(path);
+            }
+        }
+
+        watcher.Dispose();
+    }
+
+    private FileSystemWatcher? Watcher(string path)
+    {
+        try
+        {
+            var watcher = new FileSystemWatcher(path)
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
+            };
+            watcher.Changed += OnFileChanged;
+            watcher.Created += OnFileChanged;
+            watcher.Deleted += OnFileChanged;
+            watcher.Renamed += OnFileChanged;
+            watcher.Error += (_, _) =>
+            {
+                Unwatch(path, watcher);
+                Touch(); // the next read (or the poll) sets up a new one
+            };
+            return watcher; // switched on by WatchRoot once registered
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or PlatformNotSupportedException)
+        {
+            return null; // a share that cannot be watched: the poll still sees changes
+        }
+    }
+
+    private void OnFileChanged(object sender, FileSystemEventArgs e) => Touch();
+
+    private void Touch()
+    {
+        try
+        {
+            _quiet.Change(Quiet, Timeout.InfiniteTimeSpan);
+        }
+        catch (ObjectDisposedException)
+        {
+            // an event that arrived while disposing
+        }
+    }
+
+    private static string Key(ScriptRoot root) => root.Kind + "|" + root.Group + "|" + root.Path;
+
+    public void Dispose()
+    {
+        List<FileSystemWatcher> watchers;
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            watchers = [.. _watchers.Values];
+            _watchers.Clear();
+        }
+
+        _settings.Changed -= OnSettingsChanged;
+        watchers.ForEach(w => w.Dispose());
+        _quiet.Dispose();
+        _poll?.Dispose();
+    }
+}

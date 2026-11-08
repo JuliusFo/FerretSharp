@@ -21,7 +21,7 @@
         }
         <input @ref="_input" class="field" @bind="_name" @bind:event="oninput" @onkeydown="OnKeyDown" autocomplete="off"
                placeholder="@ConnectionViewText.ConnectionDialog_GroupPlaceholder" aria-label="@ConnectionViewText.ConnectionDialog_Group" />
-        @if (rename is not null && (rename.Merges || rename.DroppedAuditTemplate is not null || rename.DroppedReportExceptions is not null || Groups.DroppedWorkClone(rename) is not null))
+        @if (rename is not null && (rename.Merges || rename.DroppedAuditTemplate is not null || rename.DroppedReportExceptions is not null || rename.DroppedSqlScripts is not null || Groups.DroppedWorkClone(rename) is not null))
         {
             @* What a merge, or a name with leftovers of an earlier group, drops (review of WP-66: the work clone went without a word). *@
             <div class="settings-note warn" role="alert">
@@ -36,6 +36,10 @@
                 @if (rename.DroppedReportExceptions is { } droppedExceptions)
                 {
                     <div title="@droppedExceptions">@TextFormat.Format(ConnectionViewText.GroupName_ReportExceptionsDropped, Path.GetFileName(droppedExceptions), rename.To)</div>
+                }
+                @if (rename.DroppedSqlScripts is { } droppedScripts)
+                {
+                    <div title="@droppedScripts">@TextFormat.Format(ConnectionViewText.GroupName_SqlScriptsDropped, droppedScripts, rename.To)</div>
                 }
                 @if (Groups.DroppedWorkClone(rename) is { } clone)
                 {

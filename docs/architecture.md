@@ -180,6 +180,8 @@ Geschrieben wird atomar (`AtomicJsonFile`) mit `JsonFiles.Options`, gelesen übe
 | `work-clones.json` (WP-40) | kein Arbeits-Klon gewählt | wie kaputt | keiner gewählt, Datei bleibt (Wahl nur im Speicher) |
 | Modelldatei (WP-64, ADR 0037; Pfad aus der Verbindung, nur gelesen) | Modell „fehlgeschlagen“: keine Modelldatei | fehlgeschlagen mit Systemmeldung | fehlgeschlagen: FerretSharp aktualisieren |
 
+SQL-Skripte (WP-77, ADR 0046, `docs/sql-scripts.md`) sind keine eigenen Dateien, sondern die des Nutzers: `.sql` in drei Ordnern, gelesen im Hintergrund (`ScriptLibrary`), geschrieben atomar mit Kodierung, BOM und Zeilenenden der Datei (`ScriptFiles`), nur strikt unter dem Ordner und nie über Links (`ScriptPaths.Resolve`); ein SQL-Tab merkt sich Ordnerart und relativen Pfad (`SqlTabState.Script`).
+
 Eigene Regeln, nicht über den Leser: die Anzeigespalten (liest auch eine neuere Datei, dann nur lesend, und hält unbekannte Felder; synchron im `CachedFileRead`), die Ausnahmen des Berichts (`report-exceptions.json`, WP-72, ADR 0042: dieselben Regeln, kaputt = gemeldet und nie überschrieben; ohne Watcher, der Bericht liest beim Rendern), der Modell-Cache und der Cache der Code-Verwendung (`code-usage`, eine Datei je Assembly, MVID und Menge der Solution-Assemblies, ohne Einrückung, WP-40; jede Abweichung ist ein Cache-Fehlschlag, der nächste Aufbau entfernt 30 Tage unbenutzte Dateien und behält je Assembly die drei zuletzt benutzten Builds). Beide Caches liegen seit 3.45 unter `%LOCALAPPDATA%\FerretSharp\cache` (mit `--data-dir` darunter), nicht im Roaming-Profil; der alte Ordner `cache` im Datenordner wird beim Start entfernt (Review 3.44.0, A11).
 
 ## 2. UI-Konzept

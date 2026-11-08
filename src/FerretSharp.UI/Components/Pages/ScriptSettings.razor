@@ -1,0 +1,116 @@
+@* Settings › SQL scripts (WP-77): the personal folder, the general one every connection sees, and one per connection group
+   (the scripts of a product) – all listed side by side in the explorer, not "the first one set" as the audit template. *@
+@using FerretSharp.Core.Scripts
+@using FerretSharp.Core.Settings
+@implements IDisposable
+@inject ConnectionGroups Groups
+@inject AppSettingsService Settings
+@inject ScriptLibrary Library
+@inject FerretSharp.Core.Connections.ConnectionManager Connections
+
+<section class="settings-section">
+    <h2>@SettingsViewText.Settings_Scripts</h2>
+    <div class="settings-row @Filter.HideClass(SettingKey.ScriptsPersonal)">
+        <div class="settings-label">
+            <span>@SettingsViewText.Settings_ScriptsPersonal</span>
+            <span class="hint">@SettingsViewText.Settings_ScriptsPersonalHint</span>
+        </div>
+        <div class="settings-path">
+            <input class="field mono" spellcheck="false" placeholder="@Library.DefaultPersonal" value="@Settings.Current.SqlScriptsPath"
+                   @onchange="e => UpdateAsync(s => s with { SqlScriptsPath = PathInput.Normalize((string?)e.Value) })" aria-label="@SettingsViewText.Settings_ScriptsPersonal" />
+            @if (!string.IsNullOrWhiteSpace(Settings.Current.SqlScriptsPath))
+            {
+                <button class="btn ghost" @onclick="() => UpdateAsync(s => s with { SqlScriptsPath = null })">@SettingsViewText.Settings_DisplayColumnsReset</button>
+            }
+        </div>
+    </div>
+    @Check(ScriptRootKind.Personal, null, SettingKey.ScriptsPersonal)
+
+    <div class="settings-row @Filter.HideClass(SettingKey.ScriptsGeneral)">
+        <div class="settings-label">
+            <span>@SettingsViewText.Settings_ScriptsGeneral</span>
+            <span class="hint">@SettingsViewText.Settings_ScriptsGeneralHint</span>
+        </div>
+        <div class="settings-path">
+            <input class="field mono" spellcheck="false" placeholder="@SettingsViewText.Settings_ScriptsNone" value="@Settings.Current.SqlScriptsGeneralPath"
+                   @onchange="e => UpdateAsync(s => s with { SqlScriptsGeneralPath = PathInput.Normalize((string?)e.Value) })" aria-label="@SettingsViewText.Settings_ScriptsGeneral" />
+        </div>
+    </div>
+    @Check(ScriptRootKind.General, null, SettingKey.ScriptsGeneral)
+
+    <div class="settings-row @Filter.HideClass(SettingKey.ScriptsGroups)">
+        <div class="settings-label">
+            <span>@SettingsViewText.Settings_ScriptsGroups</span>
+            <span class="hint">@SettingsViewText.Settings_ScriptsGroupsHint</span>
+        </div>
+    </div>
+    @{ var groups = AuditGroupTemplates.Of(Connections.Profiles, Settings.Current.SqlScriptsGroups, Groups.Order); }
+    @if (groups.Count == 0)
+    {
+        <div class="settings-note @Filter.HideClass(SettingKey.ScriptsGroups)">@SettingsViewText.Settings_AuditTemplateNoGroups</div>
+    }
+    @foreach (var row in groups)
+    {
+        var group = row.Group;
+        <div class="settings-row settings-subrow @Filter.HideClass(SettingKey.ScriptsGroups)" @key="group">
+            <div class="settings-label">
+                <span>@group</span>
+                @if (row.Orphaned)
+                {
+                    <span class="hint">@SettingsViewText.Settings_AuditTemplateGroupOrphaned</span>
+                }
+            </div>
+            <div class="settings-path">
+                <input class="field mono" spellcheck="false" placeholder="@SettingsViewText.Settings_ScriptsNone" value="@row.Path"
+                       @onchange="e => SetGroupAsync(group, (string?)e.Value)" aria-label="@TextFormat.Format(SettingsViewText.Settings_ScriptsOfGroup, group)" />
+                @if (row.Path is not null)
+                {
+                    <button class="btn ghost" @onclick="() => SetGroupAsync(group, null)">@SettingsViewText.Settings_AuditTemplateRemove</button>
+                }
+            </div>
+        </div>
+        @if (row.Path is not null)
+        {
+            @Check(ScriptRootKind.Group, group, SettingKey.ScriptsGroups)
+        }
+    }
+    <div class="settings-note @Filter.HideClass(SettingKey.ScriptsGroups)">@SettingsViewText.Settings_ScriptsShared</div>
+</section>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingsFilter Filter { get; set; } = null!;
+
+    protected override void OnInitialized() => Library.Changed += OnLibraryChanged;
+
+    private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>What the folder holds as last read, or why it cannot be read.</summary>
+    private RenderFragment Check(ScriptRootKind kind, string? group, SettingKey key) => __builder =>
+    {
+        if (ScriptRoots.All(Settings.Current, Library.DefaultPersonal).FirstOrDefault(r => r.Is(kind, group)) is not { } root)
+        {
+            return;
+        }
+
+        var scan = Library.ScanOf(root);
+        if (!scan.Loaded)
+        {
+            return;
+        }
+
+        <div class="settings-note @(scan.Error is null ? "" : "error") @Filter.HideClass(key)">
+            @(scan.Error ?? TextFormat.Plural(scan.Scripts.Count, SettingsViewText.Settings_ScriptsCountOne, SettingsViewText.Settings_ScriptsCountOther))
+        </div>
+    };
+
+    private Task SetGroupAsync(string group, string? path) =>
+        UpdateAsync(s => s with { SqlScriptsGroups = AuditGroupTemplates.With(s.SqlScriptsGroups, group, path) });
+
+    private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
+
+    public void Dispose() => Library.Changed -= OnLibraryChanged;
+}

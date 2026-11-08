@@ -213,6 +213,11 @@ developer works with an Oracle database day to day:
   compile errors are marked in the editor.
 - Bind variables (`:kundeId`) become typed input fields – values are bound, never pasted into the SQL.
 - Completion for tables, views, synonyms and columns (with their C# names), history per connection, export of results.
+- **SQL scripts:** save a window, a selection or a history entry as a `.sql` file with a description and typed
+  parameters in its head – in your personal folder, one per connection group or a general one (e.g. a shared
+  repository). The explorer lists them as a tree (*Scripts*); a click opens one in a new tab without running it, and the
+  panel beside the history inserts one at the cursor. A tab opened from a script saves only when asked and reloads when
+  the file changes on disk (format: `docs/sql-scripts.md`).
 - Results know where their columns come from: C# names, enum members, names beside foreign keys and foreign-key jumps
   as in a table – also with the quoted aliases EF Core writes and through synonyms. Columns of a result can be pinned;
   the tab keeps them for every result it shows.

@@ -13,6 +13,9 @@ public enum ExplorerSection
     Tables,
     Views,
     PlSql,
+
+    /// <summary>The SQL scripts of the connection's script folders (WP-77), not of the schema.</summary>
+    Scripts,
 }
 
 /// <summary>Filtering and letter groups of the explorer's lists, the same for all sections.</summary>
@@ -23,7 +26,9 @@ public static class ExplorerList
 
     /// <summary>The sections of the switch in its order: views in one of their own only if they are separated.</summary>
     public static IReadOnlyList<ExplorerSection> Sections(bool separateViews) =>
-        separateViews ? [ExplorerSection.Tables, ExplorerSection.Views, ExplorerSection.PlSql] : [ExplorerSection.Tables, ExplorerSection.PlSql];
+        separateViews
+            ? [ExplorerSection.Tables, ExplorerSection.Views, ExplorerSection.PlSql, ExplorerSection.Scripts]
+            : [ExplorerSection.Tables, ExplorerSection.PlSql, ExplorerSection.Scripts];
 
     /// <summary>The section shown for the one chosen: views are with the tables again once the setting is off.</summary>
     public static ExplorerSection Shown(ExplorerSection chosen, bool separateViews) =>

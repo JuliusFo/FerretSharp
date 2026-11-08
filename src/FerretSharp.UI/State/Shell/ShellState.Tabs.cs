@@ -203,6 +203,55 @@ public sealed partial class ShellState
     }
 
     /// <summary>
+    /// A SQL tab with a script of the library (WP-77): its text, its parameters as variables with their types, linked to
+    /// the file and named after it. Nothing runs. A tab of the active workspace already linked to the same file is shown
+    /// instead of a second one.
+    /// </summary>
+    public SqlTab? OpenScript(Core.Scripts.ScriptRoot root, string path, Core.Scripts.ScriptDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(document);
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        if (workspace.Tabs.OfType<SqlTab>().FirstOrDefault(t => t.Script is { } link && root.Is(link.Root, link.Group)
+                && string.Equals(link.Path, path, StringComparison.OrdinalIgnoreCase)) is { } open)
+        {
+            ActivateTab(open);
+            return open;
+        }
+
+        var script = document.Script;
+        var tab = new SqlTab(workspace.WorkspaceId, Workspace.FitName(Core.Scripts.ScriptPaths.NameOf(path))) // review WP-77, K5
+        {
+            Text = script.Body,
+            Variables = Core.Scripts.ScriptHeaders.Apply([], script.Header.Parameters),
+            Script = Core.Scripts.ScriptLink.To(root, path, script.Header, script.Body, document.FileHash),
+            Visited = true,
+            FocusOnOpen = true,
+        };
+        return InsertAfterActive(workspace, tab);
+    }
+
+    /// <summary>
+    /// Inserts a script of the library into the active SQL tab at its cursor (WP-77, explorer menu); false if the active
+    /// tab is no SQL tab. The tab's view reads the file and inserts it.
+    /// </summary>
+    public bool InsertScript(Core.Scripts.ScriptEntry script)
+    {
+        if (ActiveTab is not SqlTab tab)
+        {
+            return false;
+        }
+
+        tab.PendingInsert = script;
+        RequestTabCommand(tab, TabCommand.InsertScript);
+        return true;
+    }
+
+    /// <summary>
     /// A record diagram of <paramref name="rows"/> of <paramref name="table"/> after the active tab (WP-60). Rows whose key has
     /// no exact text (<see cref="RecordKeys"/>) are left out; null if none is left.
     /// </summary>

@@ -9,10 +9,14 @@
         @foreach (var entry in Filtered)
         {
             var e = entry;
-            <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@e.Sql" @onclick="() => OnAdopt.InvokeAsync(e)">
-                <span class="sql-history-sql">@SqlScript.OneLine(e.Sql)</span>
-                <span class="sql-history-meta">@e.ExecutedAt.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture) · @Outcome(e)</span>
-            </button>
+            <div class="sql-history-row">
+                <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@e.Sql" @onclick="() => OnAdopt.InvokeAsync(e)">
+                    <span class="sql-history-sql">@SqlScript.OneLine(e.Sql)</span>
+                    <span class="sql-history-meta">@e.ExecutedAt.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture) · @Outcome(e)</span>
+                </button>
+                @* WP-77: a statement of the history as a script of the library. *@
+                <button class="icon-btn ghost sql-history-save" title="@ScriptViewText.History_SaveAsScript" @onclick="() => OnSaveAsScript.InvokeAsync(e)">@Icons.Save</button>
+            </div>
         }
         @if (!Filtered.Any())
         {
@@ -30,6 +34,9 @@
 
     [Parameter]
     public EventCallback<SqlHistoryEntry> OnAdopt { get; set; }
+
+    [Parameter]
+    public EventCallback<SqlHistoryEntry> OnSaveAsScript { get; set; }
 
     /// <summary>Every word must occur in the statement, in any order (<see cref="TextSearch"/>).</summary>
     private IEnumerable<SqlHistoryEntry> Filtered => new TextSearch(_search) is var search ? Entries.Where(e => search.Matches(e.Sql)) : [];

@@ -454,4 +454,11 @@
   <data name="HintSchemaGrants" xml:space="preserve">
     <value>Lists the privileges on the schema's objects, by grantee, and the objects a user has no privilege on.</value>
   </data>
+  <data name="ActionSaveScript" xml:space="preserve">
+    <value>Save SQL script</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintSaveScript" xml:space="preserve">
+    <value>Into the script file the tab shows, or as a new script.</value>
+  </data>
 </root>

@@ -576,4 +576,16 @@
   <data name="GroupName_ReportExceptionsDropped" xml:space="preserve">
     <value>Ihre Ausnahmedatei des Berichts {0} entfällt; „{1}“ behält die eigene.</value>
   </data>
+  <data name="GroupName_SqlScriptsDropped" xml:space="preserve">
+    <value>Ihr SQL-Skriptordner {0} entfällt; „{1}“ behält den eigenen.</value>
+  </data>
+  <data name="GroupMenu_SqlScripts" xml:space="preserve">
+    <value>Skripte: {0}</value>
+  </data>
+  <data name="GroupMenu_SqlScriptsSettings" xml:space="preserve">
+    <value>SQL-Skripte der Gruppe…</value>
+  </data>
+  <data name="GroupMenu_SqlScriptsSettingsTitle" xml:space="preserve">
+    <value>Öffnet die Einstellungen, dort kann jede Gruppe ihren eigenen Skriptordner haben.</value>
+  </data>
 </root>

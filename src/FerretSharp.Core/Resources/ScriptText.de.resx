@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ErrorInLine" xml:space="preserve">
+    <value>Zeile {0}: {1}</value>
+  </data>
+  <data name="ParamRepeated" xml:space="preserve">
+    <value>Der Parameter {0} ist doppelt angegeben.</value>
+  </data>
+  <data name="ParamSyntax" xml:space="preserve">
+    <value>@param braucht einen Namen und einen Typ: -- @param kunde_id number</value>
+  </data>
+  <data name="ParamType" xml:space="preserve">
+    <value>Unbekannter Typ {0}; bekannt sind: {1}.</value>
+  </data>
+  <data name="NameMissing" xml:space="preserve">
+    <value>Gib einen Namen ein.</value>
+  </data>
+  <data name="NameLeadingDot" xml:space="preserve">
+    <value>{0}: Ein Name darf nicht mit einem Punkt beginnen (solche Dateien und Ordner sind versteckt).</value>
+  </data>
+  <data name="NameInvalid" xml:space="preserve">
+    <value>{0} kann kein Datei- oder Ordnername sein: kein \ / : * ? " &lt; &gt; | %, kein Punkt oder Leerzeichen am Ende, kein Gerätename wie CON.</value>
+  </data>
+  <data name="FolderTooDeep" xml:space="preserve">
+    <value>Der Ordner {0} ist tiefer als {1} Ebenen verschachtelt.</value>
+  </data>
+  <data name="RootNotAbsolute" xml:space="preserve">
+    <value>Der Skriptordner {0} ist kein absoluter Pfad.</value>
+  </data>
+  <data name="PathInvalid" xml:space="preserve">
+    <value>{0} ist kein gültiger Skriptpfad.</value>
+  </data>
+  <data name="PathOutsideRoot" xml:space="preserve">
+    <value>Der Skriptpfad {0} führt aus dem Ordner {1} heraus.</value>
+  </data>
+  <data name="PathThroughLink" xml:space="preserve">
+    <value>Der Skriptpfad {0} führt über eine Verknüpfung (symbolischer Link oder Junction) in {1}: Ihr wird nicht gefolgt.</value>
+  </data>
+  <data name="FileMissing" xml:space="preserve">
+    <value>Das Skript {0} gibt es nicht mehr.</value>
+  </data>
+  <data name="FileTooLarge" xml:space="preserve">
+    <value>Das Skript {0} ist größer als {1:N0} KB und wird nicht gelesen.</value>
+  </data>
+  <data name="FileUnreadable" xml:space="preserve">
+    <value>Das Skript {0} kann nicht gelesen werden: {1}</value>
+  </data>
+  <data name="FileNotWritten" xml:space="preserve">
+    <value>Das Skript {0} kann nicht gespeichert werden: {1}</value>
+  </data>
+  <data name="FileNotDeleted" xml:space="preserve">
+    <value>Das Skript {0} kann nicht gelöscht werden: {1}</value>
+  </data>
+  <data name="EncodingCannotHold" xml:space="preserve">
+    <value>Das Skript {0} ist als {1} gespeichert, das nicht jedes Zeichen des Textes aufnehmen kann. Entferne die Zeichen oder speichere die Datei vorher in einem anderen Editor als UTF-8.</value>
+  </data>
+  <data name="FolderMissing" xml:space="preserve">
+    <value>Den Skriptordner {0} gibt es nicht.</value>
+  </data>
+  <data name="FolderUnreadable" xml:space="preserve">
+    <value>Der Skriptordner {0} kann nicht gelesen werden: {1}</value>
+  </data>
+</root>

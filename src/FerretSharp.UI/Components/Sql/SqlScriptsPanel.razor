@@ -1,0 +1,69 @@
+@* The scripts beside a SQL tab (WP-77), next to the history: the scripts of the connection's folders, searchable by name,
+   description and folder; a click inserts one at the cursor (decision of the user, 2026-11-08). *@
+@using FerretSharp.Core.Scripts
+@implements IDisposable
+@inject ScriptLibrary Library
+
+<aside class="sql-history sql-scripts">
+    <SearchBox @bind-Value="_search" Class="search" Placeholder="@ScriptViewText.Panel_Search" />
+    <div class="sql-history-list">
+        @{ var scans = Library.For(Profile); var found = ScriptTree.Search(scans, _search); }
+        @foreach (var script in found)
+        {
+            var s = script;
+            <button class="sql-history-item" title="@Tooltip(s)" disabled="@(s.Problems.Count > 0 && s.Length > ScriptFiles.MaxBytes)" @onclick="() => OnInsert.InvokeAsync(s)">
+                <span class="sql-history-sql script-name">@Icons.Script @s.Name</span>
+                <span class="sql-history-meta">@Location(s)</span>
+                @if (s.Description is { } description)
+                {
+                    <span class="sql-history-meta script-description">@description</span>
+                }
+            </button>
+        }
+        @if (found.Count == 0)
+        {
+            <div class="ctx-empty">
+                @if (scans.Any(s => !s.Loaded))
+                {
+                    @ScriptViewText.Panel_Loading
+                }
+                else if (scans.All(s => s.Scripts.Count == 0))
+                {
+                    @ScriptViewText.Panel_Empty
+                }
+                else
+                {
+                    @SqlEditorText.SqlHistory_NoMatch
+                }
+            </div>
+        }
+        @foreach (var error in scans.Select(s => s.Error).OfType<string>())
+        {
+            <div class="settings-note error small">@error</div>
+        }
+    </div>
+</aside>
+
+@code {
+    private string _search = "";
+
+    /// <summary>The connection whose folders are listed (its group's among them).</summary>
+    [Parameter, EditorRequired]
+    public Core.Connections.ConnectionProfile? Profile { get; set; }
+
+    [Parameter]
+    public EventCallback<ScriptEntry> OnInsert { get; set; }
+
+    protected override void OnInitialized() => Library.Changed += OnLibraryChanged;
+
+    private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>"Group ERP · Locks" – the folder of the settings and the folder below it.</summary>
+    private static string Location(ScriptEntry script) =>
+        script.Folder.Length == 0 ? ScriptTree.RootLabel(script.Root) : ScriptTree.RootLabel(script.Root) + " · " + script.Folder;
+
+    private static string Tooltip(ScriptEntry script) =>
+        string.Join(Environment.NewLine, new[] { script.Path, script.Description }.Concat(script.Problems).OfType<string>());
+
+    public void Dispose() => Library.Changed -= OnLibraryChanged;
+}

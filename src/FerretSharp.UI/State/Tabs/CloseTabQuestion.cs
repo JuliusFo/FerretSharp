@@ -24,11 +24,17 @@ public enum CloseTabLoss
 public sealed record CloseTabQuestion(WorkspaceTab Tab, CloseTabLoss Loss)
 {
     /// <summary>Why <paramref name="tab"/> must not close without asking; null if nothing would be lost.</summary>
+    /// <param name="typedValue">
+    /// Something typed is not taken yet: a grid cell being edited, or keys a SQL editor has not reported (its debounce).
+    /// </param>
     public static CloseTabQuestion? For(WorkspaceTab tab, bool typedValue) => tab switch
     {
         TableTab { Changes.PendingCount: > 0 } => new(tab, CloseTabLoss.PendingChanges),
         TableTab { Designer.Draft.HasChanges: true } or NewTableTab { Designer.HasChanges: true } => new(tab, CloseTabLoss.TableDraft),
         TableTab when typedValue => new(tab, CloseTabLoss.TypedValue),
+        // A script tab without changes of its own loses nothing: its text is in the file (WP-77, decision of the user) –
+        // unless keys were typed the tab does not know of yet (review WP-77).
+        SqlTab { Script: not null, ScriptChanged: false } when !typedValue => null,
         SqlTab sql when !string.IsNullOrWhiteSpace(sql.Text) => new(tab, CloseTabLoss.EditorText),
         LinqTab linq when !string.IsNullOrWhiteSpace(linq.Code) => new(tab, CloseTabLoss.EditorText),
         _ => null,

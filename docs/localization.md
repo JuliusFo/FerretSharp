@@ -24,6 +24,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | UI | `CopyViewText` | In andere Verbindung kopieren (WP-42): Ziel, Baum der Kind-Beziehungen, Lesen, Vorschau mit Konfliktmodus, Eltern, Prüfung |
 | UI | `AppStatementsText` | Statements der App (WP-33): Seite, Prozessliste, Verbindung, Herkunft, N+1-Hinweise, Nachsehen in V$SQL |
 | UI | `ServerLoadText` | Serverlast (WP-75): Kopf, Kacheln, Diagramme, Top-Statements, aktive Sessions, Hinweise zu PDB, RAC und Lizenz |
+| UI | `ScriptViewText` | SQL-Skripte (WP-77): Bereich im Explorer, Panel neben dem Verlauf, Speichern-Dialog, Hinweise und Rückfragen am SQL-Tab |
 | Core | `ClrModelText` | C#-Modell, LINQ-Konsole, Code-Generierung, Build-Ausgabe |
 | Core | `QueryText`, `DataText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms |
 | Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich und DDL (`Core/Ddl`), Verbindungen samt Import/Export, Einstellungen (Tastenkürzel), Workspaces und IO |
@@ -33,6 +34,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | Core | `DisplayText` | Anzeigespalten (WP-31): Datei der Anzeigespalten (nicht lesbar, kein JSON, neuere Version, nicht schreibbar), nicht anzeigbare Spaltentypen |
 | Core | `RelationText` | Beziehungen und Teilgraph kopieren (WP-42): nicht verfolgte Beziehungen, Zeilengrenze, Prüfungen der Kopie (Tabellen, Spalten, Identity, Konflikte, Trigger, Kreise), Beschreibung der Kopie-Aktion; Kommentare im Mermaid-Export des Beziehungsdiagramms (WP-46) |
 | Core | `AppTraceText` | Statements der App (WP-33): Anhängen nicht möglich (Prozess beendet, keine Diagnose) |
+| Core | `ScriptText` | SQL-Skripte (WP-77): Fehler im Kopf mit Zeile, Namen und Pfade, Lesen/Schreiben/Löschen der Dateien, Skriptordner |
 | ModelHost | `ModelHostText` | Meldungen und Schritte des Hilfsprozesses |
 
 Klassennamen sind über alle Projekte eindeutig (die Razor-Komponenten sehen Core- und UI-Ressourcen).

@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Root_Personal" xml:space="preserve">
+    <value>Personal</value>
+    <comment>Label of the user's own script folder</comment>
+  </data>
+  <data name="Root_Group" xml:space="preserve">
+    <value>Group {0}</value>
+    <comment>Label of a connection group's script folder; {0}: group name</comment>
+  </data>
+  <data name="Root_General" xml:space="preserve">
+    <value>General</value>
+    <comment>Label of the script folder every connection sees</comment>
+  </data>
+  <data name="Explorer_Section" xml:space="preserve">
+    <value>Scripts</value>
+    <comment>Explorer section button</comment>
+  </data>
+  <data name="Explorer_SectionTitle" xml:space="preserve">
+    <value>SQL scripts of your folders: personal, the connection group’s and general</value>
+    <comment>Tooltip of the explorer section button</comment>
+  </data>
+  <data name="Explorer_SearchPlaceholder" xml:space="preserve">
+    <value>Find script…</value>
+    <comment>Placeholder of the explorer search in the scripts section</comment>
+  </data>
+  <data name="Explorer_HitsOne" xml:space="preserve">
+    <value>{0} hit in Scripts</value>
+    <comment>Link to the other explorer section. {0} = number of hits</comment>
+  </data>
+  <data name="Explorer_HitsOther" xml:space="preserve">
+    <value>{0} hits in Scripts</value>
+    <comment>Link to the other explorer section. {0} = number of hits</comment>
+  </data>
+  <data name="Explorer_Truncated" xml:space="preserve">
+    <value>Not all of this folder is listed: it holds more than {0:N0} scripts or {1:N0} files and folders.</value>
+    <comment>{0}: limit of scripts; {1}: limit of files and folders looked at</comment>
+  </data>
+  <data name="Explorer_EmptyPersonal" xml:space="preserve">
+    <value>No scripts yet. Save one from the SQL editor (Save).</value>
+    <comment>Empty personal folder</comment>
+  </data>
+  <data name="Explorer_EmptyFolder" xml:space="preserve">
+    <value>No scripts in this folder.</value>
+    <comment>Empty shared folder</comment>
+  </data>
+  <data name="Explorer_ParametersOne" xml:space="preserve">
+    <value>{0} parameter</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Explorer_ParametersOther" xml:space="preserve">
+    <value>{0} parameters</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Explorer_Open" xml:space="preserve">
+    <value>Open in new SQL tab</value>
+    <comment>Menu entry</comment>
+  </data>
+  <data name="Explorer_Insert" xml:space="preserve">
+    <value>Insert into current SQL tab</value>
+    <comment>Menu entry</comment>
+  </data>
+  <data name="Explorer_InsertTitle" xml:space="preserve">
+    <value>At the cursor or in place of the selection; the parameters join the tab’s variables.</value>
+    <comment>Tooltip of the menu entry</comment>
+  </data>
+  <data name="Explorer_InsertNoSqlTab" xml:space="preserve">
+    <value>The active tab is no SQL tab.</value>
+    <comment>Why the entry is disabled</comment>
+  </data>
+  <data name="Explorer_Reveal" xml:space="preserve">
+    <value>Show in File Explorer</value>
+    <comment>Menu entry: opens Windows Explorer with the file selected</comment>
+  </data>
+  <data name="Explorer_Delete" xml:space="preserve">
+    <value>Delete…</value>
+    <comment>Menu entry</comment>
+  </data>
+  <data name="Delete_Title" xml:space="preserve">
+    <value>Delete script?</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Delete_Text" xml:space="preserve">
+    <value>{0} in the folder “{1}” is deleted from the disk. A tab showing it keeps its text.</value>
+    <comment>{0}: relative path of the script; {1}: label of the script folder</comment>
+  </data>
+  <data name="Delete_Shared" xml:space="preserve">
+    <value>The folder is shared: colleagues lose the script with your next commit.</value>
+    <comment>Hint in the delete dialog</comment>
+  </data>
+  <data name="Delete_Confirm" xml:space="preserve">
+    <value>Delete</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Panel_Search" xml:space="preserve">
+    <value>Search name, description, folder</value>
+    <comment>Placeholder of the scripts panel search</comment>
+  </data>
+  <data name="Panel_Loading" xml:space="preserve">
+    <value>Reading the script folders…</value>
+    <comment>Shown while the folders are read</comment>
+  </data>
+  <data name="Panel_Empty" xml:space="preserve">
+    <value>No scripts yet.</value>
+    <comment>Empty scripts panel</comment>
+  </data>
+  <data name="SqlView_Scripts" xml:space="preserve">
+    <value>Scripts</value>
+    <comment>Button that opens the scripts panel beside the SQL editor</comment>
+  </data>
+  <data name="SqlView_ScriptsTitle" xml:space="preserve">
+    <value>Insert a saved script at the cursor</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="SqlView_ScriptMenuTitle" xml:space="preserve">
+    <value>Save as script</value>
+    <comment>Tooltip of the menu button</comment>
+  </data>
+  <data name="SqlView_SaveTitle" xml:space="preserve">
+    <value>Save into {0}</value>
+    <comment>Tooltip of the save button; {0}: relative path of the script file</comment>
+  </data>
+  <data name="SqlView_SaveNewTitle" xml:space="preserve">
+    <value>Save the window as a script</value>
+    <comment>Tooltip of the save button of a tab without script file</comment>
+  </data>
+  <data name="SqlView_LinkTitle" xml:space="preserve">
+    <value>Script {1} in “{0}”</value>
+    <comment>{0}: label of the script folder; {1}: relative path</comment>
+  </data>
+  <data name="SqlView_LinkNoRoot" xml:space="preserve">
+    <value>Script {0}: its folder is not set for this connection.</value>
+    <comment>{0}: relative path</comment>
+  </data>
+  <data name="SqlView_Unsaved" xml:space="preserve">
+    <value>Changed since the last save</value>
+    <comment>Tooltip of the dot beside the title</comment>
+  </data>
+  <data name="Menu_SaveWindow" xml:space="preserve">
+    <value>Save window as script…</value>
+    <comment>Menu entry</comment>
+  </data>
+  <data name="Menu_SaveAs" xml:space="preserve">
+    <value>Save as…</value>
+    <comment>Menu entry: save a copy under another name</comment>
+  </data>
+  <data name="Menu_SaveSelection" xml:space="preserve">
+    <value>Save selection as script…</value>
+    <comment>Menu entry</comment>
+  </data>
+  <data name="Menu_SaveSelectionTitle" xml:space="preserve">
+    <value>Without a selection: the statement at the cursor</value>
+    <comment>Tooltip of the menu entry</comment>
+  </data>
+  <data name="Menu_Reveal" xml:space="preserve">
+    <value>Show file in File Explorer</value>
+    <comment>Menu entry</comment>
+  </data>
+  <data name="History_SaveAsScript" xml:space="preserve">
+    <value>Save as script…</value>
+    <comment>Tooltip of the button on a history entry</comment>
+  </data>
+  <data name="Save_TitleWindow" xml:space="preserve">
+    <value>Save window as script</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Save_TitleSaveAs" xml:space="preserve">
+    <value>Save script as</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Save_TitleSelection" xml:space="preserve">
+    <value>Save selection as script</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Save_TitleHistory" xml:space="preserve">
+    <value>Save statement as script</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Save_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Field label: name of the script (file name)</comment>
+  </data>
+  <data name="Save_Root" xml:space="preserve">
+    <value>Folder</value>
+    <comment>Field label: which script folder (personal, group, general)</comment>
+  </data>
+  <data name="Save_Folder" xml:space="preserve">
+    <value>Subfolder</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="Save_FolderPlaceholder" xml:space="preserve">
+    <value>none, or e.g. Locks/Sessions</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Save_Description" xml:space="preserve">
+    <value>Description</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="Save_DescriptionPlaceholder" xml:space="preserve">
+    <value>What the script is for (optional)</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Save_Target" xml:space="preserve">
+    <value>Saved as {0}</value>
+    <comment>{0}: full path of the file</comment>
+  </data>
+  <data name="Save_Parameters" xml:space="preserve">
+    <value>Parameters (type only, never a value): {0}</value>
+    <comment>{0}: comma-separated list "name (type)"</comment>
+  </data>
+  <data name="Notice_Reload" xml:space="preserve">
+    <value>Reload</value>
+    <comment>Button: take the file's new text</comment>
+  </data>
+  <data name="Notice_Keep" xml:space="preserve">
+    <value>Keep mine</value>
+    <comment>Button: keep the tab's text</comment>
+  </data>
+  <data name="Notice_ChangedOnDisk" xml:space="preserve">
+    <value>{0} was changed outside FerretSharp (e.g. by git pull), and this tab has changes of its own.</value>
+    <comment>{0}: relative path</comment>
+  </data>
+  <data name="Notice_Missing" xml:space="preserve">
+    <value>{0} no longer exists. Save creates it again.</value>
+    <comment>{0}: relative path</comment>
+  </data>
+  <data name="Notice_NoRoot" xml:space="preserve">
+    <value>The folder of {0} is not set for this connection: save it elsewhere.</value>
+    <comment>{0}: relative path</comment>
+  </data>
+  <data name="Notice_NothingSelected" xml:space="preserve">
+    <value>Select the statements to save, or put the cursor into one.</value>
+    <comment>Hint</comment>
+  </data>
+  <data name="Notice_Saved" xml:space="preserve">
+    <value>Saved as script “{0}” in “{1}”.</value>
+    <comment>{0}: script name; {1}: label of the script folder</comment>
+  </data>
+  <data name="Confirm_ReplaceTitle" xml:space="preserve">
+    <value>Replace script?</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Confirm_ReplaceText" xml:space="preserve">
+    <value>{0} already exists in “{1}”. Replace it?</value>
+    <comment>{0}: relative path; {1}: label of the script folder</comment>
+  </data>
+  <data name="Confirm_ChangedTitle" xml:space="preserve">
+    <value>File changed meanwhile</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Confirm_ChangedText" xml:space="preserve">
+    <value>{0} was changed outside FerretSharp since you opened it (e.g. by git pull). Replace it with your text?</value>
+    <comment>{0}: relative path</comment>
+  </data>
+  <data name="Confirm_Replace" xml:space="preserve">
+    <value>Replace</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Explorer_CountOne" xml:space="preserve">
+    <value>{0} script</value>
+    <comment>Count in the explorer head; {0}: number of scripts</comment>
+  </data>
+  <data name="Explorer_CountOther" xml:space="preserve">
+    <value>{0} scripts</value>
+    <comment>Count in the explorer head; {0}: number of scripts</comment>
+  </data>
+</root>

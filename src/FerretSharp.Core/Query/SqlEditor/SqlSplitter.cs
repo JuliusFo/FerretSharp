@@ -273,6 +273,24 @@ public static class SqlSplitter
         return (prefix + Terminated(statement.Trim(), newLine) + newLine, prefix.Length);
     }
 
+    /// <summary>
+    /// The script with <paramref name="statement"/> in place of <c>[start, end)</c> – the selection, or the cursor when
+    /// both are the same (a script inserted from the library, WP-77): the text before it ended (<see cref="Terminated"/>)
+    /// and a blank line after it, the inserted one ended, the text after it on its own line. <c>Start</c> is where the
+    /// inserted statement begins. Line breaks as in <see cref="Append"/>.
+    /// </summary>
+    public static (string Text, int Start) Insert(string script, int start, int end, string statement)
+    {
+        start = Math.Clamp(start, 0, script.Length);
+        end = Math.Clamp(end, start, script.Length);
+        var newLine = LineEndOf(script, Environment.NewLine);
+        var before = script[..start];
+        var after = script[end..];
+        var prefix = before.Trim().Length == 0 ? "" : Terminated(before.TrimEnd(), newLine) + newLine + newLine;
+        var suffix = after.Trim().Length == 0 ? newLine : newLine + newLine + after.TrimStart();
+        return (prefix + Terminated(statement.Trim(), newLine) + suffix, prefix.Length);
+    }
+
     private static string LineEndOf(string text, string otherwise) =>
         text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : text.Contains('\n', StringComparison.Ordinal) ? "\n" : otherwise;
 

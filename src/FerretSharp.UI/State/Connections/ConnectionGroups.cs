@@ -89,7 +89,8 @@ public sealed class ConnectionGroups : IDisposable
     public ConnectionGroupRename? PlanRename(string from, string to) =>
         ConnectionSearch.NormalizeGroup(from) is null || ConnectionSearch.NormalizeGroup(to) is null
             ? null
-            : ConnectionGroupRename.Plan(_connections.Profiles, from, to, _settings.Current.AuditTemplateGroups, _settings.Current.ReportExceptionsGroups);
+            : ConnectionGroupRename.Plan(_connections.Profiles, from, to, _settings.Current.AuditTemplateGroups, _settings.Current.ReportExceptionsGroups,
+                _settings.Current.SqlScriptsGroups);
 
     /// <summary>
     /// The work clone of the renamed group when the target name has its own – a group merged into, or one left by an earlier
@@ -114,12 +115,18 @@ public sealed class ConnectionGroups : IDisposable
 
         List<string> notSaved = [];
         if (!rename.AuditTemplateGroups.Equals(_settings.Current.AuditTemplateGroups)
-            || !rename.ReportExceptionsGroups.Equals(_settings.Current.ReportExceptionsGroups))
+            || !rename.ReportExceptionsGroups.Equals(_settings.Current.ReportExceptionsGroups)
+            || !rename.SqlScriptsGroups.Equals(_settings.Current.SqlScriptsGroups))
         {
             try
             {
                 await _settings.UpdateAsync(
-                    s => s with { AuditTemplateGroups = rename.AuditTemplateGroups, ReportExceptionsGroups = rename.ReportExceptionsGroups },
+                    s => s with
+                    {
+                        AuditTemplateGroups = rename.AuditTemplateGroups,
+                        ReportExceptionsGroups = rename.ReportExceptionsGroups,
+                        SqlScriptsGroups = rename.SqlScriptsGroups,
+                    },
                     CancellationToken.None);
             }
             catch (IOException ex)

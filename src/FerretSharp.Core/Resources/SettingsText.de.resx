@@ -372,4 +372,10 @@
   <data name="HintSchemaGrants" xml:space="preserve">
     <value>Listet die Rechte an den Objekten des Schemas, nach Empfänger, und die Objekte, an denen ein User kein Recht hat.</value>
   </data>
+  <data name="ActionSaveScript" xml:space="preserve">
+    <value>SQL-Skript speichern</value>
+  </data>
+  <data name="HintSaveScript" xml:space="preserve">
+    <value>In die Skriptdatei des Tabs oder als neues Skript.</value>
+  </data>
 </root>

@@ -27,6 +27,44 @@ public sealed class AtomicFileTests : IDisposable
         Assert.Empty(TempFiles());
     }
 
+    /// <summary>
+    /// Review WP-77: a file in a shared repository is never written through a file of a fixed temporary name – not a link
+    /// of that name (it led out of the folder) and not a file of the user's.
+    /// </summary>
+    [Fact]
+    public async Task A_file_in_a_folder_of_the_user_s_is_written_beside_any_file_of_a_temporary_name()
+    {
+        var path = _folder.Combine("display-columns.json");
+        await File.WriteAllTextAsync(path + ".tmp", "my notes", Ct);
+        await File.WriteAllTextAsync(path, "old", Ct);
+
+        await AtomicFile.WriteInUserFolderAsync(path, async (stream, ct) =>
+        {
+            await stream.WriteAsync("new"u8.ToArray(), ct);
+            return true;
+        }, Ct);
+
+        Assert.Equal("new", await File.ReadAllTextAsync(path, Ct));
+        Assert.Equal("my notes", await File.ReadAllTextAsync(path + ".tmp", Ct));
+
+        var outside = _folder.Combine("outside.txt");
+        await File.WriteAllTextAsync(outside, "secret", Ct);
+        var linked = _folder.Combine("linked.json");
+        try
+        {
+            File.CreateSymbolicLink(linked + ".tmp", outside);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip("Creating a symbolic link needs developer mode or admin rights on Windows.");
+        }
+
+        await AtomicJsonFile.WriteInUserFolderAsync(linked, new { a = 1 }, System.Text.Json.JsonSerializerOptions.Default, Ct);
+
+        Assert.Equal("secret", await File.ReadAllTextAsync(outside, Ct));
+        Assert.Null(new FileInfo(linked).LinkTarget);
+    }
+
     [Fact]
     public async Task A_cancelled_write_keeps_the_existing_file_and_leaves_no_temporary_one()
     {

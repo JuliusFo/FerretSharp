@@ -18,8 +18,22 @@
     <div class="tab-toolbar">
         @Icons.Database
         <TabTitle Tab="Tab" />
+        @if (Tab.Script is { } link)
+        {
+            @* WP-77: the tab shows a script file; the dot says it differs from the file. *@
+            <span class="script-link" title="@ScriptLinkTitle(link)">
+                @Icons.Script
+                @if (Tab.ScriptChanged)
+                {
+                    <span class="dot pending" title="@ScriptViewText.SqlView_Unsaved"></span>
+                }
+            </span>
+        }
         <span class="muted">@(Workspaces.IsWritable(Tab.WorkspaceId) ? SqlEditorText.SqlView_ReadWrite : SqlEditorText.SqlView_ReadOnly)</span>
         <span class="spacer"></span>
+        <button class="btn ghost" title="@SaveTitle" @onclick="SaveScriptAsync">@Icons.Save @CommonText.Save</button>
+        <MoreMenu ButtonClass="btn ghost" Title="@ScriptViewText.SqlView_ScriptMenuTitle" Items="ScriptMenu" />
+        <button class="btn ghost @(_scriptsOpen ? "active" : "")" title="@ScriptViewText.SqlView_ScriptsTitle" @onclick="ToggleScripts">@ScriptViewText.SqlView_Scripts</button>
         <button class="btn ghost @(_historyOpen ? "active" : "")" title="@SqlEditorText.SqlView_HistoryTitle" @onclick="ToggleHistoryAsync">@SqlEditorText.SqlView_History</button>
         @if (Tab.ShownRun is { Info.IsQuery: true, Error: null } && _error is null)
         {
@@ -33,6 +47,22 @@
         </button>
     </div>
 
+    @if (_scriptNotice is { } notice)
+    {
+        <div class="script-notice settings-note @(notice.Kind == ScriptNoticeKind.Error ? "error" : notice.Kind == ScriptNoticeKind.Info ? "" : "warn")" role="status">
+            <span>@notice.Text</span>
+            @if (notice.Kind == ScriptNoticeKind.ChangedOnDisk)
+            {
+                <button class="link-btn" @onclick="ReloadFromDiskAsync">@ScriptViewText.Notice_Reload</button>
+                <button class="link-btn" @onclick="KeepOwnText">@ScriptViewText.Notice_Keep</button>
+            }
+            else
+            {
+                <button class="icon-btn ghost" title="@CommonText.Close" @onclick="() => _scriptNotice = null">@Icons.Close</button>
+            }
+        </div>
+    }
+
     <div class="sql-main">
         <div class="sql-editors">
             <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync" FocusOnCreate="_focusOnCreate"
@@ -42,7 +72,11 @@
 
         @if (_historyOpen)
         {
-            <SqlHistoryPanel Entries="_history" OnAdopt="AdoptAsync" />
+            <SqlHistoryPanel Entries="_history" OnAdopt="AdoptAsync" OnSaveAsScript="SaveHistoryEntry" />
+        }
+        @if (_scriptsOpen)
+        {
+            <SqlScriptsPanel Profile="Active.Profile" OnInsert="InsertScriptAsync" />
         }
 
         <ResizeHandle Edge="ResizeEdge.Bottom" Min="EditorMinHeight" MaxFraction="EditorMaxFraction" Variable="@PanelSizes.SqlEditorHeight"
@@ -209,6 +243,19 @@
     </ConfirmDialog>
 }
 
+@if (_save is { } draft)
+{
+    <ScriptSaveDialog Draft="draft" Folders="FoldersOf" Error="@_saveError" Busy="_saving" OnSave="() => SaveDraftAsync(replace: false)" OnCancel="CloseSaveDialog" />
+}
+
+@if (_scriptConfirm is { } question)
+{
+    <ConfirmDialog Title="@(question == ScriptConfirm.ReplaceExisting ? ScriptViewText.Confirm_ReplaceTitle : ScriptViewText.Confirm_ChangedTitle)"
+                   ConfirmLabel="@ScriptViewText.Confirm_Replace" Danger="true" OnConfirm="ConfirmScriptAsync" OnCancel="() => _scriptConfirm = null">
+        <p>@ScriptConfirmText(question)</p>
+    </ConfirmDialog>
+}
+
 @if (_planOpen && Tab.ShownRun is { Info.IsQuery: true } planned)
 {
     <PlanDialog Query="planned.Query" WorkspaceId="Tab.WorkspaceId" Title="@Tab.Title" OnClose="() => _planOpen = false" />
@@ -312,7 +359,9 @@
         (_focusOnCreate, Tab.FocusOnOpen) = (Tab.FocusOnOpen, false);
         Shell.TabCommandRequested += OnTabCommand;
         Workspaces.Changed += OnWorkspacesChanged;
+        Library.Changed += OnLibraryChanged;
         await UpdateVariablesAsync(Tab.Text);
+        Fire(CheckScriptFileAsync); // a restored tab: the file may have changed while FerretSharp was closed
     }
 
     private void OnTabCommand(WorkspaceTab tab, TabCommand command)
@@ -329,6 +378,13 @@
                 break;
             case TabCommand.ApplyFilters or TabCommand.Refresh:
                 Fire(RunAsync);
+                break;
+            case TabCommand.InsertScript when Tab.PendingInsert is { } script:
+                Tab.PendingInsert = null;
+                Fire(() => InsertScriptAsync(script));
+                break;
+            case TabCommand.SaveScript:
+                Fire(SaveScriptAsync);
                 break;
             case TabCommand.FindColumn when _editor is not null:
                 // The focus in the result's form: its field search (review 3.44.0, A9), else the editor's search.
@@ -685,6 +741,7 @@
     private async Task ToggleHistoryAsync()
     {
         _historyOpen = !_historyOpen;
+        _scriptsOpen &= !_historyOpen; // one panel beside the editor at a time
         if (_historyOpen && Active.Profile is { } profile)
         {
             _history = await History.LoadAsync(profile.Id, CancellationToken.None);
@@ -758,6 +815,7 @@
     {
         Shell.TabCommandRequested -= OnTabCommand;
         Workspaces.Changed -= OnWorkspacesChanged;
+        Library.Changed -= OnLibraryChanged;
         _cts?.Cancel();
     }
 }

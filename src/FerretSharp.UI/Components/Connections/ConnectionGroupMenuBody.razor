@@ -25,6 +25,10 @@
         {
             <span class="ctx-fact" title="@template.Value">@TextFormat.Format(ConnectionViewText.GroupMenu_AuditTemplate, Path.GetFileName(template.Value))</span>
         }
+        @if (Group.Name is not null && AuditTemplateSource.GroupEntry(Settings.Current.SqlScriptsGroups, Group.Name) is { } scripts)
+        {
+            <span class="ctx-fact" title="@scripts.Value">@TextFormat.Format(ConnectionViewText.GroupMenu_SqlScripts, Path.GetFileName(Path.TrimEndingDirectorySeparator(scripts.Value)))</span>
+        }
         @if (Clones.ActiveFor(Group.Name) is { } clone)
         {
             <span class="ctx-fact clr" title="@clone">@TextFormat.Format(ConnectionViewText.GroupMenu_WorkClone, Path.GetFileName(clone))</span>
@@ -59,6 +63,8 @@
 {
     <MenuEntry Label="@ConnectionViewText.GroupMenu_AuditTemplateSettings" Title="@ConnectionViewText.GroupMenu_AuditTemplateSettingsTitle"
                OnClick="() => RunAsync(() => Shell.ShowSettings(SettingsPart.Audit))" />
+    <MenuEntry Label="@ConnectionViewText.GroupMenu_SqlScriptsSettings" Title="@ConnectionViewText.GroupMenu_SqlScriptsSettingsTitle"
+               OnClick="() => RunAsync(() => Shell.ShowSettings(SettingsPart.Scripts))" />
 }
 @if (open.Count > 0)
 {

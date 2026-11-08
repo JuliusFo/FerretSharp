@@ -55,9 +55,12 @@ public static class ModelFile
     /// </summary>
     public static string? Problem(ModelExport model) => ModelFileCheck.Problem(model, null);
 
-    /// <summary>Writes the file (atomically: a reader watching it never sees half of it).</summary>
+    /// <summary>
+    /// Writes the file (atomically: a reader watching it never sees half of it). It is passed on, often in a shared
+    /// repository: never through a file of a fixed temporary name (review WP-77).
+    /// </summary>
     public static Task WriteAsync(string path, ModelExport model, ModelFileOrigin origin, CancellationToken cancellationToken) =>
-        AtomicJsonFile.WriteAsync(path, new Document(CurrentVersion, origin, model), JsonFiles.Options, cancellationToken);
+        AtomicJsonFile.WriteInUserFolderAsync(path, new Document(CurrentVersion, origin, model), JsonFiles.Options, cancellationToken);
 
     /// <summary>Reads a model file; never throws for what is in or around the file – the reason is in the result.</summary>
     public static async Task<ModelFileRead> ReadAsync(string path, CancellationToken cancellationToken)

@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *SQL scripts*: save queries as `.sql` files and get them back. In the SQL editor, *Save* stores the window as a script (or into the script file the tab shows); the menu beside it saves the selection, and a history entry has *Save as script* too. A dialog asks for name, folder, subfolder and a description; the variables of the tab go into the file’s head as parameters with their type – never with a value. Scripts live in three folders side by side: your personal one (`scripts` in the data folder, or a folder of your choice), one per connection group (the scripts of a product, seen only by its connections) and a general one for every connection, e.g. in a shared repository – FerretSharp writes there too, committing is up to you (*Settings › SQL scripts*). The explorer has a section *Scripts* with the folders as a tree and a name search; a click opens a script in a new SQL tab with its parameters as typed variables, and nothing runs. The right-click menu inserts it into the current SQL tab, shows the file or deletes it. The panel *Scripts* beside *History* searches name, description and folder and inserts a script at the cursor. The quick open finds scripts by name.
+- A SQL tab opened from a script is named after it and marked with a dot while it differs from the file; it is saved only when you say so, and an unchanged one closes without asking. When the file changes outside FerretSharp (a `git pull`), an unchanged tab reloads it quietly, a changed one asks, and saving over a file changed since asks first. The action *Save SQL script* has no default key; assign one in the shortcuts.
+
+### Fixed
+- Display columns, the report’s exceptions and exported model files in a shared folder: saving wrote through a file named `….tmp` beside them – a link of that name in the repository sent the content to a file outside it, and a file of yours of that name was replaced. They are now written beside the file under a name of their own.
+
 ## [3.64.0] - 2026-11-08
 
 The server load page names the methods of your C# project that may send a top statement, and a statement’s details open in a dialog with folding sections.

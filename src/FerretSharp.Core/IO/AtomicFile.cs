@@ -15,6 +15,17 @@ public static class AtomicFile
         WriteAsync(path, path + ".tmp", FileMode.Create, write, cancellationToken);
 
     /// <summary>
+    /// A file in a folder of the user's – a shared repository (SQL scripts, display columns, report exceptions): like
+    /// <see cref="WriteAsync{T}"/>, but the temporary file gets a name of its own and is created new. With the fixed
+    /// <c>file.tmp</c> a link of that name in the repository had the content written through it to a file outside, the
+    /// move then turned the file itself into that link, and a file of the user's called <c>file.tmp</c> was replaced
+    /// (review WP-77). Unlike <see cref="WriteExportAsync{T}"/> the target is not opened first: that check is for an
+    /// export taking minutes, these files are written at once.
+    /// </summary>
+    public static Task<T> WriteInUserFolderAsync<T>(string path, Func<Stream, CancellationToken, Task<T>> write, CancellationToken cancellationToken) =>
+        WriteAsync(path, $"{path}.{Guid.NewGuid():N}.tmp", FileMode.CreateNew, write, cancellationToken);
+
+    /// <summary>
     /// An export to a file the user chose (WP-54): like <see cref="WriteAsync{T}"/>, but the target is checked first – a file
     /// open in Excel would otherwise fail only at the move, after minutes of reading – and the temporary file gets a name
     /// of its own, so a file of the user's called <c>file.tmp</c> is never replaced or removed.

@@ -477,4 +477,40 @@
   <data name="Settings_LoadRowsOnRequest" xml:space="preserve">
     <value>Auf Anforderung</value>
   </data>
+  <data name="Settings_Scripts" xml:space="preserve">
+    <value>SQL-Skripte</value>
+  </data>
+  <data name="Settings_ScriptsPersonal" xml:space="preserve">
+    <value>Persönliche Skripte</value>
+  </data>
+  <data name="Settings_ScriptsPersonalHint" xml:space="preserve">
+    <value>Deine eigenen Skripte, je eines als .sql-Datei, Ordner als Kategorien. Leer: der Ordner scripts im Datenordner.</value>
+  </data>
+  <data name="Settings_ScriptsGeneral" xml:space="preserve">
+    <value>Allgemeine Skripte</value>
+  </data>
+  <data name="Settings_ScriptsGeneralHint" xml:space="preserve">
+    <value>Skripte für jede Oracle-Datenbank (Sperren, Sessions), z. B. in einem geteilten Repository. Jede Verbindung sieht sie.</value>
+  </data>
+  <data name="Settings_ScriptsGroups" xml:space="preserve">
+    <value>Skripte je Verbindungsgruppe</value>
+  </data>
+  <data name="Settings_ScriptsGroupsHint" xml:space="preserve">
+    <value>Die Skripte eines Produkts: Nur die Verbindungen der Gruppe sehen ihren Ordner.</value>
+  </data>
+  <data name="Settings_ScriptsOfGroup" xml:space="preserve">
+    <value>Skriptordner der Gruppe {0}</value>
+  </data>
+  <data name="Settings_ScriptsNone" xml:space="preserve">
+    <value>keiner</value>
+  </data>
+  <data name="Settings_ScriptsShared" xml:space="preserve">
+    <value>FerretSharp schreibt auch in geteilte Ordner (Speichern, Löschen); Commit und Pull machst du selbst. Schreib Namen ohne Owner, dann läuft ein Skript auf jeder Umgebung.</value>
+  </data>
+  <data name="Settings_ScriptsCountOne" xml:space="preserve">
+    <value>{0} Skript</value>
+  </data>
+  <data name="Settings_ScriptsCountOther" xml:space="preserve">
+    <value>{0} Skripte</value>
+  </data>
 </root>

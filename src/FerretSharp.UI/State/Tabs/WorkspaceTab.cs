@@ -172,11 +172,50 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
 
     public IReadOnlyList<ResultColumnPin> ResultPins { get; set; } = [];
 
+    /// <summary>
+    /// The script file the tab shows (WP-77): opened from the library or saved as a script. Saved only by "Save", never on
+    /// its own – an <c>AND …</c> for one run does not change the shared script.
+    /// </summary>
+    public Core.Scripts.ScriptLink? Script { get; set; }
+
+    /// <summary>A script from the library to insert at the cursor (<see cref="TabCommand.InsertScript"/>); not saved.</summary>
+    public Core.Scripts.ScriptEntry? PendingInsert { get; set; }
+
+    private (string Text, IReadOnlyList<Core.Query.SqlVariable> Variables, Core.Scripts.ScriptLink Link, bool Changed)? _changed;
+
+    /// <summary>
+    /// The tab's text or the types of its parameters differ from the linked file as last read or written: "●" beside the
+    /// title. Worked out again only when text, variables or link changed (the tab bar asks on every render).
+    /// </summary>
+    public bool ScriptChanged
+    {
+        get
+        {
+            if (Script is not { } link)
+            {
+                return false;
+            }
+
+            if (_changed is not { } cached || !ReferenceEquals(cached.Text, Text) || !ReferenceEquals(cached.Variables, Variables) || cached.Link != link)
+            {
+                _changed = cached = (Text, Variables, link, link.IsChanged(Text, Variables));
+            }
+
+            return cached.Changed;
+        }
+    }
+
     public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
-        TabState.OfSql(new SqlTabState(Title, Text, Variables, EditorHeight)) with { Form = FormTabs.Save(this), ResultPins = ResultPins.Count > 0 ? ResultPins : null };
+        TabState.OfSql(new SqlTabState(Title, Text, Variables, EditorHeight) { Script = Script }) with { Form = FormTabs.Save(this), ResultPins = ResultPins.Count > 0 ? ResultPins : null };
 
     public static SqlTab Restore(Guid workspaceId, SqlTabState state, FormTabState? form = null, IReadOnlyList<ResultColumnPin>? pins = null) =>
-        new SqlTab(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables, EditorHeight = state.EditorHeight, ResultPins = pins ?? [] }.WithForm(form);
+        new SqlTab(workspaceId, state.Title)
+        {
+            Text = state.Text, Variables = state.Variables, EditorHeight = state.EditorHeight, ResultPins = pins ?? [],
+
+            // A link from a workspace file edited by hand without path or header would break the tab bar (review WP-77, K2).
+            Script = state.Script is { IsComplete: true } link ? link : null,
+        }.WithForm(form);
 }
 
 /// <summary>
