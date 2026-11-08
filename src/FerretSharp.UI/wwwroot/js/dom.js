@@ -444,7 +444,10 @@ const focusable = 'a[href], button:not([disabled]), input:not([disabled]), selec
 
 /** Tab and Shift+Tab stay inside the dialog box (review 3.40.0, A15): they went on to the buttons behind the backdrop, and
  *  Enter there committed from the status bar while a confirmation was open. Tab inside Monaco or a grid that handles it
- *  stays theirs. The listener is on the backdrop and goes with it. */
+ *  stays theirs. A press that starts in the box and ends on the backdrop (selecting text past the edge) is no click on
+ *  the backdrop: Chromium sends its click to the common ancestor, and a dialog that closes on a click outside closed
+ *  (review of the server load dialog) – the click stops at the backdrop, before Blazor's listener on the document.
+ *  The listeners are on the backdrop and go with it. */
 export function trapFocus(box) {
   const backdrop = box?.parentElement;
   if (!backdrop || backdrop._focusTrap) {
@@ -452,6 +455,15 @@ export function trapFocus(box) {
   }
 
   backdrop._focusTrap = true;
+  let pressedInBox = false;
+  backdrop.addEventListener('pointerdown', e => { pressedInBox = box.contains(e.target); });
+  backdrop.addEventListener('click', e => {
+    if (e.target === backdrop && pressedInBox) {
+      e.stopPropagation();
+    }
+
+    pressedInBox = false;
+  });
   backdrop.addEventListener('keydown', e => {
     if (e.key !== 'Tab' || e.defaultPrevented || e.target.closest?.('.monaco-editor')) {
       return;

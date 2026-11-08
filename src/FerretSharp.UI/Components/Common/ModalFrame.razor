@@ -63,6 +63,9 @@
         }
     }
 
+    /// <summary>Puts the focus back on the dialog box, e.g. when the focused button inside was disabled (it drops it to the page).</summary>
+    public ValueTask FocusAsync() => _box.FocusAsync();
+
     public ValueTask DisposeAsync() => _dom?.DisposeAsync() ?? ValueTask.CompletedTask;
 
     /// <summary>A click outside either closes or keeps the focus in the dialog – otherwise it lands on the page, and Escape is lost.</summary>

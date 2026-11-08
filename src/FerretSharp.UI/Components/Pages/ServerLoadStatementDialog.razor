@@ -16,7 +16,7 @@
     var text = view.FullText ?? view.KeptText ?? row?.Info?.Text;
     var whole = view.FullText ?? (row?.Info is { MayBeCut: false, Text: { } shortText } && !view.CursorLoading ? shortText : null);
 }
-<ModalFrame Label="@TextFormat.Format(ServerLoadText.ServerLoad_DetailLabel, sqlId)" Class="load-statement-dialog" OnCancel="OnClose"
+<ModalFrame @ref="_frame" Label="@TextFormat.Format(ServerLoadText.ServerLoad_DetailLabel, sqlId)" Class="load-statement-dialog" OnCancel="OnClose"
             CloseOnBackdrop="true" FocusOnOpen="true">
     <header>
         <span class="load-dialog-title">
@@ -145,6 +145,27 @@
     /// <summary>Show another statement of the list.</summary>
     [Parameter]
     public EventCallback<string?> OnSelect { get; set; }
+
+    private ModalFrame? _frame;
+
+    /// <summary>Whether ↑ and ↓ could step at the last render.</summary>
+    private (bool Previous, bool Next) _could;
+
+    /// <summary>
+    /// A focused ↑ or ↓ that turns disabled (the end of the list reached, the statement gone from the window) drops the focus
+    /// to the page: Escape and the Tab trap of the dialog no longer reached it (review, reproduced with real clicks). The box
+    /// takes it back.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var (previous, next) = ServerLoadView.Neighbours(Rows, View.Selected);
+        var lost = (_could.Previous && previous is null) || (_could.Next && next is null);
+        _could = (previous is not null, next is not null);
+        if (!firstRender && lost && _frame is not null)
+        {
+            await _frame.FocusAsync();
+        }
+    }
 
     private bool IsOpen(StatementPart part) => Load.OpenParts.Contains(part);
 
