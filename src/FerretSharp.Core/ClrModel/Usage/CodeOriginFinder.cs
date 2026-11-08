@@ -32,7 +32,24 @@ public sealed record CodeOriginReason(CodeOriginReasonKind Kind, string Table, I
 /// <summary>A method that may have sent the statement, with the place to jump to and why it fits.</summary>
 /// <param name="Use">The first matching use in the method (by line): its file and line are the place shown.</param>
 /// <param name="Score">Higher fits better; only the order counts, not the number.</param>
-public sealed record CodeOriginCandidate(string CallerType, string CallerMethod, CodeUsage Use, int Score, IReadOnlyList<CodeOriginReason> Reasons);
+/// <param name="Fit">How much of the statement the method covers: what is shown of how well it fits.</param>
+public sealed record CodeOriginCandidate(
+    string CallerType, string CallerMethod, CodeUsage Use, int Score, IReadOnlyList<CodeOriginReason> Reasons, CodeOriginFit Fit);
+
+/// <summary>
+/// How much of a statement a candidate covers (proposal, not confirmed): of its features – each table of the model, each
+/// column a table is filtered by, for DML each column it sets – those the method touches, filters by or writes. Unlike the
+/// score it reads as a share; the order stays the score's.
+/// </summary>
+/// <param name="Missing">The features it does not cover, as reasons: a table (<see cref="CodeOriginReasonKind.Queries"/>),
+/// filter columns, set columns.</param>
+/// <param name="Extra">What the method has that the statement does not: filter columns (<c>TABLE.COLUMN</c>) and navigations
+/// it follows in a query (<c>Entity.Navigation</c>), sorted.</param>
+public sealed record CodeOriginFit(int Matched, int Total, IReadOnlyList<CodeOriginReason> Missing, IReadOnlyList<string> Extra)
+{
+    /// <summary>Matched of total, 0 to 1.</summary>
+    public double Share => Total == 0 ? 0 : (double)Matched / Total;
+}
 
 /// <param name="Tables">The statement's tables that belong to the C# model; empty: the statement is none of the code's.</param>
 /// <param name="Candidates">Best first.</param>
@@ -408,8 +425,10 @@ public static class CodeOriginFinder
         public CodeOriginCandidate? ToCandidate(List<StatementTable> tables, bool dml)
         {
             var reasons = new List<CodeOriginReason>();
+            var missing = new List<CodeOriginReason>();
             var score = 0;
             var touched = 0;
+            var (matched, total) = (0, 0);
             foreach (var table in tables)
             {
                 var touches = false;
@@ -453,11 +472,27 @@ public static class CodeOriginFinder
                 else
                 {
                     score += UntouchedScore;
+                    missing.Add(new CodeOriginReason(CodeOriginReasonKind.Queries, table.Name, []));
+                }
+
+                // The fit: the table, its filter columns and, for DML, the columns of the model it sets.
+                var settable = dml ? table.Set.Where(table.HasColumn).Order(StringComparer.Ordinal).ToList() : [];
+                matched += (touches ? 1 : 0) + filtered.Count + written.Count(settable.Contains);
+                total += 1 + table.Filters.Count + settable.Count;
+                if (table.Filters.Except(filtered).ToList() is { Count: > 0 } unfiltered)
+                {
+                    missing.Add(new CodeOriginReason(CodeOriginReasonKind.Filters, table.Name, unfiltered));
+                }
+
+                if (settable.Except(written).ToList() is { Count: > 0 } unwritten)
+                {
+                    missing.Add(new CodeOriginReason(CodeOriginReasonKind.Writes, table.Name, unwritten));
                 }
             }
 
             score += MismatchScore * Mismatches.Count;
-            return touched > 0 && score > 0 && _first is not null ? new CodeOriginCandidate(type, name, _first, score, reasons) : null;
+            var fit = new CodeOriginFit(matched, total, missing, [.. Mismatches.Order(StringComparer.Ordinal)]);
+            return touched > 0 && score > 0 && _first is not null ? new CodeOriginCandidate(type, name, _first, score, reasons, fit) : null;
         }
     }
 }
