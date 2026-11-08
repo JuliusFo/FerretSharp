@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+See what changed in the database since a point in time – new, changed and deleted rows of the tables you choose, whoever changed them.
+
+### Added
+- *Data diff*: *Start comparison* in a workspace's menu remembers the database's state now; *Compare* later shows, in the tab *Data diff*, which rows of the chosen tables are new, changed or deleted since – also those your app, a job or a colleague changed and committed. The database compares the state now with the state at the start (a flashback query with `MINUS`), so only the rows that differ come over the line; a changed cell is marked and shows its value at the start in its tooltip, *Only changed columns* hides the others. The table of the active tab joins with its filter when you start; *Compare this tab* in a tab's menu adds another (or takes its new filter), *+ Table* in the diff tab a whole table. The start point stays with the workspace across restarts (only the database's change number and the tables, never values); the results are kept in memory only. A chip on the workspace shows the start time and compares on a click.
+- The comparison reads in a session of its own, never the workspace's: it sees what is committed, not your uncommitted changes, and does not wait behind your statements. It reaches back as far as the database's undo does (often a few hours); tables of other owners need the right `FLASHBACK`, and both are explained if they stop a comparison. At most 10,000 differing rows per table are shown. A table without primary key is compared by ROWID. LONG, XMLTYPE and object columns are not compared; CLOBs by their first 200 characters and length, BLOBs by length.
+
 ## [3.65.1] - 2026-11-08
 
 The right-click menu of the code editors looks like a menu again and saves the selection as a script; the script dialog's description box shows two lines.

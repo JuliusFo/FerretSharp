@@ -16,7 +16,7 @@
     }
     @if (Diff.Truncated)
     {
-        <span class="faint">+</span>
+        <span class="faint" title="@TextFormat.Format(ShellText.DataDiff_Truncated, DataDiff.MaxRows)">…</span>
     }
 </span>
 

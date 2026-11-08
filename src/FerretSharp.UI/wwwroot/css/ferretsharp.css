@@ -2226,3 +2226,4 @@ table.diff th.diff-status { z-index: 2; background: var(--grid-header); }
 table.diff tr.deleted td:not(.diff-status) { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
 table.diff td.cell-changed { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
 table.diff i.null { color: var(--faint); font-style: italic; }
+table.diff th.num, table.diff td.num { text-align: right; }

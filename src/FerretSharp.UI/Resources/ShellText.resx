@@ -1402,4 +1402,16 @@
     <value>{0} new, {1} changed, {2} deleted</value>
     <comment>{0}-{2} = rows</comment>
   </data>
+  <data name="DataDiff_KindAdded" xml:space="preserve">
+    <value>new</value>
+    <comment>Status of a row in the data diff</comment>
+  </data>
+  <data name="DataDiff_KindChanged" xml:space="preserve">
+    <value>changed</value>
+    <comment>Status of a row in the data diff</comment>
+  </data>
+  <data name="DataDiff_KindDeleted" xml:space="preserve">
+    <value>deleted</value>
+    <comment>Status of a row in the data diff</comment>
+  </data>
 </root>

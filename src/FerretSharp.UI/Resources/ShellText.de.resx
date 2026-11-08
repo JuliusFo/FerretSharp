@@ -1143,4 +1143,13 @@
   <data name="DataDiff_CountsTitle" xml:space="preserve">
     <value>{0} neu, {1} geändert, {2} gelöscht</value>
   </data>
+  <data name="DataDiff_KindAdded" xml:space="preserve">
+    <value>neu</value>
+  </data>
+  <data name="DataDiff_KindChanged" xml:space="preserve">
+    <value>geändert</value>
+  </data>
+  <data name="DataDiff_KindDeleted" xml:space="preserve">
+    <value>gelöscht</value>
+  </data>
 </root>

@@ -202,18 +202,21 @@
         var presentation = Presentations.For(diff.Table);
         var columns = DataDiffRows.Columns(diff, _onlyChanged);
         var rows = DataDiffRows.Rows(diff, _status).ToList();
-        <div class="diff-rows-head">
-            <div class="segmented small" role="group">
-                <button class="seg @(_status is null ? "active" : "")" @onclick="() => _status = null">@TextFormat.Format(ShellText.DataDiff_All, diff.Rows.Count)</button>
-                <button class="seg @(_status == DiffStatus.Added ? "active" : "")" @onclick="() => _status = DiffStatus.Added">@TextFormat.Format(ShellText.DataDiff_Added, diff.Count(DiffStatus.Added))</button>
-                <button class="seg @(_status == DiffStatus.Changed ? "active" : "")" @onclick="() => _status = DiffStatus.Changed">@TextFormat.Format(ShellText.DataDiff_Changed, diff.Count(DiffStatus.Changed))</button>
-                <button class="seg @(_status == DiffStatus.Deleted ? "active" : "")" @onclick="() => _status = DiffStatus.Deleted">@TextFormat.Format(ShellText.DataDiff_Deleted, diff.Count(DiffStatus.Deleted))</button>
+        @if (diff.Rows.Count > 0)
+        {
+            <div class="diff-rows-head">
+                <div class="segmented small" role="group">
+                    <button class="seg @(_status is null ? "active" : "")" @onclick="() => _status = null">@TextFormat.Format(ShellText.DataDiff_All, diff.Rows.Count)</button>
+                    <button class="seg @(_status == DiffStatus.Added ? "active" : "")" @onclick="() => _status = DiffStatus.Added">@TextFormat.Format(ShellText.DataDiff_Added, diff.Count(DiffStatus.Added))</button>
+                    <button class="seg @(_status == DiffStatus.Changed ? "active" : "")" @onclick="() => _status = DiffStatus.Changed">@TextFormat.Format(ShellText.DataDiff_Changed, diff.Count(DiffStatus.Changed))</button>
+                    <button class="seg @(_status == DiffStatus.Deleted ? "active" : "")" @onclick="() => _status = DiffStatus.Deleted">@TextFormat.Format(ShellText.DataDiff_Deleted, diff.Count(DiffStatus.Deleted))</button>
+                </div>
+                <label class="check" title="@ShellText.DataDiff_OnlyChangedColumnsTitle">
+                    <input type="checkbox" checked="@_onlyChanged" @onchange="e => _onlyChanged = e.Value is true" />
+                    @ShellText.DataDiff_OnlyChangedColumns
+                </label>
             </div>
-            <label class="check" title="@ShellText.DataDiff_OnlyChangedColumnsTitle">
-                <input type="checkbox" checked="@_onlyChanged" @onchange="e => _onlyChanged = e.Value is true" />
-                @ShellText.DataDiff_OnlyChangedColumns
-            </label>
-        </div>
+        }
         @if (diff.Truncated)
         {
             <div class="diff-notice warn">@TextFormat.Format(ShellText.DataDiff_Truncated, DataDiff.MaxRows)</div>
@@ -244,7 +247,7 @@
                             @foreach (var c in columns)
                             {
                                 var label = presentation.LabelOf(c);
-                                <th title="@(label.AlternateName is { } other ? $"{label.Name} · {other}" : label.Name)">@label.Name</th>
+                                <th class="@NumClass(diff, c)" title="@(label.AlternateName is { } other ? $"{label.Name} · {other}" : label.Name)">@label.Name</th>
                             }
                         </tr>
                     </thead>
@@ -258,11 +261,11 @@
                                     if (row.Changed.Contains(c))
                                     {
                                         var before = presentation.Present(c, row.Then!.Values[c]).Text;
-                                        <td class="cell-changed" title="@TextFormat.Format(ShellText.DataDiff_Before, before ?? "NULL")">@Cell(text)</td>
+                                        <td class="cell-changed @NumClass(diff, c)" title="@TextFormat.Format(ShellText.DataDiff_Before, before ?? "NULL")">@Cell(text)</td>
                                     }
                                     else
                                     {
-                                        <td>@Cell(text)</td>
+                                        <td class="@NumClass(diff, c)">@Cell(text)</td>
                                     }
                                 }
                             </tr>
@@ -272,6 +275,9 @@
             </div>
         }
     };
+
+    /// <summary>Numbers stand right, as in the grid.</summary>
+    private static string NumClass(TableDiff diff, int column) => ColumnCategories.Of(diff.Table.Columns[column]) == ColumnCategory.Number ? "num" : "";
 
     private static RenderFragment Cell(string? text) => text is null ? @<i class="null">NULL</i> : @<text>@text</text>;
 
@@ -284,8 +290,8 @@
 
     private static string StatusLabel(DiffStatus status) => status switch
     {
-        DiffStatus.Added => ShellText.Changes_KindNew,
-        DiffStatus.Deleted => ShellText.Changes_KindDeleted,
-        _ => ShellText.Changes_KindChanged,
+        DiffStatus.Added => ShellText.DataDiff_KindAdded,
+        DiffStatus.Deleted => ShellText.DataDiff_KindDeleted,
+        _ => ShellText.DataDiff_KindChanged,
     };
 }
