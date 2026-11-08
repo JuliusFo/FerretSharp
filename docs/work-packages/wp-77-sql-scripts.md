@@ -41,3 +41,30 @@ Entscheidungen des Nutzers (2026-11-08):
 - Umbenennen und Verschieben von Skripten im Explorer (Entscheidung: später).
 - Ein mit einem Gruppen-Skript verbundener Tab findet nach dem Umbenennen der Gruppe seinen Ordner nicht mehr (bietet „Speichern unter“ an).
 - `@param` kennt kein „national“ (NVARCHAR2-Binds); ein solcher Parameter wird als `text` gespeichert.
+
+## Nachtrag: Code-Review (2026-11-08)
+Review per `/branch-code-review` (eigener Reviewer-Agent, Befunde nachgeprüft). Entscheidung des Nutzers: „Alle beheben“.
+1. S Die Temp-Datei beim Schreiben hieß fest `x.sql.tmp`: Ein Link dieses Namens im geteilten Ordner leitete den Skripttext in eine Datei außerhalb, und `x.sql` wurde selbst zum Link; eine eigene Datei `x.sql.tmp` wurde ersetzt. **Behoben:** Schreiben über `AtomicFile.WriteInUserFolderAsync` (eigener Temp-Name, `CreateNew`, nach dem zweiten Durchgang statt `WriteExportAsync`), Test mit Link und Nutzerdatei.
+2. M Der „●“ erschien direkt nach dem Öffnen (Datei ohne Kopf, Parameter in anderer Reihenfolge oder Schreibweise), ein Pull fragte statt still neu zu laden. **Behoben:** geändert heißt Rumpf anders oder ein `@param` der Datei hat eine Variable anderen Typs; Tests.
+3. M Ein Laufwerk als Skriptordner (`S:\`) lehnte jedes Skript ab. **Behoben** (`ScriptPaths.Below`), Test.
+4. M (Verdacht) Stilles Neuladen konnte währenddessen Getipptes überschreiben. Nicht reproduziert (braucht eine langsame Freigabe), der Fehler ist aus dem Code eindeutig: **behoben** – Entscheidung auf dem aktuellen Editortext, nach dem Lesen erneut verglichen, sonst Hinweis. Im E2E nur der normale stille Weg geprüft.
+5. M Die Liste staute bei hängender Freigabe einen Lauf alle 10 s auf, las beliebig viele Einträge, Speichern wartete auf alle Ordner, der Baum war quadratisch. **Behoben:** 10.000 Einträge je Ordner, kein Warten nach dem Speichern, Baum über Lookups; das Lesen je Ordner siehe zweiter Durchgang (17–19).
+6. K Kopfzeilen aus einer von Hand geänderten Workspace-Datei gingen als SQL ins Skript. **Behoben:** nur `-- @…`-Zeilen, Test.
+7. K (Verdacht) Ein Link ohne Pfad oder Kopf in der Workspace-Datei brach die Tab-Leiste. Mit Test reproduziert, **behoben** (`ScriptLink.IsComplete`).
+8. K „Im Datei-Explorer zeigen“ prüfte den Pfad im UI-Thread. **Behoben** (`Task.Run`).
+9. K Gruppenpfad in Anführungszeichen blieb auf „lädt“. **Behoben** (`PathInput.Normalize` auch in `ScriptRoots.For`).
+10. K Skriptnamen über 40 Zeichen passten nicht als Tab-Titel. **Behoben** (`Workspace.FitName`), Tests.
+11. K `FileReveal`: Pfad mit `"` und `explorer.exe` ohne vollen Pfad. **Behoben.** Ohne Test (App-Dienst).
+12. K Junction-Test fehlte. **Ergänzt** (läuft ohne Entwicklermodus).
+13. K Der Speichern-Dialog rechnete die Parameter bei jedem Tastendruck. **Behoben** (`ScriptSaveDraft.Parameters`), Name-Fehler auch nach Verlassen des Feldes.
+14. K Ein in der 16-KB-Grenze zerschnittenes UTF-8-Zeichen machte den Kopf zu Windows-1252. **Behoben** (`ScriptFiles.DecodeHead`), Test.
+15. K Speichern legte einen fehlenden geteilten Ordner neu an. **Behoben:** nur der persönliche wird angelegt, Test.
+16. K (Verdacht) Ein unlesbarer Ordner machte die ganze Wurzel unlesbar. **Nicht reproduziert:** Ein Ordner ohne Leserecht wird dank `IgnoreInaccessible` schon übersprungen (Test mit verweigernder ACL grün ohne Änderung) – Code unverändert, der Test bleibt.
+- Dazu aus dem E2E nach den Fixes: Ein Skript-Tab ohne eigene Änderungen schließt ohne Rückfrage (die Frage „Text geht verloren“ kam für jeden SQL-Tab mit Text); mit Änderungen fragt er wie bisher.
+- Zweiter Durchgang (derselbe Reviewer, nur die Fix-Commits): alle 16 Fixes decken ihren Befund, die Tests scheitern ohne sie (K11 ausgenommen, s. o.). Neue Befunde, Entscheidung des Nutzers: alle beheben, die Altlasten gleich mit („Okay, mach das so.“ auf den Vorschlag, sie hier mitzunehmen).
+  17. M (vorher schon da) Nach dem Speichern lief der Rest des Neulesens im UI-Thread: `Directory.Exists` und neue Watcher, auch für eine hängende Freigabe. **Behoben:** `ConfigureAwait(false)`, Watcher je Ordner nach dessen Lesen im Threadpool; ein kaputter Watcher wird verworfen und beim nächsten Lesen neu angelegt.
+  18. K Eine Anfrage kurz vor dem Freigeben der Sperre ging verloren. 19. K Eine hängende Freigabe hielt weiter das Lesen aller Ordner auf. **Behoben** zusammen: je Ordner „läuft schon / noch einmal“ statt einer Sperre für alle; Test mit festgehaltenem Lesen (scheitert mit der alten Sperre).
+  20. K Folge des E2E-Fixes: Getipptes, das Monaco noch nicht gemeldet hatte (250 ms), ging beim sofortigen Schließen eines unveränderten Skript-Tabs ohne Rückfrage verloren. **Behoben:** `monaco.js` merkt sich Editoren mit ausstehender Eingabe, `shortcuts.js typing()` meldet sie beim Schließen (Kürzel und ✕) wie eine Zelle in Bearbeitung; im E2E geprüft (sofort schließen fragt, unverändert schließt still).
+  21. K Gruppenordner aus nur Anführungszeichen ergab einen Ordner ohne Pfad (Absturz beim Rendern). **Behoben**, Test. 22. K Eine `null`-Zeile im Kopf einer Workspace-Datei überstand das Wiederherstellen. **Behoben**, Test.
+  23. K (Verdacht) Die exklusive Vorprüfung von `WriteExportAsync` ließ das Speichern scheitern, während jemand die Datei liest. **Verworfen:** Unter Windows scheitert das Ersetzen (`File.Move`) bei einem offenen Leser ohnehin, auch mit `FileShare.Delete` – im Test nachgestellt; die Vorprüfung ist nicht die Ursache. Die neue Variante `WriteInUserFolderAsync` prüft trotzdem nicht vorher (für sofort geschriebene Dateien unnötig).
+  - Altlast, gleich behoben: Anzeigespalten (`display-columns.json`) und Ausnahmen des Berichts schrieben in geteilte Ordner ebenfalls über einen festen Namen `….tmp` (gleiche Falle wie Punkt 1). Jetzt über `AtomicJsonFile.WriteInUserFolderAsync`; die bestehenden Tests prüfen, dass eine Datei `….tmp` des Nutzers bleibt.
