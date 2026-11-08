@@ -121,7 +121,7 @@ public static class ScriptPaths
 
         var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         var full = Path.GetFullPath(Path.Combine([fullRoot, .. parts]));
-        if (!full.StartsWith(fullRoot + Path.DirectorySeparatorChar, PathComparison))
+        if (!full.StartsWith(Below(fullRoot), PathComparison))
         {
             throw new RefusedException(TextFormat.Format(ScriptText.PathOutsideRoot, relative, root));
         }
@@ -143,12 +143,19 @@ public static class ScriptPaths
     /// <summary>The relative path of <paramref name="full"/> below <paramref name="root"/>, with <c>/</c>; null if it is not below it.</summary>
     public static string? RelativeOf(string root, string full)
     {
-        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var prefix = Below(Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)));
         var path = Path.GetFullPath(full);
-        return path.StartsWith(fullRoot + Path.DirectorySeparatorChar, PathComparison)
-            ? path[(fullRoot.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/')
+        return path.StartsWith(prefix, PathComparison) && path.Length > prefix.Length
+            ? path[prefix.Length..].Replace(Path.DirectorySeparatorChar, '/')
             : null;
     }
+
+    /// <summary>
+    /// What every path below <paramref name="fullRoot"/> starts with: the root and a separator – a drive keeps its own
+    /// (<c>S:\</c>), which <see cref="Path.TrimEndingDirectorySeparator(string)"/> does not remove (review WP-77, M2).
+    /// </summary>
+    private static string Below(string fullRoot) =>
+        Path.EndsInDirectorySeparator(fullRoot) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
 
     /// <summary>
     /// A file or folder that is a symbolic link or junction; false for one that does not exist. Other reparse points (files

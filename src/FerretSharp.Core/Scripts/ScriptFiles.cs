@@ -77,18 +77,29 @@ public static class ScriptFiles
 
     /// <summary>
     /// Writes the script: header and body (<see cref="ScriptHeaders.Compose"/>) in the file's encoding and line breaks.
-    /// Creates missing folders below the root.
+    /// Creates missing folders below the root, the root itself only with <paramref name="createRoot"/>.
     /// </summary>
     /// <param name="expectedHash">For <see cref="ScriptWriteMode.Update"/>: the file as read when the tab opened it.</param>
+    /// <param name="createRoot">
+    /// The root may be created (the personal folder). A shared folder that is gone (repository moved) is refused, not
+    /// created anew empty (review WP-77, K10).
+    /// </param>
     /// <exception cref="RefusedException">The path is refused, the text does not fit the file's encoding, or writing failed.</exception>
     public static Task<ScriptWrite> WriteAsync(
-        string root, string relative, ScriptHeader header, string body, ScriptWriteMode mode, string? expectedHash, CancellationToken cancellationToken) =>
-        Task.Run(() => WriteCoreAsync(root, relative, header, body, mode, expectedHash, cancellationToken), cancellationToken);
+        string root, string relative, ScriptHeader header, string body, ScriptWriteMode mode, string? expectedHash, CancellationToken cancellationToken,
+        bool createRoot = false) =>
+        Task.Run(() => WriteCoreAsync(root, relative, header, body, mode, expectedHash, createRoot, cancellationToken), cancellationToken);
 
     private static async Task<ScriptWrite> WriteCoreAsync(
-        string root, string relative, ScriptHeader header, string body, ScriptWriteMode mode, string? expectedHash, CancellationToken cancellationToken)
+        string root, string relative, ScriptHeader header, string body, ScriptWriteMode mode, string? expectedHash, bool createRoot,
+        CancellationToken cancellationToken)
     {
         var path = ScriptPaths.Resolve(root, relative);
+        if (!createRoot && !Directory.Exists(root))
+        {
+            throw new RefusedException(TextFormat.Format(ScriptText.FolderMissing, root));
+        }
+
         var existing = await ReadBytesAsync(path, relative, cancellationToken);
         switch (mode)
         {
@@ -112,7 +123,9 @@ public static class ScriptFiles
 
         try
         {
-            await AtomicFile.WriteAsync(path, async (stream, ct) =>
+            // A temporary file of its own name (review WP-77, S1): with the fixed "x.sql.tmp" a link of that name in a shared
+            // folder had the script written through it to a file outside, and a file of the user's of that name was replaced.
+            await AtomicFile.WriteExportAsync(path, async (stream, ct) =>
             {
                 await stream.WriteAsync(bytes, ct);
                 return true;
@@ -147,6 +160,38 @@ public static class ScriptFiles
 
     /// <summary>The hash of a text with its line breaks as <c>\n</c> – what a tab compares to see whether it was changed.</summary>
     public static string HashOf(string text) => HashOf(Encoding.UTF8.GetBytes(text.ReplaceLineEndings("\n")));
+
+    /// <summary>
+    /// The text of the first bytes of a file (the header of a script in the list). <paramref name="cut"/>: more follows, so
+    /// a UTF-8 character cut at the end is left out first – it made the whole head read as Windows-1252 (review WP-77, K9).
+    /// </summary>
+    public static string DecodeHead(byte[] head, bool cut)
+    {
+        ArgumentNullException.ThrowIfNull(head);
+        var length = head.Length;
+        if (cut)
+        {
+            // The last lead byte within the last four: if its character needs more bytes than are there, it was cut.
+            for (var i = length - 1; i >= Math.Max(0, length - 4); i--)
+            {
+                var b = head[i];
+                if ((b & 0xC0) == 0x80)
+                {
+                    continue; // a continuation byte
+                }
+
+                var needs = b >= 0xF0 ? 4 : b >= 0xE0 ? 3 : b >= 0xC0 ? 2 : 1;
+                if (i + needs > length)
+                {
+                    length = i;
+                }
+
+                break;
+            }
+        }
+
+        return Decode(head[..length]).Text;
+    }
 
     /// <summary>The text of a file's bytes: by its BOM, else UTF-8 if it is valid UTF-8, else Windows-1252.</summary>
     public static (string Text, Encoding Encoding) Decode(byte[] bytes)

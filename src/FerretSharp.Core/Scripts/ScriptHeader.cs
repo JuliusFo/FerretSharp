@@ -126,7 +126,10 @@ public static partial class ScriptHeaders
         ArgumentNullException.ThrowIfNull(header);
         ArgumentNullException.ThrowIfNull(body);
         body = body.ReplaceLineEndings("\n");
-        if (header.IsEmpty)
+        // Only lines that are header lines: one from a workspace file edited by hand ("GRANT …") would end up as SQL in the
+        // shared script (review WP-77, K1).
+        var other = header.Other.Select(OneLine).Where(l => Directive().IsMatch(l)).ToList();
+        if (string.IsNullOrWhiteSpace(header.Description) && header.Parameters.Count == 0 && other.Count == 0)
         {
             return body;
         }
@@ -145,9 +148,9 @@ public static partial class ScriptHeaders
             text.Append("-- @param ").Append(ParameterName(parameter.Name)).Append(' ').Append(TypeName(parameter.Type)).Append('\n');
         }
 
-        foreach (var line in header.Other)
+        foreach (var line in other)
         {
-            text.Append(OneLine(line)).Append('\n');
+            text.Append(line).Append('\n');
         }
 
         // A body that starts with a blank line would lose it on the next read: the blank line after the header is the header's.

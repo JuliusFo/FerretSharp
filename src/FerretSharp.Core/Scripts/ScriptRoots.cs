@@ -44,7 +44,8 @@ public static class ScriptRoots
         var roots = new List<ScriptRoot> { Personal(settings, defaultPersonal) };
         if (AuditTemplateSource.GroupEntry(settings.SqlScriptsGroups, profile?.Group) is { } entry)
         {
-            roots.Add(new ScriptRoot(ScriptRootKind.Group, entry.Value.Trim(), entry.Key));
+            // As All() does (review WP-77, K4): a path in quotes otherwise named another root than the one the library reads.
+            roots.Add(new ScriptRoot(ScriptRootKind.Group, PathInput.Normalize(entry.Value)!, entry.Key));
         }
 
         if (PathInput.Normalize(settings.SqlScriptsGeneralPath) is { } general)

@@ -63,6 +63,45 @@ public sealed class ScriptPathsTests : IDisposable
         Assert.Throws<RefusedException>(() => ScriptPaths.Resolve(root, "linked/new.sql")); // also for a file that does not exist yet
     }
 
+    /// <summary>Review WP-77, M2: a drive (a mapped share, <c>S:\</c>) as the folder refused every script below it.</summary>
+    [Fact]
+    public void A_drive_root_can_be_the_folder()
+    {
+        var drive = Path.GetPathRoot(_folder.Path)!;
+
+        Assert.Equal(Path.Combine(drive, "x.sql"), ScriptPaths.Resolve(drive, "x.sql"));
+        Assert.Equal("x.sql", ScriptPaths.RelativeOf(drive, Path.Combine(drive, "x.sql")));
+    }
+
+    /// <summary>Review WP-77, K7: a junction needs no rights on Windows – unlike a symbolic link, whose test is often skipped.</summary>
+    [Fact]
+    public void A_junction_below_the_root_is_not_followed()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Junctions exist only on Windows.");
+        }
+
+        var outside = _folder.Combine("outside");
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "secret.sql"), "SELECT 1 FROM dual");
+        var root = _folder.Combine("root");
+        Directory.CreateDirectory(root);
+        using (var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe")
+               {
+                   ArgumentList = { "/c", "mklink", "/J", Path.Combine(root, "joined"), outside },
+                   UseShellExecute = false,
+                   RedirectStandardOutput = true,
+                   CreateNoWindow = true,
+               })!)
+        {
+            mklink.WaitForExit();
+            Assert.Equal(0, mklink.ExitCode);
+        }
+
+        Assert.Throws<RefusedException>(() => ScriptPaths.Resolve(root, "joined/secret.sql"));
+    }
+
     [Theory]
     [InlineData("Open orders", null)]
     [InlineData("", "missing")]

@@ -129,5 +129,50 @@ public sealed class ScriptFilesTests : IDisposable
         Assert.True(File.Exists(_folder.Combine("outside.sql")));
     }
 
+    /// <summary>
+    /// Review WP-77, S1: the temporary file had the fixed name <c>x.sql.tmp</c> – a link of that name in a shared folder
+    /// had the script written through it to a file outside, and the move turned <c>x.sql</c> into that link. A file of the
+    /// user's of that name was replaced.
+    /// </summary>
+    [Fact]
+    public async Task Writing_never_goes_through_a_file_of_the_temporary_name()
+    {
+        await File.WriteAllTextAsync(_folder.Combine("mine.sql.tmp"), "my notes", Ct);
+        await ScriptFiles.WriteAsync(Root, "mine.sql", ScriptHeader.Empty, "SELECT 1 FROM dual", ScriptWriteMode.New, null, Ct);
+        Assert.Equal("my notes", await File.ReadAllTextAsync(_folder.Combine("mine.sql.tmp"), Ct));
+
+        var outside = _folder.Combine("outside.txt");
+        await File.WriteAllTextAsync(outside, "secret", Ct);
+        var root = _folder.Combine("root");
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.CreateSymbolicLink(Path.Combine(root, "x.sql.tmp"), outside);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip("Creating a symbolic link needs developer mode or admin rights on Windows.");
+        }
+
+        await ScriptFiles.WriteAsync(root, "x.sql", ScriptHeader.Empty, "SELECT 2 FROM dual", ScriptWriteMode.New, null, Ct);
+
+        Assert.Equal("secret", await File.ReadAllTextAsync(outside, Ct));
+        Assert.Null(new FileInfo(Path.Combine(root, "x.sql")).LinkTarget);
+    }
+
+    /// <summary>Review WP-77, K10: a shared folder that is gone (repository moved) was created anew by a save, empty.</summary>
+    [Fact]
+    public async Task A_missing_folder_is_created_only_where_allowed()
+    {
+        var gone = _folder.Combine("moved-repository");
+
+        await Assert.ThrowsAsync<RefusedException>(() =>
+            ScriptFiles.WriteAsync(gone, "a.sql", ScriptHeader.Empty, "SELECT 1 FROM dual", ScriptWriteMode.New, null, Ct));
+        Assert.False(Directory.Exists(gone));
+
+        await ScriptFiles.WriteAsync(gone, "a.sql", ScriptHeader.Empty, "SELECT 1 FROM dual", ScriptWriteMode.New, null, Ct, createRoot: true);
+        Assert.True(File.Exists(Path.Combine(gone, "a.sql")));
+    }
+
     public void Dispose() => _folder.Dispose();
 }
