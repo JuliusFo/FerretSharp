@@ -320,14 +320,6 @@
     <value>-{0} min</value>
     <comment>{0}: minutes before now at the left end of a time axis</comment>
   </data>
-  <data name="ServerLoad_AxisHalf" xml:space="preserve">
-    <value>50 %</value>
-    <comment>Chart: the dashed line at half of the host CPU</comment>
-  </data>
-  <data name="ServerLoad_AxisTop" xml:space="preserve">
-    <value>top {0}</value>
-    <comment>{0}: the value at the top of the chart</comment>
-  </data>
   <data name="ServerLoad_LookTimedOut" xml:space="preserve">
     <value>The server did not answer within {0} s; the next look opens a new session.</value>
     <comment>{0}: seconds</comment>
@@ -356,5 +348,25 @@
   <data name="ServerLoad_FullRead" xml:space="preserve">
     <value>Reading the figures of all statements again, as every hour …</value>
     <comment>Status while the page reads all cursors again (hourly); what was seen is kept</comment>
+  </data>
+  <data name="ServerLoad_DetailLabel" xml:space="preserve">
+    <value>Statement {0}</value>
+    <comment>{0} = SQL_ID; the label of the statement dialog</comment>
+  </data>
+  <data name="ServerLoad_Previous" xml:space="preserve">
+    <value>Previous statement in the list</value>
+  </data>
+  <data name="ServerLoad_Next" xml:space="preserve">
+    <value>Next statement in the list</value>
+  </data>
+  <data name="ServerLoad_PartSql" xml:space="preserve">
+    <value>SQL text</value>
+  </data>
+  <data name="ServerLoad_PartPlan" xml:space="preserve">
+    <value>Plan and figures since loaded</value>
+    <comment>Folding part of the statement dialog: V$SQL figures and the execution plan</comment>
+  </data>
+  <data name="ServerLoad_NotInList" xml:space="preserve">
+    <value>Not in the list as shown, so no figures from it.</value>
   </data>
 </root>

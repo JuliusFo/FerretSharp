@@ -130,6 +130,49 @@ public sealed class CodeOriginFinderTests
     }
 
     [Fact]
+    public void The_fit_counts_the_tables_and_filter_columns_a_method_covers_and_names_the_rest()
+    {
+        var result = CodeOriginFinder.Find(
+            """SELECT "o"."ID" FROM "ORDERS" "o" WHERE "o"."CUSTOMER_ID" = :id_0 AND "o"."STATUS" = :s""", null, Index());
+
+        var open = result.Candidates.Single(c => c.CallerMethod == "OpenOrders").Fit;
+        Assert.Equal((3, 3), (open.Matched, open.Total)); // the table and both filter columns
+        Assert.Equal(1, open.Share);
+        Assert.Empty(open.Missing);
+        Assert.Empty(open.Extra);
+
+        var byTotal = result.Candidates.Single(c => c.CallerMethod == "ByTotal").Fit;
+        Assert.Equal((1, 3), (byTotal.Matched, byTotal.Total));
+        var missing = Assert.Single(byTotal.Missing);
+        Assert.Equal((CodeOriginReasonKind.Filters, "ORDERS"), (missing.Kind, missing.Table));
+        Assert.Equal(["CUSTOMER_ID", "STATUS"], missing.Columns);
+        Assert.Equal(["ORDERS.TOTAL"], byTotal.Extra);
+
+        Assert.Equal(["Order.Customer"], result.Candidates.Single(c => c.CallerMethod == "WithCustomer").Fit.Extra);
+    }
+
+    [Fact]
+    public void The_fit_of_dml_counts_the_set_columns_and_a_table_not_touched_is_missing()
+    {
+        var index = Index(
+            Use("ShopContext", "Customers", CodeUseKind.Read, "FindCustomer", 65),
+            Use("Customer", "Id", CodeUseKind.Filter, "FindCustomer", 65));
+
+        var update = CodeOriginFinder.Find("""UPDATE "CUSTOMERS" SET "NAME" = :p0, "UNKNOWN" = 1 WHERE "ID" = :p1""", null, index);
+        var join = CodeOriginFinder.Find("""SELECT "o"."ID", "c"."NAME" FROM "ORDERS" "o" INNER JOIN "CUSTOMERS" "c" ON "o"."CUSTOMER_ID" = "c"."ID" """, null, index);
+
+        var rename = update.Candidates.Single(c => c.CallerMethod == "Rename").Fit;
+        Assert.Equal((2, 3), (rename.Matched, rename.Total)); // table, ID, NAME – UNKNOWN is no column of the model
+        Assert.Equal(["ID"], Assert.Single(rename.Missing).Columns);
+        var find = update.Candidates.Single(c => c.CallerMethod == "FindCustomer").Fit;
+        Assert.Equal((CodeOriginReasonKind.Writes, "CUSTOMERS", "NAME"), (find.Missing[0].Kind, find.Missing[0].Table, find.Missing[0].Columns.Single()));
+
+        var byTotal = join.Candidates.Single(c => c.CallerMethod == "ByTotal").Fit;
+        Assert.Equal((1, 2), (byTotal.Matched, byTotal.Total));
+        Assert.Equal((CodeOriginReasonKind.Queries, "CUSTOMERS"), (byTotal.Missing[0].Kind, byTotal.Missing[0].Table));
+    }
+
+    [Fact]
     public void A_text_longer_than_the_limit_is_read_from_its_start()
     {
         // STATUS after the limit: read, it would make OpenOrders filter like the statement (second pass of review WP-76).

@@ -244,6 +244,61 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.Null(view.CursorError);
     }
 
+    /// <summary>
+    /// Review of the statement dialog: each step through it queued a lookup at the session's gate, and all were waited for;
+    /// the same statement chosen again had its spinner cleared by the end of the first lookup.
+    /// </summary>
+    [Fact]
+    public async Task A_new_choice_cancels_the_lookup_before_and_its_end_leaves_the_new_one_alone()
+    {
+        await _service.ShowAsync(_profile);
+        await ParkedAsync();
+        var firstStarted = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource<Core.Query.CursorInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        _connection.Schema.GetCursorByIdAsync("abc", Arg.Any<CancellationToken>()).Returns(async call =>
+        {
+            if (Interlocked.Increment(ref calls) > 1)
+            {
+                return await second.Task;
+            }
+
+            var token = call.Arg<CancellationToken>();
+            firstStarted.SetResult(token);
+            await Task.Delay(Timeout.Infinite, token); // a lookup hanging at the gate until cancelled
+            return null;
+        });
+        _reader.ReadFullTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((StatementText?)null);
+
+        var first = _service.SelectAsync(_profile, "abc");
+        var firstToken = await firstStarted.Task;
+        var again = _service.SelectAsync(_profile, "abc");
+        await first.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken); // without the cancel it ends only with the lookup's 30 s limit
+
+        var view = _service.For(_profile.Id);
+        Assert.True(firstToken.IsCancellationRequested);
+        Assert.True(view.CursorLoading); // still the second lookup's spinner
+        Assert.Null(view.CursorError);
+
+        second.SetResult(null);
+        await again;
+        Assert.False(view.CursorLoading);
+        Assert.NotNull(view.CursorError); // not in the pool: the second one's result
+    }
+
+    [Fact]
+    public async Task Leaving_the_page_forgets_the_statement_shown_so_the_dialog_does_not_open_by_itself()
+    {
+        await _service.ShowAsync(_profile);
+        await ParkedAsync();
+        _connection.Schema.GetCursorByIdAsync("abc", Arg.Any<CancellationToken>()).Returns((Core.Query.CursorInfo?)null);
+        await _service.SelectAsync(_profile, "abc");
+
+        await _service.HideAsync(_profile.Id);
+
+        Assert.Null(_service.For(_profile.Id).Selected);
+    }
+
     [Fact]
     public async Task A_refresh_during_a_look_and_pausing_right_after_look_no_more()
     {
@@ -297,5 +352,16 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         await Wait.UntilAsync(() => view.Stopped, "the stop");
         Assert.Contains("10", view.Error, StringComparison.Ordinal);
         await _connector.Received(2).OpenAsync(_profile, "secret", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void The_statement_dialog_steps_through_the_list_as_shown_and_not_from_a_statement_outside_it()
+    {
+        List<StatementRow> rows = [.. new[] { "a", "b", "c" }.Select(id => new StatementRow(id, 1, default, null, null))];
+
+        Assert.Equal((null, "b"), ServerLoadView.Neighbours(rows, "a"));
+        Assert.Equal(("a", "c"), ServerLoadView.Neighbours(rows, "b"));
+        Assert.Equal(("b", null), ServerLoadView.Neighbours(rows, "c"));
+        Assert.Equal((null, null), ServerLoadView.Neighbours(rows, "from-a-session"));
     }
 }

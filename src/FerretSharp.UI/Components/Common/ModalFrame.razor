@@ -63,6 +63,12 @@
         }
     }
 
+    /// <summary>
+    /// Puts the focus back on the dialog box if it was lost – a focused button inside that was disabled drops it to the page,
+    /// where Escape and the Tab trap do not reach (review of the server load dialog); a focus elsewhere in the box stays.
+    /// </summary>
+    public async Task FocusIfLostAsync() => await Dom.InvokeVoidAsync("focusIfLost", _box);
+
     public ValueTask DisposeAsync() => _dom?.DisposeAsync() ?? ValueTask.CompletedTask;
 
     /// <summary>A click outside either closes or keeps the focus in the dialog – otherwise it lands on the page, and Escape is lost.</summary>

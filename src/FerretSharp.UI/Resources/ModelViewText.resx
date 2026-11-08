@@ -1033,4 +1033,24 @@
     <value>filters {0} by {1}</value>
     <comment>{0} = table, {1} = columns; for statements with several tables</comment>
   </data>
+  <data name="CodeOrigin_Fit" xml:space="preserve">
+    <value>Matches {0} of {1} features of the statement</value>
+    <comment>{0}, {1} = counts; features are its tables, filter columns and set columns</comment>
+  </data>
+  <data name="CodeOrigin_FitMissing" xml:space="preserve">
+    <value>Missing: {0}</value>
+    <comment>{0} = reasons the method does not have, joined by ·</comment>
+  </data>
+  <data name="CodeOrigin_FitExtra" xml:space="preserve">
+    <value>Also in the method: {0}</value>
+    <comment>{0} = filter columns (TABLE.COLUMN) and navigations (Entity.Navigation) the statement does not have</comment>
+  </data>
+  <data name="CodeOrigin_Rank" xml:space="preserve">
+    <value>Rank {0} by score</value>
+    <comment>{0} = rank</comment>
+  </data>
+  <data name="CodeOrigin_RankLevel" xml:space="preserve">
+    <value>Rank {0} by score, level with another candidate: the score does not decide between them</value>
+    <comment>{0} = rank</comment>
+  </data>
 </root>

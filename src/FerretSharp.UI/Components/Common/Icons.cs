@@ -23,7 +23,7 @@ internal static class Icons
     public static readonly MarkupString More = Svg(
         """<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>""");
 
-    /// <summary>Lucide <c>chevron-down</c>: opens a menu, an open group (turned by <c>.chev.closed</c> when folded).</summary>
+    /// <summary>Lucide <c>chevron-down</c>: opens a menu, an open group (turned by <c>.chev.closed</c> when folded); the next row of the form, the next statement in the server load dialog.</summary>
     public static readonly MarkupString ChevronDown = Svg(
         """<path d="m6 9 6 6 6-6"/>""");
 
@@ -79,7 +79,7 @@ internal static class Icons
     public static readonly MarkupString Info = Svg(
         """<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>""");
 
-    /// <summary>Lucide <c>chevron-up</c>: the previous row of the form.</summary>
+    /// <summary>Lucide <c>chevron-up</c>: the previous row of the form, the previous statement in the server load dialog.</summary>
     public static readonly MarkupString ChevronUp = Svg(
         """<path d="m18 15-6-6-6 6"/>""");
 

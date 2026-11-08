@@ -1,0 +1,183 @@
+@* The details of a statement of the server load (WP-75) as a dialog, so a long list need not be scrolled to its end: the
+   figures of its line, then folding parts – SQL text, origin in code (WP-76), plan and V$SQL figures. Which parts are open
+   stays for the app's run (ServerLoadService.OpenParts, SQL at first); ↑ ↓ in the head step through the list as shown. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.ServerLoad
+@inject ServerLoadService Load
+
+@{
+    var view = View;
+    var sqlId = view.Selected!;
+    var (previous, next) = ServerLoadView.Neighbours(Rows, sqlId);
+    var row = Rows.FirstOrDefault(r => r.SqlId == sqlId);
+    // The list's text may be cut at 1000 bytes (review of WP-75): only the whole text goes to the editor.
+    var text = view.FullText ?? view.KeptText ?? row?.Info?.Text;
+    var whole = view.FullText ?? (row?.Info is { MayBeCut: false, Text: { } shortText } && !view.CursorLoading ? shortText : null);
+}
+<ModalFrame @ref="_frame" Label="@TextFormat.Format(ServerLoadText.ServerLoad_DetailLabel, sqlId)" Class="load-statement-dialog" OnCancel="OnClose"
+            CloseOnBackdrop="true" FocusOnOpen="true">
+    <header>
+        <span class="load-dialog-title">
+            @if (IsApp)
+            {
+                <span class="plan-badge" title="@ServerLoadText.ServerLoad_AppBadgeTitle">@ServerLoadText.ServerLoad_AppBadge</span>
+            }
+            <b class="mono">SQL_ID @sqlId</b>
+            @if (row is not null)
+            {
+                <small class="muted">@ServerLoadPage.Detail(row).TrimStart(' ', '·')</small>
+            }
+        </span>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="@ServerLoadText.ServerLoad_Previous" disabled="@(previous is null)"
+                @onclick="() => OnSelect.InvokeAsync(previous)">@Icons.ChevronUp</button>
+        <button class="icon-btn ghost" title="@ServerLoadText.ServerLoad_Next" disabled="@(next is null)"
+                @onclick="() => OnSelect.InvokeAsync(next)">@Icons.ChevronDown</button>
+        <button class="btn" disabled="@(whole is null)" title="@(whole is null && text is not null ? ServerLoadText.ServerLoad_TextCutTitle : null)"
+                @onclick="() => OpenInEditor(whole!)">@CommonText.OpenInSqlEditor</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="() => OnClose.InvokeAsync()">@Icons.Close</button>
+    </header>
+
+    <div class="load-dialog-body">
+        @if (row is { Figures: var f })
+        {
+            <div class="app-trace-figures load-dialog-figures">
+                <span class="muted">@(view.Mode == ServerLoadMode.Window ? ServerLoadText.ServerLoad_ModeWindow : ServerLoadText.ServerLoad_ModeSinceLoad)</span>
+                <span>@ServerLoadPage.Header(StatementColumn.Executions) <b>@PlanTable.Count(f.Executions)</b></span>
+                <span>CPU <b>@PlanTable.Time(ServerLoadPage.Micros(f.CpuTime))</b>@PerExecution(f, f.CpuTime)</span>
+                <span>@ServerLoadPage.Header(StatementColumn.Elapsed) <b>@PlanTable.Time(ServerLoadPage.Micros(f.ElapsedTime))</b>@PerExecution(f, f.ElapsedTime)</span>
+                <span>Buffer Gets <b>@PlanTable.Count(f.BufferGets)</b></span>
+                <span>Disk Reads <b>@PlanTable.Count(f.DiskReads)</b></span>
+                <span>@ServerLoadPage.Header(StatementColumn.Rows) <b>@PlanTable.Count(f.Rows)</b></span>
+                <span>User I/O <b>@PlanTable.Time(ServerLoadPage.Micros(f.UserIoWait))</b></span>
+            </div>
+        }
+        else
+        {
+            <p class="hint load-dialog-figures">@ServerLoadText.ServerLoad_NotInList</p>
+        }
+
+        <FoldSection Title="@ServerLoadText.ServerLoad_PartSql" Open="IsOpen(StatementPart.Sql)" OnToggle="() => Toggle(StatementPart.Sql)">
+            <Summary>
+                @if (text is null && view.CursorLoading)
+                {
+                    <span class="spinner small"></span>
+                }
+            </Summary>
+            <ChildContent>
+                @if (text is not null)
+                {
+                    <SqlCode Sql="@(whole ?? text + " …")" />
+                    @if (whole is null && !view.CursorLoading)
+                    {
+                        <p class="hint">@ServerLoadText.ServerLoad_TextCut</p>
+                    }
+                }
+                else if (view.CursorLoading)
+                {
+                    <p class="hint"><span class="spinner small"></span> @ServerLoadText.ServerLoad_LookingUp</p>
+                }
+                else
+                {
+                    <p class="hint">@ServerLoadText.ServerLoad_NoText</p>
+                }
+            </ChildContent>
+        </FoldSection>
+
+        @* WP-76: methods of the linked solution that may send it; a text cut short still names its leading tables. *@
+        <CodeOrigins Sql="@(whole ?? text)" Schema="@row?.Info?.Schema" Open="IsOpen(StatementPart.Origin)" OnToggle="() => Toggle(StatementPart.Origin)" />
+
+        <FoldSection Title="@ServerLoadText.ServerLoad_PartPlan" Open="IsOpen(StatementPart.Plan)" OnToggle="() => Toggle(StatementPart.Plan)">
+            <Summary>
+                @if (view.CursorLoading)
+                {
+                    <span class="spinner small"></span>
+                }
+                else if (view.CursorError is { } summaryError)
+                {
+                    <span class="hint ellipsis">@summaryError</span>
+                }
+            </Summary>
+            <ChildContent>
+                @if (view.CursorLoading)
+                {
+                    <p class="hint"><span class="spinner small"></span> @ServerLoadText.ServerLoad_LookingUp</p>
+                }
+                else if (view.CursorError is { } error)
+                {
+                    <div class="test-result error"><span>@error</span></div>
+                }
+                else if (view.Cursor is { } cursor)
+                {
+                    <CursorDetails Cursor="cursor" Owner="@Active.Schema?.Owner">
+                        <p class="hint">@ServerLoadText.ServerLoad_CursorSinceLoad</p>
+                    </CursorDetails>
+                }
+            </ChildContent>
+        </FoldSection>
+    </div>
+</ModalFrame>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    /// <summary>The page's state; <see cref="ServerLoadView.Selected"/> is the statement shown.</summary>
+    [Parameter, EditorRequired]
+    public ServerLoadView View { get; set; } = null!;
+
+    /// <summary>The list as the page shows it: the figures of the statement's line and the statements before and after it.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<StatementRow> Rows { get; set; } = [];
+
+    /// <summary>The statement was sent by the attached app (WP-33).</summary>
+    [Parameter]
+    public bool IsApp { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>Show another statement of the list.</summary>
+    [Parameter]
+    public EventCallback<string?> OnSelect { get; set; }
+
+    private ModalFrame? _frame;
+
+    /// <summary>Whether ↑ and ↓ could step at the last render.</summary>
+    private (bool Previous, bool Next) _could;
+
+    /// <summary>
+    /// A focused ↑ or ↓ that turns disabled (the end of the list reached, the statement gone from the window) drops the focus
+    /// to the page: Escape and the Tab trap of the dialog no longer reached it (review, reproduced with real clicks). The box
+    /// takes it back.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var (previous, next) = ServerLoadView.Neighbours(Rows, View.Selected);
+        var lost = (_could.Previous && previous is null) || (_could.Next && next is null);
+        _could = (previous is not null, next is not null);
+        if (!firstRender && lost && _frame is not null)
+        {
+            await _frame.FocusIfLostAsync();
+        }
+    }
+
+    private bool IsOpen(StatementPart part) => Load.OpenParts.Contains(part);
+
+    private void Toggle(StatementPart part) => Load.TogglePart(part);
+
+    /// <summary>The time per execution after a total, as „(Ø …)“; nothing for a statement not executed to the end yet.</summary>
+    private static string PerExecution(StatementFigures figures, long micros) =>
+        figures.Executions > 0 ? $" (Ø {PlanTable.Time(ServerLoadPage.Micros(figures.PerExecution(micros)))})" : "";
+
+    private async Task OpenInEditor(string sql)
+    {
+        await OnClose.InvokeAsync(); // the editor opens behind the dialog otherwise
+        Shell.OpenSqlIn(View.ProfileId, sql);
+    }
+}

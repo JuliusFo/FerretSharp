@@ -1,5 +1,6 @@
 @* Origin in code (WP-76, ADR 0030): methods of the linked solution that may have sent a statement, guessed from its tables
-   and the columns it filters by against the code usage index (CodeOriginFinder). Shown only with a linked project (a model
+   and the columns it filters by against the code usage index (CodeOriginFinder); each with its rank and a meter of how much
+   of the statement it covers (CodeOriginFit), a folding part of the statement dialog of the server load. Shown only with a linked project (a model
    file has no code to read) and a table of the model in the statement – the solution is read for nothing else. The text
    comes from any session on the server: it is parsed off the render thread (review WP-76). The candidates are worked out
    on the render thread: the code usage index fills a cache while it is read, and the other views read it there too (second
@@ -14,51 +15,81 @@
 {
     var state = Usage.State;
     var result = Origins(state.Result);
-    <section class="code-origins">
-        <h3 class="usage-subhead" title="@ModelViewText.CodeOrigin_Limits">
-            @ModelViewText.CodeOrigin_Heading
+    var qualify = result?.Tables.Count > 1;
+    <FoldSection Title="@ModelViewText.CodeOrigin_Heading" Open="Open" OnToggle="OnToggle" Class="code-origins">
+        <Summary>
             @if (result is not null)
             {
                 <span class="count">@result.Candidates.Count</span>
             }
-            <span class="usage-limits" aria-label="@ModelViewText.CodeOrigin_Limits">@Icons.Info</span>
-        </h3>
-        @if (state.Error is { } error)
-        {
-            <p class="hint">@TextFormat.Format(ModelViewText.Usage_Failed, error)</p>
-        }
-        else if (result is null)
-        {
-            <p class="hint"><span class="spinner small"></span> @ModelViewText.Usage_Building</p>
-        }
-        else if (result.Candidates.Count == 0)
-        {
-            <p class="hint">@ModelViewText.CodeOrigin_None</p>
-        }
-        else
-        {
-            var qualify = result.Tables.Count > 1;
-            <ul class="usage-list">
-                @foreach (var candidate in CodeOriginRows.Shown(result.Candidates, _expanded))
-                {
-                    var use = candidate.Use.Use;
-                    var reasons = CodeOriginRows.Reasons(candidate, qualify);
-                    <li class="usage-item">
-                        <button class="link-btn mono" disabled="@(use.Document is null)" title="@(use.Document ?? ModelViewText.Usage_NoSourceFile)"
-                                @onclick="() => OpenAsync(use)">@CodeUsageRows.Caller(use)</button>
-                        <span class="muted mono">@CodeUsageRows.Location(use)</span>
-                        <span class="muted code-origin-reasons" title="@reasons">@reasons</span>
-                    </li>
-                }
-            </ul>
-            @if (result.Candidates.Count > CodeOriginRows.Initial)
+            else if (state.Error is { } headError)
             {
-                <button class="link-btn" @onclick="() => _expanded = !_expanded">
-                    @(_expanded ? ModelViewText.CodeOrigin_Fewer : TextFormat.Format(ModelViewText.CodeOrigin_More, result.Candidates.Count - CodeOriginRows.Initial))
-                </button>
+                @* review: folded, a failed index showed nothing at all *@
+                var failed = TextFormat.Format(ModelViewText.Usage_Failed, headError);
+                <span class="hint ellipsis" title="@failed" aria-label="@failed">@Icons.Warning</span>
             }
-        }
-    </section>
+            else
+            {
+                <span class="spinner small"></span>
+            }
+            <span class="usage-limits" title="@ModelViewText.CodeOrigin_Limits" aria-label="@ModelViewText.CodeOrigin_Limits">@Icons.Info</span>
+            @if (!Open && result is { Candidates: [var best, ..] })
+            {
+                // Review: the first of several level ones is no better than the others – its rank says so, as in the list.
+                var (bestRank, bestLevel) = CodeOriginRows.Ranks(result.Candidates)[0];
+                var bestName = CodeUsageRows.Caller(best.Use.Use);
+                <span class="code-origin-best">
+                    <span class="code-origin-rank @(bestLevel ? "level" : "")"
+                          title="@TextFormat.Format(bestLevel ? ModelViewText.CodeOrigin_RankLevel : ModelViewText.CodeOrigin_Rank, bestRank)">@(bestLevel ? "=" : "")@bestRank</span>
+                    @Meter(best.Fit, qualify == true)
+                    <span class="mono ellipsis" title="@bestName">@bestName</span>
+                </span>
+            }
+        </Summary>
+        <ChildContent>
+            @if (state.Error is { } error)
+            {
+                <p class="hint">@TextFormat.Format(ModelViewText.Usage_Failed, error)</p>
+            }
+            else if (result is null)
+            {
+                <p class="hint"><span class="spinner small"></span> @ModelViewText.Usage_Building</p>
+            }
+            else if (result.Candidates.Count == 0)
+            {
+                <p class="hint">@ModelViewText.CodeOrigin_None</p>
+            }
+            else
+            {
+                var ranks = CodeOriginRows.Ranks(result.Candidates);
+                var shown = CodeOriginRows.Shown(result.Candidates, _expanded);
+                <ul class="code-origin-list">
+                    @for (var i = 0; i < shown.Count; i++)
+                    {
+                        var candidate = shown[i];
+                        var (rank, level) = ranks[i];
+                        var use = candidate.Use.Use;
+                        var reasons = CodeOriginRows.Reasons(candidate, qualify == true);
+                        <li class="code-origin-item">
+                            <span class="code-origin-rank @(level ? "level" : "")"
+                                  title="@TextFormat.Format(level ? ModelViewText.CodeOrigin_RankLevel : ModelViewText.CodeOrigin_Rank, rank)">@(level ? "=" : "")@rank</span>
+                            @Meter(candidate.Fit, qualify == true)
+                            <button class="link-btn mono" disabled="@(use.Document is null)" title="@(use.Document ?? ModelViewText.Usage_NoSourceFile)"
+                                    @onclick="() => OpenAsync(use)">@CodeUsageRows.Caller(use)</button>
+                            <span class="muted mono">@CodeUsageRows.Location(use)</span>
+                            <span class="muted code-origin-reasons" title="@reasons">@reasons</span>
+                        </li>
+                    }
+                </ul>
+                @if (result.Candidates.Count > CodeOriginRows.Initial)
+                {
+                    <button class="link-btn code-origin-more" @onclick="() => _expanded = !_expanded">
+                        @(_expanded ? ModelViewText.CodeOrigin_Fewer : TextFormat.Format(ModelViewText.CodeOrigin_More, result.Candidates.Count - CodeOriginRows.Initial))
+                    </button>
+                }
+            }
+        </ChildContent>
+    </FoldSection>
 }
 
 @code {
@@ -81,6 +112,26 @@
     /// <summary>The schema the statement was parsed in: the owner of its unqualified tables.</summary>
     [Parameter]
     public string? Schema { get; set; }
+
+    /// <summary>Whether the list is unfolded; folded, the head still shows the count and the best candidate.</summary>
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggle { get; set; }
+
+    /// <summary>How much of the statement a candidate covers, as a meter of <see cref="CodeOriginRows.Segments"/> segments.</summary>
+    private static RenderFragment Meter(CodeOriginFit fit, bool qualify)
+    {
+        var filled = CodeOriginRows.Filled(fit);
+        return @<span class="fit-meter @CodeOriginRows.Tone(fit)" title="@CodeOriginRows.FitTitle(fit, qualify)" role="img"
+                      aria-label="@TextFormat.Format(ModelViewText.CodeOrigin_Fit, fit.Matched, fit.Total)">
+            @for (var i = 0; i < CodeOriginRows.Segments; i++)
+            {
+                <i class="@(i < filled ? "on" : "")"></i>
+            }
+        </span>;
+    }
 
     private readonly CancellationTokenSource _lifetime = new();
     private bool _disposed;
