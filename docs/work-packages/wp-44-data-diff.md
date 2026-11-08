@@ -44,3 +44,22 @@ Entscheidungen des Nutzers (2026-11-08, alle Empfehlungen übernommen):
 - CLOBs: Vergleich über die ersten 200 Zeichen und die Länge. Reicht das, oder ein Hash (`DBMS_CRYPTO` braucht ein Recht)?
 - Das Grid des Diffs ist eine HTML-Tabelle mit `Virtualize`, nicht AG Grid: kein Kopieren von Zellen, kein Formular, keine Spaltenbreiten. Vorschlag (nicht bestätigt): reicht für die erste Stufe; AG Grid mit Zeilen aus dem Speicher wäre ein eigener Weg in `grid.js`.
 - Backlog: „Diesen Tab vergleichen“ in der Befehlspalette, Zeitreise im Grid (`AS OF TIMESTAMP`) und Snapshot-Diff stehen schon dort.
+
+## Nachtrag: Code-Review (2026-11-09)
+Review per `/branch-code-review` (eigener Reviewer-Agent, Befunde nachgeprüft). Entscheidung des Nutzers vorab (2026-11-08): „Wenn dir bei den Code-Reviews etwas auffällt setze deine Empfehlung automatisch um und gehe in die nächste Runde.“
+1. M Nach einer abgelehnten Anmeldung öffnete die Lese-Session für jede Tabelle eines Vergleichs neu – zwölf Tabellen, zwölf Fehlanmeldungen, Konto gesperrt. **Behoben:** `ReadSession` merkt sich die Ablehnung bis zum nächsten Verbinden (`RefusedException`), vergisst ein falsches Passwort der Sitzung; Test.
+2. M Ein neuer Startpunkt während eines laufenden Vergleichs füllte die Liste mit Ergebnissen des alten. **Behoben:** neuer Startpunkt bricht ab, `DataDiffTab.Set` verwirft Ergebnisse einer anderen SCN; Test.
+3. M Auf gesperrten Sessions (Prod) lief eine gescheiterte Flashback-Abfrage bis zu viermal mit Pausen (Snapshot-Wiederholung bei ORA-01555/01466). **Behoben:** `ExecuteReaderAsync(…, repeatInNewSnapshot: false)` für den Diff; Integrationstest mit Gegenprobe (ohne Fix 6,0 s).
+4. M Eine View im Startpunkt (Datei von Hand, Tabelle durch View ersetzt) warf eine `ArgumentException` aus dem Vergleich. **Behoben:** als Fehler der Tabelle gemeldet, die übrigen werden verglichen; Test.
+5. K Doppelte Tabellen aus der Datei brachen das Rendern (`@key`). **Behoben:** `DataDiffState.Normalized` behält je Tabelle den ersten Eintrag; Test.
+6. K TIMESTAMP(8/9): Unterschiede nur in Nanosekunden ergeben „geändert“ ohne markierte Zelle, ein Schlüssel mit solchen Werten kann zusammenfallen. **Nicht geändert** – selten; Frage unten.
+7. K Ein geschlossener Diff-Tab verglich weiter, ohne Abbruch. **Behoben:** Schließen bricht ab (`ShellState.StopWork`); Test.
+8. K „Vergleich starten“ ohne Rückmeldung, während die Lese-Session öffnet. **Behoben:** Hinweis „Startpunkt wird gesetzt …“ (ohne Abbrechen).
+9. K Der Diff-Tab renderte bei jeder Änderung der Shell, auch verborgen. **Behoben:** `ShouldRender` nur für den gezeigten Tab.
+10. K Eine gespeicherte SCN gehört zur Datenbank, nicht zum Profil (Profil umgestellt, Test-DB neu aufgesetzt). **Nicht geändert**; Frage unten.
+11. K Doku sagte „nie Werte“, die Filter enthalten Werte. **Behoben** (Architektur, ADR, Kommentare).
+12. K Verrutschter Doc-Kommentar in `TestApp`. **Behoben.**
+
+Fragen aus dem Review:
+- TIMESTAMP(9)-Spalten: Zeilen „geändert“ ohne markierte Zelle mit Hinweis kennzeichnen, oder so lassen?
+- Startpunkt an die Datenbank binden (z. B. `DBID`/Name mitspeichern und bei Abweichung verwerfen)?

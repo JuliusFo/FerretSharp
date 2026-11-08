@@ -12,7 +12,7 @@ Der Nutzer will sehen, was sich in der Datenbank seit einem Zeitpunkt geändert 
 
 - **Flashback mit `MINUS` in der Datenbank**, kein Snapshot im Speicher (der bleibt im Backlog als Ausweichweg): „Vergleich starten“ merkt sich die SCN per `SELECT TIMESTAMP_TO_SCN(SYSTIMESTAMP) FROM dual` (braucht kein Recht auf `V$DATABASE`), „Vergleichen“ liest `jetzt MINUS AS OF SCN :start` und umgekehrt in einer Abfrage (`UNION ALL`, Seite als Spalte). Über die Leitung kommen nur Zeilen, die sich unterscheiden; .NET paart sie über den Schlüssel (PK, sonst ROWID) und vergleicht die Zellen.
 - **Eine eigene Lese-Session je Verbindung** (`ReadSession`): Verglichen wird der committete Stand. Die Workspace-Session sähe nach einem Flush ihre eigenen Änderungen und hätte vielleicht gerade ein Statement offen. Die Session gibt nur den Leseweg heraus (`IDataAccess`), öffnet über `SessionOpening` bei Bedarf, schließt nach 5 Minuten ohne Lesen und mit der Verbindung, läuft im Keep-alive mit und meldet einen Verlust ans Banner der Verbindung. Auf schreibgeschützten Profilen läuft sie wie ein gesperrter Workspace in `SET TRANSACTION READ ONLY`.
-- **Startpunkt je Workspace**, gespeichert mit dem Workspace (nur SCN, Zeit und Tabellen mit Filter – keine Werte), übersteht also einen Neustart. Ergebnisse nur im Speicher, auch Werte von Prod.
+- **Startpunkt je Workspace**, gespeichert mit dem Workspace (nur SCN, Zeit und Tabellen mit ihrem Filter samt Werten wie in den Tabs – keine Zeilenwerte), übersteht also einen Neustart. Ergebnisse nur im Speicher, auch Werte von Prod.
 - Obergrenze 10.000 abweichende Zeilen je Tabelle, darüber abgeschnitten mit Hinweis. Prod erlaubt (nur lesend). Tabellen ohne PK über die ROWID, mit Hinweis bei Row Movement.
 
 ## Folgen

@@ -49,6 +49,7 @@ Gilt für den Oracle-Layer und alles, was SQL, Typen und Werte anfasst. Domänen
 ## Flashback (WP-44, ADR 0047)
 - `AS OF SCN` in Mengenoperationen: `MINUS`/`UNION` vergleichen keine LOB, LONG, XMLTYPE, Objekttypen (ORA-00932) – CLOB über `DBMS_LOB.SUBSTR` + `GETLENGTH`, BLOB über die Länge, den Rest weglassen (`QueryBuilder.BuildDiff`). LONG auch nicht über `CASE … IS NULL` in einer Mengenoperation.
 - Was den Vergleich bricht (Oracle 23 gemessen): eine seit der SCN **hinzugefügte** Spalte nicht (liest sich damals als NULL), `TRUNCATE` schon; Undo zu kurz → ORA-01555/08180/08181, fremder Owner ohne `FLASHBACK` → ORA-01031 (`DataDiffErrors`).
+- Eine Flashback-Abfrage in einer gesperrten Session nie über die Snapshot-Wiederholung laufen lassen (`repeatInNewSnapshot: false`): ORA-01555/01466 der Seite `AS OF` heilt kein neuer Snapshot, die ganze Abfrage lief sonst bis zu viermal mit Pausen (Review WP-44).
 - `TIMESTAMP_TO_SCN(SYSTIMESTAMP)` braucht kein Recht, liegt aber bis zu ein paar Sekunden zurück: Ein Test, der direkt nach einem Commit den Startpunkt nimmt, wartet, bis die SCN den Commit (`MAX(ORA_ROWSCN)`) erreicht – sonst ORA-01466 bei frisch angelegten Tabellen oder Änderungen „vor“ dem Start.
 
 ## Code im Oracle-Layer
