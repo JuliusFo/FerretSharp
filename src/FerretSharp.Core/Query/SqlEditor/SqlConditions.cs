@@ -31,12 +31,15 @@ public static class SqlConditions
         "AND", "OR", "NOT", "NULL", "IS", "IN", "EXISTS", "BETWEEN", "LIKE", "ESCAPE", "CASE", "WHEN", "THEN", "ELSE", "END",
         "TRUE", "FALSE", "ANY", "ALL", "SOME", "SELECT", "FROM", "WHERE", "WITH", "AS", "PRIOR", "DISTINCT", "CAST", "DATE",
         "TIMESTAMP", "INTERVAL", "SYSDATE", "SYSTIMESTAMP", "ROWNUM", "LEVEL", "ON", "JOIN",
+        // Values without parentheses, not columns: t.OWNER = USER is a filter, not a join (review WP-76).
+        "USER", "UID", "CURRENT_DATE", "CURRENT_TIMESTAMP", "LOCALTIMESTAMP", "SESSIONTIMEZONE", "DBTIMEZONE",
     };
 
     public static IReadOnlyList<SqlConditionColumn> Of(string statement)
     {
         var tokens = SqlTokenizer.Significant(statement);
         var result = new List<SqlConditionColumn>();
+        var seen = new HashSet<SqlConditionColumn>();
 
         // Per open parenthesis: whether its content is in a WHERE. A subquery starts outside, a function call or a list
         // inherits its level's state.
@@ -85,7 +88,7 @@ public static class SqlConditions
                 continue;
             }
 
-            if (!result.Contains(column.Column))
+            if (seen.Add(column.Column))
             {
                 result.Add(column.Column);
             }
@@ -123,7 +126,11 @@ public static class SqlConditions
             next += 2;
         }
 
-        if (next < tokens.Count && tokens[next].IsSymbol("("))
+        if (next + 2 < tokens.Count && tokens[next].IsSymbol("(") && tokens[next + 1].IsSymbol("+") && tokens[next + 2].IsSymbol(")"))
+        {
+            next += 3; // an outer join in Oracle's old form: c.B(+) is a column
+        }
+        else if (next < tokens.Count && tokens[next].IsSymbol("("))
         {
             return null; // a function: UPPER(…), pkg.fn(…)
         }

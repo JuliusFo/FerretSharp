@@ -128,6 +128,7 @@ public static class SqlAnalysis
         var first = SqlClassifier.FirstWordOf(tokens);
         var kind = SqlClassifier.KindOf(tokens);
         var binds = new List<string>();
+        var seenBinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // a List search made 65,000 binds quadratic (review WP-76)
         var hasWhere = false;
         var forUpdate = false;
         var depth = 0;
@@ -142,9 +143,12 @@ public static class SqlAnalysis
             {
                 depth = Math.Max(0, depth - 1);
             }
-            else if (token.Kind == SqlTokenKind.Bind && !binds.Contains(token.Value, StringComparer.OrdinalIgnoreCase))
+            else if (token.Kind == SqlTokenKind.Bind)
             {
-                binds.Add(token.Value);
+                if (seenBinds.Add(token.Value))
+                {
+                    binds.Add(token.Value);
+                }
             }
             else if (token.IsWord("WHERE") && depth == 0)
             {
@@ -398,6 +402,7 @@ public static class SqlAnalysis
     private static List<SqlBindUse> BindUsesOf(List<SqlToken> tokens)
     {
         var uses = new List<SqlBindUse>();
+        var lastInList = (Bind: -1, Column: ((string? Qualifier, string Column)?)null);
         for (var k = 0; k < tokens.Count; k++)
         {
             if (tokens[k].Kind != SqlTokenKind.Bind)
@@ -423,9 +428,10 @@ public static class SqlAnalysis
             {
                 column = ColumnBefore(tokens, k - 4);
             }
-            else if (InListColumn(tokens, k) is { } inList)
+            else if (InListColumn(tokens, k, lastInList) is { } inList)
             {
                 column = inList;
+                lastInList = (k, inList);
             }
 
             if (column is { } c)
@@ -437,11 +443,18 @@ public static class SqlAnalysis
         return uses;
     }
 
-    private static (string? Qualifier, string Column)? InListColumn(List<SqlToken> tokens, int k)
+    /// <param name="last">The bind before in the same list, if it was one, and its column: the walk back stops there – walking
+    /// the whole list for every bind made a list of 1,000 binds quadratic (review WP-76).</param>
+    private static (string? Qualifier, string Column)? InListColumn(List<SqlToken> tokens, int k, (int Bind, (string? Qualifier, string Column)? Column) last)
     {
         var i = k - 1;
         while (i >= 0 && (tokens[i].IsSymbol(",") || tokens[i].Kind is SqlTokenKind.Bind or SqlTokenKind.Text or SqlTokenKind.Number))
         {
+            if (i == last.Bind)
+            {
+                return last.Column;
+            }
+
             i--;
         }
 
