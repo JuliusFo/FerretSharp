@@ -109,6 +109,28 @@ public sealed class CodeOriginFinderTests
     }
 
     [Fact]
+    public void A_save_changes_block_counts_by_the_dml_statements_in_it()
+    {
+        // EF Core's Oracle provider (seen in the E2E): SaveChanges as a block, the row count read back through a cursor.
+        const string block = """
+            DECLARE
+            v_RowCount INTEGER;
+            BEGIN
+            UPDATE "CUSTOMERS" SET "NAME" = :p0
+            WHERE "ID" = :p1;
+            v_RowCount := SQL%ROWCOUNT;
+            OPEN :cur1 FOR SELECT v_RowCount FROM DUAL;
+            END;
+            """;
+
+        var result = CodeOriginFinder.Find(block, null, Index());
+
+        Assert.Equal(["CUSTOMERS"], result.Tables);
+        Assert.Equal("Rename", Assert.Single(result.Candidates, c => c.Reasons.Any(r => r.Kind == CodeOriginReasonKind.Writes)).CallerMethod);
+        Assert.Equal(["CUSTOMERS"], CodeOriginFinder.TablesOf(block, null, Model()));
+    }
+
+    [Fact]
     public void A_filter_alone_is_a_query_of_the_entity_for_a_generic_repository()
     {
         // repository.Find(o => o.Total > x): the lambda in the caller, Set<T>() in generic code the index cannot name.

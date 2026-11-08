@@ -60,27 +60,30 @@ public static class CodeOriginFinder
     private const int UntouchedScore = -1;
     private const int MismatchScore = -1;
 
-    /// <param name="sql">The statement's text; a text cut short still yields its leading tables.</param>
+    /// <param name="sql">
+    /// The statement's text; a text cut short still yields its leading tables. A PL/SQL block counts by the INSERT, UPDATE,
+    /// DELETE and MERGE statements in it: EF Core's Oracle provider sends <c>SaveChanges</c> as <c>DECLARE … BEGIN UPDATE …</c>.
+    /// </param>
     /// <param name="schema">The schema the statement was parsed in (<c>PARSING_SCHEMA_NAME</c>): owner of unqualified tables.</param>
     public static CodeOriginResult Find(string sql, string? schema, CodeUsageIndex index)
     {
-        var info = SqlAnalysis.Analyze(sql);
-        if (!(info.Kind == SqlStatementKind.Query || info.IsDml))
-        {
-            return CodeOriginResult.None;
-        }
-
-        var tables = TablesOf(info, schema, index.Model);
+        var pieces = PiecesOf(sql);
+        var tables = TablesOf(pieces, schema, index.Model);
         if (tables.Count == 0)
         {
             return CodeOriginResult.None;
         }
 
-        AddConditions(tables, info, SqlConditions.Of(sql));
+        foreach (var (text, info) in pieces)
+        {
+            AddConditions(tables, info, SqlConditions.Of(text));
+        }
+
+        var dml = pieces.Any(p => p.Info.IsDml);
         var methods = new Dictionary<(string Type, string Method), Method>();
         foreach (var table in tables)
         {
-            Collect(methods, table, tables, info, index);
+            Collect(methods, table, tables, dml, index);
         }
 
         var candidates = methods.Values
@@ -98,16 +101,65 @@ public static class CodeOriginFinder
     /// The statement's tables that belong to the model, without the code usage index: whether to read the solution at all
     /// (an Oracle-internal statement does not need it).
     /// </summary>
-    public static IReadOnlyList<string> TablesOf(string sql, string? schema, ModelExport model)
+    public static IReadOnlyList<string> TablesOf(string sql, string? schema, ModelExport model) =>
+        TablesOf(PiecesOf(sql), schema, model).Select(t => t.Name).ToList();
+
+    private static readonly string[] DmlWords = ["INSERT", "UPDATE", "DELETE", "MERGE"];
+
+    private static readonly string[] StatementStarts = ["BEGIN", "THEN", "ELSE", "LOOP"];
+
+    /// <summary>
+    /// The queries and DML statements to look at: the statement itself, or for a PL/SQL block the DML statements in it
+    /// (each from its first word to its <c>;</c>); nothing for anything else.
+    /// </summary>
+    private static List<(string Text, SqlStatementInfo Info)> PiecesOf(string sql)
     {
         var info = SqlAnalysis.Analyze(sql);
-        return info.Kind == SqlStatementKind.Query || info.IsDml ? TablesOf(info, schema, model).Select(t => t.Name).ToList() : [];
+        if (info.Kind == SqlStatementKind.Query || info.IsDml)
+        {
+            return [(sql, info)];
+        }
+
+        if (info.Kind != SqlStatementKind.PlSql)
+        {
+            return [];
+        }
+
+        var pieces = new List<(string, SqlStatementInfo)>();
+        var tokens = SqlTokenizer.Significant(sql);
+        for (var i = 1; i < tokens.Count; i++)
+        {
+            var before = tokens[i - 1];
+            if (!(tokens[i].Kind == SqlTokenKind.Word && DmlWords.Contains(tokens[i].Value, StringComparer.OrdinalIgnoreCase))
+                || !(before.IsSymbol(";") || StatementStarts.Any(before.IsWord)))
+            {
+                continue;
+            }
+
+            var end = i;
+            var depth = 0;
+            while (end + 1 < tokens.Count && !(depth == 0 && tokens[end + 1].IsSymbol(";")))
+            {
+                end++;
+                depth += tokens[end].IsSymbol("(") ? 1 : tokens[end].IsSymbol(")") ? -1 : 0;
+            }
+
+            var text = sql[tokens[i].Start..(tokens[end].Start + tokens[end].Length)];
+            if (SqlAnalysis.Analyze(text) is { IsDml: true } piece)
+            {
+                pieces.Add((text, piece));
+            }
+
+            i = end;
+        }
+
+        return pieces;
     }
 
-    private static List<StatementTable> TablesOf(SqlStatementInfo info, string? schema, ModelExport model)
+    private static List<StatementTable> TablesOf(List<(string Text, SqlStatementInfo Info)> pieces, string? schema, ModelExport model)
     {
         var tables = new List<StatementTable>();
-        foreach (var reference in info.Tables.Where(t => t.DbLink is null))
+        foreach (var reference in pieces.SelectMany(p => p.Info.Tables).Where(t => t.DbLink is null))
         {
             var entities = EntitiesOf(model, reference, schema);
             if (entities.Count > 0 && !tables.Any(t => t.Name == reference.Name && t.Entities.SequenceEqual(entities)))
@@ -135,16 +187,16 @@ public static class CodeOriginFinder
             name == reference.Name && ((entitySchema ?? model.DefaultSchema) is not { } expected || owner is null || expected == owner);
     }
 
-    /// <summary>The filter columns of each table, by qualifier (alias or name) or, without one, by the column names it has.</summary>
+    /// <summary>The filter columns of each table a piece names, by qualifier (alias or name) or, without one, by the column names it has.</summary>
     private static void AddConditions(List<StatementTable> tables, SqlStatementInfo info, IReadOnlyList<SqlConditionColumn> columns)
     {
         foreach (var column in columns)
         {
             foreach (var table in tables)
             {
-                var named = column.Qualifier is { } qualifier
-                    ? info.Tables.Any(t => t.Name == table.Name && (t.Alias == qualifier || (t.Alias is null && t.Name == qualifier)))
-                    : table.HasColumn(column.Column);
+                // The piece names the table: by alias or name before the column, or without a qualifier at all.
+                var named = info.Tables.Any(t => t.Name == table.Name
+                                                 && (column.Qualifier is not { } qualifier || t.Alias == qualifier || (t.Alias is null && t.Name == qualifier)));
                 if (named && table.HasColumn(column.Column) && !table.Filters.Contains(column.Column))
                 {
                     table.Filters.Add(column.Column);
@@ -154,7 +206,7 @@ public static class CodeOriginFinder
     }
 
     private static void Collect(
-        Dictionary<(string, string), Method> methods, StatementTable table, List<StatementTable> tables, SqlStatementInfo info, CodeUsageIndex index)
+        Dictionary<(string, string), Method> methods, StatementTable table, List<StatementTable> tables, bool dml, CodeUsageIndex index)
     {
         foreach (var entity in table.Entities)
         {
@@ -212,7 +264,7 @@ public static class CodeOriginFinder
                 }
             }
 
-            if (info.IsDml)
+            if (dml)
             {
                 foreach (var property in entity.Properties.Where(p => ColumnOf(p) is not null))
                 {
