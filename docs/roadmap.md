@@ -49,7 +49,15 @@ Branch `wp/44-data-diff`. Ein Weg über Flashback, die Erweiterung auf die Tabel
 - **Eigene Lese-Session:** Die Workspace-Session sieht nach einem Flush ihre eigenen Änderungen; verglichen wird der committete Stand. Dieselbe Lese-Session braucht WP-43.
 - **Grenzen:** `MINUS` vergleicht keine LOB/LONG/XMLTYPE – LOBs über `DBMS_LOB.GETLENGTH`, der Rest wird mit Hinweis ausgelassen. Schlüssel ist der PK, ohne PK die ROWID (nur stabil ohne Row Movement). Recht `FLASHBACK` nur für Tabellen anderer Owner nötig (ORA-01031 verständlich melden). Undo reicht je nach Tabelle unterschiedlich weit, beim Nutzer auf großen Tabellen etwa 4 h (ORA-01555/ORA-08180 mit diesem Hinweis melden); DDL dazwischen bricht den Vergleich (ORA-01466).
 - Ergebnis nur im Speicher (Werte, auch von Prod).
-- Offen: Obergrenze für geänderte Zeilen (abschneiden mit Hinweis); Auswahl der Tabellen bis WP-45 (Vorschlag: aktueller Tab plus Liste von Hand); Startpunkt je Tab oder je Workspace und ob er einen Neustart überlebt (nur die SCN, keine Werte); Darstellung (Grid mit Status-Spalte wie die Änderungsübersicht?).
+- Entschieden mit dem Nutzer (2026-11-08):
+  - **Obergrenze:** 10 000 geänderte Zeilen je Tabelle, darüber abschneiden mit Hinweis („Filter enger setzen“).
+  - **Tabellen bis WP-45:** der aktuelle Tab mit seinem Filter plus eine Liste ganzer Tabellen, von Hand ergänzt.
+  - **Startpunkt je Workspace:** eine SCN für alle Tabellen, mit dem Workspace gespeichert (nur die Zahl, keine Werte), überlebt also einen Neustart; reicht das Undo nicht mehr, meldet es der Vergleich.
+  - **Darstellung:** eigener Ergebnis-Tab, Grid mit Status-Spalte (neu/gelöscht/geändert) wie die Änderungsübersicht, geänderte Zellen markiert mit altem Wert im Tooltip; bei mehreren Tabellen links eine Liste mit Zahl der Änderungen.
+  - **Prod:** erlaubt wie jeder Lesevorgang (nur Abfragen, Ergebnis nur im Speicher).
+  - **Lese-Session:** WP-44 baut sie allgemein (zusätzliche Session je Verbindung, nur Leseweg, bei Bedarf geöffnet, bei Leerlauf geschlossen), WP-43 übernimmt sie.
+  - **Start:** in der Workspace-Leiste „Vergleich starten“, danach „Vergleichen (seit hh:mm)“ und „Startpunkt verwerfen“; im Tab-Menü „Diesen Tab vergleichen“.
+  - **Ohne PK:** Vergleich über die ROWID erlaubt; bei aktivem Row Movement Hinweis, dass verschobene Zeilen als gelöscht plus neu erscheinen können.
 
 ### WP-45 Mitschnitt mit Quellzeile und Datenänderungen
 (braucht WP-40 und WP-44.) Branch `wp/45-recording-source-data`. Fortsetzung von WP-33 (ADR 0023).
