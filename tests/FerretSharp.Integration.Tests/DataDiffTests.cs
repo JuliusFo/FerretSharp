@@ -160,4 +160,26 @@ public sealed class DataDiffTests(OracleContainerFixture oracle) : IAsyncLifetim
         TestContext.Current.SendDiagnosticMessage($"After TRUNCATE: {error.ErrorCode}");
         Assert.NotNull(DataDiffErrors.Explain(error, table.Table.Ref, DateTimeOffset.Now));
     }
+
+    /// <summary>
+    /// Review of WP-44: in a locked session (Prod) a failed flashback query counted as an unusable snapshot and ran up to four
+    /// times, with pauses of 1 + 2 + 3 s after ORA-01466 – a new snapshot never helps the side as of then.
+    /// </summary>
+    [Fact]
+    public async Task In_a_locked_session_a_failed_diff_is_not_repeated_in_new_snapshots()
+    {
+        await CreateAsync("DIFF_LOCKED", "ID NUMBER(10) PRIMARY KEY", "INSERT INTO DIFF_LOCKED VALUES (1)");
+        var scn = await StartAfterAsync("DIFF_LOCKED");
+        var table = await DetailsAsync("DIFF_LOCKED");
+        await RunAsync("TRUNCATE TABLE DIFF_LOCKED");
+        var (profile, password) = oracle.RequireProfile();
+        await using var locked = await OracleSession.OpenAsync(
+            OracleConnectionStringFactory.Create(profile, password), new SessionContext("FerretSharp", "Data diff locked"), Ct);
+        await locked.UseReadOnlySnapshotsAsync(Ct);
+
+        var watch = Stopwatch.StartNew();
+        await Assert.ThrowsAsync<DatabaseException>(() => new OracleDataAccess(locked).ReadDiffAsync(table, [], scn, Ct));
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(3), $"The failed diff took {watch.Elapsed.TotalSeconds:0.0} s – repeated in new snapshots?");
+    }
 }

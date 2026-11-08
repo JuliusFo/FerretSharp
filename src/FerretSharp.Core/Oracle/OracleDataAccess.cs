@@ -325,7 +325,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             }
 
             return (read, false);
-        }, cancellationToken);
+        }, OracleSession.WholeLobs, cancellationToken, repeatInNewSnapshot: false);
 
         var rowMovement = query.RowKey == RowKeyKind.RowId && table.Table.Kind == TableKind.Table
             && await session.ExecuteReaderAsync(RowMovementSql,
