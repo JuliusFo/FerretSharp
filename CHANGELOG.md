@@ -6,7 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
-- *Server load*, details of a statement: with a linked C# project, *Origin in code* names the methods of your solution that may send the statement, best fit first – read from the compiled code, without your app running and without a change to it. A method fits by the statement’s tables it queries or reaches over a navigation (`Include`, lazy loading), by the columns both filter by and, for an `UPDATE` or `INSERT`, by the properties it writes that the statement sets; why is shown beside it, and a click opens the line in Visual Studio. These are candidates, not a sure match. Statements on no table of the model show nothing, and the solution is only read for the others.
+- *Server load*, details of a statement: with a linked C# project, *Origin in code* names the methods of your solution that may send the statement, best fit first – read from the compiled code, without your app running and without a change to it. A method fits by the statement’s tables it queries or reaches over a navigation (`Include`, lazy loading), by the columns both filter by and, for an `UPDATE` or `INSERT`, by the properties it writes that the statement sets; why is shown beside it, and a click opens the line in Visual Studio. These are candidates, not a sure match: each shows its rank (candidates the score cannot tell apart share it, marked “=”) and a meter of how much of the statement it covers – its tables, filter columns and set columns; green only when it covers all of it and filters by nothing more. The tooltip names what is missing and what the method has beyond the statement. Statements on no table of the model show nothing, and the solution is only read for the others.
+
+### Changed
+- *Server load*: a statement’s details open in a dialog instead of below the list, so a long list need not be scrolled to its end. The head shows the statement’s figures from the list, ↑ ↓ step to the previous or next statement, and the SQL text, the origin in code and the plan with the figures since loading fold – the SQL text open at first; what you open stays open for the next statement. The charts name their values on the y axis, and the scale of the active sessions ends at a round number.
 
 ## [3.63.1] - 2026-11-07
 
