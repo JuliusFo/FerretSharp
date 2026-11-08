@@ -60,20 +60,44 @@ public sealed record SqlDmlTarget(SqlStatementKind Kind, SqlTableReference Table
         }
     }
 
-    /// <summary><c>a = …, t.b = …</c> up to a word that ends them: the assigned columns; returns where it stopped.</summary>
+    /// <summary>
+    /// <c>a = …, t.b = …, (c, d) = (SELECT …)</c> up to a word that ends them: the assigned columns; returns where it stopped.
+    /// A <c>WHEN</c> inside a <c>CASE</c> of a value does not end them (second pass of review WP-76: EF Core writes a
+    /// conditional <c>SetProperty</c> that way).
+    /// </summary>
     private static int Assignments(List<SqlToken> tokens, int i, Action<string> add)
     {
         var expectColumn = true;
         var depth = 0;
+        var cases = 0;
         for (; i < tokens.Count; i++)
         {
             var token = tokens[i];
-            if (depth == 0 && (token.IsSymbol(";") || (token.Kind == SqlTokenKind.Word && SetEnd.Contains(token.Value))))
+            if (depth == 0 && cases == 0 && (token.IsSymbol(";") || (token.Kind == SqlTokenKind.Word && SetEnd.Contains(token.Value))))
             {
                 return i;
             }
 
-            if (token.IsSymbol("("))
+            if (token.IsWord("CASE"))
+            {
+                cases++;
+            }
+            else if (token.IsWord("END") && cases > 0)
+            {
+                cases--;
+            }
+
+            if (expectColumn && depth == 0 && token.IsSymbol("(") && ColumnList(tokens, i) is { } list)
+            {
+                foreach (var name in list.Names)
+                {
+                    add(name);
+                }
+
+                i = list.At;
+                expectColumn = false;
+            }
+            else if (token.IsSymbol("("))
             {
                 depth++;
             }
@@ -98,6 +122,31 @@ public sealed record SqlDmlTarget(SqlStatementKind Kind, SqlTableReference Table
         }
 
         return i;
+    }
+
+    /// <summary><c>(a, t.b) =</c> at <paramref name="i"/>: the names (last parts) and where the <c>=</c> is.</summary>
+    private static (List<string> Names, int At)? ColumnList(List<SqlToken> tokens, int i)
+    {
+        var names = new List<string>();
+        for (i++; i < tokens.Count && !tokens[i].IsSymbol(")"); i++)
+        {
+            if (tokens[i].IsSymbol(",") || tokens[i].IsSymbol("."))
+            {
+                continue;
+            }
+
+            if (tokens[i].Kind is not (SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier))
+            {
+                return null;
+            }
+
+            if (i + 1 >= tokens.Count || !tokens[i + 1].IsSymbol("."))
+            {
+                names.Add(SqlAnalysis.Normalize(tokens[i]));
+            }
+        }
+
+        return names.Count > 0 && i + 1 < tokens.Count && tokens[i + 1].IsSymbol("=") ? (names, i + 1) : null;
     }
 
     /// <summary>A name, maybe qualified, at <paramref name="i"/> followed by <paramref name="symbol"/>: its last part and where the symbol is.</summary>

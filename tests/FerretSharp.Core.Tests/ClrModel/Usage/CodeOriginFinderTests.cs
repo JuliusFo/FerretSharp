@@ -132,12 +132,15 @@ public sealed class CodeOriginFinderTests
     [Fact]
     public void A_text_longer_than_the_limit_is_read_from_its_start()
     {
-        var sql = """SELECT "o"."ID" FROM "ORDERS" "o" WHERE "o"."TOTAL" > :x OR "o"."TOTAL" IN (""" + new string('1', CodeOriginFinder.MaxTextLength) + ")";
+        // STATUS after the limit: read, it would make OpenOrders filter like the statement (second pass of review WP-76).
+        var sql = """SELECT "o"."ID" FROM "ORDERS" "o" WHERE "o"."TOTAL" > :x OR "o"."TOTAL" IN ("""
+                  + new string('1', CodeOriginFinder.MaxTextLength) + """) OR "o"."STATUS" = :s""";
 
         var result = CodeOriginFinder.Find(sql, null, Index());
 
         Assert.Equal(["ORDERS"], result.Tables);
         Assert.Equal("ByTotal", result.Candidates[0].CallerMethod);
+        Assert.DoesNotContain(result.Candidates.SelectMany(c => c.Reasons), r => r.Columns.Contains("STATUS"));
     }
 
     [Fact]
