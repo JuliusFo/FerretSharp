@@ -129,6 +129,44 @@ public sealed class ScriptLibraryTests : IDisposable
     }
 
     /// <summary>
+    /// Review WP-77, second pass: a share hanging over the VPN held back the reads of all other folders, and a refresh
+    /// asked for while it was read could get lost – a script just saved showed only at the next look.
+    /// </summary>
+    [Fact]
+    public async Task A_hanging_folder_holds_back_only_itself_and_a_request_meanwhile_is_read_after_it()
+    {
+        var general = _folder.Combine("share");
+        Write(Path.Combine(general, "a.sql"), "SELECT 1 FROM dual");
+        var (library, _) = Library(AppSettings.Default with { SqlScriptsGeneralPath = general });
+        using var hanging = new ManualResetEventSlim();
+        using var arrived = new ManualResetEventSlim();
+        library.AfterRead = root =>
+        {
+            if (root.Kind == ScriptRootKind.General)
+            {
+                arrived.Set();
+                hanging.Wait(TestContext.Current.CancellationToken);
+            }
+        };
+
+        var first = library.RefreshAsync(Ct);
+        Assert.True(arrived.Wait(TimeSpan.FromSeconds(10), Ct));
+        Write(Path.Combine(Personal, "saved.sql"), "SELECT 2 FROM dual");
+        Write(Path.Combine(general, "pulled.sql"), "SELECT 3 FROM dual");
+
+        await library.RefreshAsync(Ct); // returns while the share still hangs: its read asked for once more
+
+        await Wait.UntilAsync(() => library.For(null)[0].Scripts.Any(s => s.Path == "saved.sql"), "the personal folder is read while the share hangs");
+        Assert.False(library.For(null)[1].Loaded);
+
+        library.AfterRead = null;
+        hanging.Set();
+        await first;
+        // The hanging read was done before "pulled.sql" was written: only the read asked for meanwhile can list it.
+        Assert.Contains(library.For(null)[1].Scripts, s => s.Path == "pulled.sql");
+    }
+
+    /// <summary>
     /// Review WP-77, K9: only the first 16 KB are read for the header; a UTF-8 character cut at that edge made the whole
     /// head read as Windows-1252 ("AuftrÃ¤ge").
     /// </summary>

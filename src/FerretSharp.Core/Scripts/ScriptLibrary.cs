@@ -65,16 +65,18 @@ public sealed class ScriptLibrary : IDisposable
 
     private readonly AppSettingsService _settings;
     private readonly Lock _lock = new();
-    private readonly SemaphoreSlim _reading = new(1, 1);
     private readonly Timer _quiet;
     private readonly Timer? _poll;
     private readonly bool _watch;
     private readonly Dictionary<string, (DateTime Written, long Length, ScriptEntry Entry)> _headers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ScriptScan> _scans = new(StringComparer.Ordinal);
 
-    /// <summary>1 when a refresh was asked for while one ran: one more read follows it.</summary>
-    private int _again;
-    private Dictionary<string, FileSystemWatcher> _watchers = new(StringComparer.Ordinal);
+    /// <summary>
+    /// The folders being read now, by key: true when another read of the folder was asked for meanwhile – it follows the
+    /// one running (a share hanging over the VPN no longer queues a read every 10 s, review WP-77, M4).
+    /// </summary>
+    private readonly Dictionary<string, bool> _reading = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, FileSystemWatcher> _watchers = new(StringComparer.Ordinal);
     private bool _disposed;
 
     /// <param name="defaultPersonal">The personal folder in the data folder (<see cref="AppPaths.ScriptsDirectory"/>).</param>
@@ -136,42 +138,18 @@ public sealed class ScriptLibrary : IDisposable
     }
 
     /// <summary>
-    /// Reads all folders now (after a save or delete; tests) and fires <see cref="Changed"/> for each that differs. A call
-    /// while a read runs only asks for one more read after it: a share hanging over the VPN queued a read every 10 s, and
-    /// all of them ran one after the other once it answered (review WP-77, M4).
+    /// Reads all folders again (after a save or delete; tests) and fires <see cref="Changed"/> for each that differs. Each
+    /// folder on its own (review WP-77, second pass): one that hangs (a share over a quiet VPN) holds back neither the
+    /// others nor the caller's thread, and a folder being read when asked again is read once more after that read – never
+    /// twice at a time, and no request is lost.
     /// </summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        if (!await _reading.WaitAsync(0, cancellationToken))
-        {
-            Interlocked.Exchange(ref _again, 1);
-            return;
-        }
-
-        try
-        {
-            do
-            {
-                Interlocked.Exchange(ref _again, 0);
-                await ReadAllAsync(cancellationToken);
-            }
-            while (Interlocked.Exchange(ref _again, 0) == 1);
-        }
-        finally
-        {
-            _reading.Release();
-        }
-    }
-
-    /// <summary>
-    /// Each folder on its own: one that hangs (a share over a quiet VPN) holds back only its own list, the others are
-    /// reported as soon as they are read.
-    /// </summary>
-    private async Task ReadAllAsync(CancellationToken cancellationToken)
-    {
         var roots = ScriptRoots.All(_settings.Current, DefaultPersonal);
         var keys = roots.Select(Key).ToHashSet(StringComparer.Ordinal);
+        var paths = roots.Select(r => r.Path).ToHashSet(StringComparer.Ordinal);
         bool removed;
+        List<FileSystemWatcher> unwatched;
         lock (_lock)
         {
             if (_disposed)
@@ -186,6 +164,12 @@ public sealed class ScriptLibrary : IDisposable
                 _headers.Remove(header);
             }
 
+            unwatched = [.. _watchers.Where(w => !paths.Contains(w.Key)).Select(w => w.Value)];
+            foreach (var path in _watchers.Keys.Where(k => !paths.Contains(k)).ToList())
+            {
+                _watchers.Remove(path);
+            }
+
             removed = gone.Count > 0;
             if (removed)
             {
@@ -193,17 +177,80 @@ public sealed class ScriptLibrary : IDisposable
             }
         }
 
+        unwatched.ForEach(w => w.Dispose());
         if (removed)
         {
             Changed?.Invoke();
         }
 
-        await Task.WhenAll(roots.DistinctBy(Key).Select(root => Task.Run(() => Apply(Read(root)), cancellationToken)));
-        if (_watch)
+        // ConfigureAwait: a caller on the UI thread (after a save) is not held by what follows (review WP-77, second pass).
+        await Task.WhenAll(roots.DistinctBy(Key).Select(root => ReadRootAsync(root, cancellationToken))).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads one folder on the thread pool – again as long as reads were asked for meanwhile – and watches it.</summary>
+    private async Task ReadRootAsync(ScriptRoot root, CancellationToken cancellationToken)
+    {
+        var key = Key(root);
+        lock (_lock)
         {
-            Watch(roots);
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (_reading.ContainsKey(key))
+            {
+                _reading[key] = true; // the read running is followed by one more
+                return;
+            }
+
+            _reading[key] = false;
+        }
+
+        try
+        {
+            var done = false;
+            while (!done)
+            {
+                await Task.Run(() =>
+                {
+                    var scan = Read(root);
+                    AfterRead?.Invoke(root);
+                    Apply(scan);
+                    if (_watch)
+                    {
+                        WatchRoot(root.Path);
+                    }
+                }, cancellationToken).ConfigureAwait(false);
+
+                // In one lock with the check of a new request: none is lost between the last read and leaving.
+                lock (_lock)
+                {
+                    if (_reading.TryGetValue(key, out var again) && again)
+                    {
+                        _reading[key] = false;
+                    }
+                    else
+                    {
+                        _reading.Remove(key);
+                        done = true;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            lock (_lock)
+            {
+                _reading.Remove(key);
+            }
+
+            throw;
         }
     }
+
+    /// <summary>Tests: called on the thread pool after a folder was read, before it is taken (to hold a read as a hanging share would).</summary>
+    internal Action<ScriptRoot>? AfterRead { get; set; }
 
     /// <summary>Takes the read of one folder; reports it if it differs from the last.</summary>
     private void Apply(ScriptScan scan)
@@ -217,6 +264,11 @@ public sealed class ScriptLibrary : IDisposable
             }
 
             var key = Key(scan.Root);
+            if (!ScriptRoots.All(_settings.Current, DefaultPersonal).Any(r => Key(r) == key))
+            {
+                return; // the settings dropped the folder while it was read
+            }
+
             changed = !_scans.TryGetValue(key, out var old) || !old.SameAs(scan);
             _scans[key] = scan;
 
@@ -368,32 +420,45 @@ public sealed class ScriptLibrary : IDisposable
 
     private void OnSettingsChanged() => _ = RefreshQuietlyAsync();
 
-    /// <summary>Watches each root that exists, with its subfolders; watchers of roots no longer set go.</summary>
-    private void Watch(IReadOnlyList<ScriptRoot> roots)
+    /// <summary>Watches a folder that exists, with its subfolders, unless it is watched already. On the thread pool.</summary>
+    private void WatchRoot(string path)
     {
-        var wanted = roots.Select(r => r.Path).Where(p => Path.IsPathFullyQualified(p) && Directory.Exists(p)).Distinct(StringComparer.Ordinal).ToList();
-        List<FileSystemWatcher> gone;
         lock (_lock)
         {
-            if (_disposed)
+            if (_disposed || _watchers.ContainsKey(path))
             {
                 return;
             }
-
-            gone = [.. _watchers.Where(w => !wanted.Contains(w.Key)).Select(w => w.Value)];
-            var kept = _watchers.Where(w => wanted.Contains(w.Key)).ToDictionary(w => w.Key, w => w.Value, StringComparer.Ordinal);
-            foreach (var path in wanted.Where(p => !kept.ContainsKey(p)))
-            {
-                if (Watcher(path) is { } watcher)
-                {
-                    kept[path] = watcher;
-                }
-            }
-
-            _watchers = kept;
         }
 
-        gone.ForEach(w => w.Dispose());
+        if (!Path.IsPathFullyQualified(path) || !Directory.Exists(path) || Watcher(path) is not { } watcher)
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            if (!_disposed && _watchers.TryAdd(path, watcher))
+            {
+                return;
+            }
+        }
+
+        watcher.Dispose();
+    }
+
+    /// <summary>A watcher that broke (a share went away, the buffer overflowed) goes: the next read sets up a new one.</summary>
+    private void Unwatch(string path, FileSystemWatcher watcher)
+    {
+        lock (_lock)
+        {
+            if (_watchers.TryGetValue(path, out var current) && current == watcher)
+            {
+                _watchers.Remove(path);
+            }
+        }
+
+        watcher.Dispose();
     }
 
     private FileSystemWatcher? Watcher(string path)
@@ -409,7 +474,11 @@ public sealed class ScriptLibrary : IDisposable
             watcher.Created += OnFileChanged;
             watcher.Deleted += OnFileChanged;
             watcher.Renamed += OnFileChanged;
-            watcher.Error += (_, _) => Touch(); // the poll covers the time until the next read sets it up again
+            watcher.Error += (_, _) =>
+            {
+                Unwatch(path, watcher);
+                Touch(); // the next read (or the poll) sets up a new one
+            };
             watcher.EnableRaisingEvents = true;
             return watcher;
         }
@@ -454,6 +523,5 @@ public sealed class ScriptLibrary : IDisposable
         watchers.ForEach(w => w.Dispose());
         _quiet.Dispose();
         _poll?.Dispose();
-        _reading.Dispose();
     }
 }
