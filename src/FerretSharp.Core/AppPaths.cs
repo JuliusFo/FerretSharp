@@ -74,6 +74,9 @@ public sealed class AppPaths
     /// <summary>The exceptions of the report (WP-72) when the settings name no file of their own.</summary>
     public string ReportExceptionsFile => Path.Combine(Root, "report-exceptions.json");
 
+    /// <summary>The personal SQL scripts unless the settings name another folder (WP-77).</summary>
+    public string ScriptsDirectory => Path.Combine(Root, "scripts");
+
     /// <summary>Held by the running instance for this data folder (WP-32, <see cref="IO.InstanceLock"/>).</summary>
     public string InstanceLockFile => Path.Combine(Root, "instance.lock");
 

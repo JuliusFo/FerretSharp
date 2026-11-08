@@ -41,6 +41,7 @@ public sealed class SettingsStore(string filePath)
                         PathAvoidedTables = settings.PathAvoidedTables ?? TableListMap.Empty,
                         AuditTemplateGroups = settings.AuditTemplateGroups ?? SettingsMap.Empty,
                         ReportExceptionsGroups = settings.ReportExceptionsGroups ?? SettingsMap.Empty,
+                        SqlScriptsGroups = settings.SqlScriptsGroups ?? SettingsMap.Empty,
                     };
                 case JsonFileState.Empty:
                     throw new SettingsStoreException(TextFormat.Format(CoreText.FileEmpty, FilePath));

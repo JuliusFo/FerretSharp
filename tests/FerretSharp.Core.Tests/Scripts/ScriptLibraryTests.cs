@@ -1,0 +1,136 @@
+using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
+using FerretSharp.Core.Scripts;
+using FerretSharp.Core.Settings;
+
+namespace FerretSharp.Core.Tests.Scripts;
+
+/// <summary>WP-77: the scripts of the personal, group and general folders as the explorer lists them.</summary>
+public sealed class ScriptLibraryTests : IDisposable
+{
+    private readonly TestFolder _folder = new();
+    private readonly List<ScriptLibrary> _libraries = [];
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private string Personal => _folder.Combine("data", "scripts");
+
+    private (ScriptLibrary Library, AppSettingsService Settings) Library(AppSettings? settings = null)
+    {
+        var service = new AppSettingsService(new SettingsStore(_folder.Combine("settings.json")), settings ?? AppSettings.Default);
+        var library = new ScriptLibrary(service, Personal, watch: false);
+        _libraries.Add(library);
+        return (library, service);
+    }
+
+    private void Write(string path, string text)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, text);
+    }
+
+    [Fact]
+    public async Task A_connection_sees_the_personal_folder_its_group_s_and_the_general_one()
+    {
+        var erp = _folder.Combine("repo", "erp-scripts");
+        var shop = _folder.Combine("repo", "shop-scripts");
+        var general = _folder.Combine("repo", "oracle");
+        Write(Path.Combine(Personal, "Mine.sql"), "SELECT 1 FROM dual");
+        Write(Path.Combine(erp, "Orders", "Open.sql"), "-- @description Open orders\n-- @param id number\nSELECT * FROM orders WHERE id = :id");
+        Write(Path.Combine(shop, "Carts.sql"), "SELECT 1 FROM dual");
+        Write(Path.Combine(general, "Locks.sql"), "SELECT * FROM v$lock");
+        var (library, _) = Library(AppSettings.Default with
+        {
+            SqlScriptsGroups = SettingsMap.Empty.With("ERP", erp).With("Shop", shop),
+            SqlScriptsGeneralPath = $"\"{general}\"",
+        });
+        var profile = new ConnectionProfile(Guid.NewGuid(), "erp-dev", ConnectionKind.Dev, new HostPortAddress("h", 1521, "S", null), "u", null, ReadOnly: false, Group: " erp ");
+
+        await library.RefreshAsync(Ct);
+        var scans = library.For(profile);
+
+        Assert.Equal([ScriptRootKind.Personal, ScriptRootKind.Group, ScriptRootKind.General], scans.Select(s => s.Root.Kind));
+        Assert.Equal("ERP", scans[1].Root.Group);
+        Assert.Equal(["Mine.sql"], scans[0].Scripts.Select(s => s.Path));
+        var open = Assert.Single(scans[1].Scripts);
+        Assert.Equal(("Orders/Open.sql", "Open", "Orders", "Open orders"), (open.Path, open.Name, open.Folder, open.Description));
+        Assert.Equal([new ScriptParameter("id", SqlVariableType.Number)], open.Parameters);
+        Assert.Equal(["Orders"], scans[1].Folders);
+        Assert.Equal(["Locks.sql"], scans[2].Scripts.Select(s => s.Path));
+        Assert.Equal(2, library.For(null).Count); // without a connection: no group
+        Assert.Same(open, library.Find(scans[1].Root, "orders/open.SQL"));
+    }
+
+    [Fact]
+    public async Task Hidden_folders_links_other_files_and_names_a_save_would_refuse_are_not_listed()
+    {
+        Write(Path.Combine(Personal, "a.sql"), "SELECT 1 FROM dual");
+        Write(Path.Combine(Personal, ".git", "b.sql"), "SELECT 1 FROM dual");
+        Write(Path.Combine(Personal, "notes.txt"), "x");
+        Write(Path.Combine(Personal, "50%.sql"), "SELECT 1 FROM dual");
+        Write(Path.Combine(Personal, "Deep", "1", "2", "3", "4", "5", "6", "7", "8", "too-deep.sql"), "SELECT 1 FROM dual");
+        var (library, _) = Library();
+
+        await library.RefreshAsync(Ct);
+
+        var scan = Assert.Single(library.For(null));
+        Assert.Equal(["a.sql"], scan.Scripts.Select(s => s.Path));
+        Assert.DoesNotContain(scan.Folders, f => f.StartsWith(".git", StringComparison.Ordinal));
+        Assert.Contains("Deep/1/2/3/4/5/6/7", scan.Folders);
+        Assert.DoesNotContain("Deep/1/2/3/4/5/6/7/8", scan.Folders);
+    }
+
+    [Fact]
+    public async Task A_missing_personal_folder_is_empty_and_a_missing_shared_one_an_error()
+    {
+        var (library, _) = Library(AppSettings.Default with { SqlScriptsGeneralPath = _folder.Combine("nowhere") });
+        Assert.All(library.For(null), s => Assert.False(s.Loaded));
+
+        await library.RefreshAsync(Ct);
+
+        var scans = library.For(null);
+        Assert.Null(scans[0].Error);
+        Assert.Empty(scans[0].Scripts);
+        Assert.Contains("nowhere", scans[1].Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Problems_of_a_file_show_in_its_entry_and_a_change_is_reported_once()
+    {
+        Write(Path.Combine(Personal, "a.sql"), "-- @param x varchar\nSELECT 1 FROM dual");
+        var (library, _) = Library();
+        var changes = 0;
+        library.Changed += () => changes++;
+
+        await library.RefreshAsync(Ct);
+        await library.RefreshAsync(Ct);
+        Assert.Equal(1, changes);
+        Assert.Single(Assert.Single(library.For(null)[0].Scripts).Problems);
+
+        Write(Path.Combine(Personal, "a.sql"), "-- @description fixed\n-- @param x text\nSELECT :x FROM dual");
+        File.SetLastWriteTimeUtc(Path.Combine(Personal, "a.sql"), DateTime.UtcNow.AddMinutes(1));
+        await library.RefreshAsync(Ct);
+
+        Assert.Equal(2, changes);
+        var entry = Assert.Single(library.For(null)[0].Scripts);
+        Assert.Empty(entry.Problems);
+        Assert.Equal("fixed", entry.Description);
+    }
+
+    [Fact]
+    public void A_folder_set_twice_is_listed_once()
+    {
+        var settings = AppSettings.Default with { SqlScriptsPath = _folder.Combine("same"), SqlScriptsGeneralPath = _folder.Combine("same") + Path.DirectorySeparatorChar };
+
+        var roots = ScriptRoots.For(settings, Personal, null);
+
+        Assert.Equal(ScriptRootKind.Personal, Assert.Single(roots).Kind);
+        Assert.Equal(2, ScriptRoots.All(settings, Personal).Count); // the library reads both; the key tells them apart
+    }
+
+    public void Dispose()
+    {
+        _libraries.ForEach(l => l.Dispose());
+        _folder.Dispose();
+    }
+}

@@ -261,6 +261,24 @@ public sealed record AppSettings
     /// </summary>
     public SettingsMap ReportExceptionsGroups { get; init; } = SettingsMap.Empty;
 
+    /// <summary>
+    /// The folder of the personal SQL scripts (WP-77, ADR 0046); null or empty for <c>scripts</c> in the data folder. Read
+    /// through <see cref="Scripts.ScriptLibrary"/>.
+    /// </summary>
+    public string? SqlScriptsPath { get; init; }
+
+    /// <summary>
+    /// The folder of the general SQL scripts (WP-77): scripts for any Oracle database (locks, sessions), e.g. in a shared
+    /// repository; null or empty for none. Every connection sees it.
+    /// </summary>
+    public string? SqlScriptsGeneralPath { get; init; }
+
+    /// <summary>
+    /// The script folders of connection groups (WP-77): group name → folder, as <see cref="AuditTemplateGroups"/>. Only the
+    /// connections of a group see its folder – the scripts of a product.
+    /// </summary>
+    public SettingsMap SqlScriptsGroups { get; init; } = SettingsMap.Empty;
+
     /// <summary>The Oracle type on the last line of a column header (table grid and SQL result). On by default.</summary>
     public bool ShowColumnTypes { get; init; } = true;
 

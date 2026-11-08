@@ -43,9 +43,11 @@ public sealed class ConnectionGroupRenameTests
     {
         var templates = SettingsMap.From([new("erp ", @"C:\erp.sql"), new("Kasse", @"C:\kasse.sql")]);
 
-        var rename = ConnectionGroupRename.Plan(All, "ERP", "Warenwirtschaft", templates, SettingsMap.From([new("ERP", @"C:\erp.json")]));
+        var rename = ConnectionGroupRename.Plan(
+            All, "ERP", "Warenwirtschaft", templates, SettingsMap.From([new("ERP", @"C:\erp.json")]), SettingsMap.From([new("ERP", @"C:\erp-scripts")]));
 
         Assert.Equal([new("Warenwirtschaft", @"C:\erp.json")], rename.ReportExceptionsGroups);
+        Assert.Equal([new("Warenwirtschaft", @"C:\erp-scripts")], rename.SqlScriptsGroups); // WP-77
         Assert.Equal(@"C:\erp.sql", rename.AuditTemplateGroups["Warenwirtschaft"]);
         Assert.Equal(@"C:\kasse.sql", rename.AuditTemplateGroups["Kasse"]);
         Assert.Equal(2, rename.AuditTemplateGroups.Count);
@@ -59,9 +61,13 @@ public sealed class ConnectionGroupRenameTests
 
         var exceptions = SettingsMap.From([new("ERP", @"C:\erp.json"), new("Kasse", @"C:\kasse.json"), new("Lager", @"C:\lager.json")]);
 
-        var rename = ConnectionGroupRename.Plan(All, "ERP", "KASSE", templates, exceptions);
+        var scripts = SettingsMap.From([new("ERP", @"C:\erp-scripts"), new("Kasse", @"C:\kasse-scripts")]);
 
-        // The report's exceptions file (WP-72) follows the same rule.
+        var rename = ConnectionGroupRename.Plan(All, "ERP", "KASSE", templates, exceptions, scripts);
+
+        // The report's exceptions file (WP-72) and the script folder (WP-77) follow the same rule.
+        Assert.Equal(@"C:\erp-scripts", rename.DroppedSqlScripts);
+        Assert.Equal([new("Kasse", @"C:\kasse-scripts")], rename.SqlScriptsGroups);
         Assert.Equal(@"C:\erp.json", rename.DroppedReportExceptions);
         Assert.Equal([new("Kasse", @"C:\kasse.json"), new("Lager", @"C:\lager.json")], rename.ReportExceptionsGroups);
         Assert.True(rename.Merges);

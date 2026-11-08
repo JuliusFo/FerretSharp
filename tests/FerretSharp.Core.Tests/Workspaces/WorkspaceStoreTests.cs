@@ -80,12 +80,15 @@ public sealed class WorkspaceStoreTests : IDisposable
     [Fact]
     public async Task Sql_tabs_keep_script_typed_variables_and_editor_height()
     {
+        // WP-77: the link to a script file – root and relative path, never the absolute one – with the header as read.
+        var link = new FerretSharp.Core.Scripts.ScriptLink(FerretSharp.Core.Scripts.ScriptRootKind.Group, "ERP", "Orders/Open.sql", "AB12", "CD34",
+            new FerretSharp.Core.Scripts.ScriptHeader("Open orders", [new("id", SqlVariableType.Number)], ["-- @connections all"]));
         var workspace = Sample() with
         {
             Tabs =
             [
                 TabState.OfSql(new SqlTabState("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual",
-                    [new SqlVariable("id", SqlVariableType.Number, "4711"), new SqlVariable("von", SqlVariableType.Date, "01.10.2026")], EditorHeight: 420)),
+                    [new SqlVariable("id", SqlVariableType.Number, "4711"), new SqlVariable("von", SqlVariableType.Date, "01.10.2026")], EditorHeight: 420) { Script = link }),
             ],
         };
 
@@ -95,6 +98,8 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.NotNull(sql);
         Assert.Equal(("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual", (int?)420), (sql.Title, sql.Text, sql.EditorHeight));
         Assert.Equal(workspace.Tabs[0].Sql!.Variables, sql.Variables);
+        Assert.Equal((link.Root, link.Group, link.Path, link.FileHash, link.SavedHash), (sql.Script!.Root, sql.Script.Group, sql.Script.Path, sql.Script.FileHash, sql.Script.SavedHash));
+        Assert.True(sql.Script.Header.SameAs(link.Header));
     }
 
     [Fact]

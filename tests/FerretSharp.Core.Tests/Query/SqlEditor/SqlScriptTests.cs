@@ -130,6 +130,25 @@ public sealed class SqlScriptTests
     }
 
     /// <summary>
+    /// WP-77: a script from the library goes in at the cursor or in place of the selection – the statement before it ended,
+    /// the text after it on a line of its own.
+    /// </summary>
+    [Theory]
+    // at the end
+    [InlineData("SELECT 1 FROM dual\n", 19, 19, "SELECT 2 FROM dual", "SELECT 1 FROM dual;\n\nSELECT 2 FROM dual;\n", 21)]
+    // between two statements
+    [InlineData("SELECT 1 FROM dual;\nSELECT 3 FROM dual;", 20, 20, "SELECT 2 FROM dual", "SELECT 1 FROM dual;\n\nSELECT 2 FROM dual;\n\nSELECT 3 FROM dual;", 21)]
+    // in place of the selection
+    [InlineData("SELECT 1 FROM dual;\nDELETE FROM t;\n", 20, 34, "SELECT 2 FROM dual", "SELECT 1 FROM dual;\n\nSELECT 2 FROM dual;\n", 21)]
+    // a block
+    [InlineData("SELECT 1 FROM dual\n", 19, 19, "BEGIN NULL; END;", "SELECT 1 FROM dual;\n\nBEGIN NULL; END;\n/\n", 21)]
+    public void A_script_is_inserted_at_the_cursor_or_in_place_of_the_selection(string script, int start, int end, string statement, string expected, int at)
+    {
+        Assert.Equal((expected, at), SqlScript.Insert(script, start, end, statement));
+        Assert.Equal(("SELECT 2 FROM dual;" + Environment.NewLine, 0), SqlScript.Insert("", 0, 0, "SELECT 2 FROM dual")); // an empty tab
+    }
+
+    /// <summary>
     /// Review: a block behind a statement without ";" fell apart at its inner ";" – Ctrl+Enter on its DELETE line ran the
     /// DELETE. Decision of the user: a PL/SQL object's CREATE starts a statement of its own, a BEGIN block is refused.
     /// </summary>
