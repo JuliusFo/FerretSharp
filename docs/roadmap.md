@@ -58,6 +58,16 @@ Branch `wp/44-data-diff`. Ein Weg über Flashback, die Erweiterung auf die Tabel
   - **Lese-Session:** WP-44 baut sie allgemein (zusätzliche Session je Verbindung, nur Leseweg, bei Bedarf geöffnet, bei Leerlauf geschlossen), WP-43 übernimmt sie.
   - **Start:** in der Workspace-Leiste „Vergleich starten“, danach „Vergleichen (seit hh:mm)“ und „Startpunkt verwerfen“; im Tab-Menü „Diesen Tab vergleichen“.
   - **Ohne PK:** Vergleich über die ROWID erlaubt; bei aktivem Row Movement Hinweis, dass verschobene Zeilen als gelöscht plus neu erscheinen können.
+- Plan, vom Nutzer bestätigt (2026-11-08), Branch von `main`:
+  1. **`QueryBuilder`:** Startpunkt lesen; `BuildDiff(table, filters, scn)` – beide `MINUS` per `UNION ALL` mit Seitenmarkierung, Grenze 10 000 + 1. Projektion wie im Grid (CLOB Vorschau + Länge, BLOB Länge), LONG/XMLTYPE & Co. mit Hinweis ausgelassen. Filter-Binds stehen zweimal → gemeinsamer `Builder` (WP-69) für eindeutige Namen. `ReadOnlyTests` decken beide ab.
+  2. **`DataDiff`** (Core, reine Logik): Paarung über den Schlüssel (eine Seite = neu/gelöscht, beide = geändert), Zellvergleich mit `OracleTypeMapper.ValuesEqual` wie `RowComparison`; Ergebnis mit Abgeschnitten, ausgelassenen Spalten, ROWID-Schlüssel (Row-Movement-Hinweis).
+  3. **Fehler verständlich:** ORA-01031 (Recht `FLASHBACK`), ORA-01555/08180 (Undo reicht nicht, ~4 h), ORA-01466 (DDL seit dem Startpunkt).
+  4. **Lese-Session je Verbindung**, allgemein für WP-43: nur Leseweg, öffnet über `SessionOpening` bei Bedarf, schließt nach Leerlauf, im Keep-alive, schließt beim Trennen, meldet Verbindungsverlust ans Banner. ADR.
+  5. **`Workspace.DataDiff`:** SCN, Startzeit, Einträge (Tabelle + Filter); abwärtsverträglich in der Workspace-Datei.
+  6. **UI-Zustand:** Startpunkt setzen, Einträge nacheinander vergleichen (abbrechbar, Fortschritt), verwerfen; Ergebnisse nur im Speicher.
+  7. **Oberfläche:** Workspace-Leiste („Vergleich starten“ / „Vergleichen (seit hh:mm)“ / „Startpunkt verwerfen“), Tab-Menü „Diesen Tab vergleichen“ (trägt Tab + Filter ein und vergleicht), Ergebnis-Tab: links Tabellen mit Zahl oder Fehler und „+ Tabelle“, rechts Grid mit Status-Spalte, markierten Zellen, altem Wert im Tooltip; Werte und Namen über die Präsentationsschicht.
+  8. Texte en/de; Integrationstests (Testcontainers: eigene Tabellen, Filter, ROWID, LOB, DDL dazwischen); E2E; README, CHANGELOG, Protokoll + Index.
+- Einfachste Variante, als Frage notiert: `TIMESTAMP_TO_SCN` ist nur auf ~3 s genau – kurz vor dem Klick committete Änderungen können mit erscheinen (Integrationstest misst es; Alternative `V$DATABASE.CURRENT_SCN` mit Rückfall). LOBs gelten bei gleicher Vorschau und Länge als gleich wie im Zeilenvergleich – eine Änderung hinter den ersten 200 Zeichen bei gleicher Länge bleibt unsichtbar.
 
 ### WP-45 Mitschnitt mit Quellzeile und Datenänderungen
 (braucht WP-40 und WP-44.) Branch `wp/45-recording-source-data`. Fortsetzung von WP-33 (ADR 0023).
