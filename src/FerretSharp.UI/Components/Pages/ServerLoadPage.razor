@@ -458,6 +458,8 @@
                 <p class="hint">@ServerLoadText.ServerLoad_TextCut</p>
             }
         }
+        @* WP-76: methods of the linked solution that may send it; a text cut short still names its leading tables. *@
+        <CodeOrigins Sql="@(whole ?? text)" Schema="@row?.Info?.Schema" />
         @if (view.CursorLoading)
         {
             <p class="hint"><span class="spinner small"></span> @ServerLoadText.ServerLoad_LookingUp</p>

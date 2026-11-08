@@ -1951,6 +1951,10 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .load-detail > .sql-block { margin: 0 16px; }
 .load-detail > p.hint, .load-detail > .test-result { margin: 10px 16px; }
 .load-detail table.plan { width: calc(100% - 32px); margin: 6px 16px 14px; }
+/* Origin in code (WP-76) */
+.load-detail > .code-origins { margin: 6px 16px 10px; }
+.code-origins .usage-subhead { margin-top: 4px; }
+.code-origin-reasons { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .load-sessions h2 .count { margin-left: 8px; font-weight: 500; color: var(--faint); }
 .load-sessions .link-btn { padding: 0; color: var(--accent); }
 .load-license, .load-wait { max-width: 1100px; margin: 12px auto 0; }

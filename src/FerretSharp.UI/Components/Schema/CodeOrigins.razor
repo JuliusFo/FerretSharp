@@ -1,0 +1,206 @@
+@* Origin in code (WP-76, ADR 0030): methods of the linked solution that may have sent a statement, guessed from its tables
+   and the columns it filters by against the code usage index (CodeOriginFinder). Shown only with a linked project (a model
+   file has no code to read) and a table of the model in the statement – the solution is read for nothing else. The text
+   comes from any session on the server: it is parsed off the render thread (review WP-76). The candidates are worked out
+   on the render thread: the code usage index fills a cache while it is read, and the other views read it there too (second
+   pass of the review). *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@inherits FerretComponent
+@implements IDisposable
+@inject CodeUsageOpener Opener
+
+@if (_tables is { Count: > 0 } && Models.State.Link is not null)
+{
+    var state = Usage.State;
+    var result = Origins(state.Result);
+    <section class="code-origins">
+        <h3 class="usage-subhead" title="@ModelViewText.CodeOrigin_Limits">
+            @ModelViewText.CodeOrigin_Heading
+            @if (result is not null)
+            {
+                <span class="count">@result.Candidates.Count</span>
+            }
+            <span class="usage-limits" aria-label="@ModelViewText.CodeOrigin_Limits">@Icons.Info</span>
+        </h3>
+        @if (state.Error is { } error)
+        {
+            <p class="hint">@TextFormat.Format(ModelViewText.Usage_Failed, error)</p>
+        }
+        else if (result is null)
+        {
+            <p class="hint"><span class="spinner small"></span> @ModelViewText.Usage_Building</p>
+        }
+        else if (result.Candidates.Count == 0)
+        {
+            <p class="hint">@ModelViewText.CodeOrigin_None</p>
+        }
+        else
+        {
+            var qualify = result.Tables.Count > 1;
+            <ul class="usage-list">
+                @foreach (var candidate in CodeOriginRows.Shown(result.Candidates, _expanded))
+                {
+                    var use = candidate.Use.Use;
+                    var reasons = CodeOriginRows.Reasons(candidate, qualify);
+                    <li class="usage-item">
+                        <button class="link-btn mono" disabled="@(use.Document is null)" title="@(use.Document ?? ModelViewText.Usage_NoSourceFile)"
+                                @onclick="() => OpenAsync(use)">@CodeUsageRows.Caller(use)</button>
+                        <span class="muted mono">@CodeUsageRows.Location(use)</span>
+                        <span class="muted code-origin-reasons" title="@reasons">@reasons</span>
+                    </li>
+                }
+            </ul>
+            @if (result.Candidates.Count > CodeOriginRows.Initial)
+            {
+                <button class="link-btn" @onclick="() => _expanded = !_expanded">
+                    @(_expanded ? ModelViewText.CodeOrigin_Fewer : TextFormat.Format(ModelViewText.CodeOrigin_More, result.Candidates.Count - CodeOriginRows.Initial))
+                </button>
+            }
+        }
+    </section>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    /// <summary>The statement's text; one cut short still names its leading tables.</summary>
+    [Parameter]
+    public string? Sql { get; set; }
+
+    /// <summary>The schema the statement was parsed in: the owner of its unqualified tables.</summary>
+    [Parameter]
+    public string? Schema { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _disposed;
+    private bool _expanded;
+
+    /// <summary>What the tables were worked out for; a change starts it anew.</summary>
+    private (string? Sql, string? Schema, ModelExport? Model) _readFor;
+    private CodeOriginStatement? _statement;
+
+    /// <summary>The statement's tables of the model; null while being read or without a model.</summary>
+    private IReadOnlyList<string>? _tables;
+
+    /// <summary>The candidates over an index, worked out once per statement and index.</summary>
+    private (CodeOriginStatement Statement, CodeUsageIndex Index, CodeOriginResult Result)? _origins;
+
+    protected override void OnInitialized()
+    {
+        Usage.Changed += OnChanged;
+        Models.Changed += OnChanged;
+    }
+
+    protected override void OnParametersSet() => Fire(RefreshAsync);
+
+    private void OnChanged() => Fire(async () =>
+    {
+        if (_disposed)
+        {
+            return; // queued before Dispose (review WP-76: the token source was gone)
+        }
+
+        StateHasChanged();
+        await RefreshAsync();
+    });
+
+    /// <summary>
+    /// Brings the statement and the index up to date: reads the statement (off the render thread) and builds the index when a
+    /// table of the model is in it; rendering then works out the candidates.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        var model = Models.State.Link is null ? null : Models.Mapping?.Model;
+        var readFor = (Sql, Schema, model);
+        if (readFor != _readFor)
+        {
+            _readFor = readFor;
+            _expanded = false;
+            (_statement, _tables, _origins) = (null, null, null);
+            if (Sql is not { } sql || model is null)
+            {
+                return;
+            }
+
+            var token = _lifetime.Token;
+            var (statement, tables) = await Task.Run(() =>
+            {
+                var read = CodeOriginFinder.Prepare(sql, Schema);
+                return (read, CodeOriginFinder.TablesOf(read, model));
+            }, token);
+            if (_disposed || _readFor != readFor)
+            {
+                return; // another statement came meanwhile
+            }
+
+            (_statement, _tables) = (statement, tables);
+            StateHasChanged();
+            if (tables.Count > 0)
+            {
+                await Usage.EnsureAsync(token);
+            }
+        }
+        else if (_tables is { Count: > 0 } && Usage.State.Phase == CodeUsagePhase.NotBuilt)
+        {
+            await Usage.EnsureAsync(_lifetime.Token); // a new model or build while shown
+        }
+
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>The candidates over the current index, worked out once per statement and index; null while there is none.</summary>
+    private CodeOriginResult? Origins(CodeUsageResult? result)
+    {
+        if (_statement is not { } statement || result?.Index is not { } index)
+        {
+            return null;
+        }
+
+        if (_origins is not { } known || known.Statement != statement || known.Index != index)
+        {
+            _origins = known = (statement, index, CodeOriginFinder.Find(statement, index));
+        }
+
+        return known.Result;
+    }
+
+    private async Task OpenAsync(CodeUse use)
+    {
+        if (Models.State.Link is not { } link)
+        {
+            return;
+        }
+
+        if (await Opener.OpenAsync(use, link, Usage.Solution, Active.Profile?.Group, _lifetime.Token) is { } notice)
+        {
+            Shell.Notify(notice);
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Usage.Changed -= OnChanged;
+        Models.Changed -= OnChanged;
+        _lifetime.Cancel(); // not disposed: work queued before may still ask for its token
+    }
+}

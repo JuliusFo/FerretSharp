@@ -180,6 +180,7 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | App-Umgebung (Feld der Verbindung: `-environment=…` der eigenen App) | app environment | nicht verwechseln mit „Umgebung“ = Verbindungsart |
 | anhängen / trennen (an einen Prozess) / leeren (Mitschnitt) / pausieren, fortsetzen (Mitschnitt) | attach / detach / clear / pause, resume | WP-33; bis 3.29 „zurücksetzen“/„reset“ – der Nutzer suchte „Clear“ |
 | Herkunft (eines Statements: LINQ, Lazy Loading …) / Lauf, Läufe | origin / run, runs | WP-33 |
+| Herkunft im Code (Methoden, die ein Statement schicken könnten; Kandidaten) | origin in code (candidates) | WP-76 |
 | In der Datenbank nachsehen (V$SQL) | look up in the database | WP-33 |
 | Tastennamen Entf / Einfg / Pos1 / Ende / Bild↑ / Bild↓ / Leertaste / Rücktaste | Del / Ins / Home / End / PgUp / PgDn / Space / Backspace | Ctrl, Shift, Alt, Enter, Esc, Tab in beiden Sprachen gleich |
 | Update / aktualisieren (neue Version der App) | update | „Update 3.29.0 verfügbar“ / „Update 3.29.0 available“ (WP-32) |

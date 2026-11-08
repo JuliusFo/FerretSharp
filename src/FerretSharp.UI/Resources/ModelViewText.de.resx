@@ -858,4 +858,37 @@
   <data name="Report_ExceptionTooManyStars" xml:space="preserve">
     <value>Ein Muster darf höchstens {0} * haben.</value>
   </data>
+  <data name="CodeOrigin_Heading" xml:space="preserve">
+    <value>Herkunft im Code</value>
+  </data>
+  <data name="CodeOrigin_Limits" xml:space="preserve">
+    <value>Kandidaten, keine sichere Zuordnung: die Tabellen des Statements und die Spalten, nach denen es filtert, verglichen mit den Abfragen im gebauten Code der verknüpften Solution. Weder die Reihenfolge der Aufrufe noch die Werte sind bekannt; Test- und Mapping-Code fehlen. Bester Treffer zuerst.</value>
+  </data>
+  <data name="CodeOrigin_None" xml:space="preserve">
+    <value>Keine Methode im Code passt zu diesem Statement.</value>
+  </data>
+  <data name="CodeOrigin_More" xml:space="preserve">
+    <value>{0} weitere</value>
+  </data>
+  <data name="CodeOrigin_Fewer" xml:space="preserve">
+    <value>Weniger zeigen</value>
+  </data>
+  <data name="CodeOrigin_Queries" xml:space="preserve">
+    <value>fragt {0} ab</value>
+  </data>
+  <data name="CodeOrigin_Joins" xml:space="preserve">
+    <value>liest {0} über {1}</value>
+  </data>
+  <data name="CodeOrigin_LazyLoads" xml:space="preserve">
+    <value>lädt {0} beim Zugriff auf {1} (Lazy Loading)</value>
+  </data>
+  <data name="CodeOrigin_Filters" xml:space="preserve">
+    <value>filtert nach {0}</value>
+  </data>
+  <data name="CodeOrigin_Writes" xml:space="preserve">
+    <value>schreibt {1} von {0}</value>
+  </data>
+  <data name="CodeOrigin_FiltersIn" xml:space="preserve">
+    <value>filtert {0} nach {1}</value>
+  </data>
 </root>

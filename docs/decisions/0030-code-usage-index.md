@@ -49,3 +49,9 @@ Verworfen:
 ## Nachtrag (small-usage-filter-without-index, 3.54.0)
 
 - Bedingungen von `Where`/`Any`/`First…` sind eine eigene Art `CodeUseKind.Filter`: Getter aus einem Expression Tree warten auf den ersten Aufruf mit `Expression<T>`-Parameter. Spalten, nach denen Anwendungscode filtert, ohne Index, der mit ihnen beginnt, werden markiert. Die Einordnung änderte das Cache-Format (`AssemblyUses.CurrentFormatVersion`), alte Einträge werden verworfen.
+
+## Nachtrag (WP-76, 3.64.0)
+
+- Der Index beantwortet auch die umgekehrte Frage: Welche Methoden könnten ein Statement geschickt haben? `CodeOriginFinder` vergleicht Tabellen und Filterspalten des SQL-Texts (`SqlAnalysis`, `SqlConditions`) mit den Abfragen, Navigations, Filtern und Schreibzugriffen je Methode und gibt eine Rangliste mit Gründen – Kandidaten, keine Zuordnung, weil der Index weder die Reihenfolge der Aufrufe noch Werte kennt. Die Gewichte stehen in der Klasse (Vorschlag, nicht bestätigt).
+- Verworfen für WP-76: Datei:Zeile als Kommentar im SQL (`TagWithCallSite()`, Interceptor in der App; Entscheidung des Nutzers, Backlog) und LINQ ohne Ausführen in SQL übersetzen (die Ausdrucksbäume entstehen erst zur Laufzeit in den Methoden). Sichere Treffer bringt später WP-45 (Aufrufstapel im Mitschnitt).
+- Die Solution wird nur gelesen, wenn eine Tabelle des Statements zum Modell gehört (`CodeOriginFinder.TablesOf` braucht nur den Modell-Export).

@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *Server load*, details of a statement: with a linked C# project, *Origin in code* names the methods of your solution that may send the statement, best fit first – read from the compiled code, without your app running and without a change to it. A method fits by the statement’s tables it queries or reaches over a navigation (`Include`, lazy loading), by the columns both filter by and, for an `UPDATE` or `INSERT`, by the properties it writes that the statement sets; why is shown beside it, and a click opens the line in Visual Studio. These are candidates, not a sure match. Statements on no table of the model show nothing, and the solution is only read for the others.
+
 ## [3.63.1] - 2026-11-07
 
 The top statements of the server load page no longer count a statement many times over when its plan changes with its bind values.

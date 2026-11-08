@@ -274,6 +274,9 @@ else
     };
     private readonly CancellationTokenSource _lifetime = new();
 
+    /// <summary>Work queued before Dispose (Fire) must not ask the disposed token source (review WP-76).</summary>
+    private bool _disposed;
+
     private static IEnumerable<(UsageAccess Access, string Label)> AccessChoices =>
     [
         (UsageAccess.All, ModelViewText.Usage_FilterAll),
@@ -375,6 +378,11 @@ else
 
     private void OnChanged() => Fire(async () =>
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         StateHasChanged();
         if (Shown)
         {
@@ -390,6 +398,11 @@ else
 
     private async Task EnsureAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         await Usage.EnsureAsync(_lifetime.Token);
         StateHasChanged();
     }
@@ -401,6 +414,11 @@ else
     /// </summary>
     private async Task LoadIndexesAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         if (_indexesVersion == Version || Details.Table.Kind == TableKind.View || Models.Mapping is not { } mapping
             || Usage.State.Result is not { } usage || !CodeUsageRows.Columns(mapping, usage.Index, Details).Any(r => r.Filtered)
             || Active.Schema is not { } schema)
@@ -459,6 +477,7 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         Usage.Changed -= OnChanged;
         Models.Changed -= OnChanged;
         await _lifetime.CancelAsync();
