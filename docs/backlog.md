@@ -35,6 +35,8 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 - Grid-Editor: Tasten, die vor dem Laden des Zelltexts getippt werden (das Feld ist dann gesperrt), gehen verloren – nach R4a schreibt ein Beenden in dem Moment nichts mehr, aber das Getippte landet nicht im Feld. Puffern und nach dem Laden einfügen, falls es stört.
 - Grid: Nach dem Flags-Editor (Popup) bleibt der Zellinhalt markiert – die Wortauswahl des Doppelklicks (`enableCellTextSelection`), der Popup-Editor ersetzt den Zellinhalt nicht. Im E2E zu WP-36 gesehen, seitdem nicht nachgestellt (AG Grid inzwischen 36.2.0). Abhilfe ggf.: beim Öffnen eines Popup-Editors `getSelection().removeAllRanges()`.
 
+- `SqlAnalysis`: `DELETE t WHERE …` (Oracle erlaubt `DELETE` ohne `FROM`) erkennt die Zieltabelle nicht, die erste Tabelle ist dann die einer Unterabfrage (zweiter Durchgang des Code-Reviews von WP-76; dort ohne Wirkung, EF schreibt `DELETE FROM`).
+
 ## Verbindungen, Sessions, Workspaces
 
 - Schema-Vergleich (`SchemaCompareLoader`) und „Verbindung testen“ (`OracleConnectionTester`) öffnen ihre Session noch mit einem Versuch, ohne die Grenzen von `SessionOpening` (fix-session-open-retry): Hängt das Öffnen über das VPN, warten sie wie früher rund 20 s. Der Vergleich geht über `IDatabaseConnector` und lässt sich direkt umstellen; der Test ruft `OracleSession.OpenAsync` selbst auf.
