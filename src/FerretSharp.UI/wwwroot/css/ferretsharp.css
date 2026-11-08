@@ -102,7 +102,7 @@ html, body {
   user-select: none;
 }
 
-button, input, select { font: inherit; color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .5; }
 
@@ -226,6 +226,8 @@ button:disabled { cursor: default; opacity: .5; }
   height: 30px; padding: 0 8px; min-width: 0;
   border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); outline: none;
 }
+/* A text box grows with its rows: the fixed height of one line put the first line against the top edge. */
+textarea.field { height: auto; min-height: 30px; padding: 5px 8px; line-height: 1.4; resize: vertical; }
 .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
 .field.invalid { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-weak); }
 
