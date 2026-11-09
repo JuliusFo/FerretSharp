@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.67.0] - 2026-11-09
+
+Filter a table by a SQL condition you write – subqueries on other tables included – and keep editing, jumping and exporting as in any table tab.
+
 ### Added
 - *SQL condition*: a table tab filters by a condition you write instead of its filter rows, as in the WHERE field of SQL Developer – `ID IN (SELECT …)` on other tables with another `IN` inside, whatever the database understands. *SQL condition* in the filter bar starts with the current filter written as SQL (values as literals); <kbd>Enter</kbd> applies, <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line, and the field completes the table's columns and other tables like the SQL editor. *Recent* offers the last ten conditions applied to the table (they are kept with their values, like the SQL editor's history). *Filter bar* goes back to the filter rows – without asking if the condition is still the one it started with. The tab stays a table tab: editing, FK jumps, display columns, counting, export, *SQL* and the plan use the condition. A condition is checked before it runs: parentheses closed, nothing that would change the statement around it (`ORDER BY`, `UNION`, `FOR UPDATE`, `;` outside parentheses), no bind variables; anything else is the database's own error at the field.
 - A condition is not a filter row: links, presets, LINQ, *Time travel* and *Data diff* take only filter rows and say so for a tab with a condition. A time travel tab has no SQL condition.
