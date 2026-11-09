@@ -19,27 +19,30 @@
             }
             @if (Usage.IsBuildingSolution)
             {
-                <span class="muted"><span class="spinner small"></span> @ModelViewText.Usage_BuildingSolution</span>
-                @if (Usage.BuildProgress is { Fraction: { } fraction } progress)
-                {
-                    var done = TextFormat.Format(ModelViewText.Usage_BuildProgress, progress.Done, progress.Total);
-                    <span class="build-progress" role="progressbar" aria-label="@done" aria-valuemin="0" aria-valuemax="@progress.Total" aria-valuenow="@progress.Done">
-                        <span style="width: @((fraction * 100).ToString("0.#", CultureInfo.InvariantCulture))%"></span>
-                    </span>
-                    <span class="muted">@done</span>
-                    @if (progress.Last is { } last)
+                @* Its own row under the sentence: beside it, Cancel broke onto a line of its own (review of the PR). *@
+                <div class="usage-build-run">
+                    <span class="muted"><span class="spinner small"></span> @ModelViewText.Usage_BuildingSolution</span>
+                    @if (Usage.BuildProgress is { Fraction: { } fraction } progress)
                     {
-                        <span class="muted ellipsis build-progress-last" title="@last">@TextFormat.Format(ModelViewText.Usage_BuildLast, last)</span>
+                        var done = TextFormat.Format(ModelViewText.Usage_BuildProgress, progress.Done, progress.Total);
+                        <span class="build-progress" role="progressbar" aria-label="@done" aria-valuemin="0" aria-valuemax="@progress.Total" aria-valuenow="@progress.Done">
+                            <span style="width: @((fraction * 100).ToString("0.#", CultureInfo.InvariantCulture))%"></span>
+                        </span>
+                        <span class="muted">@done</span>
+                        @if (progress.Last is { } last)
+                        {
+                            <span class="muted ellipsis build-progress-last" title="@last">@TextFormat.Format(ModelViewText.Usage_BuildLast, last)</span>
+                        }
                     }
-                }
-                @if (Usage.IsCancellingSolutionBuild)
-                {
-                    <span class="muted">@ModelViewText.Usage_BuildSolutionCancelling</span>
-                }
-                else
-                {
-                    <button class="link-btn" title="@ModelViewText.Usage_BuildSolutionCancelTitle" @onclick="Usage.CancelSolutionBuild">@CommonText.Cancel</button>
-                }
+                    @if (Usage.IsCancellingSolutionBuild)
+                    {
+                        <span class="muted">@ModelViewText.Usage_BuildSolutionCancelling</span>
+                    }
+                    else
+                    {
+                        <button class="link-btn" title="@ModelViewText.Usage_BuildSolutionCancelTitle" @onclick="Usage.CancelSolutionBuild">@CommonText.Cancel</button>
+                    }
+                </div>
             }
             else if (Usage.Solution is { } solution && Models.State.Link is { } link)
             {
