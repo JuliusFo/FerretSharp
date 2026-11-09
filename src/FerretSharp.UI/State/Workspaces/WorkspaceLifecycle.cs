@@ -19,6 +19,7 @@ public sealed partial class WorkspaceLifecycle(
     ConnectionHub hub,
     ConnectionManager connections,
     SqlHistoryStore history,
+    ConditionHistoryStore conditions,
     WorkspaceEditing editing,
     ILogger<WorkspaceLifecycle> logger)
 {

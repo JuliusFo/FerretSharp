@@ -68,6 +68,10 @@ developer works with an Oracle database day to day:
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
   statement (the grid's own or a short `SELECT t.*`) and its execution plan at any time. Combine rows with **OR** and **NOT** groups (NOT treats NULL as C# does,
   so the grid and a LINQ `Where` keep the same rows).
+- **SQL condition**: filter a table tab by a condition you write, as in the WHERE field of SQL Developer –
+  `ID IN (SELECT …)` on other tables, nested as deep as you like – with completion of the columns and tables, the
+  conditions last applied to the table, and the filter bar's filter as a start. The tab stays a table tab: edit, jump
+  along foreign keys, count and export as usual. A new tab can start with it (*Settings › Data view*).
 - **Filter presets**: save the filter rows of a table, and its sort order, under a name ("Open orders") – a preset
   belongs to the table name, so it works on Dev, Test and Prod alike.
 - **Links to a table view**: "Copy link" puts a link with table, filters, sort order and view on the clipboard – an https

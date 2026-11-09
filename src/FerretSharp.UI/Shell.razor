@@ -15,6 +15,7 @@
 @inject ExitGuard ExitGuard
 @inject IJSRuntime JS
 @inject FerretSharp.Core.Workspaces.SqlHistoryStore SqlHistory
+@inject FerretSharp.Core.Workspaces.ConditionHistoryStore ConditionHistory
 @inject ILoggerFactory LoggerFactory
 @inject LinkInbox Links
 
@@ -334,7 +335,7 @@
     {
         _state.CurrentSettings = () => Settings.Current;
         _editing = new WorkspaceEditing(_state, Hub, Settings, LoggerFactory.CreateLogger<WorkspaceEditing>());
-        _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>());
+        _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, ConditionHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>());
         _reconnect = new AutoReconnect(_state, Hub, _editing, Settings, _lifecycle.ReconnectInPlaceAsync, Run, LoggerFactory.CreateLogger<AutoReconnect>());
         ExitGuard.CanExit = () => _lifecycle.CanExit;
         ExitGuard.RequestExit = () => InvokeAsync(() => _lifecycle.RequestExitAsync(ExitGuard.ApproveExit));
@@ -523,6 +524,9 @@
                 break;
             case ShortcutAction.FindColumn:
                 _state.RequestTabCommand(TabCommand.FindColumn);
+                break;
+            case ShortcutAction.ToggleCondition when _state.ActiveTab is TableTab { TimeTravel: null }:
+                _state.RequestTabCommand(TabCommand.ToggleCondition);
                 break;
             case ShortcutAction.Back:
                 _state.GoBack();

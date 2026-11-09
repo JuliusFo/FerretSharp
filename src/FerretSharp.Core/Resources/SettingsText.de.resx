@@ -384,4 +384,10 @@
   <data name="HintTimeTravel" xml:space="preserve">
     <value>Die Tabelle des aktiven Tabs, wie sie zu einem gewählten Zeitpunkt war – nur lesend, in einem eigenen Tab.</value>
   </data>
+  <data name="ActionToggleCondition" xml:space="preserve">
+    <value>Filterleiste ↔ SQL-Bedingung</value>
+  </data>
+  <data name="HintToggleCondition" xml:space="preserve">
+    <value>Der aktive Tabellen-Tab filtert über seine Filterzeilen oder über eine selbst geschriebene SQL-Bedingung – nicht in einem Zeitreise-Tab.</value>
+  </data>
 </root>

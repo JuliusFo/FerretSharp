@@ -253,8 +253,118 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         FilterRows.AddRange(ordered);
     }
 
-    /// <summary>Filters the grid currently shows.</summary>
+    /// <summary>
+    /// The filter rows the grid currently shows – unless a SQL condition is applied. In SQL mode they wait for the way back;
+    /// what the grid reads is <see cref="ReadFilter"/>, and a link, LINQ, time travel and the data diff take its filter rows.
+    /// </summary>
     public IReadOnlyList<FilterCondition> AppliedFilters { get; set; } = [];
+
+    /// <summary>
+    /// The tab filters by a condition written in SQL instead of its filter bar (WP-79); null for the filter bar. The filter
+    /// rows and <see cref="AppliedFilters"/> stay meanwhile: going back finds them. Saved with the tab. Never set in a time travel
+    /// tab (decision of the user).
+    /// </summary>
+    public SqlConditionState? SqlCondition { get; private set; }
+
+    /// <summary>Why the condition was not applied or Oracle refused it (shown at the field); not saved.</summary>
+    public string? ConditionError { get; set; }
+
+    /// <summary>The tab filters by a SQL condition (WP-79).</summary>
+    public bool SqlMode => SqlCondition is not null;
+
+    /// <summary>
+    /// A SQL condition filters the grid: its rows are not those of filter rows, so a link, time travel and the data diff cannot
+    /// take them. An empty condition applied ("Clear") filters nothing (review of WP-79).
+    /// </summary>
+    public bool ConditionApplied => ReadFilter.IsSql;
+
+    /// <summary>What the grid reads: the applied condition (an empty one: every row), or else the applied filter rows.</summary>
+    public RowFilter ReadFilter => SqlCondition?.Applied switch
+    {
+        null => RowFilter.Of(AppliedFilters),
+        { } sql when sql.Trim().Length == 0 => RowFilter.None,
+        { } sql => RowFilter.Where(sql),
+    };
+
+    /// <summary>
+    /// Switches to SQL mode with <paramref name="origin"/> – the filter bar's filter as SQL, or empty. The grid keeps showing
+    /// the filter rows until a condition is applied. Not in a time travel tab.
+    /// </summary>
+    public void StartCondition(string origin)
+    {
+        ArgumentNullException.ThrowIfNull(origin);
+        if (TimeTravel is null)
+        {
+            SqlCondition = new SqlConditionState(origin, Origin: origin);
+            ConditionError = null;
+        }
+    }
+
+    /// <summary>The condition as edited; does nothing outside SQL mode.</summary>
+    public void EditCondition(string text)
+    {
+        if (SqlCondition is { } condition && condition.Text != text)
+        {
+            SqlCondition = condition with { Text = text };
+        }
+    }
+
+    /// <summary>
+    /// Takes the edited condition as the one the grid shows; false with <see cref="ConditionError"/> if it cannot stand after
+    /// WHERE (<see cref="WhereCondition.Problem"/>). An empty condition shows all rows.
+    /// </summary>
+    public bool ApplyCondition()
+    {
+        if (SqlCondition is not { } condition)
+        {
+            return false;
+        }
+
+        ConditionError = condition.Text.Trim().Length == 0 ? null : WhereCondition.Problem(condition.Text);
+        if (ConditionError is not null)
+        {
+            return false;
+        }
+
+        SqlCondition = condition with { Applied = condition.Text };
+        return true;
+    }
+
+    /// <summary>
+    /// The filter as edited, for showing its statement ("SQL" in the filter bar): the condition being written if it can stand
+    /// after WHERE, the filter rows if they are valid – otherwise what the grid shows.
+    /// </summary>
+    public RowFilter EditedFilter(TableDetails table)
+    {
+        if (SqlCondition is { } condition)
+        {
+            return condition.Text.Trim().Length == 0 ? RowFilter.None
+                : WhereCondition.Problem(condition.Text) is null ? RowFilter.Where(condition.Text)
+                : ReadFilter;
+        }
+
+        var edited = EditedFilters();
+        return RowFilter.Of(QueryBuilder.Validate(table, edited).Count == 0 ? edited : AppliedFilters);
+    }
+
+    /// <summary>Back to the filter bar: its rows and the filters they applied show again.</summary>
+    public void EndCondition()
+    {
+        SqlCondition = null;
+        ConditionError = null;
+    }
+
+    /// <summary>The SQL mode of another tab (a duplicate) or of a saved one; ignored in a time travel tab.</summary>
+    public void UseCondition(SqlConditionState? condition)
+    {
+        SqlCondition = TimeTravel is null ? condition : null;
+        ConditionError = null;
+    }
+
+    /// <summary>The applied condition on one line, for the tab's title and the footer; null if none is applied.</summary>
+    public string? ConditionSummary => SqlCondition?.Applied is { } sql && sql.Trim().Length > 0
+        ? string.Join(' ', sql.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        : null;
 
     /// <summary>
     /// The filter rows as edited, if all enabled ones are valid for <paramref name="table"/>; null otherwise. Each row gets
@@ -318,7 +428,10 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// <summary>The database error behind <see cref="Error"/>, for the details dialog; null for validation errors.</summary>
     public DatabaseException? Failure { get; set; }
 
-    public int ActiveFilterCount => Core.Query.FilterGroups.Active(AppliedFilters).Count();
+    /// <summary>Filters the grid shows: the active filter rows, or one for an applied SQL condition.</summary>
+    public int ActiveFilterCount => SqlCondition?.Applied is { } sql
+        ? (sql.Trim().Length == 0 ? 0 : 1)
+        : Core.Query.FilterGroups.Active(AppliedFilters).Count();
 
     /// <summary>The tab this one was opened from by an FK jump ("Back"); it may have been closed since.</summary>
     public TableTab? Origin { get; set; }
@@ -464,6 +577,16 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// <summary>The active filters, one text each; a group (WP-50) as one: <c>(A | B)</c>, <c>¬(A | B)</c>.</summary>
     public IEnumerable<string> FilterTexts(TablePresentation? presentation = null)
     {
+        if (SqlCondition?.Applied is not null)
+        {
+            if (ConditionSummary is { } condition)
+            {
+                yield return condition;
+            }
+
+            yield break;
+        }
+
         var filters = AppliedFilters;
         foreach (var term in Core.Query.FilterGroups.Terms(filters))
         {
@@ -491,6 +614,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         Design = Design,
         PathTarget = PathTarget,
         TimeTravel = TimeTravel,
+        SqlCondition = SqlCondition,
     };
 
     private static int IndexOf(IReadOnlyList<WorkspaceTab> tabs, WorkspaceTab tab)
@@ -521,6 +645,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             PathTarget = state.PathTarget,
         }.WithForm(state.Form);
         tab.SetFilterRows(state.FilterRows);
+        tab.UseCondition(state.SqlCondition);
         return tab;
     }
 }

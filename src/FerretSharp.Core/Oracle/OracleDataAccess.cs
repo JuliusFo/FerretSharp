@@ -31,7 +31,7 @@ public sealed class OracleDataAccess(OracleSession session, long? asOf = null) :
     /// </remarks>
     public async Task<RowPage> ReadPageAsync(
         TableDetails table,
-        IReadOnlyList<FilterCondition> filters,
+        RowFilter filters,
         IReadOnlyList<SortSpec> sorts,
         PageSpec page,
         CancellationToken cancellationToken)
@@ -60,7 +60,7 @@ public sealed class OracleDataAccess(OracleSession session, long? asOf = null) :
         return new RowPage(rows, rows.Count < page.Limit, stopwatch.Elapsed, snapshot);
     }
 
-    public async Task<long> CountAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, CancellationToken cancellationToken)
+    public async Task<long> CountAsync(TableDetails table, RowFilter filters, CancellationToken cancellationToken)
     {
         var query = QueryBuilder.BuildCount(table, filters, asOf);
         return await ReadAsync(query, async (reader, ct) =>
@@ -110,7 +110,7 @@ public sealed class OracleDataAccess(OracleSession session, long? asOf = null) :
 
     public Task ReadAllAsync(
         TableDetails table,
-        IReadOnlyList<FilterCondition> filters,
+        RowFilter filters,
         IReadOnlyList<SortSpec> sorts,
         RowBlockHandler onBlock,
         CancellationToken cancellationToken) =>
@@ -119,7 +119,7 @@ public sealed class OracleDataAccess(OracleSession session, long? asOf = null) :
     public Task ReadColumnAllAsync(
         TableDetails table,
         IReadOnlyList<int> columns,
-        IReadOnlyList<FilterCondition> filters,
+        RowFilter filters,
         IReadOnlyList<SortSpec> sorts,
         bool distinct,
         RowBlockHandler onBlock,

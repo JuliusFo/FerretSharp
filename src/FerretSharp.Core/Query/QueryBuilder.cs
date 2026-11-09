@@ -103,16 +103,15 @@ public static partial class QueryBuilder
 
     /// <param name="asOf">The SCN to read the table at (time travel, WP-78); null for now.</param>
     public static SelectQuery BuildSelect(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page, long? asOf = null) =>
+        TableDetails table, RowFilter filters, IReadOnlyList<SortSpec> sorts, PageSpec page, long? asOf = null) =>
         Select(table, filters, sorts, page, asOf);
 
     /// <summary>
-    /// Every row of <see cref="BuildSelect(TableDetails, IReadOnlyList{FilterCondition}, IReadOnlyList{SortSpec}, PageSpec)"/>
-    /// in the same order, without paging: the export of all rows of a filter (WP-54) reads them through one cursor –
-    /// a large OFFSET gets slower page by page.
+    /// Every row of <see cref="BuildSelect"/> in the same order, without paging: the export of all rows of a filter (WP-54)
+    /// reads them through one cursor – a large OFFSET gets slower page by page.
     /// </summary>
     public static SelectQuery BuildSelectAll(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, long? asOf = null) =>
+        TableDetails table, RowFilter filters, IReadOnlyList<SortSpec> sorts, long? asOf = null) =>
         Select(table, filters, sorts, page: null, asOf);
 
     /// <summary>
@@ -123,7 +122,7 @@ public static partial class QueryBuilder
     /// change, decision of the user). A view without key is ordered by the sorts only.
     /// </summary>
     /// <param name="asOf">The SCN of a time travel tab (WP-78), written as a number: the SQL editor reads what the tab shows.</param>
-    public static QuerySpec BuildSelectStar(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, long? asOf = null)
+    public static QuerySpec BuildSelectStar(TableDetails table, RowFilter filters, IReadOnlyList<SortSpec> sorts, long? asOf = null)
     {
         var builder = new Builder(table);
         var sql = new StringBuilder()
@@ -167,7 +166,7 @@ public static partial class QueryBuilder
     /// A column is a LOB, LONG or a type read only as a marker; no column; DISTINCT over several columns.
     /// </exception>
     public static SelectQuery BuildColumnValues(
-        TableDetails table, IReadOnlyList<int> columns, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, bool distinct,
+        TableDetails table, IReadOnlyList<int> columns, RowFilter filters, IReadOnlyList<SortSpec> sorts, bool distinct,
         long? asOf = null)
     {
         if (columns.Count == 0 || (distinct && columns.Count > 1))
@@ -192,7 +191,7 @@ public static partial class QueryBuilder
     }
 
     private static SelectQuery Select(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec? page, long? asOf)
+        TableDetails table, RowFilter filters, IReadOnlyList<SortSpec> sorts, PageSpec? page, long? asOf)
     {
         var builder = new Builder(table);
         var hasRowId = table.Table.Kind != TableKind.View;
@@ -430,7 +429,7 @@ public static partial class QueryBuilder
         return select;
     }
 
-    public static QuerySpec BuildCount(TableDetails table, IReadOnlyList<FilterCondition> filters, long? asOf = null)
+    public static QuerySpec BuildCount(TableDetails table, RowFilter filters, long? asOf = null)
     {
         var builder = new Builder(table);
         var from = From(table, asOf, builder.Parameters);
@@ -438,18 +437,40 @@ public static partial class QueryBuilder
         return new QuerySpec(sql, builder.Parameters);
     }
 
-    /// <param name="alias">The table's alias in the statement; several builders of one statement (WP-69) each have their own.</param>
+    /// <summary>
+    /// The filter rows as a condition to go on with in SQL (switching a tab's filter bar to a SQL condition, WP-79): what
+    /// <see cref="BuildSelect"/> puts after WHERE, with the values as literals and the columns by their plain names – the user
+    /// reads and edits it. Empty if no row filters.
+    /// </summary>
+    /// <exception cref="QueryValidationException">A filter row cannot be applied.</exception>
+    public static string ConditionText(TableDetails table, IReadOnlyList<FilterCondition> filters) =>
+        string.Join("\nAND ", new Builder(table, alias: null, literals: true).Conditions(filters));
+
+    /// <param name="alias">
+    /// The table's alias in the statement; several builders of one statement (WP-69) each have their own. Null for a condition
+    /// shown to the user (<see cref="ConditionText"/>): plain column names, quoted only where needed.
+    /// </param>
     /// <param name="parameters">The binds of the statement, shared by its builders so the names stay unique.</param>
     /// <param name="literals">Values as literals instead of binds: a view has no binds (WP-69).</param>
-    private sealed class Builder(TableDetails table, string alias = Alias, List<QueryParameter>? parameters = null, bool literals = false)
+    private sealed class Builder(TableDetails table, string? alias = Alias, List<QueryParameter>? parameters = null, bool literals = false)
     {
         public List<QueryParameter> Parameters { get; } = parameters ?? [];
 
-        public string Ref(ColumnInfo column) => $"{alias}.{OracleIdentifier.Quote(column.Name)}";
+        public string Ref(ColumnInfo column) =>
+            alias is null ? OracleIdentifier.QuoteIfNeeded(column.Name) : $"{alias}.{OracleIdentifier.Quote(column.Name)}";
 
-        public string Where(IReadOnlyList<FilterCondition> filters)
+        /// <summary>The WHERE of the filter rows, or of a condition written in SQL (WP-79) in its own parentheses and lines.</summary>
+        /// <exception cref="QueryValidationException">A filter row cannot be applied, or the condition cannot stand after WHERE.</exception>
+        public string Where(RowFilter filter)
         {
-            var conditions = Conditions(filters);
+            if (filter.Sql is { } sql)
+            {
+                return WhereCondition.Problem(sql) is { } problem
+                    ? throw new QueryValidationException(new Dictionary<int, string> { [0] = problem })
+                    : "\n WHERE " + WhereCondition.Wrap(sql);
+            }
+
+            var conditions = Conditions(filter.Conditions);
             return conditions.Count == 0 ? "" : "\n WHERE " + string.Join("\n   AND ", conditions);
         }
 

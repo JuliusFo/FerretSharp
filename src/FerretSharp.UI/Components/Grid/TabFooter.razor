@@ -122,7 +122,7 @@
         var cts = _countCts = new CancellationTokenSource();
         _countError = null;
         var details = Details;
-        var filters = Tab.AppliedFilters;
+        var filters = Tab.ReadFilter;
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
             var data = await TabData.GetAsync(Tab, Workspaces, Active, cts.Token);

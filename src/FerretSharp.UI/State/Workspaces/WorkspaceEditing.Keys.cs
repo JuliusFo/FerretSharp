@@ -173,7 +173,7 @@ public sealed partial class WorkspaceEditing
             return await TimedQuery.RunAsync<long?>(async ct =>
             {
                 var target = await schema.GetDetailsAsync(FkTargets.SummaryOf(active, jump.Table), ct);
-                return await data.CountAsync(target, jump.Filters, ct);
+                return await data.CountAsync(target, RowFilter.Of(jump.Filters), ct);
             }, timeout, CancellationToken.None, _time) is { } rows
                 ? new FkCount.Done(rows)
                 : new FkCount.TimedOut();

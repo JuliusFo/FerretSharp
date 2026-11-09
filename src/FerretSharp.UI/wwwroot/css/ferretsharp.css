@@ -789,6 +789,15 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filter-grip:hover { color: var(--text); }
 .filterbar.dragging, .filterbar.dragging * { cursor: grabbing !important; }
 .filter-rows .drop-over { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--accent-weak); }
+/* SQL condition (WP-79): a Monaco field like a .field, growing with its lines (monaco.js makeField sets its height). */
+.condition-bar { align-items: flex-start; }
+.condition-where { align-self: flex-start; height: 30px; display: inline-flex; align-items: center; font: 600 12px var(--mono); color: var(--muted); }
+.condition-input { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 260px; }
+.monaco-host.condition-field { height: 30px; min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); overflow: hidden; }
+.monaco-host.condition-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.condition-input.invalid .monaco-host.condition-field { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-weak); }
+.condition-input .filter-error { white-space: normal; }
+.condition-recent { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); }
 
 /* ---------- column search (filter bar picker, Ctrl+F jump) ---------- */
 .colpick { position: relative; min-width: 0; }

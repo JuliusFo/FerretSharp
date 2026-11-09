@@ -165,6 +165,7 @@ public partial class App : Application
 
         builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost, windowsUiCulture));
         builder.Services.AddSingleton(new SqlHistoryStore(paths.SqlHistoryDirectory));
+        builder.Services.AddSingleton(new ConditionHistoryStore(paths.ConditionHistoryDirectory));
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));
         builder.Services.AddSingleton<SchemaCompareLoader>();
         builder.Services.AddSingleton<SchemaCompareService>();

@@ -36,7 +36,7 @@ public static class ColumnValueCopies
     public static AllColumnValues ForTable(
         TableTab tab, TableDetails details, IReadOnlyList<int> columns, Func<Guid, CancellationToken, Task<IDataAccess>> dataOf)
     {
-        var (filters, sorts, workspaceId) = (tab.AppliedFilters, tab.Sorts, tab.WorkspaceId);
+        var (filters, sorts, workspaceId) = (tab.ReadFilter, tab.Sorts, tab.WorkspaceId);
         var total = AllRowsExports.TotalOf(tab);
         return new AllColumnValues(
             AllRowsExports.Heading(GridText.GridMenu_AllRowsGroup, total),

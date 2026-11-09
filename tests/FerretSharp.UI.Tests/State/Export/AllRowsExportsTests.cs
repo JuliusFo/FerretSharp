@@ -48,7 +48,7 @@ public sealed class AllRowsExportsTests
         tab.AppliedFilters = []; // the user filters again while the menu is open
         await all.Read(Ignore, Ct);
 
-        await _data.Received(1).ReadAllAsync(Kunden, filters, sorts, Arg.Any<RowBlockHandler>(), Ct);
+        await _data.Received(1).ReadAllAsync(Kunden, RowFilter.Of(filters), sorts, Arg.Any<RowBlockHandler>(), Ct);
         Assert.Equal([tab.WorkspaceId], _workspaces);
         Assert.Equal(234, all.Total); // below 1,000: the number format follows the machine's culture, not the UI language
         Assert.Equal("Alle Zeilen des Filters · 234 Zeilen", all.Heading);

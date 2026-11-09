@@ -65,7 +65,7 @@ internal sealed class TestApp : IAsyncDisposable
         Editing = new WorkspaceEditing(Shell, Hub, _services.GetRequiredService<AppSettingsService>(), NullLogger<WorkspaceEditing>.Instance, Time);
         Lifecycle = new WorkspaceLifecycle(
             Shell, Hub, _services.GetRequiredService<ConnectionManager>(), History = new SqlHistoryStore(_folder.Combine("history")),
-            Editing, NullLogger<WorkspaceLifecycle>.Instance);
+            new ConditionHistoryStore(_folder.Combine("conditions")), Editing, NullLogger<WorkspaceLifecycle>.Instance);
     }
 
     /// <summary>The tables of the fake schema; KUNDEN unless a test adds some before connecting.</summary>
@@ -290,12 +290,12 @@ internal sealed class TestApp : IAsyncDisposable
             .Returns(call => StatementGuard.IsQuery(call.Arg<QuerySpec>().Sql)
                 ? ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>())
                 : throw new InvalidOperationException("Only plain queries are read (review 3.40.0, C1: as the session refuses them)."));
-        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<CancellationToken>())
+        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<RowFilter>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 // The filters are checked like the session does (review of `small-pk-edit`, 1: a refused filter got past the tests).
-                QueryBuilder.BuildCount(call.Arg<TableDetails>(), call.Arg<IReadOnlyList<FilterCondition>>());
-                return CountRows(call.Arg<IReadOnlyList<FilterCondition>>());
+                QueryBuilder.BuildCount(call.Arg<TableDetails>(), call.Arg<RowFilter>());
+                return CountRows(call.Arg<RowFilter>().Conditions);
             });
         data.CurrentPointAsync(Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_ =>
         {
@@ -354,17 +354,17 @@ internal sealed class TestApp : IAsyncDisposable
                 Note();
                 return ByKeys(scn, call.Arg<TableDetails>(), call.Arg<IReadOnlyList<IReadOnlyList<object>>>());
             });
-        data.ReadPageAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<IReadOnlyList<SortSpec>>(), Arg.Any<PageSpec>(), Arg.Any<CancellationToken>())
+        data.ReadPageAsync(Arg.Any<TableDetails>(), Arg.Any<RowFilter>(), Arg.Any<IReadOnlyList<SortSpec>>(), Arg.Any<PageSpec>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 Note();
                 return new RowPage([], true, TimeSpan.Zero);
             });
-        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<CancellationToken>())
+        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<RowFilter>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 Note();
-                return now.CountAsync(call.Arg<TableDetails>(), call.Arg<IReadOnlyList<FilterCondition>>(), call.Arg<CancellationToken>());
+                return now.CountAsync(call.Arg<TableDetails>(), call.Arg<RowFilter>(), call.Arg<CancellationToken>());
             });
         return data;
     }

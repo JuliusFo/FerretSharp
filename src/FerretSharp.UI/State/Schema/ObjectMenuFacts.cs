@@ -60,7 +60,7 @@ public static class ObjectMenuFacts
         {
             try
             {
-                var query = QueryBuilder.BuildSelectStar(details, tab.AppliedFilters, tab.Sorts, asOf);
+                var query = QueryBuilder.BuildSelectStar(details, tab.ReadFilter, tab.Sorts, asOf);
                 return (query.Sql + ";\n", query.Parameters.Select(SqlBinds.FromParameter).ToList());
             }
             catch (QueryValidationException)
@@ -79,9 +79,10 @@ public static class ObjectMenuFacts
     /// </summary>
     public static ExportText? LinqOf(PresentationService presentations, TableRef table, TableTab? tab = null)
     {
-        if (tab is { Details: { } details } && tab.ActiveFilterCount > 0 && presentations.For(details) is { Entity: not null } presentation)
+        // A SQL condition (WP-79) has no C# form: the DbSet alone, as without filters.
+        if (tab is { Details: { } details, ConditionApplied: false } && tab.ActiveFilterCount > 0 && presentations.For(details) is { Entity: not null } presentation)
         {
-            return LinqFilter.Build(presentation, tab.AppliedFilters, LinqFilter.Source(presentation));
+            return LinqFilter.Build(presentation, tab.ReadFilter.Conditions, LinqFilter.Source(presentation));
         }
 
         return presentations.LinqSourceOf(table) is { } source ? new ExportText(source, 0, []) : null;

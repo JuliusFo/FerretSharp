@@ -56,7 +56,8 @@
                 <QuickAction Icon="Icons.Link" Label="@GridText.GridMenu_CopyRowsLink" Title="@GridText.GridMenu_CopyRowsLinkTitle" Unavailable="@rowsLink.Unavailable"
                              OnClick="() => CopyLinkAsync(linkProfile, rowsLink.Link!, rowsOnly: true)" />
                 <QuickAction Icon="Icons.LinkView" Label="@GridText.GridMenu_CopyViewLink" Title="@GridText.GridMenu_CopyViewLinkTitle"
-                             OnClick="() => CopyLinkAsync(linkProfile, Core.Links.TableLink.For(linkProfile, Details.Table.Ref, Tab.AppliedFilters, Tab.Sorts, Tab.Mode), rowsOnly: false)" />
+                             Unavailable="@(Tab.ConditionApplied ? GridText.Condition_NotWithCondition : null)"
+                             OnClick="() => CopyLinkAsync(linkProfile, Core.Links.TableLink.For(linkProfile, Details.Table.Ref, Tab.ReadFilter.Conditions, Tab.Sorts, Tab.Mode), rowsOnly: false)" />
             }
         </QuickBar>
         <SearchBox Class="popover-search ctx-filter" Value="@_filter.Text" ValueChanged="text => _filter.Set(text)" Placeholder="@GridText.Menu_FilterPlaceholder" />

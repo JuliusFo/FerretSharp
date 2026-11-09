@@ -1071,7 +1071,7 @@
         }
 
         var details = Details;
-        var filters = Tab.AppliedFilters;
+        var filters = Tab.ReadFilter;
         var sorts = Tab.Sorts;
         var load = _loads.Start(firstPage: startRow == 0, SortKey(sortModel));
         Fire(() => ShowLoadAsync(load));
@@ -1083,8 +1083,8 @@
             return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), token);
         }, token);
         // With opening the session and waiting for it (a running FK count): the footer's time is the query's alone.
-        Logger.LogDebug("Rows {Start}+ of {Table} ({Filters} filters): {Elapsed} ms, query {Query} ms{Cancelled}",
-            startRow, details.Table.Ref, filters.Count, (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+        Logger.LogDebug("Rows {Start}+ of {Table} ({Filters} filters{Condition}): {Elapsed} ms, query {Query} ms{Cancelled}",
+            startRow, details.Table.Ref, filters.Conditions.Count, filters.IsSql ? ", SQL condition" : "", (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
             (long?)result.Value?.Elapsed.TotalMilliseconds, result.Cancelled ? ", cancelled" : "");
         var cancelledByUser = load.CancelledByUser;
         if (!_loads.End(load))
@@ -1206,7 +1206,7 @@
     /// </summary>
     private async Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count, CancellationToken cancellationToken)
     {
-        var (details, filters, sorts) = (Details, Tab.AppliedFilters, Tab.Sorts);
+        var (details, filters, sorts) = (Details, Tab.ReadFilter, Tab.Sorts);
         using var reading = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _closing.Token);
         var token = reading.Token;
         var result = await Shell.RunDbAsync(Logger, Active, async () =>

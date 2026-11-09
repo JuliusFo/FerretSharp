@@ -62,6 +62,16 @@ public enum RowLoadMode
     OnRequest,
 }
 
+/// <summary>How a new table tab without a filter filters (WP-79).</summary>
+public enum FilterStart
+{
+    /// <summary>The filter bar with its rows (default).</summary>
+    FilterBar,
+
+    /// <summary>A condition written in SQL, as in the WHERE field of SQL Developer.</summary>
+    SqlCondition,
+}
+
 /// <summary>What "SQL" in a table's filter bar shows and opens in the SQL editor.</summary>
 public enum FilterSqlColumns
 {
@@ -300,6 +310,12 @@ public sealed record AppSettings
 
     /// <summary>When a newly opened table tab without filters reads its first rows; a restored tab reads them as before.</summary>
     public RowLoadMode LoadRows { get; init; } = RowLoadMode.Immediately;
+
+    /// <summary>
+    /// Whether a new table tab without a filter starts with the filter bar (default) or a SQL condition (WP-79). A tab that
+    /// brings filter rows (an FK jump, a link, a preset) opens in the filter bar either way.
+    /// </summary>
+    public FilterStart FilterStart { get; init; } = FilterStart.FilterBar;
 
     /// <summary>
     /// How each linked project writes the C# of a query from the relationship diagram (WP-69): namespace, DTO, LinqKit, its

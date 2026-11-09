@@ -36,7 +36,8 @@ record Workspace(Guid Id, Guid ConnectionId, string Name) {   // z. B. "Bug 3711
     bool IsOpen; int Order; DateTimeOffset LastActive;
     DataDiffState? DataDiff;                         // WP-44: Startpunkt (SCN, Zeit, WP-78: Datenbank) und Tabellen mit Filter
 }
-record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts, int? FirstVisibleRow) { Pinned, PinnedColumns, OriginTab, Preset, Form, ResultPins, Design, PathTarget, TimeTravel }
+record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts, int? FirstVisibleRow) { Pinned, PinnedColumns, OriginTab, Preset, Form, ResultPins, Design, PathTarget, TimeTravel, SqlCondition }
+    // SqlCondition (WP-79): Text, Applied, Origin – der Tab filtert über eine SQL-Bedingung statt der Filterleiste; FilterRows/AppliedFilters warten dahinter
 ```
 - `Pinned` (WP-34): der Tab selbst ist angeheftet – steht mit den anderen angehefteten links (`ShellState.SetPinned` hält die Reihenfolge, neue Tabs öffnen nie zwischen ihnen), bleibt bei „Andere“, „Rechts davon“ und „Alle schließen“ offen (`CloseTabsQuestion.Select`), Mittelklick schließt ihn nicht; das Pin-Symbol ersetzt das ✕ und löst ihn; ist die Leiste voll (`dom.js watchOverflow` → Klasse `crowded`), zeigen angeheftete Tabs nur Symbol und Kurznamen; sie stehen in einem eigenen Container `.tabs-pinned`, der beim Scrollen der Leiste links stehen bleibt (`position: sticky`). Nicht zu verwechseln mit `PinnedColumns`.
 - Volle Tab-Leiste: Das Mausrad scrollt sie seitwärts, ein neu aktiver Tab wird ins Bild geholt (rechts neben die angeheftete Gruppe; ist er der letzte, samt den Knöpfen „+ SQL“/„+ LINQ“ dahinter – dort öffnen neue leere SQL- und LINQ-Tabs), die Scrollbar hat 10px mit immer reserviertem Platz, ihr Daumen (8px) erscheint nur unter der Maus (`dom.js scrollableTabs`, Klasse `hover`, die auch die Spur kaum sichtbar tönt – sonst malt Chromium den Daumen nicht neu).
@@ -108,7 +109,8 @@ record SelectQuery(string Sql, IReadOnlyList<QueryParameter> Parameters, IReadOn
 - `t.ROWID` wird bei Tabellen/MViews immer mitselektiert (Views: nein).
 - **Immer deterministisch sortieren:** Nutzer-Sortierung + Tiebreaker PK → ROWID → (View ohne Key) alle sortierbaren Spalten. Ohne das liefert `OFFSET/FETCH` doppelte oder fehlende Zeilen zwischen den Seiten.
 - Paging: `OFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY`.
-- Spaltennamen in Filter/Sort gegen das Schema validieren, dann per `OracleIdentifier.Quote()` quoten. Werte nur als Bind-Variablen; **jede gebundene Variable muss im SQL vorkommen** (sonst ORA-01036) – Unit-Tests prüfen das für jedes Statement.
+- Spaltennamen in Filter/Sort gegen das Schema validieren, dann per `OracleIdentifier.Quote()` quoten. Werte nur als Bind-Variablen; **jede gebundene Variable muss im SQL vorkommen** (sonst ORA-01036) – Unit-Tests prüfen das für jedes Statement. Bewusste Ausnahme: die SQL-Bedingung eines Tabs (unten).
+- **SQL-Bedingung** (WP-79, ADR 0049): Der Leseweg nimmt ein `RowFilter` – Filterzeilen oder eine Bedingung, die der Nutzer schreibt (`TableTab.ReadFilter`). Sie ist kein `FilterCondition` (Link, Vorlage, LINQ, Zeitreise, Daten-Diff nehmen nur Filterzeilen) und geht als `WHERE (\n…\n)` ins Statement, nachdem `WhereCondition.Problem` sie geprüft hat (Klammern, offene Texte/Kommentare, kein `ORDER BY`/`UNION`/… auf oberster Ebene, `;` und `FOR UPDATE` auf keiner Ebene, keine Binds) – Korrektheit, nicht Sicherheit: Grenze bleibt die Lesesperre. Filterleiste → Bedingung schreibt `QueryBuilder.ConditionText` (Literale, Spalten ohne Alias); kein Rückweg.
 - `Contains`/`StartsWith`/`EndsWith`: `%`, `_`, `\` escapen, `UPPER(c) LIKE UPPER(:p) ESCAPE '\'` (immer ohne Groß-/Kleinschreibung).
 - `≠` schließt NULL ein, wenn die Spalte nullable ist (wie C#/EF): `(c <> :p OR c IS NULL)`.
 - `CHAR`-Spalten werden als `OracleDbType.Char`, `NCHAR` als `OracleDbType.NChar` gebunden (Blank-Padding: „AB“ findet „AB␣“), `NVARCHAR2` als `NVarchar2` (nationaler Zeichensatz, A18). Variablen des SQL-Editors folgen der verglichenen Spalte genauso (`SqlVariable.National`, R5b).
@@ -178,6 +180,7 @@ Geschrieben wird atomar (`AtomicJsonFile`) mit `JsonFiles.Options`, gelesen übe
 | `settings.json` | Standard, Kopie `.bad-…` vor dem ersten Speichern (R4a) | Standard, ohne Kopie nichts speichern | wie kaputt |
 | `workspaces*.json` | je Datei gemeldet (nur bei ihrer Verbindung), nicht angefasst | gemeldet | gemeldet |
 | `history*.json` | Kopie `.bad-…`, dann neuer Verlauf | nur anzeigen, nicht schreiben | nur anzeigen, nicht schreiben |
+| `conditions*.json` (WP-79, zuletzt angewendete Bedingungen) | wie `history*.json` (gemeinsam über `HistoryFileStore`) | wie `history*.json` | wie `history*.json` |
 | `comparisons.json` | Fehler auf der Seite (leer = keine), Speichern verweigert (Gesamt-Review 3.40.0, ST-8) | Fehler, beim nächsten Besuch oder Speichern erneut gelesen; Speichern erst danach | Fehler, Speichern verweigert |
 | `filter-presets.json` (WP-37) | Fehler im Menü „Vorlagen“, nie überschrieben | Fehler im Menü, Speichern verweigert, bis ein erneuter Versuch (Menü öffnen) gelingt | Fehler, nie überschrieben |
 | `work-clones.json` (WP-40) | kein Arbeits-Klon gewählt | wie kaputt | keiner gewählt, Datei bleibt (Wahl nur im Speicher) |

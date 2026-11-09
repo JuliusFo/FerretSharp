@@ -40,6 +40,10 @@ public static class SettingsOptions
     public static IReadOnlyList<(RowLoadMode Mode, string Label)> LoadRows =>
         [(RowLoadMode.Immediately, SettingsViewText.Settings_LoadRowsImmediately), (RowLoadMode.OnRequest, SettingsViewText.Settings_LoadRowsOnRequest)];
 
+    /// <summary>"Filter starts with" (WP-79).</summary>
+    public static IReadOnlyList<(FilterStart Start, string Label)> FilterStarts =>
+        [(FilterStart.FilterBar, SettingsViewText.Settings_FilterStartBar), (FilterStart.SqlCondition, SettingsViewText.Settings_FilterStartCondition)];
+
     public static IReadOnlyList<(int Hours, string Label)> UpdateIntervals =>
     [
         (0, SettingsViewText.Settings_UpdateCheckNever), (1, SettingsViewText.Settings_UpdateCheckHourly),

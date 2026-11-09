@@ -17,7 +17,10 @@ public sealed partial class WorkspaceLifecycle
 
     /// <summary>Why a tab cannot be compared with an earlier state; null if it can (a table or materialized view).</summary>
     public static string? DataDiffUnavailable(TableTab tab) =>
-        tab.Table.Kind == TableKind.View ? ShellText.DataDiff_NoViews : null;
+        tab.Table.Kind == TableKind.View ? ShellText.DataDiff_NoViews
+        // A SQL condition (WP-79) may read other tables, which a start point or time travel would read as now (decision of the user).
+        : tab.ConditionApplied ? GridText.Condition_NotWithCondition
+        : null;
 
     /// <summary>
     /// "Vergleich starten": the database's current SCN becomes the start point – or, with <paramref name="at"/>, the SCN of that
@@ -41,7 +44,7 @@ public sealed partial class WorkspaceLifecycle
         var state = new DataDiffState(point.Scn, at ?? DateTimeOffset.Now, before?.Entries ?? []) { Database = point.Database };
         if (state.Entries.Count == 0 && shell.FindWorkspace(workspaceId)?.ActiveTab is TableTab active && DataDiffUnavailable(active) is null)
         {
-            state = state.WithEntry(active.Table.Ref, active.AppliedFilters);
+            state = state.WithEntry(active.Table.Ref, active.ReadFilter.Conditions);
         }
 
         scope.Workspaces.SetDataDiff(workspaceId, state);
@@ -89,7 +92,7 @@ public sealed partial class WorkspaceLifecycle
             return Task.CompletedTask;
         }
 
-        return AddToDataDiffAsync(table.WorkspaceId, table.Table.Ref, table.AppliedFilters);
+        return AddToDataDiffAsync(table.WorkspaceId, table.Table.Ref, table.ReadFilter.Conditions);
     }
 
     /// <summary>A table (whole, or with a filter) joins the start point and is compared at once.</summary>

@@ -80,7 +80,7 @@ public sealed partial class WorkspaceLifecycle
             return;
         }
 
-        shell.OpenTimeTravel(source.WorkspaceId, source.Table, source.AppliedFilters, source.Sorts, new TimeTravelState(point.Scn, at, point.Database));
+        shell.OpenTimeTravel(source.WorkspaceId, source.Table, source.ReadFilter.Conditions, source.Sorts, new TimeTravelState(point.Scn, at, point.Database));
     }
 
     /// <summary>"Stand zum Startpunkt öffnen" of the diff tab: the table of a diff entry as it was at the start point, with its filter.</summary>

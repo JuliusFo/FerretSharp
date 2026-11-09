@@ -283,7 +283,7 @@ public class FkNavigationTests
         var jump = FkNavigation.Incoming(Kunden, [Row(815m, "A"), Row(4711m, "B"), Row(12m, "C")], AuftragKunde);
         var filter = Assert.Single(jump.Filters);
 
-        var query = QueryBuilder.BuildCount(Auftrag, jump.Filters);
+        var query = QueryBuilder.BuildCount(Auftrag, RowFilter.Of(jump.Filters));
 
         Assert.Null(FilterRules.Validate(Auftrag.Columns[2], filter));
         Assert.Contains(" IN (", query.Sql);
@@ -354,7 +354,7 @@ public class FkNavigationTests
     {
         var data = Substitute.For<IDataAccess>();
         var jump = FkNavigation.Incoming(Auftrag, Row(1m, 4711m, 815m, null), PositionAuftrag);
-        data.CountAsync(Auftrag, jump.Filters, Arg.Any<CancellationToken>()).Returns(12L);
+        data.CountAsync(Auftrag, RowFilter.Of(jump.Filters), Arg.Any<CancellationToken>()).Returns(12L);
 
         Assert.Equal(12L, await FkNavigation.CountAsync(data, Auftrag, jump, TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
     }
@@ -364,7 +364,7 @@ public class FkNavigationTests
     {
         var data = Substitute.For<IDataAccess>();
         CancellationToken seen = default;
-        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<CancellationToken>())
+        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<RowFilter>(), Arg.Any<CancellationToken>())
             .Returns(async call =>
             {
                 seen = call.ArgAt<CancellationToken>(2);
@@ -383,7 +383,7 @@ public class FkNavigationTests
     public async Task Cancelling_the_count_is_not_reported_as_timeout()
     {
         var data = Substitute.For<IDataAccess>();
-        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<CancellationToken>())
+        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<RowFilter>(), Arg.Any<CancellationToken>())
             .Returns(async call =>
             {
                 await Task.Delay(Timeout.Infinite, call.ArgAt<CancellationToken>(2));

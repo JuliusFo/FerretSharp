@@ -30,10 +30,10 @@ internal sealed class ReadSessionData(ReadSession reads, long? asOf) : IDataAcce
         ReadAsync((data, ct) => data.LookupAsync(target, keyColumn, displayColumns, keys, ct), cancellationToken);
 
     public Task<RowPage> ReadPageAsync(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page, CancellationToken cancellationToken) =>
+        TableDetails table, RowFilter filters, IReadOnlyList<SortSpec> sorts, PageSpec page, CancellationToken cancellationToken) =>
         ReadAsync((data, ct) => data.ReadPageAsync(table, filters, sorts, page, ct), cancellationToken);
 
-    public Task<long> CountAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, CancellationToken cancellationToken) =>
+    public Task<long> CountAsync(TableDetails table, RowFilter filters, CancellationToken cancellationToken) =>
         ReadAsync((data, ct) => data.CountAsync(table, filters, ct), cancellationToken);
 
     public Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken) =>
@@ -46,14 +46,14 @@ internal sealed class ReadSessionData(ReadSession reads, long? asOf) : IDataAcce
         ReadAsync((data, ct) => data.ExplainActualAsync(query, wholeResult, ct), cancellationToken);
 
     public Task ReadAllAsync(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
+        TableDetails table, RowFilter filters, IReadOnlyList<SortSpec> sorts, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
         ReadAsync((data, ct) => data.ReadAllAsync(table, filters, sorts, onBlock, ct), cancellationToken);
 
     public Task ReadSqlAllAsync(QuerySpec query, IReadOnlyList<string> columns, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
         ReadAsync((data, ct) => data.ReadSqlAllAsync(query, columns, onBlock, ct), cancellationToken);
 
     public Task ReadColumnAllAsync(
-        TableDetails table, IReadOnlyList<int> columns, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, bool distinct,
+        TableDetails table, IReadOnlyList<int> columns, RowFilter filters, IReadOnlyList<SortSpec> sorts, bool distinct,
         RowBlockHandler onBlock, CancellationToken cancellationToken) =>
         ReadAsync((data, ct) => data.ReadColumnAllAsync(table, columns, filters, sorts, distinct, onBlock, ct), cancellationToken);
 

@@ -130,6 +130,30 @@ public sealed record TabState(
     /// session. Null for a tab of now.
     /// </summary>
     public TimeTravelState? TimeTravel { get; init; }
+
+    /// <summary>
+    /// Set for a table tab that filters by a condition written in SQL instead of its filter bar (WP-79); null for the filter
+    /// bar. <see cref="FilterRows"/> and <see cref="AppliedFilters"/> stay as they were: going back to the filter bar finds them.
+    /// An older FerretSharp ignores it and shows the filter bar.
+    /// </summary>
+    public SqlConditionState? SqlCondition { get; init; }
+}
+
+/// <summary>The condition of a table tab in SQL mode (WP-79): as edited, and as the grid shows it.</summary>
+/// <param name="Text">The condition as edited, without <c>WHERE</c>.</param>
+/// <param name="Applied">The condition the grid shows; null while none was applied (the grid then shows the filter bar's rows).</param>
+/// <param name="Origin">
+/// The text the mode started with (the filter bar's filter as SQL, or empty): unchanged, going back to the filter bar loses nothing.
+/// </param>
+public sealed record SqlConditionState(string Text, string? Applied = null, string Origin = "")
+{
+    /// <summary>Back to the filter bar loses nothing: the text is still the one the mode started with, and so is what is applied.</summary>
+    /// <remarks>Line ends do not count: Monaco writes the platform's into a text it is given.</remarks>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Unchanged => ConditionHistoryStore.Same(Text, Origin) && (Applied is null || ConditionHistoryStore.Same(Applied, Origin));
+
+    /// <summary>Text set to null in the file by hand becomes empty.</summary>
+    public SqlConditionState Normalized() => this with { Text = Text ?? "", Origin = Origin ?? "" };
 }
 
 /// <summary>
@@ -260,6 +284,7 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
             Design = tab.Design?.Normalized(),
             PathTarget = tab.PathTarget is { Owner: not null, Name: not null } target ? target : null,
             TimeTravel = tab.TimeTravel?.Normalized(),
+            SqlCondition = tab.TimeTravel is null ? tab.SqlCondition?.Normalized() : null, // a time travel tab has no SQL mode (decision of the user)
         }).ToList(),
         DataDiff = DataDiff?.Normalized(),
     };

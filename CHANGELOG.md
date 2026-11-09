@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *SQL condition*: a table tab filters by a condition you write instead of its filter rows, as in the WHERE field of SQL Developer – `ID IN (SELECT …)` on other tables with another `IN` inside, whatever the database understands. *SQL condition* in the filter bar starts with the current filter written as SQL (values as literals); <kbd>Enter</kbd> applies, <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line, and the field completes the table's columns and other tables like the SQL editor. *Recent* offers the last ten conditions applied to the table (they are kept with their values, like the SQL editor's history). *Filter bar* goes back to the filter rows – without asking if the condition is still the one it started with. The tab stays a table tab: editing, FK jumps, display columns, counting, export, *SQL* and the plan use the condition. A condition is checked before it runs: parentheses closed, nothing that would change the statement around it (`ORDER BY`, `UNION`, `FOR UPDATE`, `;` outside parentheses), no bind variables; anything else is the database's own error at the field.
+- A condition is not a filter row: links, presets, LINQ, *Time travel* and *Data diff* take only filter rows and say so for a tab with a condition. A time travel tab has no SQL condition.
+- *Settings › Data view › Filter starts with*: a table opened from the explorer can start with the SQL condition. FK jumps, links and presets bring filter rows and open in the filter bar either way. Switching has a shortcut action without a default key (*Filter bar ↔ SQL condition*).
+
 ## [3.66.0] - 2026-11-09
 
 See what changed in the database since a point in time – new, changed and deleted rows of the tables you choose, whoever changed them. Look at a table as it was earlier, and set rows back to that state.

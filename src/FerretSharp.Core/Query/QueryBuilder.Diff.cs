@@ -100,13 +100,13 @@ public static partial class QueryBuilder
         var name = OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name);
         var scnBinds = 0;
 
-        string Now() => $"SELECT {selectList}\n                  FROM {name} {Alias}{Indent(new Builder(table, parameters: parameters).Where(filters))}";
+        string Now() => $"SELECT {selectList}\n                  FROM {name} {Alias}{Indent(new Builder(table, parameters: parameters).Where(RowFilter.Of(filters)))}";
 
         string Then()
         {
             var bind = "d_scn" + scnBinds++.ToString(invariant);
             parameters.Add(new QueryParameter(bind, scn, OracleTypeHint.Number));
-            return $"SELECT {selectList}\n                  FROM {name} AS OF SCN :{bind} {Alias}{Indent(new Builder(table, parameters: parameters).Where(filters))}";
+            return $"SELECT {selectList}\n                  FROM {name} AS OF SCN :{bind} {Alias}{Indent(new Builder(table, parameters: parameters).Where(RowFilter.Of(filters)))}";
         }
 
         var aliases = string.Join(", ", items.Select(i => i.Alias));

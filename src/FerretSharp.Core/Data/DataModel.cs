@@ -111,12 +111,12 @@ public interface IDataAccess : IRowLookup
     /// <exception cref="QueryValidationException">A filter or sort cannot be applied.</exception>
     Task<RowPage> ReadPageAsync(
         TableDetails table,
-        IReadOnlyList<FilterCondition> filters,
+        RowFilter filters,
         IReadOnlyList<SortSpec> sorts,
         PageSpec page,
         CancellationToken cancellationToken);
 
-    Task<long> CountAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, CancellationToken cancellationToken);
+    Task<long> CountAsync(TableDetails table, RowFilter filters, CancellationToken cancellationToken);
 
     /// <summary>
     /// The whole value of a LOB column (LOB editor, WP-10): text for CLOB/NCLOB, bytes for BLOB, null for NULL. Read in
@@ -151,7 +151,7 @@ public interface IDataAccess : IRowLookup
     /// <exception cref="QueryValidationException">A filter or sort cannot be applied.</exception>
     Task ReadAllAsync(
         TableDetails table,
-        IReadOnlyList<FilterCondition> filters,
+        RowFilter filters,
         IReadOnlyList<SortSpec> sorts,
         RowBlockHandler onBlock,
         CancellationToken cancellationToken);
@@ -175,7 +175,7 @@ public interface IDataAccess : IRowLookup
     Task ReadColumnAllAsync(
         TableDetails table,
         IReadOnlyList<int> columns,
-        IReadOnlyList<FilterCondition> filters,
+        RowFilter filters,
         IReadOnlyList<SortSpec> sorts,
         bool distinct,
         RowBlockHandler onBlock,

@@ -18,6 +18,7 @@
         }
         <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
         <button class="btn ghost" title="@GridText.Filter_PlanTitle" @onclick="OnShowPlan">@GridText.Filter_Plan</button>
+        @ConditionSwitch
     }
     else
     {
@@ -74,6 +75,7 @@
             }
             <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
             <button class="btn ghost" title="@GridText.Filter_PlanTitle" @onclick="OnShowPlan">@GridText.Filter_Plan</button>
+            @ConditionSwitch
             <button class="btn ghost" @onclick="ClearAsync">@GridText.Filter_Clear</button>
             <button class="btn primary" @onclick="OnApply">@GridText.Filter_Apply <Kbd Action="ShortcutAction.ApplyFilters" /></button>
         </div>
@@ -133,6 +135,19 @@
     /// <summary>The execution plan of the query (WP-14).</summary>
     [Parameter]
     public EventCallback OnShowPlan { get; set; }
+
+    /// <summary>"SQL condition" (WP-79): the tab filters by a condition written in SQL from now on, starting with this filter as text.</summary>
+    [Parameter]
+    public EventCallback OnSwitchToCondition { get; set; }
+
+    /// <summary>The switch to a SQL condition; not in a time travel tab (decision of the user: it has no SQL mode).</summary>
+    private RenderFragment ConditionSwitch => __builder =>
+    {
+        if (Tab.TimeTravel is null)
+        {
+            <button class="btn ghost" title="@GridText.Condition_SwitchTitle" @onclick="OnSwitchToCondition">@GridText.Condition_Switch</button>
+        }
+    };
 
     /// <summary>The filters as edited if they are valid, else the applied ones (like the SQL preview).</summary>
     private IReadOnlyList<FilterCondition> CurrentFilters()

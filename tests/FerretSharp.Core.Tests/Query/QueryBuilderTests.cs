@@ -35,7 +35,7 @@ public partial class QueryBuilderTests
 
     private static SelectQuery Select(TableDetails table, IReadOnlyList<FilterCondition>? filters = null, IReadOnlyList<SortSpec>? sorts = null)
     {
-        var query = QueryBuilder.BuildSelect(table, filters ?? [], sorts ?? [], FirstPage);
+        var query = QueryBuilder.BuildSelect(table, RowFilter.Of(filters ?? []), sorts ?? [], FirstPage);
         AssertBindsMatch(query.Sql, query.Parameters);
         return query;
     }
@@ -87,7 +87,7 @@ public partial class QueryBuilderTests
         IReadOnlyList<SortSpec> sorts = [new("NAME", true)];
         var page = Select(Kunden, filters, sorts);
 
-        var all = QueryBuilder.BuildSelectAll(Kunden, filters, sorts);
+        var all = QueryBuilder.BuildSelectAll(Kunden, RowFilter.Of(filters), sorts);
 
         AssertBindsMatch(all.Sql, all.Parameters);
         Assert.Equal(page.Sql.Replace("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY", "", StringComparison.Ordinal), all.Sql);
@@ -101,9 +101,9 @@ public partial class QueryBuilderTests
     {
         IReadOnlyList<FilterCondition> filters = [new("NAME", FilterOperator.Contains, ["Ferret"])];
         IReadOnlyList<SortSpec> sorts = [new("ERSTELLT_AM", true)];
-        var all = QueryBuilder.BuildSelectAll(Kunden, filters, sorts);
+        var all = QueryBuilder.BuildSelectAll(Kunden, RowFilter.Of(filters), sorts);
 
-        var star = QueryBuilder.BuildSelectStar(Kunden, filters, sorts);
+        var star = QueryBuilder.BuildSelectStar(Kunden, RowFilter.Of(filters), sorts);
 
         AssertBindsMatch(star.Sql, star.Parameters);
         Assert.StartsWith("SELECT t.*\n  FROM \"APP\".\"KUNDEN\" t\n WHERE ", star.Sql);
@@ -156,9 +156,9 @@ public partial class QueryBuilderTests
     {
         IReadOnlyList<FilterCondition> filters = [new("NAME", FilterOperator.Contains, ["Ferret"])];
         IReadOnlyList<SortSpec> sorts = [new("ERSTELLT_AM", true)];
-        var all = QueryBuilder.BuildSelectAll(Kunden, filters, sorts);
+        var all = QueryBuilder.BuildSelectAll(Kunden, RowFilter.Of(filters), sorts);
 
-        var values = QueryBuilder.BuildColumnValues(Kunden, [1], filters, sorts, distinct: false);
+        var values = QueryBuilder.BuildColumnValues(Kunden, [1], RowFilter.Of(filters), sorts, distinct: false);
 
         AssertBindsMatch(values.Sql, values.Parameters);
         Assert.StartsWith("SELECT t.\"NAME\"\n  FROM \"APP\".\"KUNDEN\" t\n WHERE ", values.Sql);

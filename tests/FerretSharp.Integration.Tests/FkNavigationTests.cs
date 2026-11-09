@@ -106,7 +106,7 @@ public sealed class FkNavigationTests(OracleContainerFixture oracle) : IAsyncLif
     private async Task<IReadOnlyList<RowData>> FollowAsync(FkJump jump)
     {
         var target = await DetailsAsync(jump.Table.Name);
-        return (await _data.ReadPageAsync(target, jump.Filters, [], new PageSpec(0, 100), Ct)).Rows;
+        return (await _data.ReadPageAsync(target, RowFilter.Of(jump.Filters), [], new PageSpec(0, 100), Ct)).Rows;
     }
 
     [Fact]

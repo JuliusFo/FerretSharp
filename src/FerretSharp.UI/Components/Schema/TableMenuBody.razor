@@ -27,7 +27,7 @@
                          OnClick="() => RunAsync(() => Shell.OpenTable(Table))" />
         }
         <QuickAction Icon="Icons.LinkView" Label="@ShellText.TabMenu_CopyLink" Caption="@SchemaViewText.ObjectMenu_LinkCaption"
-                     Title="@ShellText.TabMenu_CopyLinkTitle" Unavailable="@(Active.Profile is null ? WorkspaceText.NoActiveConnection : null)" OnClick="CopyLinkAsync" />
+                     Title="@ShellText.TabMenu_CopyLinkTitle" Unavailable="@(Active.Profile is null ? WorkspaceText.NoActiveConnection : Tab is { ConditionApplied: true } ? GridText.Condition_NotWithCondition : null)" OnClick="CopyLinkAsync" />
         <QuickAction Icon="Icons.Database" Label="@SchemaViewText.ObjectMenu_Sql" Caption="SQL" Title="@sql?.Sql"
                      Unavailable="@(sql is null ? WorkspaceText.NoActiveConnection : null)"
                      OnClick="OpenSqlAsync" />
@@ -208,7 +208,8 @@
 
     private Core.Links.TableLink Link(ConnectionProfile profile) =>
         Tab is { } tab
-            ? Core.Links.TableLink.For(profile, tab.Table.Ref, tab.AppliedFilters, tab.Sorts, tab.Mode)
+            // A SQL condition (WP-79) is no filter row a link could carry: the table with its sort order and view.
+            ? Core.Links.TableLink.For(profile, tab.Table.Ref, tab.ReadFilter.Conditions, tab.Sorts, tab.Mode)
             : Core.Links.TableLink.For(profile, Table.Ref, [], [], TabMode.Data);
 
     /// <summary>

@@ -155,6 +155,7 @@ export async function create(elementId, dotnet, text, options) {
   destroy(elementId);
   const element = document.getElementById(elementId);
   if (!element) return;
+  const field = !!options.field;
   const editor = monaco.editor.create(element, {
     readOnly: !!options.readOnly,
     domReadOnly: !!options.readOnly,
@@ -166,12 +167,17 @@ export async function create(elementId, dotnet, text, options) {
     theme: theme(),
     automaticLayout: true,
     minimap: { enabled: false },
-    lineNumbers: options.minimal ? 'off' : 'on',
+    lineNumbers: options.minimal || field ? 'off' : 'on',
     glyphMargin: false,
-    folding: !options.minimal,
-    lineDecorationsWidth: options.minimal ? 8 : 10,
+    folding: !options.minimal && !field,
+    lineDecorationsWidth: options.minimal || field ? 8 : 10,
     scrollBeyondLastLine: false,
-    renderLineHighlight: options.minimal ? 'none' : 'line',
+    renderLineHighlight: options.minimal || field ? 'none' : 'line',
+    // A field (the condition of a table tab, WP-79): no rulers, a vertical scrollbar only past its highest size.
+    overviewRulerLanes: field ? 0 : undefined,
+    hideCursorInOverviewRuler: field,
+    scrollbar: field ? { horizontal: 'hidden', vertical: 'auto', alwaysConsumeMouseWheel: false } : undefined,
+    padding: field ? { top: 5, bottom: 5 } : undefined,
     fontFamily: '"Cascadia Mono", "Cascadia Code", Consolas, monospace',
     fontSize: 13,
     tabSize: 4,
@@ -215,12 +221,49 @@ export async function create(elementId, dotnet, text, options) {
     contextMenuOrder: index,
     run: () => dotnet.invokeMethodAsync('OnContextAction', elementId, action.id).catch(err => console.error('Action not run', err)),
   }));
+  // Enter carries the text: a change still waiting for the debounce would arrive after it. .NET takes it as the new text.
+  if (field) makeField(element, editor, () => {
+    clearTimeout(timer);
+    timer = null;
+    typing.delete(elementId);
+    dotnet.invokeMethodAsync('OnFieldEnter', elementId, editor.getValue()).catch(err => console.error('Enter not sent', err));
+  });
   editors.set(elementId, editor);
   if (options.completion) {
     completions.set(editor.getModel().uri.toString(), { id: elementId, dotnet });
     registerProvider(monaco, options.language ?? 'csharp');
   }
 }
+
+/**
+ * A one-line field that grows with its lines up to fieldMaxLines (the condition of a table tab, WP-79): Enter hands the text to
+ * .NET (OnFieldEnter, with the text – the debounce may still hold it) unless the completion list is open, Shift+Enter starts a new
+ * line.
+ */
+const fieldMaxLines = 8;
+function makeField(element, editor, enter) {
+  const lineHeight = () => editor.getOption(window.monaco.editor.EditorOption.lineHeight);
+  const fit = () => {
+    // The host's border (border-box) comes on top of what Monaco needs for the lines and its padding.
+    const height = Math.min(editor.getContentHeight(), lineHeight() * fieldMaxLines + 10) + 2;
+    if (element.style.height !== `${height}px`) {
+      element.style.height = `${height}px`;
+      editor.layout();
+    }
+  };
+  editor.onDidContentSizeChange(fit);
+  fit();
+  // addCommand binds the key in the keybinding service all editors share, not in this editor (review of WP-79: Enter in the
+  // SQL editor applied the condition of the field made last). A context key of this editor alone limits it to this field.
+  // The binding outlives the editor (addCommand gives nothing to dispose); with its key gone it never applies again.
+  const key = `fsConditionField${++fieldCount}`;
+  editor.createContextKey(key, true);
+  const when = `${key} && !suggestWidgetVisible`;
+  const keys = window.monaco.KeyCode;
+  editor.addCommand(keys.Enter, () => enter(), when);
+  editor.addCommand(window.monaco.KeyMod.Shift | keys.Enter, () => editor.trigger('keyboard', 'type', { text: '\n' }), when);
+}
+let fieldCount = 0;
 
 /**
  * The WPF host passes the second mouse-down of a double click twice (.claude/rules/ui.md): Monaco counts three and selects
