@@ -52,6 +52,8 @@ public static class ShellActions
             WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.RunScript or ShortcutAction.SaveScript => WithTab(context) ?? (context.ActiveTab is SqlTab ? null : ShellText.Palette_OnlyInSqlTab),
         ShortcutAction.DuplicateTab => WithTab(context) ?? (context.ActiveTab is TableTab ? null : ShellText.Palette_NotInThisTab),
+        ShortcutAction.TimeTravel => WithTab(context)
+            ?? (context.ActiveTab is TableTab table ? WorkspaceLifecycle.DataDiffUnavailable(table) : ShellText.Palette_NotInThisTab),
         ShortcutAction.RevealInExplorer => WithTab(context) ?? (context.ActiveTab is TableTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.NewSql or ShortcutAction.ToggleChanges or ShortcutAction.SchemaSynonyms or ShortcutAction.SchemaGrants => InExplorer(context),
         ShortcutAction.NewLinq => InExplorer(context) ?? (context.LinkedProject ? null : ShellText.Palette_NoLinkedProject),

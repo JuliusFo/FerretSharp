@@ -2227,3 +2227,17 @@ table.diff tr.deleted td:not(.diff-status) { color: var(--muted); text-decoratio
 table.diff td.cell-changed { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
 table.diff i.null { color: var(--faint); font-style: italic; }
 table.diff th.num, table.diff td.num { text-align: right; }
+table.diff .diff-status input[type="checkbox"] { margin: 0 6px 0 0; vertical-align: middle; }
+.diff-rows-head .spacer { flex: 1; }
+
+/* Time travel (WP-78): a table as it was – the tab marks it, a banner above the grid says so. */
+.time-travel-banner { display: flex; align-items: center; gap: 8px; flex: none; padding: 6px 12px; font-size: 12.5px; border-bottom: 1px solid var(--border);
+    color: var(--accent); background: var(--accent-weak); }
+.time-travel-banner svg { width: 15px; height: 15px; flex: none; }
+.time-travel-banner .spacer { flex: 1; }
+.tab-footer .time-travel { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-weight: 600; }
+.tab-footer .time-travel svg { width: 13px; height: 13px; }
+.filter-pill.time-travel { font-family: var(--mono); }
+.time-point { display: flex; flex-direction: column; gap: 10px; }
+.time-point .field { width: 240px; }
+.time-point .hint.warn { color: var(--warn-text); }

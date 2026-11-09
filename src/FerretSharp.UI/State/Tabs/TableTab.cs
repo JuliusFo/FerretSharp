@@ -69,6 +69,15 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     public TableSummary Table { get; } = table;
 
     /// <summary>
+    /// The point the tab shows its table at (time travel, WP-78): read only, on the connection's read session, each statement
+    /// <c>AS OF SCN</c> (<see cref="TabData"/>). Null for a tab of now; it never changes – another time is another tab.
+    /// </summary>
+    public TimeTravelState? TimeTravel { get; init; }
+
+    /// <summary>The time travel point was checked against the database the connection reaches (<see cref="WorkspaceLifecycle.CheckTimeTravelAsync"/>); not saved.</summary>
+    public bool PointChecked { get; set; }
+
+    /// <summary>
     /// The view shown. Another one than "Synonyms" gives up a drop the object menu asked for (<see cref="DropRequested"/>) –
     /// whichever way it is set: the view switch, the menu's chips, the explorer (review of WP-68).
     /// </summary>
@@ -481,6 +490,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         Form = FormTabs.Save(this),
         Design = Design,
         PathTarget = PathTarget,
+        TimeTravel = TimeTravel,
     };
 
     private static int IndexOf(IReadOnlyList<WorkspaceTab> tabs, WorkspaceTab tab)
@@ -508,6 +518,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             Preset = state.Preset,
             Design = state.Design,
             PathTarget = state.PathTarget,
+            TimeTravel = state.TimeTravel,
         }.WithForm(state.Form);
         tab.SetFilterRows(state.FilterRows);
         return tab;

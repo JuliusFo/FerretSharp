@@ -118,7 +118,7 @@
 
     protected override void OnInitialized()
     {
-        var counts = FkCounts.For(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, () => InvokeAsync(StateHasChanged));
+        var counts = FkCounts.For(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, () => InvokeAsync(StateHasChanged), Tab.TimeTravel?.Scn);
         _incoming = new IncomingCounts(counts, () => Settings.Current.FkCounts, InvokeAsync, StateHasChanged);
         Shell.BeforeWrite += OnBeforeWrite;
         Shell.TypedValuesOf += OnTypedValues;

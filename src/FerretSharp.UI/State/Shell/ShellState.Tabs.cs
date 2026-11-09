@@ -124,7 +124,8 @@ public sealed partial class ShellState
             return null;
         }
 
-        var tab = workspace.Tabs.OfType<TableTab>().FirstOrDefault(t => t.Table.Ref == table.Ref);
+        // Never a time travel tab (WP-78): the explorer opens the table as it is now.
+        var tab = workspace.Tabs.OfType<TableTab>().FirstOrDefault(t => t.Table.Ref == table.Ref && t.TimeTravel is null);
         Set(() =>
         {
             if (tab is null)
@@ -153,22 +154,25 @@ public sealed partial class ShellState
 
     /// <summary>
     /// Opens a new tab (also if the table is already open) with the filters applied – used for FK jumps, so the tab
-    /// the user came from keeps its own filters. It is placed right after the active tab.
+    /// the user came from keeps its own filters. It is placed right after the active tab. A jump from a time travel tab
+    /// shows its target at the same point (WP-78, decision of the user) – unless <paramref name="now"/> asks for the table
+    /// as it is now ("Jetzt öffnen" of a time travel tab).
     /// </summary>
-    public TableTab? OpenFiltered(TableSummary table, IReadOnlyList<FilterCondition> filters)
+    public TableTab? OpenFiltered(TableSummary table, IReadOnlyList<FilterCondition> filters, bool now = false)
     {
         if (ActiveWorkspace is not { } workspace)
         {
             return null;
         }
 
-        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = filters, Visited = true, Origin = workspace.ActiveTab as TableTab };
-        tab.SetFilterRows(filters);
-        if (workspace.ActiveTab is TableTab origin)
+        var origin = workspace.ActiveTab as TableTab;
+        var tab = new TableTab(workspace.WorkspaceId, table)
         {
-            origin.Forward = null; // a new jump replaces the way forward, like in a browser
-        }
-
+            AppliedFilters = filters, Visited = true, Origin = origin, TimeTravel = now ? null : origin?.TimeTravel,
+            PointChecked = origin?.PointChecked == true,
+        };
+        tab.SetFilterRows(filters);
+        origin?.Forward = null; // a new jump replaces the way forward, like in a browser
         return InsertAfterActive(workspace, tab);
     }
 
@@ -331,6 +335,23 @@ public sealed partial class ShellState
         }
 
         return InsertAfterActive(workspace, new DataDiffTab(workspace.WorkspaceId) { Visited = true });
+    }
+
+    /// <summary>
+    /// A time travel tab (WP-78) of <paramref name="table"/> at <paramref name="at"/>, right after the active tab: read only,
+    /// with the filters and sort order it was asked with (those of the tab it came from, or of a diff's table).
+    /// </summary>
+    public TableTab? OpenTimeTravel(
+        Guid workspaceId, TableSummary table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, TimeTravelState at)
+    {
+        if (FindWorkspace(workspaceId) is not { } workspace)
+        {
+            return null;
+        }
+
+        var tab = new TableTab(workspaceId, table) { TimeTravel = at, PointChecked = true, AppliedFilters = filters, Sorts = sorts, Visited = true };
+        tab.SetFilterRows(filters);
+        return InsertAfterActive(workspace, tab);
     }
 
     /// <summary>
@@ -509,6 +530,7 @@ public sealed partial class ShellState
 
         var copy = new TableTab(workspace.WorkspaceId, source.Table)
         {
+            TimeTravel = source.TimeTravel,
             AppliedFilters = source.AppliedFilters,
             Sorts = source.Sorts,
             Preset = source.Preset,

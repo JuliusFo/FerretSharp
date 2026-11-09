@@ -43,7 +43,11 @@
     {
         <span>@TimeText.Duration(time)</span>
     }
-    @if (Tab.DataAsOf is { } asOf)
+    @if (Tab.TimeTravel is { } travel)
+    {
+        <span class="time-travel" title="@TextFormat.Format(GridText.TimeTravel_FooterTitle, travel.Scn)">@Icons.TimeTravel @TextFormat.Format(GridText.TimeTravel_Footer, travel.At.LocalDateTime)</span>
+    }
+    else if (Tab.DataAsOf is { } asOf)
     {
         <span title="@TextFormat.Format(GridText.Footer_SnapshotTitle, Shortcuts.Label(ShortcutAction.Refresh) ?? CommonText.Reload)">
             @TextFormat.Format(CommonText.AsOf, TimeText.TimeOfDay(asOf))
@@ -121,7 +125,7 @@
         var filters = Tab.AppliedFilters;
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
-            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, cts.Token);
+            var data = await TabData.GetAsync(Tab, Workspaces, Active, cts.Token);
             return await data.CountAsync(details, filters, cts.Token);
         }, cts.Token);
         // Reset or a new count since: this result belongs to the query before (review 3.44.0, A20) – it set the old number again.

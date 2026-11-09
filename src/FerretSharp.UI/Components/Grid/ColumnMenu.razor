@@ -41,7 +41,7 @@
                    Title="@TextFormat.Format(GridText.ColumnMenu_AddToNameTitle, Details.Table.DisplayName, display.Path)" OnClick="AddToNameAsync" />
     }
     <AllValueChips Column="Column" Presented="@PresentedExport.Column(Presentations.For(Details), Request.Column, Column.Name, Request.Column)"
-                   All="@ColumnValueCopies.ForTable(Tab, Details, [Request.Column], Workspaces.GetDataAsync)" OnClose="OnClose"
+                   All="@ColumnValueCopies.ForTable(Tab, Details, [Request.Column], TabData.Of(Tab, Workspaces, Active))" OnClose="OnClose"
                    Pending="@(Tab.Changes?.PendingIn([Request.Column]) ?? 0)" />
     @if (Details.Table.Kind == TableKind.Table)
     {

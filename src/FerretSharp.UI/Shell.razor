@@ -542,6 +542,9 @@
             case ShortcutAction.DuplicateTab when _state.ActiveTab is TableTab tab:
                 _state.DuplicateTab(tab);
                 break;
+            case ShortcutAction.TimeTravel when _state.ActiveTab is TableTab tab && WorkspaceLifecycle.DataDiffUnavailable(tab) is null:
+                _state.AskTimeTravel(tab);
+                break;
             case ShortcutAction.RevealInExplorer when _state.ActiveTab is { } tab:
                 _state.RevealInExplorer(tab);
                 break;
