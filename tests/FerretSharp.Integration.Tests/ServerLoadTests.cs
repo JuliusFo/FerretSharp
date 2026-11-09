@@ -1,3 +1,4 @@
+using System.Globalization;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
@@ -46,6 +47,44 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// The tracker's count of a statement next to what V$SQLSTATS and V$SQL hold for it right now (executions, last active,
+    /// plan, container) – only for the failure message.
+    /// </summary>
+    private async Task<string> CursorStateAsync(string sqlId, ServerLoadTracker tracker, string label)
+    {
+        var counted = tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000).SingleOrDefault(r => r.SqlId == sqlId)?.Figures.Executions;
+        await using var connection = new OracleConnection(System());
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT TO_CHAR(SYSTIMESTAMP, 'HH24:MI:SS.FF3'),
+                   (SELECT LISTAGG(executions || '@' || TO_CHAR(last_active_time, 'HH24:MI:SS') || ' p' || plan_hash_value || ' c' || con_id, '; ')
+                      FROM v$sqlstats WHERE sql_id = :sql_id),
+                   (SELECT LISTAGG(child_number || ':' || executions || '@' || TO_CHAR(last_active_time, 'HH24:MI:SS') || ' c' || con_id, '; ')
+                      FROM v$sql WHERE sql_id = :sql_id)
+              FROM dual
+            """;
+        command.Parameters.Add(new OracleParameter("sql_id", sqlId));
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+        await reader.ReadAsync(Ct);
+        return $"  {label}: counted {counted?.ToString() ?? "-"} | now {reader.GetString(0)} | V$SQLSTATS {(reader.IsDBNull(1) ? "-" : reader.GetString(1))}"
+            + $" | V$SQL {(reader.IsDBNull(2) ? "-" : reader.GetString(2))}";
+    }
+
+    /// <summary>The executions of a statement as the server counts them right now (V$SQLSTATS).</summary>
+    private async Task<long> ServerExecutionsAsync(string sqlId)
+    {
+        await using var connection = new OracleConnection(System());
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = "SELECT NVL(SUM(executions), 0) FROM v$sqlstats WHERE sql_id = :sql_id";
+        command.Parameters.Add(new OracleParameter("sql_id", sqlId));
+        return Convert.ToInt64(await command.ExecuteScalarAsync(Ct), CultureInfo.InvariantCulture);
+    }
 
     private string System() => new OracleConnectionStringBuilder(oracle.RequireConnectionString()) { UserID = "system" }.ConnectionString;
 
@@ -102,23 +141,35 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         Assert.True(sample.ExecutionsPerSecond > 0);
         var sqlId = Plans.SqlId(sql);
 
-        // V$SQLSTATS updates its figures with a delay (CI on main after WP-75: 4 of 12 executions right after): the next looks
-        // bring the rest. 10 s were not always enough (CI on main after 3.67.0, the third time); up to StatsLag, as long as a
-        // look reads late figures again, the page counts them.
+        // The page must count what the server counted – not the 12 executions sent: Oracle does not always count all of them
+        // (CI on main after 3.67.0: V$SQLSTATS and V$SQL held 9 for 30 s, the page counted 9). V$SQLSTATS may also bring its
+        // figures late (CI after WP-75: 4 right after): the next looks bring the rest.
         StatementRow? row = null;
-        await Wait.UntilAsync(async () =>
+        var looks = new List<string> { await CursorStateAsync(sqlId, monitor.Tracker, "first look") };
+        try
         {
-            row = monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000).SingleOrDefault(r => r.SqlId == sqlId);
-            if (row?.Figures.Executions >= 12)
+            await Wait.UntilAsync(async () =>
             {
-                return true;
-            }
+                row = monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000).SingleOrDefault(r => r.SqlId == sqlId);
+                if (row is not null && row.Figures.Executions == await ServerExecutionsAsync(sqlId))
+                {
+                    return true;
+                }
 
-            await Task.Delay(TimeSpan.FromSeconds(1.1), Ct); // a second apart: LAST_ACTIVE_TIME has whole seconds
-            await monitor.LookAsync(null, Ct);
-            return false;
-        }, "all 12 executions in the window", ServerLoadMonitor.StatsLag);
-        Assert.Equal(12, row!.Figures.Executions);
+                await Task.Delay(TimeSpan.FromSeconds(1.1), Ct); // a second apart: LAST_ACTIVE_TIME has whole seconds
+                var since = ServerLoadMonitor.ActiveSince(monitor.Tracker.StatementsSince!.Value);
+                await monitor.LookAsync(null, Ct);
+                looks.Add(await CursorStateAsync(sqlId, monitor.Tracker, $"look since {since:HH:mm:ss}"));
+                return false;
+            }, "the executions the server counted");
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // What the server held at each look, to tell late figures from figures a look missed.
+            Assert.Fail($"{e.Message} SQL_ID {sqlId}:{Environment.NewLine}{string.Join(Environment.NewLine, looks)}");
+        }
+
+        Assert.InRange(row!.Figures.Executions, 1, 12);
         Assert.StartsWith(row.Info!.Text!, sql, StringComparison.Ordinal);
         Assert.True(row.Info.Text!.Length < 1000);
         Assert.True(row.Info.MayBeCut);

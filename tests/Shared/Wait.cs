@@ -22,13 +22,12 @@ internal static class Wait
     }
 
     /// <summary>The same for a condition that asks something asynchronously (a database), polled every 200 ms.</summary>
-    /// <param name="limit">Longer than <see cref="Limit"/> only where the database itself takes its time (V$SQLSTATS).</param>
-    public static async Task UntilAsync(Func<Task<bool>> condition, string what = "the condition", TimeSpan? limit = null)
+    public static async Task UntilAsync(Func<Task<bool>> condition, string what = "the condition")
     {
         var watch = Stopwatch.StartNew();
         while (!await condition())
         {
-            Assert.True(watch.Elapsed < (limit ?? Limit), $"Timed out waiting for {what}.");
+            Assert.True(watch.Elapsed < Limit, $"Timed out waiting for {what}.");
             await Task.Delay(200, TestContext.Current.CancellationToken);
         }
     }
