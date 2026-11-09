@@ -568,6 +568,11 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 .usage-section .structure-columns-head .spacer { flex: 1; }
 .usage-build-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .usage-section .usage-build-note, .usage-section .usage-build-note ~ .model-log { margin-left: 0; margin-right: 0; }
+.fold-body .usage-build-note, .fold-body .usage-build-note ~ .model-log, .fold-body .usage-build-note ~ .tab-error { margin: 0 0 10px; }
+/* "Build projects" running: projects built against the solution's (decision of the user, 2026-11-09). */
+.build-progress { display: inline-block; width: 120px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; flex: none; }
+.build-progress > span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.build-progress-last { max-width: 280px; }
 .usage-solution { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .usage-list { list-style: none; margin: 0 0 10px; padding: 0; }
 .usage-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; white-space: nowrap; }
@@ -2007,6 +2012,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .code-origin-best .code-origin-rank { min-width: 0; }
 .code-origin-reasons { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .code-origin-more { margin-top: 8px; }
+.code-origin-missing { display: inline-flex; color: var(--warn); cursor: help; }
 .code-origin-best { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin-left: 6px; font-weight: 400; font-size: 12.5px; color: var(--muted); }
 .fit-meter { display: inline-flex; gap: 2px; cursor: help; }
 .fit-meter i { display: block; width: 7px; height: 11px; border-radius: 2px; border: 1px solid var(--border-strong); }

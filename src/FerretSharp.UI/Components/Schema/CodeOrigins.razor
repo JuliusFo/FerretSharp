@@ -1,7 +1,8 @@
 @* Origin in code (WP-76, ADR 0030): methods of the linked solution that may have sent a statement, guessed from its tables
    and the columns it filters by against the code usage index (CodeOriginFinder); each with its rank and a meter of how much
    of the statement it covers (CodeOriginFit), a folding part of the statement dialog of the server load. Shown only with a linked project (a model
-   file has no code to read) and a table of the model in the statement – the solution is read for nothing else. The text
+   file has no code to read) and a table of the model in the statement – the solution is read for nothing else. Projects not
+   built are marked in its head and noted in the list, with "Build projects" right there. The text
    comes from any session on the server: it is parsed off the render thread (review WP-76). The candidates are worked out
    on the render thread: the code usage index fills a cache while it is read, and the other views read it there too (second
    pass of the review). *@
@@ -21,6 +22,12 @@
             @if (result is not null)
             {
                 <span class="count">@result.Candidates.Count</span>
+                @if (state.Result?.Missing.Count is > 0 and var missing)
+                {
+                    // Projects not built: their methods are missing, so "0" or a weak best may be wrong (decision of the user, 2026-11-09).
+                    var note = TextFormat.Format(ModelViewText.CodeOrigin_MissingNote, missing);
+                    <span class="code-origin-missing" title="@note" aria-label="@note">@Icons.Warning</span>
+                }
             }
             else if (state.Error is { } headError)
             {
@@ -47,6 +54,7 @@
             }
         </Summary>
         <ChildContent>
+            <UsageBuildNote MissingNote="@ModelViewText.CodeOrigin_MissingNote" />
             @if (state.Error is { } error)
             {
                 <p class="hint">@TextFormat.Format(ModelViewText.Usage_Failed, error)</p>
