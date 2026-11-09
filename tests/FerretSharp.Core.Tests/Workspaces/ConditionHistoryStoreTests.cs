@@ -24,11 +24,12 @@ public sealed class ConditionHistoryStoreTests : IDisposable
             await store.AddAsync(Connection, Entry($"ID = {i}"), Ct);
         }
 
+        await store.AddAsync(Connection, Entry("ID = 11\r\n"), Ct); // the editor's line ends make no other condition (E2E)
         await store.AddAsync(Connection, Entry(" ID = 5 "), Ct);
 
         var history = await new ConditionHistoryStore(_folder.Path).LoadAsync(Connection, Ct);
 
-        Assert.Equal([" ID = 5 ", "ID = 11", "ID = 10", "ID = 9", "ID = 8", "ID = 7", "ID = 6", "ID = 4", "ID = 3", "ID = 2"],
+        Assert.Equal([" ID = 5 ", "ID = 11\r\n", "ID = 10", "ID = 9", "ID = 8", "ID = 7", "ID = 6", "ID = 4", "ID = 3", "ID = 2"],
             ConditionHistoryStore.Of(history, Kunden));
         Assert.Equal(["ID = 1"], ConditionHistoryStore.Of(history, new TableRef("APP", "AUFTRAG"))); // other tables keep theirs
     }

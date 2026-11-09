@@ -39,5 +39,7 @@ public sealed class ConditionHistoryStore(string directory) : HistoryFileStore<C
     protected override IReadOnlyList<ConditionHistoryEntry> Normalize(IEnumerable<ConditionHistoryEntry> entries) =>
         [.. entries.Where(e => e is { Owner: not null, Table: not null, Text: not null })];
 
-    private static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.Ordinal);
+    /// <summary>The same condition: Monaco writes the platform's line ends into a text it is given (ui-monaco.md), E2E of WP-79.</summary>
+    internal static bool Same(string a, string b) =>
+        string.Equals(a.Trim().ReplaceLineEndings("\n"), b.Trim().ReplaceLineEndings("\n"), StringComparison.Ordinal);
 }

@@ -148,7 +148,9 @@ public sealed record TabState(
 public sealed record SqlConditionState(string Text, string? Applied = null, string Origin = "")
 {
     /// <summary>Back to the filter bar loses nothing: the text is still the one the mode started with, and so is what is applied.</summary>
-    public bool Unchanged => Text == Origin && (Applied is null || Applied == Origin);
+    /// <remarks>Line ends do not count: Monaco writes the platform's into a text it is given.</remarks>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Unchanged => ConditionHistoryStore.Same(Text, Origin) && (Applied is null || ConditionHistoryStore.Same(Applied, Origin));
 
     /// <summary>Text set to null in the file by hand becomes empty.</summary>
     public SqlConditionState Normalized() => this with { Text = Text ?? "", Origin = Origin ?? "" };
