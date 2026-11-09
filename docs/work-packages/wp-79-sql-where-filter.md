@@ -1,4 +1,4 @@
-# WP-79 SQL-Bedingung als Filter eines Tabellen-Tabs → Release offen
+# WP-79 SQL-Bedingung als Filter eines Tabellen-Tabs → Release 3.67.0
 
 Branch `wp/79-sql-where-filter` (von `main`), 2026-11-09. ADR 0049.
 
