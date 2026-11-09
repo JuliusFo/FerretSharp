@@ -1,3 +1,4 @@
+using System.Globalization;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
@@ -73,6 +74,18 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
             + $" | V$SQL {(reader.IsDBNull(2) ? "-" : reader.GetString(2))}";
     }
 
+    /// <summary>The executions of a statement as the server counts them right now (V$SQLSTATS).</summary>
+    private async Task<long> ServerExecutionsAsync(string sqlId)
+    {
+        await using var connection = new OracleConnection(System());
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = "SELECT NVL(SUM(executions), 0) FROM v$sqlstats WHERE sql_id = :sql_id";
+        command.Parameters.Add(new OracleParameter("sql_id", sqlId));
+        return Convert.ToInt64(await command.ExecuteScalarAsync(Ct), CultureInfo.InvariantCulture);
+    }
+
     private string System() => new OracleConnectionStringBuilder(oracle.RequireConnectionString()) { UserID = "system" }.ConnectionString;
 
     private static async Task ExecuteAsync(string connectionString, params string[] statements)
@@ -128,9 +141,9 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         Assert.True(sample.ExecutionsPerSecond > 0);
         var sqlId = Plans.SqlId(sql);
 
-        // V$SQLSTATS updates its figures with a delay (CI on main after WP-75: 4 of 12 executions right after): the next looks
-        // bring the rest. 10 s were not always enough (CI on main after 3.67.0, the third time); up to StatsLag, as long as a
-        // look reads late figures again, the page counts them.
+        // The page must count what the server counted – not the 12 executions sent: Oracle does not always count all of them
+        // (CI on main after 3.67.0: V$SQLSTATS and V$SQL held 9 for 30 s, the page counted 9). V$SQLSTATS may also bring its
+        // figures late (CI after WP-75: 4 right after): the next looks bring the rest.
         StatementRow? row = null;
         var looks = new List<string> { await CursorStateAsync(sqlId, monitor.Tracker, "first look") };
         try
@@ -138,7 +151,7 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
             await Wait.UntilAsync(async () =>
             {
                 row = monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000).SingleOrDefault(r => r.SqlId == sqlId);
-                if (row?.Figures.Executions >= 12)
+                if (row is not null && row.Figures.Executions == await ServerExecutionsAsync(sqlId))
                 {
                     return true;
                 }
@@ -148,15 +161,15 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
                 await monitor.LookAsync(null, Ct);
                 looks.Add(await CursorStateAsync(sqlId, monitor.Tracker, $"look since {since:HH:mm:ss}"));
                 return false;
-            }, "all 12 executions in the window", ServerLoadMonitor.StatsLag);
+            }, "the executions the server counted");
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            // What the server held at each look, to tell late figures from figures the look missed (CI on main after 3.67.0).
+            // What the server held at each look, to tell late figures from figures a look missed.
             Assert.Fail($"{e.Message} SQL_ID {sqlId}:{Environment.NewLine}{string.Join(Environment.NewLine, looks)}");
         }
 
-        Assert.Equal(12, row!.Figures.Executions);
+        Assert.InRange(row!.Figures.Executions, 1, 12);
         Assert.StartsWith(row.Info!.Text!, sql, StringComparison.Ordinal);
         Assert.True(row.Info.Text!.Length < 1000);
         Assert.True(row.Info.MayBeCut);
