@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup Label="UI">
-    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.110" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.120" />
     <!-- BlazorWebView brings 1.0.3179.45, whose composition control never rebuilds its Direct3D devices: after sleep the
          picture froze. Pinned (transitively) to a version that recovers after a display change; App's WebViewCapture starts
          that recovery by reflection – check it still finds the members when updating. -->
@@ -16,19 +16,19 @@
   </ItemGroup>
 
   <ItemGroup Label="Windows">
-    <PackageVersion Include="Meziantou.Framework.Win32.CredentialManager" Version="3.0.5" />
+    <PackageVersion Include="Meziantou.Framework.Win32.CredentialManager" Version="3.0.10" />
     <!-- Installer and updates from the GitHub releases (WP-32, ADR 0024); vpk in dotnet-tools.json has the same version. -->
     <PackageVersion Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
   <ItemGroup Label="Hosting">
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Oracle">
-    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.301" />
+    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.400" />
     <!-- Oracle's packages bring System.Security.Cryptography.Pkcs 8.0.1 (CVE-2026-84008, CVE-2026-70162): pinned here for
          every project that gets it transitively (CentralPackageTransitivePinningEnabled, review 3.40.0 B14), until a
          version of theirs brings 8.0.2 or later. -->
@@ -58,7 +58,7 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Testcontainers.Oracle" Version="4.16.0" />
-    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
   </ItemGroup>
 
 </Project>
