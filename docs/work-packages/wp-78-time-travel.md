@@ -37,7 +37,7 @@ Entscheidungen zum Plan (2026-11-09, „Ja, so umsetzen“ – alle vier Empfehl
 
 ## Erkenntnisse
 - `AS OF SCN` funktioniert in der read-only Transaktion einer gesperrten Session (Prod-Lese-Session); geprüft im Integrationstest.
-- Die Testcontainer-Datenbank liefert `DB_UNIQUE_NAME/CON_NAME` ohne Recht; ein neu aufgesetzter Container desselben Images trägt denselben Namen – dort fängt nur die SCN-Prüfung (gespeicherte SCN über der jetzigen).
+- `DB_UNIQUE_NAME`, `CON_NAME` und `CON_DBID` liefert `USERENV` ohne Recht (Oracle 23, im E2E geprüft: `FREE/FREEPDB1/3182349174`), `CON_DBID` deshalb mit in der Kennung; ein neu aufgesetzter Container desselben Images trägt denselben Namen – dort fängt nur die SCN-Prüfung (gespeicherte SCN über der jetzigen).
 - Ein INSERT lässt NULL weg wie eine neue Zeile im Grid: eine DEFAULT-Spalte, die damals NULL war, bekommt den Default (ADR 0048, Folgen).
 
 ## E2E

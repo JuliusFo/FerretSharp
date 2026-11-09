@@ -47,7 +47,7 @@ public sealed partial class DataDiffTests
 
         Assert.True(back.Scn <= now.Scn);
         Assert.Equal(now.Database, back.Database);
-        Assert.Matches("^[^/]+/[^/]+$", now.Database);
+        Assert.Matches("^[^/]+/[^/]+/[0-9]+$", now.Database); // CON_DBID without any grant
         TestContext.Current.SendDiagnosticMessage($"Database {now.Database}, SCN now {now.Scn}, a minute ago {back.Scn}");
 
         // The test user has no SELECT_CATALOG_ROLE: V$DATABASE is refused – the app maps the time then.

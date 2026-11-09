@@ -291,7 +291,7 @@ public sealed record LookupRow(object Key, IReadOnlyList<object?> Values);
 public sealed record LobRead(bool Found, object? Value);
 
 /// <summary>
-/// An SCN with the database it belongs to (WP-78): <c>DB_UNIQUE_NAME/CON_NAME</c>. A start point or time travel tab of another
+/// An SCN with the database it belongs to (WP-78): <c>DB_UNIQUE_NAME/CON_NAME/CON_DBID</c>. A start point or time travel tab of another
 /// database – a profile switched to another one, a test database set up anew under the same name – is dropped.
 /// </summary>
 public sealed record DatabasePoint(long Scn, string Database);
