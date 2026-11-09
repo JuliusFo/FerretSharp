@@ -61,6 +61,68 @@ public sealed class DataRestoreTests
         Assert.Equal("typed", tracker.Find(new RowKey.PrimaryKey([2m]))!.ValueOf(1)); // the user's edit stays
     }
 
+    /// <summary>
+    /// Review of WP-78: values the grid never writes came back changed – TIMESTAMP(9) without its nanoseconds, a time zone region as
+    /// a fixed offset, INTERVAL as text; a NOT NULL column added since the start point read NULL then, its UPDATE failed with
+    /// ORA-01407; a deleted row whose key a new row of the tab has already collided (ORA-00001).
+    /// </summary>
+    [Theory]
+    [InlineData("TIMESTAMP(9)", 9)]
+    [InlineData("TIMESTAMP(6) WITH TIME ZONE", 6)]
+    [InlineData("INTERVAL DAY(2) TO SECOND(6)", 6)]
+    [InlineData("BINARY_DOUBLE", null)]
+    public void A_value_that_cannot_come_back_exactly_leaves_its_row_alone(string type, int? scale)
+    {
+        var table = new TableDetails(Orders.Table,
+            [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2"), new ColumnInfo("AT", type, null, false, null, scale, true, false, null, 0)], ["ID"], [], false);
+        RowData Values(decimal id, string name, object? at) => new(new RowKey.PrimaryKey([id]), [id, name, at]);
+        var tracker = new ChangeTracker(table);
+
+        var result = tracker.Restore([
+            new RestoreRow(DiffStatus.Deleted, Values(1, "old", "a value"), null),
+            new RestoreRow(DiffStatus.Changed, Values(2, "old", "a value"), Values(2, "new", "another")),
+            new RestoreRow(DiffStatus.Changed, Values(3, "old", "same"), Values(3, "new", "same")), // not written: comes back
+        ]);
+
+        Assert.Equal((1, 2), (result.Restored, result.NotRestorable));
+        Assert.Equal([1], tracker.PendingOperations().Single().Values.Keys);
+    }
+
+    [Fact]
+    public void A_not_null_column_reading_null_then_is_left_out_and_a_deleted_row_whose_key_a_new_row_has_stays_away()
+    {
+        var table = Orders with
+        {
+            Columns = [.. Orders.Columns.Select(c => c.Name switch { "STATUS" => c with { Nullable = false }, "ID" => c with { IsIdentity = false }, _ => c })],
+        };
+        var tracker = new ChangeTracker(table);
+        var added = tracker.AddRow();
+        tracker.SetValue(added, 0, "7");
+
+        var result = tracker.Restore([
+            new RestoreRow(DiffStatus.Changed, Row(2, null, "old"), Row(2, "added since", "new")), // STATUS added since: NULL then
+            new RestoreRow(DiffStatus.Deleted, Row(7, "gone"), null),
+        ]);
+
+        Assert.Equal((1, 1), (result.Restored, result.AlreadyChanged));
+        Assert.Equal([2], tracker.PendingOperations().Single(o => o.Kind == OperationKind.Update).Values.Keys); // only NOTE
+    }
+
+    [Fact]
+    public async Task Rows_with_a_lob_beyond_what_is_loaded_whole_are_left_out_unread()
+    {
+        var then = Substitute.For<IDataAccess>();
+        var now = Substitute.For<IDataAccess>();
+        var huge = new DiffRow(DiffStatus.Deleted, new RowKey.PrimaryKey([1m]),
+            new RowData(new RowKey.PrimaryKey([1m]), [1m, "x", new LobValue("abc", LobLimits.MaxLoadLength + 1), 0m, null]), null, new HashSet<int>());
+
+        var read = await DataRestore.ReadAsync(then, now, Orders, [huge], TestContext.Current.CancellationToken);
+
+        Assert.Equal((0, 1), (read.Rows.Count, read.TooLarge));
+        await then.DidNotReceive().ReadByKeysAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<int>?>(), Arg.Any<IReadOnlyList<IReadOnlyList<object>>>(),
+            Arg.Any<bool>(), Arg.Any<int?>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public void Deleted_rows_of_a_table_with_an_identity_generated_always_are_refused()
     {

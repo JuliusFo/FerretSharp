@@ -3,9 +3,13 @@ using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Data;
 
-/// <summary>What <see cref="DataRestore.ReadAsync"/> found: the rows to set back, and how many are gone or back as they were.</summary>
+/// <summary>What <see cref="DataRestore.ReadAsync"/> found: the rows to set back, and how many are gone or too large.</summary>
 /// <param name="Gone">Rows of the diff that no longer are as the diff saw them: a changed or added row deleted since, a deleted one there again.</param>
-public sealed record RestoreRead(IReadOnlyList<RestoreRow> Rows, int Gone);
+/// <param name="TooLarge">
+/// Rows with a LOB longer than <see cref="LobLimits.MaxLoadLength"/> then or now: not read at all – the whole value would come
+/// over the line twice (review of WP-78).
+/// </param>
+public sealed record RestoreRead(IReadOnlyList<RestoreRow> Rows, int Gone, int TooLarge = 0);
 
 /// <summary>
 /// Reads the rows of a data diff to set back (WP-78, ADR 0048) whole: the values at the start point <c>AS OF SCN</c> on the read
@@ -21,6 +25,9 @@ public static class DataRestore
         ArgumentNullException.ThrowIfNull(now);
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(rows);
+        // The diff read LOBs as preview and length: rows with one beyond what FerretSharp loads whole are left out unread.
+        var tooLarge = rows.Count(TooLarge);
+        rows = [.. rows.Where(r => !TooLarge(r))];
         var keyColumns = QueryBuilder.RowKeyOf(table) == RowKeyKind.PrimaryKey ? table.PrimaryKey.Select(table.IndexOf).ToList() : null;
         var thenKeys = rows.Where(r => r.Status != DiffStatus.Added).Select(r => r.Key).ToList();
         var thenRows = await ByKeyAsync(then, table, keyColumns, thenKeys, cancellationToken);
@@ -49,8 +56,11 @@ public static class DataRestore
             }
         }
 
-        return new RestoreRead(result, gone);
+        return new RestoreRead(result, gone, tooLarge);
     }
+
+    private static bool TooLarge(DiffRow row) =>
+        new[] { row.Then, row.Now }.OfType<RowData>().SelectMany(r => r.Values).Any(v => v is LobValue { Length: > LobLimits.MaxLoadLength });
 
     private static async Task<Dictionary<RowKey, RowData>> ByKeyAsync(
         IDataAccess data, TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<RowKey> keys, CancellationToken cancellationToken)

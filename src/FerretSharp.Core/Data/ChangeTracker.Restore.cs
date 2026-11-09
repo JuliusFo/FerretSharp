@@ -58,7 +58,7 @@ public sealed partial class ChangeTracker
         var (already, notRestorable) = (0, 0);
         foreach (var row in rows)
         {
-            if (row.Now is { } now && _byKey.ContainsKey(now.Key))
+            if ((row.Now is { } now && _byKey.ContainsKey(now.Key)) || (row.Status == DiffStatus.Deleted && row.Then is { } gone && NewRowHas(gone)))
             {
                 already++;
                 continue;
@@ -142,7 +142,7 @@ public sealed partial class ChangeTracker
                 continue;
             }
 
-            if (value is NotNullMarker || !OracleTypeMapper.IsEditableValue(value))
+            if (value is NotNullMarker || !OracleTypeMapper.IsEditableValue(value) || (value is not null && !ExactlyWritable(column)))
             {
                 return false;
             }
@@ -152,8 +152,10 @@ public sealed partial class ChangeTracker
                 continue; // NULL then: a LONG or object type is not compared and left as it is
             }
 
-            if (all && value is null)
+            if (value is null && (all || !column.Nullable))
             {
+                // An INSERT leaves NULLs out like a new row of the grid. An UPDATE never sets a NOT NULL column to NULL: it was
+                // added since the start point and reads NULL then (review of WP-78) – the whole write failed with ORA-01407.
                 continue;
             }
 
@@ -162,4 +164,19 @@ public sealed partial class ChangeTracker
 
         return true;
     }
+
+    /// <summary>
+    /// A value of the column comes back exactly as read (review of WP-78): types the grid never writes (INTERVAL, BINARY_DOUBLE …)
+    /// do not, nor fractions of a second beyond what .NET holds, nor a time zone region (read as a fixed offset). LOBs and
+    /// identity columns by default are written here although the grid does not take them typed.
+    /// </summary>
+    private static bool ExactlyWritable(ColumnInfo column) =>
+        (OracleTypeMapper.IsEditableType(column) || OracleTypeMapper.IsLob(column))
+        && !ColumnCategories.LosesFractionsWhenRead(column)
+        && !(ColumnCategories.Of(column) == ColumnCategory.TimestampWithTimeZone && !OracleTypeMapper.IsLocalTimeZone(column));
+
+    /// <summary>A new row of the tab, not inserted yet, has the primary key of <paramref name="row"/> already: bringing it back would collide (ORA-00001).</summary>
+    private bool NewRowHas(RowData row) =>
+        row.Key is RowKey.PrimaryKey key && _newRows.Any(n => !n.IsInserted
+            && new RowKey.PrimaryKey([.. Table.PrimaryKey.Select(name => n.ValueOf(Table.IndexOf(name)))]).Equals(key));
 }
