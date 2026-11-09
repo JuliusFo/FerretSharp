@@ -230,6 +230,7 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 - E2E für den DDL-Vorschlag des Schema-Vergleichs: Die Beispiel-DB hat nur ein Schema; ein zweiter Benutzer im Testcontainer (`New-SampleDb.ps1` mit Option) gäbe zwei vergleichbare Seiten.
 - Web-Host (`FerretSharp.DevHost`, Blazor Server) mit Fake-Daten, um die UI im Browser mit Hot Reload zu entwickeln und automatisiert zu prüfen.
 - bUnit-Tests für UI-Komponenten.
+- Ein `FakeModelHost` mit `--scenario hangs-in-run` blieb nach einem Lauf der Core-Tests stehen (2026-11-09, `small-code-origin-build-note`, Review): Ein Test aus `ModelHostProcessTests` scheiterte in diesem Lauf und beendete seinen Host offenbar nicht; ohne Job Object der App lief er weiter, sperrte `tests/FerretSharp.FakeModelHost/bin` (jeder weitere Build scheiterte an MSB3026) und hielt die Ausgabe eines `dotnet test … | grep` offen. Welcher Test es war, zeigte die Ausgabe nicht. Die Tests sollten ihren Host auch beim Scheitern beenden (`finally`/`DisposeAsync` mit `DotNetCli.Kill`).
 
 ## Wartet auf den Nutzer oder Kollegen
 
