@@ -440,6 +440,6 @@
   </data>
   <data name="ConditionTopLevel" xml:space="preserve">
     <value>{0} does not belong in a condition – sort with the column headers, anything else in the SQL editor.</value>
-    <comment>{0}: what was found outside of parentheses: ORDER, UNION, FOR, ; … SQL condition of a table tab</comment>
+    <comment>{0}: what was found – outside of parentheses ORDER, UNION, FOR …; at any depth ; and FOR UPDATE. SQL condition of a table tab</comment>
   </data>
 </root>

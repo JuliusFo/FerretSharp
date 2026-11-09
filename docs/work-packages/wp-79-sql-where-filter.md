@@ -43,5 +43,20 @@ Entscheidungen zum Plan (2026-11-09):
 - Gefunden und behoben: `SqlConditionState.Unchanged` stand als `"unchanged"` in der Workspace-Datei (`[JsonIgnore]`).
 - Log: nur die zwei erwarteten Warnungen der ORA-00904, kein `[ERR]`.
 
+## Nachtrag: Code-Review (2026-11-09)
+Review per `/branch-code-review` (eigener Reviewer-Agent, Befunde nachgeprüft). Entscheidung des Nutzers: „Alle beheben“ – bei 3 nur die Doku, bei 4 erst nach dem Nachstellen (Empfehlungen übernommen).
+1. M Enter/Shift+Enter des Bedingungsfelds wirkten in jedem Monaco-Editor (`addCommand` bindet im gemeinsamen Keybinding-Service): Enter im SQL-Editor wendete die Bedingung des zuletzt erzeugten Felds an. **Behoben:** Context-Key je Feld in der `when`-Bedingung; Regel in `ui-monaco.md`. E2E mit zwei Feldern und dem SQL-Editor.
+2. M `;` und `FOR UPDATE` in einer Unterabfrage passierten die Prüfung, die Lesesperre warf, der Tab stürzte ab – nach jedem Neustart wieder. **Behoben:** beide auf jeder Ebene abgelehnt; Test, dass alles Durchgelassene die Lesesperre passiert.
+3. K Doku versprach „keine Literale im Prod-Log“; maskiert werden Text-Literale (wie beim SQL-Editor). **Doku korrigiert** (ADR).
+4. K Verdacht: Ein einzelnes `\r` könnte für Oracle einen `--`-Kommentar früher beenden als für den Tokenizer. **Nicht nachgestellt:** Oracle 23 liest bis zum Zeilenvorschub (Integrationstest hält das fest), keine Codeänderung.
+5. K Ein `RowFilter` mit Bedingung verlor sie still, wenn man ihn als Filterzeilen aufzählte. **Behoben:** `GetEnumerator` wirft; Test.
+6. K Nach „Leeren“ blieben Link, Zeitreise und Daten-Diff gesperrt. **Behoben:** `ConditionApplied` nur bei filternder Bedingung, diese Wege nehmen `ReadFilter.Conditions` statt der wartenden Filterzeilen; Test, E2E.
+7. K `docs/architecture.md` nicht nachgezogen. **Behoben.**
+
+Zweiter Durchgang (derselbe Reviewer, nur die Fix-Commits): 1–7 passen, nichts kaputt. Freigabe des Nutzers für die Nachzügler: „Ja, beheben und pushen“.
+- 8 K Kein Test merkte, wenn Diff/Zeitreise/Link wieder die wartenden Filterzeilen nähmen. **Behoben:** `DataDiffTests.A_cleared_condition_compares_every_row_not_the_hidden_filter_rows`.
+- 9 K Dieser Nachtrag fehlte. **Behoben.**
+- 10 K Übersetzer-Kommentar zu `ConditionTopLevel` nannte nur „außerhalb von Klammern“. **Behoben.**
+
 ## Offen / Fragen an den Nutzer
 - Der Wechsel per Tastenkürzel ist als Aktion ohne Standardtaste angelegt („Filterleiste ↔ SQL-Bedingung“, auch in der Befehlspalette) – reicht das?
