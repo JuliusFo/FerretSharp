@@ -47,6 +47,32 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
+    /// <summary>
+    /// The tracker's count of a statement next to what V$SQLSTATS and V$SQL hold for it right now (executions, last active,
+    /// plan, container) – only for the failure message.
+    /// </summary>
+    private async Task<string> CursorStateAsync(string sqlId, ServerLoadTracker tracker, string label)
+    {
+        var counted = tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000).SingleOrDefault(r => r.SqlId == sqlId)?.Figures.Executions;
+        await using var connection = new OracleConnection(System());
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT TO_CHAR(SYSTIMESTAMP, 'HH24:MI:SS.FF3'),
+                   (SELECT LISTAGG(executions || '@' || TO_CHAR(last_active_time, 'HH24:MI:SS') || ' p' || plan_hash_value || ' c' || con_id, '; ')
+                      FROM v$sqlstats WHERE sql_id = :sql_id),
+                   (SELECT LISTAGG(child_number || ':' || executions || '@' || TO_CHAR(last_active_time, 'HH24:MI:SS') || ' c' || con_id, '; ')
+                      FROM v$sql WHERE sql_id = :sql_id)
+              FROM dual
+            """;
+        command.Parameters.Add(new OracleParameter("sql_id", sqlId));
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+        await reader.ReadAsync(Ct);
+        return $"  {label}: counted {counted?.ToString() ?? "-"} | now {reader.GetString(0)} | V$SQLSTATS {(reader.IsDBNull(1) ? "-" : reader.GetString(1))}"
+            + $" | V$SQL {(reader.IsDBNull(2) ? "-" : reader.GetString(2))}";
+    }
+
     private string System() => new OracleConnectionStringBuilder(oracle.RequireConnectionString()) { UserID = "system" }.ConnectionString;
 
     private static async Task ExecuteAsync(string connectionString, params string[] statements)
@@ -106,18 +132,30 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         // bring the rest. 10 s were not always enough (CI on main after 3.67.0, the third time); up to StatsLag, as long as a
         // look reads late figures again, the page counts them.
         StatementRow? row = null;
-        await Wait.UntilAsync(async () =>
+        var looks = new List<string> { await CursorStateAsync(sqlId, monitor.Tracker, "first look") };
+        try
         {
-            row = monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000).SingleOrDefault(r => r.SqlId == sqlId);
-            if (row?.Figures.Executions >= 12)
+            await Wait.UntilAsync(async () =>
             {
-                return true;
-            }
+                row = monitor.Tracker.Top(null, TopStatementSort.Executions, StatementFilter.None, 10_000).SingleOrDefault(r => r.SqlId == sqlId);
+                if (row?.Figures.Executions >= 12)
+                {
+                    return true;
+                }
 
-            await Task.Delay(TimeSpan.FromSeconds(1.1), Ct); // a second apart: LAST_ACTIVE_TIME has whole seconds
-            await monitor.LookAsync(null, Ct);
-            return false;
-        }, "all 12 executions in the window", ServerLoadMonitor.StatsLag);
+                await Task.Delay(TimeSpan.FromSeconds(1.1), Ct); // a second apart: LAST_ACTIVE_TIME has whole seconds
+                var since = ServerLoadMonitor.ActiveSince(monitor.Tracker.StatementsSince!.Value);
+                await monitor.LookAsync(null, Ct);
+                looks.Add(await CursorStateAsync(sqlId, monitor.Tracker, $"look since {since:HH:mm:ss}"));
+                return false;
+            }, "all 12 executions in the window", ServerLoadMonitor.StatsLag);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // What the server held at each look, to tell late figures from figures the look missed (CI on main after 3.67.0).
+            Assert.Fail($"{e.Message} SQL_ID {sqlId}:{Environment.NewLine}{string.Join(Environment.NewLine, looks)}");
+        }
+
         Assert.Equal(12, row!.Figures.Executions);
         Assert.StartsWith(row.Info!.Text!, sql, StringComparison.Ordinal);
         Assert.True(row.Info.Text!.Length < 1000);
