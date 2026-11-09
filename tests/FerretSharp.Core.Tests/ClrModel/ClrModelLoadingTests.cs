@@ -202,10 +202,10 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     public async Task A_build_past_its_time_limit_keeps_its_output_and_says_why()
     {
         await ConnectAsync();
-        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IProgress<SolutionBuildProgress>?>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new ClrModelException(ClrModelErrorKind.Timeout, "nicht in 1800 s fertig", "Restore läuft …"));
 
-        var run = await _models.BuildSolutionAsync("App.sln", Ct);
+        var run = await _models.BuildSolutionAsync("App.sln", null, Ct);
 
         Assert.Equal(("Restore läuft …", "nicht in 1800 s fertig"), (run!.Output, run.Error));
         Assert.False(run.Succeeded);

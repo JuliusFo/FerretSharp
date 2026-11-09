@@ -178,7 +178,10 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         Assert.Equal(CodeUsagePhase.Ready, usage.State.Phase);
     }
 
-    /// <summary>"Build projects" builds the solution read, in the link's configuration, and reads what it wrote – also after a failed build.</summary>
+    /// <summary>
+    /// "Build projects" builds the solution read, in the link's configuration, and reads what it wrote – also after a failed
+    /// build. Its progress is shown while it runs and gone after it.
+    /// </summary>
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -187,17 +190,25 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         await ConnectAsync();
         var first = await _usage.EnsureAsync(Ct);
         _runner.ClearReceivedCalls();
-        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        var step = new SolutionBuildProgress(1, 3, "Shop.Data");
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IProgress<SolutionBuildProgress>?>(), Arg.Any<CancellationToken>()).Returns(call =>
         {
             Assert.True(_usage.IsBuildingSolution);
             Assert.True(_models.IsBuilding); // no build of the linked project meanwhile
+            Assert.Null(_usage.BuildProgress);
+            var changed = 0;
+            _usage.Changed += () => changed++;
+            call.Arg<IProgress<SolutionBuildProgress>?>()!.Report(step);
+            Assert.Equal(step, _usage.BuildProgress);
+            Assert.Equal(1, changed);
             File.SetLastWriteTimeUtc(_dll, DateTime.UtcNow);
             return new DotNetRun(exitCode, "output");
         });
 
         var run = await _usage.BuildSolutionAsync(Ct);
+        Assert.Null(_usage.BuildProgress);
 
-        await _runner.Received(1).BuildSolutionAsync(_folder.Combine("Other.sln"), "Debug", Arg.Any<CancellationToken>());
+        await _runner.Received(1).BuildSolutionAsync(_folder.Combine("Other.sln"), "Debug", Arg.Any<IProgress<SolutionBuildProgress>?>(), Arg.Any<CancellationToken>());
         Assert.Equal(exitCode, run!.ExitCode);
         Assert.Same(run, _usage.LastSolutionBuild);
         Assert.Null(_models.LastBuild); // the project's build result stays the project's
@@ -216,7 +227,7 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         await ConnectAsync();
         var first = await _usage.EnsureAsync(Ct);
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(async call =>
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IProgress<SolutionBuildProgress>?>(), Arg.Any<CancellationToken>()).Returns(async call =>
         {
             File.SetLastWriteTimeUtc(_dll, DateTime.UtcNow); // one project built before the cancel
             started.TrySetResult();
@@ -248,7 +259,7 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
 
         _usage.CancelSolutionBuild(); // nothing running: no effect
         Assert.False(_usage.IsCancellingSolutionBuild);
-        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new DotNetRun(0, ""));
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IProgress<SolutionBuildProgress>?>(), Arg.Any<CancellationToken>()).Returns(new DotNetRun(0, ""));
         Assert.NotNull(await _usage.BuildSolutionAsync(Ct));
         Assert.False(_usage.SolutionBuildCancelled);
     }
