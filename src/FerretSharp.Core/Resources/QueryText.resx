@@ -410,4 +410,36 @@
     <value>Column {0} ({1}) has no value in the result – take it out of the values.</value>
     <comment>{0}: column name; {1}: its type, e.g. CLOB. A value of a query built in the relationship diagram whose type changed since</comment>
   </data>
+  <data name="ConditionEmpty" xml:space="preserve">
+    <value>Write a condition, e.g. STATUS = 'OPEN'.</value>
+    <comment>SQL condition of a table tab (WP-79): the field holds nothing but spaces or comments</comment>
+  </data>
+  <data name="ConditionTextOpen" xml:space="preserve">
+    <value>A text in quotes is not closed.</value>
+    <comment>SQL condition of a table tab: a string literal ('…') has no closing quote</comment>
+  </data>
+  <data name="ConditionNameOpen" xml:space="preserve">
+    <value>A name in double quotes is not closed.</value>
+    <comment>SQL condition of a table tab: a quoted identifier ("…") has no closing quote</comment>
+  </data>
+  <data name="ConditionCommentOpen" xml:space="preserve">
+    <value>A comment /* … is not closed.</value>
+    <comment>SQL condition of a table tab: a block comment has no */</comment>
+  </data>
+  <data name="ConditionParenthesisOpen" xml:space="preserve">
+    <value>A parenthesis is not closed.</value>
+    <comment>SQL condition of a table tab</comment>
+  </data>
+  <data name="ConditionParenthesisClosed" xml:space="preserve">
+    <value>A parenthesis is closed that was not opened.</value>
+    <comment>SQL condition of a table tab: more ) than (</comment>
+  </data>
+  <data name="ConditionBind" xml:space="preserve">
+    <value>Bind variables like {0} only work in the SQL editor – write the value instead.</value>
+    <comment>{0}: the bind variable as written, e.g. :id. SQL condition of a table tab</comment>
+  </data>
+  <data name="ConditionTopLevel" xml:space="preserve">
+    <value>{0} does not belong in a condition – sort with the column headers, anything else in the SQL editor.</value>
+    <comment>{0}: what was found outside of parentheses: ORDER, UNION, FOR, ; … SQL condition of a table tab</comment>
+  </data>
 </root>

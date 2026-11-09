@@ -227,7 +227,7 @@ public static partial class TableDesign
                 { Kind: DataQuestionKind.Values, Column: { } column } => [new FilterCondition(column, FilterOperator.IsNotNull, [])],
                 _ => [],
             };
-            counts[question] = await data.CountAsync(table, filters, cancellationToken);
+            counts[question] = await data.CountAsync(table, RowFilter.Of(filters), cancellationToken);
         }
 
         return new DataFacts(counts);

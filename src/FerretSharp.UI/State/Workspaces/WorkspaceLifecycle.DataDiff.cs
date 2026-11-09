@@ -17,7 +17,10 @@ public sealed partial class WorkspaceLifecycle
 
     /// <summary>Why a tab cannot be compared with an earlier state; null if it can (a table or materialized view).</summary>
     public static string? DataDiffUnavailable(TableTab tab) =>
-        tab.Table.Kind == TableKind.View ? ShellText.DataDiff_NoViews : null;
+        tab.Table.Kind == TableKind.View ? ShellText.DataDiff_NoViews
+        // A SQL condition (WP-79) may read other tables, which a start point or time travel would read as now (decision of the user).
+        : tab.ConditionApplied ? GridText.Condition_NotWithCondition
+        : null;
 
     /// <summary>
     /// "Vergleich starten": the database's current SCN becomes the start point – or, with <paramref name="at"/>, the SCN of that

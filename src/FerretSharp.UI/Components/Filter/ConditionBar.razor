@@ -1,0 +1,170 @@
+@* The filter of a table tab in SQL mode (WP-79), in place of the filter bar: a condition written in SQL as in the WHERE field of
+   SQL Developer – a one-line Monaco field that grows with its lines, completion of the table's columns and of tables, Enter
+   applies. Beside it the conditions last applied to the table, the statement, the plan, and the way back to the filter rows.
+   The condition is no filter row: no link, preset or LINQ (TableTab.SqlCondition). *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.Core.Workspaces
+@inherits FerretComponent
+@inject ConditionHistoryStore History
+@inject ILogger<ConditionBar> Logger
+
+<div class="filterbar condition-bar">
+    <span class="condition-where" aria-hidden="true">WHERE</span>
+    <div class="condition-input @(Tab.ConditionError is null ? "" : "invalid")">
+        <MonacoEditor @ref="_editor" Language="sql" Field="true" Class="condition-field" Text="@(Tab.SqlCondition?.Text ?? "")"
+                      OnChange="OnTextChanged" OnEnter="_ => OnApply.InvokeAsync()" Completion="CompleteAsync" FocusOnCreate="FocusOnCreate"
+                      Placeholder="@GridText.Condition_Placeholder" />
+        @if (Tab.ConditionError is { } error)
+        {
+            <span class="filter-error">@error</span>
+        }
+    </div>
+    <div class="filter-actions">
+        <MenuButton Class="btn ghost" Title="@GridText.Condition_RecentTitle" Width="RecentWidth" EstimatedHeight="@(40 + 30 * _recent.Count)"
+                    ShiftX="40" ShiftY="14" OnOpening="LoadRecentAsync">
+            <Label>@GridText.Condition_Recent <span class="chev">@Icons.ChevronDown</span></Label>
+            <ChildContent Context="menu">
+                @if (_recent.Count == 0)
+                {
+                    <div class="preset-note">@GridText.Condition_RecentEmpty</div>
+                }
+                @foreach (var text in _recent)
+                {
+                    var t = text;
+                    <button class="menu-item condition-recent" title="@t" @onclick="async () => { menu.Close(); await UseAsync(t); }">@OneLine(t)</button>
+                }
+            </ChildContent>
+        </MenuButton>
+        <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
+        <button class="btn ghost" title="@GridText.Filter_PlanTitle" @onclick="OnShowPlan">@GridText.Filter_Plan</button>
+        <button class="btn ghost" title="@GridText.Condition_BackTitle" @onclick="OnBack">@GridText.Condition_Back</button>
+        <button class="btn ghost" @onclick="ClearAsync">@GridText.Filter_Clear</button>
+        <button class="btn primary" @onclick="OnApply">@GridText.Filter_Apply <Kbd Action="ShortcutAction.ApplyFilters" /></button>
+    </div>
+</div>
+
+@code {
+    private const double RecentWidth = 420;
+
+    private MonacoEditor? _editor;
+
+    private IReadOnlyList<string> _recent = [];
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>Apply the condition (Enter, the button, the shortcut); the text is already in the tab.</summary>
+    [Parameter]
+    public EventCallback OnApply { get; set; }
+
+    [Parameter]
+    public EventCallback OnShowSql { get; set; }
+
+    [Parameter]
+    public EventCallback OnShowPlan { get; set; }
+
+    /// <summary>Back to the filter bar; the tab view asks first if the condition changed.</summary>
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    /// <summary>The cursor goes into the field when it is created: the user just switched to SQL mode.</summary>
+    [Parameter]
+    public bool FocusOnCreate { get; set; }
+
+    /// <summary>
+    /// The text as the editor has it now into the tab: typing reaches the tab only after a short pause (ui-monaco.md), and
+    /// applying by the shortcut or the button must not miss the last letters.
+    /// </summary>
+    public async Task TakeTextAsync()
+    {
+        if (_editor is not null && await _editor.GetTextAsync() is { } text)
+        {
+            Tab.EditCondition(text);
+        }
+    }
+
+    private void OnTextChanged(string text)
+    {
+        Tab.EditCondition(text);
+        Shell.MarkDirty();
+    }
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A recent condition replaces the text and is applied.</summary>
+    private async Task UseAsync(string text)
+    {
+        if (_editor is not null)
+        {
+            await _editor.SetTextAsync(text);
+        }
+
+        Tab.EditCondition(text);
+        await OnApply.InvokeAsync();
+    }
+
+    private async Task ClearAsync()
+    {
+        if (_editor is not null)
+        {
+            await _editor.SetTextAsync("");
+        }
+
+        Tab.EditCondition("");
+        await OnApply.InvokeAsync();
+    }
+
+    private async Task LoadRecentAsync()
+    {
+        if (Active.Profile is not { } profile)
+        {
+            return;
+        }
+
+        try
+        {
+            _recent = ConditionHistoryStore.Of(await History.LoadAsync(profile.Id, CancellationToken.None), Tab.Table.Ref);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Logger.LogWarning(ex, "Recent conditions not read");
+            _recent = [];
+        }
+    }
+
+    /// <summary>A condition on one line for the menu; the whole text is its tooltip.</summary>
+    private static string OneLine(string text) => string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>Completion as in the SQL editor: the condition stands as the WHERE of a query on the table (alias <c>t</c>).</summary>
+    private async Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteAsync(string text, int cursor)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return [];
+        }
+
+        var (statement, offset) = WhereCondition.ForCompletion(Tab.Table.Ref, text, cursor);
+        try
+        {
+            var items = await SqlCompletion.ItemsAsync(statement, offset, SqlCompletion.AtLineEnd(text, cursor), schema, Presentations.For,
+                Presentations.EntityNameOf, CancellationToken.None);
+            return items.Select(i => new MonacoEditor.CompletionItem(i.Label, i.InsertText, i.Kind.ToString(), i.Detail, i.Rank)).ToList();
+        }
+        catch (DatabaseException)
+        {
+            return [];
+        }
+    }
+}

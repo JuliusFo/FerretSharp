@@ -153,7 +153,7 @@ public static class FkNavigation
     /// </summary>
     public static Task<long?> CountAsync(
         IDataAccess data, TableDetails target, FkJump jump, TimeSpan timeout, CancellationToken cancellationToken) =>
-        TimedQuery.RunAsync<long?>(async token => await data.CountAsync(target, jump.Filters, token), timeout, cancellationToken);
+        TimedQuery.RunAsync<long?>(async token => await data.CountAsync(target, RowFilter.Of(jump.Filters), token), timeout, cancellationToken);
 
     /// <summary>
     /// Rows with a NULL in a key column are skipped. If all remaining rows share one key: equality per column (as for a

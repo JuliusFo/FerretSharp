@@ -137,6 +137,12 @@ public sealed partial class ShellState
                     tab.UseViewFromSetting(TableOpening.View(settings));
                 }
 
+                // A tab without filter rows: the setting says whether it starts with a SQL condition (WP-79).
+                if (TableOpening.StartsWithCondition(settings, timeTravel: false))
+                {
+                    tab.StartCondition("");
+                }
+
                 workspace.Tabs.Add(tab);
             }
 
@@ -547,6 +553,7 @@ public sealed partial class ShellState
     /// <summary>
     /// A second tab of <paramref name="source"/>'s table right after it (WP-70): the applied filters with their groups and
     /// preset, the sort order, the view and the pinned columns. Edited but not applied filter rows stay with the source. Not pinned.
+    /// A tab in SQL mode (WP-79) gives its applied condition, or the one it started with.
     /// </summary>
     public TableTab? DuplicateTab(TableTab source)
     {
@@ -567,6 +574,7 @@ public sealed partial class ShellState
             Visited = true,
         };
         copy.SetFilterRows(source.AppliedFilters);
+        copy.UseCondition(source.SqlCondition is { } condition ? condition with { Text = condition.Applied ?? condition.Origin } : null);
         return Insert(workspace, copy, workspace.Tabs.IndexOf(source) + 1);
     }
 

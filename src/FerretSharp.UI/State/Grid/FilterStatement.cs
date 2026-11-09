@@ -12,7 +12,7 @@ public static class FilterStatement
     /// <param name="asOf">The SCN of a time travel tab (WP-78): the statement reads what the tab shows.</param>
     /// <exception cref="QueryValidationException">A filter or sort is invalid.</exception>
     public static QuerySpec Of(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, FilterSqlColumns columns, long? asOf = null)
+        TableDetails table, RowFilter filters, IReadOnlyList<SortSpec> sorts, FilterSqlColumns columns, long? asOf = null)
     {
         if (columns == FilterSqlColumns.Star)
         {

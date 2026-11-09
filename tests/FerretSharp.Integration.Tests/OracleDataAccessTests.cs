@@ -40,7 +40,7 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
         var rows = new List<RowData>();
         for (var offset = 0; ; offset += pageSize)
         {
-            var page = await _data.ReadPageAsync(_grid, filters, sorts, new PageSpec(offset, pageSize), Ct);
+            var page = await _data.ReadPageAsync(_grid, RowFilter.Of(filters), sorts, new PageSpec(offset, pageSize), Ct);
             rows.AddRange(page.Rows);
             if (page.IsLastPage)
             {
@@ -161,7 +161,7 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
         IReadOnlyList<SortSpec> sorts = [new SortSpec("GRUPPE", true)];
         var blocks = new List<IReadOnlyList<RowData>>();
 
-        await _data.ReadAllAsync(_grid, filters, sorts, (rows, _, _) =>
+        await _data.ReadAllAsync(_grid, RowFilter.Of(filters), sorts, (rows, _, _) =>
         {
             blocks.Add(rows);
             return Task.FromResult(true);
@@ -266,7 +266,7 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
         IReadOnlyList<SortSpec> sorts = [new SortSpec("NAME", true)];
         var values = new List<object?>();
 
-        await _data.ReadColumnAllAsync(_grid, [Index("ID")], filters, sorts, distinct: false, (rows, _, _) =>
+        await _data.ReadColumnAllAsync(_grid, [Index("ID")], RowFilter.Of(filters), sorts, distinct: false, (rows, _, _) =>
         {
             Assert.All(rows, r => Assert.Single(r.Values));
             values.AddRange(rows.Select(r => r.Values[0]));

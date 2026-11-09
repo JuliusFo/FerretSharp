@@ -39,7 +39,7 @@ public static class AllRowsExports
         TableTab tab, TableDetails details, TablePresentation presentation, DisplayNames gridNames,
         Func<TableDetails, TablePresentation> presentationOf, Func<Guid, CancellationToken, Task<IDataAccess>> dataOf)
     {
-        var (filters, sorts, workspaceId) = (tab.AppliedFilters, tab.Sorts, tab.WorkspaceId);
+        var (filters, sorts, workspaceId) = (tab.ReadFilter, tab.Sorts, tab.WorkspaceId);
         var total = TotalOf(tab);
         return new AllRowsExport(
             Heading(GridText.GridMenu_AllRowsGroup, total),

@@ -513,4 +513,16 @@
   <data name="Settings_ScriptsCountOther" xml:space="preserve">
     <value>{0} Skripte</value>
   </data>
+  <data name="Settings_FilterStart" xml:space="preserve">
+    <value>Filter beginnt mit</value>
+  </data>
+  <data name="Settings_FilterStartHint" xml:space="preserve">
+    <value>„SQL-Bedingung“: Eine aus dem Explorer geöffnete Tabelle beginnt mit einem Feld für eine Bedingung, wie in SQL Developer. Sprünge zu verweisenden oder verwiesenen Zeilen, Links und Vorlagen bringen Filterzeilen mit und öffnen in der Filterleiste.</value>
+  </data>
+  <data name="Settings_FilterStartBar" xml:space="preserve">
+    <value>Filterleiste</value>
+  </data>
+  <data name="Settings_FilterStartCondition" xml:space="preserve">
+    <value>SQL-Bedingung</value>
+  </data>
 </root>

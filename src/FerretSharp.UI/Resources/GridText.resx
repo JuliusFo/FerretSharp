@@ -1794,4 +1794,48 @@
   <data name="TimeTravel_DataOnly" xml:space="preserve">
     <value>Not in a time travel tab: it shows the data of then only – structure, designer, queries and synonyms are of now. Open the table as it is now.</value>
   </data>
+  <data name="Condition_Switch" xml:space="preserve">
+    <value>SQL condition</value>
+    <comment>Button in the filter bar: filter with a condition written in SQL instead of filter rows (WP-79)</comment>
+  </data>
+  <data name="Condition_SwitchTitle" xml:space="preserve">
+    <value>Filter with a condition written in SQL, as in the WHERE field of SQL Developer – the current filter comes along as text</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Condition_Back" xml:space="preserve">
+    <value>Filter bar</value>
+    <comment>Button beside the SQL condition: back to the filter rows</comment>
+  </data>
+  <data name="Condition_BackTitle" xml:space="preserve">
+    <value>Back to the filter rows – unchanged, the condition goes without asking</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Condition_Placeholder" xml:space="preserve">
+    <value>Condition without WHERE, e.g. STATUS = 'OPEN' – Enter applies, Shift+Enter starts a new line</value>
+    <comment>Placeholder of the SQL condition field; the SQL part stays as it is in German</comment>
+  </data>
+  <data name="Condition_Recent" xml:space="preserve">
+    <value>Recent</value>
+    <comment>Button: the conditions last applied to this table</comment>
+  </data>
+  <data name="Condition_RecentTitle" xml:space="preserve">
+    <value>Conditions last applied to this table</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Condition_RecentEmpty" xml:space="preserve">
+    <value>No condition applied to this table yet.</value>
+    <comment>Empty menu of recent conditions</comment>
+  </data>
+  <data name="Condition_DiscardTitle" xml:space="preserve">
+    <value>Discard the condition?</value>
+    <comment>Dialog title when going back to the filter bar after the condition was changed</comment>
+  </data>
+  <data name="Condition_DiscardText" xml:space="preserve">
+    <value>The filter bar shows its filter rows again. The condition written here is lost – it is in “Recent” only if it was applied.</value>
+    <comment>Dialog text</comment>
+  </data>
+  <data name="Condition_NotWithCondition" xml:space="preserve">
+    <value>Not with a SQL condition – only with the filter bar.</value>
+    <comment>Tooltip of a disabled action (link, time travel, data diff) in a tab filtered by a SQL condition</comment>
+  </data>
 </root>

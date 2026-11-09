@@ -146,6 +146,29 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
     }
 
     /// <summary>
+    /// Setting "Filter starts with" (WP-79, decision of the user): a tab without a filter starts with a SQL condition, an FK jump
+    /// brings filter rows and opens in the filter bar; a duplicate takes the applied condition.
+    /// </summary>
+    [Fact]
+    public async Task A_new_tab_without_a_filter_starts_with_a_condition_if_the_setting_says_so()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        await _app.Settings.UpdateAsync(s => s with { FilterStart = FilterStart.SqlCondition }, TestContext.Current.CancellationToken);
+
+        var tab = _app.Shell.OpenTable(TestApp.Kunden)!;
+        Assert.Equal(new SqlConditionState(""), tab.SqlCondition);
+
+        var jump = _app.Shell.OpenFiltered(TestApp.Kunden, [FilterCondition.Of("ID", FilterOperator.Equals, "1")])!;
+        Assert.False(jump.SqlMode);
+
+        tab.EditCondition("ID > 3");
+        tab.ApplyCondition();
+        tab.EditCondition("ID > 4"); // still being written: stays with the source
+        var copy = _app.Shell.DuplicateTab(tab)!;
+        Assert.Equal(new SqlConditionState("ID > 3", "ID > 3"), copy.SqlCondition);
+    }
+
+    /// <summary>
     /// Settings "View when opening" and "Load rows": a new tab starts as they say; a view asked for, an open tab and an FK
     /// jump do not follow them.
     /// </summary>

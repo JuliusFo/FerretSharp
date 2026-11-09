@@ -321,4 +321,28 @@
   <data name="DesignColumnNoValue" xml:space="preserve">
     <value>Die Spalte {0} ({1}) hat keinen Wert im Ergebnis – bitte aus den Werten nehmen.</value>
   </data>
+  <data name="ConditionEmpty" xml:space="preserve">
+    <value>Bitte eine Bedingung schreiben, z. B. STATUS = 'OFFEN'.</value>
+  </data>
+  <data name="ConditionTextOpen" xml:space="preserve">
+    <value>Ein Text in Anführungszeichen ist nicht geschlossen.</value>
+  </data>
+  <data name="ConditionNameOpen" xml:space="preserve">
+    <value>Ein Name in doppelten Anführungszeichen ist nicht geschlossen.</value>
+  </data>
+  <data name="ConditionCommentOpen" xml:space="preserve">
+    <value>Ein Kommentar /* … ist nicht geschlossen.</value>
+  </data>
+  <data name="ConditionParenthesisOpen" xml:space="preserve">
+    <value>Eine Klammer ist nicht geschlossen.</value>
+  </data>
+  <data name="ConditionParenthesisClosed" xml:space="preserve">
+    <value>Eine Klammer wird geschlossen, die nicht geöffnet wurde.</value>
+  </data>
+  <data name="ConditionBind" xml:space="preserve">
+    <value>Bind-Variablen wie {0} gehen nur im SQL-Editor – bitte den Wert direkt schreiben.</value>
+  </data>
+  <data name="ConditionTopLevel" xml:space="preserve">
+    <value>{0} gehört nicht in eine Bedingung – sortieren über die Spaltenköpfe, alles andere im SQL-Editor.</value>
+  </data>
 </root>

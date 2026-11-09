@@ -24,6 +24,16 @@ public static class TableOpening
     }
 
     /// <summary>
+    /// A new tab without filter rows starts in SQL mode (setting "Filter starts with", WP-79). Never a time travel tab: it has
+    /// no SQL mode (decision of the user). A value this version does not know is the filter bar.
+    /// </summary>
+    public static bool StartsWithCondition(AppSettings settings, bool timeTravel)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return settings.FilterStart == FilterStart.SqlCondition && !timeTravel;
+    }
+
+    /// <summary>
     /// The view a tab opened on the setting's view shows: "Usage" needs a linked C# project (without one there is no code to
     /// search and the view switch has no such view), else the data.
     /// </summary>

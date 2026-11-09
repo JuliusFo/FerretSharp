@@ -11,6 +11,7 @@
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
 @inject ConnectionHub Hub
+@inject FerretSharp.Core.Workspaces.ConditionHistoryStore ConditionHistory
 
 <div class="tabview">
     <div class="tab-toolbar">
@@ -87,7 +88,16 @@
         @if (Tab.DataShown)
         {
             <div class="tab-data @(Tab.Mode == TabMode.Data ? "" : "hidden")">
-                <FilterBar Tab="Tab" Details="_details" OnApply="() => ApplyFiltersAsync()" OnApplyPreset="ApplyFiltersAsync" OnShowSql="ShowSql" OnShowPlan="ShowPlan" />
+                @if (Tab.SqlMode)
+                {
+                    <ConditionBar @ref="_condition" Tab="Tab" Details="_details" OnApply="() => ApplyFiltersAsync()" OnShowSql="ShowSql" OnShowPlan="ShowPlan"
+                                  OnBack="BackToFilterBarAsync" FocusOnCreate="_focusCondition" />
+                }
+                else
+                {
+                    <FilterBar Tab="Tab" Details="_details" OnApply="() => ApplyFiltersAsync()" OnApplyPreset="ApplyFiltersAsync" OnShowSql="ShowSql" OnShowPlan="ShowPlan"
+                               OnSwitchToCondition="StartCondition" />
+                }
                 @if (Tab.Error is not null)
                 {
                     <div class="tab-error">
@@ -206,6 +216,14 @@
     <ColumnMenu @key="columnMenu" Request="columnMenu" Details="_details" Tab="Tab" OnClose="() => _columnMenu = null"
                 Pinned="@(_grid?.IsPinned(columnMenu.Column) == true)" OnTogglePin="TogglePinAsync"
                 OnMarkColumn="column => _grid?.MarkColumnAsync(column) ?? Task.CompletedTask" />
+}
+
+@if (_confirmDiscardCondition)
+{
+    <ConfirmDialog Title="@GridText.Condition_DiscardTitle" ConfirmLabel="@CommonText.Discard" Danger="true"
+                   OnConfirm="EndConditionAsync" OnCancel="() => _confirmDiscardCondition = false">
+        <p>@GridText.Condition_DiscardText</p>
+    </ConfirmDialog>
 }
 
 @if (_sql is { } sql)
@@ -456,6 +474,12 @@
             return;
         }
 
+        if (Tab.SqlMode)
+        {
+            await ApplyConditionAsync();
+            return;
+        }
+
         if (Tab.ValidFilters(_details) is not { } conditions)
         {
             return;
@@ -464,6 +488,114 @@
         Tab.AppliedFilters = conditions;
         Shell.NotifyChanged(); // filter count in the tab header
         await RefreshAsync(sorts is null || sorts.SequenceEqual(Tab.Sorts) ? null : sorts);
+    }
+
+    private ConditionBar? _condition;
+
+    /// <summary>The condition field takes the focus when it appears: the user just switched to it.</summary>
+    private bool _focusCondition;
+
+    private bool _confirmDiscardCondition;
+
+    /// <summary>A condition applied whose first page has not arrived yet: it goes into the recent conditions once it read rows.</summary>
+    private string? _conditionToRecord;
+
+    /// <summary>
+    /// The filter bar's "SQL condition" (WP-79): the tab goes to SQL mode with the filter as edited (if valid, else as applied)
+    /// written as a condition. The grid keeps its rows – they are those of that text.
+    /// </summary>
+    private void StartCondition()
+    {
+        if (_details is null || Tab.TimeTravel is not null)
+        {
+            return;
+        }
+
+        string origin;
+        try
+        {
+            origin = QueryBuilder.ConditionText(_details, Tab.EditedFilter(_details).Conditions);
+        }
+        catch (QueryValidationException)
+        {
+            origin = ""; // a filter row of a column that is gone: start empty rather than not at all
+        }
+
+        Tab.StartCondition(origin);
+        _focusCondition = true;
+        Shell.NotifyChanged();
+    }
+
+    /// <summary>Applies the condition as the editor has it now; one that cannot stand after WHERE shows why at the field.</summary>
+    private async Task ApplyConditionAsync()
+    {
+        if (_condition is not null)
+        {
+            await _condition.TakeTextAsync();
+        }
+
+        if (!Tab.ApplyCondition())
+        {
+            StateHasChanged();
+            return;
+        }
+
+        _conditionToRecord = Tab.ConditionSummary is null ? null : Tab.SqlCondition?.Applied;
+        Shell.NotifyChanged(); // filter count and title in the tab header
+        await RefreshAsync();
+    }
+
+    /// <summary>"Filter bar" beside the condition: back at once if the condition is still the one it started with, else asked first.</summary>
+    private async Task BackToFilterBarAsync()
+    {
+        if (_condition is not null)
+        {
+            await _condition.TakeTextAsync();
+        }
+
+        if (Tab.SqlCondition is { Unchanged: false })
+        {
+            _confirmDiscardCondition = true;
+            return;
+        }
+
+        await EndConditionAsync();
+    }
+
+    /// <summary>The filter bar again; the grid reads its filter rows again if a condition was applied.</summary>
+    private async Task EndConditionAsync()
+    {
+        _confirmDiscardCondition = false;
+        _conditionToRecord = null;
+        var reload = Tab.ConditionApplied;
+        Tab.EndCondition();
+        Shell.NotifyChanged();
+        if (reload)
+        {
+            await RefreshAsync();
+        }
+    }
+
+    /// <summary>
+    /// A condition read its first rows: it goes into the recent conditions of the table (one Oracle refused does not). Kept with
+    /// its literals, like the SQL editor's history.
+    /// </summary>
+    private async Task RecordConditionAsync()
+    {
+        if (_conditionToRecord is not { } text || Tab.Error is not null || Tab.SqlCondition?.Applied != text || Active.Profile is not { } profile)
+        {
+            return;
+        }
+
+        _conditionToRecord = null;
+        try
+        {
+            await ConditionHistory.AddAsync(profile.Id, new ConditionHistoryEntry(Tab.Table.Owner, Tab.Table.Name, text, DateTimeOffset.Now), CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Logger.LogWarning(ex, "Recent condition not saved");
+        }
     }
 
     /// <summary>F5 / reload button: the grid in the data view, the detail views otherwise (columns come with the schema).</summary>
@@ -614,11 +746,9 @@
             return;
         }
 
-        var edited = Tab.EditedFilters();
-        var filters = QueryBuilder.Validate(_details, edited).Count == 0 ? edited : Tab.AppliedFilters;
         try
         {
-            var query = FilterStatement.Of(_details, filters, Tab.Sorts, Settings.Current.FilterSql, Tab.TimeTravel?.Scn);
+            var query = FilterStatement.Of(_details, Tab.EditedFilter(_details), Tab.Sorts, Settings.Current.FilterSql, Tab.TimeTravel?.Scn);
             _sql = (query.Sql, query.Parameters, null);
         }
         catch (QueryValidationException ex)
@@ -638,9 +768,9 @@
         try
         {
             var asOf = Tab.TimeTravel?.Scn; // a time travel tab: the plan of its own query (WP-78)
-            var query = QueryBuilder.BuildSelect(_details, Tab.AppliedFilters, Tab.Sorts, new PageSpec(0, IDataAccess.ActualPlanPageSize), asOf);
+            var query = QueryBuilder.BuildSelect(_details, Tab.ReadFilter, Tab.Sorts, new PageSpec(0, IDataAccess.ActualPlanPageSize), asOf);
             // "Ganzes Ergebnis" means all rows of the filter, not the grid's first page: the same query without the limit.
-            var whole = QueryBuilder.BuildSelect(_details, Tab.AppliedFilters, Tab.Sorts, new PageSpec(0, int.MaxValue), asOf);
+            var whole = QueryBuilder.BuildSelect(_details, Tab.ReadFilter, Tab.Sorts, new PageSpec(0, int.MaxValue), asOf);
             _plan = (new QuerySpec(query.Sql, query.Parameters), new QuerySpec(whole.Sql, whole.Parameters));
         }
         catch (QueryValidationException ex)
@@ -653,6 +783,7 @@
     private async Task OnPageLoadedAsync()
     {
         StateHasChanged();
+        await RecordConditionAsync();
         await FocusRequestedRowAsync(lastTry: true);
     }
 
@@ -722,6 +853,18 @@
                 case TabCommand.FocusRow:
                     SetMode(TabMode.Data);
                     await FocusRequestedRowAsync(lastTry: Tab.RowsLoaded > 0 || Tab.AllRowsLoaded);
+                    break;
+                case TabCommand.ToggleCondition when _details is not null:
+                    SetMode(TabMode.Data);
+                    if (Tab.SqlMode)
+                    {
+                        await BackToFilterBarAsync();
+                    }
+                    else
+                    {
+                        StartCondition();
+                    }
+
                     break;
             }
 

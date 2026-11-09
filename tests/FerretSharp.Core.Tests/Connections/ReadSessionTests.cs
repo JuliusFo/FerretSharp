@@ -124,7 +124,7 @@ public sealed class ReadSessionTests
     {
         _reads.Attach(_profile);
         var then = Substitute.For<IDataAccess>();
-        then.CountAsync(Arg.Any<FerretSharp.Core.Schema.TableDetails>(), Arg.Any<IReadOnlyList<FerretSharp.Core.Query.FilterCondition>>(), Arg.Any<CancellationToken>()).Returns(3L);
+        then.CountAsync(Arg.Any<FerretSharp.Core.Schema.TableDetails>(), Arg.Any<FerretSharp.Core.Query.RowFilter>(), Arg.Any<CancellationToken>()).Returns(3L);
         _connector.Opens(_ =>
         {
             var connection = FakeDatabase.Connection();

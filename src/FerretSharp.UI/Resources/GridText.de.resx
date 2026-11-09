@@ -1413,4 +1413,37 @@
   <data name="TimeTravel_DataOnly" xml:space="preserve">
     <value>Nicht in einem Zeitreise-Tab: er zeigt nur die Daten von damals – Struktur, Designer, Abfragen und Synonyme sind von jetzt. Öffne die Tabelle mit ihrem jetzigen Stand.</value>
   </data>
+  <data name="Condition_Switch" xml:space="preserve">
+    <value>SQL-Bedingung</value>
+  </data>
+  <data name="Condition_SwitchTitle" xml:space="preserve">
+    <value>Mit einer selbst geschriebenen SQL-Bedingung filtern, wie im WHERE-Feld von SQL Developer – der aktuelle Filter kommt als Text mit</value>
+  </data>
+  <data name="Condition_Back" xml:space="preserve">
+    <value>Filterleiste</value>
+  </data>
+  <data name="Condition_BackTitle" xml:space="preserve">
+    <value>Zurück zu den Filterzeilen – unverändert geht die Bedingung ohne Rückfrage</value>
+  </data>
+  <data name="Condition_Placeholder" xml:space="preserve">
+    <value>Bedingung ohne WHERE, z. B. STATUS = 'OFFEN' – Enter wendet an, Shift+Enter beginnt eine neue Zeile</value>
+  </data>
+  <data name="Condition_Recent" xml:space="preserve">
+    <value>Zuletzt</value>
+  </data>
+  <data name="Condition_RecentTitle" xml:space="preserve">
+    <value>Zuletzt angewendete Bedingungen dieser Tabelle</value>
+  </data>
+  <data name="Condition_RecentEmpty" xml:space="preserve">
+    <value>Noch keine Bedingung für diese Tabelle angewendet.</value>
+  </data>
+  <data name="Condition_DiscardTitle" xml:space="preserve">
+    <value>Bedingung verwerfen?</value>
+  </data>
+  <data name="Condition_DiscardText" xml:space="preserve">
+    <value>Die Filterleiste zeigt wieder ihre Filterzeilen. Die hier geschriebene Bedingung geht verloren – unter „Zuletzt“ steht sie nur, wenn sie angewendet wurde.</value>
+  </data>
+  <data name="Condition_NotWithCondition" xml:space="preserve">
+    <value>Nicht mit einer SQL-Bedingung – nur mit der Filterleiste.</value>
+  </data>
 </root>

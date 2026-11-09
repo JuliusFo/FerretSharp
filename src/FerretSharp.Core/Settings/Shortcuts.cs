@@ -53,6 +53,9 @@ public enum ShortcutAction
 
     /// <summary>The active table tab's table as it was at a chosen time, in a tab of its own (WP-78); no default key.</summary>
     TimeTravel,
+
+    /// <summary>The active table tab between its filter bar and a SQL condition (WP-79); no default key.</summary>
+    ToggleCondition,
 }
 
 /// <summary>Where a shortcut is caught.</summary>
@@ -141,6 +144,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.SwitchWorkClone, SettingsText.GroupSqlAndLinq, SettingsText.ActionSwitchWorkClone, null, ShortcutScope.Global, SettingsText.HintSwitchWorkClone),
         new(ShortcutAction.CopyColumnValues, SettingsText.GroupData, SettingsText.ActionCopyColumnValues, null, ShortcutScope.Grid, SettingsText.HintCopyColumnValues),
         new(ShortcutAction.TimeTravel, SettingsText.GroupData, SettingsText.ActionTimeTravel, null, ShortcutScope.Global, SettingsText.HintTimeTravel),
+        new(ShortcutAction.ToggleCondition, SettingsText.GroupData, SettingsText.ActionToggleCondition, null, ShortcutScope.Global, SettingsText.HintToggleCondition),
     ];
 
     /// <summary>The fixed shortcuts; a property for the same reason as <see cref="Definitions"/>.</summary>

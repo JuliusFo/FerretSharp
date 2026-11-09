@@ -88,6 +88,18 @@
     [Parameter]
     public bool FocusOnCreate { get; set; }
 
+    /// <summary>
+    /// A field instead of an editor (the condition of a table tab, WP-79): no line numbers, grows with its lines up to eight,
+    /// Enter reports the text through <see cref="OnEnter"/> unless the completion list is open, Shift+Enter starts a new line.
+    /// Read only when the editor is created.
+    /// </summary>
+    [Parameter]
+    public bool Field { get; set; }
+
+    /// <summary>Enter in a <see cref="Field"/>, with the text as it is now (it may not have come through <see cref="OnChange"/> yet).</summary>
+    [Parameter]
+    public EventCallback<string> OnEnter { get; set; }
+
     /// <summary>Own entries at the top of Monaco's context menu; read only when the editor is created.</summary>
     [Parameter]
     public IReadOnlyList<EditorAction> ContextActions { get; set; } = [];
@@ -119,7 +131,7 @@
             await CallAsync("create", _id, _selfRef, Text,
                 new
                 {
-                    language = Language, minimal = Minimal, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly,
+                    language = Language, minimal = Minimal, field = Field, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly,
                     readOnlyMessage = ReadOnlyMessage, wordWrap = WordWrap, lineFeed = LineFeed, reportEdits = OnEdit.HasDelegate,
                     uiLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
                     contextActions = ContextActions.Select(a => new { id = a.Id, label = a.Label }),
@@ -164,6 +176,13 @@
     /// <summary>Review 3.40.0, A29: an exception goes to the tab's error boundary, not unobserved back to JS.</summary>
     [JSInvokable]
     public Task OnTextChanged(string elementId, string text) => GuardAsync(() => OnChange.InvokeAsync(text));
+
+    [JSInvokable]
+    public Task OnFieldEnter(string elementId, string text) => GuardAsync(async () =>
+    {
+        await OnChange.InvokeAsync(text);
+        await OnEnter.InvokeAsync(text);
+    });
 
     [JSInvokable]
     public Task OnEdited(string elementId, bool edited, int length) => GuardAsync(() => OnEdit.InvokeAsync(new EditState(edited, length)));

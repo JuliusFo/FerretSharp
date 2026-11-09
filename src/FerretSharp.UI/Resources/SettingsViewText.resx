@@ -611,4 +611,19 @@
     <value>{0} scripts</value>
     <comment>{0}: number of scripts in the folder</comment>
   </data>
+  <data name="Settings_FilterStart" xml:space="preserve">
+    <value>Filter starts with</value>
+    <comment>Setting label (WP-79): how a new table tab filters</comment>
+  </data>
+  <data name="Settings_FilterStartHint" xml:space="preserve">
+    <value>“SQL condition”: a table opened from the explorer starts with a field for a condition, as in SQL Developer. Jumps to referencing or referenced rows, links and presets bring filter rows and open in the filter bar.</value>
+  </data>
+  <data name="Settings_FilterStartBar" xml:space="preserve">
+    <value>Filter bar</value>
+    <comment>Option of "Filter starts with"</comment>
+  </data>
+  <data name="Settings_FilterStartCondition" xml:space="preserve">
+    <value>SQL condition</value>
+    <comment>Option of "Filter starts with"</comment>
+  </data>
 </root>

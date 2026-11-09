@@ -62,6 +62,9 @@ public sealed class AppPaths
     /// <summary>The SQL editor's history, one file per connection (WP-17).</summary>
     public string SqlHistoryDirectory => Path.Combine(Root, "history");
 
+    /// <summary>The conditions last applied in table tabs, one file per connection (WP-79).</summary>
+    public string ConditionHistoryDirectory => Path.Combine(Root, "conditions");
+
     /// <summary>Saved schema comparisons (WP-20).</summary>
     public string ComparisonsFile => Path.Combine(Root, "comparisons.json");
 

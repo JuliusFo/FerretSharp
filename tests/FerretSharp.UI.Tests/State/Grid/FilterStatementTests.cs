@@ -22,9 +22,9 @@ public sealed class FilterStatementTests
     [Fact]
     public void Listed_is_the_grids_statement_for_its_first_page()
     {
-        var page = QueryBuilder.BuildSelect(Kunden, Filters, Sorts, new PageSpec(0, 500));
+        var page = QueryBuilder.BuildSelect(Kunden, RowFilter.Of(Filters), Sorts, new PageSpec(0, 500));
 
-        var shown = FilterStatement.Of(Kunden, Filters, Sorts, FilterSqlColumns.Listed);
+        var shown = FilterStatement.Of(Kunden, RowFilter.Of(Filters), Sorts, FilterSqlColumns.Listed);
 
         Assert.Equal(page.Sql, shown.Sql);
         Assert.Equal(page.Parameters, shown.Parameters);
@@ -33,9 +33,9 @@ public sealed class FilterStatementTests
     [Fact]
     public void Star_is_select_star_with_the_same_filter()
     {
-        var shown = FilterStatement.Of(Kunden, Filters, Sorts, FilterSqlColumns.Star);
+        var shown = FilterStatement.Of(Kunden, RowFilter.Of(Filters), Sorts, FilterSqlColumns.Star);
 
-        var star = QueryBuilder.BuildSelectStar(Kunden, Filters, Sorts);
+        var star = QueryBuilder.BuildSelectStar(Kunden, RowFilter.Of(Filters), Sorts);
         Assert.Equal(star.Sql, shown.Sql);
         Assert.Equal(star.Parameters, shown.Parameters);
         Assert.StartsWith(QueryBuilder.StarSelect + "\n", shown.Sql);
@@ -46,7 +46,7 @@ public sealed class FilterStatementTests
     {
         IReadOnlyList<FilterCondition> invalid = [new("GIBT_ES_NICHT", FilterOperator.Equals, ["1"])];
 
-        Assert.Throws<QueryValidationException>(() => FilterStatement.Of(Kunden, invalid, [], FilterSqlColumns.Listed));
-        Assert.Throws<QueryValidationException>(() => FilterStatement.Of(Kunden, invalid, [], FilterSqlColumns.Star));
+        Assert.Throws<QueryValidationException>(() => FilterStatement.Of(Kunden, RowFilter.Of(invalid), [], FilterSqlColumns.Listed));
+        Assert.Throws<QueryValidationException>(() => FilterStatement.Of(Kunden, RowFilter.Of(invalid), [], FilterSqlColumns.Star));
     }
 }

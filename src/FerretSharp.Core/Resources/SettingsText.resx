@@ -467,4 +467,11 @@
   <data name="HintTimeTravel" xml:space="preserve">
     <value>The active table tab's table as it was at a chosen time, read only, in a tab of its own.</value>
   </data>
+  <data name="ActionToggleCondition" xml:space="preserve">
+    <value>Filter bar ↔ SQL condition</value>
+    <comment>Shortcut action (WP-79): switches the active table tab between its filter rows and a condition written in SQL</comment>
+  </data>
+  <data name="HintToggleCondition" xml:space="preserve">
+    <value>The active table tab filters by its filter rows or by a condition written in SQL; not in a time travel tab.</value>
+  </data>
 </root>
