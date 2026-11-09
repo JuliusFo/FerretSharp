@@ -253,10 +253,17 @@ function makeField(element, editor, enter) {
   };
   editor.onDidContentSizeChange(fit);
   fit();
+  // addCommand binds the key in the keybinding service all editors share, not in this editor (review of WP-79: Enter in the
+  // SQL editor applied the condition of the field made last). A context key of this editor alone limits it to this field.
+  // The binding outlives the editor (addCommand gives nothing to dispose); with its key gone it never applies again.
+  const key = `fsConditionField${++fieldCount}`;
+  editor.createContextKey(key, true);
+  const when = `${key} && !suggestWidgetVisible`;
   const keys = window.monaco.KeyCode;
-  editor.addCommand(keys.Enter, () => enter(), '!suggestWidgetVisible');
-  editor.addCommand(window.monaco.KeyMod.Shift | keys.Enter, () => editor.trigger('keyboard', 'type', { text: '\n' }), '!suggestWidgetVisible');
+  editor.addCommand(keys.Enter, () => enter(), when);
+  editor.addCommand(window.monaco.KeyMod.Shift | keys.Enter, () => editor.trigger('keyboard', 'type', { text: '\n' }), when);
 }
+let fieldCount = 0;
 
 /**
  * The WPF host passes the second mouse-down of a double click twice (.claude/rules/ui.md): Monaco counts three and selects
