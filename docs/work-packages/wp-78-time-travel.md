@@ -11,7 +11,7 @@ Eingeplant mit dem Nutzer am 2026-11-09, aus dem Backlog (Ideensammlung 2026-10-
 - **Daten-Diff ab gewählter Zeit:** „Vergleich starten“ auch mit einer Zeit in der Vergangenheit, über dieselbe Zeitauswahl.
 - **Zurückholen und Zurücksetzen im Diff-Tab**, nicht im Zeitreise-Grid: angehakte gelöschte Zeilen werden *ausstehende* INSERTs, geänderte ausstehende UPDATEs auf den alten Stand – danach der normale Weg (Flush, Undo, Commit), kein neuer Schreibweg; auf schreibgeschützten Profilen gesperrt wie jede Änderung. `GENERATED ALWAYS AS IDENTITY` abgelehnt mit Erklärung, virtuelle Spalten ausgelassen.
 - **Genauere SCN (Frage aus WP-44):** einmal je Verbindung `V$DATABASE.CURRENT_SCN`, ohne Recht still `TIMESTAMP_TO_SCN(SYSTIMESTAMP)`.
-- **Startpunkt an die Datenbank gebunden (Frage aus WP-44):** `DB_NAME`, `CON_NAME` und `CON_DBID` mitspeichern, bei Abweichung verwerfen; ebenso bei einer gespeicherten SCN über der aktuellen.
+- **Startpunkt an die Datenbank gebunden (Frage aus WP-44):** `DB_UNIQUE_NAME` und `CON_NAME` mitspeichern, bei Abweichung verwerfen; ebenso bei einer gespeicherten SCN über der aktuellen. (Später: `CON_DBID` dazu nach dem E2E, `DB_NAME` statt `DB_UNIQUE_NAME` nach dem Code-Review – siehe Nachtrag.)
 - **Kein Diagnostics/Tuning Pack** (ADR 0045).
 
 Entscheidungen zum Plan (2026-11-09, „Ja, so umsetzen“ – alle vier Empfehlungen übernommen):
@@ -50,3 +50,26 @@ Entscheidungen zum Plan (2026-11-09, „Ja, so umsetzen“ – alle vier Empfehl
 ## Offen / Fragen an den Nutzer
 - „Link auf diese Ansicht“ aus einem Zeitreise-Tab nimmt den Zeitpunkt nicht mit – der Link öffnet den jetzigen Stand. Den Zeitpunkt in den Link aufnehmen (SCN gilt nur für dieselbe Datenbank), den Eintrag sperren, oder so lassen?
 - Die Zahl in der Fußzeile eines Zeitreise-Tabs („Zeilen zählen“) zeigt einen Fehler roh (nicht über `DataDiffErrors`) – selten, da die erste Seite schon scheitert.
+
+## Nachtrag: Code-Review (2026-11-09)
+Review per `/branch-code-review` (eigener Reviewer-Agent, Befunde nachgeprüft). Entscheidung des Nutzers: „Jop, deine Empfehlungen passen.“ – alle 12 Befunde beheben, mit den Empfehlungen zu #8 (`DB_NAME`) und #9 (nur Ansicht „Daten“).
+1. S Zurückgesetzte Zeilen landeten im Tab des **angezeigten** Workspaces – nach einem Verbindungswechsel während des Lesens in einer anderen Datenbank. **Behoben:** `ShellState.OpenTableIn(workspaceId, …)`; Test mit Wechsel.
+2. M Zurücksetzen lief in ein Schreiben oder einen Commit des Workspaces (Änderungen still verworfen oder ungesehen mitcommittet). **Behoben:** gesperrt, solange `Editing.IsBusy`, und nach dem Lesen erneut geprüft; Test mit Commit während des Lesens.
+3. M Werte, die das Grid nie schreibt, kamen verändert zurück (TIMESTAMP(8/9), Zeitzonen-Region, INTERVAL). **Behoben:** `ExactlyWritable` – solche Zeilen „nicht zurückholbar“, gezählt; Test.
+4. M Ganze LOBs ohne Grenze, zweimal, nicht abbrechbar. **Behoben:** Zeilen mit LOB über `LobLimits.MaxLoadLength` werden nicht gelesen (gezählt), Lesen abbrechbar im Diff-Tab; Test. Keine Obergrenze der Zeilenzahl (bis 10.000 vom Diff) – mit Abbrechen vertretbar.
+5. M Row Movement: „gelöschte“ (verschobene) Zeilen zurückzuholen verdoppelte sie. **Behoben:** gelöschte Zeilen bei Row Movement abgelehnt; Test.
+6. K Eine gescheiterte Datenbankprüfung eines Zeitreise-Tabs galt als bestanden. **Behoben:** `PointChecked` erst nach Erfolg (neu geprüft, wenn die Ansicht neu entsteht); Test.
+7. K Der tatsächliche Plan eines Zeitreise-Tabs lief auf der Workspace-Session. **Behoben:** `PlanDialog.DataOf`; `ExplainActualAsync` ohne Snapshot-Wiederholung bei `AS OF`.
+8. K Data Guard: `DB_UNIQUE_NAME` wechselt beim Switchover, die SCN läuft weiter. **Behoben:** `DB_NAME/CON_NAME/CON_DBID`.
+9. K Struktur, Designer, Synonyme, Grants im Zeitreise-Tab zeigten den Stand von jetzt. **Behoben:** nur Ansicht „Daten“ (`TableTab.Mode`, `TabView.Modes`); Test.
+10. K Zeitreise-Tabs luden nach jedem Commit neu. **Behoben:** `ReloadTableTabs` überspringt sie.
+11. K Eine seit dem Startpunkt hinzugefügte NOT-NULL-Spalte ließ das UPDATE mit ORA-01407 scheitern. **Behoben:** NULL bei NOT NULL im UPDATE ausgelassen; Test.
+12. K Gelöschte Zeile zurückgeholt, obwohl eine neue Zeile des Tabs denselben PK hat (ORA-00001). **Behoben:** als „schon geändert“ gezählt; Test.
+
+Zweiter Durchgang (derselbe Reviewer, nur die Fix-Commits): 1–12 passen, die Tests scheitern ohne die Fixes. Freigabe des Nutzers für die neuen Punkte: „Jop, behebe die ruhig alle“.
+- 13 M Das Tab-Menü eines Zeitreise-Tabs bot Designer, Ansichten, „Abfrage bauen“, „Synonym löschen“ an, die seit 9 nichts mehr taten; „SQL“ ohne `AS OF`. **Behoben:** gesperrt mit Grund (`GridText.TimeTravel_DataOnly`), auch die LINQ-Konsole; „SQL“ mit der SCN; Test.
+- 14 K TIMESTAMP(9)-Werte, die sich nur in den Nanosekunden unterscheiden, lesen sich gleich – die Zeile blieb still liegen. **Behoben:** gezählt als „nicht zurückholbar“; Test.
+- 15 K Texte: abgelehnte Typen allgemeiner benannt, „Nimm die Haken … heraus“ statt „Hake … ab“. **Behoben.**
+- 16 K Kommentar und Testname zu 6 versprachen eine Prüfung „beim nächsten Zeigen“. **Behoben** (richtiggestellt; die Ansicht bleibt gemountet, neu geprüft wird nach Neuverbinden oder Neustart).
+- 17 K Protokoll, ADR und CHANGELOG nannten die neuen Grenzen nicht. **Behoben** (dieser Nachtrag, ADR „Folgen“, CHANGELOG).
+- Ohne Test geblieben (kleine direkte Änderungen, Test-App bräuchte Umbau): 7, 10 und der Abbruch selbst.
