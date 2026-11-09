@@ -11,7 +11,7 @@ Eingeplant mit dem Nutzer am 2026-11-09, aus dem Backlog (Ideensammlung 2026-10-
 - **Daten-Diff ab gewählter Zeit:** „Vergleich starten“ auch mit einer Zeit in der Vergangenheit, über dieselbe Zeitauswahl.
 - **Zurückholen und Zurücksetzen im Diff-Tab**, nicht im Zeitreise-Grid: angehakte gelöschte Zeilen werden *ausstehende* INSERTs, geänderte ausstehende UPDATEs auf den alten Stand – danach der normale Weg (Flush, Undo, Commit), kein neuer Schreibweg; auf schreibgeschützten Profilen gesperrt wie jede Änderung. `GENERATED ALWAYS AS IDENTITY` abgelehnt mit Erklärung, virtuelle Spalten ausgelassen.
 - **Genauere SCN (Frage aus WP-44):** einmal je Verbindung `V$DATABASE.CURRENT_SCN`, ohne Recht still `TIMESTAMP_TO_SCN(SYSTIMESTAMP)`.
-- **Startpunkt an die Datenbank gebunden (Frage aus WP-44):** `DB_UNIQUE_NAME` und `CON_NAME` mitspeichern, bei Abweichung verwerfen; ebenso bei einer gespeicherten SCN über der aktuellen.
+- **Startpunkt an die Datenbank gebunden (Frage aus WP-44):** `DB_NAME`, `CON_NAME` und `CON_DBID` mitspeichern, bei Abweichung verwerfen; ebenso bei einer gespeicherten SCN über der aktuellen.
 - **Kein Diagnostics/Tuning Pack** (ADR 0045).
 
 Entscheidungen zum Plan (2026-11-09, „Ja, so umsetzen“ – alle vier Empfehlungen übernommen):
@@ -37,7 +37,7 @@ Entscheidungen zum Plan (2026-11-09, „Ja, so umsetzen“ – alle vier Empfehl
 
 ## Erkenntnisse
 - `AS OF SCN` funktioniert in der read-only Transaktion einer gesperrten Session (Prod-Lese-Session); geprüft im Integrationstest.
-- `DB_UNIQUE_NAME`, `CON_NAME` und `CON_DBID` liefert `USERENV` ohne Recht (Oracle 23, im E2E geprüft: `FREE/FREEPDB1/3182349174`), `CON_DBID` deshalb mit in der Kennung; ein neu aufgesetzter Container desselben Images trägt denselben Namen – dort fängt nur die SCN-Prüfung (gespeicherte SCN über der jetzigen).
+- `DB_NAME`, `DB_UNIQUE_NAME`, `CON_NAME` und `CON_DBID` liefert `USERENV` ohne Recht (Oracle 23, im E2E geprüft: `FREE/FREEPDB1/3182349174`), `CON_DBID` deshalb mit in der Kennung; ein neu aufgesetzter Container desselben Images trägt denselben Namen – dort fängt nur die SCN-Prüfung (gespeicherte SCN über der jetzigen).
 - Ein INSERT lässt NULL weg wie eine neue Zeile im Grid: eine DEFAULT-Spalte, die damals NULL war, bekommt den Default (ADR 0048, Folgen).
 
 ## E2E

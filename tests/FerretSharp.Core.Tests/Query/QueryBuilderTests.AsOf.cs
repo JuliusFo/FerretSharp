@@ -64,6 +64,6 @@ public partial class QueryBuilderTests
         }
 
         Assert.Contains("SYSTIMESTAMP - NUMTODSINTERVAL(:p_back, 'SECOND')", QueryBuilder.ScnBackSql, StringComparison.Ordinal);
-        Assert.Contains("SYS_CONTEXT('USERENV', 'DB_UNIQUE_NAME')", QueryBuilder.CurrentScnSql, StringComparison.Ordinal);
+        Assert.Contains("SYS_CONTEXT('USERENV', 'DB_NAME')", QueryBuilder.CurrentScnSql, StringComparison.Ordinal);
     }
 }

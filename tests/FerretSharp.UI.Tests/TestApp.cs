@@ -215,7 +215,7 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>Runs when the read session reads the SCN (WP-44): what has happened by then.</summary>
     public Action? ScnRead { get; set; }
 
-    /// <summary>The database the SCNs belong to (WP-78): <c>DB_UNIQUE_NAME/CON_NAME</c>.</summary>
+    /// <summary>The database the SCNs belong to (WP-78): <c>DB_NAME/CON_NAME</c>.</summary>
     public string CurrentDatabase { get; set; } = "FREE/FREEPDB1";
 
     /// <summary>The SCN of a time before now (WP-78): <see cref="CurrentScn"/> less a second's worth per second back, unless a test says otherwise.</summary>

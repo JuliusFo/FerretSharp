@@ -26,12 +26,13 @@ public static partial class QueryBuilder
     public const string ExactScnSql = "SELECT current_scn, " + DatabaseSelect + " FROM v$database";
 
     /// <summary>
-    /// Which database an SCN belongs to (WP-78): its unique name, the container and the container's DBID – no rights needed
-    /// (checked against Oracle 23: <c>CON_DBID</c> without any grant). A start point of another database (a profile switched to
-    /// another one, a PDB of the same name elsewhere) means nothing there.
+    /// Which database an SCN belongs to (WP-78): its name, the container and the container's DBID – no rights needed (checked
+    /// against Oracle 23: <c>CON_DBID</c> without any grant). A start point of another database (a profile switched to another
+    /// one, a PDB of the same name elsewhere) means nothing there. <c>DB_NAME</c>, not <c>DB_UNIQUE_NAME</c>: primary and
+    /// standby of Data Guard differ in the unique name, but the SCN goes on across a switchover (review of WP-78).
     /// </summary>
     private const string DatabaseSelect =
-        "SYS_CONTEXT('USERENV', 'DB_UNIQUE_NAME') || '/' || SYS_CONTEXT('USERENV', 'CON_NAME') || '/' || SYS_CONTEXT('USERENV', 'CON_DBID')";
+        "SYS_CONTEXT('USERENV', 'DB_NAME') || '/' || SYS_CONTEXT('USERENV', 'CON_NAME') || '/' || SYS_CONTEXT('USERENV', 'CON_DBID')";
 
     /// <summary>
     /// How far back the undo reaches about (WP-78): <c>TUNED_UNDORETENTION</c> of the last interval, in seconds. A hint for
