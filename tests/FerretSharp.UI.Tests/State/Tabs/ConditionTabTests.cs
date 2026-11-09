@@ -112,5 +112,11 @@ public class ConditionTabTests
         tab.ApplyCondition();
 
         Assert.Equal(GridText.Condition_NotWithCondition, WorkspaceLifecycle.DataDiffUnavailable(tab));
+
+        // "Clear": every row – available again, and without the filter rows waiting behind the mode (review of WP-79).
+        tab.EditCondition("");
+        tab.ApplyCondition();
+        Assert.Null(WorkspaceLifecycle.DataDiffUnavailable(tab));
+        Assert.Empty(tab.ReadFilter.Conditions);
     }
 }

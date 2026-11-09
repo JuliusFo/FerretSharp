@@ -209,7 +209,7 @@
     private Core.Links.TableLink Link(ConnectionProfile profile) =>
         Tab is { } tab
             // A SQL condition (WP-79) is no filter row a link could carry: the table with its sort order and view.
-            ? Core.Links.TableLink.For(profile, tab.Table.Ref, tab.ConditionApplied ? [] : tab.AppliedFilters, tab.Sorts, tab.Mode)
+            ? Core.Links.TableLink.For(profile, tab.Table.Ref, tab.ReadFilter.Conditions, tab.Sorts, tab.Mode)
             : Core.Links.TableLink.For(profile, Table.Ref, [], [], TabMode.Data);
 
     /// <summary>

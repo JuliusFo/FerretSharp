@@ -44,7 +44,7 @@ public sealed partial class WorkspaceLifecycle
         var state = new DataDiffState(point.Scn, at ?? DateTimeOffset.Now, before?.Entries ?? []) { Database = point.Database };
         if (state.Entries.Count == 0 && shell.FindWorkspace(workspaceId)?.ActiveTab is TableTab active && DataDiffUnavailable(active) is null)
         {
-            state = state.WithEntry(active.Table.Ref, active.AppliedFilters);
+            state = state.WithEntry(active.Table.Ref, active.ReadFilter.Conditions);
         }
 
         scope.Workspaces.SetDataDiff(workspaceId, state);
@@ -92,7 +92,7 @@ public sealed partial class WorkspaceLifecycle
             return Task.CompletedTask;
         }
 
-        return AddToDataDiffAsync(table.WorkspaceId, table.Table.Ref, table.AppliedFilters);
+        return AddToDataDiffAsync(table.WorkspaceId, table.Table.Ref, table.ReadFilter.Conditions);
     }
 
     /// <summary>A table (whole, or with a filter) joins the start point and is compared at once.</summary>

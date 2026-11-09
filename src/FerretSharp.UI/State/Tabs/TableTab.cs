@@ -254,8 +254,8 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     }
 
     /// <summary>
-    /// The filter rows the grid currently shows – unless a SQL condition is applied (<see cref="ReadFilter"/>). A link, a preset,
-    /// LINQ and a time travel tab take these.
+    /// The filter rows the grid currently shows – unless a SQL condition is applied. In SQL mode they wait for the way back;
+    /// what the grid reads is <see cref="ReadFilter"/>, and a link, LINQ, time travel and the data diff take its filter rows.
     /// </summary>
     public IReadOnlyList<FilterCondition> AppliedFilters { get; set; } = [];
 
@@ -272,8 +272,11 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// <summary>The tab filters by a SQL condition (WP-79).</summary>
     public bool SqlMode => SqlCondition is not null;
 
-    /// <summary>A SQL condition is applied: the grid's rows are not those of the filter rows.</summary>
-    public bool ConditionApplied => SqlCondition?.Applied is not null;
+    /// <summary>
+    /// A SQL condition filters the grid: its rows are not those of filter rows, so a link, time travel and the data diff cannot
+    /// take them. An empty condition applied ("Clear") filters nothing (review of WP-79).
+    /// </summary>
+    public bool ConditionApplied => ReadFilter.IsSql;
 
     /// <summary>What the grid reads: the applied condition (an empty one: every row), or else the applied filter rows.</summary>
     public RowFilter ReadFilter => SqlCondition?.Applied switch

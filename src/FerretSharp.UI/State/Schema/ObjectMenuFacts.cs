@@ -82,7 +82,7 @@ public static class ObjectMenuFacts
         // A SQL condition (WP-79) has no C# form: the DbSet alone, as without filters.
         if (tab is { Details: { } details, ConditionApplied: false } && tab.ActiveFilterCount > 0 && presentations.For(details) is { Entity: not null } presentation)
         {
-            return LinqFilter.Build(presentation, tab.AppliedFilters, LinqFilter.Source(presentation));
+            return LinqFilter.Build(presentation, tab.ReadFilter.Conditions, LinqFilter.Source(presentation));
         }
 
         return presentations.LinqSourceOf(table) is { } source ? new ExportText(source, 0, []) : null;

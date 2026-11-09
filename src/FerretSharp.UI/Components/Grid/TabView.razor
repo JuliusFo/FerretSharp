@@ -567,7 +567,7 @@
     {
         _confirmDiscardCondition = false;
         _conditionToRecord = null;
-        var reload = Tab.ConditionApplied;
+        var reload = Tab.SqlCondition?.Applied is not null; // also an empty one: the grid showed every row
         Tab.EndCondition();
         Shell.NotifyChanged();
         if (reload)
