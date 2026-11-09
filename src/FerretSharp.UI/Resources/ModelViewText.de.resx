@@ -252,6 +252,12 @@
   <data name="Usage_BuildSolution" xml:space="preserve">
     <value>Projekte bauen</value>
   </data>
+  <data name="Usage_BuildProgress" xml:space="preserve">
+    <value>{0} von {1} Projekten</value>
+  </data>
+  <data name="Usage_BuildLast" xml:space="preserve">
+    <value>zuletzt: {0}</value>
+  </data>
   <data name="Usage_MissingNote" xml:space="preserve">
     <value>Nicht gebaut: {0} der Projekte, die das Modell nutzen können. Ihre Verwendungen fehlen – „ungenutzt“ kann falsch sein.</value>
   </data>
@@ -866,6 +872,9 @@
   </data>
   <data name="CodeOrigin_None" xml:space="preserve">
     <value>Keine Methode im Code passt zu diesem Statement.</value>
+  </data>
+  <data name="CodeOrigin_MissingNote" xml:space="preserve">
+    <value>Nicht gebaut: {0} der Projekte, die das Modell nutzen können. Ihre Methoden fehlen hier – die Liste kann unvollständig sein.</value>
   </data>
   <data name="CodeOrigin_More" xml:space="preserve">
     <value>{0} weitere</value>

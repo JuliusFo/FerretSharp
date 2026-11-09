@@ -50,7 +50,7 @@ public static class DotNetCli
         return process;
     }
 
-    private static ProcessStartInfo StartInfo(IEnumerable<string> arguments, string workingDirectory)
+    internal static ProcessStartInfo StartInfo(IEnumerable<string> arguments, string workingDirectory)
     {
         var start = new ProcessStartInfo(FindDotNet())
         {
@@ -71,6 +71,9 @@ public static class DotNetCli
         start.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
         start.Environment["DOTNET_NOLOGO"] = "1";
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+        // Plain lines also when the user forces MSBuild's terminal logger: its colours and live lines hid the "Name -> path"
+        // lines the progress of "Build projects" counts (review of the PR). Not "-tl:off": an SDK 7 refuses the switch.
+        start.Environment["MSBUILDTERMINALLOGGER"] = "off";
         return start;
     }
 

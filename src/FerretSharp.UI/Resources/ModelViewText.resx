@@ -296,6 +296,14 @@
   <data name="Usage_BuildSolution" xml:space="preserve">
     <value>Build projects</value>
   </data>
+  <data name="Usage_BuildProgress" xml:space="preserve">
+    <value>{0} of {1} projects</value>
+    <comment>{0} = projects built so far, {1} = projects of the solution</comment>
+  </data>
+  <data name="Usage_BuildLast" xml:space="preserve">
+    <value>last: {0}</value>
+    <comment>{0} = name of the project built last</comment>
+  </data>
   <data name="Usage_MissingNote" xml:space="preserve">
     <value>Not built: {0} of the projects that can use the model. Their uses are missing – "unused" may be wrong.</value>
     <comment>{0} = number of projects</comment>
@@ -1001,6 +1009,10 @@
   </data>
   <data name="CodeOrigin_None" xml:space="preserve">
     <value>No method in the code fits this statement.</value>
+  </data>
+  <data name="CodeOrigin_MissingNote" xml:space="preserve">
+    <value>Not built: {0} of the projects that can use the model. Their methods are missing here – the list may be incomplete.</value>
+    <comment>{0} = number of projects</comment>
   </data>
   <data name="CodeOrigin_More" xml:space="preserve">
     <value>{0} more</value>

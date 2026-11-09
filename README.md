@@ -290,10 +290,12 @@ changes, and a new build is picked up automatically:
   A statement's details open in a dialog with folding parts (SQL, origin in code, plan) and step through the list. With a
   linked C# project they name the methods of your solution that may send it – guessed from its tables and the columns it
   filters by, ranked, with a meter of how much of the statement each covers – and a click opens the line in Visual Studio.
+  Projects of the solution that are not built are marked there, as their methods are missing, with *Build projects* at hand.
 - **Usage in the code**: per column, the methods of your solution that read or write its property or query the table,
   read from the compiled code – a click opens the line in Visual Studio. Properties no code uses are marked, and the
   designer warns before dropping a column the code still uses. Uses open in your *work clone* of the connection group.
   Columns your code filters on (`Where`, `Any`, `First…`) without an index that starts with them are marked.
+  Projects not built are named; *Build projects* builds the solution and shows how many of its projects are done.
 - **Model file**: can't build the project (packages from a private feed)? A colleague exports the model as a file, and
   you link that instead – names, enums and relationships without a build and without running the project's code.
 

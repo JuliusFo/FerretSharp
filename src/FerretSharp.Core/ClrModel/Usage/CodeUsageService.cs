@@ -166,6 +166,20 @@ public sealed class CodeUsageService : IDisposable
         }
     }
 
+    private SolutionBuildProgress? _buildProgress;
+
+    /// <summary>How far the running build of the solution has come; null while none runs.</summary>
+    public SolutionBuildProgress? BuildProgress
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _buildProgress;
+            }
+        }
+    }
+
     /// <summary>Output of the last <see cref="BuildSolutionAsync"/> of this connection; null before and after a cancelled one.</summary>
     public DotNetRun? LastSolutionBuild { get; private set; }
 
@@ -196,7 +210,7 @@ public sealed class CodeUsageService : IDisposable
 
             // Set and cleared together, under the lock: a cancel between the build's end and its clean-up left the flag set
             // for good – later builds showed "cancelling" and could not be cancelled (review of the PR).
-            (_solutionBuild, _cancellingSolutionBuild) = (stop, false);
+            (_solutionBuild, _cancellingSolutionBuild, _buildProgress) = (stop, false, null);
         }
 
         (LastSolutionBuild, SolutionBuildCancelled) = (null, false);
@@ -204,7 +218,22 @@ public sealed class CodeUsageService : IDisposable
         DotNetRun? run;
         try
         {
-            run = await _models.BuildSolutionAsync(solution, stop.Token);
+            // Reports of this build only: the output of dotnet build may still be read while the next one starts.
+            var progress = new SyncProgress<SolutionBuildProgress>(value =>
+            {
+                lock (_lock)
+                {
+                    if (_solutionBuild != stop)
+                    {
+                        return;
+                    }
+
+                    _buildProgress = value;
+                }
+
+                Changed?.Invoke();
+            });
+            run = await _models.BuildSolutionAsync(solution, progress, stop.Token);
             LastSolutionBuild = run;
             SolutionBuildCancelled = run is null && stop.IsCancellationRequested;
         }
@@ -212,7 +241,7 @@ public sealed class CodeUsageService : IDisposable
         {
             lock (_lock)
             {
-                (_solutionBuild, _cancellingSolutionBuild) = (null, false);
+                (_solutionBuild, _cancellingSolutionBuild, _buildProgress) = (null, false, null);
             }
 
             Changed?.Invoke();

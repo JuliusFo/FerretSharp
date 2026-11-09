@@ -1,6 +1,8 @@
 @* Projects that could use the model are not built (WP-40 addendum): "unused" may be wrong, so the views showing it say
    so, with a build of the whole solution right there (decision of the user, 2026-10-23); also a failed build's output.
-   It follows both services itself, while its view is shown. *@
+   While the build runs, how many of the solution's projects are built and which came last. It follows both services itself,
+   while its view is shown. *@
+@using System.Globalization
 @using FerretSharp.Core.ClrModel
 @inherits FerretComponent
 @implements IDisposable
@@ -13,19 +15,34 @@
         <div class="settings-note warn usage-build-note">
             @if (missing.Count > 0)
             {
-                <span title="@string.Join("\n", missing.Select(p => p.Name))">@TextFormat.Format(ModelViewText.Usage_MissingNote, missing.Count)</span>
+                <span title="@string.Join("\n", missing.Select(p => p.Name))">@TextFormat.Format(MissingNote ?? ModelViewText.Usage_MissingNote, missing.Count)</span>
             }
             @if (Usage.IsBuildingSolution)
             {
-                <span class="muted"><span class="spinner small"></span> @ModelViewText.Usage_BuildingSolution</span>
-                @if (Usage.IsCancellingSolutionBuild)
-                {
-                    <span class="muted">@ModelViewText.Usage_BuildSolutionCancelling</span>
-                }
-                else
-                {
-                    <button class="link-btn" title="@ModelViewText.Usage_BuildSolutionCancelTitle" @onclick="Usage.CancelSolutionBuild">@CommonText.Cancel</button>
-                }
+                @* Its own row under the sentence: beside it, Cancel broke onto a line of its own (review of the PR). *@
+                <div class="usage-build-run">
+                    <span class="muted"><span class="spinner small"></span> @ModelViewText.Usage_BuildingSolution</span>
+                    @if (Usage.BuildProgress is { Fraction: { } fraction } progress)
+                    {
+                        var done = TextFormat.Format(ModelViewText.Usage_BuildProgress, progress.Done, progress.Total);
+                        <span class="build-progress" role="progressbar" aria-label="@done" aria-valuemin="0" aria-valuemax="@progress.Total" aria-valuenow="@progress.Done">
+                            <span style="width: @((fraction * 100).ToString("0.#", CultureInfo.InvariantCulture))%"></span>
+                        </span>
+                        <span class="muted">@done</span>
+                        @if (progress.Last is { } last)
+                        {
+                            <span class="muted ellipsis build-progress-last" title="@last">@TextFormat.Format(ModelViewText.Usage_BuildLast, last)</span>
+                        }
+                    }
+                    @if (Usage.IsCancellingSolutionBuild)
+                    {
+                        <span class="muted">@ModelViewText.Usage_BuildSolutionCancelling</span>
+                    }
+                    else
+                    {
+                        <button class="link-btn" title="@ModelViewText.Usage_BuildSolutionCancelTitle" @onclick="Usage.CancelSolutionBuild">@CommonText.Cancel</button>
+                    }
+                </div>
             }
             else if (Usage.Solution is { } solution && Models.State.Link is { } link)
             {
@@ -65,6 +82,10 @@
     /// </summary>
     [Parameter]
     public bool Shown { get; set; } = true;
+
+    /// <summary>What the missing projects mean for the view around it ({0} = their number); "unused may be wrong" by default.</summary>
+    [Parameter]
+    public string? MissingNote { get; set; }
 
     private readonly CancellationTokenSource _lifetime = new();
 

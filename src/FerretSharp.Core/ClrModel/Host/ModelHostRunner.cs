@@ -19,7 +19,8 @@ public interface IModelHostRunner
     Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken);
 
     /// <summary><c>dotnet build</c> of a whole solution in the given configuration (code usage reads all its projects).</summary>
-    Task<DotNetRun> BuildSolutionAsync(string solution, string configuration, CancellationToken cancellationToken);
+    /// <param name="progress">How many of the solution's projects are built; may be called on any thread.</param>
+    Task<DotNetRun> BuildSolutionAsync(string solution, string configuration, IProgress<SolutionBuildProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
     /// Starts the model host as LINQ console (ADR 0011) and waits until it has loaded the project and built the model.
@@ -213,9 +214,36 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken) =>
         Build(link.ProjectFile, link.Configuration, TimeSpan.FromMinutes(10), cancellationToken);
 
-    /// <remarks>As <see cref="BuildAsync"/>; longer limit, a solution may have dozens of projects.</remarks>
-    public Task<DotNetRun> BuildSolutionAsync(string solution, string configuration, CancellationToken cancellationToken) =>
-        Build(solution, configuration, TimeSpan.FromMinutes(30), cancellationToken);
+    /// <remarks>
+    /// As <see cref="BuildAsync"/>; longer limit, a solution may have dozens of projects. Minimal verbosity, not quiet: only
+    /// then does every project log the line its progress is counted from (<see cref="SolutionBuildTracker"/>). The first
+    /// report comes once the build starts, not while it waits for another (review of the PR: "0 of 40" stood there meanwhile).
+    /// </remarks>
+    public Task<DotNetRun> BuildSolutionAsync(string solution, string configuration, IProgress<SolutionBuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var tracker = new SolutionBuildTracker(ProjectsOf(solution));
+        return Build(solution, configuration, TimeSpan.FromMinutes(30), cancellationToken, "minimal", line =>
+        {
+            if (tracker.Observe(line))
+            {
+                progress?.Report(tracker.Progress);
+            }
+        }, onStart: () => progress?.Report(tracker.Progress));
+    }
+
+    /// <summary>The solution's projects; none when it cannot be read – dotnet build then says why.</summary>
+    private static IReadOnlyList<string> ProjectsOf(string solution)
+    {
+        try
+        {
+            return SolutionFile.Projects(solution);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+        {
+            return [];
+        }
+    }
 
     /// <summary>
     /// One build at a time in the whole app (review 3.54.0, A6): connections linked to the same project each have their own
@@ -224,9 +252,14 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     /// </summary>
     private static readonly SemaphoreSlim Building = new(1, 1);
 
-    private static Task<DotNetRun> Build(string file, string configuration, TimeSpan timeout, CancellationToken cancellationToken) =>
-        OneBuildAtATimeAsync(() => DotNetCli.RunAsync(["build", file, "-c", configuration, "-nologo", "-v", "q", "-nodeReuse:false", "--disable-build-servers"],
-            Path.GetDirectoryName(file)!, timeout, cancellationToken), cancellationToken);
+    private static Task<DotNetRun> Build(string file, string configuration, TimeSpan timeout, CancellationToken cancellationToken,
+        string verbosity = "q", Action<string>? onOutputLine = null, Action? onStart = null) =>
+        OneBuildAtATimeAsync(() =>
+        {
+            onStart?.Invoke();
+            return DotNetCli.RunAsync(["build", file, "-c", configuration, "-nologo", "-v", verbosity, "-nodeReuse:false", "--disable-build-servers"],
+                Path.GetDirectoryName(file)!, timeout, cancellationToken, onOutputLine);
+        }, cancellationToken);
 
     /// <summary>Runs <paramref name="build"/> once no other build runs; cancelled while waiting, it never starts.</summary>
     internal static async Task<T> OneBuildAtATimeAsync<T>(Func<Task<T>> build, CancellationToken cancellationToken)

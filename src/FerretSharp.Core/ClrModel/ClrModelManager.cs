@@ -385,9 +385,10 @@ public sealed class ClrModelManager : IDisposable
     /// like after a build in Visual Studio (review of the PR: a forced reload without the cache took up to 12 s more, and
     /// could not be cancelled).
     /// </summary>
+    /// <param name="progress">How many of the solution's projects are built; may be called on any thread.</param>
     /// <param name="cancellationToken">Stops the build (<c>dotnet build</c> and its processes end); the result is then null.</param>
-    public Task<DotNetRun?> BuildSolutionAsync(string solution, CancellationToken cancellationToken) =>
-        BuildAsync((link, ct) => _runner.BuildSolutionAsync(solution, link.Configuration, ct), ofProject: false, cancellationToken);
+    public Task<DotNetRun?> BuildSolutionAsync(string solution, IProgress<SolutionBuildProgress>? progress, CancellationToken cancellationToken) =>
+        BuildAsync((link, ct) => _runner.BuildSolutionAsync(solution, link.Configuration, progress, ct), ofProject: false, cancellationToken);
 
     /// <param name="ofProject">The project's own build: remembered as <see cref="LastBuild"/>, the model read again after it.</param>
     private async Task<DotNetRun?> BuildAsync(Func<ClrProjectLink, CancellationToken, Task<DotNetRun>> build, bool ofProject,
