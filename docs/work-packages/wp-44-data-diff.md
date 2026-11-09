@@ -40,7 +40,7 @@ Entscheidungen des Nutzers (2026-11-08, alle Empfehlungen übernommen):
 - Nicht mit echter Datenbank geprüft: ORA-01031 und Undo-Grenze (nur in Unit- und Integrationstest bzw. per Fake), Prod mit read-only Lese-Session (Unit-Test).
 
 ## Offen / Fragen an den Nutzer
-- Genauigkeit des Startpunkts: `TIMESTAMP_TO_SCN` liegt bis zu ein paar Sekunden zurück. Soll FerretSharp `V$DATABASE.CURRENT_SCN` nehmen, wo das Recht da ist?
+- Genauigkeit des Startpunkts: `TIMESTAMP_TO_SCN` liegt bis zu ein paar Sekunden zurück. Soll FerretSharp `V$DATABASE.CURRENT_SCN` nehmen, wo das Recht da ist? → Ja, entschieden 2026-11-09, umgesetzt mit WP-78 (`docs/roadmap.md`).
 - CLOBs: Vergleich über die ersten 200 Zeichen und die Länge. Reicht das, oder ein Hash (`DBMS_CRYPTO` braucht ein Recht)?
 - Das Grid des Diffs ist eine HTML-Tabelle mit `Virtualize`, nicht AG Grid: kein Kopieren von Zellen, kein Formular, keine Spaltenbreiten. Vorschlag (nicht bestätigt): reicht für die erste Stufe; AG Grid mit Zeilen aus dem Speicher wäre ein eigener Weg in `grid.js`.
 - Backlog: „Diesen Tab vergleichen“ in der Befehlspalette und Snapshot-Diff stehen schon dort; die Zeitreise im Grid (`AS OF TIMESTAMP`) ist seit 2026-11-09 als WP-78 eingeplant (`docs/roadmap.md`).
@@ -67,5 +67,5 @@ Zweiter Durchgang (derselbe Reviewer, nur die Fix-Commits): 1–5, 9, 11, 12 in 
 
 Fragen aus dem Review:
 - TIMESTAMP(9)-Spalten: Zeilen „geändert“ ohne markierte Zelle mit Hinweis kennzeichnen, oder so lassen?
-- Startpunkt an die Datenbank binden (z. B. `DBID`/Name mitspeichern und bei Abweichung verwerfen)?
+- Startpunkt an die Datenbank binden (z. B. `DBID`/Name mitspeichern und bei Abweichung verwerfen)? → Ja, entschieden 2026-11-09, umgesetzt mit WP-78 (`docs/roadmap.md`).
 - Lese-Session nach einem Öffnungsfehler: nur echte Anmelde-Ablehnungen (ORA-01017, 28000, 28001 …) bis zum Neuverbinden sperren und Limits wie ORA-02391 beim nächsten Vergleich erneut versuchen lassen?
