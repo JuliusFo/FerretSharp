@@ -41,7 +41,12 @@ Entscheidungen zum Plan (2026-11-09, „Ja, so umsetzen“ – alle vier Empfehl
 - Ein INSERT lässt NULL weg wie eine neue Zeile im Grid: eine DEFAULT-Spalte, die damals NULL war, bekommt den Default (ADR 0048, Folgen).
 
 ## E2E
-(folgt)
+2026-11-09, eigener Container (`New-SampleDb.ps1 -Name ferret-e2e-wp78 -Port 1578`), Testinstanz mit `--data-dir` (deutsch/dunkel), Verbindungen „E2E WP78“ (Test) und „E2E WP78 Prod“ (read-only) als `connections.json`, Passwort nicht gespeichert. Tabelle `E2E_TT` (20 Zeilen, ein CLOB mit 5500 Zeichen), Änderungen aus einer fremden Session (sqlplus im Container). Klicks mit echter Windows-Eingabe (`Invoke-RealClick.ps1`, Probe vorher bestanden), Tippen und Feldwerte per CDP. Die Uhr des Servers lag eine Stunde hinter der lokalen (UTC gegen MEZ) – der Zeitreise-Tab zeigte trotzdem genau den Stand vor den Änderungen (Abstand zu `SYSTIMESTAMP`).
+- Geprüft: Tab-Menü „Zeitreise …“ → Dialog (Schnellwahl, Zeit, ohne `V$UNDOSTAT`-Recht kein Hinweis) → Tab mit Icon, Uhrzeit, Banner, Fußzeile; Grid ohne „+ Zeile“; Zellmenü: Datensatz-Diagramm und „In andere Verbindung kopieren“ gesperrt mit Grund; LOB-Dialog zeigt den ganzen alten CLOB, nur lesend; „SQL“ zeigt `AS OF SCN :p_asof`; „Aktuellen Stand öffnen“. Workspace-Menü „Vergleich ab Zeitpunkt …“ → Diff (1 geändert, 2 gelöscht, 1 neu) → alle anhaken → „Auf Stand 08:53 zurücksetzen (4)“ → 4 ausstehend im Tab (neue Zeilen oben) → Schreiben, Commit → in der DB wieder der Startstand (CLOB mit 5500 Zeichen), erneuter Vergleich „Unverändert“. Prod: Diff ab Zeitpunkt geht, „Zurücksetzen“ gesperrt („Der Workspace ist schreibgeschützt …“). Nach dem Neustart: Zeitreise-Tabs und Startpunkt wieder da.
+- Gefunden und behoben: Ein Zeitpunkt vor dem Anlegen der Tabelle zeigte im Grid die rohe ORA-01466 statt der Erklärung (`DataDiffErrors.Explain(…, timeTravel: true)` jetzt auch im Grid).
+- `CON_DBID` liefert `USERENV` ohne Recht → in die Kennung der Datenbank aufgenommen.
+- Log: nur die zwei erwarteten Warnungen der zu frühen Zeitpunkte (ORA-01466, ORA-08181), kein `[ERR]`.
 
 ## Offen / Fragen an den Nutzer
-- `CON_DBID` statt/zusätzlich zum Namen: siehe E2E.
+- „Link auf diese Ansicht“ aus einem Zeitreise-Tab nimmt den Zeitpunkt nicht mit – der Link öffnet den jetzigen Stand. Den Zeitpunkt in den Link aufnehmen (SCN gilt nur für dieselbe Datenbank), den Eintrag sperren, oder so lassen?
+- Die Zahl in der Fußzeile eines Zeitreise-Tabs („Zeilen zählen“) zeigt einen Fehler roh (nicht über `DataDiffErrors`) – selten, da die erste Seite schon scheitert.

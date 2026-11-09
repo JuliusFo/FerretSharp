@@ -1095,8 +1095,12 @@
         StateHasChanged(); // the loading panel goes
         if (result.Value is not { } page)
         {
-            // The footer shows why ("Details" only for a statement that ran); grid.js fails the block.
-            Tab.Error = cancelledByUser ? CancelledText : result.Error?.Display;
+            // The footer shows why ("Details" only for a statement that ran); grid.js fails the block. A time travel tab explains
+            // what the user can act on: no FLASHBACK right, undo too short, DDL since (WP-78).
+            Tab.Error = cancelledByUser ? CancelledText
+                : Tab.TimeTravel is { } travel && result.Error is { } failure && !result.IsRefusal
+                    && DataDiffErrors.Explain(failure, details.Table.Ref, travel.At, timeTravel: true) is { } explained ? explained
+                : result.Error?.Display;
             Tab.Failure = result.IsRefusal ? null : result.Error;
             await OnPageLoaded.InvokeAsync();
             return GridPage.Failure;
