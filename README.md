@@ -156,7 +156,13 @@ developer works with an Oracle database day to day:
   state at the start (flashback query with `MINUS`), so only the rows that differ come over the line; changed cells
   show their value at the start. Start, compare and discard from the workspace's menu, add a table with its filter
   from the tab menu (*Compare this tab*). Reaches back as far as the database's undo does; tables of other owners need
-  the right `FLASHBACK`.
+  the right `FLASHBACK`. The start point can also lie at a time you choose (*Start comparison from…*), and ticked rows
+  are set back to it as pending changes of the table's tab – a deleted row inserted again, a changed one with its old
+  values, a new one deleted – written the usual way, one <kbd>Ctrl</kbd>+<kbd>Z</kbd> takes them back.
+- **Time travel**: *Time travel…* in a table tab's menu shows the table as it was at a time you choose (quick choices
+  5, 15, 60 minutes ago), with the tab's filter, read only, in a tab of its own – filter, sort, export, the form and FK
+  jumps stay at that point. Reads committed data on a session of its own; the dialog says how far the database's undo
+  reaches where the right on `V$UNDOSTAT` is there.
 - Lock conflicts are detected after a short wait (`SELECT … FOR UPDATE WAIT n`) and shown with the blocking session.
 - Optimistic concurrency check on the changed columns; insert and delete rows; edit CLOBs and BLOBs in a dialog
   (text in the code editor with line wrap, JSON/XML coloring and JSON indenting).
