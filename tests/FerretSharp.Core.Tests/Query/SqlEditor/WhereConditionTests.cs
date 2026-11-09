@@ -22,7 +22,19 @@ public class WhereConditionTests
     [InlineData("\"Mixed Case\" IS NOT NULL /* closed */")]
     [InlineData("OFFSET > 5 AND FETCH = 'x' AND MODEL = 1")]
     [InlineData("A = 1\nOR B = 2")]
-    public void A_condition_that_stays_a_condition_passes(string condition) => Assert.Null(WhereCondition.Problem(condition));
+    [InlineData("ID IN (SELECT ID FROM (SELECT * FROM T PIVOT (MAX(V) FOR K IN ('a' AS A))))")] // FOR without UPDATE
+    public void A_condition_that_stays_a_condition_passes(string condition)
+    {
+        Assert.Null(WhereCondition.Problem(condition));
+
+        // What the check lets through, the session's read-only tripwire takes as well: it would throw – a programming error to
+        // it – and break the tab (review of WP-79).
+        var query = QueryBuilder.BuildSelect(OneColumn, RowFilter.Where(condition), [], new PageSpec(0, 500));
+        Assert.True(OracleSession.IsReadOnlyStatement(query.Sql), query.Sql);
+    }
+
+    private static readonly TableDetails OneColumn = new(new TableSummary("APP", "KUNDEN", TableKind.Table),
+        [new ColumnInfo("KUNDE_ID", "NUMBER", null, false, 10, 0, false, false, null, 0)], ["KUNDE_ID"], [], false);
 
     public static TheoryData<string, string> Refused => new()
     {
@@ -38,8 +50,11 @@ public class WhereConditionTests
         { "ID = :id", TextFormat.Format(QueryText.ConditionBind, ":id") },
         { "A = 1 ORDER BY NAME", TextFormat.Format(QueryText.ConditionTopLevel, "ORDER") },
         { "A = 1 UNION SELECT 1 FROM dual", TextFormat.Format(QueryText.ConditionTopLevel, "UNION") },
-        { "A = 1 FOR UPDATE", TextFormat.Format(QueryText.ConditionTopLevel, "FOR") },
+        { "A = 1 FOR UPDATE", TextFormat.Format(QueryText.ConditionTopLevel, "FOR UPDATE") },
         { "A = 1; DELETE FROM X", TextFormat.Format(QueryText.ConditionTopLevel, ";") },
+        // Inside parentheses too: the read-only tripwire refuses both at any depth (review of WP-79).
+        { "ID IN (SELECT ID FROM B FOR UPDATE)", TextFormat.Format(QueryText.ConditionTopLevel, "FOR UPDATE") },
+        { "ID IN (SELECT ID FROM B;)", TextFormat.Format(QueryText.ConditionTopLevel, ";") },
         { "A = 1 group by A", TextFormat.Format(QueryText.ConditionTopLevel, "GROUP") },
         { "A = 1 CONNECT BY PRIOR ID = PARENT", TextFormat.Format(QueryText.ConditionTopLevel, "CONNECT") },
         { "A = 1 FETCH FIRST 5 ROWS ONLY", TextFormat.Format(QueryText.ConditionTopLevel, "FETCH") },

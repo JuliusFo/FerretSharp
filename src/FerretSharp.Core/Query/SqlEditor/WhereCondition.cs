@@ -70,6 +70,18 @@ public static class WhereCondition
                 return TextFormat.Format(QueryText.ConditionBind, ":" + token.Value);
             }
 
+            // At any depth, as the read-only tripwire refuses them (StatementGuard): it would throw at the read – a programming
+            // error to it – and the saved condition broke the tab on every start (review of WP-79).
+            if (token.IsSymbol(";"))
+            {
+                return TextFormat.Format(QueryText.ConditionTopLevel, ";");
+            }
+
+            if (token.IsWord("FOR") && i + 1 < significant.Count && significant[i + 1].IsWord("UPDATE"))
+            {
+                return TextFormat.Format(QueryText.ConditionTopLevel, "FOR UPDATE");
+            }
+
             if (token.IsSymbol("("))
             {
                 depth++;
@@ -91,11 +103,6 @@ public static class WhereCondition
     private static string? TopLevelEnd(List<SqlToken> tokens, int i)
     {
         var token = tokens[i];
-        if (token.IsSymbol(";"))
-        {
-            return ";";
-        }
-
         if (token.Kind != SqlTokenKind.Word)
         {
             return null;
