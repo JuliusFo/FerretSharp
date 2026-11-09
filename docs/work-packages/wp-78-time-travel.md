@@ -1,4 +1,4 @@
-# WP-78 Zeitreise im Grid → Release offen
+# WP-78 Zeitreise im Grid → Release 3.66.0
 
 Branch `wp/78-time-travel` (von `main`), 2026-11-09. ADR 0048. Braucht WP-44 (Daten-Diff, Lese-Session, ADR 0047).
 

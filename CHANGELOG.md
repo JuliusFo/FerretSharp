@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.66.0] - 2026-11-09
+
 See what changed in the database since a point in time – new, changed and deleted rows of the tables you choose, whoever changed them. Look at a table as it was earlier, and set rows back to that state.
 
 ### Security

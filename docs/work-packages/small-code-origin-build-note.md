@@ -1,6 +1,6 @@
 # Klein: Herkunft im Code mit Hinweis auf nicht gebaute Projekte, Fortschritt von „Projekte bauen“
 
-Branch `feat/code-origin-build-note` (von `main`), 2026-11-09. Baut auf WP-40 (Verwendung im Code, „Projekte bauen“) und WP-76 (Herkunft im Code).
+Branch `feat/code-origin-build-note` (von `main`), 2026-11-09, Release 3.66.0. Baut auf WP-40 (Verwendung im Code, „Projekte bauen“) und WP-76 (Herkunft im Code).
 
 ## Anlass (Ideen des Nutzers, 2026-11-09)
 - In der Serverlast fand „Herkunft im Code“ überall 0 Stellen – viele Projekte der Solution waren nicht gebaut, die Seite sagte das nicht. Wunsch: eine Meldung auf der Server-Load-Seite, wenn die Projekte noch nicht gebaut sind.

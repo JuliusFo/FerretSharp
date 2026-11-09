@@ -1,4 +1,4 @@
-# Fix: Abhängigkeiten aktualisieren, .NET 10.0.14 (Brotli-CVE) → Release offen
+# Fix: Abhängigkeiten aktualisieren, .NET 10.0.14 (Brotli-CVE) → Release 3.66.0
 
 Branch `fix/dependency-update` (von `main`), 2026-11-09. Anstoß: Frage des Nutzers nach relevanten Updates der eingesetzten Pakete.
 
