@@ -21,10 +21,10 @@
             <span class="diff-start" title="@TextFormat.Format(ShellText.DataDiff_ScnTitle, state.Scn)">
                 @Icons.DataDiff @TextFormat.Format(ShellText.DataDiff_Since, DataDiffRows.StartText(state.StartedAt, DateTimeOffset.Now))
             </span>
-            @if (Tab.Running)
+            @if (Tab.Running || Tab.Restoring)
             {
                 <button class="btn" @onclick="Tab.Cancel">@CommonText.Cancel</button>
-                <span class="muted">@ShellText.DataDiff_Comparing</span>
+                <span class="muted">@(Tab.Restoring ? ShellText.DataDiff_Restoring : ShellText.DataDiff_Comparing)</span>
             }
             else
             {
@@ -46,6 +46,8 @@
             </datalist>
             <button class="btn" disabled="@(Tab.Running)" title="@ShellText.DataDiff_RestartTitle"
                     @onclick="() => Lifecycle.StartDataDiffAsync(Tab.WorkspaceId)">@ShellText.DataDiff_Restart</button>
+            <button class="btn" disabled="@(Tab.Running)" title="@ShellText.DataDiff_StartAtTitle"
+                    @onclick="() => Shell.AskDiffStart(Tab.WorkspaceId)">@ShellText.DataDiff_RestartAt</button>
             <button class="btn" title="@ShellText.DataDiff_DiscardTitle" @onclick="() => Lifecycle.DiscardDataDiff(Tab.WorkspaceId)">@ShellText.DataDiff_Discard</button>
         }
     </div>
@@ -55,6 +57,7 @@
         <div class="diff-pane">
             <EmptyState Title="@ShellText.DataDiff_NoStartPoint" Text="@ShellText.DataDiff_Explain">
                 <button class="btn primary" @onclick="() => Lifecycle.StartDataDiffAsync(Tab.WorkspaceId)">@ShellText.DataDiff_Start</button>
+                <button class="btn" title="@ShellText.DataDiff_StartAtTitle" @onclick="() => Shell.AskDiffStart(Tab.WorkspaceId)">@ShellText.DataDiff_StartAt</button>
             </EmptyState>
         </div>
     }
@@ -132,7 +135,7 @@
                 }
                 else if (shown.Diff is { } diff)
                 {
-                    @RowsOf(diff)
+                    @RowsOf(diff, selected, state)
                 }
             </section>
         </div>
@@ -159,6 +162,74 @@
     private string? _adding;
     private DiffStatus? _status;
     private bool _onlyChanged;
+
+    /// <summary>
+    /// The rows ticked to set back (WP-78), per result: a new comparison is a new <see cref="TableDiff"/>, its ticks start empty.
+    /// Only in the view, never saved.
+    /// </summary>
+    private readonly Dictionary<TableDiff, HashSet<RowKey>> _picks = new(ReferenceEqualityComparer.Instance);
+    private bool _restoring;
+
+    private bool IsPicked(TableDiff diff, DiffRow row) => _picks.TryGetValue(diff, out var picked) && picked.Contains(row.Key);
+
+    private void Pick(TableDiff diff, DiffRow row, bool on)
+    {
+        var picked = PicksOf(diff);
+        if (on)
+        {
+            picked.Add(row.Key);
+        }
+        else
+        {
+            picked.Remove(row.Key);
+        }
+    }
+
+    /// <summary>The box in the head: every row shown (after the status filter) on or off.</summary>
+    private void PickAll(TableDiff diff, IReadOnlyList<DiffRow> shown, bool on)
+    {
+        var picked = PicksOf(diff);
+        foreach (var row in shown)
+        {
+            if (on)
+            {
+                picked.Add(row.Key);
+            }
+            else
+            {
+                picked.Remove(row.Key);
+            }
+        }
+    }
+
+    private HashSet<RowKey> PicksOf(TableDiff diff)
+    {
+        foreach (var old in _picks.Keys.Where(k => !ReferenceEquals(k, diff) && k.Table.Table.Ref == diff.Table.Table.Ref).ToList())
+        {
+            _picks.Remove(old); // ticks of an older comparison of the table
+        }
+
+        return _picks.TryGetValue(diff, out var picked) ? picked : _picks[diff] = [];
+    }
+
+    /// <summary>The ticked rows of the result, in its order (also those the status filter hides now).</summary>
+    private IReadOnlyList<DiffRow> Picked(TableDiff diff) =>
+        _picks.TryGetValue(diff, out var picked) ? [.. diff.Rows.Where(r => picked.Contains(r.Key))] : [];
+
+    /// <summary>"Auf Stand von … zurücksetzen": the ticked rows become pending changes of the table's tab; the ticks go.</summary>
+    private async Task RestoreAsync(TableDiff diff, IReadOnlyList<DiffRow> rows)
+    {
+        _restoring = true;
+        try
+        {
+            await Lifecycle.RestoreAsync(Tab.WorkspaceId, diff, rows);
+            _picks.Remove(diff);
+        }
+        finally
+        {
+            _restoring = false;
+        }
+    }
 
     /// <summary>Tables of the browsed schema that can be compared: not views.</summary>
     private IEnumerable<TableSummary> Comparable => (Active.Schema?.Tables ?? []).Where(t => t.Kind != TableKind.View);
@@ -200,14 +271,16 @@
         await Lifecycle.AddToDataDiffAsync(Tab.WorkspaceId, table.Ref, []);
     }
 
-    private RenderFragment RowsOf(TableDiff diff) => __builder =>
+    private RenderFragment RowsOf(TableDiff diff, DataDiffEntry entry, DataDiffState state) => __builder =>
     {
         var presentation = Presentations.For(diff.Table);
         var columns = DataDiffRows.Columns(diff, _onlyChanged);
         var rows = DataDiffRows.Rows(diff, _status).ToList();
-        @if (diff.Rows.Count > 0)
-        {
-            <div class="diff-rows-head">
+        var picked = Picked(diff);
+        var restoreUnavailable = picked.Count == 0 ? ShellText.DataDiff_PickRows : Lifecycle.RestoreUnavailable(Tab.WorkspaceId, diff, picked);
+        <div class="diff-rows-head">
+            @if (diff.Rows.Count > 0)
+            {
                 <div class="segmented small" role="group">
                     <button class="seg @(_status is null ? "active" : "")" @onclick="() => _status = null">@TextFormat.Format(ShellText.DataDiff_All, diff.Rows.Count)</button>
                     <button class="seg @(_status == DiffStatus.Added ? "active" : "")" @onclick="() => _status = DiffStatus.Added">@TextFormat.Format(ShellText.DataDiff_Added, diff.Count(DiffStatus.Added))</button>
@@ -218,8 +291,19 @@
                     <input type="checkbox" checked="@_onlyChanged" @onchange="e => _onlyChanged = e.Value is true" />
                     @ShellText.DataDiff_OnlyChangedColumns
                 </label>
-            </div>
-        }
+            }
+            <span class="spacer"></span>
+            <button class="btn ghost" title="@ShellText.DataDiff_OpenAtStartTitle" @onclick="() => Lifecycle.OpenAtStart(Tab.WorkspaceId, entry)">
+                @Icons.TimeTravel @ShellText.DataDiff_OpenAtStart
+            </button>
+            @if (diff.Rows.Count > 0)
+            {
+                <button class="btn" disabled="@(restoreUnavailable is not null || _restoring || Tab.Running || Tab.Restoring)" title="@(restoreUnavailable ?? ShellText.DataDiff_RestoreTitle)"
+                        @onclick="() => RestoreAsync(diff, picked)">
+                    @TextFormat.Format(ShellText.DataDiff_Restore, DataDiffRows.StartText(state.StartedAt, DateTimeOffset.Now), picked.Count)
+                </button>
+            }
+        </div>
         @if (diff.Truncated)
         {
             <div class="diff-notice warn">@TextFormat.Format(ShellText.DataDiff_Truncated, DataDiff.MaxRows)</div>
@@ -246,7 +330,11 @@
                 <table class="diff">
                     <thead>
                         <tr>
-                            <th class="diff-status">@ShellText.DataDiff_Status</th>
+                            <th class="diff-status">
+                                <input type="checkbox" title="@ShellText.DataDiff_PickAllTitle" aria-label="@ShellText.DataDiff_PickAllTitle"
+                                       checked="@(rows.Count > 0 && rows.All(r => IsPicked(diff, r)))" @onchange="e => PickAll(diff, rows, e.Value is true)" />
+                                @ShellText.DataDiff_Status
+                            </th>
                             @foreach (var c in columns)
                             {
                                 var label = presentation.LabelOf(c);
@@ -257,7 +345,10 @@
                     <tbody>
                         <Virtualize TItem="DiffRow" Items="rows" ItemSize="27" SpacerElement="tr" Context="row">
                             <tr class="@StatusClass(row.Status)">
-                                <td class="diff-status"><span class="change-kind @StatusClass(row.Status)">@StatusLabel(row.Status)</span></td>
+                                <td class="diff-status">
+                                    <input type="checkbox" aria-label="@ShellText.DataDiff_PickRow" checked="@IsPicked(diff, row)" @onchange="e => Pick(diff, row, e.Value is true)" />
+                                    <span class="change-kind @StatusClass(row.Status)">@StatusLabel(row.Status)</span>
+                                </td>
                                 @foreach (var c in columns)
                                 {
                                     var text = presentation.Present(c, row.Shown.Values[c]).Text;

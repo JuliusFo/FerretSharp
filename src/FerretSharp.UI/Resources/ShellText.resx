@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -1416,5 +1416,119 @@
   </data>
   <data name="DataDiff_Starting" xml:space="preserve">
     <value>Setting the start point …</value>
+  </data>
+  <data name="DataDiff_StartAt" xml:space="preserve">
+    <value>Start comparison from…</value>
+  </data>
+  <data name="DataDiff_RestartAt" xml:space="preserve">
+    <value>Start point from…</value>
+  </data>
+  <data name="DataDiff_StartAtTitle" xml:space="preserve">
+    <value>The start point lies at a time you choose before now – as far back as the database's undo reaches.</value>
+  </data>
+  <data name="DataDiff_OpenAtStart" xml:space="preserve">
+    <value>State at start point</value>
+  </data>
+  <data name="DataDiff_OpenAtStartTitle" xml:space="preserve">
+    <value>Opens the table as it was at the start point, with its filter, read only in a tab of its own.</value>
+  </data>
+  <data name="DataDiff_Restore" xml:space="preserve">
+    <value>Set back to {0} ({1})</value>
+  </data>
+  <data name="DataDiff_RestoreTitle" xml:space="preserve">
+    <value>The ticked rows become pending changes of the table's tab: a deleted row is inserted again, a changed one gets its old values, an added one is deleted. Nothing is written until you write.</value>
+  </data>
+  <data name="DataDiff_PickRows" xml:space="preserve">
+    <value>Tick the rows to set back first.</value>
+  </data>
+  <data name="DataDiff_PickAllTitle" xml:space="preserve">
+    <value>Tick all rows shown</value>
+  </data>
+  <data name="DataDiff_PickRow" xml:space="preserve">
+    <value>Tick the row</value>
+  </data>
+  <data name="Restore_DoneOne" xml:space="preserve">
+    <value>{0} change in {1} pending – back to {2:g}. Nothing is written yet.</value>
+  </data>
+  <data name="Restore_DoneOther" xml:space="preserve">
+    <value>{0} changes in {1} pending – back to {2:g}. Nothing is written yet.</value>
+  </data>
+  <data name="Restore_AlreadyChangedOne" xml:space="preserve">
+    <value>{0} row left alone: the tab has changes of it already.</value>
+  </data>
+  <data name="Restore_AlreadyChangedOther" xml:space="preserve">
+    <value>{0} rows left alone: the tab has changes of them already.</value>
+  </data>
+  <data name="Restore_NotRestorableOne" xml:space="preserve">
+    <value>{0} row left alone: a value cannot be written back exactly as it was (a LONG or XMLTYPE, a type the grid does not write such as INTERVAL or BINARY_DOUBLE, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
+  </data>
+  <data name="Restore_NotRestorableOther" xml:space="preserve">
+    <value>{0} rows left alone: a value cannot be written back exactly as it was (a LONG or XMLTYPE, a type the grid does not write such as INTERVAL or BINARY_DOUBLE, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
+  </data>
+  <data name="Restore_GoneOne" xml:space="preserve">
+    <value>{0} row is no longer as the comparison saw it (deleted or inserted again since) – compare again.</value>
+  </data>
+  <data name="Restore_GoneOther" xml:space="preserve">
+    <value>{0} rows are no longer as the comparison saw them (deleted or inserted again since) – compare again.</value>
+  </data>
+  <data name="Restore_StructureChanged" xml:space="preserve">
+    <value>The table's tab works with another version of its columns. Write or discard its changes and reload it first.</value>
+  </data>
+  <data name="TimeTravel_Menu" xml:space="preserve">
+    <value>Time travel…</value>
+  </data>
+  <data name="TimeTravel_MenuTitle" xml:space="preserve">
+    <value>The table as it was at a time you choose, with this tab's filter – read only, in a tab of its own.</value>
+  </data>
+  <data name="TimePoint_TravelTitle" xml:space="preserve">
+    <value>Time travel</value>
+  </data>
+  <data name="TimePoint_DiffTitle" xml:space="preserve">
+    <value>Start point of the comparison</value>
+  </data>
+  <data name="TimePoint_TravelText" xml:space="preserve">
+    <value>Show {0} as it was at:</value>
+  </data>
+  <data name="TimePoint_DiffText" xml:space="preserve">
+    <value>Compare with the state at:</value>
+  </data>
+  <data name="TimePoint_Presets" xml:space="preserve">
+    <value>Quick choice</value>
+  </data>
+  <data name="TimePoint_MinutesAgo" xml:space="preserve">
+    <value>{0} min ago</value>
+  </data>
+  <data name="TimePoint_Time" xml:space="preserve">
+    <value>Date and time</value>
+  </data>
+  <data name="TimePoint_UndoReach" xml:space="preserve">
+    <value>The database's undo reaches back to about {0:t} – earlier states may be gone.</value>
+  </data>
+  <data name="TimePoint_BeforeUndo" xml:space="preserve">
+    <value>Before {0:t}: the database's undo probably no longer reaches back so far.</value>
+  </data>
+  <data name="TimePoint_BeyondUndo" xml:space="preserve">
+    <value>Probably beyond the database's undo</value>
+  </data>
+  <data name="TimePoint_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="TimePoint_SetStart" xml:space="preserve">
+    <value>Set start point</value>
+  </data>
+  <data name="Restore_Busy" xml:space="preserve">
+    <value>The workspace is writing or committing – wait until it is done.</value>
+  </data>
+  <data name="Restore_RowMovement" xml:space="preserve">
+    <value>This table allows row movement and is compared by ROWID: a moved row looks deleted and new, bringing the deleted one back would double it. Untick the deleted rows.</value>
+  </data>
+  <data name="Restore_TooLargeOne" xml:space="preserve">
+    <value>{0} row left alone: a LOB is longer than {1}.</value>
+  </data>
+  <data name="Restore_TooLargeOther" xml:space="preserve">
+    <value>{0} rows left alone: a LOB is longer than {1}.</value>
+  </data>
+  <data name="DataDiff_Restoring" xml:space="preserve">
+    <value>Reading the rows to set back …</value>
   </data>
 </root>

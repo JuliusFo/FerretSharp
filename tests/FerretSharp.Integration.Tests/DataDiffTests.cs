@@ -12,7 +12,7 @@ namespace FerretSharp.Integration.Tests;
 /// The data diff (WP-44) against Oracle: the start SCN from the time, the flashback query with both MINUS, and the errors the
 /// user can act on. Each test has a table of its own; the changes are made by another session and committed, as an app would.
 /// </summary>
-public sealed class DataDiffTests(OracleContainerFixture oracle) : IAsyncLifetime
+public sealed partial class DataDiffTests(OracleContainerFixture oracle) : IAsyncLifetime
 {
     private OracleSession? _session;
     private OracleDataAccess _data = null!;
@@ -72,7 +72,7 @@ public sealed class DataDiffTests(OracleContainerFixture oracle) : IAsyncLifetim
         var watch = Stopwatch.StartNew();
         while (true)
         {
-            var scn = await _data.CurrentScnAsync(Ct);
+            var scn = (await _data.CurrentPointAsync(exact: false, Ct)).Scn;
             if (scn >= committed)
             {
                 TestContext.Current.SendDiagnosticMessage($"TIMESTAMP_TO_SCN reached the last commit after {watch.ElapsedMilliseconds} ms");

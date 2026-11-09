@@ -171,7 +171,13 @@ public class ReadOnlyTests
                 "SendBreaksInBand", // process-wide driver setting before the first connection, ADR 0041
             ]
         },
-        { typeof(IDataAccess), ["CountAsync", "CurrentScnAsync", "ExplainActualAsync", "ReadAllAsync", "ReadAuditChangesAsync", "ReadByKeysAsync", "ReadColumnAllAsync", "ReadDiffAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
+        // WP-78: AsOf hands out the same read path, each table AS OF SCN; the points are SELECTs of SCN and database name.
+        {
+            typeof(IDataAccess), [
+                "AsOf", "CountAsync", "CurrentPointAsync", "ExplainActualAsync", "PointBackAsync", "ReadAllAsync", "ReadAuditChangesAsync", "ReadByKeysAsync",
+                "ReadColumnAllAsync", "ReadDiffAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync", "UndoReachAsync",
+            ]
+        },
         { typeof(IRowLookup), ["LookupAsync"] },
         {
             typeof(ISchemaReader), [
@@ -184,8 +190,8 @@ public class ReadOnlyTests
         { typeof(IDatabaseConnection), ["PingIfIdleAsync", "SetActionAsync", "StopReadOnlySnapshotsAsync", "UseReadOnlySnapshotsAsync"] },
         { typeof(IDatabaseConnector), ["OpenAsync"] },
 
-        // WP-44, ADR 0047: the session beside the workspaces hands out only the read path.
-        { typeof(ReadSession), ["ReadAsync"] },
+        // WP-44, ADR 0047: the session beside the workspaces hands out only the read path (WP-78: also AS OF an SCN, and the current SCN).
+        { typeof(ReadSession), ["AsOf", "CurrentPointAsync", "ReadAsync"] },
         {
             typeof(IServerLoadReader), [
                 "ReadActiveSessionsAsync", "ReadCountersAsync", "ReadEnvironmentAsync", "ReadFullTextAsync", "ReadStatementInfoAsync", "ReadStatementsAsync", "ReadTopSinceLoadAsync",

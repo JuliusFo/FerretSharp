@@ -11,9 +11,19 @@ using Oracle.ManagedDataAccess.Client;
 namespace FerretSharp.Core.Oracle;
 
 /// <summary>Reads pages of table data. Read-only; writing comes with WP-09 (FlushAsync).</summary>
-public sealed class OracleDataAccess(OracleSession session) : IDataAccess
+/// <param name="asOf">The SCN every table is read at (<see cref="IDataAccess.AsOf"/>, WP-78); null for now.</param>
+public sealed class OracleDataAccess(OracleSession session, long? asOf = null) : IDataAccess
 {
     private const int MaxDecimalDigits = 28;
+
+    public IDataAccess AsOf(long scn) => new OracleDataAccess(session, scn);
+
+    /// <summary>
+    /// A read of the table statements: never repeated in a new snapshot when it reads <c>AS OF SCN</c> – ORA-01555/01466 of a
+    /// flashback query mean the undo does not reach back or the table was rewritten, a new snapshot fixes neither (WP-44).
+    /// </summary>
+    private Task<T> ReadAsync<T>(QuerySpec query, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken) =>
+        session.ExecuteReaderAsync(query.Sql, query.Parameters, read, OracleSession.WholeLobs, cancellationToken, repeatInNewSnapshot: asOf is null);
 
     /// <remarks>
     /// In a locked session the first page of a query starts a new snapshot (new query, filter, sort, F5 – current
@@ -26,14 +36,14 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         PageSpec page,
         CancellationToken cancellationToken)
     {
-        var query = QueryBuilder.BuildSelect(table, filters, sorts, page);
+        var query = QueryBuilder.BuildSelect(table, filters, sorts, page, asOf);
         if (page.Offset == 0)
         {
             await session.RefreshSnapshotAsync(cancellationToken);
         }
 
         var stopwatch = Stopwatch.StartNew();
-        var rows = await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+        var rows = await ReadAsync(new QuerySpec(query.Sql, query.Parameters), async (reader, ct) =>
         {
             var result = new List<RowData>(page.Limit);
             var oracle = (OracleDataReader)reader;
@@ -45,14 +55,15 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             return result;
         }, cancellationToken);
 
-        var snapshot = session.Transaction is { Mode: TransactionMode.ReadOnly } transaction ? transaction.StartedAt : null;
+        // Read AS OF SCN, the rows are of that point, not of the snapshot (the time travel tab shows its own time).
+        var snapshot = asOf is null && session.Transaction is { Mode: TransactionMode.ReadOnly } transaction ? transaction.StartedAt : null;
         return new RowPage(rows, rows.Count < page.Limit, stopwatch.Elapsed, snapshot);
     }
 
     public async Task<long> CountAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, CancellationToken cancellationToken)
     {
-        var query = QueryBuilder.BuildCount(table, filters);
-        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+        var query = QueryBuilder.BuildCount(table, filters, asOf);
+        return await ReadAsync(query, async (reader, ct) =>
         {
             await reader.ReadAsync(ct);
             return Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture);
@@ -103,7 +114,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         IReadOnlyList<SortSpec> sorts,
         RowBlockHandler onBlock,
         CancellationToken cancellationToken) =>
-        ReadTableAllAsync(table, QueryBuilder.BuildSelectAll(table, filters, sorts), onBlock, cancellationToken);
+        ReadTableAllAsync(table, QueryBuilder.BuildSelectAll(table, filters, sorts, asOf), onBlock, cancellationToken);
 
     public Task ReadColumnAllAsync(
         TableDetails table,
@@ -113,13 +124,13 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         bool distinct,
         RowBlockHandler onBlock,
         CancellationToken cancellationToken) =>
-        ReadTableAllAsync(table, QueryBuilder.BuildColumnValues(table, columns, filters, sorts, distinct), onBlock, cancellationToken);
+        ReadTableAllAsync(table, QueryBuilder.BuildColumnValues(table, columns, filters, sorts, distinct, asOf), onBlock, cancellationToken);
 
     /// <summary>Every row of a query on a table, block by block (all rows WP-54, all values of a column WP-57).</summary>
     private Task ReadTableAllAsync(TableDetails table, SelectQuery query, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
         session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
-            ReadBlocksAsync(reader, oracle => ReadRow(oracle, query, table), nested, onBlock, ct),
-            OracleSession.WholeLobs, cancellationToken);
+            ReadBlocksAsync(reader, oracle => ReadRow(oracle, query, table), nested, onBlock, asOf, ct),
+            OracleSession.WholeLobs, cancellationToken, repeatInNewSnapshot: asOf is null);
 
     public Task ReadSqlAllAsync(QuerySpec query, IReadOnlyList<string> columns, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
         session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
@@ -133,7 +144,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
                 throw new RefusedException(DataText.ExportResultChanged);
             }
 
-            return ReadBlocksAsync(reader, r => new RowData(RowKey.None.Instance, ReadSqlRow(r, read)), nested, onBlock, ct);
+            return ReadBlocksAsync(reader, r => new RowData(RowKey.None.Instance, ReadSqlRow(r, read)), nested, onBlock, asOf: null, ct);
         }, QueryBuilder.ClobPreviewLength, cancellationToken);
 
     /// <summary>
@@ -143,11 +154,11 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     /// </summary>
     private static async Task<bool> ReadBlocksAsync(
         DbDataReader reader, Func<OracleDataReader, RowData> readRow, OracleSession.NestedReader nested, RowBlockHandler onBlock,
-        CancellationToken cancellationToken)
+        long? asOf, CancellationToken cancellationToken)
     {
         OracleReading.FetchManyRows(reader);
         var oracle = (OracleDataReader)reader;
-        var lookup = new NestedLookup(nested);
+        var lookup = new NestedLookup(nested, asOf);
         var block = new List<RowData>(IDataAccess.BlockSize);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -223,7 +234,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             }
 
             return rows;
-        }, lobPrefetch: 0, cancellationToken);
+        }, lobPrefetch: 0, cancellationToken, repeatInNewSnapshot: asOf is null);
 
         var sqlId = Plans.SqlId(hinted);
         var (child, steps) = await OraclePlans.ReadActualAsync(session, sqlId, cancellationToken);
@@ -291,14 +302,39 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         _ => driverType.ToUpperInvariant(),
     };
 
-    public async Task<long> CurrentScnAsync(CancellationToken cancellationToken)
+    public async Task<DatabasePoint> CurrentPointAsync(bool exact, CancellationToken cancellationToken)
     {
         await session.RefreshSnapshotAsync(cancellationToken); // in a locked session: now, not the start of the last snapshot
-        return await session.ExecuteReaderAsync(QueryBuilder.CurrentScnSql, [], async (reader, ct) =>
+        return await session.ExecuteReaderAsync(exact ? QueryBuilder.ExactScnSql : QueryBuilder.CurrentScnSql, [], ReadPointAsync, cancellationToken);
+    }
+
+    public async Task<DatabasePoint> PointBackAsync(TimeSpan back, CancellationToken cancellationToken)
+    {
+        await session.RefreshSnapshotAsync(cancellationToken);
+        var seconds = Math.Round((decimal)Math.Max(0, back.TotalSeconds), 3);
+        return await session.ExecuteReaderAsync(QueryBuilder.ScnBackSql, [new QueryParameter("p_back", seconds, OracleTypeHint.Number)],
+            ReadPointAsync, cancellationToken);
+    }
+
+    private static async Task<DatabasePoint> ReadPointAsync(DbDataReader reader, CancellationToken cancellationToken)
+    {
+        await reader.ReadAsync(cancellationToken);
+        return new DatabasePoint(Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture), reader.IsDBNull(1) ? "" : reader.GetString(1));
+    }
+
+    public async Task<TimeSpan?> UndoReachAsync(CancellationToken cancellationToken)
+    {
+        try
         {
-            await reader.ReadAsync(ct);
-            return Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture);
-        }, cancellationToken);
+            return await session.ExecuteReaderAsync(QueryBuilder.UndoReachSql, [], async (reader, ct) =>
+                await reader.ReadAsync(ct) && !reader.IsDBNull(0)
+                    ? TimeSpan.FromSeconds(Convert.ToDouble(reader.GetValue(0), CultureInfo.InvariantCulture))
+                    : (TimeSpan?)null, cancellationToken);
+        }
+        catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
+        {
+            return null; // a hint only: without the right it is left out
+        }
     }
 
     /// <summary>Whether a table allows row movement (its ROWIDs may change without the row changing).</summary>
@@ -336,8 +372,8 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
 
     public async Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken)
     {
-        var query = QueryBuilder.BuildSelectLob(table, key, column);
-        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+        var query = QueryBuilder.BuildSelectLob(table, key, column, asOf);
+        return await ReadAsync(query, async (reader, ct) =>
         {
             if (!await reader.ReadAsync(ct))
             {
@@ -361,9 +397,9 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
                 break;
             }
 
-            var query = QueryBuilder.BuildRowsByKeys(table, keyColumns, chunk, wholeLobs);
+            var query = QueryBuilder.BuildRowsByKeys(table, keyColumns, chunk, wholeLobs, asOf);
             var room = maxRows - rows.Count;
-            rows.AddRange(await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+            rows.AddRange(await ReadAsync(new QuerySpec(query.Sql, query.Parameters), async (reader, ct) =>
             {
                 var found = new List<RowData>();
                 while (found.Count < (room ?? int.MaxValue) && await reader.ReadAsync(ct))
@@ -423,8 +459,8 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     public async Task<IReadOnlyList<LookupRow>> LookupAsync(
         TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, CancellationToken cancellationToken)
     {
-        var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumns, keys);
-        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, LookupReader(target, keyColumn, displayColumns), cancellationToken);
+        var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumns, keys, asOf);
+        return await ReadAsync(query, LookupReader(target, keyColumn, displayColumns), cancellationToken);
     }
 
     private static Func<DbDataReader, CancellationToken, Task<IReadOnlyList<LookupRow>>> LookupReader(
@@ -452,12 +488,12 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     }
 
     /// <summary>Lookups while a whole read is open (WP-54): on its connection, inside the gate it holds.</summary>
-    private sealed class NestedLookup(OracleSession.NestedReader nested) : IRowLookup
+    private sealed class NestedLookup(OracleSession.NestedReader nested, long? asOf) : IRowLookup
     {
         public Task<IReadOnlyList<LookupRow>> LookupAsync(
             TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, CancellationToken cancellationToken)
         {
-            var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumns, keys);
+            var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumns, keys, asOf);
             return nested.ReadAsync(query.Sql, query.Parameters, LookupReader(target, keyColumn, displayColumns), cancellationToken);
         }
     }

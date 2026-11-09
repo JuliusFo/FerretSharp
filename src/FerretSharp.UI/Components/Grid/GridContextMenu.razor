@@ -114,7 +114,7 @@
                           Column="@PresentedExport.Column(_presentation, Request.Column, Column.Name, Request.Column)" />
 
             <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="InvolvesColumn" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
-                           WorkspaceId="Tab.WorkspaceId" ShowEmpty="true" OnJumped="CloseAsync" />
+                           WorkspaceId="Tab.WorkspaceId" AsOf="Tab.TimeTravel?.Scn" ShowEmpty="true" OnJumped="CloseAsync" />
         </div>
     </CascadingValue>
 </PopoverMenu>
@@ -305,7 +305,7 @@
     {
         _presentation = Presentations.For(Details);
         _xlsxColumns = PresentedExport.Columns(_presentation, Names);
-        _allRows = AllRowsExports.ForTable(Tab, Details, _presentation, Names, Presentations.For, Workspaces.GetDataAsync);
+        _allRows = AllRowsExports.ForTable(Tab, Details, _presentation, Names, Presentations.For, TabData.Of(Tab, Workspaces, Active));
         _cell = _presentation.Entity is null ? null : CSharpRows.Cell(_presentation, Request.Column, Request.Row.Values[Request.Column]);
         _csharp = _presentation.Entity is null ? [] :
         [

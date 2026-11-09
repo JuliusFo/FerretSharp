@@ -64,6 +64,12 @@
                         @onclick="() => CompareFromMenuAsync(tableTab)">
                     @ShellText.DataDiff_CompareTab
                 </button>
+                @* WP-78: the tab's table as it was at a chosen time, in a tab of its own. *@
+                var travelUnavailable = WorkspaceLifecycle.DataDiffUnavailable(tableTab);
+                <button class="menu-item" disabled="@(travelUnavailable is not null)" title="@(travelUnavailable ?? ShellText.TimeTravel_MenuTitle)"
+                        @onclick="() => TimeTravelFromMenu(tableTab)">
+                    @ShellText.TimeTravel_Menu <Kbd Action="ShortcutAction.TimeTravel" />
+                </button>
             }
             @if (objectTab)
             {
@@ -128,8 +134,12 @@
             @switch (tab)
             {
                 case TableTab table:
-                    @Icons.For(table.Table.Kind)
+                    @(table.TimeTravel is null ? Icons.For(table.Table.Kind) : Icons.TimeTravel)
                     <span class="tab-name">@tab.Caption</span>
+                    @if (table.TimeTravel is { } travel)
+                    {
+                        <span class="filter-pill time-travel">@TimeText.TimeOfDay(travel.At)</span>
+                    }
                     @if (table.Changes is { HasChanges: true } changes)
                     {
                         <span class="dot @(changes.PendingCount > 0 ? "pending" : "flushed")"
@@ -335,6 +345,12 @@
         await Lifecycle.CompareTabAsync(tab);
     }
 
+    private void TimeTravelFromMenu(TableTab tab)
+    {
+        _menu = null;
+        Shell.AskTimeTravel(tab);
+    }
+
     private void DuplicateFromMenu()
     {
         if (_menu is { Tab: TableTab tab })
@@ -402,7 +418,8 @@
     {
         var filters = tab.FilterTexts(PresentationOf(tab)).ToList();
         var entity = Presentations.ShownEntityNameOf(tab.Table.Ref) is { } name ? " · " + TextFormat.Format(SchemaViewText.Explorer_EntityTooltip, name) : "";
-        return $"{tab.Table.Owner}.{tab.Table.Name}{entity}" + (filters.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, filters) : "");
+        var travel = tab.TimeTravel is { } at ? Environment.NewLine + TextFormat.Format(GridText.TimeTravel_Banner, at.At.LocalDateTime) : "";
+        return $"{tab.Table.Owner}.{tab.Table.Name}{entity}{travel}" + (filters.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, filters) : "");
     }
 
     /// <summary>Enum and bool filter values by their C# names, once the tab knows its table's structure.</summary>

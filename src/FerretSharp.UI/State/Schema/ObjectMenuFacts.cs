@@ -52,13 +52,15 @@ public static class ObjectMenuFacts
     /// (<c>SELECT t.*</c>, values as variables) once its structure is loaded – the menu acts on the tab (review of WP-70);
     /// otherwise <c>SELECT *</c> by the name the login user's session finds (<see cref="QueryBuilder.SelectStarText"/>).
     /// </summary>
+    /// <remarks>A time travel tab's statement reads its table <c>AS OF SCN</c> as well (WP-78, review): what the tab shows.</remarks>
     public static (string Sql, IReadOnlyList<SqlVariable> Variables) SqlOf(TableSummary table, ConnectionProfile profile, TableTab? tab = null)
     {
-        if (tab is { Details: { } details } && (tab.ActiveFilterCount > 0 || tab.Sorts.Count > 0))
+        var asOf = tab?.TimeTravel?.Scn;
+        if (tab is { Details: { } details } && (tab.ActiveFilterCount > 0 || tab.Sorts.Count > 0 || asOf is not null))
         {
             try
             {
-                var query = QueryBuilder.BuildSelectStar(details, tab.AppliedFilters, tab.Sorts);
+                var query = QueryBuilder.BuildSelectStar(details, tab.AppliedFilters, tab.Sorts, asOf);
                 return (query.Sql + ";\n", query.Parameters.Select(SqlBinds.FromParameter).ToList());
             }
             catch (QueryValidationException)
@@ -67,7 +69,8 @@ public static class ObjectMenuFacts
             }
         }
 
-        return (QueryBuilder.SelectStarText(table, SessionSchema(profile), profile.EffectiveSchema) + ";\n", []);
+        var plain = QueryBuilder.SelectStarText(table, SessionSchema(profile), profile.EffectiveSchema);
+        return ((asOf is { } scn ? $"{plain} AS OF SCN {scn.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : plain) + ";\n", []);
     }
 
     /// <summary>

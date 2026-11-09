@@ -111,6 +111,13 @@
     [Parameter, EditorRequired]
     public Guid WorkspaceId { get; set; }
 
+    /// <summary>
+    /// Where the actual plan runs instead of the workspace's session: a time travel tab's read session (WP-78, review – it read
+    /// only through <see cref="TabData"/> everywhere else). Null for the workspace.
+    /// </summary>
+    [Parameter]
+    public Func<CancellationToken, Task<IDataAccess>>? DataOf { get; set; }
+
     [Parameter]
     public string Title { get; set; } = "";
 
@@ -141,7 +148,7 @@
         var token = cts.Token;
         var result = await Shell.RunDbAsync(Logger, Active, async () => source == PlanSource.Estimated
             ? await (Active.Schema ?? throw new PlanUnavailableException(SqlEditorText.Plan_NotConnected)).ExplainAsync(query, token)
-            : await (await Workspaces.GetDataAsync(WorkspaceId, token)).ExplainActualAsync(query, whole, token), token);
+            : await (await (DataOf?.Invoke(token) ?? Workspaces.GetDataAsync(WorkspaceId, token))).ExplainActualAsync(query, whole, token), token);
         var plan = result.Value;
         // A missing grant names the user to grant it to (PlanUnavailableException).
         var error = result.Cancelled && cts.IsCancellationRequested

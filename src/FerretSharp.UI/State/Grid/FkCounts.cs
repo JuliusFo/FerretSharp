@@ -44,15 +44,18 @@ public sealed class FkCounts(Func<FkJump, CancellationToken, Task<DbResult<long?
     private FkJump? _hovered;
     private bool _running;
 
-    /// <summary>Counts on the workspace's session, the target's structure through the schema cache; logs each with its duration.</summary>
+    /// <summary>
+    /// Counts on the workspace's session – or, for a time travel tab (<paramref name="asOf"/>, WP-78), at its point on the read
+    /// session, where its jumps lead –, the target's structure through the schema cache; logs each with its duration.
+    /// </summary>
     public static FkCounts For(
-        ShellState shell, ILogger logger, ActiveConnection active, WorkspaceManager workspaces, Guid workspaceId, Action changed) =>
+        ShellState shell, ILogger logger, ActiveConnection active, WorkspaceManager workspaces, Guid workspaceId, Action changed, long? asOf = null) =>
         new((jump, token) => shell.RunDbAsync(logger, active, async () =>
         {
             var schema = active.Schema ?? throw new OperationCanceledException();
             var started = Stopwatch.GetTimestamp();
             var target = await schema.GetDetailsAsync(FkTargets.SummaryOf(active, jump.Table), token);
-            var data = await workspaces.GetDataAsync(workspaceId, token);
+            var data = asOf is { } scn ? active.Reads.AsOf(scn) : await workspaces.GetDataAsync(workspaceId, token);
             var rows = await FkNavigation.CountAsync(data, target, jump, FkNavigation.CountTimeout, token);
             // Waiting for the session included: a slow jump after the menu shows here (no values: names only).
             logger.LogDebug("FK count {ForeignKey} on {Table}: {Rows} after {Elapsed} ms",

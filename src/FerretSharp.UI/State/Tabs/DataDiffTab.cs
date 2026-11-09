@@ -22,6 +22,31 @@ public sealed class DataDiffTab(Guid workspaceId) : WorkspaceTab(workspaceId, "d
 {
     private readonly Dictionary<TableRef, DataDiffResult> _results = [];
     private CancellationTokenSource? _running;
+    private CancellationTokenSource? _restoring;
+
+    /// <summary>
+    /// Ticked rows are being read to set them back (WP-78): whole LOBs over the VPN can take a while, <see cref="Cancel"/> ends it
+    /// (review of WP-78).
+    /// </summary>
+    public bool Restoring => _restoring is not null;
+
+    /// <summary>Setting rows back starts; null if a comparison or another one runs.</summary>
+    internal CancellationToken? BeginRestore()
+    {
+        if (_running is not null || _restoring is not null)
+        {
+            return null;
+        }
+
+        _restoring = new CancellationTokenSource();
+        return _restoring.Token;
+    }
+
+    internal void EndRestore()
+    {
+        _restoring?.Dispose();
+        _restoring = null;
+    }
 
     /// <summary>The start point the results belong to; a new start point drops them.</summary>
     public long? ResultsScn { get; private set; }
@@ -42,7 +67,7 @@ public sealed class DataDiffTab(Guid workspaceId) : WorkspaceTab(workspaceId, "d
     /// <summary>A comparison of <paramref name="scn"/> starts; results of another start point go. Null if one is running already.</summary>
     internal CancellationToken? Begin(long scn)
     {
-        if (_running is not null)
+        if (_running is not null || _restoring is not null)
         {
             return null;
         }
@@ -73,7 +98,12 @@ public sealed class DataDiffTab(Guid workspaceId) : WorkspaceTab(workspaceId, "d
         ComparedAt = at;
     }
 
-    public void Cancel() => _running?.Cancel();
+    /// <summary>Ends a running comparison and a running read of rows to set back.</summary>
+    public void Cancel()
+    {
+        _running?.Cancel();
+        _restoring?.Cancel();
+    }
 
     /// <summary>The start point was discarded or set anew: nothing found so far belongs to it.</summary>
     internal void Clear()

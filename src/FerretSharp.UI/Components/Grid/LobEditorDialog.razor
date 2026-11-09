@@ -256,7 +256,7 @@
 
             var result = await Shell.RunDbAsync(Logger, Active, async () =>
             {
-                var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
+                var data = await TabData.GetAsync(Tab, Workspaces, Active, CancellationToken.None); // a time travel tab: the value then
                 return await data.ReadLobAsync(Details, row.Key, Request.Column, CancellationToken.None);
             });
             if (result.Value is not { } read)

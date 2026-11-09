@@ -1,0 +1,118 @@
+@* A time in the past (WP-78): for a time travel tab of a table, or for the start point of a data diff. Typed as local date and
+   time to the second, or one of the quick choices; the hint how far the undo reaches about comes from V$UNDOSTAT where the
+   right is there (no pack, ADR 0045) – a time before it is allowed, the database has the last word. *@
+@inherits FerretComponent
+@implements IDisposable
+
+@{
+    var now = DateTimeOffset.Now;
+    var chosen = TimeChoice.FromInput(_text);
+    var earliest = TimeChoice.Earliest(_reach, now);
+}
+<ModalFrame Label="@Title" Class="confirm" OnCancel="Close">
+    <header>
+        <span>@Title</span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="Close">@Icons.Close</button>
+    </header>
+    <div class="dialog-body time-point">
+        <p class="hint">@(Request.Tab is { } tab ? TextFormat.Format(ShellText.TimePoint_TravelText, tab.Table.DisplayName) : ShellText.TimePoint_DiffText)</p>
+        <div class="segmented small" role="group" aria-label="@ShellText.TimePoint_Presets">
+            @foreach (var minutes in TimeChoice.PresetMinutes)
+            {
+                var m = minutes;
+                var at = TimeChoice.Preset(m, now);
+                <button class="seg @(chosen == at ? "active" : "")" title="@(earliest is { } e && at < e ? ShellText.TimePoint_BeyondUndo : null)"
+                        @onclick="() => _text = TimeChoice.ToInput(TimeChoice.Preset(m, DateTimeOffset.Now))">@TextFormat.Format(ShellText.TimePoint_MinutesAgo, m)</button>
+            }
+        </div>
+        <input @ref="_input" type="datetime-local" step="1" class="field mono" value="@_text" @oninput="e => _text = (string?)e.Value"
+               @onkeydown="OnKeyDown" max="@TimeChoice.ToInput(now)" min="@(earliest is { } min ? TimeChoice.ToInput(min) : null)"
+               aria-label="@ShellText.TimePoint_Time" />
+        @if (earliest is { } reach)
+        {
+            <div class="hint small @(chosen < reach ? "warn" : "")">@TextFormat.Format(chosen < reach ? ShellText.TimePoint_BeforeUndo : ShellText.TimePoint_UndoReach, reach.LocalDateTime)</div>
+        }
+        @if (chosen > now)
+        {
+            <div class="settings-note error" role="alert">@DataText.TimeInFuture</div>
+        }
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="Close">@CommonText.Cancel</button>
+        <button class="btn primary" disabled="@(chosen is null || chosen > now)" @onclick="ChooseAsync">
+            @(Request.Tab is null ? ShellText.TimePoint_SetStart : ShellText.TimePoint_Open)
+        </button>
+    </footer>
+</ModalFrame>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TimePointRequest Request { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private readonly CancellationTokenSource _closing = new();
+    private ElementReference _input;
+    private string? _text;
+    private TimeSpan? _reach;
+
+    private string Title => Request.Tab is null ? ShellText.TimePoint_DiffTitle : ShellText.TimePoint_TravelTitle;
+
+    protected override void OnInitialized()
+    {
+        _text = TimeChoice.ToInput(TimeChoice.Preset(TimeChoice.PresetMinutes[1], DateTimeOffset.Now));
+        Fire(async () =>
+        {
+            // The hint only: without the right, or slow over the VPN, the dialog works without it.
+            _reach = await Lifecycle.UndoReachAsync(Request.WorkspaceId, _closing.Token);
+            StateHasChanged();
+        });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _input.FocusAsync();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ChooseAsync();
+        }
+    }
+
+    private async Task ChooseAsync()
+    {
+        if (TimeChoice.FromInput(_text) is not { } at || at > DateTimeOffset.Now)
+        {
+            return;
+        }
+
+        Close();
+        if (Request.Tab is { } tab)
+        {
+            await Lifecycle.TimeTravelAsync(tab, at);
+        }
+        else
+        {
+            await Lifecycle.StartDataDiffAsync(Request.WorkspaceId, at);
+        }
+    }
+
+    private void Close() => Shell.CloseTimePoint();
+
+    public void Dispose()
+    {
+        _closing.Cancel();
+        _closing.Dispose();
+    }
+}

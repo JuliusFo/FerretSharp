@@ -190,4 +190,28 @@
   <data name="DiffTableChanged" xml:space="preserve">
     <value>The table was changed by DDL since the start point (ORA-01466) – it can only be compared from a new start point.</value>
   </data>
+  <data name="RestoreIdentityAlways" xml:space="preserve">
+    <value>Deleted rows of this table cannot be brought back: {0} is GENERATED ALWAYS AS IDENTITY, the database gives a new row a new value, and what refers to the old one would point nowhere.</value>
+  </data>
+  <data name="TimeTravelNoFlashbackRight" xml:space="preserve">
+    <value>Reading {0} as it was earlier needs the right FLASHBACK on it (or FLASHBACK ANY TABLE): GRANT FLASHBACK ON {0} TO your user.</value>
+  </data>
+  <data name="TimeTravelUndoTooShort" xml:space="preserve">
+    <value>The database's undo no longer reaches back to {0:g}. How far it reaches depends on the table and the load, often a few hours. Choose a later time.</value>
+  </data>
+  <data name="TimeTravelTableChanged" xml:space="preserve">
+    <value>The table was changed by DDL since then (ORA-01466) – its earlier state can only be read from a time after that.</value>
+  </data>
+  <data name="TimeTooFarBack" xml:space="preserve">
+    <value>The database no longer knows which state belongs to {0:g} (ORA-08180): too far back. Choose a later time.</value>
+  </data>
+  <data name="TimeInFuture" xml:space="preserve">
+    <value>The time lies in the future.</value>
+  </data>
+  <data name="PointOtherDatabase" xml:space="preserve">
+    <value>The saved point belongs to the database {0}, the connection now reaches {1}: it was dropped.</value>
+  </data>
+  <data name="PointAheadOfDatabase" xml:space="preserve">
+    <value>The saved point lies ahead of the database (it was set up anew since): it was dropped.</value>
+  </data>
 </root>

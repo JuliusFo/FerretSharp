@@ -1,4 +1,5 @@
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Workspaces;
 
@@ -35,6 +36,12 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
     /// </summary>
     private string? _refused;
 
+    /// <summary>
+    /// <c>V$DATABASE</c> could not be read (WP-78): the current SCN is mapped from the time until the connection is opened again
+    /// – one failing statement per connection, not one per start point.
+    /// </summary>
+    private bool _noExactScn;
+
     /// <summary>Whether a session is open or opening (tests, diagnostics).</summary>
     public bool HasSession
     {
@@ -67,8 +74,46 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
             _profile = profile;
             _lifetime = new CancellationTokenSource();
             _refused = null;
+            _noExactScn = false;
         }
     }
+
+    /// <summary>
+    /// The read path as it was at <paramref name="scn"/> (time travel, WP-78): every call a read of its own on this session, each
+    /// table <c>AS OF SCN</c> – for a time travel tab what a workspace's data access is for the other tabs.
+    /// </summary>
+    public IDataAccess AsOf(long scn) => new ReadSessionData(this, scn);
+
+    /// <summary>
+    /// The database's current SCN, the start of a data diff (WP-44): exactly from <c>V$DATABASE</c> where the right is there,
+    /// otherwise mapped from the time – a few seconds back (decision of the user, 2026-11-09). Without the right that is
+    /// learned once per connection.
+    /// </summary>
+    public Task<DatabasePoint> CurrentPointAsync(CancellationToken cancellationToken) => ReadAsync(async (data, ct) =>
+    {
+        bool exact;
+        lock (_lock)
+        {
+            exact = !_noExactScn;
+        }
+
+        if (exact)
+        {
+            try
+            {
+                return await data.CurrentPointAsync(exact: true, ct);
+            }
+            catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
+            {
+                lock (_lock)
+                {
+                    _noExactScn = true;
+                }
+            }
+        }
+
+        return await data.CurrentPointAsync(exact: false, ct);
+    }, cancellationToken);
 
     /// <summary>The connection closes: the session too; reads still running end with a cancel.</summary>
     internal Task DetachAsync()

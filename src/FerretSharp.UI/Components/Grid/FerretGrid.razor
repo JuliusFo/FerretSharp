@@ -274,7 +274,7 @@
     private GridDisplayNames DisplayNamesOf => _displayNames ??= new GridDisplayNames(this, PlanLinksAsync,
         (lookup, token) => Shell.RunDbAsync(Logger, Active, async () =>
         {
-            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+            var data = await TabData.GetAsync(Tab, Workspaces, Active, token); // a time travel tab: the names of then (WP-78)
             return await DisplayNames.LookupAsync(data, lookup, DisplayNames.LookupTimeout, token);
         }, token),
         Presentations.NameFormatter, i => Details.Columns[i].Name);
@@ -333,7 +333,8 @@
 
     private GridAuditChanges? PlanAuditChanges()
     {
-        if (!Settings.Current.HighlightAuditChanges || Active.Schema is not { } schema || schema.AuditBaseOf(Details.Table.Ref) is not { } baseTable
+        // Not in a time travel tab (WP-78): the versions before would be read as they are now.
+        if (!Settings.Current.HighlightAuditChanges || Tab.TimeTravel is not null || Active.Schema is not { } schema || schema.AuditBaseOf(Details.Table.Ref) is not { } baseTable
             || schema.AuditTemplate is not { } template
             || AuditView.Of(Details, baseTable, schema.PrimaryKeyOf(baseTable), template) is not { } view)
         {
@@ -506,7 +507,8 @@
     /// Editing is possible in workspaces that may write – connections without the read-only lock, or a workspace the
     /// user unlocked (WP-10) – for tables with a row key (v2, WP-09), and not while the workspace writes or commits.
     /// </summary>
-    public bool CanEdit => Workspaces.IsWritable(Tab.WorkspaceId)
+    public bool CanEdit => Tab.TimeTravel is null // a time travel tab only shows (WP-78)
+                           && Workspaces.IsWritable(Tab.WorkspaceId)
                            && Details.Table.Kind == TableKind.Table
                            && QueryBuilder.RowKeyOf(Details) != RowKeyKind.None
                            && !WriteRunning;
@@ -1077,7 +1079,7 @@
         var started = Stopwatch.GetTimestamp();
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
-            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+            var data = await TabData.GetAsync(Tab, Workspaces, Active, token);
             return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), token);
         }, token);
         // With opening the session and waiting for it (a running FK count): the footer's time is the query's alone.
@@ -1093,8 +1095,12 @@
         StateHasChanged(); // the loading panel goes
         if (result.Value is not { } page)
         {
-            // The footer shows why ("Details" only for a statement that ran); grid.js fails the block.
-            Tab.Error = cancelledByUser ? CancelledText : result.Error?.Display;
+            // The footer shows why ("Details" only for a statement that ran); grid.js fails the block. A time travel tab explains
+            // what the user can act on: no FLASHBACK right, undo too short, DDL since (WP-78).
+            Tab.Error = cancelledByUser ? CancelledText
+                : Tab.TimeTravel is { } travel && result.Error is { } failure && !result.IsRefusal
+                    && DataDiffErrors.Explain(failure, details.Table.Ref, travel.At, timeTravel: true) is { } explained ? explained
+                : result.Error?.Display;
             Tab.Failure = result.IsRefusal ? null : result.Error;
             await OnPageLoaded.InvokeAsync();
             return GridPage.Failure;
@@ -1187,7 +1193,7 @@
         column => PresentedExport.Column(Presentation, column, Details.Columns[column].Name, column),
         rowIndex => _blocks.At(rowIndex) is { } row ? Shown(row) : null,
         ReadShownRowsAsync,
-        columns => ColumnValueCopies.ForTable(Tab, Details, columns, Workspaces.GetDataAsync),
+        columns => ColumnValueCopies.ForTable(Tab, Details, columns, TabData.Of(Tab, Workspaces, Active)),
         columns => Tab.Changes?.PendingIn([.. columns]) ?? 0,
         Tab.WorkspaceId);
 
@@ -1205,7 +1211,7 @@
         var token = reading.Token;
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
-            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+            var data = await TabData.GetAsync(Tab, Workspaces, Active, token);
             return await data.ReadPageAsync(details, filters, sorts, new PageSpec(start, count), token);
         }, token);
         return Shell.ShowFailure(result) ? result.Value!.Rows : null;

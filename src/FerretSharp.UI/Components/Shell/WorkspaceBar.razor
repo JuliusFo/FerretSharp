@@ -34,7 +34,7 @@
                 @* The menu sits in the chip: its clicks must not reach the chip (activate, middle-click closes). *@
                 <span class="ws-more-anchor" @onclick:stopPropagation="true" @onmouseup:stopPropagation="true">
                     <MenuButton Class="ws-more" Title="@ShellText.Actions" Label="Dots" Width="ActionsMenuWidth"
-                                EstimatedHeight="@((Workspaces.Profile?.ReadOnly == true ? 150 : 110) + (w.DataDiff is null ? 40 : 70))" ShiftX="@(ActionsMenuWidth - 16)" ShiftY="12">
+                                EstimatedHeight="@((Workspaces.Profile?.ReadOnly == true ? 150 : 110) + (w.DataDiff is null ? 70 : 100))" ShiftX="@(ActionsMenuWidth - 16)" ShiftY="12">
                         <ChildContent Context="menu">@ActionsMenu(menu, w)</ChildContent>
                     </MenuButton>
                 </span>
@@ -124,11 +124,13 @@
             @TextFormat.Format(ShellText.DataDiff_CompareSince, DataDiffRows.StartText(diff.StartedAt, DateTimeOffset.Now))
         </button>
         <button class="menu-item" title="@ShellText.DataDiff_RestartTitle" @onclick="() => RunActionAsync(menu, () => Lifecycle.StartDataDiffAsync(target.Id))">@ShellText.DataDiff_Restart</button>
+        <button class="menu-item" title="@ShellText.DataDiff_StartAtTitle" @onclick="() => RunAction(menu, () => Shell.AskDiffStart(target.Id))">@ShellText.DataDiff_RestartAt</button>
         <button class="menu-item" title="@ShellText.DataDiff_DiscardTitle" @onclick="() => RunAction(menu, () => Lifecycle.DiscardDataDiff(target.Id))">@ShellText.DataDiff_Discard</button>
     }
     else
     {
         <button class="menu-item" title="@ShellText.DataDiff_StartTitle" @onclick="() => RunActionAsync(menu, () => Lifecycle.StartDataDiffAsync(target.Id))">@ShellText.DataDiff_Start</button>
+        <button class="menu-item" title="@ShellText.DataDiff_StartAtTitle" @onclick="() => RunAction(menu, () => Shell.AskDiffStart(target.Id))">@ShellText.DataDiff_StartAt</button>
     }
     @if (lockItems)
     {

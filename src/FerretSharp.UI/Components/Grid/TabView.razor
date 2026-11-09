@@ -59,6 +59,17 @@
         }
     </div>
 
+    @if (Tab.TimeTravel is { } travel)
+    {
+        @* A time travel tab (WP-78): what it shows, and the way to the table as it is now. *@
+        <div class="time-travel-banner" role="status">
+            @Icons.TimeTravel
+            <span>@TextFormat.Format(GridText.TimeTravel_Banner, travel.At.LocalDateTime)</span>
+            <span class="spacer"></span>
+            <button class="link-btn" title="@GridText.TimeTravel_OpenNowTitle" @onclick="() => Shell.OpenFiltered(Tab.Table, Tab.AppliedFilters, now: true)">@GridText.TimeTravel_OpenNow</button>
+        </div>
+    }
+
     @if (_loadError is not null)
     {
         <div class="tab-error">
@@ -205,7 +216,8 @@
 
 @if (_plan is { } planQuery)
 {
-    <PlanDialog Query="planQuery.FirstPage" WholeQuery="planQuery.Whole" WorkspaceId="Tab.WorkspaceId" Title="@Tab.Table.DisplayName" OnClose="() => _plan = null" />
+    <PlanDialog Query="planQuery.FirstPage" WholeQuery="planQuery.Whole" WorkspaceId="Tab.WorkspaceId" Title="@Tab.Table.DisplayName" OnClose="() => _plan = null"
+                DataOf="@(Tab.TimeTravel is null ? null : ct => TabData.GetAsync(Tab, Workspaces, Active, ct))" />
 }
 
 @code {
@@ -260,7 +272,9 @@
     private SubgraphCopyDraft? _copy;
 
     /// <summary>Why the rows cannot be copied to another connection; null if they can.</summary>
-    private string? CopyUnavailable => CopyTargets.Unavailable(Hub, Active, Settings.Current, _details);
+    private string? CopyUnavailable => Tab.TimeTravel is not null
+        ? GridText.TimeTravel_NotHere // the copy reads the rows again, as they are now (WP-78)
+        : CopyTargets.Unavailable(Hub, Active, Settings.Current, _details);
 
     /// <summary>The copy of the selected rows (or the clicked one) into a workspace of another open connection (WP-42).</summary>
     private void OpenCopy(GridContextMenuRequest menu)
@@ -273,7 +287,8 @@
 
     /// <summary>Why the rows cannot start a record diagram (WP-60): a view has no key to read by, a key may have no exact text.</summary>
     private string? RecordsUnavailable(GridContextMenuRequest menu) =>
-        _details is null || _details.Table.Kind != TableKind.Table ? GridText.GridMenu_RecordsView
+        Tab.TimeTravel is not null ? GridText.TimeTravel_NotHere // the diagram reads its rows as they are now (WP-78)
+        : _details is null || _details.Table.Kind != TableKind.Table ? GridText.GridMenu_RecordsView
         : menu.JumpRows.All(r => Core.Relations.RecordKeys.ToText(_details, r.Key) is null) ? GridText.GridMenu_RecordsNoKey
         : null;
 
@@ -306,7 +321,10 @@
 
     /// <summary>"Usage" only with a linked C# project (WP-40): without one there is no code to search.</summary>
     private IReadOnlyList<(TabMode Mode, string Label)> Modes =>
-        TabModeLabels.All.Where(m => m.Mode != TabMode.Usage || Models.State.Link is not null || Tab.Mode == TabMode.Usage).ToList();
+        TabModeLabels.All.Where(m => Tab.TimeTravel is null
+            ? m.Mode != TabMode.Usage || Models.State.Link is not null || Tab.Mode == TabMode.Usage
+            : m.Mode == TabMode.Data) // a time travel tab shows its data only: structure, designer, grants are of now (review of WP-78)
+        .ToList();
 
     [CascadingParameter]
     public ClrModelManager Models { get; set; } = null!;
@@ -320,6 +338,9 @@
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public TableTab Tab { get; set; } = null!;
@@ -346,6 +367,10 @@
         Shell.TabCommandRequested += OnTabCommand;
         _presentation = new PresentationWatch(Presentations);
         Presentations.Changed += OnPresentationChanged;
+        if (Tab is { TimeTravel: not null, PointChecked: false })
+        {
+            Fire(() => Lifecycle.CheckTimeTravelAsync(Tab)); // restored from the file: still the same database? (WP-78)
+        }
         if (Tab.ViewFromSetting && TableOpening.Shown(Tab.Mode, Models.State.Link is not null) is var shown && shown != Tab.Mode)
         {
             Tab.Mode = shown; // the setting's view cannot show here ("Usage" without a linked project)
@@ -593,7 +618,7 @@
         var filters = QueryBuilder.Validate(_details, edited).Count == 0 ? edited : Tab.AppliedFilters;
         try
         {
-            var query = FilterStatement.Of(_details, filters, Tab.Sorts, Settings.Current.FilterSql);
+            var query = FilterStatement.Of(_details, filters, Tab.Sorts, Settings.Current.FilterSql, Tab.TimeTravel?.Scn);
             _sql = (query.Sql, query.Parameters, null);
         }
         catch (QueryValidationException ex)
@@ -612,9 +637,10 @@
 
         try
         {
-            var query = QueryBuilder.BuildSelect(_details, Tab.AppliedFilters, Tab.Sorts, new PageSpec(0, IDataAccess.ActualPlanPageSize));
+            var asOf = Tab.TimeTravel?.Scn; // a time travel tab: the plan of its own query (WP-78)
+            var query = QueryBuilder.BuildSelect(_details, Tab.AppliedFilters, Tab.Sorts, new PageSpec(0, IDataAccess.ActualPlanPageSize), asOf);
             // "Ganzes Ergebnis" means all rows of the filter, not the grid's first page: the same query without the limit.
-            var whole = QueryBuilder.BuildSelect(_details, Tab.AppliedFilters, Tab.Sorts, new PageSpec(0, int.MaxValue));
+            var whole = QueryBuilder.BuildSelect(_details, Tab.AppliedFilters, Tab.Sorts, new PageSpec(0, int.MaxValue), asOf);
             _plan = (new QuerySpec(query.Sql, query.Parameters), new QuerySpec(whole.Sql, whole.Parameters));
         }
         catch (QueryValidationException ex)

@@ -20,10 +20,11 @@ public sealed partial class WorkspaceLifecycle
         tab.Table.Kind == TableKind.View ? ShellText.DataDiff_NoViews : null;
 
     /// <summary>
-    /// "Vergleich starten": the database's current SCN becomes the start point. The tables of an earlier start point stay; with
-    /// none yet, the workspace's active table tab is the first, with its filter.
+    /// "Vergleich starten": the database's current SCN becomes the start point – or, with <paramref name="at"/>, the SCN of that
+    /// time before now ("ab Zeitpunkt …", WP-78). The tables of an earlier start point stay; with none yet, the workspace's
+    /// active table tab is the first, with its filter.
     /// </summary>
-    public async Task StartDataDiffAsync(Guid workspaceId)
+    public async Task StartDataDiffAsync(Guid workspaceId, DateTimeOffset? at = null)
     {
         var scope = ScopeOf(workspaceId);
 
@@ -31,14 +32,13 @@ public sealed partial class WorkspaceLifecycle
         // start point then lay long after the click (second review of WP-44).
         DiffTabOf(workspaceId)?.Cancel();
         shell.Notify(ShellText.DataDiff_Starting); // the first read opens the read session: over the VPN that takes a moment
-        var read = await shell.RunDbAsync(logger, scope.Active, () => scope.Active.Reads.ReadAsync((data, ct) => data.CurrentScnAsync(ct), CancellationToken.None));
-        if (!shell.ShowFailure(read))
+        if (await PointAsync(scope.Active, at) is not { } point)
         {
             return;
         }
 
         var before = DataDiffOf(workspaceId);
-        var state = new DataDiffState(read.Value, DateTimeOffset.Now, before?.Entries ?? []);
+        var state = new DataDiffState(point.Scn, at ?? DateTimeOffset.Now, before?.Entries ?? []) { Database = point.Database };
         if (state.Entries.Count == 0 && shell.FindWorkspace(workspaceId)?.ActiveTab is TableTab active && DataDiffUnavailable(active) is null)
         {
             state = state.WithEntry(active.Table.Ref, active.AppliedFilters);
@@ -154,6 +154,13 @@ public sealed partial class WorkspaceLifecycle
         var scope = ScopeOf(workspaceId);
         try
         {
+            // The start point must still belong to the database the connection reaches (WP-78): a profile switched to another
+            // database, or one set up anew, would compare against nonsense.
+            if (!await StillBelongsAsync(workspaceId, scope.Active, state, token))
+            {
+                return;
+            }
+
             foreach (var entry in entries)
             {
                 tab.Set(DataDiffResult.Pending(entry), state.Scn);

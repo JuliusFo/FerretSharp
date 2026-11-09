@@ -17,6 +17,12 @@ public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, Connecti
 /// </summary>
 public sealed record GroupNameRequest(string? Group, ConnectionProfile? Profile);
 
+/// <summary>
+/// A time to choose (WP-78): for a time travel tab of <paramref name="Tab"/>, or – without one – for the start point of the
+/// workspace's data diff.
+/// </summary>
+public sealed record TimePointRequest(Guid WorkspaceId, TableTab? Tab);
+
 /// <summary>The password to ask for before connecting (WP-35).</summary>
 /// <param name="ShowWhenConnected">
 /// Asked on the way to the explorer (<c>ShellState.Connect</c>): the connection is shown afterwards. Otherwise the page
@@ -241,6 +247,17 @@ public sealed partial class ShellState
     public void NewGroupFor(ConnectionProfile profile) => Set(() => GroupName = new(null, profile));
 
     public void CloseGroupName() => Set(() => GroupName = null);
+
+    /// <summary>The time being chosen (WP-78): for a time travel tab or a data diff's start point.</summary>
+    public TimePointRequest? TimePoint { get; private set; }
+
+    /// <summary>"Zeitreise …" of a table tab: the time to show it at.</summary>
+    public void AskTimeTravel(TableTab tab) => Set(() => TimePoint = new(tab.WorkspaceId, tab));
+
+    /// <summary>"Vergleich starten ab Zeitpunkt …": the time the workspace's data diff starts at.</summary>
+    public void AskDiffStart(Guid workspaceId) => Set(() => TimePoint = new(workspaceId, null));
+
+    public void CloseTimePoint() => Set(() => TimePoint = null);
 
     public void EditConnection(ConnectionProfile profile) => Set(() => ConnectionDialog = new(ConnectionDialogMode.Edit, profile));
 

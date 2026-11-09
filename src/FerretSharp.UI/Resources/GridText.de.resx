@@ -1392,4 +1392,25 @@
   <data name="KeyChange_TextUnknown" xml:space="preserve">
     <value>Beziehungen auf die alten Schlüssel:</value>
   </data>
+  <data name="TimeTravel_Banner" xml:space="preserve">
+    <value>Stand vom {0:G}, nur lesend</value>
+  </data>
+  <data name="TimeTravel_Footer" xml:space="preserve">
+    <value>Stand vom {0:G}</value>
+  </data>
+  <data name="TimeTravel_FooterTitle" xml:space="preserve">
+    <value>Gelesen zur SCN {0} auf der eigenen Lese-Session der Verbindung: nur Committetes, nichts aus der offenen Transaktion eines Workspaces.</value>
+  </data>
+  <data name="TimeTravel_OpenNow" xml:space="preserve">
+    <value>Aktuellen Stand öffnen</value>
+  </data>
+  <data name="TimeTravel_OpenNowTitle" xml:space="preserve">
+    <value>Öffnet die Tabelle mit ihrem jetzigen Stand und dem Filter dieses Tabs in einem eigenen Tab.</value>
+  </data>
+  <data name="TimeTravel_NotHere" xml:space="preserve">
+    <value>Nicht in einem Zeitreise-Tab: es würde die Zeilen mit ihrem jetzigen Stand lesen.</value>
+  </data>
+  <data name="TimeTravel_DataOnly" xml:space="preserve">
+    <value>Nicht in einem Zeitreise-Tab: er zeigt nur die Daten von damals – Struktur, Designer, Abfragen und Synonyme sind von jetzt. Öffne die Tabelle mit ihrem jetzigen Stand.</value>
+  </data>
 </root>

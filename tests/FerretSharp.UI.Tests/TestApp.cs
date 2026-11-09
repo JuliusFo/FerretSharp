@@ -215,6 +215,21 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>Runs when the read session reads the SCN (WP-44): what has happened by then.</summary>
     public Action? ScnRead { get; set; }
 
+    /// <summary>The database the SCNs belong to (WP-78): <c>DB_NAME/CON_NAME</c>.</summary>
+    public string CurrentDatabase { get; set; } = "FREE/FREEPDB1";
+
+    /// <summary>The SCN of a time before now (WP-78): <see cref="CurrentScn"/> less a second's worth per second back, unless a test says otherwise.</summary>
+    public Func<TimeSpan, DatabasePoint> PointBack { get; set; } = null!;
+
+    /// <summary>How far back the undo reaches (WP-78); null as without the right on V$UNDOSTAT.</summary>
+    public TimeSpan? UndoReach { get; set; }
+
+    /// <summary>The SCNs data was read <c>AS OF</c> (time travel, restoring rows – WP-78), in order.</summary>
+    public List<long> AsOfReads { get; } = [];
+
+    /// <summary>Rows by key (WP-78, restoring rows): per SCN read <c>AS OF</c> (null for now on the workspace's session); none unless a test says otherwise.</summary>
+    public Func<long?, TableDetails, IReadOnlyList<IReadOnlyList<object>>, IReadOnlyList<RowData>> ByKeys { get; set; } = (_, _, _) => [];
+
     /// <summary>What the read session finds for a data diff (WP-44): no differing rows unless a test says otherwise.</summary>
     public Func<TableDetails, IReadOnlyList<FilterCondition>, long, CancellationToken, Task<DiffRead>> ReadDiff { get; set; } = (_, _, _, _) =>
         Task.FromResult(new DiffRead([], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false));
@@ -282,11 +297,18 @@ internal sealed class TestApp : IAsyncDisposable
                 QueryBuilder.BuildCount(call.Arg<TableDetails>(), call.Arg<IReadOnlyList<FilterCondition>>());
                 return CountRows(call.Arg<IReadOnlyList<FilterCondition>>());
             });
-        data.CurrentScnAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        data.CurrentPointAsync(Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_ =>
         {
             ScnRead?.Invoke();
-            return CurrentScn;
+            return new DatabasePoint(CurrentScn, CurrentDatabase);
         });
+        data.PointBackAsync(Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns(call =>
+            PointBack?.Invoke(call.Arg<TimeSpan>()) ?? new DatabasePoint(CurrentScn - (long)call.Arg<TimeSpan>().TotalSeconds, CurrentDatabase));
+        data.UndoReachAsync(Arg.Any<CancellationToken>()).Returns(_ => UndoReach);
+        data.ReadByKeysAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<int>?>(), Arg.Any<IReadOnlyList<IReadOnlyList<object>>>(), Arg.Any<bool>(),
+                Arg.Any<int?>(), Arg.Any<CancellationToken>())
+            .Returns(call => ByKeys(null, call.Arg<TableDetails>(), call.Arg<IReadOnlyList<IReadOnlyList<object>>>()));
+        data.AsOf(Arg.Any<long>()).Returns(call => AsOfData(call.Arg<long>(), data));
         data.ReadDiffAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
@@ -311,6 +333,40 @@ internal sealed class TestApp : IAsyncDisposable
         // Open while something is written (the fake editor's own transaction is always open, for the editing tests).
         connection.Transaction.Returns(_ => editor.Actions.Count > 0 ? editor.Transaction : TransactionInfo.None);
         return connection;
+    }
+
+    /// <summary>The data access <c>AS OF</c> <paramref name="scn"/> (WP-78): each read is noted in <see cref="AsOfReads"/>; rows by key from <see cref="ByKeys"/>.</summary>
+    private IDataAccess AsOfData(long scn, IDataAccess now)
+    {
+        void Note()
+        {
+            lock (_lock)
+            {
+                AsOfReads.Add(scn);
+            }
+        }
+
+        var data = Substitute.For<IDataAccess>();
+        data.ReadByKeysAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<int>?>(), Arg.Any<IReadOnlyList<IReadOnlyList<object>>>(), Arg.Any<bool>(),
+                Arg.Any<int?>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                Note();
+                return ByKeys(scn, call.Arg<TableDetails>(), call.Arg<IReadOnlyList<IReadOnlyList<object>>>());
+            });
+        data.ReadPageAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<IReadOnlyList<SortSpec>>(), Arg.Any<PageSpec>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                Note();
+                return new RowPage([], true, TimeSpan.Zero);
+            });
+        data.CountAsync(Arg.Any<TableDetails>(), Arg.Any<IReadOnlyList<FilterCondition>>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                Note();
+                return now.CountAsync(call.Arg<TableDetails>(), call.Arg<IReadOnlyList<FilterCondition>>(), call.Arg<CancellationToken>());
+            });
+        return data;
     }
 
     public async ValueTask DisposeAsync()

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -1154,5 +1154,119 @@
   </data>
   <data name="DataDiff_Starting" xml:space="preserve">
     <value>Startpunkt wird gesetzt …</value>
+  </data>
+  <data name="DataDiff_StartAt" xml:space="preserve">
+    <value>Vergleich ab Zeitpunkt …</value>
+  </data>
+  <data name="DataDiff_RestartAt" xml:space="preserve">
+    <value>Startpunkt ab Zeitpunkt …</value>
+  </data>
+  <data name="DataDiff_StartAtTitle" xml:space="preserve">
+    <value>Der Startpunkt liegt zu einem Zeitpunkt, den du wählst – so weit zurück, wie das Undo der Datenbank reicht.</value>
+  </data>
+  <data name="DataDiff_OpenAtStart" xml:space="preserve">
+    <value>Stand zum Startpunkt</value>
+  </data>
+  <data name="DataDiff_OpenAtStartTitle" xml:space="preserve">
+    <value>Öffnet die Tabelle, wie sie zum Startpunkt war, mit ihrem Filter – nur lesend in einem eigenen Tab.</value>
+  </data>
+  <data name="DataDiff_Restore" xml:space="preserve">
+    <value>Auf Stand {0} zurücksetzen ({1})</value>
+  </data>
+  <data name="DataDiff_RestoreTitle" xml:space="preserve">
+    <value>Die angehakten Zeilen werden ausstehende Änderungen im Tab der Tabelle: eine gelöschte Zeile wird wieder eingefügt, eine geänderte bekommt ihre alten Werte, eine neue wird gelöscht. Geschrieben wird erst, wenn du schreibst.</value>
+  </data>
+  <data name="DataDiff_PickRows" xml:space="preserve">
+    <value>Hake zuerst die Zeilen an, die zurückgesetzt werden sollen.</value>
+  </data>
+  <data name="DataDiff_PickAllTitle" xml:space="preserve">
+    <value>Alle gezeigten Zeilen anhaken</value>
+  </data>
+  <data name="DataDiff_PickRow" xml:space="preserve">
+    <value>Zeile anhaken</value>
+  </data>
+  <data name="Restore_DoneOne" xml:space="preserve">
+    <value>{0} Änderung in {1} vorgemerkt – zurück auf {2:g}. Noch ist nichts geschrieben.</value>
+  </data>
+  <data name="Restore_DoneOther" xml:space="preserve">
+    <value>{0} Änderungen in {1} vorgemerkt – zurück auf {2:g}. Noch ist nichts geschrieben.</value>
+  </data>
+  <data name="Restore_AlreadyChangedOne" xml:space="preserve">
+    <value>{0} Zeile nicht angefasst: der Tab hat schon Änderungen daran.</value>
+  </data>
+  <data name="Restore_AlreadyChangedOther" xml:space="preserve">
+    <value>{0} Zeilen nicht angefasst: der Tab hat schon Änderungen daran.</value>
+  </data>
+  <data name="Restore_NotRestorableOne" xml:space="preserve">
+    <value>{0} Zeile nicht angefasst: ein Wert lässt sich nicht genau so zurückschreiben (ein LONG oder XMLTYPE, ein Typ, den das Grid nicht schreibt, etwa INTERVAL oder BINARY_DOUBLE, eine Zeitzonen-Region, Sekundenbruchteile über 7 Stellen, eine Zahl mit mehr als 28 Stellen).</value>
+  </data>
+  <data name="Restore_NotRestorableOther" xml:space="preserve">
+    <value>{0} Zeilen nicht angefasst: ein Wert lässt sich nicht genau so zurückschreiben (ein LONG oder XMLTYPE, ein Typ, den das Grid nicht schreibt, etwa INTERVAL oder BINARY_DOUBLE, eine Zeitzonen-Region, Sekundenbruchteile über 7 Stellen, eine Zahl mit mehr als 28 Stellen).</value>
+  </data>
+  <data name="Restore_GoneOne" xml:space="preserve">
+    <value>{0} Zeile ist nicht mehr so, wie der Vergleich sie sah (seitdem gelöscht oder wieder eingefügt) – vergleiche neu.</value>
+  </data>
+  <data name="Restore_GoneOther" xml:space="preserve">
+    <value>{0} Zeilen sind nicht mehr so, wie der Vergleich sie sah (seitdem gelöscht oder wieder eingefügt) – vergleiche neu.</value>
+  </data>
+  <data name="Restore_StructureChanged" xml:space="preserve">
+    <value>Der Tab der Tabelle arbeitet mit einem anderen Stand ihrer Spalten. Schreibe oder verwirf zuerst seine Änderungen und lade ihn neu.</value>
+  </data>
+  <data name="TimeTravel_Menu" xml:space="preserve">
+    <value>Zeitreise …</value>
+  </data>
+  <data name="TimeTravel_MenuTitle" xml:space="preserve">
+    <value>Die Tabelle, wie sie zu einem gewählten Zeitpunkt war, mit dem Filter dieses Tabs – nur lesend, in einem eigenen Tab.</value>
+  </data>
+  <data name="TimePoint_TravelTitle" xml:space="preserve">
+    <value>Zeitreise</value>
+  </data>
+  <data name="TimePoint_DiffTitle" xml:space="preserve">
+    <value>Startpunkt des Vergleichs</value>
+  </data>
+  <data name="TimePoint_TravelText" xml:space="preserve">
+    <value>{0} zeigen, wie sie war am:</value>
+  </data>
+  <data name="TimePoint_DiffText" xml:space="preserve">
+    <value>Vergleichen mit dem Stand vom:</value>
+  </data>
+  <data name="TimePoint_Presets" xml:space="preserve">
+    <value>Schnellwahl</value>
+  </data>
+  <data name="TimePoint_MinutesAgo" xml:space="preserve">
+    <value>vor {0} min</value>
+  </data>
+  <data name="TimePoint_Time" xml:space="preserve">
+    <value>Datum und Uhrzeit</value>
+  </data>
+  <data name="TimePoint_UndoReach" xml:space="preserve">
+    <value>Das Undo der Datenbank reicht etwa bis {0:t} zurück – frühere Stände können fehlen.</value>
+  </data>
+  <data name="TimePoint_BeforeUndo" xml:space="preserve">
+    <value>Vor {0:t}: so weit reicht das Undo der Datenbank wahrscheinlich nicht mehr zurück.</value>
+  </data>
+  <data name="TimePoint_BeyondUndo" xml:space="preserve">
+    <value>Wahrscheinlich jenseits des Undo der Datenbank</value>
+  </data>
+  <data name="TimePoint_Open" xml:space="preserve">
+    <value>Öffnen</value>
+  </data>
+  <data name="TimePoint_SetStart" xml:space="preserve">
+    <value>Startpunkt setzen</value>
+  </data>
+  <data name="Restore_Busy" xml:space="preserve">
+    <value>Der Workspace schreibt oder committet gerade – warte, bis er fertig ist.</value>
+  </data>
+  <data name="Restore_RowMovement" xml:space="preserve">
+    <value>Diese Tabelle erlaubt Row Movement und wird über die ROWID verglichen: eine verschobene Zeile erscheint als gelöscht und neu, sie zurückzuholen verdoppelte sie. Nimm die Haken bei den gelöschten Zeilen heraus.</value>
+  </data>
+  <data name="Restore_TooLargeOne" xml:space="preserve">
+    <value>{0} Zeile nicht angefasst: ein LOB ist länger als {1}.</value>
+  </data>
+  <data name="Restore_TooLargeOther" xml:space="preserve">
+    <value>{0} Zeilen nicht angefasst: ein LOB ist länger als {1}.</value>
+  </data>
+  <data name="DataDiff_Restoring" xml:space="preserve">
+    <value>Liest die Zeilen zum Zurücksetzen …</value>
   </data>
 </root>

@@ -138,6 +138,10 @@ else if (MissingRows > 0 && !Filtering)
     [Parameter, EditorRequired]
     public Guid WorkspaceId { get; set; }
 
+    /// <summary>The SCN of a time travel tab (WP-78): the counts are of then, where its jumps lead; null for now.</summary>
+    [Parameter]
+    public long? AsOf { get; set; }
+
     /// <summary>Says so when there are no jumps (a table grid); a query result without traced columns shows nothing.</summary>
     [Parameter]
     public bool ShowEmpty { get; set; }
@@ -167,7 +171,7 @@ else if (MissingRows > 0 && !Filtering)
 
     protected override void OnInitialized()
     {
-        _counts = FkCounts.For(Shell, Logger, Active, Workspaces, WorkspaceId, () => InvokeAsync(StateHasChanged));
+        _counts = FkCounts.For(Shell, Logger, Active, Workspaces, WorkspaceId, () => InvokeAsync(StateHasChanged), AsOf);
         // One after the other: they share the workspace's session. Closing the menu cancels the rest.
         if (Settings.Current.FkCounts == FkCountMode.Immediately)
         {

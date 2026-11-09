@@ -219,6 +219,11 @@
     </ConfirmDialog>
 }
 
+@if (Shell.TimePoint is { } timePoint)
+{
+    <TimePointDialog @key="timePoint" Request="timePoint" Lifecycle="Lifecycle" />
+}
+
 @if (Shell.GroupName is { } groupName)
 {
     <GroupNameDialog Request="groupName" />

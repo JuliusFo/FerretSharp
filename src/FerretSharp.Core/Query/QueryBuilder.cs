@@ -101,17 +101,19 @@ public static partial class QueryBuilder
         return errors;
     }
 
+    /// <param name="asOf">The SCN to read the table at (time travel, WP-78); null for now.</param>
     public static SelectQuery BuildSelect(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page) =>
-        Select(table, filters, sorts, page);
+        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page, long? asOf = null) =>
+        Select(table, filters, sorts, page, asOf);
 
     /// <summary>
     /// Every row of <see cref="BuildSelect(TableDetails, IReadOnlyList{FilterCondition}, IReadOnlyList{SortSpec}, PageSpec)"/>
     /// in the same order, without paging: the export of all rows of a filter (WP-54) reads them through one cursor –
     /// a large OFFSET gets slower page by page.
     /// </summary>
-    public static SelectQuery BuildSelectAll(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts) =>
-        Select(table, filters, sorts, page: null);
+    public static SelectQuery BuildSelectAll(
+        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, long? asOf = null) =>
+        Select(table, filters, sorts, page: null, asOf);
 
     /// <summary>
     /// The filter as a statement to read and go on with in the SQL editor ("SQL" in the filter bar): <c>SELECT t.*</c> with
@@ -120,12 +122,13 @@ public static partial class QueryBuilder
     /// later pages by running the statement again, an order that is not total would repeat or skip rows (review of the
     /// change, decision of the user). A view without key is ordered by the sorts only.
     /// </summary>
-    public static QuerySpec BuildSelectStar(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts)
+    /// <param name="asOf">The SCN of a time travel tab (WP-78), written as a number: the SQL editor reads what the tab shows.</param>
+    public static QuerySpec BuildSelectStar(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, long? asOf = null)
     {
         var builder = new Builder(table);
         var sql = new StringBuilder()
             .Append(StarSelect)
-            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(AsOfText(asOf)).Append(' ').Append(Alias)
             .Append(builder.Where(filters));
         var order = builder.OrderBy(sorts, keylessViewByAllColumns: false).ToList();
         if (order.Count > 0)
@@ -164,7 +167,8 @@ public static partial class QueryBuilder
     /// A column is a LOB, LONG or a type read only as a marker; no column; DISTINCT over several columns.
     /// </exception>
     public static SelectQuery BuildColumnValues(
-        TableDetails table, IReadOnlyList<int> columns, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, bool distinct)
+        TableDetails table, IReadOnlyList<int> columns, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, bool distinct,
+        long? asOf = null)
     {
         if (columns.Count == 0 || (distinct && columns.Count > 1))
         {
@@ -181,14 +185,14 @@ public static partial class QueryBuilder
         var refs = infos.Select(builder.Ref).ToList();
         var sql = new StringBuilder()
             .Append(distinct ? "SELECT DISTINCT " : "SELECT ").AppendJoin(", ", refs)
-            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append("\n  FROM ").Append(From(table, asOf, builder.Parameters))
             .Append(builder.Where(filters))
             .Append("\n ORDER BY ").AppendJoin(", ", distinct ? refs : builder.OrderBy(sorts));
         return new SelectQuery(sql.ToString(), builder.Parameters, [.. infos.Select(i => new ResultColumn(i, Projection.Value))], RowKeyKind.None, HasRowId: false);
     }
 
     private static SelectQuery Select(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec? page)
+        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec? page, long? asOf)
     {
         var builder = new Builder(table);
         var hasRowId = table.Table.Kind != TableKind.View;
@@ -197,7 +201,7 @@ public static partial class QueryBuilder
 
         var sql = new StringBuilder()
             .Append("SELECT ").AppendJoin(",\n       ", select)
-            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append("\n  FROM ").Append(From(table, asOf, builder.Parameters))
             .Append(builder.Where(filters))
             .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy(sorts));
         if (page is not null)
@@ -228,10 +232,11 @@ public static partial class QueryBuilder
     /// The whole value of one LOB column of one row (LOB editor, WP-10), found by its row key. The session fetches LOBs
     /// completely; the caller checks the length first (<see cref="Data.LobLimits"/>).
     /// </summary>
-    public static QuerySpec BuildSelectLob(TableDetails table, Data.RowKey key, int column)
+    public static QuerySpec BuildSelectLob(TableDetails table, Data.RowKey key, int column, long? asOf = null)
     {
         var parameters = new List<QueryParameter>();
-        var sql = $"SELECT {OracleIdentifier.Quote(table.Columns[column].Name)}\n  FROM {OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)}"
+        var from = From(table, asOf, parameters, alias: null);
+        var sql = $"SELECT {OracleIdentifier.Quote(table.Columns[column].Name)}\n  FROM {from}"
                   + $"\n WHERE {DmlBuilder.KeyCondition(table, key, parameters)}";
         return new QuerySpec(sql, parameters);
     }
@@ -251,7 +256,7 @@ public static partial class QueryBuilder
     /// column's type; the IN list is filled up to the next of <see cref="LookupSizes"/>.
     /// </summary>
     /// <exception cref="ArgumentException">No display column, no keys, more than <see cref="MaxLookupKeys"/>, or a NULL among them.</exception>
-    public static QuerySpec BuildLookup(TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys)
+    public static QuerySpec BuildLookup(TableDetails target, int keyColumn, IReadOnlyList<int> displayColumns, IReadOnlyList<object> keys, long? asOf = null)
     {
         if (keys.Count == 0 || keys.Count > MaxLookupKeys || keys.Any(k => k is null))
         {
@@ -269,7 +274,7 @@ public static partial class QueryBuilder
         var keyRef = $"{Alias}.{OracleIdentifier.Quote(target.Columns[keyColumn].Name)}";
         var display = string.Join(", ", displayColumns.Select(c => $"{Alias}.{OracleIdentifier.Quote(target.Columns[c].Name)}"));
         var sql = $"SELECT {keyRef}, {display}"
-                  + $"\n  FROM {OracleIdentifier.Qualify(target.Table.Owner, target.Table.Name)} {Alias}"
+                  + $"\n  FROM {From(target, asOf, parameters)}"
                   + $"\n WHERE {where}";
         return new QuerySpec(sql, parameters);
     }
@@ -287,7 +292,8 @@ public static partial class QueryBuilder
     /// stay markers either way.
     /// </param>
     /// <exception cref="ArgumentException">No keys, more than <see cref="MaxLookupKeys"/>, a key of the wrong size or with a NULL.</exception>
-    public static SelectQuery BuildRowsByKeys(TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, bool wholeLobs)
+    public static SelectQuery BuildRowsByKeys(
+        TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, bool wholeLobs, long? asOf = null)
     {
         var width = keyColumns?.Count ?? 1;
         if (keys.Count == 0 || keys.Count > MaxLookupKeys || width == 0
@@ -303,7 +309,7 @@ public static partial class QueryBuilder
             : ProjectionOf(c))).ToList();
         var sql = new StringBuilder()
             .Append("SELECT ").AppendJoin(",\n       ", SelectList(builder, columns, hasRowId))
-            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append("\n  FROM ").Append(From(table, asOf, builder.Parameters))
             .Append("\n WHERE ").Append(KeyIn(table, keyColumns, keys, builder.Parameters))
             .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy([]))
             .ToString();
@@ -424,10 +430,11 @@ public static partial class QueryBuilder
         return select;
     }
 
-    public static QuerySpec BuildCount(TableDetails table, IReadOnlyList<FilterCondition> filters)
+    public static QuerySpec BuildCount(TableDetails table, IReadOnlyList<FilterCondition> filters, long? asOf = null)
     {
         var builder = new Builder(table);
-        var sql = $"SELECT COUNT(*)\n  FROM {OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)} {Alias}{builder.Where(filters)}";
+        var from = From(table, asOf, builder.Parameters);
+        var sql = $"SELECT COUNT(*)\n  FROM {from}{builder.Where(filters)}";
         return new QuerySpec(sql, builder.Parameters);
     }
 

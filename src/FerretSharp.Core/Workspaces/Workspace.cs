@@ -124,6 +124,22 @@ public sealed record TabState(
 
     /// <summary>The tab of the workspace's data diff in the file format of table tabs.</summary>
     public static TabState OfDataDiff(DataDiffTabState diff) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { DataDiff = diff };
+
+    /// <summary>
+    /// Set for a table tab that shows its table as it was at an SCN (time travel, WP-78): read only, on the connection's read
+    /// session. Null for a tab of now.
+    /// </summary>
+    public TimeTravelState? TimeTravel { get; init; }
+}
+
+/// <summary>
+/// The point a time travel tab shows (WP-78): the SCN, the time it was chosen for and the database it belongs to. Only numbers
+/// and a name, no values.
+/// </summary>
+public sealed record TimeTravelState(long Scn, DateTimeOffset At, string Database)
+{
+    /// <summary>A point set to nonsense in the file by hand is dropped (the tab shows now then).</summary>
+    public TimeTravelState? Normalized() => Scn <= 0 ? null : this with { Database = Database ?? "" };
 }
 
 /// <summary>The tab of a workspace's data diff (WP-44): only that it is there – what it compares is the workspace's, its results are not saved.</summary>
@@ -243,6 +259,7 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
             } : null,
             Design = tab.Design?.Normalized(),
             PathTarget = tab.PathTarget is { Owner: not null, Name: not null } target ? target : null,
+            TimeTravel = tab.TimeTravel?.Normalized(),
         }).ToList(),
         DataDiff = DataDiff?.Normalized(),
     };
@@ -297,9 +314,19 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
 /// filter it was added with (empty for the whole table). Kept with the workspace, so it survives a restart; no row values
 /// (the filters with their values, as in the tabs).
 /// </summary>
-/// <param name="Scn">The database's SCN at the start (<see cref="Data.IDataAccess.CurrentScnAsync"/>).</param>
+/// <param name="Scn">
+/// The database's SCN at the start (<see cref="Data.IDataAccess.CurrentPointAsync"/>), or at a time chosen before now
+/// (<see cref="Data.IDataAccess.PointBackAsync"/>, WP-78).
+/// </param>
+/// <param name="StartedAt">When the start point lies: the click, or the time chosen.</param>
 public sealed record DataDiffState(long Scn, DateTimeOffset StartedAt, IReadOnlyList<DataDiffEntry> Entries)
 {
+    /// <summary>
+    /// The database the SCN belongs to (<see cref="Data.DatabasePoint.Database"/>, WP-78); null in files of older versions,
+    /// which are not checked.
+    /// </summary>
+    public string? Database { get; init; }
+
     /// <summary>
     /// Entries set to null in the file by hand are left out, their filters empty; a table twice keeps its first entry (the tab
     /// keys its list by table – review of WP-44).
