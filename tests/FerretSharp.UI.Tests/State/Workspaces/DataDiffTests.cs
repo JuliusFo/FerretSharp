@@ -88,6 +88,28 @@ public sealed class DataDiffTests : IAsyncDisposable
         Assert.Null(Lifecycle.DataDiffOf(id));
     }
 
+    /// <summary>
+    /// A tab in SQL mode whose condition was cleared (WP-79) shows every row: the start point and "Compare this tab" take that,
+    /// not the filter rows waiting behind the mode (review of WP-79).
+    /// </summary>
+    [Fact]
+    public async Task A_cleared_condition_compares_every_row_not_the_hidden_filter_rows()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = scope.Workspaces.Active!.Id;
+        var tab = ActiveKunden(scope);
+        tab.StartCondition("ID > 10");
+        tab.EditCondition("");
+        Assert.True(tab.ApplyCondition());
+
+        await Lifecycle.StartDataDiffAsync(id);
+        Assert.Empty(Assert.Single(Lifecycle.DataDiffOf(id)!.Entries).Filters);
+
+        tab.EndCondition(); // the filter bar again: its rows count once more
+        await Lifecycle.CompareTabAsync(tab);
+        Assert.Equal([Open], Assert.Single(Lifecycle.DataDiffOf(id)!.Entries).Filters);
+    }
+
     [Fact]
     public async Task A_view_cannot_be_compared_and_without_a_start_point_a_tab_is_not_added()
     {
