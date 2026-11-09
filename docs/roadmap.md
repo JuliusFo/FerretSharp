@@ -56,6 +56,14 @@ Branch `wp/47-since-last-visit`.
 - **Startseite nach dem Verbinden:** Unterschiede zum letzten Stand über den Schema-Vergleich (WP-20, zwei Snapshots derselben Verbindung) – neue/entfernte Tabellen und Spalten, geänderte Typen, neu ungültige Objekte –, neue Abweichungen zum C#-Modell (WP-27), offene Transaktionen anderer Workspaces, zuletzt benutzte Workspaces. Der Release-Check (Backlog, „später“) käme dort als weiterer Block dazu.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
+### WP-78 Zeitreise im Grid
+(braucht WP-44.) Branch `wp/78-time-travel`. Eingeplant mit dem Nutzer am 2026-11-09, aus dem Backlog (Ideensammlung 2026-10-28).
+- **Zeitreise:** Ein Tab zeigt nur lesend den Stand zu einer gewählten Zeit (`AS OF TIMESTAMP`, im `QueryBuilder` wie das `AS OF SCN` aus WP-44). Kein neuer Leseweg: Die Abfrage bleibt ein SELECT und passiert die Lesesperre.
+- **Gelöschte Zeilen zurückholen:** Aus den Zeilen, die damals da waren und jetzt fehlen, werden *ausstehende* INSERTs im Workspace – danach der normale Weg (Flush, Undo, Commit), kein neuer Schreibweg. Gedacht als Rettung nach einem versehentlichen Commit auf Dev/Test; auf schreibgeschützten Profilen gesperrt wie jede Änderung.
+- **Daten-Diff ab gewählter Zeit** (Vorschlag, nicht bestätigt): „Vergleich starten“ auch mit einer Zeit in der Vergangenheit statt „jetzt“, über dieselbe Zeitauswahl; die Zeit wird einmal per `TIMESTAMP_TO_SCN` zur SCN, der Rest von WP-44 bleibt.
+- Grenzen wie bei WP-44: Undo-Reichweite (ORA-01555), `TIMESTAMP_TO_SCN` kennt nur einen begrenzten Zeitraum (ORA-08180), `FLASHBACK`-Recht für fremde Owner (ORA-01031), DDL dazwischen (ORA-01466), LOBs. Die Erklärungen aus `DataDiffErrors` gelten weiter; eine zu alte Zeit sollte schon die Auswahl melden, nicht erst die Abfrage.
+- Offen: welche Grid-Funktionen der Zeitreise-Tab hat (Filter, Sortierung, FK-Sprung, Export, Formular); Zeitauswahl absolut oder relativ („vor 15 min“); auf welcher Session er liest (Workspace-Session oder Lese-Session aus WP-44); geänderte Zeilen auf den alten Stand zurücksetzen (ausstehende UPDATEs) mit in dieses Paket? Dazu die Fragen aus WP-44 (`docs/work-packages/wp-44-data-diff.md`): genauere SCN über `V$DATABASE.CURRENT_SCN`, Startpunkt an die Datenbank binden.
+
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
 - Verwendung im Code, „kein Index“ (small-usage-filter-without-index): die Markierung auch in der Spaltenansicht und im Hinweis des Designers? Ein Knopf „Index anlegen“ (Entwurf in der Index-Ansicht wie bei Fremdschlüsseln ohne Index)?

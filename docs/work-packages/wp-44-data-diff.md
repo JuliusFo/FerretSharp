@@ -43,7 +43,7 @@ Entscheidungen des Nutzers (2026-11-08, alle Empfehlungen übernommen):
 - Genauigkeit des Startpunkts: `TIMESTAMP_TO_SCN` liegt bis zu ein paar Sekunden zurück. Soll FerretSharp `V$DATABASE.CURRENT_SCN` nehmen, wo das Recht da ist?
 - CLOBs: Vergleich über die ersten 200 Zeichen und die Länge. Reicht das, oder ein Hash (`DBMS_CRYPTO` braucht ein Recht)?
 - Das Grid des Diffs ist eine HTML-Tabelle mit `Virtualize`, nicht AG Grid: kein Kopieren von Zellen, kein Formular, keine Spaltenbreiten. Vorschlag (nicht bestätigt): reicht für die erste Stufe; AG Grid mit Zeilen aus dem Speicher wäre ein eigener Weg in `grid.js`.
-- Backlog: „Diesen Tab vergleichen“ in der Befehlspalette, Zeitreise im Grid (`AS OF TIMESTAMP`) und Snapshot-Diff stehen schon dort.
+- Backlog: „Diesen Tab vergleichen“ in der Befehlspalette und Snapshot-Diff stehen schon dort; die Zeitreise im Grid (`AS OF TIMESTAMP`) ist seit 2026-11-09 als WP-78 eingeplant (`docs/roadmap.md`).
 
 ## Nachtrag: Code-Review (2026-11-09)
 Review per `/branch-code-review` (eigener Reviewer-Agent, Befunde nachgeprüft). Entscheidung des Nutzers vorab (2026-11-08): „Wenn dir bei den Code-Reviews etwas auffällt setze deine Empfehlung automatisch um und gehe in die nächste Runde.“
