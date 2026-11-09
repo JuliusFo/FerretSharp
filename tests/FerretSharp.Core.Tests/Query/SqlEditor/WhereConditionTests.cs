@@ -95,6 +95,17 @@ public class WhereConditionTests
         Assert.Equal(TextFormat.Format(QueryText.ConditionTopLevel, "ORDER"), refused.Errors[0]);
     }
 
+    /// <summary>
+    /// Handed on as a list of filter rows (a preset, LINQ, <c>SetFilterRows</c>), a condition would filter nothing: every row, the
+    /// whole DbSet. It refuses to be one (review of WP-79); filter rows enumerate as before.
+    /// </summary>
+    [Fact]
+    public void A_condition_is_no_list_of_filter_rows()
+    {
+        Assert.Throws<InvalidOperationException>(() => RowFilter.Where("ID = 1").ToList());
+        Assert.Equal([FilterCondition.Of("ID", FilterOperator.IsNull)], RowFilter.Of([FilterCondition.Of("ID", FilterOperator.IsNull)]).ToList());
+    }
+
     /// <summary>The cursor of the field lands at the same place in the statement the completion reads.</summary>
     [Fact]
     public void For_completion_the_condition_stands_as_the_where_of_a_query_on_the_table()

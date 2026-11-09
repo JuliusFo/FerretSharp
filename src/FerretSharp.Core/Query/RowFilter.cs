@@ -9,7 +9,7 @@ namespace FerretSharp.Core.Query;
 /// stays what a LINQ <c>Where</c> can say, so a link, a preset or LINQ only ever take <see cref="Conditions"/>.
 /// <para>
 /// A list of filter rows becomes a filter of its own: <c>[]</c> and <c>[a, b]</c> build one (<see cref="Create"/>), a list or an
-/// array converts; enumerating it yields <see cref="Conditions"/> (none for a SQL condition).
+/// array converts; enumerating it yields <see cref="Conditions"/> and throws for a SQL condition.
 /// </para>
 /// </summary>
 [CollectionBuilder(typeof(RowFilter), nameof(Create))]
@@ -51,7 +51,12 @@ public sealed class RowFilter : IEnumerable<FilterCondition>, IEquatable<RowFilt
 
     public static implicit operator RowFilter(FilterCondition[] conditions) => Of(conditions);
 
-    public IEnumerator<FilterCondition> GetEnumerator() => Conditions.GetEnumerator();
+    /// <summary>The filter rows.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// A SQL condition: taken as a list of filter rows it would filter nothing – every row, the whole DbSet (review of WP-79).
+    /// </exception>
+    public IEnumerator<FilterCondition> GetEnumerator() =>
+        IsSql ? throw new InvalidOperationException("A SQL condition has no filter rows; ask IsSql first.") : Conditions.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
