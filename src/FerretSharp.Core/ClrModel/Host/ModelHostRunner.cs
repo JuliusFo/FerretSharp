@@ -216,20 +216,20 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
 
     /// <remarks>
     /// As <see cref="BuildAsync"/>; longer limit, a solution may have dozens of projects. Minimal verbosity, not quiet: only
-    /// then does every project log the line its progress is counted from (<see cref="SolutionBuildTracker"/>).
+    /// then does every project log the line its progress is counted from (<see cref="SolutionBuildTracker"/>). The first
+    /// report comes once the build starts, not while it waits for another (review of the PR: "0 of 40" stood there meanwhile).
     /// </remarks>
     public Task<DotNetRun> BuildSolutionAsync(string solution, string configuration, IProgress<SolutionBuildProgress>? progress,
         CancellationToken cancellationToken)
     {
         var tracker = new SolutionBuildTracker(ProjectsOf(solution));
-        progress?.Report(tracker.Progress);
         return Build(solution, configuration, TimeSpan.FromMinutes(30), cancellationToken, "minimal", line =>
         {
             if (tracker.Observe(line))
             {
                 progress?.Report(tracker.Progress);
             }
-        });
+        }, onStart: () => progress?.Report(tracker.Progress));
     }
 
     /// <summary>The solution's projects; none when it cannot be read – dotnet build then says why.</summary>
@@ -253,9 +253,13 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     private static readonly SemaphoreSlim Building = new(1, 1);
 
     private static Task<DotNetRun> Build(string file, string configuration, TimeSpan timeout, CancellationToken cancellationToken,
-        string verbosity = "q", Action<string>? onOutputLine = null) =>
-        OneBuildAtATimeAsync(() => DotNetCli.RunAsync(["build", file, "-c", configuration, "-nologo", "-v", verbosity, "-nodeReuse:false", "--disable-build-servers"],
-            Path.GetDirectoryName(file)!, timeout, cancellationToken, onOutputLine), cancellationToken);
+        string verbosity = "q", Action<string>? onOutputLine = null, Action? onStart = null) =>
+        OneBuildAtATimeAsync(() =>
+        {
+            onStart?.Invoke();
+            return DotNetCli.RunAsync(["build", file, "-c", configuration, "-nologo", "-v", verbosity, "-nodeReuse:false", "--disable-build-servers"],
+                Path.GetDirectoryName(file)!, timeout, cancellationToken, onOutputLine);
+        }, cancellationToken);
 
     /// <summary>Runs <paramref name="build"/> once no other build runs; cancelled while waiting, it never starts.</summary>
     internal static async Task<T> OneBuildAtATimeAsync<T>(Func<Task<T>> build, CancellationToken cancellationToken)
