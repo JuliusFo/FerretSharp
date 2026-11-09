@@ -1198,10 +1198,10 @@
     <value>{0} Zeilen nicht angefasst: der Tab hat schon Änderungen daran.</value>
   </data>
   <data name="Restore_NotRestorableOne" xml:space="preserve">
-    <value>{0} Zeile nicht angefasst: ein Wert lässt sich nicht genau so zurückschreiben (LONG, XMLTYPE, INTERVAL, eine Zeitzonen-Region, Sekundenbruchteile über 7 Stellen, eine Zahl mit mehr als 28 Stellen).</value>
+    <value>{0} Zeile nicht angefasst: ein Wert lässt sich nicht genau so zurückschreiben (ein LONG oder XMLTYPE, ein Typ, den das Grid nicht schreibt, etwa INTERVAL oder BINARY_DOUBLE, eine Zeitzonen-Region, Sekundenbruchteile über 7 Stellen, eine Zahl mit mehr als 28 Stellen).</value>
   </data>
   <data name="Restore_NotRestorableOther" xml:space="preserve">
-    <value>{0} Zeilen nicht angefasst: ein Wert lässt sich nicht genau so zurückschreiben (LONG, XMLTYPE, INTERVAL, eine Zeitzonen-Region, Sekundenbruchteile über 7 Stellen, eine Zahl mit mehr als 28 Stellen).</value>
+    <value>{0} Zeilen nicht angefasst: ein Wert lässt sich nicht genau so zurückschreiben (ein LONG oder XMLTYPE, ein Typ, den das Grid nicht schreibt, etwa INTERVAL oder BINARY_DOUBLE, eine Zeitzonen-Region, Sekundenbruchteile über 7 Stellen, eine Zahl mit mehr als 28 Stellen).</value>
   </data>
   <data name="Restore_GoneOne" xml:space="preserve">
     <value>{0} Zeile ist nicht mehr so, wie der Vergleich sie sah (seitdem gelöscht oder wieder eingefügt) – vergleiche neu.</value>
@@ -1258,7 +1258,7 @@
     <value>Der Workspace schreibt oder committet gerade – warte, bis er fertig ist.</value>
   </data>
   <data name="Restore_RowMovement" xml:space="preserve">
-    <value>Diese Tabelle erlaubt Row Movement und wird über die ROWID verglichen: eine verschobene Zeile erscheint als gelöscht und neu, sie zurückzuholen verdoppelte sie. Hake die gelöschten Zeilen ab.</value>
+    <value>Diese Tabelle erlaubt Row Movement und wird über die ROWID verglichen: eine verschobene Zeile erscheint als gelöscht und neu, sie zurückzuholen verdoppelte sie. Nimm die Haken bei den gelöschten Zeilen heraus.</value>
   </data>
   <data name="Restore_TooLargeOne" xml:space="preserve">
     <value>{0} Zeile nicht angefasst: ein LOB ist länger als {1}.</value>

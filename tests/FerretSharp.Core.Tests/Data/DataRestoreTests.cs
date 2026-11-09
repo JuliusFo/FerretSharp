@@ -88,6 +88,23 @@ public sealed class DataRestoreTests
         Assert.Equal([1], tracker.PendingOperations().Single().Values.Keys);
     }
 
+    /// <summary>
+    /// Second review of WP-78: two TIMESTAMP(9) values that differ only in their nanoseconds read alike – the diff saw a change,
+    /// the row came back with nothing pending and without a word.
+    /// </summary>
+    [Fact]
+    public void A_changed_row_that_reads_alike_with_fractions_beyond_dotnet_is_counted_not_dropped()
+    {
+        var table = new TableDetails(Orders.Table, [Col("ID", "NUMBER"), new ColumnInfo("AT", "TIMESTAMP(9)", null, false, null, 9, true, false, null, 0)],
+            ["ID"], [], false);
+        var at = new DateTime(2026, 11, 9, 9, 30, 0);
+        var row = new RowData(new RowKey.PrimaryKey([1m]), [1m, at]);
+
+        var result = new ChangeTracker(table).Restore([new RestoreRow(DiffStatus.Changed, row, row)]);
+
+        Assert.Equal((0, 1), (result.Restored, result.NotRestorable));
+    }
+
     [Fact]
     public void A_not_null_column_reading_null_then_is_left_out_and_a_deleted_row_whose_key_a_new_row_has_stays_away()
     {

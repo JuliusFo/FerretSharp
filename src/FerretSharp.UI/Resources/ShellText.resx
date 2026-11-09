@@ -1460,10 +1460,10 @@
     <value>{0} rows left alone: the tab has changes of them already.</value>
   </data>
   <data name="Restore_NotRestorableOne" xml:space="preserve">
-    <value>{0} row left alone: a value cannot be written back as it was (LONG, XMLTYPE, INTERVAL, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
+    <value>{0} row left alone: a value cannot be written back exactly as it was (a LONG or XMLTYPE, a type the grid does not write such as INTERVAL or BINARY_DOUBLE, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
   </data>
   <data name="Restore_NotRestorableOther" xml:space="preserve">
-    <value>{0} rows left alone: a value cannot be written back as it was (LONG, XMLTYPE, INTERVAL, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
+    <value>{0} rows left alone: a value cannot be written back exactly as it was (a LONG or XMLTYPE, a type the grid does not write such as INTERVAL or BINARY_DOUBLE, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
   </data>
   <data name="Restore_GoneOne" xml:space="preserve">
     <value>{0} row is no longer as the comparison saw it (deleted or inserted again since) – compare again.</value>

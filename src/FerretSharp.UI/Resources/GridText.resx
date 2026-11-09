@@ -1791,4 +1791,7 @@
   <data name="TimeTravel_NotHere" xml:space="preserve">
     <value>Not in a time travel tab: it would read the rows as they are now.</value>
   </data>
+  <data name="TimeTravel_DataOnly" xml:space="preserve">
+    <value>Not in a time travel tab: it shows the data of then only – structure, designer, queries and synonyms are of now. Open the table as it is now.</value>
+  </data>
 </root>

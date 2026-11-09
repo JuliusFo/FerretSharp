@@ -32,12 +32,12 @@
                      Unavailable="@(sql is null ? WorkspaceText.NoActiveConnection : null)"
                      OnClick="OpenSqlAsync" />
         <QuickAction Icon="Icons.Code" Label="@SchemaViewText.ObjectMenu_Linq" Caption="LINQ" Title="@linq?.Text"
-                     Unavailable="@(Models.State.Link is null ? ShellText.Palette_NoLinkedProject : linq is null ? ClrModelText.NoEntity : null)"
+                     Unavailable="@(DataOnly ?? (Models.State.Link is null ? ShellText.Palette_NoLinkedProject : linq is null ? ClrModelText.NoEntity : null))"
                      OnClick="OpenLinqAsync" />
         @if (Table.Kind == TableKind.Table)
         {
             <QuickAction Icon="Icons.Edit" Label="@SchemaViewText.ObjectMenu_Designer" Caption="@SchemaViewText.ObjectMenu_DesignerCaption"
-                         Title="@SchemaViewText.Designer_EditTitle" OnClick="() => ShowAsync(TabMode.Structure, DesignerSection.Columns)" />
+                         Title="@SchemaViewText.Designer_EditTitle" Unavailable="@DataOnly" OnClick="() => ShowAsync(TabMode.Structure, DesignerSection.Columns)" />
         }
     </QuickBar>
 </div>
@@ -48,7 +48,8 @@
         @foreach (var (mode, label) in Modes)
         {
             var m = mode;
-            <button type="button" class="menu-chip @(Tab?.Mode == m ? "active" : "")" @onclick="() => ShowAsync(m)">@label</button>
+            <button type="button" class="menu-chip @(Tab?.Mode == m ? "active" : "")" disabled="@(DataOnly is not null && m != TabMode.Data)"
+                    title="@(m == TabMode.Data ? null : DataOnly)" @onclick="() => ShowAsync(m)">@label</button>
         }
     </div>
     <div class="group-head-btn static">@SchemaViewText.ObjectMenu_Copy</div>
@@ -79,14 +80,14 @@
 
 @* WP-69: the relationship view in the mode "Abfrage bauen". *@
 <div class="menu-sep"></div>
-<MenuEntry Label="@SchemaViewText.Query_Build" Title="@SchemaViewText.Query_BuildTitle" OnClick="BuildQueryAsync" />
+<MenuEntry Label="@SchemaViewText.Query_Build" Title="@SchemaViewText.Query_BuildTitle" Unavailable="@DataOnly" OnClick="BuildQueryAsync" />
 
 @* The synonym as the schema knows it now: a tab keeps the one it was opened through, also once that is dropped. *@
 @if (Active.Schema?.Find(Table.Ref)?.Synonym is { } synonym)
 {
     <div class="menu-sep"></div>
     <MenuEntry Label="@TextFormat.Format(SchemaViewText.ObjectMenu_DropSynonym, synonym.Name)" Title="@SchemaViewText.ObjectMenu_DropSynonymTitle"
-               OnClick="() => RunAsync(() => { if (Tab is { } tab) Shell.RequestSynonymDrop(tab, synonym); else Shell.RequestSynonymDrop(Table, synonym); })" />
+               Unavailable="@DataOnly" OnClick="() => RunAsync(() => { if (Tab is { } tab) Shell.RequestSynonymDrop(tab, synonym); else Shell.RequestSynonymDrop(Table, synonym); })" />
 }
 
 @code {
@@ -119,6 +120,12 @@
     private DomModule? _dom;
 
     private DomModule Dom => _dom ??= new(JS);
+
+    /// <summary>
+    /// Why an entry that leaves the tab's data view is greyed out: a time travel tab shows its data only – structure, designer,
+    /// a query, the LINQ console and synonyms are of now (WP-78, review). Null for a tab of now and in the explorer.
+    /// </summary>
+    private string? DataOnly => Tab?.TimeTravel is not null ? GridText.TimeTravel_DataOnly : null;
 
     /// <summary>The statement "SQL" opens; null before the connection is there.</summary>
     private (string Sql, IReadOnlyList<SqlVariable> Variables)? Sql =>

@@ -99,7 +99,14 @@ public sealed partial class ChangeTracker
 
                     if (!change.HasPending)
                     {
-                        continue; // the row is as it was again: nothing to do
+                        // As read, the row is as it was again. With fractions of a second beyond what .NET holds the diff may have
+                        // seen a difference the values no longer show: left alone and counted, not dropped silently (review of WP-78).
+                        if (Table.Columns.Any(ColumnCategories.LosesFractionsWhenRead))
+                        {
+                            notRestorable++;
+                        }
+
+                        continue;
                     }
 
                     before.Add(RowState.Untouched(change));

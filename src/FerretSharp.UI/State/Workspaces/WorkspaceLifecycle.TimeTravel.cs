@@ -112,7 +112,7 @@ public sealed partial class WorkspaceLifecycle
         var now = await shell.RunDbAsync(logger, active, () => active.Reads.CurrentPointAsync(CancellationToken.None));
         if (now.Value is not { } point)
         {
-            return; // checked again when the tab is shown next (review of WP-78: a failed check counted as passed)
+            return; // left unchecked (review of WP-78: a failed check counted as passed); the tab's view checks again when it is built anew – after connecting again or a restart
         }
 
         tab.PointChecked = true;

@@ -258,7 +258,7 @@ public sealed class TimeTravelTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task A_time_travel_tab_shows_its_data_only_and_a_failed_check_is_tried_again()
+    public async Task A_time_travel_tab_shows_its_data_only_and_a_failed_check_leaves_it_unchecked()
     {
         var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
         ActiveKunden(scope);
@@ -266,6 +266,8 @@ public sealed class TimeTravelTests : IAsyncDisposable
 
         tab.Mode = TabMode.Structure; // the menu's views, the designer: structure and grants are of now (review of WP-78)
         Assert.Equal(TabMode.Data, tab.Mode);
+        // Second review: the tab menu's "SQL" reads what the tab shows, also without filters or a loaded structure.
+        Assert.StartsWith("SELECT *\n  FROM KUNDEN AS OF SCN 4000;", ObjectMenuFacts.SqlOf(TestApp.Kunden, TestApp.Profile("ERP Test"), tab).Sql, StringComparison.Ordinal);
 
         tab.PointChecked = false;
         _app.ScnRead = () => throw new DatabaseException("connection reset", "ORA-12537");
