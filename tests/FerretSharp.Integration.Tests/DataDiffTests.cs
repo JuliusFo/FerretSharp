@@ -60,7 +60,9 @@ public sealed partial class DataDiffTests(OracleContainerFixture oracle) : IAsyn
     /// <summary>
     /// The start SCN once it is past everything committed so far: mapped from the time, it may lie a few seconds back (measured
     /// here; the user is told in the plan of WP-44). The highest commit SCN of the table's rows is the mark – DDL on the table
-    /// therefore goes before its last rows, or the start may lie before it (ORA-01466).
+    /// therefore goes before its last rows, or the start may lie before it (ORA-01466). Past the commit is not enough either:
+    /// Oracle still refuses a point within about a second of the CREATE TABLE (ORA-01466, CI after the dependency update of
+    /// 2026-11-09, when TIMESTAMP_TO_SCN was already past the commit at once) – the start is taken once the table reads AS OF it.
     /// </summary>
     private async Task<long> StartAfterAsync(string table)
     {
@@ -73,14 +75,31 @@ public sealed partial class DataDiffTests(OracleContainerFixture oracle) : IAsyn
         while (true)
         {
             var scn = (await _data.CurrentPointAsync(exact: false, Ct)).Scn;
-            if (scn >= committed)
+            if (scn >= committed && await ReadsAsOfAsync(connection, table, scn))
             {
-                TestContext.Current.SendDiagnosticMessage($"TIMESTAMP_TO_SCN reached the last commit after {watch.ElapsedMilliseconds} ms");
+                TestContext.Current.SendDiagnosticMessage($"Start point readable after {watch.ElapsedMilliseconds} ms");
                 return scn;
             }
 
-            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(20), "TIMESTAMP_TO_SCN did not reach the last commit within 20 s.");
+            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(20), "No start point after the last commit was readable within 20 s.");
             await Task.Delay(250, Ct);
+        }
+    }
+
+    private static async Task<bool> ReadsAsOfAsync(OracleConnection connection, string table, long scn)
+    {
+        await using var probe = connection.CreateCommand();
+        probe.BindByName = true;
+        probe.CommandText = $"SELECT COUNT(*) FROM {table} AS OF SCN :scn";
+        probe.Parameters.Add("scn", OracleDbType.Int64, scn, System.Data.ParameterDirection.Input);
+        try
+        {
+            await probe.ExecuteScalarAsync(Ct);
+            return true;
+        }
+        catch (OracleException ex) when (ex.Number == 1466)
+        {
+            return false;
         }
     }
 
