@@ -156,4 +156,11 @@
     <value>Opening the session did not finish in {0} attempts ({1} s in all). Last error: {2}</value>
     <comment>{0} = number of attempts, {1} = seconds of all attempts together, {2} = error message of the driver</comment>
   </data>
+  <data name="ReadSessionNotConnected" xml:space="preserve">
+    <value>The connection is not open.</value>
+  </data>
+  <data name="ReadSessionRefused" xml:space="preserve">
+    <value>The database refused the login of the session for comparisons ({0}). Connect again to try once more.</value>
+    <comment>{0} = the database's error</comment>
+  </data>
 </root>

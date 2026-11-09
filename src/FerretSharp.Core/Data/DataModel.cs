@@ -215,6 +215,25 @@ public interface IDataAccess : IRowLookup
     Task<IReadOnlyList<Audit.AuditRowChange>> ReadAuditChangesAsync(
         TableDetails table, Audit.AuditVersions versions, IReadOnlyList<RowData> rows, Action? started, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The database's current SCN, the start of a data diff (WP-44, <see cref="QueryBuilder.CurrentScnSql"/>). Mapped from the
+    /// time without rights on <c>V$DATABASE</c>, so it may lie a few seconds back.
+    /// </summary>
+    Task<long> CurrentScnAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The rows of a table's filter that differ between <paramref name="scn"/> and now (WP-44, <see cref="QueryBuilder.BuildDiff"/>),
+    /// at most <see cref="DataDiff.ReadLimit"/> – compared in the database, only the differing rows come over the line. Reads the
+    /// committed state: on a session of its own, never a workspace's (that one would see its own flushed changes). For a table
+    /// keyed by ROWID also whether it allows row movement.
+    /// </summary>
+    /// <exception cref="QueryValidationException">A filter cannot be applied.</exception>
+    /// <exception cref="Connections.DatabaseException">
+    /// No right to read the table as of then (ORA-01031), the undo does not reach back (ORA-01555, ORA-08181), the table was
+    /// changed by DDL since (ORA-01466) – <see cref="DataDiffErrors"/> explains them.
+    /// </exception>
+    Task<DiffRead> ReadDiffAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, long scn, CancellationToken cancellationToken);
+
     /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>
     public const int ActualPlanPageSize = 500;
 

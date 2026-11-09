@@ -42,33 +42,6 @@ Branch `wp/43-relationship-check`.
 - Platz in der Oberfläche: ein Bereich „Datenqualität“ der Berichtsseite (WP-72, Idee des Nutzers 2026-11-03), dort mit eigenem „Prüfen“ – die übrigen Bereiche der Seite kosten keine Abfragen.
 - Offen: Ergebnis speichern, um Läufe zu vergleichen.
 
-### WP-44 Daten-Diff
-Branch `wp/44-data-diff`. Ein Weg über Flashback, die Erweiterung auf die Tabellen eines Mitschnitts kommt mit WP-45. Entscheidung des Nutzers (2026-10-28): direkt Flashback mit `MINUS`, der Snapshot im Speicher wandert in den Backlog (Ausweichweg ohne Recht oder für längere Zeiträume).
-- **Startpunkt:** „Vergleich starten“ merkt die SCN per `SELECT TIMESTAMP_TO_SCN(SYSTIMESTAMP) FROM dual` (braucht kein V$-Recht). Später „Vergleichen“: der committete Stand jetzt gegen `tabelle AS OF SCN :start`, für den gefilterten Tab oder ganze Tabellen.
-- **Diff in der Datenbank:** `… WHERE <Filter> MINUS … AS OF SCN :start WHERE <Filter>` und umgekehrt (eine Abfrage mit `UNION ALL` und Markierung). Über das VPN kommen nur die geänderten Zeilen; Schlüssel nur auf einer Seite = neu bzw. gelöscht, auf beiden = geändert, die Zellen vergleicht dann .NET (`RowComparison`). Reine Abfragen auf dem Leseweg, `AS OF` und `MINUS` entstehen im `QueryBuilder`. Mit Filter erscheinen Zeilen, die in den Filter hinein- oder herausgewandert sind, als neu bzw. gelöscht.
-- **Eigene Lese-Session:** Die Workspace-Session sieht nach einem Flush ihre eigenen Änderungen; verglichen wird der committete Stand. Dieselbe Lese-Session braucht WP-43.
-- **Grenzen:** `MINUS` vergleicht keine LOB/LONG/XMLTYPE – LOBs über `DBMS_LOB.GETLENGTH`, der Rest wird mit Hinweis ausgelassen. Schlüssel ist der PK, ohne PK die ROWID (nur stabil ohne Row Movement). Recht `FLASHBACK` nur für Tabellen anderer Owner nötig (ORA-01031 verständlich melden). Undo reicht je nach Tabelle unterschiedlich weit, beim Nutzer auf großen Tabellen etwa 4 h (ORA-01555/ORA-08180 mit diesem Hinweis melden); DDL dazwischen bricht den Vergleich (ORA-01466).
-- Ergebnis nur im Speicher (Werte, auch von Prod).
-- Entschieden mit dem Nutzer (2026-11-08):
-  - **Obergrenze:** 10 000 geänderte Zeilen je Tabelle, darüber abschneiden mit Hinweis („Filter enger setzen“).
-  - **Tabellen bis WP-45:** der aktuelle Tab mit seinem Filter plus eine Liste ganzer Tabellen, von Hand ergänzt.
-  - **Startpunkt je Workspace:** eine SCN für alle Tabellen, mit dem Workspace gespeichert (nur die Zahl, keine Werte), überlebt also einen Neustart; reicht das Undo nicht mehr, meldet es der Vergleich.
-  - **Darstellung:** eigener Ergebnis-Tab, Grid mit Status-Spalte (neu/gelöscht/geändert) wie die Änderungsübersicht, geänderte Zellen markiert mit altem Wert im Tooltip; bei mehreren Tabellen links eine Liste mit Zahl der Änderungen.
-  - **Prod:** erlaubt wie jeder Lesevorgang (nur Abfragen, Ergebnis nur im Speicher).
-  - **Lese-Session:** WP-44 baut sie allgemein (zusätzliche Session je Verbindung, nur Leseweg, bei Bedarf geöffnet, bei Leerlauf geschlossen), WP-43 übernimmt sie.
-  - **Start:** in der Workspace-Leiste „Vergleich starten“, danach „Vergleichen (seit hh:mm)“ und „Startpunkt verwerfen“; im Tab-Menü „Diesen Tab vergleichen“.
-  - **Ohne PK:** Vergleich über die ROWID erlaubt; bei aktivem Row Movement Hinweis, dass verschobene Zeilen als gelöscht plus neu erscheinen können.
-- Plan, vom Nutzer bestätigt (2026-11-08), Branch von `main`:
-  1. **`QueryBuilder`:** Startpunkt lesen; `BuildDiff(table, filters, scn)` – beide `MINUS` per `UNION ALL` mit Seitenmarkierung, Grenze 10 000 + 1. Projektion wie im Grid (CLOB Vorschau + Länge, BLOB Länge), LONG/XMLTYPE & Co. mit Hinweis ausgelassen. Filter-Binds stehen zweimal → gemeinsamer `Builder` (WP-69) für eindeutige Namen. `ReadOnlyTests` decken beide ab.
-  2. **`DataDiff`** (Core, reine Logik): Paarung über den Schlüssel (eine Seite = neu/gelöscht, beide = geändert), Zellvergleich mit `OracleTypeMapper.ValuesEqual` wie `RowComparison`; Ergebnis mit Abgeschnitten, ausgelassenen Spalten, ROWID-Schlüssel (Row-Movement-Hinweis).
-  3. **Fehler verständlich:** ORA-01031 (Recht `FLASHBACK`), ORA-01555/08180 (Undo reicht nicht, ~4 h), ORA-01466 (DDL seit dem Startpunkt).
-  4. **Lese-Session je Verbindung**, allgemein für WP-43: nur Leseweg, öffnet über `SessionOpening` bei Bedarf, schließt nach Leerlauf, im Keep-alive, schließt beim Trennen, meldet Verbindungsverlust ans Banner. ADR.
-  5. **`Workspace.DataDiff`:** SCN, Startzeit, Einträge (Tabelle + Filter); abwärtsverträglich in der Workspace-Datei.
-  6. **UI-Zustand:** Startpunkt setzen, Einträge nacheinander vergleichen (abbrechbar, Fortschritt), verwerfen; Ergebnisse nur im Speicher.
-  7. **Oberfläche:** Workspace-Leiste („Vergleich starten“ / „Vergleichen (seit hh:mm)“ / „Startpunkt verwerfen“), Tab-Menü „Diesen Tab vergleichen“ (trägt Tab + Filter ein und vergleicht), Ergebnis-Tab: links Tabellen mit Zahl oder Fehler und „+ Tabelle“, rechts Grid mit Status-Spalte, markierten Zellen, altem Wert im Tooltip; Werte und Namen über die Präsentationsschicht.
-  8. Texte en/de; Integrationstests (Testcontainers: eigene Tabellen, Filter, ROWID, LOB, DDL dazwischen); E2E; README, CHANGELOG, Protokoll + Index.
-- Einfachste Variante, als Frage notiert: `TIMESTAMP_TO_SCN` ist nur auf ~3 s genau – kurz vor dem Klick committete Änderungen können mit erscheinen (Integrationstest misst es; Alternative `V$DATABASE.CURRENT_SCN` mit Rückfall). LOBs gelten bei gleicher Vorschau und Länge als gleich wie im Zeilenvergleich – eine Änderung hinter den ersten 200 Zeichen bei gleicher Länge bleibt unsichtbar.
-
 ### WP-45 Mitschnitt mit Quellzeile und Datenänderungen
 (braucht WP-40 und WP-44.) Branch `wp/45-recording-source-data`. Fortsetzung von WP-33 (ADR 0023).
 - **Quellzeile je Statement:** EventPipe liefert zu Ereignissen den Aufrufstapel; der erste Rahmen außerhalb von EF Core/`System`/`Microsoft` ist die Methode des Nutzers, über den Index aus WP-40 mit Datei und Zeile. Aus „18× Lazy Loading `Auftrag.Positionen`“ wird „… aus `AuftragService.GetOffene`, `AuftragService.cs:142`“, ohne Code-Änderung und ohne `TagWithCallSite`. **Spike zuerst:** Stapel in Echtzeit inklusive Methoden-Rundown, Kosten für die App.

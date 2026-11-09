@@ -151,6 +151,12 @@ developer works with an Oracle database day to day:
   <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> in the grid.
 - **Open changes** beside the tabs: everything the workspace has not committed – pending edits per tab, written actions
   with their SQL, what was taken back – one click from the counts in the status bar.
+- **Data diff**: set a start point for a workspace and later see which rows of the chosen tables are new, changed or
+  deleted since – whoever changed them (your app, a job, a colleague). Oracle compares the committed state with the
+  state at the start (flashback query with `MINUS`), so only the rows that differ come over the line; changed cells
+  show their value at the start. Start, compare and discard from the workspace's menu, add a table with its filter
+  from the tab menu (*Compare this tab*). Reaches back as far as the database's undo does; tables of other owners need
+  the right `FLASHBACK`.
 - Lock conflicts are detected after a short wait (`SELECT … FOR UPDATE WAIT n`) and shown with the blocking session.
 - Optimistic concurrency check on the changed columns; insert and delete rows; edit CLOBs and BLOBs in a dialog
   (text in the code editor with line wrap, JSON/XML coloring and JSON indenting).

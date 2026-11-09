@@ -413,6 +413,27 @@ public sealed class WorkspaceManager : IAsyncDisposable
     }
 
     /// <summary>
+    /// Sets or clears the start point of the workspace's data diff (WP-44) with what it compares; saved after
+    /// <see cref="SaveDelay"/>. Only the SCN and the tables with their filters, never row values.
+    /// </summary>
+    public void SetDataDiff(Guid workspaceId, DataDiffState? state)
+    {
+        lock (_lock)
+        {
+            if (Get(workspaceId) is not { } workspace
+                || JsonSerializer.Serialize(workspace.DataDiff, JsonFiles.Options) == JsonSerializer.Serialize(state, JsonFiles.Options))
+            {
+                return;
+            }
+
+            Put(workspace with { DataDiff = state });
+            _saver.Schedule();
+        }
+
+        RaiseChanged();
+    }
+
+    /// <summary>
     /// Data access on the workspace's own session, opened on first use. A failed open is not cached, so the next
     /// call tries again. Cancelling <paramref name="cancellationToken"/> only stops waiting; the open continues.
     /// </summary>

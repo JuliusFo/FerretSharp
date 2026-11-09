@@ -1,0 +1,300 @@
+@* The data diff of a workspace (WP-44): the tables of its start point on the left with what the last comparison found, the
+   differing rows of the chosen one on the right – status, key first, changed cells marked with the value at the start in their
+   title. Read on the connection's read session (the committed state); the rows stay in memory only. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Schema
+@using FerretSharp.Core.Workspaces
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@inherits FerretComponent
+@implements IDisposable
+
+<div class="tabview diff-tab">
+    @{ var state = Lifecycle.DataDiffOf(Tab.WorkspaceId); }
+    <div class="tab-toolbar">
+        @if (state is null)
+        {
+            <span class="toolbar-title">@ShellText.DataDiff_Title</span>
+        }
+        else
+        {
+            <span class="diff-start" title="@TextFormat.Format(ShellText.DataDiff_ScnTitle, state.Scn)">
+                @Icons.DataDiff @TextFormat.Format(ShellText.DataDiff_Since, DataDiffRows.StartText(state.StartedAt, DateTimeOffset.Now))
+            </span>
+            @if (Tab.Running)
+            {
+                <button class="btn" @onclick="Tab.Cancel">@CommonText.Cancel</button>
+                <span class="muted">@ShellText.DataDiff_Comparing</span>
+            }
+            else
+            {
+                <button class="btn primary" disabled="@(state.Entries.Count == 0)" title="@ShellText.DataDiff_CompareTitle"
+                        @onclick="() => Lifecycle.CompareDataDiffAsync(Tab.WorkspaceId)">@ShellText.DataDiff_Compare</button>
+                @if (Tab.ComparedAt is { } at && Tab.ResultsScn == state.Scn)
+                {
+                    <span class="muted">@TextFormat.Format(ShellText.DataDiff_ComparedAt, at.LocalDateTime)</span>
+                }
+            }
+            <span class="spacer"></span>
+            <input class="field mono diff-add" spellcheck="false" list="@_listId" placeholder="@ShellText.DataDiff_AddPlaceholder"
+                   title="@ShellText.DataDiff_AddTitle" value="@_adding" @oninput="e => _adding = (string?)e.Value" @onkeydown="OnAddKeyAsync" />
+            <datalist id="@_listId">
+                @foreach (var table in Comparable)
+                {
+                    <option value="@table.Name"></option>
+                }
+            </datalist>
+            <button class="btn" disabled="@(Tab.Running)" title="@ShellText.DataDiff_RestartTitle"
+                    @onclick="() => Lifecycle.StartDataDiffAsync(Tab.WorkspaceId)">@ShellText.DataDiff_Restart</button>
+            <button class="btn" title="@ShellText.DataDiff_DiscardTitle" @onclick="() => Lifecycle.DiscardDataDiff(Tab.WorkspaceId)">@ShellText.DataDiff_Discard</button>
+        }
+    </div>
+
+    @if (state is null)
+    {
+        <div class="diff-pane">
+            <EmptyState Title="@ShellText.DataDiff_NoStartPoint" Text="@ShellText.DataDiff_Explain">
+                <button class="btn primary" @onclick="() => Lifecycle.StartDataDiffAsync(Tab.WorkspaceId)">@ShellText.DataDiff_Start</button>
+            </EmptyState>
+        </div>
+    }
+    else if (state.Entries.Count == 0)
+    {
+        <div class="diff-pane"><EmptyState Title="@ShellText.DataDiff_NoTables" Text="@ShellText.DataDiff_NoTablesText" /></div>
+    }
+    else
+    {
+        var selected = state.Entries.FirstOrDefault(e => e.Table == Tab.Selected) ?? state.Entries[0];
+        <div class="diff-body">
+            <aside class="diff-tables" aria-label="@ShellText.DataDiff_Tables">
+                @foreach (var entry in state.Entries)
+                {
+                    var e = entry;
+                    var result = Tab.ResultOf(e.Table);
+                    var filters = DataDiffRows.FilterCount(e);
+                    <div class="diff-table @(e == selected ? "selected" : "")" @key="e.Table" @onclick="() => Tab.Selected = e.Table">
+                        <div class="diff-table-head">
+                            <span class="diff-table-name mono" title="@($"{e.Table.Owner}.{e.Table.Name}")">@e.Table.Name</span>
+                            <span class="spacer"></span>
+                            <button class="icon-btn ghost small" title="@ShellText.DataDiff_RemoveTitle"
+                                    @onclick:stopPropagation="true" @onclick="() => Lifecycle.RemoveFromDataDiff(Tab.WorkspaceId, e.Table)">@Icons.Close</button>
+                        </div>
+                        <div class="diff-table-meta">
+                            <span class="muted">@(filters == 0 ? ShellText.DataDiff_WholeTable : TextFormat.Plural(filters, ShellText.TabBar_FiltersOne, ShellText.TabBar_FiltersOther))</span>
+                            <span class="spacer"></span>
+                            @if (result is null)
+                            {
+                                <span class="faint">–</span>
+                            }
+                            else if (result.Reading)
+                            {
+                                <span class="spinner small" aria-label="@ShellText.DataDiff_Comparing"></span>
+                            }
+                            else if (result.Error is not null)
+                            {
+                                <span class="dot err" title="@result.Error"></span>
+                            }
+                            else if (result.Diff is { } d)
+                            {
+                                @if (d.Rows.Count == 0)
+                                {
+                                    <span class="muted">@ShellText.DataDiff_Unchanged</span>
+                                }
+                                else
+                                {
+                                    <DataDiffCounts Diff="d" />
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+            </aside>
+
+            <section class="diff-rows">
+                @{ var shown = Tab.ResultOf(selected.Table); }
+                @if (shown is null)
+                {
+                    <div class="diff-pane"><EmptyState Title="@selected.Table.Name" Text="@ShellText.DataDiff_NotComparedYet" /></div>
+                }
+                else if (shown.Reading)
+                {
+                    <div class="detail-status"><span class="spinner"></span> @TextFormat.Format(ShellText.DataDiff_Reading, selected.Table.Name)</div>
+                }
+                else if (shown.Error is { } error)
+                {
+                    <div class="diff-error">
+                        <p>@error</p>
+                        @if (shown.Failure is { } failure)
+                        {
+                            <button class="link-btn" @onclick="() => Shell.ShowError(failure, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
+                        }
+                    </div>
+                }
+                else if (shown.Diff is { } diff)
+                {
+                    @RowsOf(diff)
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public DataDiffTab Tab { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    private readonly string _listId = "diff-tables-" + Guid.NewGuid().ToString("N");
+    private string? _adding;
+    private DiffStatus? _status;
+    private bool _onlyChanged;
+
+    /// <summary>Tables of the browsed schema that can be compared: not views.</summary>
+    private IEnumerable<TableSummary> Comparable => (Active.Schema?.Tables ?? []).Where(t => t.Kind != TableKind.View);
+
+    protected override void OnInitialized()
+    {
+        Shell.Changed += OnChanged;
+        Presentations.Changed += OnChanged;
+    }
+
+    private void OnChanged() => Fire(StateHasChanged);
+
+    /// <summary>Only the shown tab renders: the shell changes with every edit in any tab (review of WP-44).</summary>
+    protected override bool ShouldRender() => Shell.ActiveTab == Tab;
+
+    public void Dispose()
+    {
+        Shell.Changed -= OnChanged;
+        Presentations.Changed -= OnChanged;
+    }
+
+    /// <summary>Enter in "+ Tabelle": the typed table joins the start point (the whole table) and is compared.</summary>
+    private async Task OnAddKeyAsync(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || string.IsNullOrWhiteSpace(_adding))
+        {
+            return;
+        }
+
+        var typed = _adding.Trim();
+        var table = Comparable.FirstOrDefault(t => t.Name == typed) ?? Comparable.FirstOrDefault(t => string.Equals(t.Name, typed, StringComparison.OrdinalIgnoreCase));
+        if (table is null)
+        {
+            Shell.Notify(TextFormat.Format(ShellText.DataDiff_UnknownTable, typed));
+            return;
+        }
+
+        _adding = null;
+        await Lifecycle.AddToDataDiffAsync(Tab.WorkspaceId, table.Ref, []);
+    }
+
+    private RenderFragment RowsOf(TableDiff diff) => __builder =>
+    {
+        var presentation = Presentations.For(diff.Table);
+        var columns = DataDiffRows.Columns(diff, _onlyChanged);
+        var rows = DataDiffRows.Rows(diff, _status).ToList();
+        @if (diff.Rows.Count > 0)
+        {
+            <div class="diff-rows-head">
+                <div class="segmented small" role="group">
+                    <button class="seg @(_status is null ? "active" : "")" @onclick="() => _status = null">@TextFormat.Format(ShellText.DataDiff_All, diff.Rows.Count)</button>
+                    <button class="seg @(_status == DiffStatus.Added ? "active" : "")" @onclick="() => _status = DiffStatus.Added">@TextFormat.Format(ShellText.DataDiff_Added, diff.Count(DiffStatus.Added))</button>
+                    <button class="seg @(_status == DiffStatus.Changed ? "active" : "")" @onclick="() => _status = DiffStatus.Changed">@TextFormat.Format(ShellText.DataDiff_Changed, diff.Count(DiffStatus.Changed))</button>
+                    <button class="seg @(_status == DiffStatus.Deleted ? "active" : "")" @onclick="() => _status = DiffStatus.Deleted">@TextFormat.Format(ShellText.DataDiff_Deleted, diff.Count(DiffStatus.Deleted))</button>
+                </div>
+                <label class="check" title="@ShellText.DataDiff_OnlyChangedColumnsTitle">
+                    <input type="checkbox" checked="@_onlyChanged" @onchange="e => _onlyChanged = e.Value is true" />
+                    @ShellText.DataDiff_OnlyChangedColumns
+                </label>
+            </div>
+        }
+        @if (diff.Truncated)
+        {
+            <div class="diff-notice warn">@TextFormat.Format(ShellText.DataDiff_Truncated, DataDiff.MaxRows)</div>
+        }
+        @if (DataDiffRows.OmittedNames(diff) is { Count: > 0 } omitted)
+        {
+            <div class="diff-notice">@TextFormat.Format(ShellText.DataDiff_Omitted, string.Join(", ", omitted))</div>
+        }
+        @if (diff.RowMovement)
+        {
+            <div class="diff-notice">@ShellText.DataDiff_RowMovement</div>
+        }
+        else if (diff.RowKey == FerretSharp.Core.Query.RowKeyKind.RowId)
+        {
+            <div class="diff-notice">@ShellText.DataDiff_ByRowId</div>
+        }
+        @if (diff.Rows.Count == 0)
+        {
+            <div class="diff-pane"><EmptyState Title="@ShellText.DataDiff_Unchanged" Text="@ShellText.DataDiff_UnchangedText" /></div>
+        }
+        else
+        {
+            <div class="diff-grid">
+                <table class="diff">
+                    <thead>
+                        <tr>
+                            <th class="diff-status">@ShellText.DataDiff_Status</th>
+                            @foreach (var c in columns)
+                            {
+                                var label = presentation.LabelOf(c);
+                                <th class="@NumClass(diff, c)" title="@(label.AlternateName is { } other ? $"{label.Name} · {other}" : label.Name)">@label.Name</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <Virtualize TItem="DiffRow" Items="rows" ItemSize="27" SpacerElement="tr" Context="row">
+                            <tr class="@StatusClass(row.Status)">
+                                <td class="diff-status"><span class="change-kind @StatusClass(row.Status)">@StatusLabel(row.Status)</span></td>
+                                @foreach (var c in columns)
+                                {
+                                    var text = presentation.Present(c, row.Shown.Values[c]).Text;
+                                    if (row.Changed.Contains(c))
+                                    {
+                                        var before = presentation.Present(c, row.Then!.Values[c]).Text;
+                                        <td class="cell-changed @NumClass(diff, c)" title="@TextFormat.Format(ShellText.DataDiff_Before, before ?? "NULL")">@Cell(text)</td>
+                                    }
+                                    else
+                                    {
+                                        <td class="@NumClass(diff, c)">@Cell(text)</td>
+                                    }
+                                }
+                            </tr>
+                        </Virtualize>
+                    </tbody>
+                </table>
+            </div>
+        }
+    };
+
+    /// <summary>Numbers stand right, as in the grid.</summary>
+    private static string NumClass(TableDiff diff, int column) => ColumnCategories.Of(diff.Table.Columns[column]) == ColumnCategory.Number ? "num" : "";
+
+    private static RenderFragment Cell(string? text) => text is null ? @<i class="null">NULL</i> : @<text>@text</text>;
+
+    private static string StatusClass(DiffStatus status) => status switch
+    {
+        DiffStatus.Added => "new",
+        DiffStatus.Deleted => "deleted",
+        _ => "changed",
+    };
+
+    private static string StatusLabel(DiffStatus status) => status switch
+    {
+        DiffStatus.Added => ShellText.DataDiff_KindAdded,
+        DiffStatus.Deleted => ShellText.DataDiff_KindDeleted,
+        _ => ShellText.DataDiff_KindChanged,
+    };
+}

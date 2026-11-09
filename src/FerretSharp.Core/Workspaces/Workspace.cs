@@ -115,7 +115,19 @@ public sealed record TabState(
 
     /// <summary>The tab of the schema's privileges in the file format of table tabs.</summary>
     public static TabState OfGrantList(GrantListTabState list) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { GrantList = list };
+
+    /// <summary>
+    /// Set for the tab of the workspace's data diff (WP-44); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.
+    /// The start point and the tables live in <see cref="Workspace.DataDiff"/>, the results only in memory.
+    /// </summary>
+    public DataDiffTabState? DataDiff { get; init; }
+
+    /// <summary>The tab of the workspace's data diff in the file format of table tabs.</summary>
+    public static TabState OfDataDiff(DataDiffTabState diff) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { DataDiff = diff };
 }
+
+/// <summary>The tab of a workspace's data diff (WP-44): only that it is there – what it compares is the workspace's, its results are not saved.</summary>
+public sealed record DataDiffTabState;
 
 /// <summary>The tab of the schema's private synonyms (WP-68): whether it shows only those whose target is not there.</summary>
 public sealed record SynonymListTabState(bool OnlyBroken = false);
@@ -204,6 +216,9 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
 
     public DateTimeOffset LastActive { get; init; }
 
+    /// <summary>The start point of the data diff (WP-44) and what it compares; null if none is set.</summary>
+    public DataDiffState? DataDiff { get; init; }
+
     /// <summary>
     /// The workspace with what was set to null in its file by hand as empty: tabs that are null are left out, their lists
     /// and SQL variables become empty (R5b, review 3.31.0 B2: the stores normalized such nulls, the workspaces did not).
@@ -229,6 +244,7 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
             Design = tab.Design?.Normalized(),
             PathTarget = tab.PathTarget is { Owner: not null, Name: not null } target ? target : null,
         }).ToList(),
+        DataDiff = DataDiff?.Normalized(),
     };
 
     /// <summary>
@@ -275,3 +291,47 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
         return prefix + n;
     }
 }
+
+/// <summary>
+/// The start point of a workspace's data diff (WP-44): the SCN and when it was set, and the tables it compares – each with the
+/// filter it was added with (empty for the whole table). Kept with the workspace, so it survives a restart; no row values
+/// (the filters with their values, as in the tabs).
+/// </summary>
+/// <param name="Scn">The database's SCN at the start (<see cref="Data.IDataAccess.CurrentScnAsync"/>).</param>
+public sealed record DataDiffState(long Scn, DateTimeOffset StartedAt, IReadOnlyList<DataDiffEntry> Entries)
+{
+    /// <summary>
+    /// Entries set to null in the file by hand are left out, their filters empty; a table twice keeps its first entry (the tab
+    /// keys its list by table – review of WP-44).
+    /// </summary>
+    public DataDiffState? Normalized() =>
+        Scn <= 0 ? null : this with
+        {
+            Entries = (Entries ?? []).Where(e => e is { Table: { Owner: not null, Name: not null } })
+                .DistinctBy(e => e.Table)
+                .Select(e => e with { Filters = (e.Filters ?? []).OfType<FilterCondition>().ToList() }).ToList(),
+        };
+
+    /// <summary>The entry of <paramref name="table"/> with <paramref name="filters"/>: added, or its filters replaced.</summary>
+    public DataDiffState WithEntry(TableRef table, IReadOnlyList<FilterCondition> filters)
+    {
+        var entries = Entries.ToList();
+        var index = entries.FindIndex(e => e.Table == table);
+        var entry = new DataDiffEntry(table, filters);
+        if (index < 0)
+        {
+            entries.Add(entry);
+        }
+        else
+        {
+            entries[index] = entry;
+        }
+
+        return this with { Entries = entries };
+    }
+
+    public DataDiffState WithoutEntry(TableRef table) => this with { Entries = Entries.Where(e => e.Table != table).ToList() };
+}
+
+/// <summary>A table of a data diff (WP-44) with the filter it compares (empty: the whole table).</summary>
+public sealed record DataDiffEntry(TableRef Table, IReadOnlyList<FilterCondition> Filters);

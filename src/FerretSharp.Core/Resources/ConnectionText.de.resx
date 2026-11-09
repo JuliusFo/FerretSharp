@@ -135,4 +135,10 @@
   <data name="OpenTimedOutWithError" xml:space="preserve">
     <value>Die Session ließ sich in {0} Versuchen nicht öffnen ({1} s insgesamt). Zuletzt: {2}</value>
   </data>
+  <data name="ReadSessionNotConnected" xml:space="preserve">
+    <value>Die Verbindung ist nicht geöffnet.</value>
+  </data>
+  <data name="ReadSessionRefused" xml:space="preserve">
+    <value>Die Datenbank hat die Anmeldung der Session für Vergleiche abgewiesen ({0}). Verbinde neu, um es noch einmal zu versuchen.</value>
+  </data>
 </root>

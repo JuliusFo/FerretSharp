@@ -45,6 +45,11 @@ public sealed partial class ShellState
         var at = _workspaces.FindIndex(w => w.ConnectionId == connectionId);
         _workspaces.RemoveAll(w => w.ConnectionId == connectionId);
         var synced = open.Select(workspace => existing.GetValueOrDefault(workspace.Id) ?? Restore(workspace, connectionId, schema)).ToList();
+        foreach (var closed in existing.Values.Except(synced).SelectMany(w => w.Tabs))
+        {
+            StopWork(closed); // a workspace closed meanwhile (second review of WP-44)
+        }
+
         _schemas[connectionId] = schema;
         _workspaces.InsertRange(at < 0 ? _workspaces.Count : at, synced);
 
@@ -306,6 +311,26 @@ public sealed partial class ShellState
         }
 
         return InsertAfterActive(workspace, new GrantListTab(workspace.WorkspaceId) { Visited = true });
+    }
+
+    /// <summary>
+    /// Shows the data diff tab of <paramref name="workspace"/> (WP-44) or opens it after the active tab: one per workspace.
+    /// The workspace itself is activated by the caller.
+    /// </summary>
+    public DataDiffTab OpenDataDiff(WorkspaceTabs workspace)
+    {
+        if (workspace.Tabs.OfType<DataDiffTab>().FirstOrDefault() is { } open)
+        {
+            Set(() =>
+            {
+                open.Visited = true;
+                workspace.ActiveTab = open;
+                Page = ShellPage.Explorer;
+            });
+            return open;
+        }
+
+        return InsertAfterActive(workspace, new DataDiffTab(workspace.WorkspaceId) { Visited = true });
     }
 
     /// <summary>
@@ -621,6 +646,7 @@ public sealed partial class ShellState
 
         var index = workspace.Tabs.IndexOf(tab);
         workspace.Tabs.Remove(tab);
+        StopWork(tab);
         if (workspace.ActiveTab == tab)
         {
             workspace.ActiveTab = workspace.Tabs.Count == 0 ? null : workspace.Tabs[Math.Min(index, workspace.Tabs.Count - 1)];
@@ -643,6 +669,11 @@ public sealed partial class ShellState
         var activeIndex = workspace.ActiveIndex;
         var after = workspace.Tabs.Skip(Math.Max(activeIndex, 0)).Where(t => !tabs.Contains(t)).ToList();
         workspace.Tabs.RemoveAll(tabs.Contains);
+        foreach (var closed in tabs)
+        {
+            StopWork(closed);
+        }
+
         if (workspace.ActiveTab is { } active && workspace.Tabs.Contains(active))
         {
             return;
@@ -675,7 +706,11 @@ public sealed partial class ShellState
     /// A saved tab on a table of another schema that no synonym reaches: it was opened by name and is restored the same way
     /// (review 3.40.0, A5) – before, it was dropped on every start. A table of the browsed schema that is gone stays dropped.
     /// </summary>
-    private static TableSummary? OpenedByName(TableRef table, SchemaCache schema) =>
+    /// <summary>A closed tab's running work ends: a data diff (WP-44) could otherwise no longer be cancelled (review of WP-44).</summary>
+    private static void StopWork(WorkspaceTab tab) => (tab as DataDiffTab)?.Cancel();
+
+    /// <summary>A table of another schema that the cache does not know, as opened by name (an FK jump); null in the browsed schema.</summary>
+    internal static TableSummary? OpenedByName(TableRef table, SchemaCache schema) =>
         string.Equals(table.Owner, schema.Owner, StringComparison.Ordinal) ? null : new TableSummary(table.Owner, table.Name, TableKind.Table);
 
     /// <summary>
@@ -692,6 +727,11 @@ public sealed partial class ShellState
     {
         foreach (var workspace in _workspaces.Where(w => w.ConnectionId == connectionId))
         {
+            foreach (var removed in workspace.Tabs.Where(t => predicate(t)).ToList())
+            {
+                StopWork(removed);
+            }
+
             workspace.Tabs.RemoveAll(predicate);
             if (workspace.ActiveTab is not null && !workspace.Tabs.Contains(workspace.ActiveTab))
             {
@@ -757,6 +797,10 @@ public sealed partial class ShellState
             else if (state.GrantList is { } grants)
             {
                 tab = GrantListTab.Restore(workspace.Id, grants);
+            }
+            else if (state.DataDiff is not null)
+            {
+                tab = new DataDiffTab(workspace.Id);
             }
             else if (state.PlSql is { } plSql)
             {

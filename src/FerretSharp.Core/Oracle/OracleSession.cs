@@ -207,20 +207,26 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// Runs once the call holds the gate, before the statement (again for a repeat in a new snapshot): a time limit of the
     /// statement itself starts here, not while it waits behind another caller (review of R8, audit highlighting).
     /// </param>
+    /// <param name="repeatInNewSnapshot">
+    /// False for a read whose errors a new snapshot cannot fix: a flashback query (WP-44) fails with ORA-01555/01466 because
+    /// the undo does not reach back or the table was rewritten – repeated, the whole diff ran up to four times on Prod
+    /// (review of WP-44).
+    /// </param>
     internal async Task<T> ExecuteReaderAsync<T>(
         string sql,
         IReadOnlyList<QueryParameter> parameters,
         Func<DbDataReader, CancellationToken, Task<T>> read,
         int lobPrefetch,
         CancellationToken cancellationToken,
-        Action? entered = null)
+        Action? entered = null,
+        bool repeatInNewSnapshot = true)
     {
         GuardReadOnly(sql);
         return await ReadInSnapshotAsync(_ =>
         {
             entered?.Invoke();
             return ReadCoreAsync(sql, parameters, read, cancellationToken, lobPrefetch);
-        }, cancellationToken);
+        }, cancellationToken, repeatInNewSnapshot);
     }
 
     /// <summary>
@@ -241,7 +247,7 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// (<see cref="ShouldRetry"/>). <paramref name="read"/> gets the <see cref="NestedReader"/> of its attempt – the plain
     /// reader ignores it. One loop for both readers (review 3.44.0, B2).
     /// </summary>
-    private Task<T> ReadInSnapshotAsync<T>(Func<NestedReader, Task<T>> read, CancellationToken cancellationToken) =>
+    private Task<T> ReadInSnapshotAsync<T>(Func<NestedReader, Task<T>> read, CancellationToken cancellationToken, bool repeat = true) =>
         ExclusiveAsync(async () =>
         {
             if (_readOnlySnapshots && _open is null)
@@ -257,7 +263,7 @@ public sealed partial class OracleSession : IAsyncDisposable
                 {
                     return await read(nested);
                 }
-                catch (OracleStatementException ex) when (ShouldRetry(_readOnlySnapshots, nested.HandedOn, attempt, ex.Oracle?.Number))
+                catch (OracleStatementException ex) when (repeat && ShouldRetry(_readOnlySnapshots, nested.HandedOn, attempt, ex.Oracle?.Number))
                 {
                     // A snapshot taken within about a second of the DDL is still too old for it (ORA-01466).
                     if (ex.Oracle!.Number == OracleErrorCodes.DefinitionChanged)

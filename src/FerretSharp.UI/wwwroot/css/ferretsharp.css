@@ -2186,3 +2186,44 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-node.record.marked { background: var(--accent-weak); border-color: var(--accent); }
 .relations-node.record button.relations-name:disabled { color: var(--text); cursor: inherit; }
 .records-group-text { display: flex; flex-direction: column; min-width: 0; }
+
+/* Data diff (WP-44): the start point on the workspace chip, the tab with the compared tables and the differing rows. */
+.ws-diff { display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px; border: 0; border-radius: 10px; background: var(--accent-weak); color: var(--accent); font-size: 11px; font-weight: 600; }
+.ws-diff:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+.ws-diff .icon { width: 11px; height: 11px; }
+.diff-tab { position: relative; min-height: 0; }
+.diff-start { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; }
+.diff-add { width: 200px; }
+.diff-pane { position: relative; flex: 1; min-height: 160px; }
+.diff-body { flex: 1; display: flex; min-height: 0; }
+.diff-tables { width: 250px; flex: none; overflow: auto; padding: 8px; border-right: 1px solid var(--border); background: var(--surface-2); }
+.diff-table { padding: 7px 8px 7px 10px; border: 1px solid transparent; border-radius: 7px; cursor: pointer; }
+.diff-table + .diff-table { margin-top: 2px; }
+.diff-table:hover { background: var(--hover); }
+.diff-table.selected { background: var(--surface); border-color: var(--border-strong); }
+.diff-table-head, .diff-table-meta { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.diff-table-head .spacer, .diff-table-meta .spacer { flex: 1; }
+.diff-table-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.diff-table-meta { font-size: 11.5px; }
+.diff-table .icon-btn.small { opacity: 0; }
+.diff-table:hover .icon-btn.small, .diff-table.selected .icon-btn.small { opacity: 1; }
+.diff-counts { display: inline-flex; gap: 6px; font: 600 11.5px var(--mono); }
+.diff-counts .new { color: var(--green-text); }
+.diff-counts .changed { color: var(--warn); }
+.diff-counts .deleted { color: var(--danger); }
+.diff-rows { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.diff-rows-head { display: flex; align-items: center; gap: 16px; flex: none; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.diff-notice { flex: none; padding: 6px 12px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.diff-notice.warn { color: var(--warn-text); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.diff-error { padding: 16px; max-width: 760px; color: var(--danger); }
+.diff-error p { margin: 0 0 8px; white-space: pre-wrap; }
+.diff-grid { flex: 1; min-height: 0; overflow: auto; background: var(--surface); }
+table.diff { border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+table.diff th { position: sticky; top: 0; z-index: 1; text-align: left; font-weight: 600; font-size: 11.5px; color: var(--muted); padding: 6px 10px; background: var(--grid-header); border-bottom: 1px solid var(--grid-border); border-right: 1px solid var(--grid-border); white-space: nowrap; }
+table.diff td { height: 26px; padding: 0 10px; border-bottom: 1px solid var(--grid-border); border-right: 1px solid var(--grid-border); white-space: nowrap; max-width: 360px; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: 12px; }
+table.diff td.diff-status, table.diff th.diff-status { position: sticky; left: 0; background: var(--surface); font-family: inherit; }
+table.diff th.diff-status { z-index: 2; background: var(--grid-header); }
+table.diff tr.deleted td:not(.diff-status) { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
+table.diff td.cell-changed { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
+table.diff i.null { color: var(--faint); font-style: italic; }
+table.diff th.num, table.diff td.num { text-align: right; }

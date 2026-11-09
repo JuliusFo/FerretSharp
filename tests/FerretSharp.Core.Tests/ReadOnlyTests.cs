@@ -171,7 +171,7 @@ public class ReadOnlyTests
                 "SendBreaksInBand", // process-wide driver setting before the first connection, ADR 0041
             ]
         },
-        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadAuditChangesAsync", "ReadByKeysAsync", "ReadColumnAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
+        { typeof(IDataAccess), ["CountAsync", "CurrentScnAsync", "ExplainActualAsync", "ReadAllAsync", "ReadAuditChangesAsync", "ReadByKeysAsync", "ReadColumnAllAsync", "ReadDiffAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
         { typeof(IRowLookup), ["LookupAsync"] },
         {
             typeof(ISchemaReader), [
@@ -183,6 +183,9 @@ public class ReadOnlyTests
         },
         { typeof(IDatabaseConnection), ["PingIfIdleAsync", "SetActionAsync", "StopReadOnlySnapshotsAsync", "UseReadOnlySnapshotsAsync"] },
         { typeof(IDatabaseConnector), ["OpenAsync"] },
+
+        // WP-44, ADR 0047: the session beside the workspaces hands out only the read path.
+        { typeof(ReadSession), ["ReadAsync"] },
         {
             typeof(IServerLoadReader), [
                 "ReadActiveSessionsAsync", "ReadCountersAsync", "ReadEnvironmentAsync", "ReadFullTextAsync", "ReadStatementInfoAsync", "ReadStatementsAsync", "ReadTopSinceLoadAsync",

@@ -124,6 +124,10 @@
                                                     {
                                                         <GrantListView Tab="grantTab" />
                                                     }
+                                                    else if (tab is DataDiffTab diffTab)
+                                                    {
+                                                        <DataDiffView Tab="diffTab" />
+                                                    }
                                                 </TabFrame>
                                             </div>
                                         }

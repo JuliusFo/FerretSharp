@@ -52,10 +52,17 @@
             <button class="menu-item" @onclick="TogglePinFromMenu">
                 @(menu.Tab.Pinned ? ShellText.TabMenu_Unpin : ShellText.TabMenu_Pin) <Kbd Action="ShortcutAction.PinTab" />
             </button>
-            @if (menu.Tab is TableTab)
+            @if (menu.Tab is TableTab tableTab)
             {
                 <button class="menu-item" title="@SettingsText.HintDuplicateTab" @onclick="DuplicateFromMenu">
                     @SettingsText.ActionDuplicateTab <Kbd Action="ShortcutAction.DuplicateTab" />
+                </button>
+                @* WP-44: the tab's table with its filter against the workspace's start point. *@
+                var compareUnavailable = WorkspaceLifecycle.DataDiffUnavailable(tableTab)
+                                         ?? (Lifecycle.DataDiffOf(tableTab.WorkspaceId) is null ? ShellText.DataDiff_NoStartPoint : null);
+                <button class="menu-item" disabled="@(compareUnavailable is not null)" title="@(compareUnavailable ?? ShellText.DataDiff_CompareTabTitle)"
+                        @onclick="() => CompareFromMenuAsync(tableTab)">
+                    @ShellText.DataDiff_CompareTab
                 </button>
             }
             @if (objectTab)
@@ -105,6 +112,9 @@
                 $"{records.Table.Owner}.{records.Table.Name}"),
             SynonymListTab => TextFormat.Format(ShellText.TabBar_SynonymsTitle, Active.Schema?.Owner ?? ""),
             GrantListTab => TextFormat.Format(ShellText.TabBar_GrantsTitle, Active.Schema?.Owner ?? ""),
+            DataDiffTab => Lifecycle.DataDiffOf(tab.WorkspaceId) is { } diff
+                ? TextFormat.Format(ShellText.TabBar_DataDiffTitle, diff.StartedAt.LocalDateTime)
+                : ShellText.DataDiff_NoStartPoint,
             _ when _renaming == tab => null,
             LinqTab => WithTitle(tab, ShellText.TabBar_LinqTitle),
             _ => WithTitle(tab, ShellText.TabBar_SqlTitle),
@@ -149,6 +159,10 @@
                     break;
                 case GrantListTab:
                     @Icons.Grants
+                    <span class="tab-name">@tab.Caption</span>
+                    break;
+                case DataDiffTab:
+                    @Icons.DataDiff
                     <span class="tab-name">@tab.Caption</span>
                     break;
                 case PlSqlTab plSql:
@@ -240,6 +254,7 @@
         RecordTab => "records",
         SynonymListTab => "synonyms",
         GrantListTab => "grants",
+        DataDiffTab => "diff",
         _ => "",
     };
 
@@ -313,6 +328,12 @@
     private Core.Schema.TableSummary CurrentOf(TableTab tab) => Active.Schema?.Find(tab.Table.Ref) ?? tab.Table;
 
     private Core.Schema.PlSqlObjectSummary CurrentOf(PlSqlTab tab) => Active.Schema?.FindPlSql(tab.Unit.Ref) ?? tab.Unit;
+
+    private async Task CompareFromMenuAsync(TableTab tab)
+    {
+        _menu = null;
+        await Lifecycle.CompareTabAsync(tab);
+    }
 
     private void DuplicateFromMenu()
     {
