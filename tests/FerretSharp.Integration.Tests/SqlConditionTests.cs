@@ -111,6 +111,19 @@ public class SqlConditionTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.Equal(paged.Select(r => (decimal)r.Values[id]!).OrderDescending(), paged.Select(r => (decimal)r.Values[id]!)); // ORDER BY ID DESC held
     }
 
+    /// <summary>
+    /// The check and the read-only tripwire take a line comment to run to the line feed (the SQL editor's tokenizer). Oracle
+    /// must not end it earlier at a lone carriage return – the rest would be SQL both took for a comment (review of WP-79; a lone
+    /// CR comes only from a file edited by hand, Monaco keeps line ends whole).
+    /// </summary>
+    [Fact]
+    public async Task A_line_comment_ends_at_the_line_feed_for_oracle_too()
+    {
+        var count = await _data.CountAsync(_grid, RowFilter.Where("ID = 1 -- x\r OR 1 = 1"), Ct);
+
+        Assert.Equal(1, count);
+    }
+
     [Fact]
     public async Task A_column_that_is_not_there_is_oracle_s_error()
     {
