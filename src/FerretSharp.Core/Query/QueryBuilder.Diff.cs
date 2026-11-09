@@ -30,10 +30,10 @@ public static partial class QueryBuilder
     public const int DiffSideThen = 0;
 
     /// <summary>
-    /// The current SCN without rights on <c>V$DATABASE</c> (WP-44). Mapped from the time, so it may lie a few seconds back:
-    /// changes committed just before may count as changed since.
+    /// The current SCN without rights on <c>V$DATABASE</c> (WP-44), with the database it belongs to (WP-78). Mapped from the
+    /// time, so it may lie a few seconds back: changes committed just before may count as changed since.
     /// </summary>
-    public const string CurrentScnSql = "SELECT TIMESTAMP_TO_SCN(SYSTIMESTAMP) FROM dual";
+    public const string CurrentScnSql = "SELECT TIMESTAMP_TO_SCN(SYSTIMESTAMP), " + DatabaseSelect + " FROM dual";
 
     /// <summary>
     /// The rows of a table that differ between now and <paramref name="scn"/> (WP-44), computed in the database: the rows of the

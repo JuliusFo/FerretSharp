@@ -244,7 +244,7 @@ public sealed record EditResult(RowChange? Change, string? Error)
 /// row key, so the changes survive reloading (F5, filters) and are laid over the fresh rows again. The pending edits keep a
 /// history (WP-30): <see cref="UndoEdit"/>/<see cref="RedoEdit"/> step through it cell by cell; a write ends it.
 /// </summary>
-public sealed class ChangeTracker(TableDetails table)
+public sealed partial class ChangeTracker(TableDetails table)
 {
     private readonly Dictionary<RowKey, RowChange> _byKey = [];
     private readonly List<RowChange> _newRows = [];

@@ -461,4 +461,10 @@
   <data name="HintSaveScript" xml:space="preserve">
     <value>Into the script file the tab shows, or as a new script.</value>
   </data>
+  <data name="ActionTimeTravel" xml:space="preserve">
+    <value>Time travel…</value>
+  </data>
+  <data name="HintTimeTravel" xml:space="preserve">
+    <value>The active table tab's table as it was at a chosen time, read only, in a tab of its own.</value>
+  </data>
 </root>

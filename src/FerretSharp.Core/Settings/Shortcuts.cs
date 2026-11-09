@@ -50,6 +50,9 @@ public enum ShortcutAction
 
     /// <summary>The values of the focused cell's column from the selected rows (WP-57); no default key.</summary>
     CopyColumnValues,
+
+    /// <summary>The active table tab's table as it was at a chosen time, in a tab of its own (WP-78); no default key.</summary>
+    TimeTravel,
 }
 
 /// <summary>Where a shortcut is caught.</summary>
@@ -137,6 +140,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.SaveScript, SettingsText.GroupSqlAndLinq, SettingsText.ActionSaveScript, null, ShortcutScope.Global, SettingsText.HintSaveScript),
         new(ShortcutAction.SwitchWorkClone, SettingsText.GroupSqlAndLinq, SettingsText.ActionSwitchWorkClone, null, ShortcutScope.Global, SettingsText.HintSwitchWorkClone),
         new(ShortcutAction.CopyColumnValues, SettingsText.GroupData, SettingsText.ActionCopyColumnValues, null, ShortcutScope.Grid, SettingsText.HintCopyColumnValues),
+        new(ShortcutAction.TimeTravel, SettingsText.GroupData, SettingsText.ActionTimeTravel, null, ShortcutScope.Global, SettingsText.HintTimeTravel),
     ];
 
     /// <summary>The fixed shortcuts; a property for the same reason as <see cref="Definitions"/>.</summary>

@@ -216,10 +216,34 @@ public interface IDataAccess : IRowLookup
         TableDetails table, Audit.AuditVersions versions, IReadOnlyList<RowData> rows, Action? started, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The database's current SCN, the start of a data diff (WP-44, <see cref="QueryBuilder.CurrentScnSql"/>). Mapped from the
-    /// time without rights on <c>V$DATABASE</c>, so it may lie a few seconds back.
+    /// The database's current SCN with the database it belongs to, the start of a data diff (WP-44). <paramref name="exact"/>
+    /// reads <c>V$DATABASE.CURRENT_SCN</c> (<see cref="QueryBuilder.ExactScnSql"/>, WP-78); otherwise mapped from the time
+    /// without rights (<see cref="QueryBuilder.CurrentScnSql"/>), so it may lie a few seconds back.
     /// </summary>
-    Task<long> CurrentScnAsync(CancellationToken cancellationToken);
+    /// <exception cref="Connections.DatabaseException">
+    /// <paramref name="exact"/> without SELECT on <c>V$DATABASE</c> (ORA-00942, ORA-01031).
+    /// </exception>
+    Task<DatabasePoint> CurrentPointAsync(bool exact, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The SCN of a time <paramref name="back"/> before now on the database's clock (WP-78, <see cref="QueryBuilder.ScnBackSql"/>),
+    /// with the database it belongs to.
+    /// </summary>
+    /// <exception cref="Connections.DatabaseException">Too far back for Oracle to map the time to an SCN (ORA-08180).</exception>
+    Task<DatabasePoint> PointBackAsync(TimeSpan back, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// How far back the undo reaches about (WP-78, <see cref="QueryBuilder.UndoReachSql"/>); null without SELECT on
+    /// <c>V$UNDOSTAT</c> or without a value. A hint, no promise.
+    /// </summary>
+    Task<TimeSpan?> UndoReachAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The same read path with every table read as it was at <paramref name="scn"/> (time travel and restoring rows, WP-78,
+    /// ADR 0048): pages, counts, whole reads, LOBs, rows by key and lookups – each statement names its table
+    /// <c>AS OF SCN</c>. Still only reads; on the same session. Not for diffs, audit versions or free queries.
+    /// </summary>
+    IDataAccess AsOf(long scn);
 
     /// <summary>
     /// The rows of a table's filter that differ between <paramref name="scn"/> and now (WP-44, <see cref="QueryBuilder.BuildDiff"/>),
@@ -265,6 +289,12 @@ public sealed record LookupRow(object Key, IReadOnlyList<object?> Values);
 
 /// <summary>Result of <see cref="IDataAccess.ReadLobAsync"/>; <see cref="Found"/> is false if the row is gone.</summary>
 public sealed record LobRead(bool Found, object? Value);
+
+/// <summary>
+/// An SCN with the database it belongs to (WP-78): <c>DB_UNIQUE_NAME/CON_NAME</c>. A start point or time travel tab of another
+/// database – a profile switched to another one, a test database set up anew under the same name – is dropped.
+/// </summary>
+public sealed record DatabasePoint(long Scn, string Database);
 
 /// <summary>Sizes of whole LOB values FerretSharp handles (characters for CLOB, bytes for BLOB).</summary>
 public static class LobLimits

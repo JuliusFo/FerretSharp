@@ -23,7 +23,7 @@ public sealed class ReadSessionTests
         {
             var connection = FakeDatabase.Connection();
             var data = Substitute.For<IDataAccess>();
-            data.CurrentScnAsync(Arg.Any<CancellationToken>()).Returns(4711L);
+            data.CurrentPointAsync(Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(new DatabasePoint(4711L, "FREE/FREEPDB1"));
             connection.Data.Returns(data);
             lock (_opened)
             {
@@ -38,7 +38,7 @@ public sealed class ReadSessionTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private Task<long> ScnAsync() => _reads.ReadAsync((data, ct) => data.CurrentScnAsync(ct), Ct);
+    private async Task<long> ScnAsync() => (await _reads.ReadAsync((data, ct) => data.CurrentPointAsync(exact: false, ct), Ct)).Scn;
 
     [Fact]
     public async Task Reads_open_one_session_and_it_closes_after_the_idle_time()
@@ -64,7 +64,7 @@ public sealed class ReadSessionTests
     {
         _reads.Attach(_profile);
         await ScnAsync();
-        _opened[0].Data.CurrentScnAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new DatabaseException("gone", "ORA-03113"));
+        _opened[0].Data.CurrentPointAsync(Arg.Any<bool>(), Arg.Any<CancellationToken>()).ThrowsAsync(new DatabaseException("gone", "ORA-03113"));
 
         await Assert.ThrowsAsync<DatabaseException>(ScnAsync);
 
@@ -94,6 +94,50 @@ public sealed class ReadSessionTests
         _reads.Attach(_profile); // connected again
         await _reads.ReadAsync((_, _) => Task.FromResult(0), Ct);
         Assert.Equal(1, attempts); // the new connector counts no more
+    }
+
+    /// <summary>
+    /// WP-78 (decision of the user): the current SCN exactly from V$DATABASE where the right is there; without it the time is
+    /// mapped – and the failing statement is not sent again for every start point, only after connecting anew.
+    /// </summary>
+    [Fact]
+    public async Task The_current_scn_is_read_exactly_where_allowed_and_the_missing_right_is_learned_once_per_connection()
+    {
+        _reads.Attach(_profile);
+        await _reads.ReadAsync((_, _) => Task.FromResult(0), Ct);
+        var data = _opened[0].Data;
+        data.CurrentPointAsync(true, Arg.Any<CancellationToken>()).ThrowsAsync(new DatabaseException("table or view does not exist", "ORA-00942"));
+        data.CurrentPointAsync(false, Arg.Any<CancellationToken>()).Returns(new DatabasePoint(4700L, "FREE/FREEPDB1"));
+
+        Assert.Equal(4700L, (await _reads.CurrentPointAsync(Ct)).Scn);
+        Assert.Equal(4700L, (await _reads.CurrentPointAsync(Ct)).Scn);
+        await data.Received(1).CurrentPointAsync(true, Arg.Any<CancellationToken>());
+
+        _reads.Attach(_profile); // connected again: the right may have been granted meanwhile
+        data.CurrentPointAsync(true, Arg.Any<CancellationToken>()).Returns(new DatabasePoint(4711L, "FREE/FREEPDB1"));
+        Assert.Equal(4711L, (await _reads.CurrentPointAsync(Ct)).Scn);
+    }
+
+    /// <summary>A time travel tab reads through the read session, each call a read of its own, its table as of the tab's SCN (WP-78).</summary>
+    [Fact]
+    public async Task The_read_path_as_of_an_scn_reads_on_the_read_session()
+    {
+        _reads.Attach(_profile);
+        var then = Substitute.For<IDataAccess>();
+        then.CountAsync(Arg.Any<FerretSharp.Core.Schema.TableDetails>(), Arg.Any<IReadOnlyList<FerretSharp.Core.Query.FilterCondition>>(), Arg.Any<CancellationToken>()).Returns(3L);
+        _connector.Opens(_ =>
+        {
+            var connection = FakeDatabase.Connection();
+            var data = Substitute.For<IDataAccess>();
+            data.AsOf(4711L).Returns(then);
+            connection.Data.Returns(data);
+            return connection;
+        });
+
+        var count = await _reads.AsOf(4711).CountAsync(null!, [], Ct);
+
+        Assert.Equal(3L, count);
+        Assert.True(_reads.HasSession);
     }
 
     [Fact]

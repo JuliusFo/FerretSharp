@@ -378,4 +378,10 @@
   <data name="HintSaveScript" xml:space="preserve">
     <value>In die Skriptdatei des Tabs oder als neues Skript.</value>
   </data>
+  <data name="ActionTimeTravel" xml:space="preserve">
+    <value>Zeitreise …</value>
+  </data>
+  <data name="HintTimeTravel" xml:space="preserve">
+    <value>Die Tabelle des aktiven Tabs, wie sie zu einem gewählten Zeitpunkt war – nur lesend, in einem eigenen Tab.</value>
+  </data>
 </root>

@@ -20,11 +20,13 @@ public sealed partial class OracleSession
         IReadOnlyList<QueryParameter> parameters,
         Func<DbDataReader, NestedReader, CancellationToken, Task<T>> read,
         int lobPrefetch,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool repeatInNewSnapshot = true)
     {
         GuardReadOnly(sql);
         return await ReadInSnapshotAsync(
-            nested => ReadCoreAsync(sql, parameters, (reader, ct) => read(reader, nested, ct), cancellationToken, lobPrefetch), cancellationToken);
+            nested => ReadCoreAsync(sql, parameters, (reader, ct) => read(reader, nested, ct), cancellationToken, lobPrefetch), cancellationToken,
+            repeatInNewSnapshot);
     }
 
     /// <summary>

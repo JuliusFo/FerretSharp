@@ -21,21 +21,34 @@ public static class DataDiffErrors
     private static readonly IReadOnlySet<int> UndoTooShort = new HashSet<int> { 1555, 8180, 8181 };
 
     /// <summary>The message to show for <paramref name="error"/>; null if it is none of those, then the error's own.</summary>
-    /// <param name="startedAt">When the start point was set, named in the message about the undo.</param>
-    public static string? Explain(DatabaseException error, TableRef table, DateTimeOffset startedAt)
+    /// <param name="startedAt">When the start point was set (or the time a tab travels to), named in the message about the undo.</param>
+    /// <param name="timeTravel">The error of a time travel tab or of setting rows back (WP-78), not of a comparison.</param>
+    public static string? Explain(DatabaseException error, TableRef table, DateTimeOffset startedAt, bool timeTravel = false)
     {
         ArgumentNullException.ThrowIfNull(error);
         ArgumentNullException.ThrowIfNull(table);
         if (error.IsAny(new HashSet<int> { NoFlashbackRight }))
         {
-            return TextFormat.Format(DataText.DiffNoFlashbackRight, OracleIdentifier.Qualify(table.Owner, table.Name));
+            return TextFormat.Format(timeTravel ? DataText.TimeTravelNoFlashbackRight : DataText.DiffNoFlashbackRight, OracleIdentifier.Qualify(table.Owner, table.Name));
         }
 
         if (error.IsAny(UndoTooShort))
         {
-            return TextFormat.Format(DataText.DiffUndoTooShort, startedAt.LocalDateTime);
+            return TextFormat.Format(timeTravel ? DataText.TimeTravelUndoTooShort : DataText.DiffUndoTooShort, startedAt.LocalDateTime);
         }
 
-        return error.IsAny(new HashSet<int> { OracleErrorCodes.DefinitionChanged }) ? DataText.DiffTableChanged : null;
+        return error.IsAny(new HashSet<int> { OracleErrorCodes.DefinitionChanged })
+            ? timeTravel ? DataText.TimeTravelTableChanged : DataText.DiffTableChanged
+            : null;
+    }
+
+    /// <summary>
+    /// The message for a time that cannot be turned into an SCN (WP-78): too far back for the database's mapping (ORA-08180);
+    /// null for any other error.
+    /// </summary>
+    public static string? ExplainPoint(DatabaseException error, DateTimeOffset at)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        return error.IsAny(UndoTooShort) ? TextFormat.Format(DataText.TimeTooFarBack, at.LocalDateTime) : null;
     }
 }
