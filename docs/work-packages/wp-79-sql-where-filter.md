@@ -36,5 +36,12 @@ Entscheidungen zum Plan (2026-11-09):
 - Ein offener Text, Name oder Kommentar verschluckt beim Tokenizer den Rest: `WhereCondition.Problem` hängt einen Zeilenumbruch an und prüft, ob das letzte Token Leerraum ist.
 - Nur reservierte Wörter beenden ein WHERE in der Prüfung – eine Spalte darf `OFFSET`, `FETCH` oder `MODEL` heißen; `FETCH`/`OFFSET` deshalb nur in ihrer Form als Klausel.
 
+## E2E
+2026-11-09, eigener Container (`New-SampleDb.ps1 -Name ferret-e2e-wp79 -Port 1579`), Testinstanz mit `--data-dir` (deutsch), Verbindungen „E2E WP79“ (Test) und „E2E WP79 Prod“ (read-only) als `connections.json`, Passwort nicht gespeichert. Klicks mit echter Windows-Eingabe (Probe vorher bestanden), Tippen und Tasten per CDP.
+- Geprüft: Filterzeile „NAME enthält a“ → „SQL-Bedingung“ übernimmt `UPPER(NAME) LIKE UPPER('%a%') ESCAPE '\'`, Feld mit Fokus; Shift+Enter neue Zeile (Feld wächst auf 48 px), Enter wendet an; verschachteltes `IN` über AUFTRAG mit Kommentar am Ende: 99 Zeilen wie direkt in der DB; Vervollständigung der Spalten der Tabelle und eines Alias in der Unterabfrage; Enter bei offener Vorschlagsliste übernimmt nur den Vorschlag; offene Klammer und `ORDER BY` am Feld, ORA-00904 darunter; „Zuletzt“ ohne die gescheiterte Bedingung, ein Eintrag wendet an; „Filterleiste“ mit geänderter Bedingung fragt, „Verwerfen“ bringt die Filterzeile zurück (neu gelesen), unverändert ohne Frage und ohne Abfrage; Einstellung → AUFTRAG aus dem Explorer im SQL-Modus, FK-Sprung zu KUNDEN in der Filterleiste („KUNDE_ID = 8“, als Text übernommen); mit angewendeter Bedingung „Link auf diese Ansicht“, „Diesen Tab vergleichen“, „Zeitreise …“, „Link“ gesperrt mit Grund; Tab-Titel mit der Bedingung; nach dem Neustart Tab im SQL-Modus mit Bedingung und Zeilen. Prod: ORA-00904 einer Bedingung mit Literal steht im Log als `NAME = '***'`.
+- Gefunden und behoben: „Zuletzt“ hatte dieselbe Bedingung zweimal, einmal mit `\r\n` – Monaco schreibt die Zeilenenden der Plattform in einen gesetzten Text. Vergleich jetzt ohne Zeilenenden (`ConditionHistoryStore.Same`, auch `SqlConditionState.Unchanged`); Test.
+- Gefunden und behoben: `SqlConditionState.Unchanged` stand als `"unchanged"` in der Workspace-Datei (`[JsonIgnore]`).
+- Log: nur die zwei erwarteten Warnungen der ORA-00904, kein `[ERR]`.
+
 ## Offen / Fragen an den Nutzer
 - Der Wechsel per Tastenkürzel ist als Aktion ohne Standardtaste angelegt („Filterleiste ↔ SQL-Bedingung“, auch in der Befehlspalette) – reicht das?
