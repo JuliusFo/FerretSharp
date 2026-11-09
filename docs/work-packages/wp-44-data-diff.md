@@ -1,4 +1,4 @@
-# WP-44 Daten-Diff → Release offen
+# WP-44 Daten-Diff → Release 3.66.0
 
 Branch `wp/44-data-diff` (von `main`), 2026-11-08/09. ADR 0047. Braucht kein anderes Paket; WP-45 baut darauf (Tabellen eines Mitschnitts), WP-43 übernimmt die Lese-Session.
 
