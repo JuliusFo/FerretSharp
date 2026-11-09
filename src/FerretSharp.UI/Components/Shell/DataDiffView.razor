@@ -21,10 +21,10 @@
             <span class="diff-start" title="@TextFormat.Format(ShellText.DataDiff_ScnTitle, state.Scn)">
                 @Icons.DataDiff @TextFormat.Format(ShellText.DataDiff_Since, DataDiffRows.StartText(state.StartedAt, DateTimeOffset.Now))
             </span>
-            @if (Tab.Running)
+            @if (Tab.Running || Tab.Restoring)
             {
                 <button class="btn" @onclick="Tab.Cancel">@CommonText.Cancel</button>
-                <span class="muted">@ShellText.DataDiff_Comparing</span>
+                <span class="muted">@(Tab.Restoring ? ShellText.DataDiff_Restoring : ShellText.DataDiff_Comparing)</span>
             }
             else
             {
@@ -298,7 +298,7 @@
             </button>
             @if (diff.Rows.Count > 0)
             {
-                <button class="btn" disabled="@(restoreUnavailable is not null || _restoring)" title="@(restoreUnavailable ?? ShellText.DataDiff_RestoreTitle)"
+                <button class="btn" disabled="@(restoreUnavailable is not null || _restoring || Tab.Running || Tab.Restoring)" title="@(restoreUnavailable ?? ShellText.DataDiff_RestoreTitle)"
                         @onclick="() => RestoreAsync(diff, picked)">
                     @TextFormat.Format(ShellText.DataDiff_Restore, DataDiffRows.StartText(state.StartedAt, DateTimeOffset.Now), picked.Count)
                 </button>

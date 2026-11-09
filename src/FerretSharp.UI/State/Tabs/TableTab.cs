@@ -86,7 +86,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         get;
         set
         {
-            field = value;
+            field = TimeTravel is null ? value : TabMode.Data; // a time travel tab has its data view only (review of WP-78)
             ViewFromSetting = false;
             if (value != TabMode.Synonyms)
             {
@@ -510,6 +510,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     {
         var tab = new TableTab(workspaceId, table)
         {
+            TimeTravel = state.TimeTravel, // before the mode: a time travel tab keeps its data view
             Mode = state.Mode,
             AppliedFilters = state.AppliedFilters,
             Sorts = state.Sorts,
@@ -518,7 +519,6 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             Preset = state.Preset,
             Design = state.Design,
             PathTarget = state.PathTarget,
-            TimeTravel = state.TimeTravel,
         }.WithForm(state.Form);
         tab.SetFilterRows(state.FilterRows);
         return tab;

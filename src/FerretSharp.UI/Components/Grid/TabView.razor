@@ -216,7 +216,8 @@
 
 @if (_plan is { } planQuery)
 {
-    <PlanDialog Query="planQuery.FirstPage" WholeQuery="planQuery.Whole" WorkspaceId="Tab.WorkspaceId" Title="@Tab.Table.DisplayName" OnClose="() => _plan = null" />
+    <PlanDialog Query="planQuery.FirstPage" WholeQuery="planQuery.Whole" WorkspaceId="Tab.WorkspaceId" Title="@Tab.Table.DisplayName" OnClose="() => _plan = null"
+                DataOf="@(Tab.TimeTravel is null ? null : ct => TabData.GetAsync(Tab, Workspaces, Active, ct))" />
 }
 
 @code {
@@ -320,7 +321,10 @@
 
     /// <summary>"Usage" only with a linked C# project (WP-40): without one there is no code to search.</summary>
     private IReadOnlyList<(TabMode Mode, string Label)> Modes =>
-        TabModeLabels.All.Where(m => m.Mode != TabMode.Usage || Models.State.Link is not null || Tab.Mode == TabMode.Usage).ToList();
+        TabModeLabels.All.Where(m => Tab.TimeTravel is null
+            ? m.Mode != TabMode.Usage || Models.State.Link is not null || Tab.Mode == TabMode.Usage
+            : m.Mode == TabMode.Data) // a time travel tab shows its data only: structure, designer, grants are of now (review of WP-78)
+        .ToList();
 
     [CascadingParameter]
     public ClrModelManager Models { get; set; } = null!;

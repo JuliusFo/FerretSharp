@@ -1460,10 +1460,10 @@
     <value>{0} rows left alone: the tab has changes of them already.</value>
   </data>
   <data name="Restore_NotRestorableOne" xml:space="preserve">
-    <value>{0} row left alone: a value cannot be written back (LONG, XMLTYPE or a number of more than 28 digits).</value>
+    <value>{0} row left alone: a value cannot be written back as it was (LONG, XMLTYPE, INTERVAL, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
   </data>
   <data name="Restore_NotRestorableOther" xml:space="preserve">
-    <value>{0} rows left alone: a value cannot be written back (LONG, XMLTYPE or a number of more than 28 digits).</value>
+    <value>{0} rows left alone: a value cannot be written back as it was (LONG, XMLTYPE, INTERVAL, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
   </data>
   <data name="Restore_GoneOne" xml:space="preserve">
     <value>{0} row is no longer as the comparison saw it (deleted or inserted again since) – compare again.</value>
@@ -1515,5 +1515,20 @@
   </data>
   <data name="TimePoint_SetStart" xml:space="preserve">
     <value>Set start point</value>
+  </data>
+  <data name="Restore_Busy" xml:space="preserve">
+    <value>The workspace is writing or committing – wait until it is done.</value>
+  </data>
+  <data name="Restore_RowMovement" xml:space="preserve">
+    <value>This table allows row movement and is compared by ROWID: a moved row looks deleted and new, bringing the deleted one back would double it. Untick the deleted rows.</value>
+  </data>
+  <data name="Restore_TooLargeOne" xml:space="preserve">
+    <value>{0} row left alone: a LOB is longer than {1}.</value>
+  </data>
+  <data name="Restore_TooLargeOther" xml:space="preserve">
+    <value>{0} rows left alone: a LOB is longer than {1}.</value>
+  </data>
+  <data name="DataDiff_Restoring" xml:space="preserve">
+    <value>Reading the rows to set back …</value>
   </data>
 </root>

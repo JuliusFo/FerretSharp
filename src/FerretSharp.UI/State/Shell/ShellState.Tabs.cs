@@ -338,6 +338,33 @@ public sealed partial class ShellState
     }
 
     /// <summary>
+    /// The tab of <paramref name="table"/> as it is now in the workspace <paramref name="workspaceId"/> – whichever connection is
+    /// shown –, opened after its active tab if there is none, on the data view (setting rows back, WP-78). <see cref="OpenTable"/>
+    /// opens in the shown connection's workspace: a connection switched to while the rows were read would get the changes
+    /// (review of WP-78). Null if the workspace is gone.
+    /// </summary>
+    public TableTab? OpenTableIn(Guid workspaceId, TableSummary table)
+    {
+        if (FindWorkspace(workspaceId) is not { } workspace)
+        {
+            return null;
+        }
+
+        if (workspace.Tabs.OfType<TableTab>().FirstOrDefault(t => t.Table.Ref == table.Ref && t.TimeTravel is null) is { } open)
+        {
+            Set(() =>
+            {
+                open.Mode = TabMode.Data;
+                open.Visited = true;
+                workspace.ActiveTab = open;
+            });
+            return open;
+        }
+
+        return InsertAfterActive(workspace, new TableTab(workspaceId, table) { Visited = true });
+    }
+
+    /// <summary>
     /// A time travel tab (WP-78) of <paramref name="table"/> at <paramref name="at"/>, right after the active tab: read only,
     /// with the filters and sort order it was asked with (those of the tab it came from, or of a diff's table).
     /// </summary>
@@ -780,7 +807,8 @@ public sealed partial class ShellState
     /// </summary>
     public void ReloadTableTabs(Guid workspaceId)
     {
-        foreach (var tab in FindWorkspace(workspaceId)?.TableTabs ?? [])
+        // A time travel tab shows a fixed point: nothing written changes it, a reload is a needless round trip (review of WP-78).
+        foreach (var tab in FindWorkspace(workspaceId)?.TableTabs.Where(t => t.TimeTravel is null) ?? [])
         {
             RequestTabCommand(tab, TabCommand.Reload);
         }

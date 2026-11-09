@@ -149,6 +149,7 @@ public sealed class TimeTravelTests : IAsyncDisposable
         var id = scope.Workspaces.Active!.Id;
         var tab = ActiveKunden(scope);
         await Lifecycle.StartDataDiffAsync(id);
+        _app.Shell.OpenDataDiff(_app.WorkspaceOf(scope)); // set back from the diff tab, which can cancel the read
         _app.ByKeys = (scn, _, keys) => scn is null
             ? [Row(11, "added since"), Row(13, "Neu")]
             : [Row(12, "deleted since"), Row(13, "Alt")];
@@ -168,13 +169,14 @@ public sealed class TimeTravelTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task Setting_rows_back_is_refused_in_a_locked_workspace()
+    public async Task Setting_rows_back_is_refused_in_a_locked_workspace_and_for_rows_moved_by_row_movement()
     {
         _app.KundenDetails = Kunden;
         var scope = await _app.OpenAsync(TestApp.Profile("ERP Prod", ConnectionKind.Prod));
         var id = scope.Workspaces.Active!.Id;
         var tab = ActiveKunden(scope);
         await Lifecycle.StartDataDiffAsync(id); // reading is allowed on Prod
+        _app.Shell.OpenDataDiff(_app.WorkspaceOf(scope));
         var diff = new TableDiff(Kunden, [], [Diff(DiffStatus.Deleted, 12)], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false);
 
         Assert.Equal(DataText.WorkspaceReadOnlyUnlockToEdit, Lifecycle.RestoreUnavailable(id, diff, diff.Rows));
@@ -182,6 +184,96 @@ public sealed class TimeTravelTests : IAsyncDisposable
 
         Assert.Null(tab.Changes);
         Assert.Empty(_app.AsOfReads); // nothing was even read
+
+        // Review of WP-78: by ROWID with row movement a moved row looks deleted and new – bringing it back doubled it.
+        await Lifecycle.UnlockAsync(id);
+        var moved = diff with { RowKey = RowKeyKind.RowId, RowMovement = true };
+        Assert.Equal(UI.Resources.ShellText.Restore_RowMovement, Lifecycle.RestoreUnavailable(id, moved, moved.Rows));
+        Assert.Null(Lifecycle.RestoreUnavailable(id, moved, [Diff(DiffStatus.Changed, 13)]));
+    }
+
+    /// <summary>
+    /// Review of WP-78: the changes went to the tab of the workspace shown when the rows had been read – another connection's,
+    /// if the user switched meanwhile – where a write and commit would have run them against another database.
+    /// </summary>
+    [Fact]
+    public async Task Rows_set_back_land_in_the_diff_s_workspace_also_when_another_connection_is_shown_by_then()
+    {
+        _app.KundenDetails = Kunden;
+        var test = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = test.Workspaces.Active!.Id;
+        await Lifecycle.StartDataDiffAsync(id);
+        _app.Shell.OpenDataDiff(_app.WorkspaceOf(test));
+        var dev = await _app.OpenAsync(TestApp.Profile("ERP Dev", ConnectionKind.Dev)); // shown now
+        _app.ByKeys = (scn, _, _) => scn is null ? [] : [Row(12, "deleted since")];
+        var diff = new TableDiff(Kunden, [], [Diff(DiffStatus.Deleted, 12)], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false);
+
+        await Lifecycle.RestoreAsync(id, diff, diff.Rows);
+
+        var tab = Assert.Single(_app.WorkspaceOf(test).TableTabs);
+        Assert.Equal(1, tab.Changes!.PendingCount);
+        Assert.Empty(_app.WorkspaceOf(dev).TableTabs);
+    }
+
+    /// <summary>Review of WP-78: setting back ran into a commit – its changes were cleared silently or committed unseen.</summary>
+    [Fact]
+    public async Task Rows_are_not_set_back_while_the_workspace_writes_also_when_it_starts_during_the_read()
+    {
+        _app.KundenDetails = Kunden;
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = scope.Workspaces.Active!.Id;
+        var tab = ActiveKunden(scope);
+        await Lifecycle.StartDataDiffAsync(id);
+        _app.Shell.OpenDataDiff(_app.WorkspaceOf(scope));
+        var diff = new TableDiff(Kunden, [], [Diff(DiffStatus.Deleted, 12)], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false);
+        var readArrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var readHeld = new TaskCompletionSource();
+        _app.ByKeys = (scn, _, _) =>
+        {
+            if (scn is null)
+            {
+                readArrived.TrySetResult();
+                readHeld.Task.Wait(Wait.Limit); // the read over the VPN, while the user commits
+                return [];
+            }
+
+            return [Row(12, "deleted since")];
+        };
+        var commitReached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var commitHeld = new TaskCompletionSource();
+        _app.OnCommit = () => { commitReached.TrySetResult(); return commitHeld.Task; };
+
+        var restoring = Lifecycle.RestoreAsync(id, diff, diff.Rows);
+        await readArrived.Task.WaitAsync(Wait.Limit, Ct);
+        var commit = _app.Editing.CommitAsync(_app.WorkspaceOf(scope));
+        await commitReached.Task.WaitAsync(Wait.Limit, Ct);
+        Assert.Equal(UI.Resources.ShellText.Restore_Busy, Lifecycle.RestoreUnavailable(id, diff, diff.Rows));
+        readHeld.SetResult();
+        await restoring.WaitAsync(Wait.Limit, Ct);
+
+        Assert.Null(tab.Changes);
+        Assert.Equal(UI.Resources.ShellText.Restore_Busy, _app.Shell.Notice?.Text);
+        commitHeld.SetResult();
+        await commit;
+    }
+
+    [Fact]
+    public async Task A_time_travel_tab_shows_its_data_only_and_a_failed_check_is_tried_again()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        ActiveKunden(scope);
+        var tab = _app.Shell.OpenTimeTravel(scope.Workspaces.Active!.Id, TestApp.Kunden, [], [], new TimeTravelState(4000, DateTimeOffset.Now, "FREE/FREEPDB1"))!;
+
+        tab.Mode = TabMode.Structure; // the menu's views, the designer: structure and grants are of now (review of WP-78)
+        Assert.Equal(TabMode.Data, tab.Mode);
+
+        tab.PointChecked = false;
+        _app.ScnRead = () => throw new DatabaseException("connection reset", "ORA-12537");
+        await Lifecycle.CheckTimeTravelAsync(tab);
+        Assert.False(tab.PointChecked); // review of WP-78: a failed check counted as passed
+        _app.ScnRead = null;
+        await Lifecycle.CheckTimeTravelAsync(tab);
+        Assert.True(tab.PointChecked);
     }
 
     [Fact]

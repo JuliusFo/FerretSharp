@@ -98,7 +98,7 @@ public sealed partial class WorkspaceLifecycle
 
     /// <summary>
     /// A time travel tab restored from the workspace file: its point must still belong to the database (WP-78); if not, the tab
-    /// closes with a notice. Checked once per tab; a failed read leaves it open – its rows name their own error.
+    /// closes with a notice. Checked once per tab; a failed read leaves it open and unchecked – its rows name their own error.
     /// </summary>
     public async Task CheckTimeTravelAsync(TableTab tab)
     {
@@ -108,10 +108,15 @@ public sealed partial class WorkspaceLifecycle
             return;
         }
 
-        tab.PointChecked = true;
         var active = ScopeOf(tab.WorkspaceId).Active;
         var now = await shell.RunDbAsync(logger, active, () => active.Reads.CurrentPointAsync(CancellationToken.None));
-        if (now.Value is { } point && TimePoints.Mismatch(at.Scn, at.Database, point) is { } why)
+        if (now.Value is not { } point)
+        {
+            return; // checked again when the tab is shown next (review of WP-78: a failed check counted as passed)
+        }
+
+        tab.PointChecked = true;
+        if (TimePoints.Mismatch(at.Scn, at.Database, point) is { } why)
         {
             shell.CloseTab(tab);
             shell.Notify(why);
@@ -135,17 +140,34 @@ public sealed partial class WorkspaceLifecycle
             return;
         }
 
-        if (DataDiffOf(workspaceId) is not { } state || scope.Active.Schema is not { } schema || rows.Count == 0)
+        if (DataDiffOf(workspaceId) is not { } state || scope.Active.Schema is not { } schema || rows.Count == 0
+            || DiffTabOf(workspaceId) is not { } diffTab || diffTab.BeginRestore() is not { } token)
         {
             return;
         }
 
         var table = diff.Table;
-        var read = await shell.RunDbAsync(logger, scope.Active, async () =>
+        DbResult<RestoreRead> read;
+        shell.NotifyChanged(); // the diff tab offers "Abbrechen" while the rows are read
+        try
         {
-            var now = await scope.Workspaces.GetDataAsync(workspaceId, CancellationToken.None);
-            return await DataRestore.ReadAsync(scope.Active.Reads.AsOf(state.Scn), now, table, rows, CancellationToken.None);
-        });
+            read = await shell.RunDbAsync(logger, scope.Active, async () =>
+            {
+                var now = await scope.Workspaces.GetDataAsync(workspaceId, token);
+                return await DataRestore.ReadAsync(scope.Active.Reads.AsOf(state.Scn), now, table, rows, token);
+            }, token);
+        }
+        finally
+        {
+            diffTab.EndRestore();
+            shell.NotifyChanged();
+        }
+
+        if (read.Cancelled)
+        {
+            return;
+        }
+
         if (read.Error is { } error && !read.IsRefusal && DataDiffErrors.Explain(error, table.Table.Ref, state.StartedAt, timeTravel: true) is { } explained)
         {
             shell.Notify(explained);
@@ -154,6 +176,13 @@ public sealed partial class WorkspaceLifecycle
 
         if (!shell.ShowFailure(read) || read.Value is not { } found)
         {
+            return;
+        }
+
+        // The rows took a while: the workspace may have been locked, or started writing or committing meanwhile (review of WP-78).
+        if (RestoreUnavailable(workspaceId, diff, rows) is { } nowWhy)
+        {
+            shell.Notify(nowWhy);
             return;
         }
 
@@ -194,6 +223,11 @@ public sealed partial class WorkspaceLifecycle
             skipped.Add(TextFormat.Plural(result.NotRestorable, ShellText.Restore_NotRestorableOne, ShellText.Restore_NotRestorableOther));
         }
 
+        if (found.TooLarge > 0)
+        {
+            skipped.Add(TextFormat.Plural(found.TooLarge, ShellText.Restore_TooLargeOne, ShellText.Restore_TooLargeOther, LobContent.Size(LobLimits.MaxLoadLength)));
+        }
+
         if (found.Gone > 0)
         {
             skipped.Add(TextFormat.Plural(found.Gone, ShellText.Restore_GoneOne, ShellText.Restore_GoneOther));
@@ -207,21 +241,23 @@ public sealed partial class WorkspaceLifecycle
     {
         ArgumentNullException.ThrowIfNull(diff);
         ArgumentNullException.ThrowIfNull(rows);
+        var deleted = rows.Any(r => r.Status == DiffStatus.Deleted);
         return !ScopeOf(workspaceId).Workspaces.IsWritable(workspaceId) ? DataText.WorkspaceReadOnlyUnlockToEdit
-            : ChangeTracker.RestoreUnavailable(diff.Table, rows.Any(r => r.Status == DiffStatus.Deleted));
+            // Like the grid while it writes (review of WP-78): a commit now would clear the changes or take them along unseen.
+            : Editing.IsBusy(workspaceId) ? ShellText.Restore_Busy
+            // A row moved by row movement looks deleted and added: bringing the "deleted" one back would double it.
+            : deleted && diff.RowMovement ? ShellText.Restore_RowMovement
+            : ChangeTracker.RestoreUnavailable(diff.Table, deleted);
     }
 
-    /// <summary>The workspace's tab of the table as it is now (not a time travel tab), opened after the diff tab if there is none.</summary>
+    /// <summary>
+    /// The workspace's tab of the table as it is now (not a time travel tab), opened after the diff tab if there is none – in
+    /// that workspace, also when another connection is shown by now (review of WP-78).
+    /// </summary>
     private TableTab? OpenRestoreTab(Guid workspaceId, TableSummary table)
     {
         ScopeOf(workspaceId).Workspaces.Activate(workspaceId);
-        if (shell.FindWorkspace(workspaceId)?.TableTabs.FirstOrDefault(t => t.Table.Ref == table.Ref && t.TimeTravel is null) is { } open)
-        {
-            shell.ShowTab(open, TabMode.Data);
-            return open;
-        }
-
-        return shell.OpenTable(table, TabMode.Data);
+        return shell.OpenTableIn(workspaceId, table) is { } tab && tab.WorkspaceId == workspaceId ? tab : null;
     }
 
     /// <summary>A tracker made for another version of the table addresses columns by position: only the same columns in the same order do.</summary>

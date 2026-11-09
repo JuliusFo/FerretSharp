@@ -234,7 +234,7 @@ public sealed class OracleDataAccess(OracleSession session, long? asOf = null) :
             }
 
             return rows;
-        }, lobPrefetch: 0, cancellationToken);
+        }, lobPrefetch: 0, cancellationToken, repeatInNewSnapshot: asOf is null);
 
         var sqlId = Plans.SqlId(hinted);
         var (child, steps) = await OraclePlans.ReadActualAsync(session, sqlId, cancellationToken);
