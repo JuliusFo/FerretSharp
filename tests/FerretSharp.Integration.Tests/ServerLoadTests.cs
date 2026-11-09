@@ -103,7 +103,8 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         var sqlId = Plans.SqlId(sql);
 
         // V$SQLSTATS updates its figures with a delay (CI on main after WP-75: 4 of 12 executions right after): the next looks
-        // bring the rest.
+        // bring the rest. 10 s were not always enough (CI on main after 3.67.0, the third time); up to StatsLag, as long as a
+        // look reads late figures again, the page counts them.
         StatementRow? row = null;
         await Wait.UntilAsync(async () =>
         {
@@ -116,7 +117,7 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
             await Task.Delay(TimeSpan.FromSeconds(1.1), Ct); // a second apart: LAST_ACTIVE_TIME has whole seconds
             await monitor.LookAsync(null, Ct);
             return false;
-        }, "all 12 executions in the window");
+        }, "all 12 executions in the window", ServerLoadMonitor.StatsLag);
         Assert.Equal(12, row!.Figures.Executions);
         Assert.StartsWith(row.Info!.Text!, sql, StringComparison.Ordinal);
         Assert.True(row.Info.Text!.Length < 1000);

@@ -76,3 +76,6 @@ Review des CI-Fix-Branches `fix/server-load-test-lag`. Entscheidung des Nutzers:
 2. K Der Cancel-Fix stand in keinem Protokoll. **Behoben:** Punkt oben im Nachtrag „CI auf main“.
 3. K `IsCancel` prüft den Fehlertext des Servers und taugt allein nicht – die Sicherung (Token abgebrochen) steckt im Aufrufer. **Behoben:** im Summary festgehalten.
 4. K Der Testkommentar versprach „and never more“, geprüft wird nur bis zum Erreichen von 12 (spätere Doppelzählung hält `ServerLoadTrackerTests`). **Behoben:** Kommentar gekürzt.
+
+## Nachtrag: CI auf main nach 3.67.0 (2026-11-09)
+- Zum dritten Mal scheiterte `ServerLoadTests.A_statement_another_session_runs_…` unter Linux an der 10-s-Grenze von `Wait` (auch im PR von `fix-server-load-plan-change`; derselbe Stand war im PR grün). Der Test wartet jetzt bis `ServerLoadMonitor.StatsLag` (30 s): So lange liest ein Blick verspätete Werte erneut, die Seite zählt sie also; erst danach wäre es ein Fehler der Seite. `Wait.UntilAsync` (asynchrone Bedingung) nimmt dafür eine eigene Grenze.
