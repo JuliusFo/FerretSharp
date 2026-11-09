@@ -50,5 +50,38 @@ public sealed class ModelHostRunnerTests : IDisposable
         Assert.Equal((1, 2), (await running, await second));
     }
 
+    /// <summary>
+    /// Review of the PR: with MSBUILDTERMINALLOGGER=on in the user's environment, dotnet build wrote coloured live lines
+    /// instead of "Name -> path", and the progress of "Build projects" stood at 0.
+    /// </summary>
+    [Fact]
+    public void Dotnet_runs_without_the_terminal_logger_whatever_the_environment_says()
+    {
+        var start = DotNetCli.StartInfo(["build"], _folder.Path);
+
+        Assert.Equal("off", start.Environment["MSBUILDTERMINALLOGGER"]);
+    }
+
+    /// <summary>Review of the PR: "0 of 40 projects" stood there while the build still waited for another one.</summary>
+    [Fact]
+    public async Task A_build_of_the_solution_waiting_for_another_reports_no_progress()
+    {
+        var first = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var running = ModelHostRunner.OneBuildAtATimeAsync(() => first.Task, TestContext.Current.CancellationToken);
+        var solution = _folder.Combine("Shop.slnx");
+        File.WriteAllText(solution, "<Solution />");
+        var reports = 0;
+        using var cancel = new CancellationTokenSource();
+
+        var waiting = new ModelHostRunner("unused.dll").BuildSolutionAsync(solution, "Debug",
+            new SyncProgress<SolutionBuildProgress>(_ => Interlocked.Increment(ref reports)), cancel.Token);
+        await cancel.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
+        Assert.Equal(0, reports);
+        first.SetResult(1);
+        await running;
+    }
+
     public void Dispose() => _folder.Dispose();
 }
