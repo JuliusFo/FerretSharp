@@ -55,6 +55,7 @@ Reviewer-Agent (`/branch-code-review`), drei Durchgänge. Entscheidung des Nutze
 - C (K) Der Transaktionshinweis kannte nur das erste Lesen – behoben, beim Behalten und Laden erfasst (konservativ); im E2E geprüft.
 - D (K) Kürzen konnte ein Surrogatpaar teilen, der volle Name stand nirgends – behoben, Name im Tooltip des Chips; Test (Tooltip nicht im E2E gelesen: `tooltip.js` hatte ihn beim Hover übernommen).
 - E (K) Dieser Nachtrag.
+- G (K, dritter Durchgang, „Ja, beheben“) Der Fix zu A kopierte für jedes Statement vor dem Cursor das Skript bis dorthin – bei sehr großen Skripten sekundenlanges Einfrieren: behoben, Prüfung über einen Span ohne Kopie.
 
 ## Offen / Backlog
 - LINQ-Konsole: Ergebnisse behalten (Backlog, Entscheidung des Nutzers).

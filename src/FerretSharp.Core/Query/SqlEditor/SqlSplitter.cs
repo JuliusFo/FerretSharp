@@ -311,7 +311,8 @@ public static class SqlSplitter
     {
         cursor = Math.Clamp(cursor, 0, script.Length);
         var statements = Split(script);
-        if (statements.FirstOrDefault(s => s.Start < cursor && (cursor <= s.End || string.IsNullOrWhiteSpace(script[s.End..cursor]))) is not { } inside)
+        // A span, not a substring: each statement before the cursor would copy the script up to it (third review).
+        if (statements.FirstOrDefault(s => s.Start < cursor && (cursor <= s.End || script.AsSpan(s.End, cursor - s.End).IsWhiteSpace())) is not { } inside)
         {
             return cursor;
         }
