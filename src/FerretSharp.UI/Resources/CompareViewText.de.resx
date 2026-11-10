@@ -213,4 +213,31 @@
   <data name="Compare_ShowMore" xml:space="preserve">
     <value>{0} weitere anzeigen</value>
   </data>
+  <data name="Compare_ChooseTitle" xml:space="preserve">
+    <value>Für den DDL-Vorschlag auswählen</value>
+  </data>
+  <data name="Compare_ChooseAlikeTitle" xml:space="preserve">
+    <value>Auf allen Seiten gleich – nichts anzugleichen</value>
+  </data>
+  <data name="Compare_ChooseShownTitle" xml:space="preserve">
+    <value>Die {0:N0} angezeigten Objekte mit Unterschieden auswählen</value>
+  </data>
+  <data name="Compare_UnchooseShownTitle" xml:space="preserve">
+    <value>Die {0:N0} angezeigten Objekte aus der Auswahl nehmen</value>
+  </data>
+  <data name="Compare_DdlProposalChosenEllipsis" xml:space="preserve">
+    <value>DDL-Vorschlag ({0:N0}) …</value>
+  </data>
+  <data name="Compare_DdlChooseFirstTitle" xml:space="preserve">
+    <value>Objekte für den Vorschlag mit den Häkchen in der Matrix auswählen</value>
+  </data>
+  <data name="Compare_ChosenHidden" xml:space="preserve">
+    <value>{0:N0} ausgewählt, davon {1:N0} ausgeblendet</value>
+  </data>
+  <data name="CompareDdl_ChosenAlike" xml:space="preserve">
+    <value>Die ausgewählten Objekte sind zwischen diesen beiden Seiten gleich.</value>
+  </data>
+  <data name="CompareDdl_Unchanged" xml:space="preserve">
+    <value>Zwischen diesen beiden Seiten gleich, daher kein Schritt: {0}</value>
+  </data>
 </root>

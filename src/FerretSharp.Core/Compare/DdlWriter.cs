@@ -12,9 +12,16 @@ namespace FerretSharp.Core.Compare;
 /// side look like the reference side; <see cref="DdlScript.Order"/> sorts them at the end. The SQL is text for the user
 /// (WP-20), never run here. Column changes come from <see cref="ColumnChange"/> with an unknown intent (R4b).
 /// </summary>
-internal sealed class DdlWriter(int referenceSide, int targetSide, string referenceOwner, string targetOwner, CompareOptions options)
+/// <param name="notCreated">
+/// Reference names of tables the target lacks that this proposal does not create (left out of the user's choice): a
+/// foreign key to one of them gets a warning.
+/// </param>
+internal sealed class DdlWriter(int referenceSide, int targetSide, string referenceOwner, string targetOwner, CompareOptions options, IReadOnlySet<string> notCreated)
 {
     private readonly List<DdlStep> _steps = [];
+
+    /// <summary>Steps written so far, hints included.</summary>
+    public int Count => _steps.Count;
 
     public IReadOnlyList<DdlStep> Steps() => DdlScript.Order(_steps);
 
@@ -268,6 +275,10 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         }
 
         warnings.AddRange(ExpressionWarnings(constraint.Condition));
+        if (constraint.References is { } parent && string.Equals(parent.Owner, referenceOwner, StringComparison.Ordinal) && notCreated.Contains(parent.Name))
+        {
+            warnings.Add(TextFormat.Format(CompareText.ReferencedTableNotChosen, parent.Name));
+        }
 
         // A key whose index has a name of its own in the reference gets that index right away.
         string? usingIndex = null;

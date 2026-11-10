@@ -1,5 +1,5 @@
-@* DDL proposal of the schema comparison (WP-20): which side to align to which, the script to copy – or to open in a SQL
-   tab of the target connection and run there (WP-22). *@
+@* DDL proposal of the schema comparison (WP-20) for the objects chosen in the matrix: which side to align to which, the
+   script to copy – or to open in a SQL tab of the target connection and run there (WP-22). *@
 @using FerretSharp.Core.Compare
 
 <ModalFrame Label="@CompareViewText.CompareDdl_Title" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
@@ -42,10 +42,14 @@
     {
         @if (proposal.Steps.Count == 0)
         {
-            <div class="compare-none">@CompareViewText.CompareDdl_NoDifferences</div>
+            <div class="compare-none">@(proposal.Selected is null ? CompareViewText.CompareDdl_NoDifferences : CompareViewText.CompareDdl_ChosenAlike)</div>
         }
         else
         {
+            @if (proposal.Unchanged.Count > 0)
+            {
+                <div class="settings-note compare-ddl-note">@TextFormat.Format(CompareViewText.CompareDdl_Unchanged, string.Join(", ", proposal.Unchanged))</div>
+            }
             <SqlCode Sql="@proposal.Script" />
         }
     }
@@ -59,6 +63,10 @@
 
     [Parameter, EditorRequired]
     public SchemaComparison Comparison { get; set; } = null!;
+
+    /// <summary>The objects chosen in the matrix; the proposal covers only these.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<CompareRow> Rows { get; set; } = [];
 
     [Parameter, EditorRequired]
     public IReadOnlyList<string> Labels { get; set; } = [];
@@ -82,7 +90,7 @@
     {
         try
         {
-            _proposal = SchemaDdl.Align(Comparison, _reference, _target);
+            _proposal = SchemaDdl.Align(Comparison, _reference, _target, Rows);
             _error = null;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)

@@ -297,4 +297,16 @@
     <value>Identity {0}: ALWAYS or BY DEFAULT (ON NULL) differs – check the statement before running it; start and increment are not compared.</value>
     <comment>{0}: column name</comment>
   </data>
+  <data name="ScriptSelectedOne" xml:space="preserve">
+    <value>Only the object chosen in the matrix.</value>
+    <comment>Comment line of the DDL script when the user chose objects; {0}: number of chosen objects</comment>
+  </data>
+  <data name="ScriptSelectedOther" xml:space="preserve">
+    <value>Only the {0:N0} objects chosen in the matrix.</value>
+    <comment>Comment line of the DDL script when the user chose objects; {0}: number of chosen objects</comment>
+  </data>
+  <data name="ReferencedTableNotChosen" xml:space="preserve">
+    <value>References {0}, which the target lacks and which is not chosen: fails (ORA-00942) unless {0} is created first.</value>
+    <comment>Warning on a foreign key of the DDL proposal; {0}: name of the referenced table</comment>
+  </data>
 </root>

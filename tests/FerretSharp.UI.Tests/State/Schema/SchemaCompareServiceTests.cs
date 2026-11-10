@@ -42,12 +42,17 @@ public sealed class SchemaCompareServiceTests : IDisposable
         return service;
     }
 
-    /// <summary>The profile's session reads a snapshot with one table named after the profile.</summary>
-    private void Opens(ConnectionProfile profile)
+    /// <summary>The profile's session reads a snapshot with these tables (without columns); each read returns the next list, the last one stays.</summary>
+    private void Opens(ConnectionProfile profile, params string[][] tables)
     {
+        var reads = new Queue<string[]>(tables.Length == 0 ? [[]] : tables);
         var reader = Substitute.For<ISchemaReader>();
         reader.ReadSnapshotAsync(Arg.Any<string>(), Arg.Any<IProgress<string>?>(), Arg.Any<CancellationToken>())
-            .Returns(call => new SchemaSnapshot(call.Arg<string>(), DateTimeOffset.Now, []));
+            .Returns(call =>
+            {
+                var names = reads.Count > 1 ? reads.Dequeue() : reads.Peek();
+                return new SchemaSnapshot(call.Arg<string>(), DateTimeOffset.Now, names.Select(n => new ObjectSnapshot(n, TableKind.Table, [], [], [])).ToList());
+            });
         var connection = FakeDatabase.Connection(reader); // before: NSubstitute cannot configure a substitute inside Returns()
         _connector.OpenAsync(profile, Arg.Any<string>(), SchemaCompareLoader.SessionAction, Arg.Any<CancellationToken>())
             .Returns(connection);
@@ -143,6 +148,33 @@ public sealed class SchemaCompareServiceTests : IDisposable
         await service.SetOptionsAsync(reference: 0, service.Current.ColumnOrder, service.Current.OnlyDifferences, service.Current.Kinds);
         Assert.NotSame(first, service.Result);
         Assert.Equal(0, service.Result!.Options.Reference);
+    }
+
+    [Fact]
+    public async Task Chosen_objects_stay_over_a_new_comparison_until_they_are_alike_or_the_sides_change()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A", "B", "C"]);
+        Opens(_test, ["C"], ["A", "C"]); // the second read: A was created from the proposal
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+        var rows = service.Result!.Objects.ToDictionary(o => o.Name);
+
+        Assert.Empty(service.Chosen); // nothing chosen at first
+        service.Choose([rows["A"], rows["B"], rows["C"]], on: true);
+        Assert.Equal(["A", "B"], service.ChosenRows.Select(r => r.Name)); // C is alike everywhere
+
+        await service.CompareAsync();
+        Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name));
+
+        service.Choose([service.Result!.Objects.Single(o => o.Name == "B")], on: false);
+        Assert.Empty(service.Chosen);
+
+        service.Choose(service.Result!.Objects, on: true);
+        SetSides(service, _dev.Id, _test.Id);
+        Assert.Empty(service.Chosen);
     }
 
     /// <summary>Compared from the UI thread, the sides load and the matrix builds without holding it (the window froze).</summary>

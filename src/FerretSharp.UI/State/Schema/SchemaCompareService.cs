@@ -61,6 +61,38 @@ public sealed class SchemaCompareService(
     /// <summary>Indexes into <see cref="Sides"/> of the matrix columns (sides that failed are left out).</summary>
     public IReadOnlyList<int> ResultSides { get; private set; } = [];
 
+    private readonly HashSet<string> _chosen = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Keys of the objects chosen in the matrix for the DDL proposal: none at first, kept while filters hide them and over
+    /// a new comparison of the same sides (objects no longer there or alike everywhere drop out), not saved.
+    /// </summary>
+    public IReadOnlySet<string> Chosen => _chosen;
+
+    /// <summary>The chosen objects of the matrix in its order; what the DDL proposal covers.</summary>
+    public IReadOnlyList<CompareRow> ChosenRows => Result is { } result ? result.Objects.Where(o => _chosen.Contains(o.Key)).ToList() : [];
+
+    /// <summary>Only an object that differs somewhere can be chosen: one alike on all sides never gets a step.</summary>
+    public static bool CanChoose(CompareRow row) => row.HasDifferences;
+
+    /// <summary>Chooses objects for the DDL proposal or takes them out; rows that cannot be chosen are left alone.</summary>
+    public void Choose(IEnumerable<CompareRow> rows, bool on)
+    {
+        foreach (var row in rows.Where(CanChoose))
+        {
+            if (on)
+            {
+                _chosen.Add(row.Key);
+            }
+            else
+            {
+                _chosen.Remove(row.Key);
+            }
+        }
+
+        Changed?.Invoke();
+    }
+
     private static SavedComparison NewComparison() => new(Guid.NewGuid(), "", [new CompareSide(Guid.Empty), new CompareSide(Guid.Empty)]);
 
     /// <summary>
@@ -288,6 +320,7 @@ public sealed class SchemaCompareService(
         Sides = Current.Sides.Select(side => new SideState(side)).ToList();
         Result = null;
         ResultSides = [];
+        _chosen.Clear(); // other sides, other objects
         Changed?.Invoke();
     }
 
@@ -312,6 +345,8 @@ public sealed class SchemaCompareService(
         if (version == Volatile.Read(ref _matrix))
         {
             (Result, ResultSides) = (result, loaded.Select(s => s.index).ToList());
+            var choosable = result.Objects.Where(CanChoose).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
+            _chosen.IntersectWith(choosable); // e.g. compared again after running the script: aligned objects drop out
         }
     }
 }
