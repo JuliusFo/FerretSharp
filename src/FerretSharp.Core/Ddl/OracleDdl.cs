@@ -288,6 +288,14 @@ internal static class OracleDdl
         return text.Append(" AS\n").Append(query).ToString();
     }
 
+    /// <summary><c>ALTER MATERIALIZED VIEW … REFRESH FORCE ON DEMAND</c> or <c>… ENABLE QUERY REWRITE</c>: options changed in place (review WP-82).</summary>
+    /// <param name="clause">Keywords only: <see cref="MViewOptions.RefreshClause"/> or <c>ENABLE</c>/<c>DISABLE QUERY REWRITE</c>.</param>
+    public static string AlterMaterializedView(TableRef view, string clause) => $"ALTER MATERIALIZED VIEW {T(view)} {clause}";
+
+    /// <summary><c>CREATE [OR REPLACE] VIEW "OWNER"."NAME" AS …</c>: a note in place of a statement whose query cannot be written.</summary>
+    public static string ViewPlaceholder(TableKind kind, TableRef view, bool orReplace) =>
+        $"CREATE {(orReplace ? "OR REPLACE " : "")}{ObjectKeyword(kind)} {T(view)} AS …";
+
     /// <summary><c>ALTER VIEW … COMPILE</c>, <c>ALTER MATERIALIZED VIEW … COMPILE</c>: an invalid one compiled again (WP-82).</summary>
     public static string Compile(TableKind kind, TableRef view) => $"ALTER {ObjectKeyword(kind)} {T(view)} COMPILE";
 

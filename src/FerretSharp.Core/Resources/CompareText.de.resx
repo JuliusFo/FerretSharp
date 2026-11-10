@@ -25,7 +25,7 @@
     <value>REFRESH FAST braucht Materialized View Logs auf den Tabellen der Abfrage; ohne sie scheitert das Anlegen (ORA-23413).</value>
   </data>
   <data name="MaterializedViewInvalidInReference" xml:space="preserve">
-    <value>Die Materialized View ist in der Referenz ungültig: Das Statement kann auch im Ziel scheitern.</value>
+    <value>Die Materialized View ist in der Referenz ungültig. Oracle kompiliert sie bei der nächsten Verwendung; scheitert das dort, scheitert auch das Statement im Ziel.</value>
   </data>
   <data name="MaterializedViewPrebuilt" xml:space="preserve">
     <value>In der Referenz auf einer vorhandenen Tabelle angelegt (ON PREBUILT TABLE): erst die Tabelle anlegen und ON PREBUILT TABLE von Hand ergänzen.</value>
@@ -283,9 +283,15 @@
     <value>Verweist auf {0}, das im Ziel fehlt und nicht ausgewählt ist: scheitert (ORA-00942), wenn {0} nicht vorher angelegt wird.</value>
   </data>
   <data name="ViewInvalidInReference" xml:space="preserve">
-    <value>Die View ist in der Referenz ungültig: Das Statement kann auch im Ziel scheitern.</value>
+    <value>Die View ist in der Referenz ungültig. Oracle kompiliert sie bei der nächsten Verwendung; scheitert das dort, scheitert auch das Statement im Ziel.</value>
   </data>
   <data name="ViewNamesReferenceSchema" xml:space="preserve">
     <value>Die Abfrage nennt das Schema der Referenz ({0}) – im Ziel läse sie weiter von dort; anpassen.</value>
+  </data>
+  <data name="ViewReplaceDropsTriggers" xml:space="preserve">
+    <value>Das Ersetzen einer View löscht ihre INSTEAD-OF-Trigger (Grants bleiben): danach neu anlegen.</value>
+  </data>
+  <data name="ViewSlashLine" xml:space="preserve">
+    <value>Die Abfrage hat eine Zeile nur mit „/“, an der der SQL-Editor ein Statement beendet: aus der DDL-Ansicht der Referenz übernehmen und die Zeile mit der Nachbarzeile verbinden.</value>
   </data>
 </root>

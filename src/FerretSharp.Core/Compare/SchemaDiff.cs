@@ -113,13 +113,15 @@ public static class SchemaDiff
 
         return
         [
-            Row("def", CompareKind.Definition, CompareText.RowDefinition, (v, s) => CompareDefinitions.ViewDefinition(v, context.Sides[s].Owner)),
-            Row("status", CompareKind.Status, CompareText.RowStatus, (v, _) => CompareDefinitions.Status(v)),
+            Row("def", CompareKind.Definition, CompareText.RowDefinition, (v, s) => CompareDefinitions.ViewDefinition(v, context.Sides[s].Owner),
+                v => v.Definition is null || v.DefinitionTruncated),
+            Row("status", CompareKind.Status, CompareText.RowStatus, (v, _) => CompareDefinitions.Status(v), _ => false),
         ];
 
-        CompareRow Row(string key, CompareKind kind, string name, Func<ObjectSnapshot, int, string> definition)
+        // A text cut at the LONG limit or not shown at all is not compared: two of them would look alike (review WP-82).
+        CompareRow Row(string key, CompareKind kind, string name, Func<ObjectSnapshot, int, string> definition, Func<ObjectSnapshot, bool> unknown)
         {
-            var entries = views.Select((v, s) => v is null ? new Entry(null) : new Entry(definition(v, s))).ToList();
+            var entries = views.Select((v, s) => v is null ? new Entry(null) : new Entry(definition(v, s), Unknown: unknown(v))).ToList();
             return new CompareRow(key, kind, name, Cells(context, entries).Select((cell, s) => cell with { Object = views[s] }).ToList(), []);
         }
     }

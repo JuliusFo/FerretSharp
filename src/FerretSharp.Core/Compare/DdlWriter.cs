@@ -396,9 +396,9 @@ internal sealed class DdlWriter(
     /// </summary>
     private void CreateView(ObjectSnapshot view)
     {
-        if (!Readable(view))
+        if (NotWritable(view) is { } reason)
         {
-            Hint(view.Name, $"CREATE {ObjectKeyword(view.Kind)} {Qualified(view.Name)} AS …", Unreadable(view.Kind));
+            Hint(view.Name, ViewPlaceholder(view.Kind, Target(view.Name), orReplace: false), reason);
             return;
         }
 
@@ -435,7 +435,8 @@ internal sealed class DdlWriter(
     /// <summary>
     /// A view or materialized view on both sides. Another query or other column names → the reference's definition (a
     /// view replaced, a materialized view only as a commented DROP + CREATE: its rows would go, decision of the user,
-    /// 2026-11-10). Otherwise an invalid one compiled again. Column types alone follow the tables and need no step.
+    /// 2026-11-10); a materialized view with the same query and other options → ALTER, without losing rows (review
+    /// WP-82). Otherwise an invalid one compiled again. Column types alone follow the tables and need no step.
     /// </summary>
     private void AlignView(ObjectSnapshot reference, ObjectSnapshot target, IReadOnlyList<(CompareRow Row, CompareCell Reference, CompareCell Target)> differing)
     {
@@ -446,21 +447,21 @@ internal sealed class DdlWriter(
             .ToList();
         if (!definition && names.Count == 0)
         {
-            if (target.Invalid && !reference.Invalid)
-            {
-                Add(target.Name, DdlStepKind.CreateView, Compile(target.Kind, Target(target.Name)));
-            }
-
+            CompileIfInvalid(reference, target);
             return;
         }
 
         var columns = reference.Columns.Select(c => c.Name).ToList();
-        if (!Readable(reference))
+        if (NotWritable(reference) is { } reason)
         {
             IReadOnlyList<string> what = names.Count > 0 ? names : [CompareText.RowDefinition];
-            Hint(target.Name,
-                $"CREATE OR REPLACE {ObjectKeyword(target.Kind)} {Qualified(target.Name)} AS …  {TextFormat.Format(CompareText.ViewDiffers, string.Join(", ", what))}",
-                Unreadable(target.Kind));
+            Hint(target.Name, $"{ViewPlaceholder(target.Kind, Target(target.Name), orReplace: true)}  {TextFormat.Format(CompareText.ViewDiffers, string.Join(", ", what))}",
+                reason);
+        }
+        else if (reference.Kind == TableKind.MaterializedView && names.Count == 0 && SameQuery(reference, target))
+        {
+            AlterMView(target.Name, MViewOf(reference), MViewOf(target));
+            CompileIfInvalid(reference, target);
         }
         else if (reference.Kind == TableKind.MaterializedView)
         {
@@ -469,21 +470,57 @@ internal sealed class DdlWriter(
         }
         else
         {
+            // CREATE OR REPLACE keeps the grants but drops the view's INSTEAD OF triggers (Oracle 23, review WP-82).
             Add(target.Name, DdlStepKind.CreateView,
                 OracleDdl.CreateView(Target(target.Name), columns, reference.Definition!, orReplace: true, reference.ViewOption),
-                Join(ViewWarnings(reference)));
+                Join([CompareText.ViewReplaceDropsTriggers, .. ViewWarnings(reference)]));
         }
     }
 
-    /// <summary>The query is known in full: shown by the dictionary and not cut at the LONG fetch limit.</summary>
-    private static bool Readable(ObjectSnapshot view) => view.Definition is not null && !view.DefinitionTruncated;
+    private void CompileIfInvalid(ObjectSnapshot reference, ObjectSnapshot target)
+    {
+        if (target.Invalid && !reference.Invalid)
+        {
+            Add(target.Name, DdlStepKind.CreateView, Compile(target.Kind, Target(target.Name)));
+        }
+    }
+
+    /// <summary>Refresh and query rewrite of a materialized view changed in place.</summary>
+    private void AlterMView(string name, MViewOptions reference, MViewOptions target)
+    {
+        if (reference.RefreshClause != target.RefreshClause)
+        {
+            Add(name, DdlStepKind.CreateView, AlterMaterializedView(Target(name), reference.RefreshClause),
+                reference.RefreshMethod == "FAST" ? CompareText.MaterializedViewFastRefresh : null);
+        }
+
+        if (reference.QueryRewrite != target.QueryRewrite)
+        {
+            Add(name, DdlStepKind.CreateView, AlterMaterializedView(Target(name), reference.QueryRewrite ? "ENABLE QUERY REWRITE" : "DISABLE QUERY REWRITE"));
+        }
+    }
+
+    /// <summary>Both queries are known in full and the same as the comparison sees them.</summary>
+    private bool SameQuery(ObjectSnapshot reference, ObjectSnapshot target) =>
+        target.Definition is { } targetText && !target.DefinitionTruncated
+        && ViewText.Normalize(reference.Definition!, referenceOwner) == ViewText.Normalize(targetText, targetOwner);
+
+    /// <summary>
+    /// Why the reference's query cannot be written as a statement: not shown by the dictionary, cut at the LONG fetch
+    /// limit, or holding a line with only <c>/</c>, where the SQL editor would end the statement (review WP-82); null if it can.
+    /// </summary>
+    private static string? NotWritable(ObjectSnapshot view) =>
+        view.Definition is not { } text || view.DefinitionTruncated
+            ? (view.Kind == TableKind.MaterializedView ? CompareText.MaterializedViewDefinitionUnreadable : CompareText.ViewDefinitionUnreadable)
+            : ViewText.HasSlashLine(text) ? CompareText.ViewSlashLine
+            : null;
 
     private static MViewOptions MViewOf(ObjectSnapshot view) => view.MView ?? new MViewOptions("FORCE", "DEMAND", QueryRewrite: false, Prebuilt: false);
 
-    private static string Unreadable(TableKind kind) =>
-        kind == TableKind.MaterializedView ? CompareText.MaterializedViewDefinitionUnreadable : CompareText.ViewDefinitionUnreadable;
-
-    /// <summary>What a query copied from the reference may bring along: the reference's schema, its invalid state.</summary>
+    /// <summary>
+    /// What a query copied from the reference may bring along: the reference's schema, its invalid state, views of the
+    /// schema it selects from that the target lacks and the choice leaves out (review WP-82).
+    /// </summary>
     private IEnumerable<string> ViewWarnings(ObjectSnapshot view)
     {
         if (!string.Equals(referenceOwner, targetOwner, StringComparison.Ordinal) && ViewText.NamesSchema(view.Definition!, referenceOwner))
@@ -494,6 +531,11 @@ internal sealed class DdlWriter(
         if (view.Invalid)
         {
             yield return view.Kind == TableKind.MaterializedView ? CompareText.MaterializedViewInvalidInReference : CompareText.ViewInvalidInReference;
+        }
+
+        foreach (var name in (view.DependsOn ?? []).Where(notCreated.Contains))
+        {
+            yield return TextFormat.Format(CompareText.ReferencedTableNotChosen, name);
         }
     }
 

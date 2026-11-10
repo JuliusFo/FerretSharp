@@ -86,6 +86,13 @@ internal static class ViewText
             || n >= 5 && tokens[n - 5].IsWord("WITH") && tokens[n - 4].IsWord("CHECK") && tokens[n - 3].IsWord("OPTION") && tokens[n - 2].IsWord("CONSTRAINT");
     }
 
+    /// <summary>
+    /// A <c>/</c> alone on its line (a division written over lines): the SQL editor ends a statement there, so a script with
+    /// this text would run cut in two (review WP-82).
+    /// </summary>
+    public static bool HasSlashLine(string text) =>
+        Significant(text).Any(t => t.IsSymbol("/") && SqlSplitter.AloneOnLine(text, t));
+
     private static List<SqlToken> Significant(string text) =>
         SqlTokenizer.Tokenize(text).Where(t => t.Kind is not (SqlTokenKind.Space or SqlTokenKind.Comment)).ToList();
 

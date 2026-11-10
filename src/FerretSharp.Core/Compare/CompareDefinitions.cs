@@ -93,23 +93,15 @@ internal static class CompareDefinitions
             text.Append(" …");
         }
 
-        switch (o.ViewOption)
+        var inText = o.ViewOption switch
         {
-            case ViewOption.ReadOnly when !ViewText.EndsWith(definition, "WITH", "READ", "ONLY"):
-                text.Append(" WITH READ ONLY");
-                break;
-            case ViewOption.CheckOption when !ViewText.HasCheckOption(definition):
-                text.Append(" WITH CHECK OPTION");
-                break;
-        }
-
-        if (o.MView is { } mview)
+            ViewOption.ReadOnly => ViewText.EndsWith(definition, "WITH", "READ", "ONLY"),
+            ViewOption.CheckOption => ViewText.HasCheckOption(definition),
+            _ => false,
+        };
+        if (o.Options is { } options && !inText)
         {
-            text.Append(" · ").Append(mview.RefreshClause);
-            if (mview.QueryRewrite)
-            {
-                text.Append(" · ENABLE QUERY REWRITE");
-            }
+            text.Append(o.MView is null ? " " : " · ").Append(options);
         }
 
         return text.ToString();

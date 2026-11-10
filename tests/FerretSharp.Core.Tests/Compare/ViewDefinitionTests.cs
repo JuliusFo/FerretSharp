@@ -1,5 +1,6 @@
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Ddl;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using static FerretSharp.Core.Tests.Compare.TestComparison;
 
@@ -164,13 +165,77 @@ public class ViewDefinitionTests
     }
 
     [Fact]
-    public void Differing_view_is_replaced_and_grants_stay()
+    public void Differing_view_is_replaced_and_its_instead_of_triggers_named()
     {
         var step = Assert.Single(Align([View("V", "select id, name from kunde where id > 0")], [View("V", "select id, name from kunde")]).Steps);
 
         Assert.Equal("CREATE OR REPLACE VIEW \"TEST\".\"V\" (\"ID\", \"NAME\") AS\nselect id, name from kunde where id > 0", step.Sql);
         Assert.True(step.IsExecutable);
-        Assert.Null(step.Warning);
+        Assert.Contains("INSTEAD-OF-Trigger", step.Warning); // Oracle drops them on replace (review WP-82)
+    }
+
+    /// <summary>Review WP-82: Oracle keeps a line comment at the end of the text; the ";" must not land in it.</summary>
+    [Fact]
+    public void A_view_text_ending_in_a_line_comment_stays_one_statement_in_the_script()
+    {
+        var proposal = Align([View("V_A", "select id, name from kunde -- note"), View("V_B", "select id, name from kunde")], []);
+
+        var statements = SqlScript.Split(proposal.Script.ReplaceLineEndings("\n"))
+            .Where(s => s.Text.Contains("CREATE VIEW", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.Equal(2, statements.Count);
+        Assert.Contains(statements, s => s.Text.Contains("V_B", StringComparison.Ordinal) && !s.Text.Contains("V_A", StringComparison.Ordinal));
+    }
+
+    /// <summary>Review WP-82: the SQL editor ends a statement at a line with only "/".</summary>
+    [Fact]
+    public void A_view_text_with_a_slash_line_is_only_a_hint()
+    {
+        var step = Assert.Single(Align([View("V", "select 4\n/\n2 as id, name from kunde")], []).Steps);
+
+        Assert.False(step.IsExecutable);
+        Assert.Contains("„/“", step.Warning);
+        Assert.False(ViewText.HasSlashLine("select 4 / 2 from dual"));
+        Assert.False(ViewText.HasSlashLine("select '\n/\n' from dual"));
+    }
+
+    /// <summary>Review WP-82: like a foreign key to a table the choice leaves out.</summary>
+    [Fact]
+    public void View_on_a_missing_view_the_choice_leaves_out_warns()
+    {
+        var comparison = Compare([View("V_A", "select id, name from kunde"), View("V_B", "select id, name from v_a", dependsOn: ["V_A"])], []);
+
+        var proposal = SchemaDdl.Align(comparison, 0, 1, [comparison.Objects.Single(o => o.Name == "V_B")]);
+
+        var warning = Assert.Single(proposal.Steps).Warning;
+        Assert.Contains("V_A", warning);
+        Assert.Contains("ORA-00942", warning);
+    }
+
+    /// <summary>Review WP-82: two texts cut at the LONG limit with the same start do not count as alike.</summary>
+    [Fact]
+    public void Cut_or_invisible_definitions_are_not_compared()
+    {
+        var cut = Compare([View("V", "select id, name from kunde", truncated: true)], [View("V", "select id, name from kunde", truncated: true)]).Objects[0];
+        var hidden = Compare([View("V", null)], [View("V", null)]).Objects[0];
+
+        Assert.Equal([CellState.Unknown, CellState.Unknown], cut.Children[0].Cells.Select(c => c.State));
+        Assert.Equal([CellState.Unknown, CellState.Unknown], hidden.Children[0].Cells.Select(c => c.State));
+    }
+
+    /// <summary>Review WP-82: other refresh options alone need no DROP – ALTER keeps the rows.</summary>
+    [Fact]
+    public void Materialized_view_with_other_options_only_is_altered()
+    {
+        var proposal = Align(
+            [MView("MV", "select id from DEV.t", new MViewOptions("COMPLETE", "DEMAND", QueryRewrite: true, Prebuilt: false))],
+            [MView("MV", "SELECT ID FROM TEST.T")]);
+
+        Assert.Equal(
+            ["ALTER MATERIALIZED VIEW \"TEST\".\"MV\" REFRESH COMPLETE ON DEMAND", "ALTER MATERIALIZED VIEW \"TEST\".\"MV\" ENABLE QUERY REWRITE"],
+            Sql(proposal));
+        Assert.All(proposal.Steps, s => Assert.True(s.IsExecutable));
     }
 
     [Fact]

@@ -76,6 +76,12 @@ public static class DdlScript
                 {
                     lines.Add("/");
                 }
+                else if (EndsInLineComment(step.Sql))
+                {
+                    // A view's text as Oracle keeps it may end with "-- …": a ";" there would be part of the comment, and the
+                    // SQL editor would join the next statement to this one (review WP-82).
+                    lines.Add(";");
+                }
                 else
                 {
                     lines[^1] += ";";
@@ -92,6 +98,11 @@ public static class DdlScript
         ArgumentNullException.ThrowIfNull(step);
         return step.IsExecutable ? step.Sql : Commented(step.Sql);
     }
+
+    /// <summary>The last token of <paramref name="sql"/> other than spaces is a <c>--</c> comment.</summary>
+    private static bool EndsInLineComment(string sql) =>
+        Query.SqlTokenizer.Tokenize(sql).LastOrDefault(t => t.Kind != Query.SqlTokenKind.Space) is { Kind: Query.SqlTokenKind.Comment } last
+        && sql.AsSpan(last.Start).StartsWith("--", StringComparison.Ordinal);
 
     /// <summary>Comments every line that is not a comment yet.</summary>
     private static string Commented(string sql) =>

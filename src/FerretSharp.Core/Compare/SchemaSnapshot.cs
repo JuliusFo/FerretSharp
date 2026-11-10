@@ -59,4 +59,17 @@ public sealed record ObjectSnapshot(
         : Constraints.Any(c => c.Type == ConstraintType.ViewReadOnly) ? ViewOption.ReadOnly
         : Constraints.Any(c => c.Type == ConstraintType.ViewCheckOption) ? ViewOption.CheckOption
         : ViewOption.None;
+
+    /// <summary>
+    /// What the query does not show: <c>WITH READ ONLY</c>/<c>WITH CHECK OPTION</c> of a view, a materialized view's
+    /// <c>REFRESH FORCE ON DEMAND · ENABLE QUERY REWRITE</c>; null for none. The comparison and the definition dialog alike.
+    /// </summary>
+    public string? Options =>
+        MView is { } mview ? mview.RefreshClause + (mview.QueryRewrite ? " · ENABLE QUERY REWRITE" : "")
+        : ViewOption switch
+        {
+            ViewOption.ReadOnly => "WITH READ ONLY",
+            ViewOption.CheckOption => "WITH CHECK OPTION",
+            _ => null,
+        };
 }

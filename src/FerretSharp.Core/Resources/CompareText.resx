@@ -26,7 +26,7 @@
     <value>REFRESH FAST needs materialized view logs on the tables of the query; without them creating it fails (ORA-23413).</value>
   </data>
   <data name="MaterializedViewInvalidInReference" xml:space="preserve">
-    <value>The materialized view is invalid in the reference: the statement may fail in the target as well.</value>
+    <value>The materialized view is invalid in the reference. Oracle compiles it on its next use; if that fails there, the statement fails in the target as well.</value>
   </data>
   <data name="MaterializedViewPrebuilt" xml:space="preserve">
     <value>Built on an existing table in the reference (ON PREBUILT TABLE): create that table first and add ON PREBUILT TABLE by hand.</value>
@@ -335,10 +335,16 @@
     <comment>Warning on a foreign key of the DDL proposal; {0}: name of the referenced table</comment>
   </data>
   <data name="ViewInvalidInReference" xml:space="preserve">
-    <value>The view is invalid in the reference: the statement may fail in the target as well.</value>
+    <value>The view is invalid in the reference. Oracle compiles it on its next use; if that fails there, the statement fails in the target as well.</value>
   </data>
   <data name="ViewNamesReferenceSchema" xml:space="preserve">
     <value>The query names the reference’s schema ({0}) – in the target it would still read from there; adjust it.</value>
     <comment>{0}: schema name</comment>
+  </data>
+  <data name="ViewReplaceDropsTriggers" xml:space="preserve">
+    <value>Replacing a view drops its INSTEAD OF triggers (grants stay): create them again afterwards.</value>
+  </data>
+  <data name="ViewSlashLine" xml:space="preserve">
+    <value>The query has a line with only “/”, where the SQL editor ends a statement: copy it from the reference’s DDL view and join that line with its neighbour.</value>
   </data>
 </root>
