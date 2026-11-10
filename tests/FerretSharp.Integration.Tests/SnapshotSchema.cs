@@ -12,6 +12,9 @@ public static class SnapshotSchema
     public const string Owner = "SNAP_MAIN";
     public const string RefOwner = "SNAP_REF";
     public const string EmptyOwner = "SNAP_EMPTY";
+
+    /// <summary>WP-82: the tables of <see cref="Owner"/>'s views, its views missing or different – the target of the round trip.</summary>
+    public const string ViewTarget = "SNAP_VIEWS";
     public const string Password = "Snap_2026";
 
     private static readonly SemaphoreSlim Gate = new(1, 1);
@@ -37,7 +40,22 @@ public static class SnapshotSchema
         $"CREATE TABLE {RefOwner}.KATEGORIE (ID NUMBER CONSTRAINT PK_KATEGORIE PRIMARY KEY, NAME VARCHAR2(50))",
         $"GRANT REFERENCES ON {RefOwner}.KATEGORIE TO {Owner}",
         $"CREATE USER {EmptyOwner} IDENTIFIED BY \"{Password}\"",
+        $"CREATE USER {ViewTarget} IDENTIFIED BY \"{Password}\" QUOTA UNLIMITED ON users",
+        $"GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE MATERIALIZED VIEW TO {ViewTarget}",
     ];
+
+    // As the view target: the base tables and V_KUNDE without READ ONLY; the other views are missing.
+    private static readonly string[] ViewTargetStatements =
+    [
+        "CREATE TABLE \"Kunde\" (\"Id\" NUMBER(10) PRIMARY KEY, NAME VARCHAR2(50 CHAR) NOT NULL, STATUS VARCHAR2(1))",
+        "CREATE TABLE AUFTRAG (KUNDE_ID NUMBER(10), MENGE NUMBER(12,2))",
+        "CREATE VIEW V_KUNDE AS SELECT \"Id\", NAME FROM \"Kunde\"",
+    ];
+
+    /// <summary>A view whose text is longer than <c>ALL_VIEWS.TEXT_VC</c> (WP-82): read as LONG. Before
+    /// <see cref="OwnerStatements"/>, which uses it (static fields start in order).</summary>
+    public static readonly string LongView =
+        $"CREATE VIEW V_LANG AS SELECT \"Id\", NAME FROM \"Kunde\" WHERE NAME NOT IN ({string.Join(", ", Enumerable.Range(0, 400).Select(i => $"'Name {i}'"))})";
 
     // As the owner.
     private static readonly string[] OwnerStatements =
@@ -76,10 +94,23 @@ public static class SnapshotSchema
         "CREATE VIEW V_KUNDE AS SELECT \"Id\", NAME FROM \"Kunde\" WITH READ ONLY",
         "CREATE MATERIALIZED VIEW MV_MENGE AS SELECT KUNDE_ID, SUM(MENGE) AS MENGE FROM AUFTRAG GROUP BY KUNDE_ID",
         "COMMENT ON MATERIALIZED VIEW MV_MENGE IS 'Menge je Kunde'",
+        // WP-82: column list and CHECK OPTION, a view on it, a text longer than TEXT_VC (4000 bytes), an invalid view
+        "CREATE VIEW V_KUNDE_AKTIV (KUNDE_ID, KUNDE_NAME) AS SELECT \"Id\", NAME FROM \"Kunde\" WHERE STATUS = 'A' WITH CHECK OPTION",
+        "COMMENT ON TABLE V_KUNDE_AKTIV IS 'Aktive Kunden'",
+        "CREATE VIEW V_KUNDE_NAMEN AS SELECT KUNDE_NAME FROM V_KUNDE_AKTIV",
+        LongView,
+        "CREATE TABLE KAPUTT (ID NUMBER, ALT NUMBER)",
+        "CREATE VIEW V_KAPUTT AS SELECT ID, ALT FROM KAPUTT",
+        "ALTER TABLE KAPUTT DROP COLUMN ALT",
+        // A failed compile leaves the columns with the type UNDEFINED (as after Data Pump); ODP.NET reports ORA-24344.
+        CompileWithErrors + "ALTER VIEW V_KAPUTT COMPILE",
         // recycle bin: BIN$… with columns, constraints and indexes
         "CREATE TABLE WEG (ID NUMBER CONSTRAINT PK_WEG PRIMARY KEY, X NUMBER CHECK (X > 0))",
         "DROP TABLE WEG",
     ];
+
+    /// <summary>Marks a statement that succeeds with compilation errors (ORA-24344).</summary>
+    private const string CompileWithErrors = "-- compiles with errors\n";
 
     private const string PartitionedTable = """
         CREATE TABLE PROTOKOLL (ID NUMBER PRIMARY KEY, AM DATE NOT NULL)
@@ -128,6 +159,13 @@ public static class SnapshotSchema
                 }
             }
 
+            await using (var connection = new OracleConnection(
+                new OracleConnectionStringBuilder(appConnectionString) { UserID = ViewTarget, Password = Password }.ConnectionString))
+            {
+                await connection.OpenAsync(cancellationToken);
+                await ExecuteAsync(connection, ViewTargetStatements, cancellationToken);
+            }
+
             Available = true;
         }
         finally
@@ -145,6 +183,10 @@ public static class SnapshotSchema
             try
             {
                 await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            catch (OracleException ex) when (ex.Number == 24344 && sql.StartsWith(CompileWithErrors, StringComparison.Ordinal))
+            {
+                // expected: success with compilation error
             }
             catch (OracleException ex)
             {
