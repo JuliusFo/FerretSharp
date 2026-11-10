@@ -174,6 +174,9 @@ public sealed class SqlScriptTests
     [InlineData("SELECT 1 FROM t WHERE x = 2;\nSELECT 2 FROM dual;", 22, 29)] // inside: before the next statement
     [InlineData("SELECT 1 FROM t WHERE x = 2;\nSELECT 2 FROM dual;", 27, 29)] // just before its ";"
     [InlineData("SELECT 1 FROM t WHERE x = 2", 10, 27)] // the last one, without ";": at the end
+    [InlineData("SELECT 1 FROM dual  ;\nSELECT 2 FROM dual;", 19, 22)] // blanks before its ";": behind the ";" (second review)
+    [InlineData("SELECT 1 FROM dual\n;", 19, 20)] // its ";" on a line of its own
+    [InlineData("BEGIN NULL; END;\n/\nSELECT 2 FROM dual;", 17, 19)] // a block, before its "/" line
     [InlineData("SELECT 1 FROM t WHERE x = 2;\n", 28, 28)] // behind its ";": at the cursor
     [InlineData("SELECT 1 FROM t;\n\nSELECT 2 FROM dual;", 17, 17)] // between statements: at the cursor
     [InlineData("SELECT 1 FROM t;", 0, 0)] // before a statement: at the cursor

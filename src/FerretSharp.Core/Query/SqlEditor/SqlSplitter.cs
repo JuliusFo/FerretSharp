@@ -303,14 +303,15 @@ public static class SqlSplitter
 
     /// <summary>
     /// Where a statement taken back into the editor goes (WP-81, review): at the cursor, but never inside a statement –
-    /// <see cref="Insert"/> would end the text before the cursor and cut it in two. Inside one (also before its <c>;</c>),
+    /// <see cref="Insert"/> would end the text before the cursor and cut it in two. Inside one – also after its code with
+    /// only blanks before the cursor, ahead of its <c>;</c> or <c>/</c> line (second review: that one was left on its own) –
     /// behind it: where the next statement starts, else at the end of the script.
     /// </summary>
     public static int InsertionPoint(string script, int cursor)
     {
         cursor = Math.Clamp(cursor, 0, script.Length);
         var statements = Split(script);
-        if (statements.FirstOrDefault(s => s.Start < cursor && cursor <= s.End) is not { } inside)
+        if (statements.FirstOrDefault(s => s.Start < cursor && (cursor <= s.End || string.IsNullOrWhiteSpace(script[s.End..cursor]))) is not { } inside)
         {
             return cursor;
         }
