@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Changed
 - *Schema comparison*: the search, the opened rows, *Show more* and an open DDL proposal now stay when you come back to the comparison – before, they were gone after *Open in SQL editor* or switching connections.
 - The selects and text fields of the schema comparison, its DDL proposal, *Copy to another connection* and *App statements* look like every other field.
+- Running DDL from the table designer, the index, synonym and grant drafts or the schema comparison shows the rollback of the workspace's open write transaction before the first statement, with time and *Cancel* – the rollback finishes, no DDL runs after it; a rollback that hangs offers *Disconnect session*. *Close* stays off from the confirmation on.
 
 ### Fixed
 - *Server load* and *App statements*: when Oracle has already freed a statement's plan from the shared pool (it keeps the figures longer), the statement's details say so and that the next run brings the plan back – before, they showed an empty plan with the hint about GATHER_PLAN_STATISTICS. For a statement that never has a plan (a PL/SQL block such as EF’s `SaveChanges`, `CALL`, `ALTER SESSION`, most DDL) they say that instead.
