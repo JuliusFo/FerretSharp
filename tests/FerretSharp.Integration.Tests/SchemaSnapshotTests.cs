@@ -49,7 +49,9 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
             var details = await Reader.GetDetailsAsync(table, Ct);
             var info = await Reader.GetObjectInfoAsync(table, Ct);
             var isView = table.Kind == TableKind.View;
-            var constraints = isView ? [] : (await Reader.GetConstraintsAsync(table.Ref, Ct)).Where(c => !c.IsColumnNotNull).ToList();
+            var constraints = (await Reader.GetConstraintsAsync(table.Ref, Ct))
+                .Where(c => isView ? c.Type is ConstraintType.ViewReadOnly or ConstraintType.ViewCheckOption : !c.IsColumnNotNull)
+                .ToList();
             var indexes = isView ? [] : await Reader.GetIndexesAsync(table.Ref, Ct);
 
             AssertSame(details.Columns, snap.Columns, table.Name);
@@ -58,6 +60,7 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
             Assert.Equal(
                 (details.IsIndexOrganized, info.Temporary, info.Partitioned, info.Comment),
                 (snap.IsIndexOrganized, snap.Temporary, snap.Partitioned, snap.Comment));
+            Assert.Equal((details.Definition, details.DefinitionTruncated, table.IsInvalid), (snap.Definition, snap.DefinitionTruncated, snap.Invalid));
         }
     }
 
@@ -142,16 +145,45 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
             Assert.True(objects["PROTOKOLL"].Partitioned);
         }
 
-        // a view has columns but neither constraints (WITH READ ONLY) nor indexes; the mview is there once
+        // a view has columns, of its constraints only WITH READ ONLY / CHECK OPTION (WP-82), no indexes; the mview is there once
         var view = objects["V_KUNDE"];
         Assert.Equal(TableKind.View, view.Kind);
         Assert.Equal(["Id", "NAME"], view.Columns.Select(c => c.Name));
-        Assert.Empty(view.Constraints);
+        Assert.Equal(ViewOption.ReadOnly, view.ViewOption);
         Assert.Empty(view.Indexes);
-        Assert.Contains(await Reader.GetConstraintsAsync(new TableRef(Owner, "V_KUNDE"), Ct), c => c.Type == ConstraintType.ViewReadOnly);
         Assert.Equal(TableKind.MaterializedView, objects["MV_MENGE"].Kind);
         Assert.Equal(["KUNDE_ID", "MENGE"], objects["MV_MENGE"].Columns.Select(c => c.Name));
         Assert.Equal("Menge je Kunde", objects["MV_MENGE"].Comment); // from ALL_MVIEW_COMMENTS
+    }
+
+    /// <summary>WP-82: definitions as Oracle keeps them, options, status and the views a view selects from.</summary>
+    [Fact]
+    public async Task Snapshot_reads_view_definitions()
+    {
+        var objects = (await Reader.ReadSnapshotAsync(Owner, null, Ct)).Objects.ToDictionary(o => o.Name);
+
+        var aktiv = objects["V_KUNDE_AKTIV"];
+        Assert.StartsWith("SELECT \"Id\", NAME FROM \"Kunde\" WHERE STATUS = 'A'", aktiv.Definition);
+        Assert.Equal(["KUNDE_ID", "KUNDE_NAME"], aktiv.Columns.Select(c => c.Name)); // the column list is not in the text
+        Assert.Equal(ViewOption.CheckOption, aktiv.ViewOption);
+        Assert.Equal("Aktive Kunden", aktiv.Comment);
+        Assert.False(aktiv.Invalid);
+        Assert.Null(aktiv.DependsOn);
+        Assert.Equal(["V_KUNDE_AKTIV"], objects["V_KUNDE_NAMEN"].DependsOn);
+
+        var lang = objects["V_LANG"];
+        Assert.True(lang.Definition!.Length > 4000, "longer than TEXT_VC");
+        Assert.EndsWith("'Name 399')", lang.Definition);
+        Assert.False(lang.DefinitionTruncated);
+
+        var kaputt = objects["V_KAPUTT"];
+        Assert.True(kaputt.Invalid);
+        Assert.All(kaputt.Columns, c => Assert.Equal("UNDEFINED", c.DataType)); // after the failed compile
+
+        var mview = objects["MV_MENGE"];
+        Assert.StartsWith("SELECT KUNDE_ID, SUM(MENGE) AS MENGE FROM AUFTRAG", mview.Definition);
+        Assert.Equal(new MViewOptions("FORCE", "DEMAND", QueryRewrite: false, Prebuilt: false), mview.MView);
+        Assert.Null(objects["AUFTRAG"].Definition);
     }
 
 
@@ -170,7 +202,7 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
         var progress = new StepRecorder();
         await Reader.ReadSnapshotAsync(Owner, progress, Ct);
 
-        Assert.Equal(["Objekte", "Spalten", "Constraints", "Indizes"], progress.All);
+        Assert.Equal(["Objekte", "Spalten", "Constraints", "Indizes", "View-Definitionen"], progress.All);
     }
 
     [Fact]

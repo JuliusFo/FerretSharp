@@ -342,7 +342,7 @@ public static class SqlSplitter
         return Split(text);
     }
 
-    private static bool AloneOnLine(string text, SqlToken token)
+    internal static bool AloneOnLine(string text, SqlToken token)
     {
         var lineStart = token.Start == 0 ? 0 : text.LastIndexOf('\n', token.Start - 1) + 1;
         var lineEnd = text.IndexOf('\n', token.End);

@@ -15,6 +15,9 @@
   <data name="ConnectionLost" xml:space="preserve">
     <value>Die Verbindung zur Datenbank ist getrennt.</value>
   </data>
+  <data name="SnapshotStepDefinitions" xml:space="preserve">
+    <value>View-Definitionen</value>
+  </data>
   <data name="TnsAdminMissing" xml:space="preserve">
     <value>Für TNS-Aliase wird der Ordner der tnsnames.ora benötigt: im Profil angeben oder die Umgebungsvariable TNS_ADMIN setzen.</value>
   </data>

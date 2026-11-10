@@ -48,6 +48,8 @@ public static class CompareExport
             CellState.Missing => "–",
             CellState.Different => $"**{Escape(cell.Definition ?? "")}**",
             CellState.OtherCase => TextFormat.Format(CompareText.ExportOtherCase, Escape(cell.Definition ?? ""), Escape(cell.Name ?? "")),
+            // A column of an invalid view, or a view's text cut off or not visible (review WP-82: that view need not be invalid).
+            CellState.Unknown => TextFormat.Format(cell.Column is null ? CompareText.ExportUnknownDefinition : CompareText.ExportUnknown, Escape(cell.Definition ?? "")),
             _ => Escape(cell.Definition ?? ""),
         };
         return isReference && cell.State != CellState.Missing ? TextFormat.Format(CompareText.ExportReference, text) : text;

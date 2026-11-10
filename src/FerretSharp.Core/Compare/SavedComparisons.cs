@@ -52,7 +52,9 @@ public sealed class ComparisonStore(string filePath)
             return read.State switch
             {
                 JsonFileState.Missing or JsonFileState.Empty => [],
-                JsonFileState.Ok => (read.Document!.Comparisons ?? []).OfType<SavedComparison>().ToList(), // null by hand
+                JsonFileState.Ok => (read.Document!.Comparisons ?? []).OfType<SavedComparison>() // null by hand
+                    .Select(c => c with { Kinds = WithViewRows(c.Kinds) })
+                    .ToList(),
                 JsonFileState.Newer => throw new IOException(TextFormat.Format(CoreText.FileFromNewerVersion, filePath, read.Version)),
                 JsonFileState.Broken => throw new IOException(TextFormat.Format(CompareText.InvalidFile, filePath, read.Error!.Message), read.Error),
                 _ => throw read.Error!, // unreadable: the page shows it
@@ -83,6 +85,15 @@ public sealed class ComparisonStore(string filePath)
         }
     }
 
+    /// <summary>
+    /// A filter saved before WP-82 does not know the definition and status rows: they show with the views, as for a new
+    /// filter that shows objects.
+    /// </summary>
+    internal static IReadOnlyList<CompareKind>? WithViewRows(IReadOnlyList<CompareKind>? kinds) =>
+        kinds is not null && kinds.Any(k => k is CompareKind.View or CompareKind.MaterializedView)
+        && !kinds.Contains(CompareKind.Definition) && !kinds.Contains(CompareKind.Status)
+            ? [.. kinds, CompareKind.Definition, CompareKind.Status]
+            : kinds;
 
     private sealed record Document(int Version, IReadOnlyList<SavedComparison?>? Comparisons);
 }

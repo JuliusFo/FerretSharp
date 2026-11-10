@@ -15,6 +15,10 @@
   <data name="ConnectionLost" xml:space="preserve">
     <value>The connection to the database was lost.</value>
   </data>
+  <data name="SnapshotStepDefinitions" xml:space="preserve">
+    <value>View definitions</value>
+    <comment>Progress step while reading a schema for the schema comparison</comment>
+  </data>
   <data name="TnsAdminMissing" xml:space="preserve">
     <value>TNS aliases need the folder with tnsnames.ora: enter it in the connection or set the TNS_ADMIN environment variable.</value>
   </data>

@@ -213,7 +213,7 @@ public class DdlOutputTests
     -- ⚠ Löscht den Index. Stützt er einen Schlüssel, lehnt Oracle das ab (ORA-02429).
     -- DROP INDEX "TEST"."IX_KUNDE_ALT"
 
-    -- ⚠ Die Definition der View gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.
+    -- ⚠ Die Definition der View ließ sich nicht vollständig lesen (länger als 32.767 Zeichen oder nicht sichtbar): aus der DDL-Ansicht der Referenz übernehmen.
     -- CREATE VIEW "TEST"."V_KUNDE" AS …
 
     -- ⚠ Löscht die Tabelle mit allen Daten.
@@ -309,7 +309,7 @@ public class DdlOutputTests
             -- ⚠ Löscht den Index. Stützt er einen Schlüssel, lehnt Oracle das ab (ORA-02429).
             -- DROP INDEX "TEST"."IX_KUNDE_ALT"
 
-            -- ⚠ Die Definition der View gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.
+            -- ⚠ Die Definition der View ließ sich nicht vollständig lesen (länger als 32.767 Zeichen oder nicht sichtbar): aus der DDL-Ansicht der Referenz übernehmen.
             -- CREATE VIEW "TEST"."V_KUNDE" AS …
 
             -- ⚠ Löscht die Tabelle mit allen Daten.

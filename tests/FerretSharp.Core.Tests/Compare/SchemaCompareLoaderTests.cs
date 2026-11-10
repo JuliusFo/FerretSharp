@@ -216,6 +216,22 @@ public sealed class SchemaCompareLoaderTests
         Assert.Equal(saved.Kinds, loaded.Kinds);
     }
 
+    /// <summary>WP-82: a filter saved before the definition and status rows shows them with the views, one without views not.</summary>
+    [Theory]
+    [InlineData("""["table","view","materializedView"]""", true)]
+    [InlineData("""["column","index"]""", false)]
+    public async Task A_filter_saved_before_wp82_shows_definitions_with_the_views(string kinds, bool expected)
+    {
+        using var folder = new TestFolder();
+        var file = folder.Combine("comparisons.json");
+        await File.WriteAllTextAsync(file, $$"""{ "version": 1, "comparisons": [ { "id": "{{Guid.NewGuid()}}", "name": "X", "sides": [], "kinds": {{kinds}} } ] }""", Ct);
+
+        var loaded = Assert.Single(await new ComparisonStore(file).LoadAsync(Ct));
+
+        var shown = Assert.IsAssignableFrom<IReadOnlyList<CompareKind>>(loaded.Kinds);
+        Assert.Equal(expected, shown.Contains(CompareKind.Definition) && shown.Contains(CompareKind.Status));
+    }
+
     /// <summary>R5b (review 3.31.0, B2): an entry set to null by hand is left out; a broken file says so, a newer one with an unknown shape is newer.</summary>
     [Theory]
     [InlineData("""{ "version": 1, "comparisons": [ null ] }""", null)]

@@ -239,6 +239,70 @@ internal static class OracleDdl
     /// <summary><c>CREATE VIEW "OWNER"."NAME" AS</c> and the select below it; never <c>OR REPLACE</c> (WP-69).</summary>
     public static string CreateView(TableRef view, string select) => $"CREATE VIEW {T(view)} AS\n{select}";
 
+    /// <summary>
+    /// <c>CREATE [OR REPLACE] VIEW "OWNER"."NAME" ("A", "B") AS</c>, the query below it as Oracle keeps it and
+    /// <c>WITH READ ONLY</c> or <c>WITH CHECK OPTION</c> (schema comparison, WP-82). The column list carries names a
+    /// <c>CREATE VIEW v (a, b)</c> gave, which the query does not have.
+    /// </summary>
+    /// <param name="option">Appended unless the query already ends with it.</param>
+    public static string CreateView(TableRef view, IReadOnlyList<string> columns, string query, bool orReplace, ViewOption option)
+    {
+        var text = new StringBuilder(orReplace ? "CREATE OR REPLACE VIEW " : "CREATE VIEW ").Append(T(view));
+        if (columns.Count > 0)
+        {
+            text.Append(" (").Append(string.Join(", ", columns.Select(Q))).Append(')');
+        }
+
+        text.Append(" AS\n").Append(query);
+        switch (option)
+        {
+            case ViewOption.ReadOnly when !ViewText.EndsWith(query, "WITH", "READ", "ONLY"):
+                text.Append("\nWITH READ ONLY");
+                break;
+            case ViewOption.CheckOption when !ViewText.HasCheckOption(query):
+                text.Append("\nWITH CHECK OPTION");
+                break;
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// <c>CREATE MATERIALIZED VIEW "OWNER"."NAME" ("A", "B") BUILD IMMEDIATE REFRESH FORCE ON DEMAND [ENABLE QUERY REWRITE] AS</c>
+    /// and the query below it (schema comparison, WP-82).
+    /// </summary>
+    public static string CreateMaterializedView(TableRef view, IReadOnlyList<string> columns, string query, MViewOptions options)
+    {
+        var text = new StringBuilder("CREATE MATERIALIZED VIEW ").Append(T(view));
+        if (columns.Count > 0)
+        {
+            text.Append(" (").Append(string.Join(", ", columns.Select(Q))).Append(')');
+        }
+
+        text.Append("\nBUILD IMMEDIATE ").Append(options.RefreshClause);
+        if (options.QueryRewrite)
+        {
+            text.Append(" ENABLE QUERY REWRITE");
+        }
+
+        return text.Append(" AS\n").Append(query).ToString();
+    }
+
+    /// <summary><c>ALTER MATERIALIZED VIEW … REFRESH FORCE ON DEMAND</c> or <c>… ENABLE QUERY REWRITE</c>: options changed in place (review WP-82).</summary>
+    /// <param name="clause">Keywords only: <see cref="MViewOptions.RefreshClause"/> or <c>ENABLE</c>/<c>DISABLE QUERY REWRITE</c>.</param>
+    public static string AlterMaterializedView(TableRef view, string clause) => $"ALTER MATERIALIZED VIEW {T(view)} {clause}";
+
+    /// <summary><c>CREATE [OR REPLACE] VIEW "OWNER"."NAME" AS …</c>: a note in place of a statement whose query cannot be written.</summary>
+    public static string ViewPlaceholder(TableKind kind, TableRef view, bool orReplace) =>
+        $"CREATE {(orReplace ? "OR REPLACE " : "")}{ObjectKeyword(kind)} {T(view)} AS …";
+
+    /// <summary><c>ALTER VIEW … COMPILE</c>, <c>ALTER MATERIALIZED VIEW … COMPILE</c>: an invalid one compiled again (WP-82).</summary>
+    public static string Compile(TableKind kind, TableRef view) => $"ALTER {ObjectKeyword(kind)} {T(view)} COMPILE";
+
+    /// <summary><c>COMMENT ON TABLE</c>, for a materialized view <c>COMMENT ON MATERIALIZED VIEW</c> (a view takes TABLE).</summary>
+    public static string CommentOn(TableKind kind, TableRef table, string? comment) =>
+        kind == TableKind.MaterializedView ? $"COMMENT ON MATERIALIZED VIEW {T(table)} IS {Literal(comment)}" : CommentOnTable(table, comment);
+
     // ---- object privileges (WP-71) ----
 
     /// <summary><c>PUBLIC</c> is a keyword there: quoted it would be a user of that name (ORA-01917).</summary>

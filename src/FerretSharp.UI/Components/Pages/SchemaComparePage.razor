@@ -188,14 +188,30 @@
                             {
                                 @foreach (var child in children)
                                 {
-                                    <tr class="child @(child.Differs ? "differs" : "")">
-                                        <td class="choose off"></td>
-                                        <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
-                                        @foreach (var cell in child.Cells)
-                                        {
-                                            @CellView(cell)
-                                        }
-                                    </tr>
+                                    @if (child.Kind == CompareKind.Definition)
+                                    {
+                                        @* The query of a view is long: a few lines in the cells, all of it per variant in a dialog (WP-82).
+                                           Only this row has a handler – a click on another child would render the whole matrix (review). *@
+                                        <tr class="child definition @(child.Differs ? "differs" : "")" @onclick="() => _definition = (child, row.Name)">
+                                            <td class="choose off"></td>
+                                            <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
+                                            @foreach (var cell in child.Cells)
+                                            {
+                                                @CellView(cell)
+                                            }
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        <tr class="child @(child.Differs ? "differs" : "")">
+                                            <td class="choose off"></td>
+                                            <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
+                                            @foreach (var cell in child.Cells)
+                                            {
+                                                @CellView(cell)
+                                            }
+                                        </tr>
+                                    }
                                 }
                             }
                         }
@@ -241,6 +257,11 @@
     </ConfirmDialog>
 }
 
+@if (_definition is { } definition)
+{
+    <ViewDefinitionDialog Row="definition.Row" ObjectName="@definition.Object" Labels="Labels" OnClose="() => _definition = null" />
+}
+
 @if (_ddl && Compare.Result is { } ddlResult)
 {
     <SchemaDdlDialog Comparison="ddlResult" Rows="Compare.ChosenRows" Labels="Labels" OnClose="() => _ddl = false" OnOpenInEditor="OpenInEditorAsync" />
@@ -250,7 +271,7 @@
     // A property, not a static field: the labels follow the UI language.
     private static (string Label, CompareKind[] Kinds)[] KindFilters =>
     [
-        (CompareViewText.Compare_FilterObjects, [CompareKind.Table, CompareKind.View, CompareKind.MaterializedView]),
+        (CompareViewText.Compare_FilterObjects, [CompareKind.Table, CompareKind.View, CompareKind.MaterializedView, CompareKind.Definition, CompareKind.Status]),
         (CompareViewText.Compare_FilterColumns, [CompareKind.Column]),
         (CompareViewText.Compare_FilterConstraints, [CompareKind.PrimaryKey, CompareKind.Unique, CompareKind.ForeignKey, CompareKind.Check]),
         (CompareViewText.Compare_FilterIndexes, [CompareKind.Index]),
@@ -268,6 +289,9 @@
     private string _saveName = "";
     private bool _confirmDelete;
     private bool _ddl;
+
+    /// <summary>The definition row shown in <see cref="ViewDefinitionDialog"/> and the name of its object.</summary>
+    private (CompareRow Row, string Object)? _definition;
 
     /// <summary>The header's checkbox: partly checked while some, not all, of the shown objects are chosen.</summary>
     private ElementReference _chooseAll;
@@ -452,6 +476,7 @@
         CellState.Missing => "missing",
         CellState.OtherCase => "other-case",
         CellState.Different => $"different g{Math.Min(cell.Group, 3)}",
+        CellState.Unknown => "unknown",
         _ => "same",
     };
 
@@ -460,8 +485,15 @@
         CellState.Missing => GridText.CompareCell_Missing,
         CellState.OtherCase => TextFormat.Format(GridText.CompareCell_OtherCase, cell.Name),
         CellState.Different => TextFormat.Format(GridText.CompareCell_Different, cell.Group + 1),
+        CellState.Unknown => cell.Column is null ? GridText.CompareCell_UnknownDefinition : GridText.CompareCell_Unknown,
         _ => GridText.CompareCell_Same,
-    } + (cell.Name is { } name && ShownName(cell) is null ? $" · {name}" : "");
+    } + (cell.Name is { } name && ShownName(cell) is null ? $" · {name}" : "")
+        + (IsInvalidStatus(cell)
+            ? " · " + (cell.Object!.Kind == FerretSharp.Core.Schema.TableKind.MaterializedView ? CompareViewText.Compare_InvalidMViewHint : CompareViewText.Compare_InvalidHint)
+            : "");
+
+    /// <summary>The status cell of an invalid view: often only marked for compiling after DDL on its tables (E2E WP-82).</summary>
+    private static bool IsInvalidStatus(CompareCell cell) => cell is { Object.Invalid: true, Column: null, Definition: "INVALID" };
 
     private IEnumerable<CompareRow> Children(CompareRow row) =>
         row.Children.Where(c => (!Compare.Current.OnlyDifferences || c.Differs) && (Compare.Current.Kinds is not { } kinds || kinds.Contains(c.Kind)));
@@ -495,6 +527,8 @@
         CompareKind.ForeignKey => "FK",
         CompareKind.Check => "CK",
         CompareKind.Index => "IX",
+        CompareKind.Definition => "DEF",
+        CompareKind.Status => "ST",
         _ => "",
     };
 
@@ -506,6 +540,8 @@
         CompareKind.ForeignKey => CompareViewText.Compare_KindForeignKey,
         CompareKind.Check => CompareViewText.Compare_KindCheck,
         CompareKind.Index => CompareViewText.Compare_KindIndex,
+        CompareKind.Definition => CompareViewText.Compare_KindDefinition,
+        CompareKind.Status => CompareViewText.Compare_KindStatus,
         _ => "",
     };
 
