@@ -162,7 +162,7 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Verweist auf / Referenziert von (FK-Sprünge) | Points to / Referenced by | |
 | Primärschlüssel / Fremdschlüssel / Row-Key | primary key / foreign key / row key | |
 | Pflichtfeld / Eindeutigkeit verletzt | required value / unique constraint violated | Oracle-Fehler |
-| Recht (Oracle) / Eigentümer | privilege / owner | |
+| Recht (Oracle) / Owner | privilege / owner | „Owner“ auch im Deutschen (Entscheidung des Nutzers, Review `small-ddl-without-owner`); „Eigentümer“ in älteren Texten nicht neu verwenden |
 | zum Löschen markiert | marked for deletion | |
 | LOB-Editor / Vorschau | LOB editor / preview | |
 | maskiert (Bind-Wert auf Prod) | masked | |

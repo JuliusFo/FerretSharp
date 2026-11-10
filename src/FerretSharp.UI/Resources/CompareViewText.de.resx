@@ -213,4 +213,61 @@
   <data name="Compare_ShowMore" xml:space="preserve">
     <value>{0} weitere anzeigen</value>
   </data>
+  <data name="Compare_ChooseTitle" xml:space="preserve">
+    <value>Für den DDL-Vorschlag auswählen</value>
+  </data>
+  <data name="Compare_ChooseAlikeTitle" xml:space="preserve">
+    <value>Auf allen Seiten gleich – nichts anzugleichen</value>
+  </data>
+  <data name="Compare_DdlProposalChosenEllipsis" xml:space="preserve">
+    <value>DDL-Vorschlag ({0:N0}) …</value>
+  </data>
+  <data name="Compare_DdlChooseFirstTitle" xml:space="preserve">
+    <value>Objekte für den Vorschlag mit den Häkchen in der Matrix auswählen</value>
+  </data>
+  <data name="Compare_ChosenHidden" xml:space="preserve">
+    <value>{0:N0} ausgewählt, davon {1:N0} ausgeblendet</value>
+  </data>
+  <data name="CompareDdl_ChosenAlike" xml:space="preserve">
+    <value>Die ausgewählten Objekte sind zwischen diesen beiden Seiten gleich.</value>
+  </data>
+  <data name="CompareDdl_Unchanged" xml:space="preserve">
+    <value>Zwischen diesen beiden Seiten gleich, daher kein Schritt: {0}</value>
+  </data>
+  <data name="CompareDdl_UnchangedMore" xml:space="preserve">
+    <value>{0} und {1:N0} weitere</value>
+  </data>
+  <data name="Compare_ChooseShownOne" xml:space="preserve">
+    <value>Den Treffer mit Unterschieden auswählen</value>
+  </data>
+  <data name="Compare_ChooseShownOther" xml:space="preserve">
+    <value>Alle {0:N0} Treffer mit Unterschieden auswählen</value>
+  </data>
+  <data name="Compare_UnchooseShownOne" xml:space="preserve">
+    <value>Den Treffer aus der Auswahl nehmen</value>
+  </data>
+  <data name="Compare_UnchooseShownOther" xml:space="preserve">
+    <value>Die {0:N0} Treffer aus der Auswahl nehmen</value>
+  </data>
+  <data name="Compare_UnchooseWaitingOne" xml:space="preserve">
+    <value>Das wartende Objekt aus der Auswahl nehmen – es ist in dieser Matrix gleich, etwa solange eine Seite fehlt, und zählt wieder, sobald es abweicht</value>
+  </data>
+  <data name="Compare_UnchooseWaitingOther" xml:space="preserve">
+    <value>Die {0:N0} wartenden Objekte aus der Auswahl nehmen – sie sind in dieser Matrix gleich, etwa solange eine Seite fehlt, und zählen wieder, sobald sie abweichen</value>
+  </data>
+  <data name="Compare_UnchooseShownAndWaiting" xml:space="preserve">
+    <value>{0} und {1} aus der Auswahl nehmen – wartende sind in dieser Matrix gleich, etwa solange eine Seite fehlt</value>
+  </data>
+  <data name="Compare_MatchesOne" xml:space="preserve">
+    <value>Den Treffer</value>
+  </data>
+  <data name="Compare_MatchesOther" xml:space="preserve">
+    <value>Die {0:N0} Treffer</value>
+  </data>
+  <data name="Compare_WaitingObjectsOne" xml:space="preserve">
+    <value>das wartende Objekt</value>
+  </data>
+  <data name="Compare_WaitingObjectsOther" xml:space="preserve">
+    <value>die {0:N0} wartenden Objekte</value>
+  </data>
 </root>

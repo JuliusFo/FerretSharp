@@ -23,8 +23,8 @@ public sealed class SettingsStoreTests : IDisposable
 
         Assert.Equal(AppSettings.Default, settings);
         Assert.Equal(
-            (ThemeMode.System, UiLanguage.English, KeepAlive: true, DiagnoseUiStalls: false, FkCountMode.Immediately, FilterSqlColumns.Listed),
-            (settings.Theme, settings.Language, settings.KeepAlive, settings.DiagnoseUiStalls, settings.FkCounts, settings.FilterSql));
+            (ThemeMode.System, UiLanguage.English, KeepAlive: true, DiagnoseUiStalls: false, FkCountMode.Immediately, FilterSqlColumns.Listed, DdlWithoutOwner: false),
+            (settings.Theme, settings.Language, settings.KeepAlive, settings.DiagnoseUiStalls, settings.FkCounts, settings.FilterSql, settings.DdlWithoutOwner));
         Assert.Equal(
             (ShowColumnTypes: true, ShowNotNull: true, SyncAuditInDesigner: true, CreateAuditTables: true, CheckForUpdates: true, ChangesPanelOpen: false, ChangesPanelWidth: (int?)null),
             (settings.ShowColumnTypes, settings.ShowNotNull, settings.SyncAuditInDesigner, settings.CreateAuditTables, settings.CheckForUpdates, settings.ChangesPanelOpen, settings.ChangesPanelWidth));

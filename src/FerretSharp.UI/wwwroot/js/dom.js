@@ -532,6 +532,11 @@ export function typeInLists(root) {
   }, true);
 }
 
+/** Shows a checkbox as partly checked ("some of them"): a property only, no attribute Blazor could render. */
+export function setIndeterminate(element, on) {
+  if (element) element.indeterminate = on;
+}
+
 /** True if the element contains the focused element (Ctrl+F: the form's search or the grid's column jump). */
 export function containsFocus(element) {
   return !!element && element.contains(document.activeElement);

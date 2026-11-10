@@ -587,6 +587,14 @@
     <value>From {0} – indexes, triggers and grants are not included.</value>
     <comment>{0} = DBMS_METADATA.GET_DDL (code)</comment>
   </data>
+  <data name="Ddl_WithoutOwner" xml:space="preserve">
+    <value>Without owner</value>
+    <comment>Switch of the DDL view</comment>
+  </data>
+  <data name="Ddl_WithoutOwnerTitle" xml:space="preserve">
+    <value>Leave {0} out before the names of this schema, in the grants as well – for running the DDL under another owner. Other schemas stay, and so do unquoted names in the source of a view.</value>
+    <comment>{0}: "OWNER". with the object's owner</comment>
+  </data>
   <data name="TableLink_ShowStructure" xml:space="preserve">
     <value>Show structure</value>
   </data>

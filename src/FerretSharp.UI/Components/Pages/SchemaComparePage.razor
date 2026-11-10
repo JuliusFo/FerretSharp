@@ -124,12 +124,32 @@
                 <span class="grow"></span>
                 <span class="muted">@Summary(result)</span>
                 <button class="btn" @onclick="CopyMarkdownAsync">@CompareViewText.Compare_CopyMarkdown</button>
-                <button class="btn" disabled="@(result.Sides.Count < 2)" @onclick="() => _ddl = true">@CompareViewText.Compare_DdlProposalEllipsis</button>
+                @{
+                    var visible = Visible(result);
+                    var chosen = Compare.ChosenRows.Count;
+                    var hidden = chosen - visible.Count(Compare.IsChosen);
+                }
+                @if (hidden > 0)
+                {
+                    <span class="muted">@TextFormat.Format(CompareViewText.Compare_ChosenHidden, chosen, hidden)</span>
+                }
+                <button class="btn" disabled="@(result.Sides.Count < 2 || chosen == 0)" title="@(chosen == 0 ? CompareViewText.Compare_DdlChooseFirstTitle : null)"
+                        @onclick="() => _ddl = true">@(chosen == 0 ? CompareViewText.Compare_DdlProposalEllipsis : TextFormat.Format(CompareViewText.Compare_DdlProposalChosenEllipsis, chosen))</button>
             </div>
             <div class="compare-matrix-wrap">
                 <table class="compare-matrix">
                     <thead>
                         <tr>
+                            @{
+                                var head = Compare.Header(visible);
+                                _someChosen = head.Partly;
+                            }
+                            @* What a click does is the service's (head.Next), not the box's own toggle: the box keeps its state
+                               (preventDefault) and the click goes on to the cell – a toggled box Blazor would not reset. *@
+                            <th class="choose @(head.Enabled ? "" : "off")" title="@head.Title"
+                                @onclick="() => { if (head.Enabled) Compare.ChooseAll(head.Matches, head.Next); }">
+                                <input type="checkbox" @ref="_chooseAll" checked="@head.Checked" disabled="@(!head.Enabled)" @onclick:preventDefault="true" />
+                            </th>
                             <th>@CompareViewText.Compare_HeadObject</th>
                             @for (var i = 0; i < result.Sides.Count; i++)
                             {
@@ -137,13 +157,19 @@
                             }
                         </tr>
                     </thead>
-                    @{ var visible = Visible(result); }
                     <tbody>
                         @foreach (var row in visible.Take(_shown))
                         {
                             var open = _open.Contains(row.Key);
                             var children = Children(row).ToList();
-                            <tr class="object @(row.HasDifferences ? "differs" : "")" @onclick="() => Toggle(row.Key)">
+                            var canChoose = SchemaCompareService.CanChoose(row);
+                            <tr class="object @(row.HasDifferences ? "differs" : "") @(Compare.IsChosen(row) ? "chosen" : "")" @onclick="() => Toggle(row.Key)">
+                                @* The whole cell chooses (a label fills a cell only in width), and it does not open the row. *@
+                                <td class="choose @(canChoose ? "" : "off")" title="@(canChoose ? CompareViewText.Compare_ChooseTitle : CompareViewText.Compare_ChooseAlikeTitle)"
+                                    @onclick="() => Compare.Choose([row], !Compare.IsChosen(row))" @onclick:stopPropagation="true">
+                                    <input type="checkbox" checked="@Compare.IsChosen(row)" disabled="@(!canChoose)"
+                                           @onchange="e => Compare.Choose([row], e.Value is true)" @onclick:stopPropagation="true" />
+                                </td>
                                 <td class="name">
                                     <span class="twisty">@(children.Count > 0 ? open ? Icons.ChevronDown : Icons.ChevronRight : default)</span>
                                     @Icons.For(KindOf(row))
@@ -163,6 +189,7 @@
                                 @foreach (var child in children)
                                 {
                                     <tr class="child @(child.Differs ? "differs" : "")">
+                                        <td class="choose off"></td>
                                         <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
                                         @foreach (var cell in child.Cells)
                                         {
@@ -216,7 +243,7 @@
 
 @if (_ddl && Compare.Result is { } ddlResult)
 {
-    <SchemaDdlDialog Comparison="ddlResult" Labels="Labels" OnClose="() => _ddl = false" OnOpenInEditor="OpenInEditorAsync" />
+    <SchemaDdlDialog Comparison="ddlResult" Rows="Compare.ChosenRows" Labels="Labels" OnClose="() => _ddl = false" OnOpenInEditor="OpenInEditorAsync" />
 }
 
 @code {
@@ -241,6 +268,11 @@
     private string _saveName = "";
     private bool _confirmDelete;
     private bool _ddl;
+
+    /// <summary>The header's checkbox: partly checked while some, not all, of the shown objects are chosen.</summary>
+    private ElementReference _chooseAll;
+    private bool _someChosen;
+    private bool? _someChosenShown;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -280,6 +312,21 @@
     }
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Compare.Result is null)
+        {
+            _someChosenShown = null; // the matrix and its header's checkbox are gone; a new one starts fully checked or not
+            return;
+        }
+
+        if (_someChosen != _someChosenShown)
+        {
+            _someChosenShown = _someChosen;
+            await Dom.InvokeVoidAsync("setIndeterminate", _chooseAll, _someChosen);
+        }
+    }
 
     private void OpenSaved(ChangeEventArgs e)
     {

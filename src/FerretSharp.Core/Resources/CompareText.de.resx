@@ -249,4 +249,13 @@
   <data name="IdentityModeHint" xml:space="preserve">
     <value>Identity {0}: ALWAYS oder BY DEFAULT (ON NULL) weicht ab – Statement vor dem Ausführen prüfen; Start und Schrittweite sind nicht verglichen.</value>
   </data>
+  <data name="ScriptSelectedOne" xml:space="preserve">
+    <value>Nur das in der Matrix ausgewählte Objekt.</value>
+  </data>
+  <data name="ScriptSelectedOther" xml:space="preserve">
+    <value>Nur die {0:N0} in der Matrix ausgewählten Objekte.</value>
+  </data>
+  <data name="ReferencedTableNotChosen" xml:space="preserve">
+    <value>Verweist auf {0}, das im Ziel fehlt und nicht ausgewählt ist: scheitert (ORA-00942), wenn {0} nicht vorher angelegt wird.</value>
+  </data>
 </root>

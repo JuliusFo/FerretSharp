@@ -302,6 +302,12 @@ public sealed record AppSettings
     public FilterSqlColumns FilterSql { get; init; } = FilterSqlColumns.Listed;
 
     /// <summary>
+    /// The DDL view leaves the object's own owner out (<see cref="Ddl.DdlOwner.Omit"/>), for running the DDL under another
+    /// owner; other schemas stay. The view's switch and the settings page set it; off by default.
+    /// </summary>
+    public bool DdlWithoutOwner { get; init; }
+
+    /// <summary>
     /// The view a table tab opens on when nothing asks for another one (explorer, command palette, diagrams, a column
     /// header's menu): the data (default) or one of the detail views. A jump to referencing or referenced rows opens the
     /// data, a link its own view, a restored tab its saved view.

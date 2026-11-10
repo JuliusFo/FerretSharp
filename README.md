@@ -83,7 +83,8 @@ developer works with an Oracle database day to day:
   columns read from a table. The display columns live in one file you
   can share with your team through your repository.
 - Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies,
-  synonyms, DDL.
+  synonyms, DDL – with *Without owner* the DDL and its GRANT statements leave the object's own schema out, to run them
+  under another owner.
 - **Synonyms**: every table, view and PL/SQL unit lists the private and public synonyms on it – create one (private in
   the schema or public) or drop one, after the confirmation every schema change gets. "Synonyms of the schema" in the
   command palette lists the schema's private synonyms with their targets and marks those leading nowhere, to clean up.
@@ -254,8 +255,9 @@ developer works with an Oracle database day to day:
 - Compare any number of connections or schemas – Dev, Test, Prod, customer databases – in one matrix: tables, views,
   columns (type, length, NULL, default, identity), keys, foreign keys, checks and indexes. Sides with the same definition
   share a colour; names Oracle generated (`SYS_C…`) are matched by content.
-- "Forgot the ALTER on Test?": a DDL proposal aligns one side with another – drops and renames only as commented-out
-  hints – and opens in the SQL editor of the target connection. Comparisons can be saved and copied as Markdown.
+- "Forgot the ALTER on Test?": a DDL proposal aligns one side with another for the objects you tick in the matrix – drops
+  and renames only as commented-out hints – and opens in the SQL editor of the target connection. Comparisons can be
+  saved and copied as Markdown.
 - Single columns to another database: pick them in the "Columns" view (or mark their headers in the grid) and right-click
   – `ALTER TABLE … ADD` with their comments and the foreign keys made only of them, to copy or to open in the SQL
   editor of another connection.

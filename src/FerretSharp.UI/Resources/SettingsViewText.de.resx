@@ -84,6 +84,12 @@
   <data name="Settings_FilterSqlHint" xml:space="preserve">
     <value>Was „SQL“ in der Filterleiste zeigt und im SQL-Editor öffnet: das Statement des Grids – ROWID, jede Spalte, LOBs als Vorschau und Länge, die erste Seite – oder {0} nur mit Filter und Sortierung.</value>
   </data>
+  <data name="Settings_DdlWithoutOwner" xml:space="preserve">
+    <value>DDL ohne Owner</value>
+  </data>
+  <data name="Settings_DdlWithoutOwnerHint" xml:space="preserve">
+    <value>Die Ansicht DDL lässt {0} vor den Namen des eigenen Schemas weg, auch in den Grants – zum Ausführen unter einem anderen Owner. Namen anderer Schemas bleiben. Der Schalter in der Ansicht DDL stellt das ebenfalls um.</value>
+  </data>
   <data name="Settings_FilterSqlListed" xml:space="preserve">
     <value>Jede Spalte</value>
   </data>

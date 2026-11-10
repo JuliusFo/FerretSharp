@@ -13,6 +13,12 @@ public sealed record DdlProposal(int Reference, int Target, IReadOnlyList<DdlSte
     /// <summary>Owner of the target side, for the script header; null = only the side number is known.</summary>
     public string? TargetOwner { get; init; }
 
+    /// <summary>How many objects the user chose in the matrix; null = all differing objects.</summary>
+    public int? Selected { get; init; }
+
+    /// <summary>Chosen objects that are alike on these two sides (they differ only on others): no step for them.</summary>
+    public IReadOnlyList<string> Unchanged { get; init; } = [];
+
     /// <summary>
     /// The steps as a script under a header (<see cref="DdlScript.Render"/>), ending with a line break; lines end as usual
     /// on this platform.
@@ -26,6 +32,11 @@ public sealed record DdlProposal(int Reference, int Target, IReadOnlyList<DdlSte
                 "-- " + TextFormat.Format(CompareText.ScriptHeader, Side(TargetOwner, Target), Side(ReferenceOwner, Reference)),
                 "-- " + CompareText.ScriptGenerated,
             ];
+            if (Selected is { } selected)
+            {
+                header.Add("-- " + TextFormat.Plural(selected, CompareText.ScriptSelectedOne, CompareText.ScriptSelectedOther));
+            }
+
             if (Steps.Count == 0)
             {
                 header.Add("-- " + CompareText.ScriptNoDifferences);
@@ -53,7 +64,10 @@ public sealed record DdlProposal(int Reference, int Target, IReadOnlyList<DdlSte
 /// </remarks>
 public static class SchemaDdl
 {
-    /// <param name="rows">Object rows to cover; null = all differing objects.</param>
+    /// <param name="rows">
+    /// Object rows to cover, as the user chose them in the matrix; null = all differing objects. A foreign key to a table
+    /// the target lacks and the choice leaves out gets a warning: it would fail (ORA-00942) unless that table comes first.
+    /// </param>
     public static DdlProposal Align(SchemaComparison comparison, int reference, int target, IReadOnlyList<CompareRow>? rows = null)
     {
         ArgumentNullException.ThrowIfNull(comparison);
@@ -68,16 +82,33 @@ public static class SchemaDdl
 
         var referenceOwner = comparison.Sides[reference].Owner;
         var targetOwner = comparison.Sides[target].Owner;
-        var writer = new DdlWriter(reference, target, referenceOwner, targetOwner, comparison.Options);
         var keys = rows?.Select(r => r.Key).ToHashSet(StringComparer.Ordinal);
-        foreach (var row in comparison.Objects)
+        var chosen = comparison.Objects.Where(row => keys is null || keys.Contains(row.Key)).ToList();
+        var notCreated = keys is null
+            ? []
+            : comparison.Objects
+                .Where(row => !keys.Contains(row.Key) && row.Cells[target].State == CellState.Missing && row.Cells[reference].Object is not null)
+                .Select(row => row.Cells[reference].Object!.Name)
+                .ToHashSet(StringComparer.Ordinal);
+
+        var writer = new DdlWriter(reference, target, referenceOwner, targetOwner, comparison.Options, notCreated);
+        var unchanged = new List<string>();
+        foreach (var row in chosen)
         {
-            if (keys is null || keys.Contains(row.Key))
+            var before = writer.Count;
+            writer.Object(row);
+            if (writer.Count == before)
             {
-                writer.Object(row);
+                unchanged.Add(row.Name);
             }
         }
 
-        return new DdlProposal(reference, target, writer.Steps()) { ReferenceOwner = referenceOwner, TargetOwner = targetOwner };
+        return new DdlProposal(reference, target, writer.Steps())
+        {
+            ReferenceOwner = referenceOwner,
+            TargetOwner = targetOwner,
+            Selected = keys is null ? null : chosen.Count,
+            Unchanged = keys is null ? [] : unchanged,
+        };
     }
 }
