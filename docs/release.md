@@ -15,6 +15,7 @@ Aus der `CLAUDE.md` ausgelagert (Gesamt-Review 3.31.0, Teil C). Vor Änderungen 
 - **Coverage-Badge:** auf `main` schreibt der Job `coverage-badge` `coverage.json` in den Branch `badges` für das README-Badge. Lokal: `tools/coverage/Get-Coverage.ps1` (gleiche Messung; unter Linux liegt AppTrace ein paar Zeilen niedriger). Kindprozesse mit eigener Kopie der gemessenen DLLs gehören aus der Messung (`.claude/rules/tests.md`).
 - **Lokal wie der Linux-Job:** `tools/linux/Test-Linux.ps1` kopiert den Arbeitsstand (auch Uncommittetes) in einen Container mit .NET-10-SDK und .NET-8-Runtimes, baut Core, UI und AppTrace mit `-warnaserror` und führt die Unit-Tests aus; ins Repo schreibt er nichts. Ohne Integrations- und JS-Tests.
 - **Windows:** ganze Solution mit `-warnaserror`, Unit-Tests. Die Integrationstests laufen unter Windows nicht in der CI (Hänger unter Docker Desktop: Backlog).
+- **Concurrency:** Ein neuer Lauf desselben PRs bzw. von `main` bricht den älteren ab. PR-Läufe sind nach der PR-Nummer gruppiert, nicht nach `github.ref`: Ein Lauf, den GitHub für einen Push kurz vor dem Merge erst danach startet, hat den Ref `refs/pull/N/merge` nicht mehr, lief in der Gruppe von `main` und brach dort den Lauf des Merge-Commits ab (`fix-ci-concurrency.md`).
 
 ## Distribution (Velopack, ADR 0024)
 
