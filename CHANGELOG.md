@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *Without owner* in the DDL view: the `CREATE` statement and the GRANT statements leave the object's own schema out (`CREATE TABLE "ORDERS"` instead of `CREATE TABLE "SHOP"."ORDERS"`), so you can copy them into a database with another owner without editing. References into other schemas stay, and so do string literals, comments and unquoted names in the source of a view or trigger. The switch is kept for the next time and is also under *Settings › Data view › DDL without owner*.
+
 ## [3.67.0] - 2026-11-09
 
 Filter a table by a SQL condition you write – subqueries on other tables included – and keep editing, jumping and exporting as in any table tab.

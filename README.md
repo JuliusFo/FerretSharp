@@ -83,7 +83,8 @@ developer works with an Oracle database day to day:
   columns read from a table. The display columns live in one file you
   can share with your team through your repository.
 - Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies,
-  synonyms, DDL.
+  synonyms, DDL – with *Without owner* the DDL and its GRANT statements leave the object's own schema out, to run them
+  under another owner.
 - **Synonyms**: every table, view and PL/SQL unit lists the private and public synonyms on it – create one (private in
   the schema or public) or drop one, after the confirmation every schema change gets. "Synonyms of the schema" in the
   command palette lists the schema's private synonyms with their targets and marks those leading nowhere, to clean up.
