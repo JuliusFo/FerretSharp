@@ -11,7 +11,11 @@
     <span>@AppStatementsText.AppStatements_Children <b>@Cursor.Children</b></span>
 </div>
 @ChildContent
-@if (!Cursor.HasPlan)
+@if (Cursor.HasNoPlanAtAll)
+{
+    <p class="hint">@AppStatementsText.AppStatements_NoPlanForStatement</p>
+}
+else if (!Cursor.HasPlan)
 {
     <p class="hint">@AppStatementsText.AppStatements_PlanDropped</p>
 }

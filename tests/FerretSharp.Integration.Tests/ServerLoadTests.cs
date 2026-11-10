@@ -180,24 +180,60 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
     {
         await using var connection = await OpenAsync();
         var sql = $"SELECT /* fs_drop_{Guid.NewGuid():N} */ COUNT(*) FROM all_objects WHERE ROWNUM <= 50";
-        await RunAsync(sql, 3);
         var sqlId = Plans.SqlId(sql);
+        await RunAsync(sql, 3);
+        await Wait.UntilAsync(async () =>
+        {
+            if (await CursorPlans.DropAsync(System(), sqlId, Ct))
+            {
+                return true;
+            }
 
-        await CursorPlans.DropAsync(System(), sqlId, Ct);
+            await RunAsync(sql, 1); // under the suite's load the whole cursor may be gone already: load it again
+            return false;
+        }, "the cursor to drop the plan of");
         var dropped = await connection.Schema.GetCursorByIdAsync(sqlId, Ct);
 
-        // What CI saw: the children stay in V$SQL with their figures, the plan is gone – an empty plan, no error.
+        // What CI saw: the children stay in V$SQL with their figures, the plan is gone – an empty plan, no error. The plan
+        // hash stays, so it is not taken for a statement without plan.
         Assert.NotNull(dropped);
         Assert.Equal(sql, dropped.Plan.Sql);
-        Assert.InRange(dropped.Executions, 1, 3);
+        Assert.True(dropped.Executions >= 1);
         Assert.Empty(dropped.Plan.Steps);
         Assert.False(dropped.HasPlan);
+        Assert.False(dropped.HasNoPlanAtAll);
 
         await RunAsync(sql, 1);
         var again = await connection.Schema.GetCursorByIdAsync(sqlId, Ct);
         Assert.NotNull(again);
         Assert.True(again.HasPlan);
         Assert.NotEmpty(again.Plan.Steps);
+    }
+
+    [Fact]
+    public async Task A_pl_sql_block_is_found_with_its_figures_and_marked_as_having_no_plan_at_all()
+    {
+        // Like EF's SaveChanges on Oracle (a block): never any plan rows – not a plan Oracle dropped (review of the fix).
+        await using var connection = await OpenAsync();
+        var sql = $"BEGIN /* fs_block_{Guid.NewGuid():N} */ DBMS_SESSION.SET_IDENTIFIER(NULL); END;";
+        await RunAsync(sql, 2);
+
+        CursorInfo? cursor = null;
+        await Wait.UntilAsync(async () =>
+        {
+            cursor = await connection.Schema.GetCursorByIdAsync(Plans.SqlId(sql), Ct);
+            if (cursor is null)
+            {
+                await RunAsync(sql, 1); // aged out under the suite's load
+            }
+
+            return cursor is not null;
+        }, "the block's cursor");
+
+        Assert.True(cursor!.Executions >= 1);
+        Assert.False(cursor.HasPlan);
+        Assert.True(cursor.HasNoPlanAtAll);
+        Assert.Equal(0, cursor.PlanHashValue);
     }
 
     /// <summary>Runs <paramref name="sql"/> <paramref name="times"/> times in a session of its own (another program).</summary>

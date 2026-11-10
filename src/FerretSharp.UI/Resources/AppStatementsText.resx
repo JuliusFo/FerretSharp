@@ -282,7 +282,10 @@
     <value>The plan has only estimates: measured rows and times per step are there only if the statement ran with statistics (GATHER_PLAN_STATISTICS or STATISTICS_LEVEL = ALL). For them, open it in the SQL editor and show the actual plan.</value>
   </data>
   <data name="AppStatements_PlanDropped" xml:space="preserve">
-    <value>The plan is no longer in the shared pool: Oracle frees the plan of a cursor before its figures when it needs the memory. It is back with the statement's next run.</value>
+    <value>The plan is no longer in the shared pool: Oracle frees the plan of a cursor before its figures when it needs the memory. It is back with the statement’s next run.</value>
+  </data>
+  <data name="AppStatements_NoPlanForStatement" xml:space="preserve">
+    <value>PL/SQL blocks, CALL and DDL have no execution plan.</value>
   </data>
   <data name="AppStatements_OriginOther" xml:space="preserve">
     <value>Other</value>

@@ -117,6 +117,7 @@ public sealed partial class OracleSchemaReader
                 Elapsed = TimeSpan.FromMicroseconds(Long(reader, 5) ?? 0),
                 Cpu = TimeSpan.FromMicroseconds(Long(reader, 6) ?? 0),
                 LastActive = Date(reader, 7),
+                PlanHash = Long(reader, 8) ?? 0,
             }, cancellationToken);
             if (figures is not [{ Children: > 0 } cursor])
             {
@@ -125,7 +126,7 @@ public sealed partial class OracleSchemaReader
 
             var (child, steps) = await OraclePlans.ReadActualAsync(session, sqlId, cancellationToken);
             return new CursorInfo(sqlId, cursor.Children, cursor.Executions, cursor.Rows, cursor.Gets, cursor.Reads, cursor.Elapsed, cursor.Cpu,
-                cursor.LastActive, new ExecutionPlan(PlanSource.Actual, sql, steps, sqlId, child));
+                cursor.LastActive, new ExecutionPlan(PlanSource.Actual, sql, steps, sqlId, child), cursor.PlanHash);
         }
         catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
         {
