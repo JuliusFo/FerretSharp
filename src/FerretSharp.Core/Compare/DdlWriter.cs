@@ -94,6 +94,11 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
 
         Add(table.Name, DdlStepKind.CreateTable, CreateTable(Target(table.Name), entries, table.Temporary, table.IsIndexOrganized), Join(warnings));
 
+        if (table.Comment is not null)
+        {
+            Add(table.Name, DdlStepKind.Comment, CommentOnTable(Target(table.Name), table.Comment));
+        }
+
         foreach (var column in table.Columns.Where(c => c.Comment is not null))
         {
             Add(table.Name, DdlStepKind.Comment, CommentOnColumn(Target(table.Name), column.Name, column.Comment));

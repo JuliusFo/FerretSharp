@@ -56,8 +56,8 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
             AssertSame(constraints, snap.Constraints, table.Name);
             AssertSame(indexes, snap.Indexes, table.Name);
             Assert.Equal(
-                (details.IsIndexOrganized, info.Temporary, info.Partitioned),
-                (snap.IsIndexOrganized, snap.Temporary, snap.Partitioned));
+                (details.IsIndexOrganized, info.Temporary, info.Partitioned, info.Comment),
+                (snap.IsIndexOrganized, snap.Temporary, snap.Partitioned, snap.Comment));
         }
     }
 
@@ -108,6 +108,8 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
 
         // identity, composite primary key, foreign keys within and across schemas, deferrable unique
         var auftrag = objects["AUFTRAG"];
+        Assert.Equal("Aufträge je Position", auftrag.Comment);
+        Assert.Null(kunde.Comment);
         Assert.True(auftrag.Columns.Single(c => c.Name == "AUFTRAG_ID").IsIdentity);
         var constraints = auftrag.Constraints.ToDictionary(c => c.Name);
         Assert.Equal(["AUFTRAG_ID", "POS_NR"], constraints["PK_AUFTRAG"].Columns);
@@ -149,6 +151,7 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
         Assert.Contains(await Reader.GetConstraintsAsync(new TableRef(Owner, "V_KUNDE"), Ct), c => c.Type == ConstraintType.ViewReadOnly);
         Assert.Equal(TableKind.MaterializedView, objects["MV_MENGE"].Kind);
         Assert.Equal(["KUNDE_ID", "MENGE"], objects["MV_MENGE"].Columns.Select(c => c.Name));
+        Assert.Equal("Menge je Kunde", objects["MV_MENGE"].Comment); // from ALL_MVIEW_COMMENTS
     }
 
 

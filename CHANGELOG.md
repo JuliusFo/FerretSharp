@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- *Schema comparison*: the DDL proposal for a table the target lacks writes the table's comment (`COMMENT ON TABLE`) along with the column comments – before, only the column comments came along. Comments still do not count as a difference.
+
 ## [3.68.0] - 2026-11-10
 
 Keep a result in the SQL editor while the next statement runs, copy DDL without the owner, and choose the objects of the schema comparison’s DDL proposal.
