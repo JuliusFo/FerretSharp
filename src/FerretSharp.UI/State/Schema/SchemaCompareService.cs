@@ -127,10 +127,12 @@ public sealed class SchemaCompareService(
         string? title = (matches.Count, waiting, next) switch
         {
             (0, 0, _) => null,
-            (_, _, true) => TextFormat.Format(CompareViewText.Compare_ChooseShownTitle, matches.Count),
-            (0, _, false) => TextFormat.Format(CompareViewText.Compare_UnchooseWaitingTitle, waiting),
-            (_, 0, false) => TextFormat.Format(CompareViewText.Compare_UnchooseShownTitle, matches.Count),
-            _ => TextFormat.Format(CompareViewText.Compare_UnchooseShownAndWaitingTitle, matches.Count, waiting),
+            (_, _, true) => TextFormat.Plural(matches.Count, CompareViewText.Compare_ChooseShownOne, CompareViewText.Compare_ChooseShownOther),
+            (0, _, false) => TextFormat.Plural(waiting, CompareViewText.Compare_UnchooseWaitingOne, CompareViewText.Compare_UnchooseWaitingOther),
+            (_, 0, false) => TextFormat.Plural(matches.Count, CompareViewText.Compare_UnchooseShownOne, CompareViewText.Compare_UnchooseShownOther),
+            _ => TextFormat.Format(CompareViewText.Compare_UnchooseShownAndWaiting,
+                TextFormat.Plural(matches.Count, CompareViewText.Compare_MatchesOne, CompareViewText.Compare_MatchesOther),
+                TextFormat.Plural(waiting, CompareViewText.Compare_WaitingObjectsOne, CompareViewText.Compare_WaitingObjectsOther)),
         };
         return new HeaderChoice(matches, all, !all && (chosen > 0 || waiting > 0), matches.Count > 0 || waiting > 0, next, title);
     }

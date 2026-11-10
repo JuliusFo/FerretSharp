@@ -267,7 +267,7 @@ public sealed class SchemaCompareServiceTests : IDisposable
         Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name)); // A is alike without the order and waits
         var head = service.Header(service.Result!.Objects);
         Assert.Equal((true, false, false), (head.Checked, head.Partly, head.Next));
-        Assert.StartsWith("Die 1 Treffer und 1 wartenden Objekte aus der Auswahl nehmen", head.Title, StringComparison.Ordinal); // the waiting one is named before it goes
+        Assert.StartsWith("Den Treffer und das wartende Objekt aus der Auswahl nehmen", head.Title, StringComparison.Ordinal); // the waiting one is named before it goes
 
         await service.SetOptionsAsync(reference: null, columnOrder: true, onlyDifferences: false, kinds: null);
         Assert.Equal(["A", "B"], service.ChosenRows.Select(r => r.Name));

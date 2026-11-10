@@ -269,14 +269,6 @@
     <value>Alike on all sides – nothing to align</value>
     <comment>Tooltip of the disabled checkbox of an object without differences</comment>
   </data>
-  <data name="Compare_ChooseShownTitle" xml:space="preserve">
-    <value>Choose all {0:N0} matches with differences</value>
-    <comment>Tooltip of the checkbox in the header of the matrix. {0} = number of objects with differences that the filters and the search let through, also behind Show more</comment>
-  </data>
-  <data name="Compare_UnchooseShownTitle" xml:space="preserve">
-    <value>Take the {0:N0} matches out of the choice</value>
-    <comment>Tooltip of the checked checkbox in the header of the matrix. {0} = number of objects with differences that the filters and the search let through, also behind Show more</comment>
-  </data>
   <data name="Compare_DdlProposalChosenEllipsis" xml:space="preserve">
     <value>DDL proposal ({0:N0}) …</value>
     <comment>Button: opens the DDL proposal for the chosen objects. {0} = number of chosen objects</comment>
@@ -301,12 +293,48 @@
     <value>{0} and {1:N0} more</value>
     <comment>Shortened list in CompareDdl_Unchanged. {0} = the first names, {1} = number of names left out (all are in the tooltip)</comment>
   </data>
-  <data name="Compare_UnchooseWaitingTitle" xml:space="preserve">
-    <value>Take the {0:N0} waiting objects out of the choice – they are alike in this matrix, e.g. while a side is missing, and would count again once they differ</value>
-    <comment>Tooltip of the header checkbox when only waiting objects are chosen. {0} = number of waiting objects</comment>
+  <data name="Compare_ChooseShownOne" xml:space="preserve">
+    <value>Choose the match with differences</value>
+    <comment>Tooltip of the header checkbox of the comparison matrix. One match of filters and search (also behind Show more)</comment>
   </data>
-  <data name="Compare_UnchooseShownAndWaitingTitle" xml:space="preserve">
-    <value>Take the {0:N0} matches and {1:N0} waiting objects out of the choice – waiting objects are alike in this matrix, e.g. while a side is missing</value>
-    <comment>Tooltip of the header checkbox. {0} = number of chosen matches of filters and search, {1} = number of waiting objects (also outside the search)</comment>
+  <data name="Compare_ChooseShownOther" xml:space="preserve">
+    <value>Choose all {0:N0} matches with differences</value>
+    <comment>Tooltip of the header checkbox of the comparison matrix. {0} = number of matches of filters and search (also behind Show more)</comment>
+  </data>
+  <data name="Compare_UnchooseShownOne" xml:space="preserve">
+    <value>Take the match out of the choice</value>
+    <comment>Tooltip of the header checkbox of the comparison matrix. </comment>
+  </data>
+  <data name="Compare_UnchooseShownOther" xml:space="preserve">
+    <value>Take the {0:N0} matches out of the choice</value>
+    <comment>Tooltip of the header checkbox of the comparison matrix. {0} = number of chosen matches</comment>
+  </data>
+  <data name="Compare_UnchooseWaitingOne" xml:space="preserve">
+    <value>Take the waiting object out of the choice – it is alike in this matrix, e.g. while a side is missing, and would count again once it differs</value>
+    <comment>Tooltip of the header checkbox of the comparison matrix. Only one waiting object is chosen</comment>
+  </data>
+  <data name="Compare_UnchooseWaitingOther" xml:space="preserve">
+    <value>Take the {0:N0} waiting objects out of the choice – they are alike in this matrix, e.g. while a side is missing, and would count again once they differ</value>
+    <comment>Tooltip of the header checkbox of the comparison matrix. {0} = number of waiting objects</comment>
+  </data>
+  <data name="Compare_UnchooseShownAndWaiting" xml:space="preserve">
+    <value>Take {0} and {1} out of the choice – waiting objects are alike in this matrix, e.g. while a side is missing</value>
+    <comment>Tooltip of the header checkbox of the comparison matrix. {0} = Compare_MatchesOne/Other, {1} = Compare_WaitingObjectsOne/Other (waiting objects also outside the search)</comment>
+  </data>
+  <data name="Compare_MatchesOne" xml:space="preserve">
+    <value>the match</value>
+    <comment>Part of Compare_UnchooseShownAndWaiting</comment>
+  </data>
+  <data name="Compare_MatchesOther" xml:space="preserve">
+    <value>the {0:N0} matches</value>
+    <comment>Part of Compare_UnchooseShownAndWaiting. {0} = number of chosen matches</comment>
+  </data>
+  <data name="Compare_WaitingObjectsOne" xml:space="preserve">
+    <value>the waiting object</value>
+    <comment>Part of Compare_UnchooseShownAndWaiting</comment>
+  </data>
+  <data name="Compare_WaitingObjectsOther" xml:space="preserve">
+    <value>the {0:N0} waiting objects</value>
+    <comment>Part of Compare_UnchooseShownAndWaiting. {0} = number of waiting objects</comment>
   </data>
 </root>
