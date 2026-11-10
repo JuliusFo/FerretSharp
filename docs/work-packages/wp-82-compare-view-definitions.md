@@ -16,7 +16,7 @@ Branch `wp/82-compare-view-definitions`. Aus dem Backlog („Schema-Vergleich, z
 - **MView mit anderer Definition:** nur als auskommentiertes DROP + CREATE mit Warnung (der Bestand ginge verloren); eine fehlende MView wird ausführbar angelegt.
 - **Status INVALID** zählt als Abweichung (eigene Zeile).
 - **Schema-Präfix** im Text fällt beim Vergleich weg, gequotet und ungequotet (`ERP.X` = `ERP_TEST.X`); Restrisiko: ein Tabellenalias, der wie das Schema heißt, fällt mit weg.
-- Vorschlag (nicht bestätigt): Definitions- und Statuszeile hängen am Filter „Objekte“, kein eigener Filter.
+- Definitions- und Statuszeile hängen am Filter „Objekte“, kein eigener Filter (Vorschlag, vom Nutzer bestätigt am 2026-11-10: „Ja, so lassen“).
 
 ## Gebaut
 - **Snapshot** (`OracleSchemaReader.Snapshot`): `ObjectSnapshot` mit `Definition`, `DefinitionTruncated`, `Invalid`, `MView` (`MViewOptions`: Refresh-Methode und -Modus, Query Rewrite, Prebuilt) und `DependsOn`; Views behalten von ihren Constraints `WITH READ ONLY`/`WITH CHECK OPTION` (`ObjectSnapshot.ViewOption`). Vier Abfragen mehr: `ALL_VIEWS.TEXT_VC` + `TEXT_LENGTH`, den LONG-Text `TEXT` nur für Views über 4000 Byte, `ALL_MVIEWS` (QUERY als LONG, Optionen), `ALL_DEPENDENCIES` (View → View/MView im Schema; ohne Views fallen Definitionen und Abhängigkeiten weg). Fortschrittsschritt „View-Definitionen“.
@@ -40,7 +40,6 @@ Branch `wp/82-compare-view-definitions`. Aus dem Backlog („Schema-Vergleich, z
 
 ## Offen / Backlog
 - Monaco-Diff-Editor für die Definitionen (Backlog-Zeile „Schema-Vergleich, zweite Stufe“).
-- Frage an den Nutzer: Definitions- und Statuszeile am Filter „Objekte“ – so lassen oder eigener Filter „Definitionen“?
 - Indizes einer neu angelegten MView und das Maskieren fremden Texts im Markdown-Export (Review, Backlog).
 
 ## Nachtrag: Code-Review (2026-11-10)
