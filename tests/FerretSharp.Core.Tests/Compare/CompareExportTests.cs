@@ -59,7 +59,7 @@ public sealed class CompareExportTests
         Assert.Contains("| **AUFTRAG** | TABLE (Referenz) | TABLE | TABLE |", text);
         Assert.Contains("| AUFTRAG · ID | NUMBER(10) NOT NULL (Referenz) |", text);
         Assert.Contains("| AUFTRAG · NAME | VARCHAR2(50) NULL (Referenz) | UNDEFINED NULL (ungültig, nicht verglichen) |", text); // WP-82
-        Assert.Contains("| V_LANG · Definition | SELECT A FROM T … (nicht verglichen: gekürzt oder nicht sichtbar) (Referenz) |", text); // review WP-82
+        Assert.Contains("| V_LANG · Definition | SELECT A FROM T … (nicht verglichen: der Text einer Seite ist gekürzt oder nicht sichtbar) (Referenz) |", text); // review WP-82
     }
 
     [Fact]

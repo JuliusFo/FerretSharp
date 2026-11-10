@@ -16,7 +16,7 @@
     <value>{0} (ungültig, nicht verglichen)</value>
   </data>
   <data name="ExportUnknownDefinition" xml:space="preserve">
-    <value>{0} (nicht verglichen: gekürzt oder nicht sichtbar)</value>
+    <value>{0} (nicht verglichen: der Text einer Seite ist gekürzt oder nicht sichtbar)</value>
   </data>
   <data name="MaterializedViewBuildImmediate" xml:space="preserve">
     <value>Beim Anlegen läuft die Abfrage und speichert ihre Zeilen (BUILD IMMEDIATE).</value>

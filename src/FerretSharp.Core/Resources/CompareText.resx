@@ -17,8 +17,8 @@
     <comment>{0}: the column definition of an invalid view, e.g. UNDEFINED NULL</comment>
   </data>
   <data name="ExportUnknownDefinition" xml:space="preserve">
-    <value>{0} (not compared: cut off or not visible)</value>
-    <comment>{0}: the definition of a view whose text is longer than 32,767 characters or not visible</comment>
+    <value>{0} (not compared: the text of a side is cut off or not visible)</value>
+    <comment>{0}: the definition of a view; on one of the sides its text is longer than 32,767 characters or not visible</comment>
   </data>
   <data name="MaterializedViewBuildImmediate" xml:space="preserve">
     <value>Creating it runs the query and stores its rows (BUILD IMMEDIATE).</value>

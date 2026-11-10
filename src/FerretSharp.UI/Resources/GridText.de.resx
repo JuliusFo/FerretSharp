@@ -16,7 +16,7 @@
     <value>Nicht verglichen: Die View ist ungültig, ihre Spaltentypen sind unbekannt</value>
   </data>
   <data name="CompareCell_UnknownDefinition" xml:space="preserve">
-    <value>Nicht verglichen: Der Text ist länger als 32.767 Zeichen oder nicht sichtbar</value>
+    <value>Nicht verglichen: Der Text einer Seite ist länger als 32.767 Zeichen oder nicht sichtbar</value>
   </data>
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>Diese Tabelle lässt sich hier nicht bearbeiten.</value>

@@ -130,6 +130,17 @@ public class ViewDefinitionTests
         Assert.False(name.Differs);
     }
 
+    /// <summary>Third review pass: an unknown type does not hide a column name in another letter case from the proposal.</summary>
+    [Fact]
+    public void Column_in_other_case_next_to_an_invalid_reference_still_replaces_the_view()
+    {
+        var proposal = Align(
+            [View("V", "select id, name from kunde", [Id, Column("NAME", "UNDEFINED")], invalid: true)],
+            [View("V", "select id, name from kunde", [Id, Column("Name", "VARCHAR2", length: 50)])]);
+
+        Assert.StartsWith("CREATE OR REPLACE VIEW", Assert.Single(proposal.Steps).Sql);
+    }
+
     [Fact]
     public void Unknown_reference_column_leaves_the_others_alike()
     {

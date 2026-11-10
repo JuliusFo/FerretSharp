@@ -655,15 +655,17 @@ internal sealed class DdlWriter(
             return true;
         }
 
-        if (!Present(reference) || reference.State == CellState.Unknown || target.State == CellState.Unknown)
+        if (!Present(reference))
         {
             return false;
         }
 
+        // An unknown definition is not compared; the names still are (a column of an invalid view in another letter case).
+        var unknown = reference.State == CellState.Unknown || target.State == CellState.Unknown;
         var generated = reference.Constraint?.GeneratedName == true || target.Constraint?.GeneratedName == true
             || reference.Index is { } ri && IsGeneratedName(ri.Name) || target.Index is { } ti && IsGeneratedName(ti.Name);
         return !generated && !string.Equals(reference.Name ?? row.Name, target.Name ?? row.Name, StringComparison.Ordinal)
-            || !string.Equals(reference.Definition, target.Definition, StringComparison.Ordinal);
+            || !unknown && !string.Equals(reference.Definition, target.Definition, StringComparison.Ordinal);
     }
 
     private static bool Present(CompareCell cell) => cell.State != CellState.Missing;
