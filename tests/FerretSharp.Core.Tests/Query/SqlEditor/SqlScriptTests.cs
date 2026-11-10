@@ -167,6 +167,26 @@ public sealed class SqlScriptTests
     }
 
     /// <summary>
+    /// Review WP-81: a result's statement taken back into the editor never goes inside a statement – inserted at a cursor
+    /// in the middle, <see cref="SqlScript.Insert"/> ended the text before it with ";" and cut the user's statement in two.
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT 1 FROM t WHERE x = 2;\nSELECT 2 FROM dual;", 22, 29)] // inside: before the next statement
+    [InlineData("SELECT 1 FROM t WHERE x = 2;\nSELECT 2 FROM dual;", 27, 29)] // just before its ";"
+    [InlineData("SELECT 1 FROM t WHERE x = 2", 10, 27)] // the last one, without ";": at the end
+    [InlineData("SELECT 1 FROM t WHERE x = 2;\n", 28, 28)] // behind its ";": at the cursor
+    [InlineData("SELECT 1 FROM t;\n\nSELECT 2 FROM dual;", 17, 17)] // between statements: at the cursor
+    [InlineData("SELECT 1 FROM t;", 0, 0)] // before a statement: at the cursor
+    public void A_statement_taken_back_never_goes_inside_another(string script, int cursor, int expected)
+    {
+        var at = SqlScript.InsertionPoint(script, cursor);
+
+        Assert.Equal(expected, at);
+        var (text, _) = SqlScript.Insert(script, at, at, "SELECT 9 FROM dual");
+        Assert.Equal(SqlScript.Split(script).Count + 1, SqlScript.Split(text).Count); // nothing cut in two
+    }
+
+    /// <summary>
     /// Review: a block behind a statement without ";" fell apart at its inner ";" – Ctrl+Enter on its DELETE line ran the
     /// DELETE. Decision of the user: a PL/SQL object's CREATE starts a statement of its own, a BEGIN block is refused.
     /// </summary>

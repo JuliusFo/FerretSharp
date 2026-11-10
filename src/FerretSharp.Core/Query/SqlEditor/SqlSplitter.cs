@@ -301,6 +301,23 @@ public static class SqlSplitter
         return same.FirstOrDefault(s => s.Start == statement.Start) ?? same.FirstOrDefault();
     }
 
+    /// <summary>
+    /// Where a statement taken back into the editor goes (WP-81, review): at the cursor, but never inside a statement –
+    /// <see cref="Insert"/> would end the text before the cursor and cut it in two. Inside one (also before its <c>;</c>),
+    /// behind it: where the next statement starts, else at the end of the script.
+    /// </summary>
+    public static int InsertionPoint(string script, int cursor)
+    {
+        cursor = Math.Clamp(cursor, 0, script.Length);
+        var statements = Split(script);
+        if (statements.FirstOrDefault(s => s.Start < cursor && cursor <= s.End) is not { } inside)
+        {
+            return cursor;
+        }
+
+        return statements.FirstOrDefault(s => s.Start >= inside.End)?.Start ?? script.Length;
+    }
+
     private static string LineEndOf(string text, string otherwise) =>
         text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : text.Contains('\n', StringComparison.Ordinal) ? "\n" : otherwise;
 

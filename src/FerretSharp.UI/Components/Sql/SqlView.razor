@@ -832,7 +832,8 @@
 
     /// <summary>
     /// The result's statement back in the editor: selected where the script still has exactly it, else inserted at the
-    /// cursor (decision of the user). The tab's variables stay as they are.
+    /// cursor (decision of the user) – behind the statement the cursor is in, never inside it (review). The tab's variables
+    /// stay as they are.
     /// </summary>
     private async Task TakeToEditorAsync(SqlRun run)
     {
@@ -847,7 +848,8 @@
             return;
         }
 
-        var (text, start) = SqlScript.Insert(context.Text, context.End, context.End, run.Statement.Text);
+        var at = SqlScript.InsertionPoint(context.Text, context.End);
+        var (text, start) = SqlScript.Insert(context.Text, at, at, run.Statement.Text);
         Tab.Text = text;
         await _editor.SetTextAsync(text);
         await UpdateVariablesAsync(text);
