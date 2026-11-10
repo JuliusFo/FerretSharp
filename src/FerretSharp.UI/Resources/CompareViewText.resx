@@ -16,6 +16,10 @@
     <value>Oracle marks a view invalid after DDL on its tables and compiles it on its next use; it is broken only if that fails</value>
     <comment>Tooltip part after the state of an INVALID status cell</comment>
   </data>
+  <data name="Compare_InvalidMViewHint" xml:space="preserve">
+    <value>an invalid materialized view still answers queries until it is compiled again (refresh or ALTER … COMPILE)</value>
+    <comment>Tooltip part after the state of an INVALID status cell of a materialized view</comment>
+  </data>
   <data name="Compare_KindDefinition" xml:space="preserve">
     <value>Definition (query and options) – click the row for the full texts</value>
     <comment>Kind of a row in the matrix (tooltip)</comment>

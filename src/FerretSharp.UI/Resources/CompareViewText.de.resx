@@ -15,6 +15,9 @@
   <data name="Compare_InvalidHint" xml:space="preserve">
     <value>Oracle markiert eine View nach DDL an ihren Tabellen als ungültig und kompiliert sie bei der nächsten Verwendung; kaputt ist sie erst, wenn das scheitert</value>
   </data>
+  <data name="Compare_InvalidMViewHint" xml:space="preserve">
+    <value>eine ungültige Materialized View beantwortet weiter Abfragen, bis sie neu kompiliert wird (Refresh oder ALTER … COMPILE)</value>
+  </data>
   <data name="Compare_KindDefinition" xml:space="preserve">
     <value>Definition (Abfrage und Optionen) – Klick auf die Zeile zeigt die ganzen Texte</value>
   </data>

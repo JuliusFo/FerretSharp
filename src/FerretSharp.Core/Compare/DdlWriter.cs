@@ -644,7 +644,10 @@ internal sealed class DdlWriter(
         return parts.Count == 0 ? CompareText.OrganizationNormal : string.Join(", ", parts);
     }
 
-    /// <summary>Two sides differ in a row: one lacks it, the names differ (other case) or the compared definitions do.</summary>
+    /// <summary>
+    /// Two sides differ in a row: one lacks it, the names differ (other case) or the compared definitions do. A definition
+    /// the comparison does not know (<see cref="CellState.Unknown"/>) differs in nothing – the proposal follows the matrix.
+    /// </summary>
     private static bool Differs(CompareRow row, CompareCell reference, CompareCell target)
     {
         if (Present(reference) != Present(target))
@@ -652,7 +655,7 @@ internal sealed class DdlWriter(
             return true;
         }
 
-        if (!Present(reference))
+        if (!Present(reference) || reference.State == CellState.Unknown || target.State == CellState.Unknown)
         {
             return false;
         }

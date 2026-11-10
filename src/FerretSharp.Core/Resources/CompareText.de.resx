@@ -15,6 +15,9 @@
   <data name="ExportUnknown" xml:space="preserve">
     <value>{0} (ungültig, nicht verglichen)</value>
   </data>
+  <data name="ExportUnknownDefinition" xml:space="preserve">
+    <value>{0} (nicht verglichen: gekürzt oder nicht sichtbar)</value>
+  </data>
   <data name="MaterializedViewBuildImmediate" xml:space="preserve">
     <value>Beim Anlegen läuft die Abfrage und speichert ihre Zeilen (BUILD IMMEDIATE).</value>
   </data>
@@ -22,10 +25,10 @@
     <value>Die Definition der Materialized View ließ sich nicht vollständig lesen (länger als 32.767 Zeichen oder nicht sichtbar): aus der DDL-Ansicht der Referenz übernehmen.</value>
   </data>
   <data name="MaterializedViewFastRefresh" xml:space="preserve">
-    <value>REFRESH FAST braucht Materialized View Logs auf den Tabellen der Abfrage; ohne sie scheitert das Anlegen (ORA-23413).</value>
+    <value>REFRESH FAST braucht Materialized View Logs auf den Tabellen der Abfrage; ohne sie scheitert das Statement (ORA-23413).</value>
   </data>
   <data name="MaterializedViewInvalidInReference" xml:space="preserve">
-    <value>Die Materialized View ist in der Referenz ungültig. Oracle kompiliert sie bei der nächsten Verwendung; scheitert das dort, scheitert auch das Statement im Ziel.</value>
+    <value>Die Materialized View ist in der Referenz ungültig: Sie beantwortet weiter Abfragen, bis sie neu kompiliert wird (Refresh oder ALTER … COMPILE). Scheitert das dort, scheitert auch das Statement im Ziel.</value>
   </data>
   <data name="MaterializedViewPrebuilt" xml:space="preserve">
     <value>In der Referenz auf einer vorhandenen Tabelle angelegt (ON PREBUILT TABLE): erst die Tabelle anlegen und ON PREBUILT TABLE von Hand ergänzen.</value>

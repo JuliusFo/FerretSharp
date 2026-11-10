@@ -1,4 +1,5 @@
 using FerretSharp.Core.Compare;
+using static FerretSharp.Core.Tests.Compare.TestComparison;
 
 namespace FerretSharp.Core.Tests.Compare;
 
@@ -16,7 +17,12 @@ public sealed class CompareExportTests
         [
             new CompareRow("AUFTRAG/col/ID", CompareKind.Column, "ID", [Same("NUMBER(10) NOT NULL"), Same("NUMBER(10) NOT NULL"), Same("NUMBER(10) NOT NULL")], []),
             new CompareRow("AUFTRAG/col/NAME", CompareKind.Column, "NAME",
-                [Same("VARCHAR2(50) NULL"), new CompareCell(CellState.Unknown, -1, "UNDEFINED NULL"), Same("VARCHAR2(50) NULL")], []),
+                [Same("VARCHAR2(50) NULL"), new CompareCell(CellState.Unknown, -1, "UNDEFINED NULL") { Column = Column("NAME", "UNDEFINED") }, Same("VARCHAR2(50) NULL")], []),
+        ]),
+        new CompareRow("V_LANG", CompareKind.View, "V_LANG", [Same("VIEW"), Same("VIEW"), Same("VIEW")],
+        [
+            new CompareRow("V_LANG/def", CompareKind.Definition, "Definition",
+                [new CompareCell(CellState.Unknown, -1, "SELECT A FROM T …"), new CompareCell(CellState.Unknown, -1, "SELECT B FROM T"), new CompareCell(CellState.Unknown, -1, "SELECT B FROM T")], []),
         ]),
         new CompareRow("KUNDEN", CompareKind.Table, "KUNDEN", [Same("TABLE"), Same("TABLE"), Same("TABLE")],
         [
@@ -53,6 +59,7 @@ public sealed class CompareExportTests
         Assert.Contains("| **AUFTRAG** | TABLE (Referenz) | TABLE | TABLE |", text);
         Assert.Contains("| AUFTRAG · ID | NUMBER(10) NOT NULL (Referenz) |", text);
         Assert.Contains("| AUFTRAG · NAME | VARCHAR2(50) NULL (Referenz) | UNDEFINED NULL (ungültig, nicht verglichen) |", text); // WP-82
+        Assert.Contains("| V_LANG · Definition | SELECT A FROM T … (nicht verglichen: gekürzt oder nicht sichtbar) (Referenz) |", text); // review WP-82
     }
 
     [Fact]

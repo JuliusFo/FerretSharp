@@ -224,6 +224,21 @@ public class ViewDefinitionTests
         Assert.Equal([CellState.Unknown, CellState.Unknown], hidden.Children[0].Cells.Select(c => c.State));
     }
 
+    /// <summary>Second review pass: a readable side next to a cut reference looked "the same" – the row is not compared, and the proposal follows.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(null)]
+    public void A_readable_side_next_to_a_cut_one_is_not_compared_either(int? reference)
+    {
+        var comparison = Compare(
+            [View("V", "select id, name from kunde", truncated: true)], [View("V", "select id, name from other_table")], new CompareOptions(reference));
+
+        var definition = comparison.Objects[0].Children[0];
+        Assert.Equal([CellState.Unknown, CellState.Unknown], definition.Cells.Select(c => c.State));
+        Assert.False(definition.Differs);
+        Assert.Empty(SchemaDdl.Align(comparison, 1, 0).Steps); // the readable side is the reference here: no CREATE OR REPLACE over the cut one
+    }
+
     /// <summary>Review WP-82: other refresh options alone need no DROP – ALTER keeps the rows.</summary>
     [Fact]
     public void Materialized_view_with_other_options_only_is_altered()

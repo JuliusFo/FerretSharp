@@ -118,10 +118,12 @@ public static class SchemaDiff
             Row("status", CompareKind.Status, CompareText.RowStatus, (v, _) => CompareDefinitions.Status(v), _ => false),
         ];
 
-        // A text cut at the LONG limit or not shown at all is not compared: two of them would look alike (review WP-82).
+        // A text cut at the LONG limit or not shown at all is not compared (review WP-82): two of them would look alike, and
+        // a readable side would look like an unknown reference. With one such side the whole row is not compared.
         CompareRow Row(string key, CompareKind kind, string name, Func<ObjectSnapshot, int, string> definition, Func<ObjectSnapshot, bool> unknown)
         {
-            var entries = views.Select((v, s) => v is null ? new Entry(null) : new Entry(definition(v, s), Unknown: unknown(v))).ToList();
+            var notCompared = views.Any(v => v is not null && unknown(v));
+            var entries = views.Select((v, s) => v is null ? new Entry(null) : new Entry(definition(v, s), Unknown: notCompared)).ToList();
             return new CompareRow(key, kind, name, Cells(context, entries).Select((cell, s) => cell with { Object = views[s] }).ToList(), []);
         }
     }

@@ -488,7 +488,9 @@
         CellState.Unknown => cell.Column is null ? GridText.CompareCell_UnknownDefinition : GridText.CompareCell_Unknown,
         _ => GridText.CompareCell_Same,
     } + (cell.Name is { } name && ShownName(cell) is null ? $" · {name}" : "")
-        + (IsInvalidStatus(cell) ? " · " + CompareViewText.Compare_InvalidHint : "");
+        + (IsInvalidStatus(cell)
+            ? " · " + (cell.Object!.Kind == FerretSharp.Core.Schema.TableKind.MaterializedView ? CompareViewText.Compare_InvalidMViewHint : CompareViewText.Compare_InvalidHint)
+            : "");
 
     /// <summary>The status cell of an invalid view: often only marked for compiling after DDL on its tables (E2E WP-82).</summary>
     private static bool IsInvalidStatus(CompareCell cell) => cell is { Object.Invalid: true, Column: null, Definition: "INVALID" };

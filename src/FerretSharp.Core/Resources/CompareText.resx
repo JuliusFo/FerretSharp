@@ -16,6 +16,10 @@
     <value>{0} (invalid, not compared)</value>
     <comment>{0}: the column definition of an invalid view, e.g. UNDEFINED NULL</comment>
   </data>
+  <data name="ExportUnknownDefinition" xml:space="preserve">
+    <value>{0} (not compared: cut off or not visible)</value>
+    <comment>{0}: the definition of a view whose text is longer than 32,767 characters or not visible</comment>
+  </data>
   <data name="MaterializedViewBuildImmediate" xml:space="preserve">
     <value>Creating it runs the query and stores its rows (BUILD IMMEDIATE).</value>
   </data>
@@ -23,10 +27,10 @@
     <value>The definition of the materialized view could not be read in full (longer than 32,767 characters or not visible): copy it from the reference’s DDL view.</value>
   </data>
   <data name="MaterializedViewFastRefresh" xml:space="preserve">
-    <value>REFRESH FAST needs materialized view logs on the tables of the query; without them creating it fails (ORA-23413).</value>
+    <value>REFRESH FAST needs materialized view logs on the tables of the query; without them the statement fails (ORA-23413).</value>
   </data>
   <data name="MaterializedViewInvalidInReference" xml:space="preserve">
-    <value>The materialized view is invalid in the reference. Oracle compiles it on its next use; if that fails there, the statement fails in the target as well.</value>
+    <value>The materialized view is invalid in the reference: it still answers queries until it is compiled again (refresh or ALTER … COMPILE). If compiling fails there, the statement fails in the target as well.</value>
   </data>
   <data name="MaterializedViewPrebuilt" xml:space="preserve">
     <value>Built on an existing table in the reference (ON PREBUILT TABLE): create that table first and add ON PREBUILT TABLE by hand.</value>
