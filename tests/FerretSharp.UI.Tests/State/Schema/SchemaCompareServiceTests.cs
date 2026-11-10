@@ -305,8 +305,9 @@ public sealed class SchemaCompareServiceTests : IDisposable
 
         service.SetRunning(true);
         service.CloseDdl();
+        service.RequestRun(false); // the panel's Close: a second run could start from the header
         Assert.True(service.DdlRunning);
-        Assert.NotNull(service.Ddl);
+        Assert.Equal(new DdlChoice(0, 1, Run: true), service.Ddl);
 
         service.SetRunning(false); // the panel's statements are over; its result comes next
         service.CloseDdl();

@@ -301,10 +301,10 @@ public sealed class SchemaCompareService(
         Changed?.Invoke();
     }
 
-    /// <summary>"Run" asked for (true) or the run panel closed (false).</summary>
+    /// <summary>"Run" asked for (true) or the run panel closed (false) – not while it runs (review WP-83: a second run could start).</summary>
     public void RequestRun(bool on)
     {
-        if (Ddl is { } ddl)
+        if (Ddl is { } ddl && (on || !DdlRunning))
         {
             Ddl = ddl with { Run = on, Failed = on ? ddl.Failed : null };
             Changed?.Invoke();

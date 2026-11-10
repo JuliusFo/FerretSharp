@@ -18,7 +18,7 @@
         <span class="spacer"></span>
         @if (_proposal is { Steps.Count: > 0 } runnable)
         {
-            @if (!Choice.Run && TargetProfile is not null && _runnable.Count > 0)
+            @if (!Choice.Run && !Compare.DdlRunning && TargetProfile is not null && _runnable.Count > 0)
             {
                 <button class="btn primary" disabled="@TargetReading" title="@TextFormat.Format(CompareViewText.CompareDdl_RunTitle, Labels[_target])"
                         @onclick="RunAsync">@CompareViewText.CompareDdl_RunEllipsis</button>
@@ -53,8 +53,9 @@
         <div class="settings-note compare-ddl-note">
             @CompareViewText.CompareDdl_Note
         </div>
-        @if (TargetReading)
+        @if (TargetReading && !Choice.Run)
         {
+            @* With the run panel open it says so itself, as the reason Run is off. *@
             <div class="settings-note compare-ddl-note"><span class="spinner small"></span> @TextFormat.Format(CompareViewText.CompareDdl_Reading, Labels[_target])</div>
         }
         @if (_error is { } error)
@@ -195,9 +196,10 @@
         }
 
         Compare.RequestRun(true);
-        if (Hub.Find(profile.Id) is { Active.Lost: not null })
+        if (Hub.Find(profile.Id) is { Active.Lost: not null } lost)
         {
-            Lifecycle.Reconnect(profile);
+            // In place: Reconnect would show the target's explorer and leave the comparison (review WP-83).
+            await Lifecycle.ReconnectInPlaceAsync(lost);
         }
         else if (Hub.Find(profile.Id) is not { Active.IsConnected: true })
         {
@@ -232,12 +234,12 @@
             {
                 <p class="muted">@CompareViewText.Compare_MissingConnection</p>
             }
-            else if (scope is { Active.Lost: not null })
+            else if (scope is { Active.Lost: not null } && !Compare.DdlRunning)
             {
                 @* A lost session still says Connected: running on it would only fail. *@
                 <p class="error">@TextFormat.Format(CompareViewText.CompareDdl_Lost, label)</p>
                 <div class="ddl-actions">
-                    <button class="btn primary" @onclick="() => Lifecycle.Reconnect(profile)">@ConnectionViewText.Connection_Reconnect</button>
+                    <button class="btn primary" @onclick="() => Lifecycle.ReconnectInPlaceAsync(scope)">@ConnectionViewText.Connection_Reconnect</button>
                     <span class="spacer"></span>
                     <button class="btn ghost" @onclick="() => Compare.RequestRun(false)">@CommonText.Cancel</button>
                 </div>
