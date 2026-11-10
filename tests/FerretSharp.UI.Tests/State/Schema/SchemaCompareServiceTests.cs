@@ -286,6 +286,67 @@ public sealed class SchemaCompareServiceTests : IDisposable
         Assert.Equal(new DdlChoice(0, 1), service.Ddl); // success: back to the proposal
     }
 
+    /// <summary>
+    /// Review WP-83: Esc and ✕ closed the dialog while its DDL ran – the run went on unseen, its target was never read
+    /// again, and the next proposal offered what had run. The dialog stays while it runs; the target is read either way.
+    /// </summary>
+    [Fact]
+    public async Task The_dialog_stays_while_its_ddl_runs_and_the_target_is_read_again_also_without_it()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A"]);
+        Opens(_test, [], ["A"]);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+        service.OpenDdl();
+        service.RequestRun(true);
+
+        service.SetRunning(true);
+        service.CloseDdl();
+        Assert.True(service.DdlRunning);
+        Assert.NotNull(service.Ddl);
+
+        service.SetRunning(false); // the panel's statements are over; its result comes next
+        service.CloseDdl();
+        Assert.Null(service.Ddl);
+        await service.RanAsync(new DdlRunResult(["CREATE TABLE A"], null, null, null) { Total = 1 });
+
+        await _connector.Received(2).OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        Assert.False(service.Result!.Objects.Single().HasDifferences);
+    }
+
+    /// <summary>Review WP-83: reading the target again after a run and cancelling it left the snapshot of before the DDL, looking current.</summary>
+    [Fact]
+    public async Task Cancelling_a_side_read_again_drops_its_old_snapshot()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A"]);
+        Opens(_test, []);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+
+        var opening = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _connector.OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                opening.TrySetResult();
+                await Task.Delay(Timeout.Infinite, call.ArgAt<CancellationToken>(3));
+                return FakeDatabase.Connection();
+            });
+        var reading = service.CompareSideAsync(1);
+        await opening.Task.WaitAsync(Ct);
+        Assert.NotNull(service.Sides[1].Snapshot); // kept while reading
+        service.Cancel();
+        await reading.WaitAsync(Ct);
+
+        Assert.Null(service.Sides[1].Snapshot);
+        Assert.Equal([0], service.ResultSides);
+    }
+
     /// <summary>WP-83: a run asked for on one target never carries over to another – a side of the dialog failing starts it over.</summary>
     [Fact]
     public async Task The_dialog_keeps_its_sides_by_side_and_starts_over_when_one_of_them_fails()
@@ -311,9 +372,16 @@ public sealed class SchemaCompareServiceTests : IDisposable
         Assert.Equal(new DdlChoice(1, 2, Run: true), service.Ddl); // dev is no side of the dialog
         Assert.Equal((0, 1), service.DdlColumns()); // columns of the matrix without dev
 
+        Opens(_dev, ["A"]); // dev back; then the dialog's target fails with two columns left
+        await service.CompareSideAsync(0);
         _connector.OpenAsync(prod, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new DatabaseException("TNS: Zeitüberschreitung", "ORA-12170"));
-        await service.CompareSideAsync(2); // the target fails as well: one column left, no dialog
+        await service.CompareSideAsync(2);
+        Assert.Equal(new DdlChoice(0, 1), service.Ddl); // the default pair, and the run asked for on prod is gone
+
+        _connector.OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DatabaseException("TNS: Zeitüberschreitung", "ORA-12170"));
+        await service.CompareSideAsync(1); // one column left: no dialog
         Assert.Null(service.Ddl);
     }
 

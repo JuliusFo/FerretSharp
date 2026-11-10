@@ -28,6 +28,21 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         Assert.Contains(testTab, _app.WorkspaceOf(test).Tabs);
     }
 
+    /// <summary>WP-83: the DDL proposal of the schema comparison runs in a connection's active workspace, also one in the background.</summary>
+    [Fact]
+    public async Task The_active_workspace_of_a_connection_is_known_also_in_the_background()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
+
+        Assert.Same(_app.WorkspaceOf(test), _app.Shell.ActiveWorkspaceOf(test.Id)); // in the background
+        Assert.Same(_app.Shell.ActiveWorkspace, _app.Shell.ActiveWorkspaceOf(dev.Id)); // shown
+        Assert.Null(_app.Shell.ActiveWorkspaceOf(Guid.NewGuid()));
+
+        _app.Shell.ClearWorkspaces(test.Id);
+        Assert.Null(_app.Shell.ActiveWorkspaceOf(test.Id));
+    }
+
     /// <summary>
     /// Review 3.40.0, A17: a script for a connection whose password was cancelled, which failed or which the user left kept
     /// waiting – and opened hours later when the user connected by hand. Links already behaved so (review of WP-37).

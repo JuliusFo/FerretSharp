@@ -10,7 +10,7 @@
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
 
-<ModalFrame Label="@CompareViewText.CompareDdl_Title" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="@(!Choice.Run)" FocusOnOpen="true">
+<ModalFrame Label="@CompareViewText.CompareDdl_Title" Class="sql-dialog compare-ddl-dialog" OnCancel="CloseAsync" CloseOnBackdrop="@(!Choice.Run)" FocusOnOpen="true">
     @* Title and buttons in the header like every dialog; the two sides in a row of their own below – with long
        connection names both selects together are wider than the dialog, and the header clipped Close away. *@
     <header>
@@ -23,10 +23,11 @@
                 <button class="btn primary" disabled="@TargetReading" title="@TextFormat.Format(CompareViewText.CompareDdl_RunTitle, Labels[_target])"
                         @onclick="RunAsync">@CompareViewText.CompareDdl_RunEllipsis</button>
             }
-            <button class="btn" title="@TextFormat.Format(CompareViewText.CompareDdl_OpenInEditorTitle, Labels[_target])"
+            @* Not while the DDL runs or the target is read again: the script would hold statements that ran already. *@
+            <button class="btn" disabled="@(Compare.DdlRunning || TargetReading)" title="@TextFormat.Format(CompareViewText.CompareDdl_OpenInEditorTitle, Labels[_target])"
                     @onclick="() => OnOpenInEditor.InvokeAsync(runnable)">@CommonText.OpenInSqlEditor</button>
         }
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" disabled="@Compare.DdlRunning" @onclick="CloseAsync">@Icons.Close</button>
     </header>
     <div class="compare-ddl-sides">
         <Fmt Text="@CompareViewText.CompareDdl_AlignTo">
@@ -194,11 +195,18 @@
         }
 
         Compare.RequestRun(true);
-        if (Hub.Find(profile.Id) is not { Active.IsConnected: true })
+        if (Hub.Find(profile.Id) is { Active.Lost: not null })
+        {
+            Lifecycle.Reconnect(profile);
+        }
+        else if (Hub.Find(profile.Id) is not { Active.IsConnected: true })
         {
             await Lifecycle.ConnectAsync(profile);
         }
     }
+
+    /// <summary>Esc, ✕: not while the DDL runs – its progress, cancel and failure are in this dialog (review WP-83).</summary>
+    private Task CloseAsync() => Compare.DdlRunning ? Task.CompletedTask : OnClose.InvokeAsync();
 
     private Task ConnectAsync(ConnectionProfile profile) => Lifecycle.ConnectAsync(profile);
 
@@ -224,6 +232,27 @@
             {
                 <p class="muted">@CompareViewText.Compare_MissingConnection</p>
             }
+            else if (scope is { Active.Lost: not null })
+            {
+                @* A lost session still says Connected: running on it would only fail. *@
+                <p class="error">@TextFormat.Format(CompareViewText.CompareDdl_Lost, label)</p>
+                <div class="ddl-actions">
+                    <button class="btn primary" @onclick="() => Lifecycle.Reconnect(profile)">@ConnectionViewText.Connection_Reconnect</button>
+                    <span class="spacer"></span>
+                    <button class="btn ghost" @onclick="() => Compare.RequestRun(false)">@CommonText.Cancel</button>
+                </div>
+            }
+            else if (scope is { Active.IsConnected: true } && Shell.ActiveWorkspaceOf(scope.Id) is { } locked
+                     && !ReferenceEquals(scope, Hub.Shown) && !scope.Workspaces.IsWritable(locked.WorkspaceId) && !Compare.DdlRunning)
+            {
+                @* Unlocking asks in the shell's dialog, which serves the shown connection only: switch there first. *@
+                <p class="muted">@TextFormat.Format(CompareViewText.CompareDdl_LockedInBackground, scope.Workspaces.Find(locked.WorkspaceId)?.Name ?? "", label)</p>
+                <div class="ddl-actions">
+                    <button class="btn primary" @onclick="() => Hub.ShowWorkspace(scope, locked.WorkspaceId)">@TextFormat.Format(CompareViewText.CompareDdl_ShowTarget, label)</button>
+                    <span class="spacer"></span>
+                    <button class="btn ghost" @onclick="() => Compare.RequestRun(false)">@CommonText.Cancel</button>
+                </div>
+            }
             else if (scope is { Active.IsConnected: true } && Shell.ActiveWorkspaceOf(scope.Id) is { } workspace)
             {
                 <p class="muted">@TextFormat.Format(CompareViewText.CompareDdl_RunsIn, scope.Workspaces.Find(workspace.WorkspaceId)?.Name ?? "", label)</p>
@@ -233,6 +262,8 @@
                 }
                 <ConnectionScopeView @key="scope" Scope="scope">
                     <DdlDraftPanel @key="workspace.WorkspaceId" WorkspaceId="workspace.WorkspaceId" Steps="_runnable" ConfirmNotes="RiskNotes"
+                                   Problems="@(TargetReading ? [TextFormat.Format(CompareViewText.CompareDdl_Reading, label)] : [])"
+                                   Running="Compare.SetRunning" SaveText="@proposal.Script"
                                    FileName="@($"{DateTime.Now:yyyy-MM-dd}_ALIGN_{proposal.TargetOwner ?? "TARGET"}.sql")"
                                    ConfirmAtOnce="@(Choice.Failed is null)" Earlier="Choice.Failed" OfferSqlEditor="false"
                                    OnRan="RanAsync" OnFailed="Compare.RanAsync" OnClose="() => Compare.RequestRun(false)" />
@@ -241,7 +272,7 @@
             else if (scope?.Active is { Status: ConnectionStatus.Connecting } || (scope is { Active.IsConnected: true }))
             {
                 @* Connected, but its workspaces are not there yet – a moment after connecting. *@
-                <p><span class="spinner small"></span> @TextFormat.Format(CompareViewText.CompareDdl_Connecting, label)</p>
+                <p><span class="spinner small"></span> @TextFormat.Format(ConnectionViewText.Connection_ConnectingTo, label)</p>
                 <button class="btn ghost" @onclick="() => Compare.RequestRun(false)">@CommonText.Cancel</button>
             }
             else
@@ -250,7 +281,7 @@
                     @(scope?.Active.Error is { } failed ? TextFormat.Format(CompareViewText.CompareDdl_ConnectFailed, label, failed.Message) : TextFormat.Format(CompareViewText.CompareDdl_NotConnected, label))
                 </p>
                 <div class="ddl-actions">
-                    <button class="btn primary" @onclick="() => ConnectAsync(profile)">@CompareViewText.CompareDdl_Connect</button>
+                    <button class="btn primary" @onclick="() => ConnectAsync(profile)">@ConnectionViewText.ConnectionMenu_Connect</button>
                     <span class="spacer"></span>
                     <button class="btn ghost" @onclick="() => Compare.RequestRun(false)">@CommonText.Cancel</button>
                 </div>

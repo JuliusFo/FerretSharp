@@ -38,7 +38,7 @@ public sealed record HeaderChoice(IReadOnlyList<CompareRow> Matches, bool Checke
 /// The open DDL proposal dialog (WP-83): which sides it aligns – indexes into <see cref="SchemaCompareService.Sides"/>, not
 /// into the matrix, whose columns shift when a side fails – and whether the user asked to run it on the target.
 /// </summary>
-/// <param name="Run">"Run" was asked for: the dialog shows the run panel once the target is the shown connection.</param>
+/// <param name="Run">"Run" was asked for: the dialog shows the run panel once the target is connected (shown or in the background).</param>
 /// <param name="Failed">How the last run on the target failed; shown in the run panel until it runs again.</param>
 public sealed record DdlChoice(int Reference, int Target, bool Run = false, DdlRunResult? Failed = null);
 
@@ -235,9 +235,33 @@ public sealed class SchemaCompareService(
         return new DdlChoice(ResultSides[reference], ResultSides[reference == 0 ? 1 : 0]);
     }
 
+    /// <summary>Closes the dialog – not while its DDL runs: the run's progress, cancel and failure live in it (review WP-83).</summary>
     public void CloseDdl()
     {
+        if (DdlRunning)
+        {
+            return;
+        }
+
         Ddl = null;
+        Changed?.Invoke();
+    }
+
+    /// <summary>The side a run started on; read again when it ends, also if the dialog is gone by then.</summary>
+    private int? _runTarget;
+
+    /// <summary>The dialog's DDL is running on its target: the dialog stays open, its sides and other ways out are locked.</summary>
+    public bool DdlRunning { get; private set; }
+
+    /// <summary>The run panel started (true) or ended (false) its statements, however it ended.</summary>
+    public void SetRunning(bool running)
+    {
+        if (running && Ddl is { } ddl)
+        {
+            _runTarget = ddl.Target;
+        }
+
+        DdlRunning = running && _runTarget is not null;
         Changed?.Invoke();
     }
 
@@ -293,16 +317,17 @@ public sealed class SchemaCompareService(
     /// </summary>
     public async Task RanAsync(DdlRunResult result)
     {
-        if (Ddl is not { } ddl)
+        var target = _runTarget ?? Ddl?.Target;
+        (_runTarget, DdlRunning) = (null, false);
+        if (Ddl is { } ddl && ddl.Target == target)
         {
-            return;
+            Ddl = ddl with { Run = !result.Succeeded, Failed = result.Succeeded ? null : result };
         }
 
-        Ddl = ddl with { Run = !result.Succeeded, Failed = result.Succeeded ? null : result };
         Changed?.Invoke();
-        if (result.Ran.Count > 0)
+        if (target is { } side && result.Ran.Count > 0)
         {
-            await CompareSideAsync(ddl.Target);
+            await CompareSideAsync(side);
         }
     }
 
@@ -465,6 +490,16 @@ public sealed class SchemaCompareService(
         }
         catch (OperationCanceledException)
         {
+            if (keepMatrix)
+            {
+                // Read again after a run and cancelled: the old snapshot is from before the DDL – show nothing instead
+                // of a matrix that looks current (review WP-83).
+                foreach (var (state, _) in targets)
+                {
+                    state.Snapshot = null;
+                }
+            }
+
             // cancelled by the user or by changing the sides: the sides show nothing
         }
         finally
@@ -552,6 +587,7 @@ public sealed class SchemaCompareService(
         (Result, ResultSides, Ddl) = (null, [], null);
         _chosen.Clear(); // other sides, other objects
         _open.Clear();
+        (_runTarget, DdlRunning) = (null, false); // a run still going belongs to sides that are gone
         Changed?.Invoke();
     }
 

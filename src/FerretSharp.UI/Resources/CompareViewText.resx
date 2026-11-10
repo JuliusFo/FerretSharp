@@ -397,10 +397,6 @@
     <value>{0:N0} hints do not run (drops, renames or things for you to decide) – they stay in the script for the SQL editor.</value>
     <comment>{0} = number of hint steps of the proposal</comment>
   </data>
-  <data name="CompareDdl_Connecting" xml:space="preserve">
-    <value>Connecting to {0} …</value>
-    <comment>{0} = label of the target side</comment>
-  </data>
   <data name="CompareDdl_NotConnected" xml:space="preserve">
     <value>{0} is not connected – the proposal runs there once it is.</value>
     <comment>{0} = label of the target side</comment>
@@ -408,10 +404,6 @@
   <data name="CompareDdl_ConnectFailed" xml:space="preserve">
     <value>Could not connect to {0}: {1}</value>
     <comment>{0} = label of the target side, {1} = error message</comment>
-  </data>
-  <data name="CompareDdl_Connect" xml:space="preserve">
-    <value>Connect</value>
-    <comment>Button: connects to the target side to run the proposal there</comment>
   </data>
   <data name="CompareDdl_Reading" xml:space="preserve">
     <value>Reading {0} again …</value>
@@ -424,5 +416,17 @@
   <data name="CompareDdl_RanOther" xml:space="preserve">
     <value>{0:N0} statements ran on {1} – it is read again.</value>
     <comment>{0} = number of statements, {1} = label of the target side</comment>
+  </data>
+  <data name="CompareDdl_Lost" xml:space="preserve">
+    <value>The connection to {0} is lost – reconnect to run the proposal there.</value>
+    <comment>{0} = label of the target side</comment>
+  </data>
+  <data name="CompareDdl_LockedInBackground" xml:space="preserve">
+    <value>The workspace “{0}” of {1} is locked. Switch to it to unlock it, then run the proposal.</value>
+    <comment>{0} = name of the workspace, {1} = label of the target side</comment>
+  </data>
+  <data name="CompareDdl_ShowTarget" xml:space="preserve">
+    <value>Switch to {0}</value>
+    <comment>Button. {0} = label of the target side</comment>
   </data>
 </root>

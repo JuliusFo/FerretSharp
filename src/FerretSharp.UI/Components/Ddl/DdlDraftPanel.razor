@@ -133,6 +133,17 @@ else
     [Parameter]
     public bool OfferSqlEditor { get; set; } = true;
 
+    /// <summary>
+    /// The statements start (true) and are over (false) – also after an exception, unlike <see cref="Ended"/>. For a caller
+    /// that must not let the user leave while DDL runs (the schema comparison's dialog, WP-83).
+    /// </summary>
+    [Parameter]
+    public Action<bool>? Running { get; set; }
+
+    /// <summary>What "Save …" writes; null: the steps as a script. The schema comparison saves its whole proposal (header, hints).</summary>
+    [Parameter]
+    public string? SaveText { get; set; }
+
     /// <summary>Lays the panel out as the head of the table designer: this beside the actions (designer tabs).</summary>
     [Parameter]
     public RenderFragment? Head { get; set; }
@@ -198,6 +209,7 @@ else
         _confirm = false;
         _result = null;
         using var cts = _cts = new CancellationTokenSource();
+        Running?.Invoke(true);
         try
         {
             _result = await Lifecycle.Statements.RunDdlAsync(WorkspaceId, Statements, discard, statement =>
@@ -210,6 +222,7 @@ else
         {
             _running = null;
             _cts = null;
+            Running?.Invoke(false);
         }
 
         if (_result.Succeeded)
@@ -264,7 +277,7 @@ else
         var folder = Connections.Profiles.FirstOrDefault(p => p.Id == connection)?.ScriptFolder;
         try
         {
-            if (await Files.SaveTextAsync(FileName, SchemaViewText.Ddl_SaveFilter, Script + "\n", utf8Bom: false, folder) is not { } path)
+            if (await Files.SaveTextAsync(FileName, SchemaViewText.Ddl_SaveFilter, SaveText ?? Script + "\n", utf8Bom: false, folder) is not { } path)
             {
                 return;
             }
