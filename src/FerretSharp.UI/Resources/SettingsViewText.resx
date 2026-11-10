@@ -93,6 +93,13 @@
     <value>What “SQL” in the filter bar shows and opens in the SQL editor: the grid's own statement – ROWID, each column, LOBs as preview and length, the first page – or {0} with the filter and the sorting only.</value>
     <comment>{0}: "SELECT t.*"</comment>
   </data>
+  <data name="Settings_DdlWithoutOwner" xml:space="preserve">
+    <value>DDL without owner</value>
+  </data>
+  <data name="Settings_DdlWithoutOwnerHint" xml:space="preserve">
+    <value>The DDL view leaves {0} out before the names of the object’s own schema, its grants as well – for running the DDL under another owner. Names in other schemas stay. The switch in the DDL view sets this too.</value>
+    <comment>{0}: "OWNER". (code)</comment>
+  </data>
   <data name="Settings_FilterSqlListed" xml:space="preserve">
     <value>Each column</value>
     <comment>Option of "SQL of a filter"; the other option is "SELECT t.*"</comment>

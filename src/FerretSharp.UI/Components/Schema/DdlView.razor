@@ -1,6 +1,10 @@
-@* "DDL" view: the CREATE statement from DBMS_METADATA (shown and copied, never executed). *@
+@* "DDL" view: the CREATE statement from DBMS_METADATA (shown and copied, never executed). "Without owner" leaves the
+   object's own schema out of it and of the grants (DdlOwner), kept as a setting. *@
+@using FerretSharp.Core.Ddl
+@using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Schema
 @inherits DetailViewBase<string>
+@inject AppSettingsService Settings
 
 <DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Ddl_Loading"
               Hint="@(Error?.ErrorCode == "ORA-31603" ? SchemaViewText.Ddl_NeedsCatalogRole : null)" />
@@ -8,16 +12,29 @@
 @if (Data is { } ddl)
 {
     <section>
-        <h2>DDL</h2>
-        <SqlCode Sql="@ddl" Class="ddl" />
+        <div class="structure-columns-head">
+            <h2>DDL</h2>
+            <button type="button" class="btn ghost small @(WithoutOwner ? "active" : "")" aria-pressed="@(WithoutOwner ? "true" : "false")"
+                    title="@TextFormat.Format(SchemaViewText.Ddl_WithoutOwnerTitle, OracleIdentifier.Quote(Table.Owner) + ".")"
+                    @onclick="ToggleOwnerAsync">@SchemaViewText.Ddl_WithoutOwner</button>
+        </div>
+        <SqlCode Sql="@(WithoutOwner ? DdlOwner.Omit(ddl, Table.Owner) : ddl)" Class="ddl" />
         <p class="muted"><Fmt Text="@SchemaViewText.Ddl_Source"><Arg0><code>DBMS_METADATA.GET_DDL</code></Arg0></Fmt></p>
     </section>
 }
 
 @* The grants as the view "Privileges" reads them (WP-71), also where GET_DDL needs a role the user lacks. *@
-<GrantScript Target="Table.Ref" Version="Version" />
+<GrantScript Target="Table.Ref" Version="Version" WithoutOwner="WithoutOwner" />
 
 @code {
+    private bool WithoutOwner => Settings.Current.DdlWithoutOwner;
+
     protected override Task<string> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         schema.GetDdlAsync(Table, cancellationToken);
+
+    private Task ToggleOwnerAsync()
+    {
+        var without = !WithoutOwner;
+        return Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { DdlWithoutOwner = without }, CancellationToken.None));
+    }
 }
