@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *Keep result* in the SQL editor: a result stays, with its rows as they were read, when the next statement runs – also the same statement again – like pinning in SQL Developer. Up to ten per tab stand in the bar above the grid with a camera, named by the table (or the statement's first word) and the time; a double click renames one, ✕ closes it, *Let go* leaves it until the next run replaces it. A kept result never runs its query again: scrolling, sorting (in memory), copying column values and exporting take the rows it holds (*Kept rows · N rows* in the menus), the form and comparison work as before. It keeps the rows loaded so far, at most 10,000; *Load all rows* in the footer reads the rest of a result first. A result read while the workspace had uncommitted changes says so. Kept results live in memory only. Keeping or letting go has a shortcut action without a default key (*Keep or let go of result*).
+- Every query result of the SQL editor has a header with the statement it came from and the time it ran; unfolded it shows the whole statement and the values of its bind variables. *To the editor* selects that statement in the script if it is still there exactly so, or inserts it at the cursor.
+
 ## [3.67.0] - 2026-11-09
 
 Filter a table by a SQL condition you write – subqueries on other tables included – and keep editing, jumping and exporting as in any table tab.
