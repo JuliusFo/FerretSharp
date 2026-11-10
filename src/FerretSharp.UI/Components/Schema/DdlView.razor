@@ -18,7 +18,7 @@
                     title="@TextFormat.Format(SchemaViewText.Ddl_WithoutOwnerTitle, OracleIdentifier.Quote(Table.Owner) + ".")"
                     @onclick="ToggleOwnerAsync">@SchemaViewText.Ddl_WithoutOwner</button>
         </div>
-        <SqlCode Sql="@(WithoutOwner ? DdlOwner.Omit(ddl, Table.Owner) : ddl)" Class="ddl" />
+        <SqlCode Sql="@Shown(ddl)" Class="ddl" />
         <p class="muted"><Fmt Text="@SchemaViewText.Ddl_Source"><Arg0><code>DBMS_METADATA.GET_DDL</code></Arg0></Fmt></p>
     </section>
 }
@@ -28,6 +28,19 @@
 
 @code {
     private bool WithoutOwner => Settings.Current.DdlWithoutOwner;
+
+    // The view renders with every render of its tab (Review): the DDL of a table with many partitions is not tokenized each time.
+    private (string? Ddl, bool Without, string Text) _shown;
+
+    private string Shown(string ddl)
+    {
+        if (!ReferenceEquals(_shown.Ddl, ddl) || _shown.Without != WithoutOwner)
+        {
+            _shown = (ddl, WithoutOwner, WithoutOwner ? DdlOwner.Omit(ddl, Table.Owner) : ddl);
+        }
+
+        return _shown.Text;
+    }
 
     protected override Task<string> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         schema.GetDdlAsync(Table, cancellationToken);
