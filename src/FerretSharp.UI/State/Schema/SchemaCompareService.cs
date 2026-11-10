@@ -24,6 +24,15 @@ public sealed class SideState(CompareSide side)
     public bool NeedsPassword { get; set; }
 }
 
+/// <summary>The header's box of the matrix (<see cref="SchemaCompareService.Header"/>).</summary>
+/// <param name="Matches">Rows of the filters and the search that can be chosen.</param>
+/// <param name="Checked">All matches chosen.</param>
+/// <param name="Partly">Shown as partly checked: some matches chosen, or objects waiting.</param>
+/// <param name="Enabled">A match can be chosen or an object waits.</param>
+/// <param name="Next">What a click does: true chooses the matches, false takes them and the waiting objects out.</param>
+/// <param name="Title">The tooltip; null when the box is disabled.</param>
+public sealed record HeaderChoice(IReadOnlyList<CompareRow> Matches, bool Checked, bool Partly, bool Enabled, bool Next, string? Title);
+
 /// <summary>
 /// The schema comparison page's state (WP-20), kept while the user visits other pages: the comparison being edited,
 /// its sides with their snapshots, the matrix and the saved comparisons. Snapshots stay until the sides change or the
@@ -60,6 +69,88 @@ public sealed class SchemaCompareService(
 
     /// <summary>Indexes into <see cref="Sides"/> of the matrix columns (sides that failed are left out).</summary>
     public IReadOnlyList<int> ResultSides { get; private set; } = [];
+
+    private readonly HashSet<string> _chosen = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Keys of the objects chosen in the matrix for the DDL proposal: none at first, kept while filters hide them and over
+    /// a new comparison of the same sides (objects no longer there or alike everywhere drop out once all sides loaded),
+    /// not saved. What counts for the matrix is <see cref="IsChosen"/>.
+    /// </summary>
+    public IReadOnlySet<string> Chosen => _chosen;
+
+    /// <summary>The chosen objects of the matrix in its order; what the DDL proposal covers.</summary>
+    public IReadOnlyList<CompareRow> ChosenRows => Result is { } result ? result.Objects.Where(IsChosen).ToList() : [];
+
+    /// <summary>Only an object that differs somewhere can be chosen: one alike on all sides never gets a step.</summary>
+    public static bool CanChoose(CompareRow row) => row.HasDifferences;
+
+    /// <summary>Chosen and differing in this matrix; a key that is alike here (a side missing, column order off) waits.</summary>
+    public bool IsChosen(CompareRow row) => CanChoose(row) && _chosen.Contains(row.Key);
+
+    /// <summary>Chooses objects for the DDL proposal or takes them out; rows that cannot be chosen are left alone.</summary>
+    public void Choose(IEnumerable<CompareRow> rows, bool on)
+    {
+        foreach (var row in rows.Where(CanChoose))
+        {
+            if (on)
+            {
+                _chosen.Add(row.Key);
+            }
+            else
+            {
+                _chosen.Remove(row.Key);
+            }
+        }
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Chosen objects that only wait: alike in this matrix (a side missing, column order off) or not in it. They have no
+    /// box of their own; they count again once they differ.
+    /// </summary>
+    public int Waiting => Result is { } result ? _chosen.Count - result.Objects.Count(IsChosen) : 0;
+
+    /// <summary>
+    /// The header's box over the rows the filters and the search let through (also behind "Show more"). Usable while a
+    /// match can be chosen or an object waits; with only waiting objects left a click takes them out – in a comparison of
+    /// two sides whose target failed nothing differs, and they would come back unasked (review).
+    /// </summary>
+    public HeaderChoice Header(IReadOnlyList<CompareRow> visible)
+    {
+        var matches = visible.Where(CanChoose).ToList();
+        var chosen = matches.Count(IsChosen);
+        var waiting = Waiting;
+        var all = matches.Count > 0 && chosen == matches.Count;
+        var next = !all && matches.Count > 0;
+        string? title = (matches.Count, waiting, next) switch
+        {
+            (0, 0, _) => null,
+            (_, _, true) => TextFormat.Plural(matches.Count, CompareViewText.Compare_ChooseShownOne, CompareViewText.Compare_ChooseShownOther),
+            (0, _, false) => TextFormat.Plural(waiting, CompareViewText.Compare_UnchooseWaitingOne, CompareViewText.Compare_UnchooseWaitingOther),
+            (_, 0, false) => TextFormat.Plural(matches.Count, CompareViewText.Compare_UnchooseShownOne, CompareViewText.Compare_UnchooseShownOther),
+            _ => TextFormat.Format(CompareViewText.Compare_UnchooseShownAndWaiting,
+                TextFormat.Plural(matches.Count, CompareViewText.Compare_MatchesOne, CompareViewText.Compare_MatchesOther),
+                TextFormat.Plural(waiting, CompareViewText.Compare_WaitingObjectsOne, CompareViewText.Compare_WaitingObjectsOther)),
+        };
+        return new HeaderChoice(matches, all, !all && (chosen > 0 || waiting > 0), matches.Count > 0 || waiting > 0, next, title);
+    }
+
+    /// <summary>
+    /// The header's box: chooses the matches, or takes them out together with the objects that only wait (<see cref="Waiting"/>)
+    /// – those would come back unasked once all sides load again (review).
+    /// </summary>
+    public void ChooseAll(IReadOnlyList<CompareRow> matches, bool on)
+    {
+        if (!on && Result is { } result)
+        {
+            var differing = result.Objects.Where(CanChoose).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
+            _chosen.RemoveWhere(key => !differing.Contains(key));
+        }
+
+        Choose(matches, on);
+    }
 
     private static SavedComparison NewComparison() => new(Guid.NewGuid(), "", [new CompareSide(Guid.Empty), new CompareSide(Guid.Empty)]);
 
@@ -222,7 +313,7 @@ public sealed class SchemaCompareService(
             return; // cancelled by a newer comparison, which builds the matrix when it ends
         }
 
-        await RecomputeAsync();
+        await RecomputeAsync(afterRead: true);
         Changed?.Invoke();
     }
 
@@ -288,6 +379,7 @@ public sealed class SchemaCompareService(
         Sides = Current.Sides.Select(side => new SideState(side)).ToList();
         Result = null;
         ResultSides = [];
+        _chosen.Clear(); // other sides, other objects
         Changed?.Invoke();
     }
 
@@ -295,7 +387,12 @@ public sealed class SchemaCompareService(
     /// The matrix over the sides that loaded; the reference only if it loaded too. Computed on the thread pool – over
     /// large schemas the diff took long enough to freeze the window – and dropped if the sides or options changed meanwhile.
     /// </summary>
-    private async Task RecomputeAsync()
+    /// <param name="afterRead">
+    /// The sides were just read: if all of them loaded, chosen objects that are gone or alike everywhere drop out. Not
+    /// after a side failed (an object that differs only against it would be lost, review) and not for a new matrix from
+    /// the same snapshots (column order on and off) – there <see cref="IsChosen"/> only hides them.
+    /// </param>
+    private async Task RecomputeAsync(bool afterRead = false)
     {
         var version = Interlocked.Increment(ref _matrix);
         var loaded = Sides.Select((state, index) => (state, index)).Where(s => s.state.Snapshot is not null).ToList();
@@ -312,6 +409,11 @@ public sealed class SchemaCompareService(
         if (version == Volatile.Read(ref _matrix))
         {
             (Result, ResultSides) = (result, loaded.Select(s => s.index).ToList());
+            if (afterRead && loaded.Count == Sides.Count)
+            {
+                // e.g. compared again after running the script: aligned objects drop out
+                _chosen.IntersectWith(result.Objects.Where(CanChoose).Select(o => o.Key));
+            }
         }
     }
 }

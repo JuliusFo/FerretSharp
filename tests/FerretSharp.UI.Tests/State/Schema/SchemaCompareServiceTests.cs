@@ -42,12 +42,29 @@ public sealed class SchemaCompareServiceTests : IDisposable
         return service;
     }
 
-    /// <summary>The profile's session reads a snapshot with one table named after the profile.</summary>
-    private void Opens(ConnectionProfile profile)
+    /// <summary>
+    /// The profile's session reads a snapshot with these tables – <c>A</c>, or <c>A:X,Y</c> with NUMBER columns in this
+    /// order; each read returns the next list, the last one stays.
+    /// </summary>
+    private void Opens(ConnectionProfile profile, params string[][] tables)
     {
+        var reads = new Queue<string[]>(tables.Length == 0 ? [[]] : tables);
         var reader = Substitute.For<ISchemaReader>();
         reader.ReadSnapshotAsync(Arg.Any<string>(), Arg.Any<IProgress<string>?>(), Arg.Any<CancellationToken>())
-            .Returns(call => new SchemaSnapshot(call.Arg<string>(), DateTimeOffset.Now, []));
+            .Returns(call =>
+            {
+                var names = reads.Count > 1 ? reads.Dequeue() : reads.Peek();
+                return new SchemaSnapshot(call.Arg<string>(), DateTimeOffset.Now, names.Select(Table).ToList());
+            });
+
+        static ObjectSnapshot Table(string spec)
+        {
+            var parts = spec.Split(':');
+            var columns = parts.Length > 1
+                ? parts[1].Split(',').Select((c, i) => new ColumnInfo(c, "NUMBER", null, false, null, null, true, false, null, i + 1)).ToList()
+                : [];
+            return new ObjectSnapshot(parts[0], TableKind.Table, columns, [], []);
+        }
         var connection = FakeDatabase.Connection(reader); // before: NSubstitute cannot configure a substitute inside Returns()
         _connector.OpenAsync(profile, Arg.Any<string>(), SchemaCompareLoader.SessionAction, Arg.Any<CancellationToken>())
             .Returns(connection);
@@ -143,6 +160,117 @@ public sealed class SchemaCompareServiceTests : IDisposable
         await service.SetOptionsAsync(reference: 0, service.Current.ColumnOrder, service.Current.OnlyDifferences, service.Current.Kinds);
         Assert.NotSame(first, service.Result);
         Assert.Equal(0, service.Result!.Options.Reference);
+    }
+
+    [Fact]
+    public async Task Chosen_objects_stay_over_a_new_comparison_until_they_are_alike_or_the_sides_change()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A", "B", "C"]);
+        Opens(_test, ["C"], ["A", "C"]); // the second read: A was created from the proposal
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+        var rows = service.Result!.Objects.ToDictionary(o => o.Name);
+
+        Assert.Empty(service.Chosen); // nothing chosen at first
+        service.Choose([rows["A"], rows["B"], rows["C"]], on: true);
+        Assert.Equal(["A", "B"], service.ChosenRows.Select(r => r.Name)); // C is alike everywhere
+
+        await service.CompareAsync();
+        Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name));
+
+        service.Choose([service.Result!.Objects.Single(o => o.Name == "B")], on: false);
+        Assert.Empty(service.Chosen);
+
+        service.Choose(service.Result!.Objects, on: true);
+        SetSides(service, _dev.Id, _test.Id);
+        Assert.Empty(service.Chosen);
+    }
+
+    /// <summary>Review: a side that failed left a smaller matrix, and every object differing only against it lost its choice for good.</summary>
+    [Fact]
+    public async Task A_side_failing_on_comparing_again_keeps_the_choice_until_all_sides_load()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A", "B", "C"]);
+        Opens(_test, ["C"]);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+        service.Choose(service.Result!.Objects, on: true);
+
+        _connector.OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DatabaseException("TNS: Zeitüberschreitung", "ORA-12170"));
+        await service.CompareAsync();
+
+        Assert.Equal([0], service.ResultSides);
+        Assert.Empty(service.ChosenRows); // one side: nothing differs, nothing to propose
+        Assert.Equal(["A", "B"], service.Chosen.Order(StringComparer.Ordinal)); // but the choice waits
+
+        Opens(_test, ["A", "C"]); // reachable again, A was created meanwhile
+        await service.CompareAsync();
+
+        Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name));
+        Assert.Equal(["B"], service.Chosen);
+    }
+
+    /// <summary>Review: waiting objects had no box of their own; taking all out left them to come back unasked.</summary>
+    [Fact]
+    public async Task Taking_all_out_also_drops_the_objects_waiting_for_a_missing_side()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A", "B", "C"]);
+        Opens(_test, ["C"]);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+        service.Choose(service.Result!.Objects, on: true);
+        _connector.OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DatabaseException("TNS: Zeitüberschreitung", "ORA-12170"));
+        await service.CompareAsync();
+
+        // Two sides, the target failed: nothing differs, yet the header's box stays usable and takes A and B out.
+        var head = service.Header(service.Result!.Objects);
+        Assert.Equal((true, true, false, false), (head.Enabled, head.Partly, head.Checked, head.Next));
+        Assert.Equal(2, service.Waiting);
+        Assert.StartsWith("Die 2 wartenden Objekte aus der Auswahl nehmen", head.Title, StringComparison.Ordinal);
+        service.ChooseAll(head.Matches, head.Next);
+        Assert.False(service.Header(service.Result!.Objects).Enabled);
+
+        Opens(_test, ["C"]);
+        await service.CompareAsync();
+
+        Assert.Empty(service.Chosen);
+        Assert.Empty(service.ChosenRows);
+    }
+
+    /// <summary>Review: column order off and on again cost the choice of objects differing only in their order.</summary>
+    [Fact]
+    public async Task Column_order_off_hides_the_choice_and_on_brings_it_back()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A:X,Y", "B"]);
+        Opens(_test, ["A:Y,X"]);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.SetOptionsAsync(reference: null, columnOrder: true, onlyDifferences: false, kinds: null);
+        await service.CompareAsync();
+        service.Choose(service.Result!.Objects, on: true);
+        Assert.Equal(["A", "B"], service.ChosenRows.Select(r => r.Name));
+
+        await service.SetOptionsAsync(reference: null, columnOrder: false, onlyDifferences: false, kinds: null);
+        Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name)); // A is alike without the order and waits
+        var head = service.Header(service.Result!.Objects);
+        Assert.Equal((true, false, false), (head.Checked, head.Partly, head.Next));
+        Assert.StartsWith("Den Treffer und das wartende Objekt aus der Auswahl nehmen", head.Title, StringComparison.Ordinal); // the waiting one is named before it goes
+
+        await service.SetOptionsAsync(reference: null, columnOrder: true, onlyDifferences: false, kinds: null);
+        Assert.Equal(["A", "B"], service.ChosenRows.Select(r => r.Name));
     }
 
     /// <summary>Compared from the UI thread, the sides load and the matrix builds without holding it (the window froze).</summary>

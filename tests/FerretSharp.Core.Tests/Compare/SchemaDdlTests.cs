@@ -682,9 +682,36 @@ public class SchemaDdlTests
     {
         var comparison = Of(Snapshot(Ref, Table("A", [Id]), Table("B", [Id]), Table("C", [Id])), Snapshot(Tgt, Table("C", [Id])));
 
-        Assert.Equal(["A", "B"], SchemaDdl.Align(comparison, 0, 1).Steps.Select(s => s.Object));
-        Assert.Equal(["B"], SchemaDdl.Align(comparison, 0, 1, [comparison.Objects[1]]).Steps.Select(s => s.Object));
-        Assert.Empty(SchemaDdl.Align(comparison, 0, 1, [comparison.Objects[2]]).Steps);
+        var all = SchemaDdl.Align(comparison, 0, 1);
+        Assert.Equal(["A", "B"], all.Steps.Select(s => s.Object));
+        Assert.Null(all.Selected);
+        Assert.DoesNotContain("ausgewählt", all.Script, StringComparison.Ordinal);
+
+        var chosen = SchemaDdl.Align(comparison, 0, 1, [comparison.Objects[1], comparison.Objects[2]]);
+        Assert.Equal(["B"], chosen.Steps.Select(s => s.Object));
+        Assert.Equal(2, chosen.Selected);
+        Assert.Equal(["C"], chosen.Unchanged); // chosen, but alike on these two sides
+        Assert.Contains("-- Nur die 2 in der Matrix ausgewählten Objekte.", chosen.Script, StringComparison.Ordinal);
+
+        Assert.Contains("-- Nur das in der Matrix ausgewählte Objekt.", SchemaDdl.Align(comparison, 0, 1, [comparison.Objects[0]]).Script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Foreign_key_to_a_table_the_choice_leaves_out_and_the_target_lacks_warns()
+    {
+        var kunde = Kunde();
+        var auftrag = Table("AUFTRAG", [Id, Column("KUNDE_ID", "NUMBER")], [ForeignKey("FK_AUFTRAG_KUNDE", ["KUNDE_ID"], new TableRef(Ref, "KUNDE"), ["ID"])]);
+        var missing = Of(Snapshot(Ref, auftrag, kunde), Snapshot(Tgt));
+        var present = Of(Snapshot(Ref, auftrag, kunde), Snapshot(Tgt, kunde));
+
+        DdlStep KeyStep(SchemaComparison comparison, params string[] chosen) =>
+            SchemaDdl.Align(comparison, 0, 1, comparison.Objects.Where(o => chosen.Contains(o.Name)).ToList()).Steps.Single(s => s.Kind == DdlStepKind.AddForeignKey);
+
+        Assert.Equal("Verweist auf KUNDE, das im Ziel fehlt und nicht ausgewählt ist: scheitert (ORA-00942), wenn KUNDE nicht vorher angelegt wird.",
+            KeyStep(missing, "AUFTRAG").Warning);
+        Assert.Null(KeyStep(missing, "AUFTRAG", "KUNDE").Warning);
+        Assert.Null(KeyStep(present, "AUFTRAG").Warning);
+        Assert.Null(SchemaDdl.Align(missing, 0, 1).Steps.Single(s => s.Kind == DdlStepKind.AddForeignKey).Warning);
     }
 
     [Fact]
