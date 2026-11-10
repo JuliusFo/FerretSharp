@@ -206,6 +206,9 @@ public sealed class ResultShelfTests
         shelf.Rename(run, "  vorher  ");
         Assert.Equal("vorher", ResultShelf.Label(shelf.Shown!, "Bestellungen"));
 
+        shelf.Rename(run, new string('x', 200)); // review: a pasted text is cut
+        Assert.Equal(ResultShelf.MaxNameLength, ResultShelf.Label(shelf.Shown!, null).Length);
+
         shelf.Rename(run, " ");
         Assert.Equal("Bestellungen · " + time, ResultShelf.Label(shelf.Shown!, "Bestellungen"));
     }

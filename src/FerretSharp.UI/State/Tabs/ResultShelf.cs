@@ -90,6 +90,9 @@ public sealed class ResultShelf
     /// <summary>Rows a result holds in memory at most (decision of the user).</summary>
     public const int MaxRows = 10_000;
 
+    /// <summary>A name of the user's is cut to this (review WP-81: a pasted text made the chip as wide as it was).</summary>
+    public const int MaxNameLength = 60;
+
     private readonly List<SqlRun> _kept = [];
     private readonly List<SqlRun> _latest = [];
     private Guid? _shown;
@@ -207,7 +210,8 @@ public sealed class ResultShelf
     {
         if (Find(run.Id) is { } current)
         {
-            Update(current with { Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim() });
+            var trimmed = name?.Trim() ?? "";
+            Update(current with { Name = trimmed.Length == 0 ? null : trimmed[..Math.Min(trimmed.Length, MaxNameLength)] });
         }
     }
 

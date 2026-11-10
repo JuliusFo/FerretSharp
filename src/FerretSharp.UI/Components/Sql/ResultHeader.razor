@@ -20,7 +20,7 @@
         {
             <span class="muted result-header-meta" title="@SqlEditorText.Result_HeldTitle">@HeldText(held)</span>
         }
-        @if (Kept && Run.ReadInTransaction is { } since)
+        @if (Run.Held is not null && Run.ReadInTransaction is { } since)
         {
             <span class="warn result-header-meta" title="@SqlEditorText.Result_ReadInTransactionTitle">
                 @TextFormat.Format(SqlEditorText.Result_ReadInTransaction, TimeText.TimeOfDay(since))
@@ -61,7 +61,7 @@
     [Parameter, EditorRequired]
     public SqlRun Run { get; set; } = null!;
 
-    /// <summary>The result is kept (WP-81): "Let go" instead of "Keep", with its rows and the transaction note.</summary>
+    /// <summary>The result is kept (WP-81): "Let go" instead of "Keep", with its rows. Held rows (also all loaded, or let go) say they were read in a transaction.</summary>
     [Parameter]
     public bool Kept { get; set; }
 

@@ -1466,7 +1466,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .result-chip button { display: inline-flex; align-items: center; gap: 5px; height: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .result-chip .result-chip-close { width: 18px; justify-content: center; border-radius: 9px; color: var(--muted); }
 .result-chip .result-chip-close:hover { background: var(--surface-2); color: var(--text); }
-.result-chip .icon { width: 12px; height: 12px; }
+.result-chip .icon { width: 12px; height: 12px; flex: none; }
+.result-chip-text { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-rename { height: 24px; width: 220px; padding: 0 9px; border-radius: 12px; font: 11.5px var(--mono); }
 /* WP-81: the statement behind a result, folded to one line; unfolded with its variables. */
 .result-header { flex: none; border-bottom: 1px solid var(--border); }

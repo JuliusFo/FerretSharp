@@ -110,14 +110,14 @@
                     var css = "chip-btn" + (run.Id == Tab.ShownRun?.Id && _error is null ? " active" : "") + (run.Error is null || run.Cancelled ? "" : " failed");
                     @if (_renaming == run.Id)
                     {
-                        <input @ref="_renameInput" class="field chip-rename" value="@_renameText" placeholder="@SqlEditorText.Result_RenamePlaceholder"
+                        <input @ref="_renameInput" class="field chip-rename" value="@_renameText" placeholder="@SqlEditorText.Result_RenamePlaceholder" maxlength="@ResultShelf.MaxNameLength"
                                @oninput="e => _renameText = e.Value?.ToString() ?? string.Empty" @onkeydown="e => RenameKey(run, e)" @onblur="() => FinishRename(run, true)" />
                     }
                     else if (Tab.Results.IsKept(run))
                     {
                         <span class="@css result-chip">
                             <button class="result-chip-label" title="@TextFormat.Format(SqlEditorText.Result_ChipTitle, run.Statement.Text)" @onclick="e => OnKeptChipClick(run, e)">
-                                @Icons.Camera @ResultShelf.Label(run, InsertTarget(run.Info)?.DisplayName)
+                                @Icons.Camera <span class="result-chip-text">@ResultShelf.Label(run, InsertTarget(run.Info)?.DisplayName)</span>
                             </button>
                             <button class="result-chip-close" title="@SqlEditorText.Result_Close" @onclick="() => CloseResult(run)">@Icons.Close</button>
                         </span>
@@ -169,7 +169,7 @@
                                    FormTab="Tab" PinTab="Tab" OnFormChanged="StateHasChanged" />
                 </div>
                 <ResultFooter Status="_grid" Grid="_resultGrid" FormTab="Tab" OnToggleForm="ToggleForm"
-                              OnLoadAll="LoadAllCallback(run)" LoadingAll="_loadingAll is not null" OnCancelLoadAll="() => _loadingAll?.Cancel()" />
+                              OnLoadAll="LoadAllCallback(run)" LoadingAll="_loadingAllOf == run.Id" OnCancelLoadAll="() => _loadingAll?.Cancel()" />
             }
             else if (run.SchemaChanged)
             {
@@ -716,8 +716,9 @@
         Tab.Results.Kept.Count > 0
         || (_error is null && (Tab.Results.All.Count > 1 || (_running && _total > 1 && Tab.Results.Latest.Count > 0)));
 
-    /// <summary>Reading the remaining rows ("Load all rows"); null while nothing reads.</summary>
+    /// <summary>Reading the remaining rows ("Load all rows") of the result <see cref="_loadingAllOf"/>; null while nothing reads.</summary>
     private CancellationTokenSource? _loadingAll;
+    private Guid? _loadingAllOf;
 
     /// <summary>The kept result being renamed in the bar, and the name typed so far.</summary>
     private Guid? _renaming;
@@ -764,7 +765,7 @@
     /// <summary>The shortcut: keeps the result shown, or lets it go if it is kept.</summary>
     private void ToggleKeep()
     {
-        if (Tab.ShownRun is not { } run || _running)
+        if (Tab.ShownRun is not { } run || _running || _error is not null) // a problem of the last run hides the result (review)
         {
             return;
         }
@@ -859,8 +860,9 @@
         }
     }
 
+    /// <summary>The footer's "Load all rows" – not for held rows, nor while another result loads.</summary>
     private EventCallback LoadAllCallback(SqlRun run) =>
-        run.Held is null ? EventCallback.Factory.Create(this, () => LoadAllAsync(run)) : default;
+        run.Held is null && _loadingAll is null ? EventCallback.Factory.Create(this, () => LoadAllAsync(run)) : default;
 
     /// <summary>
     /// "Load all rows": the rows not loaded yet are read now, up to the limit, and held as read – the grid starts over from
@@ -874,18 +876,24 @@
         }
 
         using var cts = _loadingAll = new CancellationTokenSource();
+        _loadingAllOf = run.Id;
         try
         {
             if (await grid.LoadAllAsync(ResultShelf.MaxRows, cts.Token) is { } held && !cts.IsCancellationRequested
                 && Tab.Results.All.FirstOrDefault(r => r.Id == run.Id) is { } current)
             {
                 Tab.Results.Update(current with { Held = held });
-                _grid = null;
+
+                // Its grid starts over and reports anew; another result shown meanwhile keeps its footer (review).
+                if (Tab.ShownRun?.Id == run.Id)
+                {
+                    _grid = null;
+                }
             }
         }
         finally
         {
-            _loadingAll = null;
+            (_loadingAll, _loadingAllOf) = (null, null);
         }
     }
 
