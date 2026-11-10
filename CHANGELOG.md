@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.68.1] - 2026-11-10
+
+Fixes for the SQL dialogs – the DDL proposal’s header, the intended width and scrolling – and the table comment in the schema comparison’s DDL proposal.
+
 ### Fixed
 - *Schema comparison › DDL proposal*: with long connection names the header ran past the dialog and cut off *Open in SQL editor* and Close. The two sides (*Align … to …*) now have a row of their own below the title and wrap in a narrow window; the buttons stay top right as in every dialog.
 - The DDL proposal, the SQL preview and the error dialog are now as wide as intended: up to 900 px instead of 640 px, so long statements wrap less.
