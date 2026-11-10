@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - The DDL proposal, the SQL preview and the error dialog are now as wide as intended: up to 900 px instead of 640 px, so long statements wrap less.
 - The same three dialogs scroll below their header when they are taller than the window – a long list of bind variables or the DDL proposal's notes in a low window no longer cut off the end.
 
+### Internal
+- A test finds a rule for one dialog's class that the general dialog rules further down in the stylesheet silently override – as with the SQL dialogs' width.
+
 ## [3.68.0] - 2026-11-10
 
 Keep a result in the SQL editor while the next statement runs, copy DDL without the owner, and choose the objects of the schema comparison’s DDL proposal.

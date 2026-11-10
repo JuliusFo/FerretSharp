@@ -19,3 +19,15 @@ Branch `fix/compare-ddl-dialog-header` (von `main`), 2026-11-10. Baut auf WP-20/
 - Build mit `-warnaserror` und alle Tests grün (ein erster Gesamtlauf hatte 23 Fehler in den Integrationstests, der Einzellauf danach 361/361 – unabhängig von dieser Änderung).
 - Layout im eingebauten Browser mit dem echten `ferretsharp.css` und dem Markup des Dialogs (dunkel, lange Verbindungsnamen): bei 1300 px alles in einer Zeile, Dialog 900 px, ✕ innen; bei 780 px Dialog 734 px, zweite Auswahlliste bricht in eine neue Zeile, Knöpfe bleiben oben rechts.
 - Nicht geprüft: in der laufenden App mit echtem Vergleich (keine Mausinteraktion geändert); SQL-Vorschau und Fehlerdialog in der neuen Breite nicht angesehen (nur Spezifität der Regel).
+
+## Nachtrag: Code-Review (2026-11-10)
+Eigener Reviewer-Agent, danach jeder Befund nachgeprüft; keine S/M. Entscheidung des Nutzers: „Ja, alles“ – alle drei K und den vorbestehenden Punkt (kein scrollender Body) gleich mit.
+- K1 behoben: `.sql-dialog header { justify-content: flex-start }` verlor wie die Breite gegen das spätere `.dialog header` (`space-between`); unsichtbar wegen des `spacer`, jetzt `.dialog.sql-dialog header`.
+- K2 behoben: Der CHANGELOG sprach von „again“ – die 900 px galten nie (schon in d54f948e stand `.dialog` hinter `.sql-dialog`).
+- K3 behoben (Verdacht, im Browser reproduziert: 780×480, umbrochene Seitenzeile, zwei Hinweise → 48 px des SQL-Blocks unter der Box, auch per Scrollen nicht erreichbar): Alles unter der Kopfzeile (im DDL-Vorschlag unter „X angleichen an Y“) liegt in `div.sql-dialog-body` (`flex: 1; min-height: 0; overflow-y: auto`) – in DDL-Vorschlag, SQL-Vorschau und Fehlerdialog. Damit auch der vorbestehende Punkt erledigt: eine lange Tabelle der Bind-Variablen wurde unten abgeschnitten (40 Zeilen nachgestellt, jetzt bis zum Ende erreichbar). Im Normalfall (900 px hoch) kein äußeres Scrollen, der SQL-Block scrollt wie bisher selbst.
+- Kein Layout-Test (Höhe, Scrollen), geprüft mit Messungen im eingebauten Browser mit echtem `ferretsharp.css`; in der laufenden App nicht angesehen.
+- Zweiter Durchgang: alle Fixes gedeckt, nichts kaputt (Selektoren, Fokus/`trapFocus`, Textmarkierung, Tests). Drei neue K; Entscheidung des Nutzers: „Wie vorgeschlagen“.
+  - K4 so gelassen: In sehr niedrigen Fenstern stehen zwei Scrollbalken nebeneinander (SQL-Block und Bereich darunter), alles erreichbar. Ein Balken hieße: Kopier-Knopf scrollt bei langem SQL weg, Dialog wächst auch im Normalfall bis 92vh.
+  - K5 behoben: Die neue Zeile in `ui-css.md` beschreibt die Falle genau (nur Regeln **vor** `.dialog` verlieren; `.plan-dialog` steht dahinter) und nennt `.dialog.x-dialog` als „Vorschlag (nicht bestätigt)“.
+  - K6 behoben: `DialogStyleTests` liest die Klassen aller `ModalFrame` und schlägt an, wenn eine Regel `.klasse` bzw. `.klasse header` vor `.dialog` bzw. `.dialog header` steht und eine ihrer Eigenschaften setzt. Scheiterte vor dem Fix an `.work-clone-dialog`.
+  - Vorher schon da, behoben: `.work-clone-dialog { width: min(640px, 92vw) }` griff aus demselben Grund nie (sichtbar nur unter ~680 px Fensterbreite: 94vw statt 92vw), jetzt `.dialog.work-clone-dialog`.
