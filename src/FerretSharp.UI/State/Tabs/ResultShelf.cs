@@ -41,7 +41,8 @@ public sealed record HeldRows(
             rows.Add(row);
         }
 
-        if (firstPage is { } first && rows.Count < Math.Min(first.Rows.Count, max))
+        // An empty result kept before the grid's first block counts as the whole (second review: "first 0 rows").
+        if (firstPage is { } first && (rows.Count < Math.Min(first.Rows.Count, max) || rows.Count == 0 && first.IsLastPage))
         {
             return new HeldRows(columns, [.. first.Rows.Take(max).Select(values => new RowData(RowKey.None.Instance, values))],
                 first.IsLastPage && first.Rows.Count <= max, first.DataAsOf);
@@ -211,7 +212,13 @@ public sealed class ResultShelf
         if (Find(run.Id) is { } current)
         {
             var trimmed = name?.Trim() ?? "";
-            Update(current with { Name = trimmed.Length == 0 ? null : trimmed[..Math.Min(trimmed.Length, MaxNameLength)] });
+            var length = Math.Min(trimmed.Length, MaxNameLength);
+            if (length < trimmed.Length && char.IsHighSurrogate(trimmed[length - 1]))
+            {
+                length--; // never half of a character outside the BMP (an emoji; second review)
+            }
+
+            Update(current with { Name = length == 0 ? null : trimmed[..length] });
         }
     }
 

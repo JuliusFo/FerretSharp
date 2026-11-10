@@ -168,6 +168,15 @@ public sealed class ResultShelfTests
         Assert.Equal(0, held.Rows[0].Values[0]);
     }
 
+    /// <summary>Second review: an empty result kept before the grid's first block was "first 0 rows – it had more".</summary>
+    [Fact]
+    public void An_empty_result_is_held_whole()
+    {
+        var held = HeldRows.Of(Columns, null, true, _ => null, 0, false, Page(0, 0, true), null, false, 10_000);
+
+        Assert.Equal((0, true), (held.Rows.Count, held.Complete));
+    }
+
     [Fact]
     public void Rows_known_in_the_query_s_order_are_held_up_to_the_limit()
     {
@@ -208,6 +217,9 @@ public sealed class ResultShelfTests
 
         shelf.Rename(run, new string('x', 200)); // review: a pasted text is cut
         Assert.Equal(ResultShelf.MaxNameLength, ResultShelf.Label(shelf.Shown!, null).Length);
+
+        shelf.Rename(run, new string('x', ResultShelf.MaxNameLength - 1) + "😀😀"); // second review: no half emoji
+        Assert.Equal(new string('x', ResultShelf.MaxNameLength - 1), ResultShelf.Label(shelf.Shown!, null));
 
         shelf.Rename(run, " ");
         Assert.Equal("Bestellungen · " + time, ResultShelf.Label(shelf.Shown!, "Bestellungen"));
