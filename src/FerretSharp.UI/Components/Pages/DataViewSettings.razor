@@ -1,5 +1,5 @@
 @* Settings › Data view: how a new table tab opens (view, rows, filter bar or SQL condition), type and NOT NULL in the column headers (table grid and SQL
-   result), and what "SQL" in the filter bar shows. *@
+   result), what "SQL" in the filter bar shows, and whether the DDL view leaves the owner out. *@
 @using FerretSharp.Core.Workspaces
 @inject AppSettingsService Settings
 
@@ -37,6 +37,10 @@
     <SettingsChoice TValue="FilterSqlColumns" Filter="Filter" Key="SettingKey.FilterSql" Label="@SettingsViewText.Settings_FilterSql" Options="SettingsOptions.FilterSql"
                     Value="Settings.Current.FilterSql" OnChange="columns => UpdateAsync(s => s with { FilterSql = columns })">
         <Hint><Fmt Text="@SettingsViewText.Settings_FilterSqlHint"><Arg0><code>@SettingsCatalog.FilterSqlStar</code></Arg0></Fmt></Hint>
+    </SettingsChoice>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.DdlWithoutOwner" Label="@SettingsViewText.Settings_DdlWithoutOwner" Options="SettingsOptions.OnOff"
+                    Value="Settings.Current.DdlWithoutOwner" OnChange="on => UpdateAsync(s => s with { DdlWithoutOwner = on })">
+        <Hint><Fmt Text="@SettingsViewText.Settings_DdlWithoutOwnerHint"><Arg0><code>@SettingsCatalog.DdlOwnerExample</code></Arg0></Fmt></Hint>
     </SettingsChoice>
 </section>
 

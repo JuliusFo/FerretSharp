@@ -522,6 +522,8 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .audit-details p + table { margin-top: 2px; }
 .audit-details td.audit-change { max-width: 640px; overflow-wrap: anywhere; }
 .structure-columns-head h2 { margin: 0; }
+/* "Without owner" in the DDL view: a switch, marked like the toolbar switches when on. */
+.ddl-head .btn.active { color: var(--accent); background: var(--accent-weak); }
 .structure-columns-head .picked-hint { font-size: 12px; }
 .structure-filter {
   display: flex; align-items: center; gap: 6px; width: 280px; height: 28px; padding: 0 8px;
