@@ -586,7 +586,7 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 table.usage-columns tr.clickable { cursor: pointer; }
 table.usage-columns tr.usage-detail td { background: var(--surface-2); padding: 4px 12px 4px 28px; }
 table.usage-columns tr.usage-detail:hover td { background: var(--surface-2); }
-.work-clone-dialog { width: min(640px, 92vw); }
+.dialog.work-clone-dialog { width: min(640px, 92vw); }
 .work-clone-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
 .work-clone-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; width: 100%; text-align: left; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: inherit; cursor: pointer; }
 .work-clone-item:hover { background: var(--hover); }
@@ -868,9 +868,13 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .fs-h-badges .fs-badge { margin-left: 4px; }
 
 /* ---------- SQL preview ---------- */
-.sql-dialog { width: min(900px, 94vw); }
+/* With .dialog: alone these lose to the later .dialog and .dialog header rules of the same specificity. */
+.dialog.sql-dialog { width: min(900px, 94vw); }
 .sql-dialog header .spacer { flex: 1; }
-.sql-dialog header { gap: 8px; justify-content: flex-start; }
+.dialog.sql-dialog header { gap: 8px; justify-content: flex-start; }
+/* Everything below the header: scrolls as a whole when the dialog would be taller than the window, so nothing is cut
+   off by .modal's overflow (a long bind table, the DDL proposal's notes in a low window). */
+.sql-dialog-body { flex: 1; min-height: 0; overflow-y: auto; }
 pre.sql { margin: 0; padding: 16px 18px; max-height: 55vh; overflow: auto; user-select: text; font: 12.5px/1.6 var(--mono); background: var(--surface-2); white-space: pre-wrap; }
 pre.sql .kw { color: var(--sql-keyword); font-weight: 600; }
 pre.sql .str { color: var(--sql-string); }
@@ -1590,7 +1594,9 @@ table.compare-matrix td.different.g3 { background: color-mix(in srgb, var(--test
 .compare-alias { margin-left: 6px; color: var(--warn); font-size: 11.5px; }
 .compare-count { margin-left: 8px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; }
 .compare-none { padding: 18px 16px; color: var(--muted); }
-.compare-ddl-dialog header select { height: 28px; max-width: 260px; }
+/* "Align X to Y" below the header: wraps in a narrow window, a select shrinks and cuts its label rather than the row. */
+.compare-ddl-sides { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.compare-ddl-sides select { height: 28px; min-width: 0; max-width: min(380px, 100%); }
 .compare-ddl-note { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); }
 .scope-explorer { display: contents; }
 .scope-explorer.hidden { display: none; }
