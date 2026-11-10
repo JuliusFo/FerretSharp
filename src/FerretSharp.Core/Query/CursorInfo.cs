@@ -12,7 +12,7 @@ namespace FerretSharp.Core.Query;
 /// </param>
 /// <param name="PlanHashValue">
 /// The largest <c>PLAN_HASH_VALUE</c> of the children: 0 only for a statement that has no plan at all (PL/SQL block,
-/// <c>CALL</c>, DDL); a plan Oracle freed keeps its hash.
+/// <c>CALL</c>, <c>ALTER SESSION</c>, most DDL); a plan Oracle freed keeps its hash.
 /// </param>
 public sealed record CursorInfo(
     string SqlId,
@@ -38,6 +38,6 @@ public sealed record CursorInfo(
     /// </summary>
     public bool HasPlan => Plan.Steps.Count > 0;
 
-    /// <summary>A statement that never has a plan (PL/SQL block, <c>CALL</c>, DDL – EF sends <c>SaveChanges</c> as a block).</summary>
+    /// <summary>A statement that never has a plan (PL/SQL block, <c>CALL</c>, <c>ALTER SESSION</c>, most DDL – EF sends <c>SaveChanges</c> as a block).</summary>
     public bool HasNoPlanAtAll => !HasPlan && PlanHashValue == 0;
 }

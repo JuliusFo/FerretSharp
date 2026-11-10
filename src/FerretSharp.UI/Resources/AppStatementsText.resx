@@ -285,7 +285,7 @@
     <value>The plan is no longer in the shared pool: Oracle frees the plan of a cursor before its figures when it needs the memory. It is back with the statement’s next run.</value>
   </data>
   <data name="AppStatements_NoPlanForStatement" xml:space="preserve">
-    <value>PL/SQL blocks, CALL and DDL have no execution plan.</value>
+    <value>This statement has no execution plan (PL/SQL blocks, CALL, ALTER SESSION, most DDL).</value>
   </data>
   <data name="AppStatements_OriginOther" xml:space="preserve">
     <value>Other</value>

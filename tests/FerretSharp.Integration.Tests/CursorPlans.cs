@@ -14,13 +14,22 @@ namespace FerretSharp.Integration.Tests;
 internal static class CursorPlans
 {
     /// <summary>
-    /// The plan of the cursor <paramref name="read"/> finds; while there is none (no steps, no cursor any more, or the cursor
-    /// gone between the lookup's reads – <see cref="PlanUnavailableException"/>), <paramref name="runAgain"/> runs the
-    /// statement once more and the cursor is read again. A timeout names the last refusal (missing rights stay visible).
+    /// The plan of the cursor <paramref name="read"/> finds, through <see cref="FindAsync"/>: a cursor whose plan Oracle
+    /// dropped counts as not found yet.
     /// </summary>
-    public static async Task<ExecutionPlan> ReadAsync(Func<Task<CursorInfo?>> read, Func<Task> runAgain)
+    public static async Task<ExecutionPlan> ReadAsync(Func<Task<CursorInfo?>> read, Func<Task> runAgain) =>
+        (await FindAsync(read, runAgain, c => c.HasPlan, "the plan of the cursor")).Plan;
+
+    /// <summary>
+    /// The cursor <paramref name="read"/> finds once <paramref name="done"/> holds for it (by default: once there is one);
+    /// until then – no cursor any more, one that does not hold yet, or the cursor gone between the lookup's reads
+    /// (<see cref="PlanUnavailableException"/>) – <paramref name="runAgain"/> runs the statement once more and the cursor is
+    /// read again. A timeout names the last refusal (missing rights stay visible).
+    /// </summary>
+    public static async Task<CursorInfo> FindAsync(Func<Task<CursorInfo?>> read, Func<Task> runAgain,
+        Func<CursorInfo, bool>? done = null, string what = "the cursor")
     {
-        ExecutionPlan? plan = null;
+        CursorInfo? found = null;
         PlanUnavailableException? refused = null;
         try
         {
@@ -28,9 +37,9 @@ internal static class CursorPlans
             {
                 try
                 {
-                    if (await read() is { HasPlan: true } cursor)
+                    if (await read() is { } cursor && (done?.Invoke(cursor) ?? true))
                     {
-                        plan = cursor.Plan;
+                        found = cursor;
                         return true;
                     }
                 }
@@ -41,14 +50,14 @@ internal static class CursorPlans
 
                 await runAgain();
                 return false;
-            }, "the plan of the cursor");
+            }, what);
         }
         catch (Exception e) when (e is not OperationCanceledException && refused is not null)
         {
             Assert.Fail($"{e.Message} Last refusal: {refused.Message}");
         }
 
-        return plan!;
+        return found!;
     }
 
     /// <summary>

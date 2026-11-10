@@ -244,7 +244,7 @@
     <value>Der Plan ist nicht mehr im Shared Pool: Oracle gibt den Plan eines Cursors vor seinen Zahlen frei, wenn es den Speicher braucht. Mit der nächsten Ausführung des Statements ist er wieder da.</value>
   </data>
   <data name="AppStatements_NoPlanForStatement" xml:space="preserve">
-    <value>PL/SQL-Blöcke, CALL und DDL haben keinen Ausführungsplan.</value>
+    <value>Dieses Statement hat keinen Ausführungsplan (PL/SQL-Blöcke, CALL, ALTER SESSION, die meiste DDL).</value>
   </data>
   <data name="AppStatements_OriginOther" xml:space="preserve">
     <value>Sonstige</value>

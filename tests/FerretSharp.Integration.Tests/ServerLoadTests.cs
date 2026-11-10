@@ -218,19 +218,10 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         var sql = $"BEGIN /* fs_block_{Guid.NewGuid():N} */ DBMS_SESSION.SET_IDENTIFIER(NULL); END;";
         await RunAsync(sql, 2);
 
-        CursorInfo? cursor = null;
-        await Wait.UntilAsync(async () =>
-        {
-            cursor = await connection.Schema.GetCursorByIdAsync(Plans.SqlId(sql), Ct);
-            if (cursor is null)
-            {
-                await RunAsync(sql, 1); // aged out under the suite's load
-            }
+        // Aged out under the suite's load, or gone between the lookup's reads: run it again.
+        var cursor = await CursorPlans.FindAsync(() => connection.Schema.GetCursorByIdAsync(Plans.SqlId(sql), Ct), () => RunAsync(sql, 1));
 
-            return cursor is not null;
-        }, "the block's cursor");
-
-        Assert.True(cursor!.Executions >= 1);
+        Assert.True(cursor.Executions >= 1);
         Assert.False(cursor.HasPlan);
         Assert.True(cursor.HasNoPlanAtAll);
         Assert.Equal(0, cursor.PlanHashValue);

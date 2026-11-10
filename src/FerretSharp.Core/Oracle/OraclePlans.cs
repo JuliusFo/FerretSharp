@@ -31,7 +31,7 @@ internal static class OraclePlans
 
     /// <summary>
     /// The figures of a statement over all its children (WP-33); times in microseconds. The largest PLAN_HASH_VALUE is 0
-    /// only for a statement without plan (PL/SQL block, CALL, DDL); a freed plan keeps its hash (fix-cursor-plan-child).
+    /// only for a statement without plan (PL/SQL block, CALL, ALTER SESSION, most DDL); a freed plan keeps its hash (fix-cursor-plan-child).
     /// </summary>
     public const string CursorFigures = """
         SELECT COUNT(*), SUM(EXECUTIONS), SUM(ROWS_PROCESSED), SUM(BUFFER_GETS), SUM(DISK_READS),
