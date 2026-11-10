@@ -18,6 +18,11 @@ Branch `feat/ddl-without-owner` (von `main`), 2026-11-10, Release offen. Baut au
 - **UI:** `DdlView` mit Schalter „Ohne Owner“ neben der Überschrift (Tooltip nennt den Owner), Anzeige und Kopier-Symbol zeigen denselben Text; `GrantScript.WithoutOwner`. Einstellungen › Datenansicht › „DDL ohne Owner“ (`SettingKey.DdlWithoutOwner`, Eintrag im `SettingsCatalog`). Texte Englisch und Deutsch.
 - **Tests:** `DdlOwnerTests` (Tabelle mit Index und FK ins eigene Schema, unverändert bei anderem Schema/anderer Schreibweise/Spalte wie der Owner/leer, Literale und Kommentare, View- und Trigger-Quelltext, GRANT mit Empfänger gleich dem Owner); Standard in `SettingsStoreTests.A_missing_file_gives_the_decided_defaults`.
 
+## E2E
+2026-11-10, eigener Container (`New-SampleDb.ps1 -Name ferret-e2e-ddlowner -Port 1591`, dazu `GRANT SELECT ON AUFTRAG TO PUBLIC`), Testinstanz deutsch/dunkel auf Debug-Port 9341 (parallel lief die Instanz einer anderen Session), Passwort nicht gespeichert; Klicks auf Schalter, Kopier-Symbol und „Aus“ in den Einstellungen mit echter Windows-Eingabe (Probe vorher bestanden).
+- Gefunden: Der eingeschaltete Schalter (`btn ghost small active`) sah aus wie der ausgeschaltete – `.active` färbt einen Ghost-Knopf nur in Werkzeugleisten. **Behoben:** `.ddl-head .btn.active` wie die Schalter der Werkzeugleisten (Akzentfarbe, schwacher Akzent-Hintergrund).
+- Nicht geprüft: heller Modus (dieselben Tokens wie die Schalter der Werkzeugleisten).
+
 ## Grenzen
 - Ein gequoteter Alias, der genau wie der Owner heißt (`"SHOP".ID` im View-Text mit Alias `"SHOP"`), verliert ebenfalls sein Präfix.
 - Ungequotete Verweise auf das eigene Schema im View- oder Trigger-Quelltext bleiben stehen und müssen im Zielschema passen.
