@@ -14,8 +14,8 @@ Branch `wp/81-keep-results`. Idee des Nutzers (2026-11-10, wie das Anpinnen in S
   - Hinweis in der Kopfzeile, wenn das Ergebnis in einer offenen Transaktion gelesen wurde (nach einem Rollback kann es Zeilen zeigen, die es nie gab).
   - Icon: Lucide `camera`.
   - LINQ-Konsole später (Backlog).
-- Vorschlag (nicht bestätigt): Logik als reine State-Klasse (z. B. `ResultShelf`: behalten, loslassen, schließen, umbenennen, neuen Lauf einsortieren, Obergrenze) mit Tests in `UI.Tests`; die Leiste zeigt sich, sobald es mehr als ein Ergebnis gibt. Nur Ergebnisse von Abfragen lassen sich behalten (kein DML/DDL, keine Fehler).
-- Vorschlag (nicht bestätigt): nur im Speicher wie `Runs` (Zeilenwerte nicht in der Workspace-Datei); nach einem Neustart sind behaltene Ergebnisse weg.
+- Mit dem Plan freigegeben (2026-11-10): Logik als reine State-Klasse (z. B. `ResultShelf`: behalten, loslassen, schließen, umbenennen, neuen Lauf einsortieren, Obergrenze) mit Tests in `UI.Tests`; die Leiste zeigt sich, sobald es mehr als ein Ergebnis gibt. Nur Ergebnisse von Abfragen lassen sich behalten (kein DML/DDL, keine Fehler).
+- **Entschieden (Nutzer, 2026-11-10, beim Review bestätigt):** nur im Speicher wie `Runs` (Zeilenwerte nicht in der Workspace-Datei); nach einem Neustart sind behaltene Ergebnisse weg.
 - Neue `ShortcutAction` ohne Standardtaste, Texte Englisch/Deutsch, README, CHANGELOG, Protokoll.
 
 Entscheidungen zum Plan (2026-11-10, „Ja, loslegen“): Ein elftes behaltenes Ergebnis wird mit Meldung abgelehnt (nicht das älteste verworfen); Tab schließen mit behaltenen Ergebnissen fragt nicht; „In den Editor übernehmen“ übernimmt nur den Text, die Bind-Werte des Tabs bleiben; nur Abfragen ohne Fehler lassen sich behalten.
