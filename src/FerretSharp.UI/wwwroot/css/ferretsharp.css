@@ -1553,12 +1553,10 @@ table.compare-matrix tr.child.differs td.name { color: var(--text); }
 table.compare-matrix .twisty { display: inline-block; width: 14px; color: var(--faint); }
 table.compare-matrix .kind { display: inline-block; min-width: 24px; margin-right: 6px; color: var(--faint); font-size: 10.5px; font-weight: 600; }
 table.compare-matrix td.cell { max-width: 420px; overflow-wrap: anywhere; }
-/* Choice for the DDL proposal: the label fills the cell, so a click next to the box chooses and does not open the row. */
-table.compare-matrix th.choose, table.compare-matrix td.choose { width: 1%; padding: 0; }
-table.compare-matrix .choose-hit { display: block; padding: 5px 4px 5px 10px; cursor: pointer; }
-table.compare-matrix th .choose-hit { padding: 7px 4px 7px 10px; }
-table.compare-matrix .choose-hit input { display: block; margin: 0; }
-table.compare-matrix .choose-hit:has(input:disabled) { cursor: default; }
+/* Choice for the DDL proposal: a click anywhere in the cell chooses and does not open the row. */
+table.compare-matrix th.choose, table.compare-matrix td.choose { width: 1%; padding-right: 4px; cursor: pointer; }
+table.compare-matrix .choose.off { cursor: default; }
+table.compare-matrix .choose input { display: block; margin: 1px 0 0; cursor: inherit; }
 table.compare-matrix tr.object.chosen td.name .mono { color: var(--accent); }
 .compare-more { display: flex; align-items: center; gap: 12px; padding: 10px; }
 table.compare-matrix td.same { color: var(--muted); }
