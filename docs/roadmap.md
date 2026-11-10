@@ -64,6 +64,22 @@ Branch `wp/80-relation-filter`. Die geklickte Form desselben Falls wie WP-79 (`I
 - Erledigt nebenbei den Punkt „das Filtermodell kennt kein `NOT EXISTS`“ aus WP-43 („Zeilen zeigen“ ohne Grenze für verwaiste Werte).
 - Offen (Fragen an den Nutzer, 2026-11-09): Laufen die `IN` der Kollegen über bekannte Beziehungen oder über beliebige Spaltenpaare (Ad-hoc-Paarung „Spalte hier ↔ Spalte dort“ ginge als SQL, nicht sauber als LINQ)? Bedingungen auch auf Zwischentabellen (B) oder nur am Ende des Pfads (deutlich einfachere Oberfläche)?
 
+### WP-81 Ergebnisse im SQL-Editor behalten
+Branch `wp/81-keep-results`. Idee des Nutzers (2026-11-10, wie das Anpinnen in SQL Developer): Ergebnisse eines SQL-Tabs bleiben stehen, wenn danach ein anderes Statement oder dasselbe noch einmal läuft.
+- **Entschieden (Nutzer, 2026-11-10):** Die Aktion heißt „Ergebnis behalten“ / „Keep result“, nicht „Anheften“ (das sind schon Tabs und Spalten). Ein behaltenes Ergebnis bleibt in der Ergebnisleiste des Tabs stehen, neue Läufe kommen daneben, nur nicht behaltene werden ersetzt. Beschriftung des Reiters: Tabelle bzw. erstes Wort des Statements und die Uhrzeit, umbenennbar; der Tooltip zeigt den SQL-Text.
+- Heute: `SqlView.ExecuteAsync` leert `SqlTab.Runs` vor jedem Lauf, die Chip-Leiste erscheint nur bei mehreren Statements eines Skripts. Jedes `SqlRun` kennt schon Statement, `QuerySpec` (mit Bind-Werten), Zeit und erste Seite.
+- **Entschieden (Nutzer, 2026-11-10, Vorschläge bestätigt):**
+  - **Zeilen werden eingefroren.** Das Grid liest Seiten nach der ersten mit OFFSET/FETCH neu (`SqlResultGrid`, `RowBlocks`), ein späteres Scrollen zeigte sonst Zeilen vom aktuellen Stand. Beim Behalten wandern nur die schon geladenen Zeilen (zusammenhängend ab Zeile 0) in den Lauf, das Grid liest sie danach nur noch aus dem Speicher (wie die Sortierung im Speicher). „Alle Zeilen laden“ ist ein eigener Schritt. Sortieren nur im Speicher über die behaltenen Zeilen.
+  - Obergrenzen: 10 behaltene Ergebnisse je Tab, 10 000 Zeilen je Ergebnis.
+  - „Alle Zeilen“ (Export, Werte der Spalte kopieren) nimmt auf einem behaltenen Ergebnis nur die behaltenen Zeilen und heißt im Menü auch so – nie die Abfrage noch einmal.
+  - Über dem Ergebnis eine einklappbare Kopfzeile mit dem SQL-Text (`SqlCode`), Bind-Werten (auch auf Prod, im Editor stehen sie ohnehin), Uhrzeit, Zeilenzahl und „In den Editor übernehmen“ – auch für nicht behaltene Ergebnisse. „In den Editor übernehmen“ markiert das Statement, wenn es noch genau so im Editor steht, sonst fügt es am Cursor ein.
+  - Hinweis in der Kopfzeile, wenn das Ergebnis in einer offenen Transaktion gelesen wurde (nach einem Rollback kann es Zeilen zeigen, die es nie gab).
+  - Icon: Lucide `camera`.
+  - LINQ-Konsole später (Backlog).
+- Vorschlag (nicht bestätigt): Logik als reine State-Klasse (z. B. `ResultShelf`: behalten, loslassen, schließen, umbenennen, neuen Lauf einsortieren, Obergrenze) mit Tests in `UI.Tests`; die Leiste zeigt sich, sobald es mehr als ein Ergebnis gibt. Nur Ergebnisse von Abfragen lassen sich behalten (kein DML/DDL, keine Fehler).
+- Vorschlag (nicht bestätigt): nur im Speicher wie `Runs` (Zeilenwerte nicht in der Workspace-Datei); nach einem Neustart sind behaltene Ergebnisse weg.
+- Neue `ShortcutAction` ohne Standardtaste, Texte Englisch/Deutsch, README, CHANGELOG, Protokoll.
+
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
 - Verwendung im Code, „kein Index“ (small-usage-filter-without-index): die Markierung auch in der Spaltenansicht und im Hinweis des Designers? Ein Knopf „Index anlegen“ (Entwurf in der Index-Ansicht wie bei Fremdschlüsseln ohne Index)?
