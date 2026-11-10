@@ -33,6 +33,13 @@ Entscheidungen zum Plan (2026-11-10, „Ja, loslegen“): Ein elftes behaltenes 
   - `ResultHeader`: einklappbare Kopfzeile über jedem Abfrage-Ergebnis (Statement, Uhrzeit, aufgeklappt `SqlCode` und Bind-Werte), Behalten/Loslassen, „In den Editor übernehmen“ (`MonacoEditor.SelectAsync`, monaco.js `selectRange`), bei behaltenen Zeilenzahl und Hinweis auf offene Transaktion.
   - `ResultFooter`: „Alle Zeilen laden“ (nur SQL-Editor, nicht bei gehaltenen Zeilen). `ShortcutAction.KeepResult` ohne Standardtaste, `Icons.Camera` (Lucide `camera`).
 
+## E2E
+2026-11-10, eigener Container (`New-SampleDb.ps1 -Name ferret-e2e-wp81 -Port 1581`), Testinstanz mit `--data-dir` (deutsch), Verbindung „E2E WP81“ als `connections.json`, Passwort nicht gespeichert. Klicks mit echter Windows-Eingabe (Probe vorher bestanden): Behalten, Loslassen, ✕, Doppelklick zum Umbenennen, Kopf sortieren, „Alle Zeilen laden“, Rechtsklick in Zelle und Kopf; Tippen und Tasten per CDP. Dass ein behaltenes Ergebnis nicht neu liest, in `V$SQL` des Containers geprüft (Ausführungen bleiben beim Scrollen bis zum Ende und beim Sortieren gleich).
+- Gefunden und behoben: Behalten eines schon ganz geladenen Ergebnisses leerte die Fußzeile (der Status des Grids wurde verworfen, das Grid aber nicht neu aufgebaut).
+- Gefunden und behoben: Der Export behaltener Zeilen sagte im Tooltip „Liest alle Zeilen … neu“ (`AllRowsExport.Note`, `GridMenu_HeldRowsTitle`), „Werte der Spalte“ „Alle Zeilen des Ergebnisses sind geladen“ (`ColumnMenu_HeldValuesTitle`); Uhrzeit in der Kopfzeile war nicht gedämpft.
+- Falle beim Testen: Scheitert `Start-TestInstance.ps1` an einem noch belegten Port, baut es nicht – die Instanz danach mit `-NoBuild` lief mit der alten DLL (das CSS kam trotzdem neu, es wird im Debug aus dem Quellordner geladen).
+- Die Testinstanz wurde während des Wartens einmal von außen geschlossen („Main window closing by the user“), vermutlich von einer parallelen Session; danach neu gestartet.
+
 ## Offen / Backlog
 - LINQ-Konsole: Ergebnisse behalten (Backlog, Entscheidung des Nutzers).
 - Ein Grid, das zu gehaltenen Zeilen wechselt (Behalten, Alle Zeilen laden), wird neu aufgebaut: Scrollposition und eine Sortierung über die Datenbank gehen verloren (die Zeilen bleiben in der gezeigten Ordnung).
