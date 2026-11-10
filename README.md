@@ -260,8 +260,9 @@ developer works with an Oracle database day to day:
   on the definition shows the text of each variant.
 - "Forgot the ALTER on Test?": a DDL proposal aligns one side with another for the objects you tick in the matrix – views
   created or replaced in the order they build on each other, invalid ones compiled; drops, renames and recreating a
-  materialized view only as commented-out hints – and opens in the SQL editor of the target connection. Comparisons can be
-  saved and copied as Markdown.
+  materialized view only as commented-out hints – that runs on the target connection right from the dialog (with the usual
+  confirmation, also on a connection in the background) or opens in its SQL editor. Comparisons can be saved and copied as
+  Markdown; the search and the opened rows stay when you come back.
 - Single columns to another database: pick them in the "Columns" view (or mark their headers in the grid) and right-click
   – `ALTER TABLE … ADD` with their comments and the foreign keys made only of them, to copy or to open in the SQL
   editor of another connection.
