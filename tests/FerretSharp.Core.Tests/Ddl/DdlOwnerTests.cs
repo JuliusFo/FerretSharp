@@ -41,6 +41,7 @@ public class DdlOwnerTests
     [InlineData("""CREATE TABLE "T" ("SHOP" VARCHAR2(10), CHECK ("SHOP" IS NOT NULL))""")]
     [InlineData("")]
     [InlineData("""DEFAULT "OTHER"."SHOP"."NEXTVAL" """)]
+    [InlineData("""DEFAULT "OTHER". /* c */ "SHOP"."NEXTVAL" """)]
     public void Only_the_quoted_owner_before_a_dot_goes(string ddl)
     {
         Assert.Equal(ddl, DdlOwner.Omit(ddl, "SHOP"));
