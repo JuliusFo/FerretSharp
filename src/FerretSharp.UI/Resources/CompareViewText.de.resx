@@ -202,7 +202,7 @@
     <value>So soll es aussehen</value>
   </data>
   <data name="CompareDdl_Note" xml:space="preserve">
-    <value>Ein Vorschlag – kopieren oder im SQL-Editor des Ziels öffnen und dort ausführen. DDL lässt sich nicht zurücknehmen; Schritte mit ⚠ vorher prüfen.</value>
+    <value>Ein Vorschlag – auf dem Ziel ausführen, kopieren oder im SQL-Editor des Ziels öffnen. DDL lässt sich nicht zurücknehmen; Schritte mit ⚠ vorher prüfen.</value>
   </data>
   <data name="CompareDdl_OpenInEditorTitle" xml:space="preserve">
     <value>Öffnet das Skript in einem SQL-Tab von {0} – ausgeführt wird es dort erst nach der üblichen Bestätigung.</value>
@@ -302,5 +302,41 @@
   </data>
   <data name="ViewDefinition_Variant" xml:space="preserve">
     <value>Variante {0}: {1}</value>
+  </data>
+  <data name="CompareDdl_RunEllipsis" xml:space="preserve">
+    <value>Ausführen …</value>
+  </data>
+  <data name="CompareDdl_RunTitle" xml:space="preserve">
+    <value>Führt die Schritte nach der üblichen Bestätigung auf {0} aus – verbindet vorher, falls nötig. Hinweise laufen nicht mit.</value>
+  </data>
+  <data name="CompareDdl_RunsIn" xml:space="preserve">
+    <value>Läuft im Workspace „{0}“ von {1}.</value>
+  </data>
+  <data name="CompareDdl_HintsNotRunOne" xml:space="preserve">
+    <value>1 Hinweis läuft nicht mit (Löschen, Umbenennen oder etwas, das du entscheidest) – er bleibt im Skript für den SQL-Editor.</value>
+  </data>
+  <data name="CompareDdl_HintsNotRunOther" xml:space="preserve">
+    <value>{0:N0} Hinweise laufen nicht mit (Löschen, Umbenennen oder Dinge, die du entscheidest) – sie bleiben im Skript für den SQL-Editor.</value>
+  </data>
+  <data name="CompareDdl_Connecting" xml:space="preserve">
+    <value>Verbinde mit {0} …</value>
+  </data>
+  <data name="CompareDdl_NotConnected" xml:space="preserve">
+    <value>{0} ist nicht verbunden – der Vorschlag läuft dort, sobald die Verbindung steht.</value>
+  </data>
+  <data name="CompareDdl_ConnectFailed" xml:space="preserve">
+    <value>Verbinden mit {0} fehlgeschlagen: {1}</value>
+  </data>
+  <data name="CompareDdl_Connect" xml:space="preserve">
+    <value>Verbinden</value>
+  </data>
+  <data name="CompareDdl_Reading" xml:space="preserve">
+    <value>Lese {0} neu …</value>
+  </data>
+  <data name="CompareDdl_RanOne" xml:space="preserve">
+    <value>1 Statement lief auf {1} – es wird neu gelesen.</value>
+  </data>
+  <data name="CompareDdl_RanOther" xml:space="preserve">
+    <value>{0:N0} Statements liefen auf {1} – es wird neu gelesen.</value>
   </data>
 </root>

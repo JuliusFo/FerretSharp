@@ -28,10 +28,12 @@ public sealed class SchemaCompareServiceTests : IDisposable
 
     private string StoreFile => _folder.Combine("comparisons.json");
 
-    private async Task<SchemaCompareService> ServiceAsync(AppSettings? settings = null)
+    private Task<SchemaCompareService> ServiceAsync(AppSettings? settings = null) => ServiceAsync([], settings);
+
+    private async Task<SchemaCompareService> ServiceAsync(IReadOnlyList<ConnectionProfile> more, AppSettings? settings = null)
     {
         var store = Substitute.For<IConnectionStore>();
-        store.LoadAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ConnectionProfile>)[_dev, _test]);
+        store.LoadAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ConnectionProfile>)[_dev, _test, .. more]);
         _connections = new ConnectionManager(store, _secrets);
         await _connections.LoadAsync(Ct);
         var service = new SchemaCompareService(
@@ -215,6 +217,104 @@ public sealed class SchemaCompareServiceTests : IDisposable
 
         Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name));
         Assert.Equal(["B"], service.Chosen);
+    }
+
+    /// <summary>
+    /// WP-83: the page is built anew on every switch of the shown connection – the search, the opened rows and "Show
+    /// more" stay with the comparison, a new comparison of the same sides keeps the search and the rows, New clears them.
+    /// </summary>
+    [Fact]
+    public async Task The_view_of_the_matrix_stays_with_the_comparison_and_New_clears_it()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["AUFTRAG", "KUNDE"]);
+        Opens(_test, ["KUNDE"]);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+
+        service.Search = "auf";
+        service.Toggle("AUFTRAG");
+        Assert.Equal(["AUFTRAG"], service.Visible().Select(r => r.Name));
+        service.ShowMore();
+        Assert.Equal(2 * SchemaCompareService.RowsPerStep, service.ShownRows);
+        Assert.Equal(2 * SchemaCompareService.RowsPerStep, service.ShownRows); // same selection: the page asks again, nothing resets
+
+        await service.CompareAsync();
+        Assert.Equal(["AUFTRAG"], service.Visible().Select(r => r.Name));
+        Assert.True(service.IsOpen("AUFTRAG"));
+        Assert.Equal(SchemaCompareService.RowsPerStep, service.ShownRows); // a new matrix starts with the first rows
+
+        service.New();
+        Assert.Equal(("", false), (service.Search, service.IsOpen("AUFTRAG")));
+    }
+
+    /// <summary>
+    /// WP-83: after a run only the target is read again; the matrix and the dialog stay meanwhile, what is aligned drops
+    /// out of the choice, and success closes the run panel while the dialog stays with what is left.
+    /// </summary>
+    [Fact]
+    public async Task A_run_on_the_target_reads_only_the_target_again_and_keeps_the_dialog()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A", "B"]);
+        Opens(_test, [], ["A"]); // the second read: the run created A, B failed
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+        service.Choose(service.Result!.Objects, on: true);
+        service.OpenDdl();
+        Assert.Equal(new DdlChoice(0, 1), service.Ddl);
+
+        service.RequestRun(true);
+        var failed = new DdlRunResult(["CREATE TABLE A"], "CREATE TABLE B", new DatabaseException("ORA-01031"), null) { Total = 2 };
+        var reading = service.RanAsync(failed);
+        Assert.NotNull(service.Result); // the old matrix stays while the target is read
+        await reading;
+
+        Assert.Equal(new DdlChoice(0, 1, Run: true, Failed: failed), service.Ddl); // the run panel stays with the failure
+        Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name));
+        await _connector.Received(1).OpenAsync(_dev, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _connector.Received(2).OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+
+        await service.RanAsync(new DdlRunResult([], null, null, null, NotDiscarded: true)); // nothing ran: nothing to read
+        await _connector.Received(2).OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+
+        await service.RanAsync(new DdlRunResult(["CREATE TABLE B"], null, null, null) { Total = 1 });
+        Assert.Equal(new DdlChoice(0, 1), service.Ddl); // success: back to the proposal
+    }
+
+    /// <summary>WP-83: a run asked for on one target never carries over to another – a side of the dialog failing starts it over.</summary>
+    [Fact]
+    public async Task The_dialog_keeps_its_sides_by_side_and_starts_over_when_one_of_them_fails()
+    {
+        var prod = TestApp.Profile("ERP Prod", ConnectionKind.Prod);
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        _secrets.SetPassword(prod.Id, "pw");
+        Opens(_dev, ["A"]);
+        Opens(_test, ["A"]);
+        Opens(prod, []);
+        var service = await ServiceAsync([prod]);
+        SetSides(service, _dev.Id, _test.Id, prod.Id);
+        await service.CompareAsync();
+        service.OpenDdl();
+        service.SetDdlColumns(1, 2);
+        service.RequestRun(true);
+        Assert.Equal((1, 2), service.DdlColumns());
+
+        _connector.OpenAsync(_dev, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DatabaseException("TNS: Zeitüberschreitung", "ORA-12170"));
+        await service.CompareSideAsync(0);
+        Assert.Equal(new DdlChoice(1, 2, Run: true), service.Ddl); // dev is no side of the dialog
+        Assert.Equal((0, 1), service.DdlColumns()); // columns of the matrix without dev
+
+        _connector.OpenAsync(prod, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DatabaseException("TNS: Zeitüberschreitung", "ORA-12170"));
+        await service.CompareSideAsync(2); // the target fails as well: one column left, no dialog
+        Assert.Null(service.Ddl);
     }
 
     /// <summary>Review: waiting objects had no box of their own; taking all out left them to come back unasked.</summary>

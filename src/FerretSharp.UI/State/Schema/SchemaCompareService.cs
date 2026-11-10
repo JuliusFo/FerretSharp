@@ -1,5 +1,6 @@
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.UI.Resources;
@@ -32,6 +33,14 @@ public sealed class SideState(CompareSide side)
 /// <param name="Next">What a click does: true chooses the matches, false takes them and the waiting objects out.</param>
 /// <param name="Title">The tooltip; null when the box is disabled.</param>
 public sealed record HeaderChoice(IReadOnlyList<CompareRow> Matches, bool Checked, bool Partly, bool Enabled, bool Next, string? Title);
+
+/// <summary>
+/// The open DDL proposal dialog (WP-83): which sides it aligns – indexes into <see cref="SchemaCompareService.Sides"/>, not
+/// into the matrix, whose columns shift when a side fails – and whether the user asked to run it on the target.
+/// </summary>
+/// <param name="Run">"Run" was asked for: the dialog shows the run panel once the target is the shown connection.</param>
+/// <param name="Failed">How the last run on the target failed; shown in the run panel until it runs again.</param>
+public sealed record DdlChoice(int Reference, int Target, bool Run = false, DdlRunResult? Failed = null);
 
 /// <summary>
 /// The schema comparison page's state (WP-20), kept while the user visits other pages: the comparison being edited,
@@ -152,6 +161,151 @@ public sealed class SchemaCompareService(
         Choose(matches, on);
     }
 
+    // WP-83: what the page shows of the matrix lives here, not in the page – the page is built anew on every switch of the
+    // shown connection (keyed on it, like every page), and "Run" in the DDL dialog switches to the target connection.
+
+    /// <summary>Objects rendered at first and added per click: a matrix of thousands of rows froze the window while rendering.</summary>
+    public const int RowsPerStep = 300;
+
+    private readonly HashSet<string> _open = new(StringComparer.Ordinal);
+    private (SchemaComparison Result, bool OnlyDifferences, IReadOnlyList<CompareKind>? Kinds, string Search, IReadOnlyList<CompareRow> Rows)? _visible;
+
+    /// <summary>The search over the object names; kept over a new comparison of the same sides, cleared by New and Open.</summary>
+    public string Search { get; set; } = "";
+
+    /// <summary>How many of the <see cref="Visible"/> objects the page renders; back to the first step with every new selection.</summary>
+    public int ShownRows { get; private set; } = RowsPerStep;
+
+    public void ShowMore() => ShownRows += RowsPerStep;
+
+    /// <summary>The object row is opened to its columns, constraints and indexes.</summary>
+    public bool IsOpen(string key) => _open.Contains(key);
+
+    public void Toggle(string key)
+    {
+        if (!_open.Remove(key))
+        {
+            _open.Add(key);
+        }
+    }
+
+    /// <summary>
+    /// The objects the filters and the search let through, computed once per change of them rather than on every render
+    /// (a click on a row rendered the page, which filtered all objects twice). A new selection starts with the first rows.
+    /// </summary>
+    public IReadOnlyList<CompareRow> Visible()
+    {
+        if (Result is not { } result)
+        {
+            return [];
+        }
+
+        var (only, kinds) = (Current.OnlyDifferences, Current.Kinds);
+        if (_visible is { } known && ReferenceEquals(known.Result, result) && known.OnlyDifferences == only && ReferenceEquals(known.Kinds, kinds) && known.Search == Search)
+        {
+            return known.Rows;
+        }
+
+        var search = new TextSearch(Search);
+        var rows = result.Objects.Where(row => CompareExport.Shown(row, only, kinds) && search.Matches(row.Name)).ToList();
+        _visible = (result, only, kinds, Search, rows);
+        ShownRows = RowsPerStep;
+        return rows;
+    }
+
+    /// <summary>The DDL proposal dialog while it is open; closed when the matrix goes (other sides, comparing again).</summary>
+    public DdlChoice? Ddl { get; private set; }
+
+    /// <summary>Opens the DDL dialog: the comparison's reference, aligning the first other side to it.</summary>
+    public void OpenDdl()
+    {
+        Ddl = DefaultDdl();
+        Changed?.Invoke();
+    }
+
+    /// <summary>The comparison's reference (or the first side) and the first other side; null below two columns.</summary>
+    private DdlChoice? DefaultDdl()
+    {
+        if (ResultSides.Count < 2)
+        {
+            return null;
+        }
+
+        var reference = Result?.Options.Reference ?? 0;
+        return new DdlChoice(ResultSides[reference], ResultSides[reference == 0 ? 1 : 0]);
+    }
+
+    public void CloseDdl()
+    {
+        Ddl = null;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// The dialog's sides as columns of the matrix. A side that is no longer a column (it failed when read again) falls back
+    /// to the comparison's reference and the first other side, as when the dialog opens.
+    /// </summary>
+    public (int Reference, int Target) DdlColumns()
+    {
+        var reference = Ddl is { } ddl ? ColumnOf(ddl.Reference) : -1;
+        var target = Ddl is { } choice ? ColumnOf(choice.Target) : -1;
+        if (reference < 0)
+        {
+            reference = Result?.Options.Reference ?? 0;
+        }
+
+        if (target < 0 || target == reference)
+        {
+            target = reference == 0 ? 1 : 0;
+        }
+
+        return (reference, target);
+    }
+
+    /// <summary>The matrix column of a side; -1 if it is not one (it failed to load).</summary>
+    private int ColumnOf(int side) => ResultSides.ToList().IndexOf(side);
+
+    /// <summary>Another pair in the dialog (columns of the matrix); a run asked for or failed belongs to the old target.</summary>
+    public void SetDdlColumns(int reference, int target)
+    {
+        if (Ddl is null || reference == target || reference >= ResultSides.Count || target >= ResultSides.Count)
+        {
+            return;
+        }
+
+        Ddl = new DdlChoice(ResultSides[reference], ResultSides[target]);
+        Changed?.Invoke();
+    }
+
+    /// <summary>"Run" asked for (true) or the run panel closed (false).</summary>
+    public void RequestRun(bool on)
+    {
+        if (Ddl is { } ddl)
+        {
+            Ddl = ddl with { Run = on, Failed = on ? ddl.Failed : null };
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// A run on the target ended: if a statement ran, the target is read again – the matrix and the proposal show what
+    /// is left, objects now alike drop out of the choice. A failure keeps the run panel with it; success closes the panel.
+    /// </summary>
+    public async Task RanAsync(DdlRunResult result)
+    {
+        if (Ddl is not { } ddl)
+        {
+            return;
+        }
+
+        Ddl = ddl with { Run = !result.Succeeded, Failed = result.Succeeded ? null : result };
+        Changed?.Invoke();
+        if (result.Ran.Count > 0)
+        {
+            await CompareSideAsync(ddl.Target);
+        }
+    }
+
     private static SavedComparison NewComparison() => new(Guid.NewGuid(), "", [new CompareSide(Guid.Empty), new CompareSide(Guid.Empty)]);
 
     /// <summary>
@@ -211,6 +365,7 @@ public sealed class SchemaCompareService(
     {
         Cancel();
         Current = NewComparison();
+        Search = "";
         ResetSides();
     }
 
@@ -218,6 +373,7 @@ public sealed class SchemaCompareService(
     {
         Cancel();
         Current = saved;
+        Search = "";
         ResetSides();
     }
 
@@ -252,11 +408,19 @@ public sealed class SchemaCompareService(
     public void SetPassword(Guid connectionId, string password) => connections.SetPassword(connectionId, password, remember: false);
 
     /// <summary>Reads all sides (or only those that failed for want of a password) and builds the matrix.</summary>
-    public async Task CompareAsync(bool onlyMissing = false)
+    public Task CompareAsync(bool onlyMissing = false) => ReadSidesAsync((state, _) => !onlyMissing || state.Snapshot is null, keepMatrix: false);
+
+    /// <summary>
+    /// Reads one side again (WP-83: the target after running DDL on it). The matrix, its snapshot and the DDL dialog stay
+    /// until the new snapshot is there; if it fails, the side drops out of the matrix like on comparing.
+    /// </summary>
+    public Task CompareSideAsync(int side) => ReadSidesAsync((_, index) => index == side, keepMatrix: true);
+
+    private async Task ReadSidesAsync(Func<SideState, int, bool> read, bool keepMatrix)
     {
         Cancel();
         var targets = Sides.Select((state, index) => (state, index))
-            .Where(s => s.state.Side.ConnectionId != Guid.Empty && (!onlyMissing || s.state.Snapshot is null))
+            .Where(s => s.state.Side.ConnectionId != Guid.Empty && read(s.state, s.index))
             .ToList();
         if (targets.Count == 0)
         {
@@ -267,11 +431,19 @@ public sealed class SchemaCompareService(
         _cts = cts;
         foreach (var (state, _) in targets)
         {
-            (state.Loading, state.Step, state.Snapshot, state.Error, state.NeedsPassword) = (true, null, null, null, false);
+            (state.Loading, state.Step) = (true, null);
+            if (!keepMatrix)
+            {
+                (state.Snapshot, state.Error, state.NeedsPassword) = (null, null, false);
+            }
         }
 
         Interlocked.Increment(ref _matrix); // a matrix still being computed from the old snapshots is not wanted
-        Result = null;
+        if (!keepMatrix)
+        {
+            (Result, Ddl) = (null, null);
+        }
+
         Changed?.Invoke();
         try
         {
@@ -377,9 +549,9 @@ public sealed class SchemaCompareService(
     {
         Interlocked.Increment(ref _matrix);
         Sides = Current.Sides.Select(side => new SideState(side)).ToList();
-        Result = null;
-        ResultSides = [];
+        (Result, ResultSides, Ddl) = (null, [], null);
         _chosen.Clear(); // other sides, other objects
+        _open.Clear();
         Changed?.Invoke();
     }
 
@@ -409,6 +581,13 @@ public sealed class SchemaCompareService(
         if (version == Volatile.Read(ref _matrix))
         {
             (Result, ResultSides) = (result, loaded.Select(s => s.index).ToList());
+            if (Ddl is { } ddl && (!ResultSides.Contains(ddl.Reference) || !ResultSides.Contains(ddl.Target)))
+            {
+                // A side of the dialog failed when read again: start over with the default pair – never let a run asked
+                // for on one target carry over to another one.
+                Ddl = DefaultDdl();
+            }
+
             if (afterRead && loaded.Count == Sides.Count)
             {
                 // e.g. compared again after running the script: aligned objects drop out

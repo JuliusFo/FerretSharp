@@ -126,6 +126,13 @@ else
 
     protected override void OnInitialized() => _confirm = ConfirmAtOnce && CanRun;
 
+    /// <summary>
+    /// "Open in SQL editor" among the actions. Off where the caller has its own (the schema comparison's DDL dialog, WP-83):
+    /// it opens in the shown connection, and the panel may run on one in the background.
+    /// </summary>
+    [Parameter]
+    public bool OfferSqlEditor { get; set; } = true;
+
     /// <summary>Lays the panel out as the head of the table designer: this beside the actions (designer tabs).</summary>
     [Parameter]
     public RenderFragment? Head { get; set; }
@@ -143,7 +150,10 @@ else
             }
             @CommonText.Run
         </button>
-        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@CommonText.OpenInSqlEditor</button>
+        @if (OfferSqlEditor)
+        {
+            <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@CommonText.OpenInSqlEditor</button>
+        }
         <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="SaveAsync">@SchemaViewText.Ddl_Save</button>
         @if (close)
         {

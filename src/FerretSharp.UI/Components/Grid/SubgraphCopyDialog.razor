@@ -29,7 +29,7 @@
         }
         else
         {
-            <select class="copy-target" value="@Draft.Target?.WorkspaceId" disabled="@Busy" @onchange="ChooseTarget">
+            <select class="field copy-target" value="@Draft.Target?.WorkspaceId" disabled="@Busy" @onchange="ChooseTarget">
                 @foreach (var target in Draft.Targets)
                 {
                     <option value="@target.WorkspaceId">@(target.Writable ? target.Label : TextFormat.Format(CopyViewText.TargetLocked, target.Label))</option>
@@ -104,7 +104,7 @@
                             <td>
                                 @if (t.Existing.Count > 0)
                                 {
-                                    <select value="@Draft.ModeOf(t)" @onchange="e => SetMode(t, e)">
+                                    <select class="field" value="@Draft.ModeOf(t)" @onchange="e => SetMode(t, e)">
                                         <option value="@ConflictMode.Skip">@CopyViewText.ModeSkip</option>
                                         <option value="@ConflictMode.Update" disabled="@(!t.CanUpdate)" title="@(t.CanUpdate ? null : CopyViewText.UpdateNeedsKey)">@CopyViewText.ModeUpdate</option>
                                         <option value="@ConflictMode.Abort">@CopyViewText.ModeAbort</option>

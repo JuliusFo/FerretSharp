@@ -1,8 +1,16 @@
 @* DDL proposal of the schema comparison (WP-20) for the objects chosen in the matrix: which side to align to which, the
-   script to copy – or to open in a SQL tab of the target connection and run there (WP-22). *@
+   script to copy, to open in a SQL tab of the target connection (WP-22) – or to run on the target right here (WP-83), in
+   its active workspace, through the schema path like every DDL (DdlDraftPanel: confirmation, Prod, stop at the first
+   failure). What it shows lives in SchemaCompareService: "Run" may connect the target, which shows it and rebuilds the page. *@
 @using FerretSharp.Core.Compare
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Ddl
+@implements IDisposable
+@inject SchemaCompareService Compare
+@inject ConnectionManager Connections
+@inject ConnectionHub Hub
 
-<ModalFrame Label="@CompareViewText.CompareDdl_Title" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+<ModalFrame Label="@CompareViewText.CompareDdl_Title" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="@(!Choice.Run)" FocusOnOpen="true">
     @* Title and buttons in the header like every dialog; the two sides in a row of their own below – with long
        connection names both selects together are wider than the dialog, and the header clipped Close away. *@
     <header>
@@ -10,6 +18,11 @@
         <span class="spacer"></span>
         @if (_proposal is { Steps.Count: > 0 } runnable)
         {
+            @if (!Choice.Run && TargetProfile is not null && _runnable.Count > 0)
+            {
+                <button class="btn primary" disabled="@TargetReading" title="@TextFormat.Format(CompareViewText.CompareDdl_RunTitle, Labels[_target])"
+                        @onclick="RunAsync">@CompareViewText.CompareDdl_RunEllipsis</button>
+            }
             <button class="btn" title="@TextFormat.Format(CompareViewText.CompareDdl_OpenInEditorTitle, Labels[_target])"
                     @onclick="() => OnOpenInEditor.InvokeAsync(runnable)">@CommonText.OpenInSqlEditor</button>
         }
@@ -18,7 +31,7 @@
     <div class="compare-ddl-sides">
         <Fmt Text="@CompareViewText.CompareDdl_AlignTo">
             <Arg0>
-                <select title="@CompareViewText.CompareDdl_TargetTitle" @bind="_target" @bind:after="Build">
+                <select class="field" title="@CompareViewText.CompareDdl_TargetTitle" disabled="@Choice.Run" value="@_target" @onchange="e => SetTarget(e.Value)">
                     @for (var i = 0; i < Labels.Count; i++)
                     {
                         <option value="@i" disabled="@(i == _reference)">@Labels[i]</option>
@@ -26,7 +39,7 @@
                 </select>
             </Arg0>
             <Arg1>
-                <select title="@CompareViewText.CompareDdl_ReferenceTitle" @bind="_reference" @bind:after="Build">
+                <select class="field" title="@CompareViewText.CompareDdl_ReferenceTitle" disabled="@Choice.Run" value="@_reference" @onchange="e => SetReference(e.Value)">
                     @for (var i = 0; i < Labels.Count; i++)
                     {
                         <option value="@i" disabled="@(i == _target)">@Labels[i]</option>
@@ -39,24 +52,32 @@
         <div class="settings-note compare-ddl-note">
             @CompareViewText.CompareDdl_Note
         </div>
+        @if (TargetReading)
+        {
+            <div class="settings-note compare-ddl-note"><span class="spinner small"></span> @TextFormat.Format(CompareViewText.CompareDdl_Reading, Labels[_target])</div>
+        }
         @if (_error is { } error)
         {
             <div class="test-result error"><span>@error</span></div>
         }
         else if (_proposal is { } proposal)
         {
-            @if (proposal.Steps.Count == 0)
+            @if (proposal.Unchanged.Count > 0)
+            {
+                <div class="settings-note compare-ddl-note" title="@(proposal.Unchanged.Count > UnchangedShown ? string.Join(", ", proposal.Unchanged) : null)">
+                    @TextFormat.Format(CompareViewText.CompareDdl_Unchanged, UnchangedList(proposal.Unchanged))
+                </div>
+            }
+            @if (Choice.Run)
+            {
+                @RunArea(proposal)
+            }
+            else if (proposal.Steps.Count == 0)
             {
                 <div class="compare-none">@(proposal.Selected is null ? CompareViewText.CompareDdl_NoDifferences : CompareViewText.CompareDdl_ChosenAlike)</div>
             }
             else
             {
-                @if (proposal.Unchanged.Count > 0)
-                {
-                    <div class="settings-note compare-ddl-note" title="@(proposal.Unchanged.Count > UnchangedShown ? string.Join(", ", proposal.Unchanged) : null)">
-                        @TextFormat.Format(CompareViewText.CompareDdl_Unchanged, UnchangedList(proposal.Unchanged))
-                    </div>
-                }
                 <SqlCode Sql="@proposal.Script" />
             }
         }
@@ -77,6 +98,21 @@
     private DdlProposal? _proposal;
     private string? _error;
 
+    /// <summary>The steps of the proposal that run: hints (drops, renames, what to decide) never do (<see cref="DdlStep.IsExecutable"/>).</summary>
+    private IReadOnlyList<DdlStep> _runnable = [];
+
+    /// <summary>What the proposal was built from; built again only when one of them changed.</summary>
+    private (SchemaComparison Comparison, int Reference, int Target, int Rows)? _built;
+
+    /// <summary>The target's connection, watched while it connects (its events may come on a background thread).</summary>
+    private ActiveConnection? _watched;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public SchemaComparison Comparison { get; set; } = null!;
 
@@ -94,25 +130,161 @@
     [Parameter]
     public EventCallback<DdlProposal> OnOpenInEditor { get; set; }
 
-    protected override void OnInitialized()
-    {
-        // The reference of the comparison, aligning the first other side to it.
-        _reference = Comparison.Options.Reference ?? 0;
-        _target = _reference == 0 ? 1 : 0;
-        Build();
-    }
+    /// <summary>The dialog's state in the service; the dialog only renders while it is set.</summary>
+    private DdlChoice Choice => Compare.Ddl ?? new DdlChoice(0, 1);
 
-    private void Build()
+    /// <summary>The side the proposal changes, as an index into the comparison's sides.</summary>
+    private int TargetSide => Compare.ResultSides[_target];
+
+    private ConnectionProfile? TargetProfile =>
+        Connections.Profiles.FirstOrDefault(p => p.Id == Compare.Sides[TargetSide].Side.ConnectionId);
+
+    /// <summary>The target is being read again after a run: the proposal is about to change.</summary>
+    private bool TargetReading => Compare.Sides[TargetSide].Loading;
+
+    protected override void OnInitialized() => Shell.Changed += OnChanged;
+
+    protected override void OnParametersSet()
     {
+        (_reference, _target) = Compare.DdlColumns();
+        if (_built is { } built && ReferenceEquals(built.Comparison, Comparison) && built.Reference == _reference && built.Target == _target && built.Rows == Rows.Count)
+        {
+            return;
+        }
+
+        _built = (Comparison, _reference, _target, Rows.Count);
         try
         {
             _proposal = SchemaDdl.Align(Comparison, _reference, _target, Rows);
+            _runnable = _proposal.Steps.Where(s => s.IsExecutable).ToList();
             _error = null;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // A bug in the proposal must not take the page down; the comparison itself stays usable.
-            (_proposal, _error) = (null, TextFormat.Format(CompareViewText.CompareDdl_Failed, ex.Message));
+            (_proposal, _runnable, _error) = (null, [], TextFormat.Format(CompareViewText.CompareDdl_Failed, ex.Message));
         }
+    }
+
+    private void SetTarget(object? value)
+    {
+        if (int.TryParse(value as string, out var target))
+        {
+            Compare.SetDdlColumns(_reference, target);
+        }
+    }
+
+    private void SetReference(object? value)
+    {
+        if (int.TryParse(value as string, out var reference))
+        {
+            Compare.SetDdlColumns(reference, _target);
+        }
+    }
+
+    /// <summary>
+    /// "Run …": on a connected target the run panel asks for the confirmation at once; otherwise connecting comes first –
+    /// it shows the target (password asked like anywhere), the page is built anew and the panel follows once connected.
+    /// </summary>
+    private async Task RunAsync()
+    {
+        if (TargetProfile is not { } profile)
+        {
+            return;
+        }
+
+        Compare.RequestRun(true);
+        if (Hub.Find(profile.Id) is not { Active.IsConnected: true })
+        {
+            await Lifecycle.ConnectAsync(profile);
+        }
+    }
+
+    private Task ConnectAsync(ConnectionProfile profile) => Lifecycle.ConnectAsync(profile);
+
+    /// <summary>
+    /// Everything ran: said in the status bar, then the target is read again. May run on an instance already gone – the
+    /// user switched connections during the run, the page was built anew –, so only the shell and the service from here.
+    /// </summary>
+    private async Task RanAsync(DdlRunResult result)
+    {
+        Shell.Notify(TextFormat.Plural(result.Ran.Count, CompareViewText.CompareDdl_RanOne, CompareViewText.CompareDdl_RanOther, Labels[_target]));
+        await Compare.RanAsync(result);
+    }
+
+    /// <summary>The run on the target: its panel once connected, otherwise how far connecting is.</summary>
+    private RenderFragment RunArea(DdlProposal proposal) => __builder =>
+    {
+        var profile = TargetProfile;
+        var scope = profile is null ? null : Hub.Find(profile.Id);
+        Watch(scope?.Active);
+        var label = Labels[_target];
+        <div class="compare-ddl-run">
+            @if (profile is null)
+            {
+                <p class="muted">@CompareViewText.Compare_MissingConnection</p>
+            }
+            else if (scope is { Active.IsConnected: true } && Shell.ActiveWorkspaceOf(scope.Id) is { } workspace)
+            {
+                <p class="muted">@TextFormat.Format(CompareViewText.CompareDdl_RunsIn, scope.Workspaces.Find(workspace.WorkspaceId)?.Name ?? "", label)</p>
+                @if (_runnable.Count < proposal.Steps.Count)
+                {
+                    <p class="hint small">@Icons.Warning @TextFormat.Plural(proposal.Steps.Count - _runnable.Count, CompareViewText.CompareDdl_HintsNotRunOne, CompareViewText.CompareDdl_HintsNotRunOther)</p>
+                }
+                <ConnectionScopeView @key="scope" Scope="scope">
+                    <DdlDraftPanel @key="workspace.WorkspaceId" WorkspaceId="workspace.WorkspaceId" Steps="_runnable" ConfirmNotes="RiskNotes"
+                                   FileName="@($"{DateTime.Now:yyyy-MM-dd}_ALIGN_{proposal.TargetOwner ?? "TARGET"}.sql")"
+                                   ConfirmAtOnce="@(Choice.Failed is null)" Earlier="Choice.Failed" OfferSqlEditor="false"
+                                   OnRan="RanAsync" OnFailed="Compare.RanAsync" OnClose="() => Compare.RequestRun(false)" />
+                </ConnectionScopeView>
+            }
+            else if (scope?.Active is { Status: ConnectionStatus.Connecting } || (scope is { Active.IsConnected: true }))
+            {
+                @* Connected, but its workspaces are not there yet – a moment after connecting. *@
+                <p><span class="spinner small"></span> @TextFormat.Format(CompareViewText.CompareDdl_Connecting, label)</p>
+                <button class="btn ghost" @onclick="() => Compare.RequestRun(false)">@CommonText.Cancel</button>
+            }
+            else
+            {
+                <p class="@(scope?.Active.Error is null ? "muted" : "error")">
+                    @(scope?.Active.Error is { } failed ? TextFormat.Format(CompareViewText.CompareDdl_ConnectFailed, label, failed.Message) : TextFormat.Format(CompareViewText.CompareDdl_NotConnected, label))
+                </p>
+                <div class="ddl-actions">
+                    <button class="btn primary" @onclick="() => ConnectAsync(profile)">@CompareViewText.CompareDdl_Connect</button>
+                    <span class="spacer"></span>
+                    <button class="btn ghost" @onclick="() => Compare.RequestRun(false)">@CommonText.Cancel</button>
+                </div>
+            }
+        </div>
+    };
+
+    /// <summary>What the confirmation repeats: the warnings of steps that may fail on values or take data away.</summary>
+    private IReadOnlyList<string> RiskNotes => _runnable.Where(s => s.Risk != DdlRisk.Safe && s.Warning is not null).Select(s => s.Warning!).Distinct().ToList();
+
+    private void Watch(ActiveConnection? active)
+    {
+        if (ReferenceEquals(active, _watched))
+        {
+            return;
+        }
+
+        if (_watched is not null)
+        {
+            _watched.Changed -= OnChanged;
+        }
+
+        _watched = active;
+        if (active is not null)
+        {
+            active.Changed += OnChanged;
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Shell.Changed -= OnChanged;
+        Watch(null);
     }
 }
