@@ -12,10 +12,10 @@ Branch `fix/compare-ddl-dialog-header` (von `main`), 2026-11-10. Baut auf WP-20/
 
 ## Gebaut
 - `SchemaDdlDialog`: Knöpfe in den `header`, „Align … to …“ in `div.compare-ddl-sides`.
-- CSS: `.compare-ddl-sides` (Flex mit Umbruch, Trennlinie), Auswahllisten bis `min(380px, 100%)` mit `min-width: 0`; `.dialog.compare-ddl-dialog { width: min(900px, 94vw) }` setzt die vorgesehene Breite nur für diesen Dialog durch.
-- Offen (Frage an den Nutzer): Die vorgesehene Breite auch für SQL-Vorschau und Fehlerdialog durchsetzen (`.dialog.sql-dialog`)? Nicht geändert, weil es zwei weitere Dialoge sichtbar verbreitert.
+- CSS: `.compare-ddl-sides` (Flex mit Umbruch, Trennlinie), Auswahllisten bis `min(380px, 100%)` mit `min-width: 0`.
+- Breite (Entscheidung des Nutzers, 2026-11-10: „Ja, beide breiter“): `.dialog.sql-dialog { width: min(900px, 94vw) }` – die vorgesehene Breite gilt jetzt für alle drei Dialoge mit `sql-dialog` (DDL-Vorschlag, SQL-Vorschau, Fehlerdialog). Zuerst nur für den DDL-Vorschlag gesetzt, dann auf Wunsch für alle.
 
 ## Prüfung
 - Build mit `-warnaserror` und alle Tests grün (ein erster Gesamtlauf hatte 23 Fehler in den Integrationstests, der Einzellauf danach 361/361 – unabhängig von dieser Änderung).
 - Layout im eingebauten Browser mit dem echten `ferretsharp.css` und dem Markup des Dialogs (dunkel, lange Verbindungsnamen): bei 1300 px alles in einer Zeile, Dialog 900 px, ✕ innen; bei 780 px Dialog 734 px, zweite Auswahlliste bricht in eine neue Zeile, Knöpfe bleiben oben rechts.
-- Nicht geprüft: in der laufenden App mit echtem Vergleich (keine Mausinteraktion geändert).
+- Nicht geprüft: in der laufenden App mit echtem Vergleich (keine Mausinteraktion geändert); SQL-Vorschau und Fehlerdialog in der neuen Breite nicht angesehen (nur Spezifität der Regel).

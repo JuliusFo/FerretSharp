@@ -868,7 +868,8 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .fs-h-badges .fs-badge { margin-left: 4px; }
 
 /* ---------- SQL preview ---------- */
-.sql-dialog { width: min(900px, 94vw); }
+/* With .dialog: alone it loses to the later .dialog (640px) of the same specificity. */
+.dialog.sql-dialog { width: min(900px, 94vw); }
 .sql-dialog header .spacer { flex: 1; }
 .sql-dialog header { gap: 8px; justify-content: flex-start; }
 pre.sql { margin: 0; padding: 16px 18px; max-height: 55vh; overflow: auto; user-select: text; font: 12.5px/1.6 var(--mono); background: var(--surface-2); white-space: pre-wrap; }
@@ -1590,8 +1591,6 @@ table.compare-matrix td.different.g3 { background: color-mix(in srgb, var(--test
 .compare-alias { margin-left: 6px; color: var(--warn); font-size: 11.5px; }
 .compare-count { margin-left: 8px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; }
 .compare-none { padding: 18px 16px; color: var(--muted); }
-/* The width .sql-dialog means; .sql-dialog alone loses to the later .dialog (640px) of the same specificity. */
-.dialog.compare-ddl-dialog { width: min(900px, 94vw); }
 /* "Align X to Y" below the header: wraps in a narrow window, a select shrinks and cuts its label rather than the row. */
 .compare-ddl-sides { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
 .compare-ddl-sides select { height: 28px; min-width: 0; max-width: min(380px, 100%); }
