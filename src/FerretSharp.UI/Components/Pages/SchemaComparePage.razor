@@ -147,9 +147,9 @@
                                 _someChosen = shownChosen > 0 && !allChosen;
                             }
                             <th class="choose @(choosable.Count == 0 ? "off" : "")" title="@(choosable.Count == 0 ? null : TextFormat.Format(allChosen ? CompareViewText.Compare_UnchooseShownTitle : CompareViewText.Compare_ChooseShownTitle, choosable.Count))"
-                                @onclick="() => Compare.Choose(choosable, !allChosen)">
+                                @onclick="() => Compare.ChooseAll(choosable, !allChosen)">
                                 <input type="checkbox" @ref="_chooseAll" checked="@allChosen" disabled="@(choosable.Count == 0)"
-                                       @onchange="e => Compare.Choose(choosable, e.Value is true)" @onclick:stopPropagation="true" />
+                                       @onchange="e => Compare.ChooseAll(choosable, e.Value is true)" @onclick:stopPropagation="true" />
                             </th>
                             <th>@CompareViewText.Compare_HeadObject</th>
                             @for (var i = 0; i < result.Sides.Count; i++)

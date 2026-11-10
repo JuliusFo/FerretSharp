@@ -97,6 +97,22 @@ public sealed class SchemaCompareService(
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// The header's box over the matches of the filters: chooses them, or takes them out together with the objects that
+    /// only wait (alike in this matrix while a side is missing or column order is off) – those have no box of their own
+    /// and would come back unasked once all sides load again (review).
+    /// </summary>
+    public void ChooseAll(IReadOnlyList<CompareRow> matches, bool on)
+    {
+        if (!on && Result is { } result)
+        {
+            var differing = result.Objects.Where(CanChoose).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
+            _chosen.RemoveWhere(key => !differing.Contains(key));
+        }
+
+        Choose(matches, on);
+    }
+
     private static SavedComparison NewComparison() => new(Guid.NewGuid(), "", [new CompareSide(Guid.Empty), new CompareSide(Guid.Empty)]);
 
     /// <summary>
