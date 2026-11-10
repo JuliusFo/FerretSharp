@@ -123,16 +123,7 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
         // Longer than SQL_TEXT, which keeps 1000 bytes – with umlauts about 500 characters (second review of WP-75): the list
         // marks it as maybe cut, the details bring the whole text.
         var sql = $"SELECT /* fs_load_{Guid.NewGuid():N} {new string('ä', 700)} */ COUNT(*) FROM all_objects WHERE ROWNUM <= 50";
-        await using (var other = new OracleConnection(oracle.RequireConnectionString()))
-        {
-            await other.OpenAsync(Ct);
-            for (var i = 0; i < 12; i++)
-            {
-                await using var command = other.CreateCommand();
-                command.CommandText = sql;
-                await command.ExecuteScalarAsync(Ct);
-            }
-        }
+        await RunAsync(sql, 12);
 
         await Task.Delay(TimeSpan.FromSeconds(1.2), Ct); // the next look must be at least a second later (LAST_ACTIVE_TIME)
         var sample = await monitor.LookAsync(null, Ct);
@@ -177,10 +168,49 @@ public sealed class ServerLoadTests(OracleContainerFixture oracle) : IAsyncLifet
 
         Assert.Equal(new StatementText(sql, false), await connection.ServerLoad.ReadFullTextAsync(sqlId, Ct));
         Assert.Null(await connection.ServerLoad.ReadFullTextAsync("0000000000000", Ct));
-        var cursor = await connection.Schema.GetCursorByIdAsync(sqlId, Ct);
-        Assert.Equal(sql, cursor!.Plan.Sql);
-        Assert.NotEmpty(cursor.Plan.Steps);
+        // Oracle may have dropped the plan meanwhile (CI 2026-11-10: text and figures there, no steps): run it once more.
+        var plan = await CursorPlans.ReadAsync(() => connection.Schema.GetCursorByIdAsync(sqlId, Ct), () => RunAsync(sql, 1));
+        Assert.Equal(sql, plan.Sql);
+        Assert.NotEmpty(plan.Steps);
         Assert.Null(await connection.Schema.GetCursorByIdAsync("0000000000000", Ct));
+    }
+
+    [Fact]
+    public async Task A_cursor_whose_plan_oracle_dropped_keeps_its_figures_and_has_the_plan_again_after_the_next_run()
+    {
+        await using var connection = await OpenAsync();
+        var sql = $"SELECT /* fs_drop_{Guid.NewGuid():N} */ COUNT(*) FROM all_objects WHERE ROWNUM <= 50";
+        await RunAsync(sql, 3);
+        var sqlId = Plans.SqlId(sql);
+
+        await CursorPlans.DropAsync(System(), sqlId, Ct);
+        var dropped = await connection.Schema.GetCursorByIdAsync(sqlId, Ct);
+
+        // What CI saw: the children stay in V$SQL with their figures, the plan is gone – an empty plan, no error.
+        Assert.NotNull(dropped);
+        Assert.Equal(sql, dropped.Plan.Sql);
+        Assert.InRange(dropped.Executions, 1, 3);
+        Assert.Empty(dropped.Plan.Steps);
+        Assert.False(dropped.HasPlan);
+
+        await RunAsync(sql, 1);
+        var again = await connection.Schema.GetCursorByIdAsync(sqlId, Ct);
+        Assert.NotNull(again);
+        Assert.True(again.HasPlan);
+        Assert.NotEmpty(again.Plan.Steps);
+    }
+
+    /// <summary>Runs <paramref name="sql"/> <paramref name="times"/> times in a session of its own (another program).</summary>
+    private async Task RunAsync(string sql, int times)
+    {
+        await using var other = new OracleConnection(oracle.RequireConnectionString());
+        await other.OpenAsync(Ct);
+        for (var i = 0; i < times; i++)
+        {
+            await using var command = other.CreateCommand();
+            command.CommandText = sql;
+            await command.ExecuteScalarAsync(Ct);
+        }
     }
 
     [Theory]

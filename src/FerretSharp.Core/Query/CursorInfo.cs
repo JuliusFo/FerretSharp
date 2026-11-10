@@ -25,4 +25,10 @@ public sealed record CursorInfo(
     public TimeSpan AverageElapsed => Executions > 0 ? Elapsed / Executions : TimeSpan.Zero;
 
     public bool HasActualFigures => Plan.Steps.Any(s => s.ActualRows is not null);
+
+    /// <summary>
+    /// False when Oracle has freed the plan but kept the cursor (heap 6 goes first under memory pressure): the figures are
+    /// there, V$SQL_PLAN_STATISTICS_ALL has no rows until the next execution loads the plan again (fix-cursor-plan-child).
+    /// </summary>
+    public bool HasPlan => Plan.Steps.Count > 0;
 }
