@@ -18,6 +18,13 @@ public sealed partial class OracleSchemaReader
     // column lists are keyed by them as in the per-table statements.
     private const string SnapshotTablesSql = "SELECT table_name, iot_type, temporary, partitioned FROM all_tables WHERE owner = :owner";
 
+    // As GetObjectInfoAsync: a materialized view's comment lives in ALL_MVIEW_COMMENTS and wins over its container table's.
+    private const string SnapshotCommentsSql = """
+        SELECT 'M', mview_name, comments FROM all_mview_comments WHERE owner = :owner AND comments IS NOT NULL
+        UNION ALL
+        SELECT 'T', table_name, comments FROM all_tab_comments WHERE owner = :owner AND comments IS NOT NULL
+        """;
+
     private const string SnapshotColumnsSql = $"""
         {ColumnsSelect}
          ORDER BY c.table_name, c.column_id
@@ -76,6 +83,10 @@ public sealed partial class OracleSchemaReader
                 (Name: reader.GetString(0), Iot: Text(reader, 1) == "IOT", Temporary: Text(reader, 2) == "Y", Partitioned: Text(reader, 3) == "YES"),
                 cancellationToken, many: true))
             .ToDictionary(t => t.Name, t => (t.Iot, t.Temporary, t.Partitioned), StringComparer.Ordinal);
+        var comments = (await session.ReadListAsync(SnapshotCommentsSql, parameters, reader =>
+                (MView: Text(reader, 0) == "M", Name: reader.GetString(1), Comment: reader.GetString(2)),
+                cancellationToken, many: true))
+            .ToLookup(c => c.Name, StringComparer.Ordinal);
 
         progress?.Report(OracleText.SnapshotStepColumns);
         var columns = await ReadColumnsByTableAsync(SnapshotColumnsSql, parameters, many: true, cancellationToken);
@@ -110,9 +121,12 @@ public sealed partial class OracleSchemaReader
                     isView ? [] : indexes.GetValueOrDefault(o.Name) ?? [],
                     IsIndexOrganized: o.Kind == TableKind.Table && iot, // as GetDetailsAsync
                     Temporary: temporary,
-                    Partitioned: partitioned);
+                    Partitioned: partitioned,
+                    Comment: (o.Kind == TableKind.MaterializedView ? Comment(o.Name, mview: true) : null) ?? Comment(o.Name, mview: false));
             })
             .ToList();
         return new SchemaSnapshot(owner, readAt, snapshots);
+
+        string? Comment(string name, bool mview) => comments[name].FirstOrDefault(c => c.MView == mview).Comment;
     }
 }

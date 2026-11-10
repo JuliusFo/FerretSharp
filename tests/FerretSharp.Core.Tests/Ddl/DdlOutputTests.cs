@@ -24,7 +24,8 @@ public class DdlOutputTests
             Table("AUFTRAG",
                 [Id, Column("KUNDE_ID", "NUMBER", precision: 10, scale: 0), Column("NR", "VARCHAR2", length: 20, comment: "Auftragsnummer"), Column("MENGE", "NUMBER")],
                 [PrimaryKey("PK_AUFTRAG", "ID"), Check("SYS_C002", "MENGE > 0"), ForeignKey("FK_AUFTRAG_KUNDE", ["KUNDE_ID"], new TableRef(Ref, "KUNDE"), ["ID"], "CASCADE")],
-                [UniqueIndex(Ref, "PK_AUFTRAG", On("ID")), Index(Ref, "IX_AUFTRAG_KUNDE", On("KUNDE_ID"))]),
+                [UniqueIndex(Ref, "PK_AUFTRAG", On("ID")), Index(Ref, "IX_AUFTRAG_KUNDE", On("KUNDE_ID"))],
+                comment: "Aufträge der Kunden"),
             Table("KUNDE",
             [
                 Id,
@@ -228,7 +229,8 @@ public class DdlOutputTests
         // A4: NUMBER(10) → NUMBER(10,2) and NVARCHAR2 → VARCHAR2 "may fail on data" – they need an empty column.
         const string mayFail = "-- ⚠ Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).";
         const string needsEmpty = "-- ⚠ Geht nur bei leerer Spalte (weniger Stellen, NVARCHAR2 → VARCHAR2, Zeitzone …). Mit Daten: neue Spalte anlegen, Daten umkopieren, alte löschen, umbenennen.";
-        var before = Before.ReplaceLineEndings("\n").Replace(mayFail, needsEmpty, StringComparison.Ordinal);
+        var before = Before.ReplaceLineEndings("\n").Replace(mayFail, needsEmpty, StringComparison.Ordinal)
+            + "\nCOMMENT ON TABLE \"TEST\".\"AUFTRAG\" IS 'Aufträge der Kunden';\n"; // a created table's comment came later
         Assert.Equal(Blocks(before), Blocks(script));
 
         Assert.Equal(
@@ -284,6 +286,8 @@ public class DdlOutputTests
 
             CREATE INDEX "TEST"."IX_KUNDE_LAND" ON "TEST"."KUNDE" ("LAND", "ID");
 
+            COMMENT ON TABLE "TEST"."AUFTRAG" IS 'Aufträge der Kunden';
+
             COMMENT ON COLUMN "TEST"."AUFTRAG"."NR" IS 'Auftragsnummer';
 
             COMMENT ON COLUMN "TEST"."KUNDE"."NOTIZ" IS 'neu';
@@ -337,6 +341,8 @@ public class DdlOutputTests
             ALTER TABLE "TEST"."AUFTRAG" ADD CONSTRAINT "FK_AUFTRAG_KUNDE" FOREIGN KEY ("KUNDE_ID") REFERENCES "TEST"."KUNDE" ("ID") ON DELETE CASCADE;
 
             CREATE INDEX "TEST"."IX_AUFTRAG_KUNDE" ON "TEST"."AUFTRAG" ("KUNDE_ID");
+
+            COMMENT ON TABLE "TEST"."AUFTRAG" IS 'Aufträge der Kunden';
 
             COMMENT ON COLUMN "TEST"."AUFTRAG"."NR" IS 'Auftragsnummer';
 

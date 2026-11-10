@@ -21,6 +21,10 @@ public sealed record SchemaSnapshot(string Owner, DateTimeOffset ReadAt, IReadOn
 /// Views: none.
 /// </param>
 /// <param name="Indexes">Indexes as <see cref="ISchemaReader.GetIndexesAsync"/> reads them (without LOB indexes). Views: none.</param>
+/// <param name="Comment">
+/// The object's comment as <see cref="ISchemaReader.GetObjectInfoAsync"/> reads it (a materialized view's from
+/// <c>ALL_MVIEW_COMMENTS</c>); null for none. Not compared – the DDL proposal writes it for a table it creates.
+/// </param>
 public sealed record ObjectSnapshot(
     string Name,
     TableKind Kind,
@@ -29,4 +33,5 @@ public sealed record ObjectSnapshot(
     IReadOnlyList<IndexInfo> Indexes,
     bool IsIndexOrganized = false,
     bool Temporary = false,
-    bool Partitioned = false);
+    bool Partitioned = false,
+    string? Comment = null);

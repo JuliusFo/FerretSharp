@@ -87,8 +87,9 @@ public static class TestComparison
         TableKind kind = TableKind.Table,
         bool iot = false,
         bool temporary = false,
-        bool partitioned = false) =>
-        new(name, kind, columns.Select((c, i) => c with { Position = i + 1 }).ToList(), constraints?.ToList() ?? [], indexes?.ToList() ?? [], iot, temporary, partitioned);
+        bool partitioned = false,
+        string? comment = null) =>
+        new(name, kind, columns.Select((c, i) => c with { Position = i + 1 }).ToList(), constraints?.ToList() ?? [], indexes?.ToList() ?? [], iot, temporary, partitioned, comment);
 
     public static ColumnInfo Column(
         string name,

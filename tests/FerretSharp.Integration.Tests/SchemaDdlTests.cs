@@ -96,6 +96,7 @@ public sealed class SchemaDdlTests(OracleContainerFixture oracle) : IAsyncLifeti
 
         var auftrag = await Reader.GetIndexesAsync(new TableRef(_owner, "DA_AUFTRAG"), Ct);
         Assert.Contains(auftrag, i => i.Name == "IX_DA_AUFTRAG_DATUM"); // the generated name got a readable one
+        Assert.Equal("Aufträge", (await Reader.GetObjectInfoAsync(new TableSummary(_owner, "DA_AUFTRAG", TableKind.Table), Ct)).Comment);
     }
 
     private static ObjectSnapshot[] ReferenceObjects()
@@ -148,7 +149,8 @@ public sealed class SchemaDdlTests(OracleContainerFixture oracle) : IAsyncLifeti
                 UniqueIndex(ReferenceOwner, "SYS_C9001", On("ID")),
                 Index(ReferenceOwner, "IX_DA_AUFTRAG_KUNDE", On("KUNDE_ID")),
                 Index(ReferenceOwner, "SYS_C9003", On("DATUM")),
-            ]);
+            ],
+            comment: "Aufträge");
 
         var pos = Table("DA_POS",
             [
@@ -193,7 +195,8 @@ public sealed class SchemaDdlTests(OracleContainerFixture oracle) : IAsyncLifeti
                 indexes,
                 details.IsIndexOrganized,
                 info.Temporary,
-                info.Partitioned));
+                info.Partitioned,
+                info.Comment));
         }
 
         return Snapshot(_owner, [.. objects]);
