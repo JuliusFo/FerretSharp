@@ -1,4 +1,4 @@
-# Fix: DDL-Vorschlag des Schema-Vergleichs schreibt den Tabellenkommentar (`fix/compare-table-comment`)
+# Fix: DDL-Vorschlag des Schema-Vergleichs schreibt den Tabellenkommentar (`fix/compare-table-comment`) → Release 3.68.1
 
 Branch `fix/compare-table-comment` (von `main`), 2026-11-10. Baut auf WP-20 (Schema-Vergleich, DDL-Vorschlag).
 
