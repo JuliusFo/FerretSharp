@@ -484,7 +484,7 @@
     <value>Ohne Owner</value>
   </data>
   <data name="Ddl_WithoutOwnerTitle" xml:space="preserve">
-    <value>{0} vor den Namen dieses Schemas weglassen, auch in den Grants – zum Ausführen unter einem anderen Owner. Andere Schemas bleiben, ebenso Namen ohne Anführungszeichen im Quelltext einer View oder eines Triggers.</value>
+    <value>{0} vor den Namen dieses Schemas weglassen, auch in den Grants – zum Ausführen unter einem anderen Owner. Andere Schemas bleiben, ebenso Namen ohne Anführungszeichen im Quelltext einer View.</value>
   </data>
   <data name="TableLink_ShowStructure" xml:space="preserve">
     <value>Struktur anzeigen</value>

@@ -25,5 +25,5 @@ Branch `feat/ddl-without-owner` (von `main`), 2026-11-10, Release offen. Baut au
 
 ## Grenzen
 - Ein gequoteter Alias, der genau wie der Owner heißt (`"SHOP".ID` im View-Text mit Alias `"SHOP"`), verliert ebenfalls sein Präfix.
-- Ungequotete Verweise auf das eigene Schema im View- oder Trigger-Quelltext bleiben stehen und müssen im Zielschema passen.
+- Ungequotete Verweise auf das eigene Schema im Quelltext einer View bleiben stehen und müssen im Zielschema passen. (Trigger zeigt die Ansicht DDL nicht; der Core lässt ihren Quelltext genauso stehen.)
 - Scheitert `GET_DDL` (ORA-31603 ohne `SELECT_CATALOG_ROLE`), fehlt der Schalter im Tab; die GRANTs folgen dann der Einstellung von der Einstellungsseite.
