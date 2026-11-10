@@ -10,11 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - The DDL proposal, the SQL preview and the error dialog are now as wide as intended: up to 900 px instead of 640 px, so long statements wrap less.
 - The same three dialogs scroll below their header when they are taller than the window – a long list of bind variables or the DDL proposal's notes in a low window no longer cut off the end.
 - *Schema comparison*: the DDL proposal for a table the target lacks writes the table's comment (`COMMENT ON TABLE`) along with the column comments – before, only the column comments came along. Comments still do not count as a difference.
-- *Server load* and *App statements*: when Oracle has already freed a statement's plan from the shared pool (it keeps the figures longer), the statement's details say so and that the next run brings the plan back – before, they showed an empty plan with the hint about GATHER_PLAN_STATISTICS. For a statement that never has a plan (a PL/SQL block such as EF’s `SaveChanges`, `CALL`, DDL) they say that instead.
+- *Server load* and *App statements*: when Oracle has already freed a statement's plan from the shared pool (it keeps the figures longer), the statement's details say so and that the next run brings the plan back – before, they showed an empty plan with the hint about GATHER_PLAN_STATISTICS. For a statement that never has a plan (a PL/SQL block such as EF’s `SaveChanges`, `CALL`, `ALTER SESSION`, most DDL) they say that instead.
 
 ### Internal
 - A test finds a rule for one dialog's class that the general dialog rules further down in the stylesheet silently override – as with the SQL dialogs' width.
-- The integration tests that look up another session's cursor run the statement once more when Oracle has freed its plan meanwhile (the server load test failed so in CI); a new test frees the plan with `DBMS_SHARED_POOL.PURGE` and checks figures without plan and the plan after the next run.
+- The integration tests that look up another session's cursor run the statement once more when Oracle has freed its plan meanwhile (the server load test failed so in CI); a new test frees the plan with `DBMS_SHARED_POOL.PURGE` and checks figures without plan and the plan after the next run, another one a PL/SQL block found without plan.
 
 ## [3.68.0] - 2026-11-10
 

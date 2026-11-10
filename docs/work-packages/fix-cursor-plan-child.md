@@ -41,12 +41,22 @@ las. Der Test nahm an, dass ein gefundener Cursor immer einen Plan hat.
   Hinweis zu GATHER_PLAN_STATISTICS. Jetzt sagen sie, dass der Plan nicht mehr im Shared Pool ist und mit der nächsten
   Ausführung wiederkommt (`CursorInfo.HasPlan`, `CursorDetails`, Text `AppStatements_PlanDropped` in Englisch und
   Deutsch).
-- **Tests:** `CursorPlans.ReadAsync` liest den Cursor, bis er einen Plan hat, und lässt das Statement dazwischen noch
-  einmal laufen. Das gilt für den Serverlast-Test und `PlanTests.A_statement_another_program_ran_is_found_by_its_text`
-  (gleiches Risiko); die Zahlen prüfen beide weiter am ersten Lesen.
+- **Statement ohne Plan (aus dem Review):** PL/SQL-Blöcke (auch `SaveChanges` von EF), `CALL`, `ALTER SESSION` und die
+  meiste DDL haben nie Planzeilen. Gemessen gegen Oracle 23: Ein verworfener Plan behält `PLAN_HASH_VALUE` (≠ 0, 0
+  Planzeilen), Block und `CALL` haben 0 (`COMMAND_TYPE` 47 bzw. 170). `CursorFigures` liest deshalb
+  `MAX(PLAN_HASH_VALUE)` (`CursorInfo.PlanHashValue`); `HasNoPlanAtAll` (kein Schritt und Hash 0) zeigt
+  `AppStatements_NoPlanForStatement` („Dieses Statement hat keinen Ausführungsplan …“) statt des Verdrängt-Hinweises.
+- **Tests:** `CursorPlans.FindAsync` liest den Cursor, bis er da ist und eine Bedingung hält, und lässt das Statement
+  dazwischen noch einmal laufen – auch wenn er zwischen den Abfragen der Suche verschwindet (`PlanUnavailableException`,
+  ein Timeout nennt die letzte Ablehnung). `ReadAsync` wartet darüber auf einen Plan; das gilt für den Serverlast-Test und
+  `PlanTests.A_statement_another_program_ran_is_found_by_its_text` (gleiches Risiko), die Zahlen prüfen beide weiter am
+  ersten Lesen.
 - Neuer Test `ServerLoadTests.A_cursor_whose_plan_oracle_dropped_keeps_its_figures_and_has_the_plan_again_after_the_next_run`:
   Plan per `CursorPlans.DropAsync` verwerfen, dann Cursor mit Zahlen und leerem Plan ohne Fehler, nach einer weiteren
-  Ausführung wieder mit Plan. Er hält fest, worauf der Hinweis und `ReadAsync` bauen.
+  Ausführung wieder mit Plan; der Hash bleibt (`HasNoPlanAtAll` falsch). Er hält fest, worauf der Hinweis und
+  `ReadAsync` bauen. `DropAsync` meldet, ob es einen Cursor traf; ist er unter Last schon ganz weg, lädt der Test ihn neu.
+- Neuer Test `ServerLoadTests.A_pl_sql_block_is_found_with_its_figures_and_marked_as_having_no_plan_at_all`: ein Block
+  wird mit Zahlen gefunden, `HasNoPlanAtAll`, Hash 0.
 - Falle in `.claude/rules/oracle.md` (Cursor-Statistik).
 
 ## Offen
@@ -55,3 +65,25 @@ las. Der Test nahm an, dass ein gefundener Cursor immer einen Plan hat.
 - Der tatsächliche Plan im SQL-Editor (`ExplainActualAsync`) zeigt bei einem sofort verdrängten Plan weiter eine leere
   Tabelle mit „keine Laufzeitstatistik“; dort ist das Statement gerade gelaufen, also selten.
 - Der Hinweis ist nicht in der App angesehen (E2E), nur gebaut.
+
+## Nachtrag: Code-Review (2026-11-10)
+Ein unabhängiger Reviewer-Agent (`/branch-code-review`), drei Durchgänge. Entscheidung des Nutzers: „Fix all“, im zweiten
+Durchgang „Yes, all three“.
+1. **M Der Verdrängt-Hinweis erschien auch bei Statements, die nie einen Plan haben** (PL/SQL-Block wie `SaveChanges`
+   von EF, `CALL`, DDL) und versprach, der Plan komme wieder. **Behoben:** `PLAN_HASH_VALUE` unterscheidet die Fälle
+   (gegen Oracle 23 gemessen, siehe Entscheidungen), eigener Text, Test für einen Block, Drop-Test prüft den Hash.
+2. **K `ReadAsync` fing den Cursor nicht ab, der zwischen `CursorFigures` und `LatestChild` verschwindet**
+   (`PlanUnavailableException`). **Behoben:** wird wie „nicht gefunden“ behandelt, ein Timeout nennt die letzte
+   Ablehnung. Ein Test ohne den Fix ist nicht deterministisch zu bauen (Wettlauf).
+3. **K `DropAsync` scheiterte mit ORA-01403, wenn der Cursor schon ganz verdrängt war** (Verdacht, nicht nachgestellt;
+   der Weg ist eindeutig). **Behoben:** `DropAsync` meldet, ob es traf, der Test lädt den Cursor sonst neu.
+4. **K Ein Satz im Protokoll war verstümmelt** (zwei Klammern). **Behoben.**
+5. **K Gerader Apostroph im englischen Text.** **Behoben.**
+6. **K (zweiter Durchgang) Protokoll, Index und CHANGELOG kannten den dritten Fall und den Block-Test nicht.** **Behoben**
+   (dieser Nachtrag, Entscheidungen, Index-Zeile, CHANGELOG Internal).
+7. **K (zweiter Durchgang) Der Block-Test hatte dieselbe Lücke wie Punkt 2.** **Behoben:** `CursorPlans.FindAsync`, die
+   `ReadAsync` mitnutzt.
+8. **K (zweiter Durchgang) Der Text zählte Kategorien auf, die nicht passen** (`ALTER SESSION` fehlte, CTAS und
+   `CREATE INDEX` haben einen Plan). **Behoben:** Satz über das Statement, Kategorien als Beispiele.
+- Learnings: Punkt 1 steht als Falle in `.claude/rules/oracle.md` (leerer Plan heißt nicht immer verdrängt). Die übrigen
+  waren Einzelfälle der neuen Testhilfe bzw. Text und Doku, keine neue Regel.
