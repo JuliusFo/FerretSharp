@@ -24,3 +24,17 @@ Branch `feat/schema-compare-ddl-selection` (von `main`), 2026-11-10. Baut auf WP
 - **Gefunden und behoben:** Ein Klick in den unteren Teil der Häkchen-Zelle ging ins Leere – ein `label` füllt eine Tabellenzelle nur in der Breite, nicht in der Höhe. Jetzt nimmt die Zelle (`td`/`th`) den Klick selbst, das Kästchen stoppt seinen eigenen.
 - Geprüft: Zelle, Kästchen und Name (klappt auf, wählt nicht) mit echter Maus; Kopf-Häkchen wählt alle 49, mit Suche „AUFTRAG“ „49 ausgewählt, davon 47 ausgeblendet“ und Kopf nimmt die 2 Treffer heraus, danach Zwischenzustand; `GLEICH` gesperrt mit Tooltip; Dialog „Test an Dev“ mit AUFTRAG und `notizen`: Kopfzeile „Nur die 2 …“, Warnung am FK auf KUNDEN, Hinweis „gleich, daher kein Schritt: notizen“; „Im SQL-Editor öffnen“ bringt das Skript in den Tab von FERRET_TEST (nicht ausgeführt); Auswahl übersteht Seitenwechsel und erneuten Vergleich. Log ohne `[ERR]`/`[WRN]`.
 - Nicht geprüft: das Skript auszuführen und danach erneut zu vergleichen (Herausfallen angeglichener Objekte nur im Unit-Test).
+
+## Nachtrag: Code-Review (2026-11-10)
+Eigener Reviewer-Agent, danach jeder Befund nachgeprüft. Entscheidung des Nutzers: „Alle beheben“ (K4 wie vorgeschlagen nur in den Backlog).
+- M1 behoben: Fiel beim erneuten Vergleich eine Seite aus (VPN, Passwort), schnitt die Matrix der übrigen Seiten die Auswahl zu – Objekte, die nur gegen die ausgefallene Seite abwichen, waren dauerhaft weg. Zugeschnitten wird jetzt nur nach neuem Lesen aller Seiten; `IsChosen` zeigt dazwischen nur, was in der Matrix abweicht (Test `A_side_failing_on_comparing_again_…`, scheitert ohne Fix).
+- K5 behoben (mit M1): „Spaltenreihenfolge“ aus und wieder an kostete still die Auswahl der Objekte, die nur in der Reihenfolge abwichen – eine Neuberechnung aus denselben Snapshots schneidet nicht mehr zu.
+- K1 behoben: leere Häkchen-Zelle der Kindzeilen ohne Hand-Cursor.
+- K2 behoben: Der Dialog nennt höchstens zehn gewählte, im Paar gleiche Objekte („und n weitere“), alle im Tooltip.
+- K3 behoben: Tooltip des Kopf-Häkchens spricht von Treffern (wirkt auch hinter „Mehr anzeigen“), ohne wählbare Treffer kein Tooltip.
+- K4 in den Backlog: FK auf einen Schlüssel oder eine Spalte, die erst mit einer nicht gewählten, im Ziel vorhandenen Elterntabelle entstünde, scheitert ohne Hinweis (ORA-02270/00904).
+- K6 behoben: `DdlOutputTests` hält das Skript mit Auswahl fest; Backlog-Eintrag zum E2E mit zwei Schemas angepasst.
+- Zweiter Durchgang über die Fixes (alle decken ihren Befund), zwei neue K. Entscheidung des Nutzers zu K7: „Kopf-Häkchen leert sie“.
+  - K7 behoben: Nach einem Seitenausfall warteten gewählte Objekte unsichtbar und ohne eigenes Kästchen; „alle heraus“ ließ sie stehen, beim nächsten vollständigen Vergleich kamen sie ungefragt zurück. Das Kopf-Häkchen nimmt sie jetzt mit heraus (`ChooseAll`, Test `Taking_all_out_also_drops_…`).
+  - K8 behoben: Test für K5 (`Column_order_off_hides_the_choice_and_on_brings_it_back`); beide neuen Tests scheitern ohne ihren Fix.
+- Nicht per E2E nachgeprüft: K1–K3 (Cursor, Tooltip, gekürzte Liste) – nur Build und Unit-Tests.
