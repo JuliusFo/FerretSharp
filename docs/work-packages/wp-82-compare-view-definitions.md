@@ -32,7 +32,11 @@ Branch `wp/82-compare-view-definitions`. Aus dem Backlog („Schema-Vergleich, z
 - `ALL_VIEWS.TEXT_VC` (12c+) hält die ersten 4000 Byte; `TEXT_LENGTH` zählt Bytes. Den LONG-Text nur für die längeren Views zu lesen, spart die 32 KB je Zeile im Fetch.
 
 ## E2E
-Offen.
+2026-11-10, eigener Container (`New-SampleDb.ps1 -Name ferret-wp82 -Port 1582`), FERRET per Data Pump nach FERRET_TEST kopiert und dort verändert: `V_KUNDEN_AUFTRAEGE` mit anderer Abfrage, `V_OFFENE_POSTEN` gelöscht, `V_VERTRAG_AKTIV` klein geschrieben mit Kommentar und `ferret_test.`-Präfix, `MV_UMSATZ` mit `REFRESH COMPLETE`. Zwei Verbindungen als `connections.json`, Passwörter auf der Seite eingegeben; Testinstanz deutsch/dunkel. Probe: eingeschleuste Klicks kommen an, Tasten nicht – Klicks mit echter Windows-Eingabe, der Rest per CDP.
+- Geprüft: Die Matrix zeigt genau `MV_UMSATZ`, `V_KUNDEN_AUFTRAEGE` und `V_OFFENE_POSTEN`; `V_VERTRAG_AKTIV` gilt als gleich (Normalisierung). Aufklappen und Klick auf die Definitionszeile mit echter Maus öffnet den Dialog mit zwei Varianten; Schließen per ✕. DDL-Vorschlag über das Kopf-Häkchen: `CREATE OR REPLACE VIEW` mit Spaltenliste, `CREATE VIEW` für die fehlende, DROP + CREATE der MView auskommentiert. Die per Data Pump kopierte ungültige `V_ALT_IMPORT` zeigt im Ziel `UNDEFINED` als „Nicht verglichen“, die View zählt nicht als abweichend. Log ohne `[ERR]`/`[WRN]`.
+- Gefunden und behoben: Die normalisierte Definition las sich in der Zelle schlecht (`COUNT ( A.ID ) , B`) – jetzt ohne Leerzeichen vor `,` und `)` und nach `(`.
+- Gefunden, Frage an den Nutzer: In der Beispiel-DB sind `V_KUNDEN_AUFTRAEGE` und `MV_UMSATZ` auf Dev INVALID, ohne Fehler in `USER_ERRORS` – Oracle hat sie nach DDL an einer Basistabelle nur zum Neukompilieren markiert; die erste Abfrage machte die View wieder VALID. Die Statuszeile meldet das als Abweichung, der DDL-Vorschlag warnt „in der Referenz ungültig“. Wirklich kaputt (`V_ALT_IMPORT`) hat ebenfalls keine Einträge in `USER_ERRORS`; unterscheiden ließe sich das nur durch Kompilieren (DDL).
+- Nicht im E2E: das Skript in FERRET_TEST ausführen und neu vergleichen – das deckt `ViewCompareTests` gegen Oracle ab.
 
 ## Offen / Backlog
 - Monaco-Diff-Editor für die Definitionen (Backlog-Zeile „Schema-Vergleich, zweite Stufe“).

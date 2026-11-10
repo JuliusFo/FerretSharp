@@ -10,7 +10,7 @@ namespace FerretSharp.Core.Ddl;
 internal static class ViewText
 {
     /// <summary>
-    /// <paramref name="text"/> as one line of tokens: without comments, one space between tokens (none around a dot),
+    /// <paramref name="text"/> as one line of tokens: without comments, one space between tokens (none around a dot, before , and ) or after (),
     /// words in upper case, a quoted name that needs no quotes (<c>"KUNDE"</c>) without them, and without the prefix of the
     /// own schema (<c>ERP.KUNDE</c>, <c>"ERP"."KUNDE"</c> → <c>KUNDE</c>; decision of the user, 2026-11-10 – a table alias
     /// named like the schema goes as well). String literals and other quoted names stay exactly as written.
@@ -37,7 +37,8 @@ internal static class ViewText
                 SqlTokenKind.QuotedIdentifier => NeedsQuotes(token.Value) ? "\"" + token.Value + "\"" : token.Value,
                 _ => text.Substring(token.Start, token.Length),
             };
-            if (result.Length > 0 && previous != "." && value != ".")
+            // One space between tokens, none around a dot, before , ) or after ( – readable in the matrix: COUNT (A.ID), B.
+            if (result.Length > 0 && previous is not ("." or "(") && value is not ("." or "," or ")"))
             {
                 result.Append(' ');
             }

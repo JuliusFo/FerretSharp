@@ -43,13 +43,14 @@ public class ViewDefinitionTests
     // ---- normalizing ----
 
     [Theory]
-    [InlineData("select a,b from t", "SELECT A , B FROM T")]
-    [InlineData("SELECT  a\r\n  , b -- note\n FROM t /* x */", "SELECT A , B FROM T")]
-    [InlineData("select \"A\", \"b\" from \"T\"", "SELECT A , \"b\" FROM T")]
+    [InlineData("select a,b from t", "SELECT A, B FROM T")]
+    [InlineData("SELECT  a\r\n  , b -- note\n FROM t /* x */", "SELECT A, B FROM T")]
+    [InlineData("select \"A\", \"b\" from \"T\"", "SELECT A, \"b\" FROM T")]
     [InlineData("select x from DEV.T join \"DEV\".\"U\" on 1 = 1", "SELECT X FROM T JOIN U ON 1 = 1")]
     [InlineData("select dev.t.x from dev.t", "SELECT T.X FROM T")]
     [InlineData("select 'Dev.x' from OTHER.T", "SELECT 'Dev.x' FROM OTHER.T")]
     [InlineData("select t.DEV.x from t", "SELECT T.DEV.X FROM T")]
+    [InlineData("select count ( * ) , max(a)from t", "SELECT COUNT (*), MAX (A) FROM T")]
     public void Normalize_ignores_spaces_comments_case_and_the_own_schema(string text, string expected) =>
         Assert.Equal(expected, ViewText.Normalize(text, Ref));
 
@@ -78,7 +79,7 @@ public class ViewDefinitionTests
 
         Assert.Equal([CompareKind.Definition, CompareKind.Status, CompareKind.Column, CompareKind.Column], row.Children.Select(c => c.Kind));
         Assert.False(row.HasDifferences);
-        Assert.Equal("SELECT ID , NAME FROM KUNDE", row.Children[0].Cells[0].Definition);
+        Assert.Equal("SELECT ID, NAME FROM KUNDE", row.Children[0].Cells[0].Definition);
         Assert.Equal("VALID", row.Children[1].Cells[1].Definition);
         Assert.Equal("V/def", row.Children[0].Key);
         Assert.Same(row.Cells[1].Object, row.Children[0].Cells[1].Object);
@@ -97,7 +98,7 @@ public class ViewDefinitionTests
     {
         Assert.True(Compare([View("V", "select id, name from kunde")], [View("V", "select id, name from kunde where id > 0")]).Objects[0].Children[0].Differs);
         Assert.True(Compare([View("V", "select id, name from kunde", option: ViewOption.ReadOnly)], [View("V", "select id, name from kunde")]).Objects[0].Children[0].Differs);
-        Assert.Equal("SELECT ID , NAME FROM KUNDE WITH READ ONLY",
+        Assert.Equal("SELECT ID, NAME FROM KUNDE WITH READ ONLY",
             Compare([View("V", "select id, name from kunde", option: ViewOption.ReadOnly)], []).Objects[0].Children[0].Cells[0].Definition);
     }
 
