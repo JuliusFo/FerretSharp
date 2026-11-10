@@ -4,9 +4,11 @@ using FerretSharp.Testing;
 namespace FerretSharp.UI.Tests.Components.Common;
 
 /// <summary>
-/// The general rules of every dialog (<c>.dialog</c>, <c>.dialog header</c>) stand far down in ferretsharp.css. A rule
-/// for one dialog's class with the same specificity that stands before them loses silently: <c>.sql-dialog</c> was
-/// never 900 px wide, its header never <c>flex-start</c> (review small-compare-ddl-dialog-header).
+/// The general rules of every dialog (<c>.modal</c>, <c>.dialog</c>, <c>.dialog header</c>, <c>.dialog footer</c> …)
+/// stand far down in ferretsharp.css. A rule for one dialog's class with the same specificity that stands before them
+/// loses silently: <c>.sql-dialog</c> was never 900 px wide, its header never <c>flex-start</c> (review
+/// small-compare-ddl-dialog-header). Limit: properties are compared by name, a longhand before its shorthand
+/// (<c>padding-top</c> before <c>padding</c>) is not found.
 /// </summary>
 public sealed partial class DialogStyleTests
 {
@@ -20,20 +22,30 @@ public sealed partial class DialogStyleTests
                           Properties: Properties(m.Groups[2].Value)))
             .ToList();
 
+        // Every selector of the general rules, with the class it starts with: ".dialog footer" → (".dialog", " footer").
+        var general = rules.SelectMany(r => r.Selectors)
+            .Select(s => GeneralSelector().Match(s))
+            .Where(m => m.Success)
+            .Select(m => (Selector: m.Value, Descendants: m.Groups[2].Value))
+            .Distinct()
+            .ToList();
+        Assert.Contains(general, g => g.Selector == ".dialog");
+        Assert.Contains(general, g => g.Selector == ".dialog header");
+
         var problems = new List<string>();
         foreach (var dialogClass in DialogClasses())
         {
-            foreach (var (general, own) in new[] { (".dialog", "." + dialogClass), (".dialog header", "." + dialogClass + " header") })
+            foreach (var (selector, descendants) in general)
             {
-                var generalRules = rules.Where(r => r.Selectors.Contains(general)).ToList();
-                Assert.NotEmpty(generalRules);
+                var own = "." + dialogClass + descendants;
+                var generalRules = rules.Where(r => r.Selectors.Contains(selector)).ToList();
                 foreach (var rule in rules.Where(r => r.Selectors.Contains(own)))
                 {
                     problems.AddRange(generalRules
                         .Where(g => g.Position > rule.Position)
                         .SelectMany(g => rule.Properties.Intersect(g.Properties))
                         .Distinct()
-                        .Select(property => $"{own} {{ {property} }} loses to the later {general}"));
+                        .Select(property => $"{own} {{ {property} }} loses to the later {selector}"));
                 }
             }
         }
@@ -65,6 +77,10 @@ public sealed partial class DialogStyleTests
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex Spaces();
+
+    /// <summary>A selector of the general dialog rules: <c>.modal</c> or <c>.dialog</c> alone or with descendants (not <c>.dialog.x</c>, <c>.dialog-body</c>).</summary>
+    [GeneratedRegex(@"^(\.dialog|\.modal)((?: .+)?)$")]
+    private static partial Regex GeneralSelector();
 
     [GeneratedRegex(@"<ModalFrame\b[^>]*?\bClass=""([^""@]*)""")]
     private static partial Regex FrameClass();
