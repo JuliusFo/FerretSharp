@@ -596,7 +596,7 @@
     /// again (WP-57) – in the order the headers sort.
     /// </summary>
     private AllColumnValues AllValuesOf(IReadOnlyList<int> columns) => LoadedRows() is { } rows
-        ? ColumnValueCopies.ForLoaded(rows, columns, WorkspaceId, Held is null ? null : HeldHeading)
+        ? ColumnValueCopies.ForLoaded(rows, columns, WorkspaceId, Held is null ? null : HeldHeading ?? GridText.GridMenu_AllResultRowsGroup)
         : ColumnValueCopies.ForResult(_order.Query, _columns, columns, _allLoaded ? _rowsLoaded : null, WorkspaceId, Workspaces.GetDataAsync);
 
     /// <summary>A column as the result presents it; the names of a traced foreign key follow it with the same source.</summary>

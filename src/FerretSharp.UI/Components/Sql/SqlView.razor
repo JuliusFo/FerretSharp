@@ -758,8 +758,7 @@
             return;
         }
 
-        Tab.Results.Show(run);
-        _grid = null;
+        Tab.Results.Show(run); // a grid whose rows were held already stays and keeps its status; a new one reports its own
     }
 
     /// <summary>The shortcut: keeps the result shown, or lets it go if it is kept.</summary>

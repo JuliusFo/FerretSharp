@@ -150,7 +150,7 @@
         : @<button type="button" class="matrix-cell" disabled="@(cell.Unavailable is not null)" title="@cell.Tooltip" aria-label="@cell.Label" @onclick="cell.Run">@icon</button>;
 
     private static string AllRowsTitle(AllRowsExport all, string format) =>
-        all.Heading + Environment.NewLine + format + Environment.NewLine + GridText.GridMenu_AllRowsTitle;
+        all.Heading + Environment.NewLine + format + Environment.NewLine + all.Note;
 
     private Task CopyTableAsync() =>
         Export.CopyAsync(DelimitedExport.Build(Table, Rows, DelimitedExport.ClipboardSeparator), ExportCopy.Table);

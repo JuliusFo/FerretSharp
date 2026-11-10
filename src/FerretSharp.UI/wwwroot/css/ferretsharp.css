@@ -1474,6 +1474,7 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .result-header-line .spacer { flex: 1; }
 .result-header-sql { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); }
 .result-header-meta { flex: none; white-space: nowrap; }
+.result-header-meta.muted { color: var(--muted); }
 .result-header-line .warn { color: var(--warn); }
 .result-header .btn.small { height: 22px; padding: 0 8px; font-size: 11.5px; }
 .result-kept-mark { display: inline-flex; color: var(--accent); }

@@ -74,13 +74,16 @@ public static class ColumnValueCopies
     /// </summary>
     /// <param name="rows">Every row of the result, in grid order.</param>
     /// <param name="wanted">Indexes of the result's columns whose values are wanted.</param>
-    /// <param name="headingFormat">The menu group's heading (<c>{0}</c>: the rows); null for all rows of the result – WP-81 names kept rows.</param>
-    public static AllColumnValues ForLoaded(IReadOnlyList<RowData> rows, IReadOnlyList<int> wanted, Guid workspaceId, string? headingFormat = null) =>
-        new(AllRowsExports.Heading(headingFormat ?? GridText.GridMenu_AllResultRowsGroup, rows.Count),
+    /// <param name="heldHeading">
+    /// Rows the result holds (WP-81: kept, or loaded up to the limit) – maybe not all of it: the menu group's heading for
+    /// them (<c>{0}</c>: the rows); null for a result whose rows are all loaded.
+    /// </param>
+    public static AllColumnValues ForLoaded(IReadOnlyList<RowData> rows, IReadOnlyList<int> wanted, Guid workspaceId, string? heldHeading = null) =>
+        new(AllRowsExports.Heading(heldHeading ?? GridText.GridMenu_AllResultRowsGroup, rows.Count),
             rows.Count,
             _ => RowExport.FromRows(rows),
             wanted,
-            TextFormat.Format(GridText.ColumnMenu_LoadedResultValuesTitle, ColumnValues.MaxValues),
+            TextFormat.Format(heldHeading is null ? GridText.ColumnMenu_LoadedResultValuesTitle : GridText.ColumnMenu_HeldValuesTitle, ColumnValues.MaxValues),
             workspaceId);
 
     /// <summary>

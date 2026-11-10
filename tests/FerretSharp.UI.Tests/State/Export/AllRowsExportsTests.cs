@@ -3,6 +3,7 @@ using FerretSharp.Core.Data;
 using FerretSharp.Core.Display;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
+using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using NSubstitute;
 
@@ -146,6 +147,7 @@ public sealed class AllRowsExportsTests
         Assert.Equal([workspace], _workspaces);
         Assert.Equal(rows.Count, all.Total);
         Assert.Equal("Behaltene Zeilen · " + ExportActions.RowsText(rows.Count), all.Heading);
+        Assert.Equal(GridText.GridMenu_HeldRowsTitle, all.Note); // the tooltip does not claim to read again
     }
 
     /// <summary>WP-73: a result's names beside foreign keys are looked up anew while reading, as a table's are.</summary>

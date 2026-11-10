@@ -23,7 +23,11 @@ public sealed record AllRowsExcel(IReadOnlyList<ExportColumn> Columns, DisplayNa
 /// on every opening of the menu.
 /// </param>
 /// <param name="WorkspaceId">The workspace whose session reads the rows (<see cref="BackgroundRead.WorkspaceId"/>).</param>
-public sealed record AllRowsExport(string Heading, RowReader Read, long? Total, Func<AllRowsExcel> Excel, Guid WorkspaceId);
+public sealed record AllRowsExport(string Heading, RowReader Read, long? Total, Func<AllRowsExcel> Excel, Guid WorkspaceId)
+{
+    /// <summary>What the export does, under heading and format in its tooltip: read again, or write the rows held (WP-81).</summary>
+    public string Note { get; init; } = GridText.GridMenu_AllRowsTitle;
+}
 
 /// <summary>What "all rows" of a table tab and of a SQL editor result read and write (WP-54).</summary>
 public static class AllRowsExports
@@ -126,7 +130,10 @@ public static class AllRowsExports
                 var names = FreshNames(gridNames, presentationOf);
                 return new AllRowsExcel(xlsxColumns(names), names);
             },
-            workspaceId);
+            workspaceId)
+        {
+            Note = GridText.GridMenu_HeldRowsTitle,
+        };
 
     /// <summary>The rows of a table tab's query, if known: counted, or all loaded.</summary>
     internal static long? TotalOf(TableTab tab) => tab.TotalCount ?? (tab.AllRowsLoaded ? tab.RowsLoaded : null);

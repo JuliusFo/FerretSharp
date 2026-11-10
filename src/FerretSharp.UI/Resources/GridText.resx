@@ -1846,4 +1846,12 @@
     <value>Loaded rows{0}</value>
     <comment>Menu group heading of a SQL result whose rows were loaded up to the limit (WP-81); {0}: " · 10,000 rows"</comment>
   </data>
+  <data name="GridMenu_HeldRowsTitle" xml:space="preserve">
+    <value>Writes the rows the result holds, as they were read – the query does not run again.</value>
+    <comment>Tooltip of exporting a kept SQL result (WP-81)</comment>
+  </data>
+  <data name="ColumnMenu_HeldValuesTitle" xml:space="preserve">
+    <value>The values come from the rows the result holds, as they were read – the query does not run again. More than {0:N0} values are not copied.</value>
+    <comment>Tooltip in a kept SQL result (WP-81); {0}: the limit</comment>
+  </data>
 </root>
