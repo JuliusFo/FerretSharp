@@ -3,8 +3,19 @@
 @using FerretSharp.Core.Compare
 
 <ModalFrame Label="@CompareViewText.CompareDdl_Title" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+    @* Title and buttons in the header like every dialog; the two sides in a row of their own below – with long
+       connection names both selects together are wider than the dialog, and the header clipped Close away. *@
     <header>
         <span>@CompareViewText.CompareDdl_Title</span>
+        <span class="spacer"></span>
+        @if (_proposal is { Steps.Count: > 0 } runnable)
+        {
+            <button class="btn" title="@TextFormat.Format(CompareViewText.CompareDdl_OpenInEditorTitle, Labels[_target])"
+                    @onclick="() => OnOpenInEditor.InvokeAsync(runnable)">@CommonText.OpenInSqlEditor</button>
+        }
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
+    </header>
+    <div class="compare-ddl-sides">
         <Fmt Text="@CompareViewText.CompareDdl_AlignTo">
             <Arg0>
                 <select title="@CompareViewText.CompareDdl_TargetTitle" @bind="_target" @bind:after="Build">
@@ -23,38 +34,33 @@
                 </select>
             </Arg1>
         </Fmt>
-        <span class="spacer"></span>
-        @if (_proposal is { Steps.Count: > 0 } runnable)
-        {
-            <button class="btn" title="@TextFormat.Format(CompareViewText.CompareDdl_OpenInEditorTitle, Labels[_target])"
-                    @onclick="() => OnOpenInEditor.InvokeAsync(runnable)">@CommonText.OpenInSqlEditor</button>
-        }
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
-    </header>
-    <div class="settings-note compare-ddl-note">
-        @CompareViewText.CompareDdl_Note
     </div>
-    @if (_error is { } error)
-    {
-        <div class="test-result error"><span>@error</span></div>
-    }
-    else if (_proposal is { } proposal)
-    {
-        @if (proposal.Steps.Count == 0)
+    <div class="sql-dialog-body">
+        <div class="settings-note compare-ddl-note">
+            @CompareViewText.CompareDdl_Note
+        </div>
+        @if (_error is { } error)
         {
-            <div class="compare-none">@(proposal.Selected is null ? CompareViewText.CompareDdl_NoDifferences : CompareViewText.CompareDdl_ChosenAlike)</div>
+            <div class="test-result error"><span>@error</span></div>
         }
-        else
+        else if (_proposal is { } proposal)
         {
-            @if (proposal.Unchanged.Count > 0)
+            @if (proposal.Steps.Count == 0)
             {
-                <div class="settings-note compare-ddl-note" title="@(proposal.Unchanged.Count > UnchangedShown ? string.Join(", ", proposal.Unchanged) : null)">
-                    @TextFormat.Format(CompareViewText.CompareDdl_Unchanged, UnchangedList(proposal.Unchanged))
-                </div>
+                <div class="compare-none">@(proposal.Selected is null ? CompareViewText.CompareDdl_NoDifferences : CompareViewText.CompareDdl_ChosenAlike)</div>
             }
-            <SqlCode Sql="@proposal.Script" />
+            else
+            {
+                @if (proposal.Unchanged.Count > 0)
+                {
+                    <div class="settings-note compare-ddl-note" title="@(proposal.Unchanged.Count > UnchangedShown ? string.Join(", ", proposal.Unchanged) : null)">
+                        @TextFormat.Format(CompareViewText.CompareDdl_Unchanged, UnchangedList(proposal.Unchanged))
+                    </div>
+                }
+                <SqlCode Sql="@proposal.Script" />
+            }
         }
-    }
+    </div>
 </ModalFrame>
 
 @code {
