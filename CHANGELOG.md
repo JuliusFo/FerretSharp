@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- *Schema comparison › DDL proposal*: with long connection names the header ran past the dialog and cut off *Open in SQL editor* and Close. The two sides (*Align … to …*) now have a row of their own below the title and wrap in a narrow window; the buttons stay top right as in every dialog. The dialog is as wide as intended again (up to 900 px instead of 640 px).
+
 ## [3.68.0] - 2026-11-10
 
 Keep a result in the SQL editor while the next statement runs, copy DDL without the owner, and choose the objects of the schema comparison’s DDL proposal.
