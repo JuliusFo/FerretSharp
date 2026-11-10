@@ -12,6 +12,33 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="ExportUnknown" xml:space="preserve">
+    <value>{0} (ungültig, nicht verglichen)</value>
+  </data>
+  <data name="MaterializedViewBuildImmediate" xml:space="preserve">
+    <value>Beim Anlegen läuft die Abfrage und speichert ihre Zeilen (BUILD IMMEDIATE).</value>
+  </data>
+  <data name="MaterializedViewDefinitionUnreadable" xml:space="preserve">
+    <value>Die Definition der Materialized View ließ sich nicht vollständig lesen (länger als 32.767 Zeichen oder nicht sichtbar): aus der DDL-Ansicht der Referenz übernehmen.</value>
+  </data>
+  <data name="MaterializedViewFastRefresh" xml:space="preserve">
+    <value>REFRESH FAST braucht Materialized View Logs auf den Tabellen der Abfrage; ohne sie scheitert das Anlegen (ORA-23413).</value>
+  </data>
+  <data name="MaterializedViewInvalidInReference" xml:space="preserve">
+    <value>Die Materialized View ist in der Referenz ungültig: Das Statement kann auch im Ziel scheitern.</value>
+  </data>
+  <data name="MaterializedViewPrebuilt" xml:space="preserve">
+    <value>In der Referenz auf einer vorhandenen Tabelle angelegt (ON PREBUILT TABLE): erst die Tabelle anlegen und ON PREBUILT TABLE von Hand ergänzen.</value>
+  </data>
+  <data name="MaterializedViewRecreate" xml:space="preserve">
+    <value>Eine Materialized View lässt sich nicht ersetzen: DROP entfernt ihre Zeilen, das neue Anlegen füllt sie wieder aus der Abfrage. Beide Statements nur bewusst ausführen.</value>
+  </data>
+  <data name="RowDefinition" xml:space="preserve">
+    <value>Definition</value>
+  </data>
+  <data name="RowStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
   <data name="StepConnecting" xml:space="preserve">
     <value>Verbinde</value>
   </data>
@@ -93,11 +120,8 @@
   <data name="KindDiffersWarning" xml:space="preserve">
     <value>Lässt sich nicht umwandeln: Objekt im Ziel löschen und nach der DDL der Referenz neu anlegen.</value>
   </data>
-  <data name="ViewDefinitionNotCompared" xml:space="preserve">
-    <value>Die Definition der View gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.</value>
-  </data>
-  <data name="MaterializedViewDefinitionNotCompared" xml:space="preserve">
-    <value>Die Definition der Materialized View gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.</value>
+  <data name="ViewDefinitionUnreadable" xml:space="preserve">
+    <value>Die Definition der View ließ sich nicht vollständig lesen (länger als 32.767 Zeichen oder nicht sichtbar): aus der DDL-Ansicht der Referenz übernehmen.</value>
   </data>
   <data name="ViewDiffers" xml:space="preserve">
     <value>(abweichend: {0})</value>
@@ -257,5 +281,11 @@
   </data>
   <data name="ReferencedTableNotChosen" xml:space="preserve">
     <value>Verweist auf {0}, das im Ziel fehlt und nicht ausgewählt ist: scheitert (ORA-00942), wenn {0} nicht vorher angelegt wird.</value>
+  </data>
+  <data name="ViewInvalidInReference" xml:space="preserve">
+    <value>Die View ist in der Referenz ungültig: Das Statement kann auch im Ziel scheitern.</value>
+  </data>
+  <data name="ViewNamesReferenceSchema" xml:space="preserve">
+    <value>Die Abfrage nennt das Schema der Referenz ({0}) – im Ziel läse sie weiter von dort; anpassen.</value>
   </data>
 </root>

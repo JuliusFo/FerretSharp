@@ -91,7 +91,7 @@ public static class SchemaDdl
                 .Select(row => row.Cells[reference].Object!.Name)
                 .ToHashSet(StringComparer.Ordinal);
 
-        var writer = new DdlWriter(reference, target, referenceOwner, targetOwner, comparison.Options, notCreated);
+        var writer = new DdlWriter(reference, target, referenceOwner, targetOwner, comparison.Options, notCreated, ViewRanks(comparison.Sides[reference]));
         var unchanged = new List<string>();
         foreach (var row in chosen)
         {
@@ -110,5 +110,40 @@ public static class SchemaDdl
             Selected = keys is null ? null : chosen.Count,
             Unchanged = keys is null ? [] : unchanged,
         };
+    }
+
+    /// <summary>
+    /// Per view and materialized view of <paramref name="side"/>: 0 if it selects from no other of them, else one more than
+    /// the deepest it selects from (WP-82). A cycle, which Oracle does not allow, ends at 0.
+    /// </summary>
+    internal static Dictionary<string, int> ViewRanks(SchemaSnapshot side)
+    {
+        var dependsOn = side.Objects.Where(o => o.DependsOn is { Count: > 0 }).ToDictionary(o => o.Name, o => o.DependsOn!, StringComparer.Ordinal);
+        var ranks = new Dictionary<string, int>(StringComparer.Ordinal);
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var name in dependsOn.Keys)
+        {
+            Rank(name);
+        }
+
+        return ranks;
+
+        int Rank(string name)
+        {
+            if (ranks.TryGetValue(name, out var known))
+            {
+                return known;
+            }
+
+            if (!dependsOn.TryGetValue(name, out var on) || !visiting.Add(name))
+            {
+                return 0;
+            }
+
+            var rank = on.Max(n => Rank(n) + 1);
+            visiting.Remove(name);
+            ranks[name] = rank;
+            return rank;
+        }
     }
 }

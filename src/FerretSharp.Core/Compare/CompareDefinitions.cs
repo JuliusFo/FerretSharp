@@ -1,5 +1,6 @@
 using System.Text;
 
+using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Compare;
@@ -71,6 +72,51 @@ internal static class CompareDefinitions
 
         return text.ToString();
     }
+
+    /// <summary>
+    /// The query of a view or materialized view as compared (WP-82): <see cref="ViewText.Normalize"/>, then for a view
+    /// <c>WITH READ ONLY</c> or <c>WITH CHECK OPTION</c> unless the text already ends so, for a materialized view its refresh
+    /// clause and <c>ENABLE QUERY REWRITE</c> after a <c>·</c>. <c>…</c> marks a text cut at the LONG fetch limit; <c>?</c>
+    /// one the dictionary did not show.
+    /// </summary>
+    /// <param name="owner">The side's schema: its prefix in the text does not count, so <c>ERP</c> and <c>ERP_TEST</c> agree.</param>
+    public static string ViewDefinition(ObjectSnapshot o, string owner)
+    {
+        if (o.Definition is not { } definition)
+        {
+            return "?";
+        }
+
+        var text = new StringBuilder(ViewText.Normalize(definition, owner));
+        if (o.DefinitionTruncated)
+        {
+            text.Append(" …");
+        }
+
+        switch (o.ViewOption)
+        {
+            case ViewOption.ReadOnly when !ViewText.EndsWith(definition, "WITH", "READ", "ONLY"):
+                text.Append(" WITH READ ONLY");
+                break;
+            case ViewOption.CheckOption when !ViewText.HasCheckOption(definition):
+                text.Append(" WITH CHECK OPTION");
+                break;
+        }
+
+        if (o.MView is { } mview)
+        {
+            text.Append(" · ").Append(mview.RefreshClause);
+            if (mview.QueryRewrite)
+            {
+                text.Append(" · ENABLE QUERY REWRITE");
+            }
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary><c>VALID</c> or <c>INVALID</c> (WP-82).</summary>
+    public static string Status(ObjectSnapshot o) => o.Invalid ? "INVALID" : "VALID";
 
     /// <summary>
     /// The default expression normalized; null without one. <c>DEFAULT NULL</c> is no default: Oracle keeps the text

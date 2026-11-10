@@ -29,14 +29,21 @@ public static class DdlScript
         DdlStepKind.ReplaceConstraint => 10,
         DdlStepKind.DropIndex or DdlStepKind.CreateIndex => 11,
         DdlStepKind.Comment => 12,
-        DdlStepKind.PlSqlObject or DdlStepKind.Synonym or DdlStepKind.Grant or DdlStepKind.CreateView => 13,
+        DdlStepKind.PlSqlObject or DdlStepKind.Synonym or DdlStepKind.Grant or DdlStepKind.CreateView or DdlStepKind.ViewComment => 13,
         _ => 14,
     };
 
     /// <summary>The steps in the order they run: by <see cref="Stage"/>, then by object (ordinal), then as written.</summary>
-    public static IReadOnlyList<DdlStep> Order(IEnumerable<DdlStep> steps) =>
+    public static IReadOnlyList<DdlStep> Order(IEnumerable<DdlStep> steps) => Order(steps, _ => 0);
+
+    /// <summary>
+    /// As <see cref="Order(IEnumerable{DdlStep})"/>, with <paramref name="rank"/> between stage and object: views that use
+    /// other views of the script after them (WP-82).
+    /// </summary>
+    public static IReadOnlyList<DdlStep> Order(IEnumerable<DdlStep> steps, Func<DdlStep, int> rank) =>
         steps.Select((step, i) => (Step: step, Index: i))
             .OrderBy(s => Stage(s.Step.Kind))
+            .ThenBy(s => rank(s.Step))
             .ThenBy(s => s.Step.Object, StringComparer.Ordinal)
             .ThenBy(s => s.Index)
             .Select(s => s.Step)

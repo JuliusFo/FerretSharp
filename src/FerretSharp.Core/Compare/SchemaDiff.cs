@@ -1,3 +1,4 @@
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Compare;
@@ -19,6 +20,9 @@ namespace FerretSharp.Core.Compare;
 /// another side joins the named row (the side may lack the name because the DDL there had none): one row that shows
 /// the other name in <see cref="CompareCell.Name"/> rather than a missing and an extra row. Names alone are no
 /// difference here; renaming is left to the user.</item>
+/// <item>Views and materialized views get a definition row (their normalized query, <see cref="CompareDefinitions.ViewDefinition"/>)
+/// and a status row (VALID/INVALID) before their columns (WP-82). The columns of an invalid view have the type
+/// <c>UNDEFINED</c>: such a cell is <see cref="CellState.Unknown"/>, no difference.</item>
 /// <item>The <c>IOT - TOP</c> index of an index-organized table is left out: it is the primary key (its own row) and
 /// cannot be created or dropped by itself; the organization shows in the object's definition.</item>
 /// </list>
@@ -73,7 +77,8 @@ public static class SchemaDiff
 
     /// <summary>A side's entry of a row before states and groups are known.</summary>
     /// <param name="Name">The side's own name when it differs from the row's.</param>
-    private readonly record struct Entry(string? Definition, bool OtherCase = false, string? Name = null);
+    /// <param name="Unknown">The side has it, but its definition is not known (<see cref="CellState.Unknown"/>).</param>
+    private readonly record struct Entry(string? Definition, bool OtherCase = false, string? Name = null, bool Unknown = false);
 
     // ---- objects ---------------------------------------------------------------------------------------------------
 
@@ -93,7 +98,30 @@ public static class SchemaDiff
             _ => CompareKind.Table,
         };
 
-        return new CompareRow(match.Name, kind, match.Name, cells, [.. ColumnRows(context, objects), .. ConstraintRows(context, objects), .. IndexRows(context, objects)]);
+        return new CompareRow(match.Name, kind, match.Name, cells,
+            [.. ViewRows(context, objects), .. ColumnRows(context, objects), .. ConstraintRows(context, objects), .. IndexRows(context, objects)]);
+    }
+
+    /// <summary>Definition and status of the sides where the object is a view or materialized view; none if it is a table everywhere.</summary>
+    private static IEnumerable<CompareRow> ViewRows(Context context, ObjectSnapshot?[] objects)
+    {
+        var views = objects.Select(o => o is { Kind: not TableKind.Table } ? o : null).ToArray();
+        if (views.All(v => v is null))
+        {
+            return [];
+        }
+
+        return
+        [
+            Row("def", CompareKind.Definition, CompareText.RowDefinition, (v, s) => CompareDefinitions.ViewDefinition(v, context.Sides[s].Owner)),
+            Row("status", CompareKind.Status, CompareText.RowStatus, (v, _) => CompareDefinitions.Status(v)),
+        ];
+
+        CompareRow Row(string key, CompareKind kind, string name, Func<ObjectSnapshot, int, string> definition)
+        {
+            var entries = views.Select((v, s) => v is null ? new Entry(null) : new Entry(definition(v, s))).ToList();
+            return new CompareRow(key, kind, name, Cells(context, entries).Select((cell, s) => cell with { Object = views[s] }).ToList(), []);
+        }
     }
 
     // ---- columns ---------------------------------------------------------------------------------------------------
@@ -136,7 +164,8 @@ public static class SchemaDiff
                 : new Entry(
                     CompareDefinitions.Column(c, objects[s]!.Kind, context.Options.ColumnOrder ? match.Items[s] + 1 : null),
                     c.Name != match.Name,
-                    c.Name != match.Name ? c.Name : null)).ToList();
+                    c.Name != match.Name ? c.Name : null,
+                    Unknown: objects[s]!.Invalid && c.DataType == "UNDEFINED")).ToList();
             var cells = Cells(context, entries).Select((cell, s) => cell with { Column = columns[s] }).ToList();
             return new CompareRow("col/" + match.Name, CompareKind.Column, match.Name, cells, []);
         });
@@ -351,14 +380,15 @@ public static class SchemaDiff
 
     /// <summary>
     /// Groups by equal definition in order of first appearance from the left; states against the reference, or – without
-    /// one – Same when all sides that have the object agree.
+    /// one – Same when all sides that have the object agree. An unknown definition is in no group and counts for nothing:
+    /// against an unknown reference the other sides are Same.
     /// </summary>
     private static List<CompareCell> Cells(Context context, IReadOnlyList<Entry> entries)
     {
         var distinct = new List<string>();
         var groups = entries.Select(e =>
         {
-            if (e.Definition is not { } definition)
+            if (e.Definition is not { } definition || e.Unknown)
             {
                 return -1;
             }
@@ -377,7 +407,9 @@ public static class SchemaDiff
         {
             var state = e.Definition is null ? CellState.Missing
                 : e.OtherCase ? CellState.OtherCase
-                : context.Options.Reference is { } r ? (groups[r] >= 0 && groups[s] == groups[r] ? CellState.Same : CellState.Different)
+                : e.Unknown ? CellState.Unknown
+                : context.Options.Reference is { } r && entries[r].Unknown ? CellState.Same
+                : context.Options.Reference is { } r2 ? (groups[r2] >= 0 && groups[s] == groups[r2] ? CellState.Same : CellState.Different)
                 : distinct.Count == 1 ? CellState.Same
                 : CellState.Different;
             return new CompareCell(state, groups[s], e.Definition) { Name = e.Name };

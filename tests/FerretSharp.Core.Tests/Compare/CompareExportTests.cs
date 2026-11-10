@@ -15,6 +15,8 @@ public sealed class CompareExportTests
         new CompareRow("AUFTRAG", CompareKind.Table, "AUFTRAG", [Same("TABLE"), Same("TABLE"), Same("TABLE")],
         [
             new CompareRow("AUFTRAG/col/ID", CompareKind.Column, "ID", [Same("NUMBER(10) NOT NULL"), Same("NUMBER(10) NOT NULL"), Same("NUMBER(10) NOT NULL")], []),
+            new CompareRow("AUFTRAG/col/NAME", CompareKind.Column, "NAME",
+                [Same("VARCHAR2(50) NULL"), new CompareCell(CellState.Unknown, -1, "UNDEFINED NULL"), Same("VARCHAR2(50) NULL")], []),
         ]),
         new CompareRow("KUNDEN", CompareKind.Table, "KUNDEN", [Same("TABLE"), Same("TABLE"), Same("TABLE")],
         [
@@ -50,6 +52,7 @@ public sealed class CompareExportTests
 
         Assert.Contains("| **AUFTRAG** | TABLE (Referenz) | TABLE | TABLE |", text);
         Assert.Contains("| AUFTRAG · ID | NUMBER(10) NOT NULL (Referenz) |", text);
+        Assert.Contains("| AUFTRAG · NAME | VARCHAR2(50) NULL (Referenz) | UNDEFINED NULL (ungültig, nicht verglichen) |", text); // WP-82
     }
 
     [Fact]

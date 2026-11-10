@@ -14,6 +14,12 @@ public enum CompareKind
     ForeignKey,
     Check,
     Index,
+
+    /// <summary>The query of a view or materialized view with its options (WP-82); the first child of such a row.</summary>
+    Definition,
+
+    /// <summary>VALID or INVALID of a view or materialized view (WP-82); after <see cref="Definition"/>.</summary>
+    Status,
 }
 
 /// <summary>How a side looks for one row.</summary>
@@ -33,6 +39,12 @@ public enum CellState
     /// and EF Core (which quotes names) these are two names; shown as its own difference.
     /// </summary>
     OtherCase,
+
+    /// <summary>
+    /// The side has it, but its definition is unknown and not compared: a column of an invalid view, whose type the
+    /// dictionary shows as <c>UNDEFINED</c> (WP-82). No difference; the view's status row shows the cause.
+    /// </summary>
+    Unknown,
 }
 
 /// <summary>Options of a comparison (decisions of the user, docs/work-packages/wp-20-schema-compare.md).</summary>
@@ -43,7 +55,8 @@ public sealed record CompareOptions(int? Reference = null, bool ColumnOrder = fa
 /// <summary>One side of a row.</summary>
 /// <param name="Group">
 /// Sides with the same group have the same definition (0, 1 … in order of first appearance from the left); -1 if the
-/// side does not have the object. Lets the view colour variants without a reference.
+/// side does not have the object or its definition is <see cref="CellState.Unknown"/>. Lets the view colour variants
+/// without a reference.
 /// </param>
 /// <param name="Definition">The compared definition as one line of text, e.g. <c>VARCHAR2(200 CHAR) NOT NULL DEFAULT 'x'</c>; null if missing.</param>
 public sealed record CompareCell(CellState State, int Group, string? Definition)
@@ -51,7 +64,7 @@ public sealed record CompareCell(CellState State, int Group, string? Definition)
     /// <summary>The side's name of the object when it differs from the row's name (<see cref="CellState.OtherCase"/>, generated constraint names).</summary>
     public string? Name { get; init; }
 
-    /// <summary>The object itself on this side, for DDL generation and details: set for table/view rows.</summary>
+    /// <summary>The object itself on this side, for DDL generation and details: set for table/view rows and their definition and status rows.</summary>
     public ObjectSnapshot? Object { get; init; }
 
     /// <summary>Set for column rows.</summary>
@@ -74,11 +87,11 @@ public sealed record CompareCell(CellState State, int Group, string? Definition)
 /// matched by content) – a description such as <c>CHECK (MENGE &gt; 0)</c> or <c>INDEX (KUNDE_ID)</c>.
 /// </param>
 /// <param name="Cells">One per side, in the order of <see cref="SchemaComparison.Sides"/>.</param>
-/// <param name="Children">Columns, then constraints, then indexes (object rows only).</param>
+/// <param name="Children">Definition and status (views and materialized views), columns, constraints, indexes (object rows only).</param>
 public sealed record CompareRow(string Key, CompareKind Kind, string Name, IReadOnlyList<CompareCell> Cells, IReadOnlyList<CompareRow> Children)
 {
-    /// <summary>The row itself differs between sides (missing, different, other case).</summary>
-    public bool Differs => Cells.Any(c => c.State != CellState.Same);
+    /// <summary>The row itself differs between sides (missing, different, other case); an unknown definition does not count.</summary>
+    public bool Differs => Cells.Any(c => c.State is not (CellState.Same or CellState.Unknown));
 
     /// <summary>The row or one of its children differs.</summary>
     public bool HasDifferences => Differs || Children.Any(c => c.HasDifferences);

@@ -49,8 +49,14 @@ public enum DdlStepKind
     /// <summary>GRANT or REVOKE of object privileges (WP-71).</summary>
     Grant,
 
-    /// <summary>CREATE VIEW over a query built in the relationship diagram (WP-69).</summary>
+    /// <summary>
+    /// CREATE VIEW over a query built in the relationship diagram (WP-69); CREATE [OR REPLACE] VIEW, CREATE MATERIALIZED
+    /// VIEW and ALTER … COMPILE of the schema comparison (WP-82).
+    /// </summary>
     CreateView,
+
+    /// <summary>COMMENT ON a view or materialized view the same script creates: after it, not with the table comments (WP-82).</summary>
+    ViewComment,
 
     /// <summary>A note for the user, no statement (a different organization, the definition of a view …); never runs.</summary>
     Hint,

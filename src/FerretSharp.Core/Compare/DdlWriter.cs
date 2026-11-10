@@ -16,14 +16,21 @@ namespace FerretSharp.Core.Compare;
 /// Reference names of tables the target lacks that this proposal does not create (left out of the user's choice): a
 /// foreign key to one of them gets a warning.
 /// </param>
-internal sealed class DdlWriter(int referenceSide, int targetSide, string referenceOwner, string targetOwner, CompareOptions options, IReadOnlySet<string> notCreated)
+/// <param name="viewRanks">
+/// Per view or materialized view of the reference: how deep it stands on others of the schema (0 = on none). Views of
+/// the script run in this order, so one exists before a view that selects from it (WP-82).
+/// </param>
+internal sealed class DdlWriter(
+    int referenceSide, int targetSide, string referenceOwner, string targetOwner, CompareOptions options, IReadOnlySet<string> notCreated,
+    IReadOnlyDictionary<string, int> viewRanks)
 {
     private readonly List<DdlStep> _steps = [];
 
     /// <summary>Steps written so far, hints included.</summary>
     public int Count => _steps.Count;
 
-    public IReadOnlyList<DdlStep> Steps() => DdlScript.Order(_steps);
+    public IReadOnlyList<DdlStep> Steps() =>
+        DdlScript.Order(_steps, step => step.Kind is DdlStepKind.CreateView or DdlStepKind.ViewComment ? viewRanks.GetValueOrDefault(step.Object) : 0);
 
     public void Object(CompareRow row)
     {
@@ -64,7 +71,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
     {
         if (table.Kind != TableKind.Table)
         {
-            Hint(table.Name, $"CREATE {ObjectKeyword(table.Kind)} {Qualified(table.Name)} AS …", DefinitionNotCompared(table.Kind));
+            CreateView(table);
             return;
         }
 
@@ -131,11 +138,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
 
         if (reference.Kind == TableKind.View)
         {
-            if (differing.Count > 0)
-            {
-                ViewHint(target, differing.Select(c => c.Row.Name));
-            }
-
+            AlignView(reference, target, differing);
             return;
         }
 
@@ -148,10 +151,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         var columns = differing.Where(c => c.Row.Kind == CompareKind.Column).ToList();
         if (reference.Kind == TableKind.MaterializedView)
         {
-            if (columns.Count > 0)
-            {
-                ViewHint(target, columns.Select(c => c.Row.Name));
-            }
+            AlignView(reference, target, differing);
         }
         else
         {
@@ -388,13 +388,127 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         }
     }
 
-    private void ViewHint(ObjectSnapshot target, IEnumerable<string> names) =>
-        Hint(target.Name,
-            $"CREATE OR REPLACE {ObjectKeyword(target.Kind)} {Qualified(target.Name)} AS …  {TextFormat.Format(CompareText.ViewDiffers, string.Join(", ", names))}",
-            DefinitionNotCompared(target.Kind));
+    // ---- views and materialized views (WP-82) ----
 
-    private static string DefinitionNotCompared(TableKind kind) =>
-        kind == TableKind.MaterializedView ? CompareText.MaterializedViewDefinitionNotCompared : CompareText.ViewDefinitionNotCompared;
+    /// <summary>
+    /// A view or materialized view the target lacks, from the reference's query: with the reference's column names (a
+    /// <c>CREATE VIEW v (a, b)</c> gave them, the query does not have them) and its comments after it.
+    /// </summary>
+    private void CreateView(ObjectSnapshot view)
+    {
+        if (!Readable(view))
+        {
+            Hint(view.Name, $"CREATE {ObjectKeyword(view.Kind)} {Qualified(view.Name)} AS …", Unreadable(view.Kind));
+            return;
+        }
+
+        var columns = view.Columns.Select(c => c.Name).ToList();
+        if (view.Kind == TableKind.MaterializedView)
+        {
+            var options = MViewOf(view);
+            var create = CreateMaterializedView(Target(view.Name), columns, view.Definition!, options);
+            if (options.Prebuilt)
+            {
+                Hint(view.Name, create, CompareText.MaterializedViewPrebuilt);
+                return;
+            }
+
+            Add(view.Name, DdlStepKind.CreateView, create, Join([CompareText.MaterializedViewBuildImmediate, .. MViewWarnings(view)]));
+        }
+        else
+        {
+            Add(view.Name, DdlStepKind.CreateView, OracleDdl.CreateView(Target(view.Name), columns, view.Definition!, orReplace: false, view.ViewOption),
+                Join(ViewWarnings(view)));
+        }
+
+        if (view.Comment is not null)
+        {
+            Add(view.Name, DdlStepKind.ViewComment, CommentOn(view.Kind, Target(view.Name), view.Comment));
+        }
+
+        foreach (var column in view.Columns.Where(c => c.Comment is not null))
+        {
+            Add(view.Name, DdlStepKind.ViewComment, CommentOnColumn(Target(view.Name), column.Name, column.Comment));
+        }
+    }
+
+    /// <summary>
+    /// A view or materialized view on both sides. Another query or other column names → the reference's definition (a
+    /// view replaced, a materialized view only as a commented DROP + CREATE: its rows would go, decision of the user,
+    /// 2026-11-10). Otherwise an invalid one compiled again. Column types alone follow the tables and need no step.
+    /// </summary>
+    private void AlignView(ObjectSnapshot reference, ObjectSnapshot target, IReadOnlyList<(CompareRow Row, CompareCell Reference, CompareCell Target)> differing)
+    {
+        var definition = differing.Any(c => c.Row.Kind == CompareKind.Definition);
+        var names = differing
+            .Where(c => c.Row.Kind == CompareKind.Column && (Present(c.Reference) != Present(c.Target) || c.Target.State == CellState.OtherCase))
+            .Select(c => c.Row.Name)
+            .ToList();
+        if (!definition && names.Count == 0)
+        {
+            if (target.Invalid && !reference.Invalid)
+            {
+                Add(target.Name, DdlStepKind.CreateView, Compile(target.Kind, Target(target.Name)));
+            }
+
+            return;
+        }
+
+        var columns = reference.Columns.Select(c => c.Name).ToList();
+        if (!Readable(reference))
+        {
+            IReadOnlyList<string> what = names.Count > 0 ? names : [CompareText.RowDefinition];
+            Hint(target.Name,
+                $"CREATE OR REPLACE {ObjectKeyword(target.Kind)} {Qualified(target.Name)} AS …  {TextFormat.Format(CompareText.ViewDiffers, string.Join(", ", what))}",
+                Unreadable(target.Kind));
+        }
+        else if (reference.Kind == TableKind.MaterializedView)
+        {
+            Hint(target.Name, DropObject(target.Kind, Target(target.Name)), CompareText.MaterializedViewRecreate);
+            Hint(target.Name, CreateMaterializedView(Target(target.Name), columns, reference.Definition!, MViewOf(reference)), Join(MViewWarnings(reference)));
+        }
+        else
+        {
+            Add(target.Name, DdlStepKind.CreateView,
+                OracleDdl.CreateView(Target(target.Name), columns, reference.Definition!, orReplace: true, reference.ViewOption),
+                Join(ViewWarnings(reference)));
+        }
+    }
+
+    /// <summary>The query is known in full: shown by the dictionary and not cut at the LONG fetch limit.</summary>
+    private static bool Readable(ObjectSnapshot view) => view.Definition is not null && !view.DefinitionTruncated;
+
+    private static MViewOptions MViewOf(ObjectSnapshot view) => view.MView ?? new MViewOptions("FORCE", "DEMAND", QueryRewrite: false, Prebuilt: false);
+
+    private static string Unreadable(TableKind kind) =>
+        kind == TableKind.MaterializedView ? CompareText.MaterializedViewDefinitionUnreadable : CompareText.ViewDefinitionUnreadable;
+
+    /// <summary>What a query copied from the reference may bring along: the reference's schema, its invalid state.</summary>
+    private IEnumerable<string> ViewWarnings(ObjectSnapshot view)
+    {
+        if (!string.Equals(referenceOwner, targetOwner, StringComparison.Ordinal) && ViewText.NamesSchema(view.Definition!, referenceOwner))
+        {
+            yield return TextFormat.Format(CompareText.ViewNamesReferenceSchema, referenceOwner);
+        }
+
+        if (view.Invalid)
+        {
+            yield return view.Kind == TableKind.MaterializedView ? CompareText.MaterializedViewInvalidInReference : CompareText.ViewInvalidInReference;
+        }
+    }
+
+    private IEnumerable<string> MViewWarnings(ObjectSnapshot view)
+    {
+        if (MViewOf(view).RefreshMethod == "FAST")
+        {
+            yield return CompareText.MaterializedViewFastRefresh;
+        }
+
+        foreach (var warning in ViewWarnings(view))
+        {
+            yield return warning;
+        }
+    }
 
     /// <summary>What a column copied from the reference may not bring along: identity options, schema names in its default.</summary>
     private IEnumerable<string> ColumnWarnings(ColumnInfo column)

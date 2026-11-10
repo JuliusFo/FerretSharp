@@ -57,6 +57,27 @@ public sealed partial class OracleSchemaReader
 
     private const string SnapshotIndexExpressionsSql = IndexExpressionsSelect;
 
+    // WP-82: view texts without LONG where they fit – TEXT_VC holds the first 4000 bytes, TEXT_LENGTH counts bytes. Only the
+    // longer ones come as LONG (32 KB a row in the fetch size, OracleReading.FetchManyRows).
+    private const string SnapshotViewTextsSql = "SELECT view_name, text_vc, text_length FROM all_views WHERE owner = :owner";
+
+    private const string SnapshotLongViewTextsSql = "SELECT view_name, text FROM all_views WHERE owner = :owner AND text_length > 4000";
+
+    // QUERY is LONG; materialized views are few.
+    private const string SnapshotMViewsSql = """
+        SELECT mview_name, query, refresh_method, refresh_mode, rewrite_enabled, build_mode
+          FROM all_mviews WHERE owner = :owner
+        """;
+
+    // Views and materialized views selecting from others of the schema. A materialized view also depends on its container
+    // table of the same name, which is left out.
+    private const string SnapshotDependenciesSql = """
+        SELECT DISTINCT name, referenced_name FROM all_dependencies
+         WHERE owner = :owner AND type IN ('VIEW', 'MATERIALIZED VIEW')
+           AND referenced_owner = :owner AND referenced_type IN ('VIEW', 'MATERIALIZED VIEW', 'TABLE')
+           AND referenced_name <> name
+        """;
+
     /// <summary>
     /// All columns of a schema (C# model comparison): <see cref="ColumnFields"/> in the same positions, without the LONG
     /// default (counts 32 KB a row in the fetch size) and the comments, which that comparison does not need.
@@ -108,25 +129,87 @@ public sealed partial class OracleSchemaReader
             .GroupBy(i => i.Table, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Select(i => i.Index).ToList(), StringComparer.Ordinal);
 
+        progress?.Report(OracleText.SnapshotStepDefinitions);
+        var views = objects.Where(o => o.Kind != TableKind.Table).Select(o => o.Name).ToHashSet(StringComparer.Ordinal);
+        var definitions = views.Count == 0
+            ? []
+            : await ReadDefinitionsAsync(parameters, objects.Any(o => o.Kind == TableKind.MaterializedView), cancellationToken);
+        var dependencies = views.Count == 0
+            ? null
+            : (await session.ReadListAsync(SnapshotDependenciesSql, parameters, reader => (Name: reader.GetString(0), On: reader.GetString(1)), cancellationToken, many: true))
+                .Where(d => views.Contains(d.On))
+                .ToLookup(d => d.Name, d => d.On, StringComparer.Ordinal);
+
         var snapshots = objects
             .Select(o =>
             {
                 var isView = o.Kind == TableKind.View;
                 var (iot, temporary, partitioned) = isView ? default : storage.GetValueOrDefault(o.Name);
+                var definition = o.Kind == TableKind.Table ? default : definitions.GetValueOrDefault(o.Name);
+                var dependsOn = dependencies is not null && dependencies.Contains(o.Name)
+                    ? dependencies[o.Name].Order(StringComparer.Ordinal).ToList()
+                    : null;
                 return new ObjectSnapshot(
                     o.Name,
                     o.Kind,
                     columns.GetValueOrDefault(o.Name) ?? [],
-                    isView ? [] : constraints.GetValueOrDefault(o.Name) ?? [],
+                    isView ? ViewConstraints(o.Name) : constraints.GetValueOrDefault(o.Name) ?? [],
                     isView ? [] : indexes.GetValueOrDefault(o.Name) ?? [],
                     IsIndexOrganized: o.Kind == TableKind.Table && iot, // as GetDetailsAsync
                     Temporary: temporary,
                     Partitioned: partitioned,
-                    Comment: (o.Kind == TableKind.MaterializedView ? Comment(o.Name, mview: true) : null) ?? Comment(o.Name, mview: false));
+                    Comment: (o.Kind == TableKind.MaterializedView ? Comment(o.Name, mview: true) : null) ?? Comment(o.Name, mview: false),
+                    Definition: definition.Text,
+                    DefinitionTruncated: definition.Truncated,
+                    Invalid: o.IsInvalid,
+                    MView: definition.MView,
+                    DependsOn: dependsOn);
             })
             .ToList();
         return new SchemaSnapshot(owner, readAt, snapshots);
 
         string? Comment(string name, bool mview) => comments[name].FirstOrDefault(c => c.MView == mview).Comment;
+
+        // A view's constraints say WITH READ ONLY or WITH CHECK OPTION, which are not in its text (WP-82).
+        List<ConstraintInfo> ViewConstraints(string name) =>
+            (constraints.GetValueOrDefault(name) ?? []).Where(c => c.Type is ConstraintType.ViewReadOnly or ConstraintType.ViewCheckOption).ToList();
+    }
+
+    /// <summary>
+    /// The query of every view and materialized view as <see cref="GetDetailsAsync"/> reads it one by one (trimmed, cut
+    /// at the LONG fetch limit), and the options of the materialized views.
+    /// </summary>
+    private async Task<Dictionary<string, (string? Text, bool Truncated, MViewOptions? MView)>> ReadDefinitionsAsync(
+        IReadOnlyList<QueryParameter> parameters, bool mviews, CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<string, (string? Text, bool Truncated, MViewOptions? MView)>(StringComparer.Ordinal);
+        var views = await session.ReadListAsync(SnapshotViewTextsSql, parameters, reader =>
+            (Name: reader.GetString(0), Text: Text(reader, 1), Long: Long(reader, 2) > 4000), cancellationToken, many: true);
+        foreach (var view in views)
+        {
+            result[view.Name] = (view.Text?.Trim(), false, null);
+        }
+
+        if (views.Any(v => v.Long))
+        {
+            foreach (var (name, text) in await session.ReadListAsync(SnapshotLongViewTextsSql, parameters, reader =>
+                         (reader.GetString(0), Text(reader, 1)), cancellationToken, many: true))
+            {
+                result[name] = (text?.Trim(), text is not null && text.Length >= OracleSession.LongFetchSize, null);
+            }
+        }
+
+        if (mviews)
+        {
+            foreach (var (name, query, options) in await session.ReadListAsync(SnapshotMViewsSql, parameters, reader =>
+                         (reader.GetString(0), Text(reader, 1),
+                          new MViewOptions(Text(reader, 2) ?? "FORCE", Text(reader, 3) ?? "DEMAND", Text(reader, 4) == "Y", Text(reader, 5) == "PREBUILT")),
+                         cancellationToken, many: true))
+            {
+                result[name] = (query?.Trim(), query is not null && query.Length >= OracleSession.LongFetchSize, options);
+            }
+        }
+
+        return result;
     }
 }

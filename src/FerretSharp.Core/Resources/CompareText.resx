@@ -12,6 +12,36 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="ExportUnknown" xml:space="preserve">
+    <value>{0} (invalid, not compared)</value>
+    <comment>{0}: the column definition of an invalid view, e.g. UNDEFINED NULL</comment>
+  </data>
+  <data name="MaterializedViewBuildImmediate" xml:space="preserve">
+    <value>Creating it runs the query and stores its rows (BUILD IMMEDIATE).</value>
+  </data>
+  <data name="MaterializedViewDefinitionUnreadable" xml:space="preserve">
+    <value>The definition of the materialized view could not be read in full (longer than 32,767 characters or not visible): copy it from the reference’s DDL view.</value>
+  </data>
+  <data name="MaterializedViewFastRefresh" xml:space="preserve">
+    <value>REFRESH FAST needs materialized view logs on the tables of the query; without them creating it fails (ORA-23413).</value>
+  </data>
+  <data name="MaterializedViewInvalidInReference" xml:space="preserve">
+    <value>The materialized view is invalid in the reference: the statement may fail in the target as well.</value>
+  </data>
+  <data name="MaterializedViewPrebuilt" xml:space="preserve">
+    <value>Built on an existing table in the reference (ON PREBUILT TABLE): create that table first and add ON PREBUILT TABLE by hand.</value>
+  </data>
+  <data name="MaterializedViewRecreate" xml:space="preserve">
+    <value>A materialized view cannot be replaced: dropping it removes its rows, creating it again fills it from the query. Run both statements only deliberately.</value>
+  </data>
+  <data name="RowDefinition" xml:space="preserve">
+    <value>Definition</value>
+    <comment>Name of the comparison row with the query of a view</comment>
+  </data>
+  <data name="RowStatus" xml:space="preserve">
+    <value>Status</value>
+    <comment>Name of the comparison row with VALID/INVALID of a view</comment>
+  </data>
   <data name="StepConnecting" xml:space="preserve">
     <value>Connecting</value>
     <comment>Progress step of a side while the schema comparison loads</comment>
@@ -115,13 +145,8 @@
   <data name="KindDiffersWarning" xml:space="preserve">
     <value>Cannot be converted: drop the object in the target and create it again from the reference’s DDL.</value>
   </data>
-  <data name="ViewDefinitionNotCompared" xml:space="preserve">
-    <value>The definition of the view is not part of the comparison: copy it from the reference’s DDL view.</value>
-    <comment>"DDL view" is the DDL view of a tab</comment>
-  </data>
-  <data name="MaterializedViewDefinitionNotCompared" xml:space="preserve">
-    <value>The definition of the materialized view is not part of the comparison: copy it from the reference’s DDL view.</value>
-    <comment>"DDL view" is the DDL view of a tab</comment>
+  <data name="ViewDefinitionUnreadable" xml:space="preserve">
+    <value>The definition of the view could not be read in full (longer than 32,767 characters or not visible): copy it from the reference’s DDL view.</value>
   </data>
   <data name="ViewDiffers" xml:space="preserve">
     <value>(differing: {0})</value>
@@ -308,5 +333,12 @@
   <data name="ReferencedTableNotChosen" xml:space="preserve">
     <value>References {0}, which the target lacks and which is not chosen: fails (ORA-00942) unless {0} is created first.</value>
     <comment>Warning on a foreign key of the DDL proposal; {0}: name of the referenced table</comment>
+  </data>
+  <data name="ViewInvalidInReference" xml:space="preserve">
+    <value>The view is invalid in the reference: the statement may fail in the target as well.</value>
+  </data>
+  <data name="ViewNamesReferenceSchema" xml:space="preserve">
+    <value>The query names the reference’s schema ({0}) – in the target it would still read from there; adjust it.</value>
+    <comment>{0}: schema name</comment>
   </data>
 </root>
