@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- *Schema comparison*: the DDL proposal covers only the objects you tick in the matrix – nothing is ticked at first, and *DDL proposal (n) …* waits for a choice. The box in the header ticks every object the filters and the search let through (also those behind *Show more*); objects alike on all sides cannot be ticked. The choice stays while you filter and over a new comparison of the same sides – objects that are now alike drop out – and is not saved with a comparison. A foreign key to a table the target lacks and the choice leaves out is marked in the script (it would fail with ORA-00942); chosen objects that are alike on the two sides of the proposal are named in the dialog.
+
 ## [3.67.0] - 2026-11-09
 
 Filter a table by a SQL condition you write – subqueries on other tables included – and keep editing, jumping and exporting as in any table tab.
