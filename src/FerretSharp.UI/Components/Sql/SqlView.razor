@@ -116,7 +116,7 @@
                     else if (Tab.Results.IsKept(run))
                     {
                         <span class="@css result-chip">
-                            <button class="result-chip-label" title="@TextFormat.Format(SqlEditorText.Result_ChipTitle, run.Statement.Text)" @onclick="e => OnKeptChipClick(run, e)">
+                            <button class="result-chip-label" title="@ChipTitle(run)" @onclick="e => OnKeptChipClick(run, e)">
                                 @Icons.Camera <span class="result-chip-text">@ResultShelf.Label(run, InsertTarget(run.Info)?.DisplayName)</span>
                             </button>
                             <button class="result-chip-close" title="@SqlEditorText.Result_Close" @onclick="() => CloseResult(run)">@Icons.Close</button>
@@ -701,7 +701,7 @@
             FirstPage = outcome.FirstPage,
 
             // WP-81: rows read with uncommitted writes in the session – a kept result says so.
-            ReadInTransaction = run.Info.IsQuery ? Lifecycle.OpenTransactionOf(Tab.WorkspaceId)?.Summary.Transaction?.StartedAt : null,
+            ReadInTransaction = run.Info.IsQuery ? OpenTransactionStart : null,
             SchemaChanged = outcome.SchemaChanged,
             Changed = outcome.Written?.Rows,
             Transaction = outcome.Transaction,
@@ -752,6 +752,11 @@
     /// </summary>
     private void Keep(SqlRun run)
     {
+        if (run.Held is null && ResultShelf.CanKeep(run))
+        {
+            NoteTransaction(run.Id); // the rows taken now may have been read after a write began
+        }
+
         var rows = run.Held ?? (Tab.ShownRun?.Id == run.Id ? _resultGrid?.Hold(ResultShelf.MaxRows) : null) ?? HeldOf(run);
         if ((rows is null ? KeepRefusal.NotAResult : Tab.Results.Keep(run, rows)) is { } refusal)
         {
@@ -761,6 +766,26 @@
 
         Tab.Results.Show(run); // a grid whose rows were held already stays and keeps its status; a new one reports its own
     }
+
+    /// <summary>Start of the workspace's open write transaction, if there is one: rows read now may show its writes.</summary>
+    private DateTimeOffset? OpenTransactionStart => Lifecycle.OpenTransactionOf(Tab.WorkspaceId)?.Summary.Transaction?.StartedAt;
+
+    /// <summary>
+    /// Rows held from now on (kept) were read until now, maybe after a write began in the workspace's session: the header
+    /// says so (second review WP-81 – only the first read was noted). Conservative: a transaction begun after the first
+    /// page counts too.
+    /// </summary>
+    private void NoteTransaction(Guid runId)
+    {
+        if (OpenTransactionStart is { } since && Tab.Results.All.FirstOrDefault(r => r.Id == runId) is { ReadInTransaction: null } current)
+        {
+            Tab.Results.Update(current with { ReadInTransaction = since });
+        }
+    }
+
+    /// <summary>A kept result's tooltip: its name in full (the chip may cut it, second review), the statement, how to rename.</summary>
+    private static string ChipTitle(SqlRun run) =>
+        (run.Name is { } name ? name + "\n\n" : "") + TextFormat.Format(SqlEditorText.Result_ChipTitle, run.Statement.Text);
 
     /// <summary>The shortcut: keeps the result shown, or lets it go if it is kept.</summary>
     private void ToggleKeep()
@@ -882,7 +907,7 @@
             if (await grid.LoadAllAsync(ResultShelf.MaxRows, cts.Token) is { } held && !cts.IsCancellationRequested
                 && Tab.Results.All.FirstOrDefault(r => r.Id == run.Id) is { } current)
             {
-                Tab.Results.Update(current with { Held = held });
+                Tab.Results.Update(current with { Held = held, ReadInTransaction = current.ReadInTransaction ?? OpenTransactionStart });
 
                 // Its grid starts over and reports anew; another result shown meanwhile keeps its footer (review).
                 if (Tab.ShownRun?.Id == run.Id)
