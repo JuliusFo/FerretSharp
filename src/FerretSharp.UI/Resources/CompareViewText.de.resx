@@ -243,4 +243,10 @@
   <data name="CompareDdl_UnchangedMore" xml:space="preserve">
     <value>{0} und {1:N0} weitere</value>
   </data>
+  <data name="Compare_UnchooseWaitingTitle" xml:space="preserve">
+    <value>Die {0:N0} wartenden Objekte aus der Auswahl nehmen – sie sind in dieser Matrix gleich, etwa solange eine Seite fehlt, und zählen wieder, sobald sie abweichen</value>
+  </data>
+  <data name="Compare_UnchooseShownAndWaitingTitle" xml:space="preserve">
+    <value>Die {0:N0} Treffer und {1:N0} wartenden Objekte aus der Auswahl nehmen – wartende sind in dieser Matrix gleich, etwa solange eine Seite fehlt</value>
+  </data>
 </root>

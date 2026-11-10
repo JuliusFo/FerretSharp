@@ -301,4 +301,12 @@
     <value>{0} and {1:N0} more</value>
     <comment>Shortened list in CompareDdl_Unchanged. {0} = the first names, {1} = number of names left out (all are in the tooltip)</comment>
   </data>
+  <data name="Compare_UnchooseWaitingTitle" xml:space="preserve">
+    <value>Take the {0:N0} waiting objects out of the choice – they are alike in this matrix, e.g. while a side is missing, and would count again once they differ</value>
+    <comment>Tooltip of the header checkbox when only waiting objects are chosen. {0} = number of waiting objects</comment>
+  </data>
+  <data name="Compare_UnchooseShownAndWaitingTitle" xml:space="preserve">
+    <value>Take the {0:N0} matches and {1:N0} waiting objects out of the choice – waiting objects are alike in this matrix, e.g. while a side is missing</value>
+    <comment>Tooltip of the header checkbox. {0} = number of chosen matches of filters and search, {1} = number of waiting objects (also outside the search)</comment>
+  </data>
 </root>

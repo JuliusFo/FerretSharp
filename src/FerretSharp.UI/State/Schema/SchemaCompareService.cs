@@ -24,6 +24,15 @@ public sealed class SideState(CompareSide side)
     public bool NeedsPassword { get; set; }
 }
 
+/// <summary>The header's box of the matrix (<see cref="SchemaCompareService.Header"/>).</summary>
+/// <param name="Matches">Rows of the filters and the search that can be chosen.</param>
+/// <param name="Checked">All matches chosen.</param>
+/// <param name="Partly">Shown as partly checked: some matches chosen, or objects waiting.</param>
+/// <param name="Enabled">A match can be chosen or an object waits.</param>
+/// <param name="Next">What a click does: true chooses the matches, false takes them and the waiting objects out.</param>
+/// <param name="Title">The tooltip; null when the box is disabled.</param>
+public sealed record HeaderChoice(IReadOnlyList<CompareRow> Matches, bool Checked, bool Partly, bool Enabled, bool Next, string? Title);
+
 /// <summary>
 /// The schema comparison page's state (WP-20), kept while the user visits other pages: the comparison being edited,
 /// its sides with their snapshots, the matrix and the saved comparisons. Snapshots stay until the sides change or the
@@ -98,9 +107,37 @@ public sealed class SchemaCompareService(
     }
 
     /// <summary>
-    /// The header's box over the matches of the filters: chooses them, or takes them out together with the objects that
-    /// only wait (alike in this matrix while a side is missing or column order is off) – those have no box of their own
-    /// and would come back unasked once all sides load again (review).
+    /// Chosen objects that only wait: alike in this matrix (a side missing, column order off) or not in it. They have no
+    /// box of their own; they count again once they differ.
+    /// </summary>
+    public int Waiting => Result is { } result ? _chosen.Count - result.Objects.Count(IsChosen) : 0;
+
+    /// <summary>
+    /// The header's box over the rows the filters and the search let through (also behind "Show more"). Usable while a
+    /// match can be chosen or an object waits; with only waiting objects left a click takes them out – in a comparison of
+    /// two sides whose target failed nothing differs, and they would come back unasked (review).
+    /// </summary>
+    public HeaderChoice Header(IReadOnlyList<CompareRow> visible)
+    {
+        var matches = visible.Where(CanChoose).ToList();
+        var chosen = matches.Count(IsChosen);
+        var waiting = Waiting;
+        var all = matches.Count > 0 && chosen == matches.Count;
+        var next = !all && matches.Count > 0;
+        string? title = (matches.Count, waiting, next) switch
+        {
+            (0, 0, _) => null,
+            (_, _, true) => TextFormat.Format(CompareViewText.Compare_ChooseShownTitle, matches.Count),
+            (0, _, false) => TextFormat.Format(CompareViewText.Compare_UnchooseWaitingTitle, waiting),
+            (_, 0, false) => TextFormat.Format(CompareViewText.Compare_UnchooseShownTitle, matches.Count),
+            _ => TextFormat.Format(CompareViewText.Compare_UnchooseShownAndWaitingTitle, matches.Count, waiting),
+        };
+        return new HeaderChoice(matches, all, !all && (chosen > 0 || waiting > 0), matches.Count > 0 || waiting > 0, next, title);
+    }
+
+    /// <summary>
+    /// The header's box: chooses the matches, or takes them out together with the objects that only wait (<see cref="Waiting"/>)
+    /// – those would come back unasked once all sides load again (review).
     /// </summary>
     public void ChooseAll(IReadOnlyList<CompareRow> matches, bool on)
     {

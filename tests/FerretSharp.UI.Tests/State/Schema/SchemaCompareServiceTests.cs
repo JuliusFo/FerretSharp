@@ -233,7 +233,14 @@ public sealed class SchemaCompareServiceTests : IDisposable
             .ThrowsAsync(new DatabaseException("TNS: Zeitüberschreitung", "ORA-12170"));
         await service.CompareAsync();
 
-        service.ChooseAll([], on: false);
+        // Two sides, the target failed: nothing differs, yet the header's box stays usable and takes A and B out.
+        var head = service.Header(service.Result!.Objects);
+        Assert.Equal((true, true, false, false), (head.Enabled, head.Partly, head.Checked, head.Next));
+        Assert.Equal(2, service.Waiting);
+        Assert.StartsWith("Die 2 wartenden Objekte aus der Auswahl nehmen", head.Title, StringComparison.Ordinal);
+        service.ChooseAll(head.Matches, head.Next);
+        Assert.False(service.Header(service.Result!.Objects).Enabled);
+
         Opens(_test, ["C"]);
         await service.CompareAsync();
 
@@ -247,20 +254,23 @@ public sealed class SchemaCompareServiceTests : IDisposable
     {
         _secrets.SetPassword(_dev.Id, "pw");
         _secrets.SetPassword(_test.Id, "pw");
-        Opens(_dev, ["A:X,Y"]);
+        Opens(_dev, ["A:X,Y", "B"]);
         Opens(_test, ["A:Y,X"]);
         var service = await ServiceAsync();
         SetSides(service, _dev.Id, _test.Id);
         await service.SetOptionsAsync(reference: null, columnOrder: true, onlyDifferences: false, kinds: null);
         await service.CompareAsync();
         service.Choose(service.Result!.Objects, on: true);
-        Assert.Equal(["A"], service.ChosenRows.Select(r => r.Name));
+        Assert.Equal(["A", "B"], service.ChosenRows.Select(r => r.Name));
 
         await service.SetOptionsAsync(reference: null, columnOrder: false, onlyDifferences: false, kinds: null);
-        Assert.Empty(service.ChosenRows); // alike without the order
+        Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name)); // A is alike without the order and waits
+        var head = service.Header(service.Result!.Objects);
+        Assert.Equal((true, false, false), (head.Checked, head.Partly, head.Next));
+        Assert.StartsWith("Die 1 Treffer und 1 wartenden Objekte aus der Auswahl nehmen", head.Title, StringComparison.Ordinal); // the waiting one is named before it goes
 
         await service.SetOptionsAsync(reference: null, columnOrder: true, onlyDifferences: false, kinds: null);
-        Assert.Equal(["A"], service.ChosenRows.Select(r => r.Name));
+        Assert.Equal(["A", "B"], service.ChosenRows.Select(r => r.Name));
     }
 
     /// <summary>Compared from the UI thread, the sides load and the matrix builds without holding it (the window froze).</summary>

@@ -141,15 +141,14 @@
                     <thead>
                         <tr>
                             @{
-                                var choosable = visible.Where(SchemaCompareService.CanChoose).ToList();
-                                var shownChosen = choosable.Count(Compare.IsChosen);
-                                var allChosen = choosable.Count > 0 && shownChosen == choosable.Count;
-                                _someChosen = shownChosen > 0 && !allChosen;
+                                var head = Compare.Header(visible);
+                                _someChosen = head.Partly;
                             }
-                            <th class="choose @(choosable.Count == 0 ? "off" : "")" title="@(choosable.Count == 0 ? null : TextFormat.Format(allChosen ? CompareViewText.Compare_UnchooseShownTitle : CompareViewText.Compare_ChooseShownTitle, choosable.Count))"
-                                @onclick="() => Compare.ChooseAll(choosable, !allChosen)">
-                                <input type="checkbox" @ref="_chooseAll" checked="@allChosen" disabled="@(choosable.Count == 0)"
-                                       @onchange="e => Compare.ChooseAll(choosable, e.Value is true)" @onclick:stopPropagation="true" />
+                            @* What a click does is the service's (head.Next), not the box's own toggle: the box keeps its state
+                               (preventDefault) and the click goes on to the cell – a toggled box Blazor would not reset. *@
+                            <th class="choose @(head.Enabled ? "" : "off")" title="@head.Title"
+                                @onclick="() => { if (head.Enabled) Compare.ChooseAll(head.Matches, head.Next); }">
+                                <input type="checkbox" @ref="_chooseAll" checked="@head.Checked" disabled="@(!head.Enabled)" @onclick:preventDefault="true" />
                             </th>
                             <th>@CompareViewText.Compare_HeadObject</th>
                             @for (var i = 0; i < result.Sides.Count; i++)
