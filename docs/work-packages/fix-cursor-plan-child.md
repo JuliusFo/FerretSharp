@@ -22,7 +22,7 @@ Probe wie im Test: das Statement 12-mal in einer eigenen Session, danach `V$SQL`
   Fehler. Das Purge trifft alle Children, auch mit der Adresse eines Childs. Eine weitere Ausführung lädt den Plan des
   genutzten Childs neu (120 Zeilen), Child 0 bleibt ohne.
 - **Von selbst unter Last:** Nach rund 3 Minuten mit 16 Last-Sessions hatten im Container 92 von 159 SYS-Children und 5 von
-  10 Probe-Children mit Ausführungen keine Planzeilen mehr (ohne die zwei absichtlich verworfenen) (älter als rund 30 s), bei 70 MB freiem Shared Pool.
+  10 Probe-Children mit Ausführungen keine Planzeilen mehr (alle älter als rund 30 s; die zwei absichtlich verworfenen nicht mitgezählt), bei 70 MB freiem Shared Pool.
 - **Binnen Sekunden** ließ sich nur der ganze Cursor verdrängen: Mit 24 Sessions, die verschiedene Statements mit 20 KB
   Text schickten (159.000 in 5 Minuten), war der Cursor in einer von 30 Runden nach 4 s ganz aus `V$SQL` verschwunden.
   Den Zustand „Cursor da, Plan weg“ binnen 3 s habe ich lokal nicht getroffen. Er ist aber der einzige gefundene
