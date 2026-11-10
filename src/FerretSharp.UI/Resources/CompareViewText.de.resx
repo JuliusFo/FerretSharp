@@ -220,10 +220,10 @@
     <value>Auf allen Seiten gleich – nichts anzugleichen</value>
   </data>
   <data name="Compare_ChooseShownTitle" xml:space="preserve">
-    <value>Die {0:N0} angezeigten Objekte mit Unterschieden auswählen</value>
+    <value>Alle {0:N0} Treffer mit Unterschieden auswählen</value>
   </data>
   <data name="Compare_UnchooseShownTitle" xml:space="preserve">
-    <value>Die {0:N0} angezeigten Objekte aus der Auswahl nehmen</value>
+    <value>Die {0:N0} Treffer aus der Auswahl nehmen</value>
   </data>
   <data name="Compare_DdlProposalChosenEllipsis" xml:space="preserve">
     <value>DDL-Vorschlag ({0:N0}) …</value>
@@ -239,5 +239,8 @@
   </data>
   <data name="CompareDdl_Unchanged" xml:space="preserve">
     <value>Zwischen diesen beiden Seiten gleich, daher kein Schritt: {0}</value>
+  </data>
+  <data name="CompareDdl_UnchangedMore" xml:space="preserve">
+    <value>{0} und {1:N0} weitere</value>
   </data>
 </root>

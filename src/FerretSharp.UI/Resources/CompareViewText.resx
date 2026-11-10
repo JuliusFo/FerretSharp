@@ -270,12 +270,12 @@
     <comment>Tooltip of the disabled checkbox of an object without differences</comment>
   </data>
   <data name="Compare_ChooseShownTitle" xml:space="preserve">
-    <value>Choose the {0:N0} shown objects with differences</value>
-    <comment>Tooltip of the checkbox in the header of the matrix. {0} = number of shown objects with differences</comment>
+    <value>Choose all {0:N0} matches with differences</value>
+    <comment>Tooltip of the checkbox in the header of the matrix. {0} = number of objects with differences that the filters and the search let through, also behind Show more</comment>
   </data>
   <data name="Compare_UnchooseShownTitle" xml:space="preserve">
-    <value>Take the {0:N0} shown objects out of the choice</value>
-    <comment>Tooltip of the checked checkbox in the header of the matrix. {0} = number of shown objects with differences</comment>
+    <value>Take the {0:N0} matches out of the choice</value>
+    <comment>Tooltip of the checked checkbox in the header of the matrix. {0} = number of objects with differences that the filters and the search let through, also behind Show more</comment>
   </data>
   <data name="Compare_DdlProposalChosenEllipsis" xml:space="preserve">
     <value>DDL proposal ({0:N0}) …</value>
@@ -296,5 +296,9 @@
   <data name="CompareDdl_Unchanged" xml:space="preserve">
     <value>Alike on these two sides, so no step: {0}</value>
     <comment>DDL proposal dialog. {0} = names of chosen objects without a step</comment>
+  </data>
+  <data name="CompareDdl_UnchangedMore" xml:space="preserve">
+    <value>{0} and {1:N0} more</value>
+    <comment>Shortened list in CompareDdl_Unchanged. {0} = the first names, {1} = number of names left out (all are in the tooltip)</comment>
   </data>
 </root>

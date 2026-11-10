@@ -127,7 +127,7 @@
                 @{
                     var visible = Visible(result);
                     var chosen = Compare.ChosenRows.Count;
-                    var hidden = chosen - visible.Count(r => Compare.Chosen.Contains(r.Key));
+                    var hidden = chosen - visible.Count(Compare.IsChosen);
                 }
                 @if (hidden > 0)
                 {
@@ -142,11 +142,11 @@
                         <tr>
                             @{
                                 var choosable = visible.Where(SchemaCompareService.CanChoose).ToList();
-                                var shownChosen = choosable.Count(r => Compare.Chosen.Contains(r.Key));
+                                var shownChosen = choosable.Count(Compare.IsChosen);
                                 var allChosen = choosable.Count > 0 && shownChosen == choosable.Count;
                                 _someChosen = shownChosen > 0 && !allChosen;
                             }
-                            <th class="choose @(choosable.Count == 0 ? "off" : "")" title="@TextFormat.Format(allChosen ? CompareViewText.Compare_UnchooseShownTitle : CompareViewText.Compare_ChooseShownTitle, choosable.Count)"
+                            <th class="choose @(choosable.Count == 0 ? "off" : "")" title="@(choosable.Count == 0 ? null : TextFormat.Format(allChosen ? CompareViewText.Compare_UnchooseShownTitle : CompareViewText.Compare_ChooseShownTitle, choosable.Count))"
                                 @onclick="() => Compare.Choose(choosable, !allChosen)">
                                 <input type="checkbox" @ref="_chooseAll" checked="@allChosen" disabled="@(choosable.Count == 0)"
                                        @onchange="e => Compare.Choose(choosable, e.Value is true)" @onclick:stopPropagation="true" />
@@ -164,11 +164,11 @@
                             var open = _open.Contains(row.Key);
                             var children = Children(row).ToList();
                             var canChoose = SchemaCompareService.CanChoose(row);
-                            <tr class="object @(row.HasDifferences ? "differs" : "") @(Compare.Chosen.Contains(row.Key) ? "chosen" : "")" @onclick="() => Toggle(row.Key)">
+                            <tr class="object @(row.HasDifferences ? "differs" : "") @(Compare.IsChosen(row) ? "chosen" : "")" @onclick="() => Toggle(row.Key)">
                                 @* The whole cell chooses (a label fills a cell only in width), and it does not open the row. *@
                                 <td class="choose @(canChoose ? "" : "off")" title="@(canChoose ? CompareViewText.Compare_ChooseTitle : CompareViewText.Compare_ChooseAlikeTitle)"
-                                    @onclick="() => Compare.Choose([row], !Compare.Chosen.Contains(row.Key))" @onclick:stopPropagation="true">
-                                    <input type="checkbox" checked="@Compare.Chosen.Contains(row.Key)" disabled="@(!canChoose)"
+                                    @onclick="() => Compare.Choose([row], !Compare.IsChosen(row))" @onclick:stopPropagation="true">
+                                    <input type="checkbox" checked="@Compare.IsChosen(row)" disabled="@(!canChoose)"
                                            @onchange="e => Compare.Choose([row], e.Value is true)" @onclick:stopPropagation="true" />
                                 </td>
                                 <td class="name">
@@ -190,7 +190,7 @@
                                 @foreach (var child in children)
                                 {
                                     <tr class="child @(child.Differs ? "differs" : "")">
-                                        <td class="choose"></td>
+                                        <td class="choose off"></td>
                                         <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
                                         @foreach (var cell in child.Cells)
                                         {

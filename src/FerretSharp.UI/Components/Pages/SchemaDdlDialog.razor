@@ -48,7 +48,9 @@
         {
             @if (proposal.Unchanged.Count > 0)
             {
-                <div class="settings-note compare-ddl-note">@TextFormat.Format(CompareViewText.CompareDdl_Unchanged, string.Join(", ", proposal.Unchanged))</div>
+                <div class="settings-note compare-ddl-note" title="@(proposal.Unchanged.Count > UnchangedShown ? string.Join(", ", proposal.Unchanged) : null)">
+                    @TextFormat.Format(CompareViewText.CompareDdl_Unchanged, UnchangedList(proposal.Unchanged))
+                </div>
             }
             <SqlCode Sql="@proposal.Script" />
         }
@@ -56,6 +58,14 @@
 </ModalFrame>
 
 @code {
+    /// <summary>Names of chosen objects without a step shown in the note; the rest only in its tooltip (review: hundreds via the header box).</summary>
+    private const int UnchangedShown = 10;
+
+    private static string UnchangedList(IReadOnlyList<string> names) =>
+        names.Count <= UnchangedShown
+            ? string.Join(", ", names)
+            : TextFormat.Format(CompareViewText.CompareDdl_UnchangedMore, string.Join(", ", names.Take(UnchangedShown)), names.Count - UnchangedShown);
+
     private int _reference;
     private int _target = 1;
     private DdlProposal? _proposal;
