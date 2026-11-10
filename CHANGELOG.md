@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - *Server load* and *App statements*: when Oracle has already freed a statement's plan from the shared pool (it keeps the figures longer), the statement's details say so and that the next run brings the plan back – before, they showed an empty plan with the hint about GATHER_PLAN_STATISTICS. For a statement that never has a plan (a PL/SQL block such as EF’s `SaveChanges`, `CALL`, `ALTER SESSION`, most DDL) they say that instead.
 
 ### Internal
+- CI: runs of a pull request are grouped by its number. A run GitHub started for a push shortly before the merge only after the merge landed in main's group and cancelled main's run of the merge commit.
 - The schema snapshot reads view texts from `TEXT_VC` and only those longer than 4000 bytes as LONG. Integration tests cover a long view, a column list with `CHECK OPTION`, a view on a view and an invalid view, and run the proposed view DDL through the schema path in a schema of their own.
 - The integration tests that look up another session's cursor run the statement once more when Oracle has freed its plan meanwhile (the server load test failed so in CI); a new test frees the plan with `DBMS_SHARED_POOL.PURGE` and checks figures without plan and the plan after the next run, another one a PL/SQL block found without plan.
 
