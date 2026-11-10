@@ -10,26 +10,28 @@
         }
         <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
     </header>
-    @if (Error is not null)
-    {
-        <div class="test-result error"><span>@Error</span></div>
-    }
-    else
-    {
-        <SqlCode Sql="@Sql" />
-        @if (Parameters.Count > 0)
+    <div class="sql-dialog-body">
+        @if (Error is not null)
         {
-            <table class="binds">
-                <thead><tr><th>@CommonText.BindVariable</th><th>@CommonText.Value</th><th>@SqlEditorText.SqlPreview_Type</th></tr></thead>
-                <tbody>
-                    @foreach (var p in Parameters)
-                    {
-                        <tr><td>:@p.Name</td><td>@BindValues.Format(p, mask: false)</td><td>@p.Type</td></tr>
-                    }
-                </tbody>
-            </table>
+            <div class="test-result error"><span>@Error</span></div>
         }
-    }
+        else
+        {
+            <SqlCode Sql="@Sql" />
+            @if (Parameters.Count > 0)
+            {
+                <table class="binds">
+                    <thead><tr><th>@CommonText.BindVariable</th><th>@CommonText.Value</th><th>@SqlEditorText.SqlPreview_Type</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in Parameters)
+                        {
+                            <tr><td>:@p.Name</td><td>@BindValues.Format(p, mask: false)</td><td>@p.Type</td></tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+    </div>
 </ModalFrame>
 
 @code {

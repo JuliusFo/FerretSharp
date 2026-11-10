@@ -868,10 +868,13 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .fs-h-badges .fs-badge { margin-left: 4px; }
 
 /* ---------- SQL preview ---------- */
-/* With .dialog: alone it loses to the later .dialog (640px) of the same specificity. */
+/* With .dialog: alone these lose to the later .dialog and .dialog header rules of the same specificity. */
 .dialog.sql-dialog { width: min(900px, 94vw); }
 .sql-dialog header .spacer { flex: 1; }
-.sql-dialog header { gap: 8px; justify-content: flex-start; }
+.dialog.sql-dialog header { gap: 8px; justify-content: flex-start; }
+/* Everything below the header: scrolls as a whole when the dialog would be taller than the window, so nothing is cut
+   off by .modal's overflow (a long bind table, the DDL proposal's notes in a low window). */
+.sql-dialog-body { flex: 1; min-height: 0; overflow-y: auto; }
 pre.sql { margin: 0; padding: 16px 18px; max-height: 55vh; overflow: auto; user-select: text; font: 12.5px/1.6 var(--mono); background: var(--surface-2); white-space: pre-wrap; }
 pre.sql .kw { color: var(--sql-keyword); font-weight: 600; }
 pre.sql .str { color: var(--sql-string); }

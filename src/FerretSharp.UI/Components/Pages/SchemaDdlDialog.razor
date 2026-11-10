@@ -35,30 +35,32 @@
             </Arg1>
         </Fmt>
     </div>
-    <div class="settings-note compare-ddl-note">
-        @CompareViewText.CompareDdl_Note
-    </div>
-    @if (_error is { } error)
-    {
-        <div class="test-result error"><span>@error</span></div>
-    }
-    else if (_proposal is { } proposal)
-    {
-        @if (proposal.Steps.Count == 0)
+    <div class="sql-dialog-body">
+        <div class="settings-note compare-ddl-note">
+            @CompareViewText.CompareDdl_Note
+        </div>
+        @if (_error is { } error)
         {
-            <div class="compare-none">@(proposal.Selected is null ? CompareViewText.CompareDdl_NoDifferences : CompareViewText.CompareDdl_ChosenAlike)</div>
+            <div class="test-result error"><span>@error</span></div>
         }
-        else
+        else if (_proposal is { } proposal)
         {
-            @if (proposal.Unchanged.Count > 0)
+            @if (proposal.Steps.Count == 0)
             {
-                <div class="settings-note compare-ddl-note" title="@(proposal.Unchanged.Count > UnchangedShown ? string.Join(", ", proposal.Unchanged) : null)">
-                    @TextFormat.Format(CompareViewText.CompareDdl_Unchanged, UnchangedList(proposal.Unchanged))
-                </div>
+                <div class="compare-none">@(proposal.Selected is null ? CompareViewText.CompareDdl_NoDifferences : CompareViewText.CompareDdl_ChosenAlike)</div>
             }
-            <SqlCode Sql="@proposal.Script" />
+            else
+            {
+                @if (proposal.Unchanged.Count > 0)
+                {
+                    <div class="settings-note compare-ddl-note" title="@(proposal.Unchanged.Count > UnchangedShown ? string.Join(", ", proposal.Unchanged) : null)">
+                        @TextFormat.Format(CompareViewText.CompareDdl_Unchanged, UnchangedList(proposal.Unchanged))
+                    </div>
+                }
+                <SqlCode Sql="@proposal.Script" />
+            }
         }
-    }
+    </div>
 </ModalFrame>
 
 @code {
