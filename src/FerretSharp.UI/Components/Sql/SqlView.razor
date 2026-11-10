@@ -100,17 +100,34 @@
             </div>
         }
 
-        @if ((Tab.Runs.Count > 1 || (_running && _total > 1 && Tab.Runs.Count > 0)) && _error is null)
+        @if (ShowsResultBar)
         {
+            @* WP-81: the kept results first (camera, ✕, a double click renames), then the statements of the last run. *@
             <div class="linq-commands sql-runs">
-                @for (var i = 0; i < Tab.Runs.Count; i++)
+                @foreach (var item in Tab.Results.All)
                 {
-                    var index = i;
-                    var item = Tab.Runs[i];
-                    <button class="chip-btn @(index == Tab.SelectedRun ? "active" : "") @(item.Error is null || item.Cancelled ? "" : "failed")"
-                            title="@item.Statement.Text" @onclick="() => SelectRun(index)">
-                        @item.Number · @item.Info.FirstWord · @RunOutcome(item)@Duration(item)
-                    </button>
+                    var run = item;
+                    var css = "chip-btn" + (run.Id == Tab.ShownRun?.Id && _error is null ? " active" : "") + (run.Error is null || run.Cancelled ? "" : " failed");
+                    @if (_renaming == run.Id)
+                    {
+                        <input @ref="_renameInput" class="field chip-rename" value="@_renameText" placeholder="@SqlEditorText.Result_RenamePlaceholder"
+                               @oninput="e => _renameText = e.Value?.ToString() ?? string.Empty" @onkeydown="e => RenameKey(run, e)" @onblur="() => FinishRename(run, true)" />
+                    }
+                    else if (Tab.Results.IsKept(run))
+                    {
+                        <span class="@css result-chip">
+                            <button class="result-chip-label" title="@TextFormat.Format(SqlEditorText.Result_ChipTitle, run.Statement.Text)" @onclick="e => OnKeptChipClick(run, e)">
+                                @Icons.Camera @ResultShelf.Label(run, InsertTarget(run.Info)?.DisplayName)
+                            </button>
+                            <button class="result-chip-close" title="@SqlEditorText.Result_Close" @onclick="() => CloseResult(run)">@Icons.Close</button>
+                        </span>
+                    }
+                    else
+                    {
+                        <button class="@css" title="@run.Statement.Text" @onclick="() => SelectRun(run)">
+                            @(run.Number > 0 ? run.Number + " · " : "")@run.Info.FirstWord · @RunOutcome(run)@Duration(run)
+                        </button>
+                    }
                 }
             </div>
         }
@@ -141,12 +158,18 @@
             }
             else if (run.Info.IsQuery)
             {
+                var kept = Tab.Results.IsKept(run);
+                <ResultHeader Run="run" Kept="kept" Open="Tab.ResultHeaderOpen" OnToggle="ToggleResultHeader" OnKeep="() => Keep(run)"
+                              OnRelease="() => Release(run)" OnTakeToEditor="() => TakeToEditorAsync(run)" />
                 <div class="grid-host">
-                    <SqlResultGrid @key="@($"{_runKey}-{Tab.SelectedRun}")" @ref="_resultGrid" WorkspaceId="Tab.WorkspaceId" Query="run.Query" FirstPage="run.FirstPage"
+                    @* A new key when the rows come to be held (kept, all loaded): the grid starts over from them and never reads again. *@
+                    <SqlResultGrid @key="@($"{run.Id}-{run.Held?.Rows.Count}")" @ref="_resultGrid" WorkspaceId="Tab.WorkspaceId" Query="run.Query" FirstPage="run.FirstPage"
+                                   Held="run.Held" HeldHeading="@HeldHeading(run, kept)"
                                    OnStatus="OnGridStatus" InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" ExportsAllRows="true"
                                    FormTab="Tab" PinTab="Tab" OnFormChanged="StateHasChanged" />
                 </div>
-                <ResultFooter Status="_grid" Grid="_resultGrid" FormTab="Tab" OnToggleForm="ToggleForm" />
+                <ResultFooter Status="_grid" Grid="_resultGrid" FormTab="Tab" OnToggleForm="ToggleForm"
+                              OnLoadAll="LoadAllCallback(run)" LoadingAll="_loadingAll is not null" OnCancelLoadAll="() => _loadingAll?.Cancel()" />
             }
             else if (run.SchemaChanged)
             {
@@ -161,7 +184,7 @@
                 </div>
             }
         }
-        else if (_error is null && _notice is null && Tab.Runs.Count == 0)
+        else if (_error is null && _notice is null && Tab.Results.All.Count == 0)
         {
             <EmptyState Title="@SqlEditorText.SqlView_EmptyTitle" Text="@EmptyText" />
         }
@@ -306,7 +329,6 @@
     private string? _error;
     private bool _needsUnlock;
     private string? _notice;
-    private int _runKey;
     private SqlGridStatus? _grid;
     private SqlResultGrid? _resultGrid;
 
@@ -385,6 +407,9 @@
                 break;
             case TabCommand.SaveScript:
                 Fire(SaveScriptAsync);
+                break;
+            case TabCommand.KeepResult:
+                Fire(ToggleKeep);
                 break;
             case TabCommand.FindColumn when _editor is not null:
                 // The focus in the result's form: its field search (review 3.44.0, A9), else the editor's search.
@@ -579,10 +604,9 @@
         _running = true;
         using var cts = _cts = new CancellationTokenSource();
         var token = cts.Token;
-        Tab.Runs = [];
-        Tab.SelectedRun = 0;
+        _loadingAll?.Cancel(); // its rows would belong to a result the run replaces
+        Tab.Results.StartRun();
         _grid = null;
-        _runKey++;
         (_total, _scriptStarted) = (runs.Count, DateTimeOffset.Now);
         var (first, last) = (runs[0].Statement, runs[^1].Statement);
         await _editor!.FlashAsync(first.Start, last.End - first.Start);
@@ -597,8 +621,7 @@
                 StateHasChanged();
                 var result = await RunOneAsync(run, token);
                 results.Add(result);
-                Tab.Runs = results.ToList();
-                Tab.SelectedRun = results.Count - 1;
+                Tab.Results.Add(result);
                 _grid = null;
                 StateHasChanged();
                 if (result.Error is not null)
@@ -646,6 +669,7 @@
     {
         run = run with { At = DateTimeOffset.Now };
         var log = new StatementLog(run.Statement.Text, Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList());
+        run = run with { Variables = log.Variables };
         var outcome = run.Info.IsQuery ? await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, run.Query, SqlResultGrid.PageSize, log, token)
             : run.Info.IsDdl ? await Lifecycle.Statements.DdlAsync(Tab.WorkspaceId, run.Query.Sql, log, token)
             : await Lifecycle.Statements.WriteAsync(Tab, run.Query, log, token);
@@ -675,6 +699,9 @@
         return run with
         {
             FirstPage = outcome.FirstPage,
+
+            // WP-81: rows read with uncommitted writes in the session – a kept result says so.
+            ReadInTransaction = run.Info.IsQuery ? Lifecycle.OpenTransactionOf(Tab.WorkspaceId)?.Summary.Transaction?.StartedAt : null,
             SchemaChanged = outcome.SchemaChanged,
             Changed = outcome.Written?.Rows,
             Transaction = outcome.Transaction,
@@ -682,10 +709,191 @@
         };
     }
 
-    private void SelectRun(int index)
+    // ---------- kept results (WP-81) ----------
+
+    /// <summary>The bar of results: more than one, or a kept one – that stays visible beside a problem of the last run.</summary>
+    private bool ShowsResultBar =>
+        Tab.Results.Kept.Count > 0
+        || (_error is null && (Tab.Results.All.Count > 1 || (_running && _total > 1 && Tab.Results.Latest.Count > 0)));
+
+    /// <summary>Reading the remaining rows ("Load all rows"); null while nothing reads.</summary>
+    private CancellationTokenSource? _loadingAll;
+
+    /// <summary>The kept result being renamed in the bar, and the name typed so far.</summary>
+    private Guid? _renaming;
+    private string _renameText = "";
+    private ElementReference _renameInput;
+    private bool _focusRename;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        Tab.SelectedRun = index;
+        if (_focusRename)
+        {
+            _focusRename = false;
+            await _renameInput.FocusAsync();
+        }
+    }
+
+    /// <summary>The menus name the rows a held result exports: the kept ones, all of the result, or those loaded up to the limit.</summary>
+    private static string? HeldHeading(SqlRun run, bool kept) => run.Held switch
+    {
+        null => null,
+        _ when kept => GridText.GridMenu_KeptRowsGroup,
+        { Complete: true } => GridText.GridMenu_AllResultRowsGroup,
+        _ => GridText.GridMenu_LoadedRowsGroup,
+    };
+
+    private void ToggleResultHeader() => Tab.ResultHeaderOpen = !Tab.ResultHeaderOpen;
+
+    /// <summary>
+    /// Keeps the result shown with its rows as the grid has them now (decision of the user: only those loaded; "Load all
+    /// rows" is a step of its own). A refusal (not a result, ten kept already) is said, nothing is dropped.
+    /// </summary>
+    private void Keep(SqlRun run)
+    {
+        var rows = run.Held ?? (Tab.ShownRun?.Id == run.Id ? _resultGrid?.Hold(ResultShelf.MaxRows) : null) ?? HeldOf(run);
+        if ((rows is null ? KeepRefusal.NotAResult : Tab.Results.Keep(run, rows)) is { } refusal)
+        {
+            Shell.Notify(refusal == KeepRefusal.Full ? TextFormat.Format(SqlEditorText.Result_KeepFull, ResultShelf.MaxKept) : SqlEditorText.Result_KeepNotAResult);
+            return;
+        }
+
+        Tab.Results.Show(run);
         _grid = null;
+    }
+
+    /// <summary>The shortcut: keeps the result shown, or lets it go if it is kept.</summary>
+    private void ToggleKeep()
+    {
+        if (Tab.ShownRun is not { } run || _running)
+        {
+            return;
+        }
+
+        if (Tab.Results.IsKept(run))
+        {
+            Release(run);
+        }
+        else
+        {
+            Keep(run);
+        }
+
+        StateHasChanged(); // from a shortcut, not a UI event
+    }
+
+    /// <summary>The rows of a result not shown: its first page as read when the statement ran.</summary>
+    private static HeldRows? HeldOf(SqlRun run) => run.FirstPage is { } page
+        ? new HeldRows(page.Columns, [.. page.Rows.Take(ResultShelf.MaxRows).Select(v => new Core.Data.RowData(Core.Data.RowKey.None.Instance, v))],
+            page.IsLastPage && page.Rows.Count <= ResultShelf.MaxRows, page.DataAsOf)
+        : null;
+
+    private void Release(SqlRun run) => Tab.Results.Release(run);
+
+    private void CloseResult(SqlRun run)
+    {
+        Tab.Results.Close(run);
+        _grid = null;
+    }
+
+    /// <summary>A click shows the kept result, a double click renames it (Detail ≥ 2: the WPF host doubles the mouse-down).</summary>
+    private void OnKeptChipClick(SqlRun run, MouseEventArgs e)
+    {
+        if (e.Detail >= 2)
+        {
+            (_renaming, _renameText, _focusRename) = (run.Id, run.Name ?? ResultShelf.Label(run, InsertTarget(run.Info)?.DisplayName), true);
+            return;
+        }
+
+        SelectRun(run);
+    }
+
+    private void RenameKey(SqlRun run, KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "Escape")
+        {
+            FinishRename(run, e.Key == "Enter");
+        }
+    }
+
+    /// <summary>Takes the typed name (blank: back to table and time) or leaves the old one; Enter and the blur after it end once.</summary>
+    private void FinishRename(SqlRun run, bool take)
+    {
+        if (_renaming != run.Id)
+        {
+            return;
+        }
+
+        _renaming = null;
+        if (take && _renameText != ResultShelf.Label(run, InsertTarget(run.Info)?.DisplayName))
+        {
+            Tab.Results.Rename(run, _renameText);
+        }
+    }
+
+    /// <summary>
+    /// The result's statement back in the editor: selected where the script still has exactly it, else inserted at the
+    /// cursor (decision of the user). The tab's variables stay as they are.
+    /// </summary>
+    private async Task TakeToEditorAsync(SqlRun run)
+    {
+        if (_editor is null || await _editor.GetRunContextAsync() is not { } context)
+        {
+            return;
+        }
+
+        if (SqlScript.Find(context.Text, run.Statement) is { } found)
+        {
+            await _editor.SelectAsync(found.Start, found.Length);
+            return;
+        }
+
+        var (text, start) = SqlScript.Insert(context.Text, context.End, context.End, run.Statement.Text);
+        Tab.Text = text;
+        await _editor.SetTextAsync(text);
+        await UpdateVariablesAsync(text);
+        Shell.MarkDirty();
+        if (SqlScript.StatementAt(text, start, start) is { } inserted)
+        {
+            await _editor.SelectAsync(inserted.Start, inserted.Length);
+        }
+    }
+
+    private EventCallback LoadAllCallback(SqlRun run) =>
+        run.Held is null ? EventCallback.Factory.Create(this, () => LoadAllAsync(run)) : default;
+
+    /// <summary>
+    /// "Load all rows": the rows not loaded yet are read now, up to the limit, and held as read – the grid starts over from
+    /// them, sorts in memory and never reads again; "Keep result" then keeps them all.
+    /// </summary>
+    private async Task LoadAllAsync(SqlRun run)
+    {
+        if (_resultGrid is not { } grid || _loadingAll is not null)
+        {
+            return;
+        }
+
+        using var cts = _loadingAll = new CancellationTokenSource();
+        try
+        {
+            if (await grid.LoadAllAsync(ResultShelf.MaxRows, cts.Token) is { } held && !cts.IsCancellationRequested
+                && Tab.Results.All.FirstOrDefault(r => r.Id == run.Id) is { } current)
+            {
+                Tab.Results.Update(current with { Held = held });
+                _grid = null;
+            }
+        }
+        finally
+        {
+            _loadingAll = null;
+        }
+    }
+
+    private void SelectRun(SqlRun run)
+    {
+        Tab.Results.Show(run);
+        _grid = null;
+        (_error, _needsUnlock) = (null, false); // a kept result is shown instead of the last run's problem
     }
 
     /// <summary>Later pages of a result are read by the grid; it reports them (and their failures) here.</summary>
@@ -817,5 +1025,6 @@
         Workspaces.Changed -= OnWorkspacesChanged;
         Library.Changed -= OnLibraryChanged;
         _cts?.Cancel();
+        _loadingAll?.Cancel();
     }
 }

@@ -1446,4 +1446,10 @@
   <data name="Condition_NotWithCondition" xml:space="preserve">
     <value>Nicht mit einer SQL-Bedingung – nur mit der Filterleiste.</value>
   </data>
+  <data name="GridMenu_KeptRowsGroup" xml:space="preserve">
+    <value>Behaltene Zeilen{0}</value>
+  </data>
+  <data name="GridMenu_LoadedRowsGroup" xml:space="preserve">
+    <value>Geladene Zeilen{0}</value>
+  </data>
 </root>

@@ -1461,6 +1461,23 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .sql-runs { flex-wrap: wrap; }
 .chip-btn.failed { color: var(--danger); border-color: var(--danger); }
 .chip-btn.failed.active { background: var(--danger-weak); }
+/* WP-81: a kept result in the bar – its label (a click shows it, a double click renames it) and ✕. */
+.result-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 3px 0 9px; }
+.result-chip button { display: inline-flex; align-items: center; gap: 5px; height: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.result-chip .result-chip-close { width: 18px; justify-content: center; border-radius: 9px; color: var(--muted); }
+.result-chip .result-chip-close:hover { background: var(--surface-2); color: var(--text); }
+.result-chip .icon { width: 12px; height: 12px; }
+.chip-rename { height: 24px; width: 220px; padding: 0 9px; border-radius: 12px; font: 11.5px var(--mono); }
+/* WP-81: the statement behind a result, folded to one line; unfolded with its variables. */
+.result-header { flex: none; border-bottom: 1px solid var(--border); }
+.result-header-line { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 3px 10px 3px 6px; font-size: 12px; }
+.result-header-line .spacer { flex: 1; }
+.result-header-sql { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); }
+.result-header-meta { flex: none; white-space: nowrap; }
+.result-header-line .warn { color: var(--warn); }
+.result-header .btn.small { height: 22px; padding: 0 8px; font-size: 11.5px; }
+.result-kept-mark { display: inline-flex; color: var(--accent); }
+.result-header-statement { border-bottom: 0; border-top: 1px solid var(--border); }
 .sql-variables { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 6px 14px; }
 .sql-variable { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .sql-variable code { flex: none; min-width: 90px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }

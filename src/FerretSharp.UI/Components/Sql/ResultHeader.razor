@@ -1,0 +1,89 @@
+@* The header above a query result of the SQL editor (WP-81): which statement led to it and when, folded to one line;
+   unfolded the whole statement and the variables it bound. Keeping the result (or letting it go) and taking the statement
+   back into the editor start here. A kept result says how many rows it holds and whether it was read in an open
+   transaction. *@
+@using FerretSharp.Core.Query
+
+<div class="result-header @(Open ? "open" : "")">
+    <div class="result-header-line">
+        <button class="icon-btn ghost small" aria-expanded="@(Open ? "true" : "false")" title="@(Open ? SqlEditorText.Result_HideStatement : SqlEditorText.Result_ShowStatement)"
+                @onclick="OnToggle">
+            <span class="chev @(Open ? "" : "closed")">@Icons.ChevronDown</span>
+        </button>
+        @if (Kept)
+        {
+            <span class="result-kept-mark" title="@SqlEditorText.Result_HeldTitle">@Icons.Camera</span>
+        }
+        <code class="result-header-sql" title="@Run.Statement.Text">@SqlScript.OneLine(Run.Statement.Text)</code>
+        <span class="muted result-header-meta">@TextFormat.Format(SqlEditorText.Result_RanAt, TimeText.TimeOfDay(Run.At))</span>
+        @if (Kept && Run.Held is { } held)
+        {
+            <span class="muted result-header-meta" title="@SqlEditorText.Result_HeldTitle">@HeldText(held)</span>
+        }
+        @if (Kept && Run.ReadInTransaction is { } since)
+        {
+            <span class="warn result-header-meta" title="@SqlEditorText.Result_ReadInTransactionTitle">
+                @TextFormat.Format(SqlEditorText.Result_ReadInTransaction, TimeText.TimeOfDay(since))
+            </span>
+        }
+        <span class="spacer"></span>
+        <button class="btn ghost small" title="@SqlEditorText.Result_TakeToEditorTitle" @onclick="OnTakeToEditor">@SqlEditorText.Result_TakeToEditor</button>
+        @if (Kept)
+        {
+            <button class="btn ghost small" title="@SqlEditorText.Result_ReleaseTitle" @onclick="OnRelease">@SqlEditorText.Result_Release</button>
+        }
+        else
+        {
+            <button class="btn ghost small" title="@KeepTitle" @onclick="OnKeep">@Icons.Camera @SqlEditorText.Result_Keep</button>
+        }
+    </div>
+    @if (Open)
+    {
+        <div class="linq-sql result-header-statement">
+            <SqlCode Sql="@Run.Statement.Text" Class="linq-sql-code" />
+            @if (Run.Variables.Count > 0)
+            {
+                <div class="linq-params">
+                    @foreach (var variable in Run.Variables)
+                    {
+                        <span><code>:@variable.Name</code> = @(variable.Value.Length == 0 ? "NULL" : variable.Value) <span class="muted">@variable.Type</span></span>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Inject]
+    public ShortcutService Shortcuts { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SqlRun Run { get; set; } = null!;
+
+    /// <summary>The result is kept (WP-81): "Let go" instead of "Keep", with its rows and the transaction note.</summary>
+    [Parameter]
+    public bool Kept { get; set; }
+
+    /// <summary>The statement and its variables are shown.</summary>
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggle { get; set; }
+
+    [Parameter]
+    public EventCallback OnKeep { get; set; }
+
+    [Parameter]
+    public EventCallback OnRelease { get; set; }
+
+    [Parameter]
+    public EventCallback OnTakeToEditor { get; set; }
+
+    private string KeepTitle => SqlEditorText.Result_KeepTitle + Shortcuts.Hint(ShortcutAction.KeepResult);
+
+    private static string HeldText(HeldRows held) => held.Complete
+        ? TextFormat.Plural(held.Rows.Count, SqlEditorText.Result_KeptRowsOne, SqlEditorText.Result_KeptRowsOther)
+        : TextFormat.Format(SqlEditorText.Result_KeptFirstRows, held.Rows.Count.ToString("N0", CultureInfo.CurrentCulture));
+}

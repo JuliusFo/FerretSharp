@@ -615,4 +615,75 @@
   <data name="ResultForm_HideEmptyTitle" xml:space="preserve">
     <value>Felder ohne Wert (NULL) ausblenden; gilt für diesen Tab</value>
   </data>
+  <data name="Result_Keep" xml:space="preserve">
+    <value>Ergebnis behalten</value>
+  </data>
+  <data name="Result_KeepTitle" xml:space="preserve">
+    <value>Behält dieses Ergebnis mit seinen Zeilen, wie sie sind: Es bleibt stehen, wenn das nächste Statement läuft</value>
+  </data>
+  <data name="Result_Release" xml:space="preserve">
+    <value>Loslassen</value>
+  </data>
+  <data name="Result_ReleaseTitle" xml:space="preserve">
+    <value>Das Ergebnis wird nicht mehr behalten: Der nächste Lauf ersetzt es</value>
+  </data>
+  <data name="Result_Close" xml:space="preserve">
+    <value>Ergebnis schließen</value>
+  </data>
+  <data name="Result_ChipTitle" xml:space="preserve">
+    <value>{0}
+
+Doppelklick benennt das Ergebnis um.</value>
+  </data>
+  <data name="Result_RenamePlaceholder" xml:space="preserve">
+    <value>Name des Ergebnisses</value>
+  </data>
+  <data name="Result_TakeToEditor" xml:space="preserve">
+    <value>In den Editor übernehmen</value>
+  </data>
+  <data name="Result_TakeToEditorTitle" xml:space="preserve">
+    <value>Markiert das Statement im Editor – oder fügt es am Cursor ein, wenn der Editor es nicht mehr enthält</value>
+  </data>
+  <data name="Result_KeptRowsOne" xml:space="preserve">
+    <value>1 Zeile behalten</value>
+  </data>
+  <data name="Result_KeptRowsOther" xml:space="preserve">
+    <value>{0:N0} Zeilen behalten</value>
+  </data>
+  <data name="Result_KeptFirstRows" xml:space="preserve">
+    <value>Erste {0} Zeilen behalten – das Ergebnis hatte mehr</value>
+  </data>
+  <data name="Result_ReadInTransaction" xml:space="preserve">
+    <value>Gelesen in offener Transaktion (seit {0})</value>
+  </data>
+  <data name="Result_ReadInTransactionTitle" xml:space="preserve">
+    <value>Die Zeilen können nicht committete Änderungen zeigen – nach einem Rollback hat es sie nie gegeben.</value>
+  </data>
+  <data name="Result_RanAt" xml:space="preserve">
+    <value>Ausgeführt um {0}</value>
+  </data>
+  <data name="Result_ShowStatement" xml:space="preserve">
+    <value>Statement und Variablen zeigen</value>
+  </data>
+  <data name="Result_HideStatement" xml:space="preserve">
+    <value>Statement und Variablen ausblenden</value>
+  </data>
+  <data name="Result_KeepFull" xml:space="preserve">
+    <value>Es sind schon {0} Ergebnisse behalten – schließe zuerst eines.</value>
+  </data>
+  <data name="Result_KeepNotAResult" xml:space="preserve">
+    <value>Behalten lässt sich nur das Ergebnis einer gelaufenen Abfrage.</value>
+  </data>
+  <data name="Result_LoadAll" xml:space="preserve">
+    <value>Alle Zeilen laden</value>
+  </data>
+  <data name="Result_LoadAllTitle" xml:space="preserve">
+    <value>Liest die übrigen Zeilen jetzt, bis {0}. Danach sortieren sie im Speicher und bleiben, wie gelesen – „Ergebnis behalten“ behält sie alle.</value>
+  </data>
+  <data name="Result_LoadingAll" xml:space="preserve">
+    <value>Lädt alle Zeilen …</value>
+  </data>
+  <data name="Result_HeldTitle" xml:space="preserve">
+    <value>Die Zeilen liegen so im Speicher, wie sie gelesen wurden – sie werden nicht neu gelesen.</value>
+  </data>
 </root>

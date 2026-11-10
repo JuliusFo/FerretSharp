@@ -74,8 +74,9 @@ public static class ColumnValueCopies
     /// </summary>
     /// <param name="rows">Every row of the result, in grid order.</param>
     /// <param name="wanted">Indexes of the result's columns whose values are wanted.</param>
-    public static AllColumnValues ForLoaded(IReadOnlyList<RowData> rows, IReadOnlyList<int> wanted, Guid workspaceId) =>
-        new(AllRowsExports.Heading(GridText.GridMenu_AllResultRowsGroup, rows.Count),
+    /// <param name="headingFormat">The menu group's heading (<c>{0}</c>: the rows); null for all rows of the result – WP-81 names kept rows.</param>
+    public static AllColumnValues ForLoaded(IReadOnlyList<RowData> rows, IReadOnlyList<int> wanted, Guid workspaceId, string? headingFormat = null) =>
+        new(AllRowsExports.Heading(headingFormat ?? GridText.GridMenu_AllResultRowsGroup, rows.Count),
             rows.Count,
             _ => RowExport.FromRows(rows),
             wanted,

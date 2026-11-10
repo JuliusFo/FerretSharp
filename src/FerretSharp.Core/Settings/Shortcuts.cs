@@ -56,6 +56,9 @@ public enum ShortcutAction
 
     /// <summary>The active table tab between its filter bar and a SQL condition (WP-79); no default key.</summary>
     ToggleCondition,
+
+    /// <summary>Keeps the result shown in the active SQL tab, or lets it go (WP-81); no default key.</summary>
+    KeepResult,
 }
 
 /// <summary>Where a shortcut is caught.</summary>
@@ -145,6 +148,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.CopyColumnValues, SettingsText.GroupData, SettingsText.ActionCopyColumnValues, null, ShortcutScope.Grid, SettingsText.HintCopyColumnValues),
         new(ShortcutAction.TimeTravel, SettingsText.GroupData, SettingsText.ActionTimeTravel, null, ShortcutScope.Global, SettingsText.HintTimeTravel),
         new(ShortcutAction.ToggleCondition, SettingsText.GroupData, SettingsText.ActionToggleCondition, null, ShortcutScope.Global, SettingsText.HintToggleCondition),
+        new(ShortcutAction.KeepResult, SettingsText.GroupSqlAndLinq, SettingsText.ActionKeepResult, null, ShortcutScope.Global, SettingsText.HintKeepResult),
     ];
 
     /// <summary>The fixed shortcuts; a property for the same reason as <see cref="Definitions"/>.</summary>

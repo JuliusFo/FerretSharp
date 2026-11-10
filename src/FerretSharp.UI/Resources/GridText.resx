@@ -1838,4 +1838,12 @@
     <value>Not with a SQL condition – only with the filter bar.</value>
     <comment>Tooltip of a disabled action (link, time travel, data diff) in a tab filtered by a SQL condition</comment>
   </data>
+  <data name="GridMenu_KeptRowsGroup" xml:space="preserve">
+    <value>Kept rows{0}</value>
+    <comment>Menu group heading of a kept SQL result (WP-81); {0}: " · 12,345 rows"</comment>
+  </data>
+  <data name="GridMenu_LoadedRowsGroup" xml:space="preserve">
+    <value>Loaded rows{0}</value>
+    <comment>Menu group heading of a SQL result whose rows were loaded up to the limit (WP-81); {0}: " · 10,000 rows"</comment>
+  </data>
 </root>

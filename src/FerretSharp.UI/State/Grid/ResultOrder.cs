@@ -17,17 +17,28 @@ public sealed class ResultOrder
     private readonly IReadOnlyList<SqlColumn> _columns;
     private readonly bool _byDatabase;
 
+    /// <summary>The rows are held (WP-81): the database never reads them again, also not for an order memory cannot sort.</summary>
+    private readonly bool _held;
+
     /// <summary>Every row in the query's own order, once they were all loaded unsorted (and still kept).</summary>
     private IReadOnlyList<RowData>? _all;
 
-    public ResultOrder(QuerySpec query, IReadOnlyList<SqlColumn> columns)
+    /// <param name="held">
+    /// Rows held in memory (WP-81, a kept result): only these are shown and sorted – in memory, never by the database.
+    /// </param>
+    public ResultOrder(QuerySpec query, IReadOnlyList<SqlColumn> columns, IReadOnlyList<RowData>? held = null)
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(columns);
         _query = query;
         _columns = columns;
-        _byDatabase = columns.Count > 0 && SqlResultOrder.CanSort(query, columns);
+        _byDatabase = held is null && columns.Count > 0 && SqlResultOrder.CanSort(query, columns);
+        _all = Ordered = held;
+        _held = held is not null;
     }
+
+    /// <summary>Every row in the query's own order, once all were loaded unsorted (or held from the start); null otherwise.</summary>
+    public IReadOnlyList<RowData>? All => _all;
 
     /// <summary>The order the headers ask for; empty for the query's own.</summary>
     public IReadOnlyList<ResultSort> Sorts { get; private set; } = [];
@@ -71,6 +82,7 @@ public sealed class ResultOrder
         Sorts = sorts;
         Ordered = sorts.Count == 0 ? _all
             : _all is not null && sorts.All(s => RowOrder.CanSort(_columns[s.Column].Column)) ? RowOrder.Sort(_all, sorts)
+            : _held ? _all
             : null;
         return true;
     }

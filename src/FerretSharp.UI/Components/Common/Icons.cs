@@ -227,6 +227,10 @@ internal static class Icons
     public static readonly MarkupString Link = Svg(
         """<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>""");
 
+    /// <summary>Lucide <c>camera</c>: a result of the SQL editor kept with its rows (WP-81), keeping one.</summary>
+    public static readonly MarkupString Camera = Svg(
+        """<path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/>""");
+
     /// <summary>Lucide <c>bookmark</c>: copy a link to the view with its filters (WP-61).</summary>
     public static readonly MarkupString LinkView = Svg(
         """<path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/>""");
