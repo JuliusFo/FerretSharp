@@ -41,3 +41,20 @@ Branch `wp/82-compare-view-definitions`. Aus dem Backlog („Schema-Vergleich, z
 ## Offen / Backlog
 - Monaco-Diff-Editor für die Definitionen (Backlog-Zeile „Schema-Vergleich, zweite Stufe“).
 - Frage an den Nutzer: Definitions- und Statuszeile am Filter „Objekte“ – so lassen oder eigener Filter „Definitionen“?
+- Indizes einer neu angelegten MView und das Maskieren fremden Texts im Markdown-Export (Review, Backlog).
+
+## Nachtrag: Code-Review (2026-11-10)
+Eigener Reviewer-Agent, danach jeder Befund nachgeprüft, Befund 1 und 2 gegen Oracle 23 gemessen (Kommentar am Ende bleibt in `TEXT_VC`; INSTEAD-OF-Trigger nach `CREATE OR REPLACE` weg). Entscheidung des Nutzers: „Deine Vorschläge (auch zu den Fragen) passen.“ – alle neun beheben; A immer warnen, B ALTER für reine MView-Optionen, C Hinweis bei INVALID.
+1. M behoben: Endete der View-Text in einem Zeilenkommentar, stand das `;` im Kommentar, der SQL-Editor verband zwei Statements – `DdlScript.Render` setzt es dann in eine eigene Zeile (Test scheitert ohne Fix).
+2. M behoben: `CREATE OR REPLACE VIEW` warnt, dass INSTEAD-OF-Trigger verloren gehen (immer, ohne `ALL_TRIGGERS`).
+3. K behoben: Ein Text mit einer Zeile nur aus `/` ist nur ein Hinweis (`ViewText.HasSlashLine` über `SqlSplitter.AloneOnLine`).
+4. K behoben: Eine View auf einer fehlenden, nicht gewählten View warnt wie ein FK (`ReferencedTableNotChosen`).
+5. K behoben: Nur die Definitionszeile hat einen Klick-Handler.
+6. K behoben: Optionstext einmal (`ObjectSnapshot.Options`), `Variants()` einmal je Rendern.
+7. K behoben: Gekürzte oder nicht sichtbare Texte sind `Unknown` (Tooltip „Text länger als 32.767 Zeichen oder nicht sichtbar“), der Dialog zeigt sie als eigene Einträge.
+8. K behoben: Backlog-Zeile; die Platzhalter `CREATE … AS …` kommen aus `OracleDdl.ViewPlaceholder`.
+9. K behoben: Gleiche Abfrage, andere Optionen einer MView → `ALTER MATERIALIZED VIEW … REFRESH …` bzw. `ENABLE/DISABLE QUERY REWRITE`; fehlende Indizes einer neuen MView in den Backlog.
+- C (aus dem E2E): Die Statuszelle einer INVALID-View sagt im Tooltip, dass Oracle sie bei der nächsten Verwendung kompiliert; die DDL-Warnung „in der Referenz ungültig“ ebenso.
+- Vorher schon da (Backlog): Der Markdown-Export maskiert fremden Text nur gegen `|` und Zeilenumbrüche.
+- Zweiter Durchgang (derselbe Agent, nur die Fix-Commits): Fixes 1–9 decken ihre Befunde, jeder neue Test scheitert ohne seinen Fix. Vier Nachbesserungen, als Teil der freigegebenen Fixes gleich behoben: (M) eine lesbare Seite neben einer gekürzten galt als „gleich“ – jetzt ist die ganze Definitionszeile `Unknown`, und `DdlWriter.Differs` folgt dem Zellzustand; der Export nennt gekürzte Texte nicht „ungültig“; eine ungültige MView bekommt einen eigenen Hinweis (sie beantwortet weiter Abfragen); die FAST-Warnung spricht vom Statement statt vom Anlegen.
+- Dritter Durchgang (nur der Nachbesserungs-Commit): deckt die vier Punkte; zwei kleine Folgen gleich behoben – `DdlWriter.Differs` vergleicht bei `Unknown` weiter die Namen (eine Spalte in anderer Schreibweise neben einer ungültigen Referenz-View fiel sonst aus dem Vorschlag, Test), und Tooltip und Export sagen „der Text einer Seite ist gekürzt oder nicht sichtbar“, weil die ganze Zeile nicht verglichen wird.
