@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.69.0] - 2026-11-10
+
+Compare views by their definition in the schema comparison, and run its DDL proposal right on the target.
+
 ### Added
 - *Schema comparison*: views and materialized views now compare by their definition. Each gets a *Definition* row – its query with `WITH READ ONLY`/`WITH CHECK OPTION` or, for a materialized view, its refresh options; spaces, comments, letter case and the prefix of the own schema do not count, so `ERP.KUNDE` on Dev equals `ERP_TEST.KUNDE` on Test – and a *Status* row, where an invalid view counts as a difference. A click on the definition row shows the text of each variant and the sides that have it.
 - The columns of an invalid view (type `UNDEFINED` after a failed compile, as after a Data Pump import) are no longer reported as differences; the status row shows the cause.
