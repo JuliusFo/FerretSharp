@@ -235,6 +235,11 @@ developer works with an Oracle database day to day:
   repository). The explorer lists them as a tree (*Scripts*); a click opens one in a new tab without running it, and the
   panel beside the history inserts one at the cursor. A tab opened from a script saves only when asked and reloads when
   the file changes on disk (format: `docs/sql-scripts.md`).
+- **Keep results:** *Keep result* above a query's result keeps it, with its rows as they were read, when the next
+  statement runs – up to ten per tab, side by side in the bar above the grid, each named by its table and time (a double
+  click renames it). A kept result never reads again: it sorts, copies and exports the rows it holds. Every result shows
+  the statement and the variables it ran with, and *To the editor* selects that statement in the script or inserts it.
+  *Load all rows* reads the rest of a result (up to 10,000 rows) before you keep it.
 - Results know where their columns come from: C# names, enum members, names beside foreign keys and foreign-key jumps
   as in a table – also with the quoted aliases EF Core writes and through synonyms. Columns of a result can be pinned;
   the tab keeps them for every result it shows.

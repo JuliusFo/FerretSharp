@@ -376,6 +376,17 @@ export function revealOffset(elementId, offset) {
   editor.focus();
 }
 
+/** Selects text by offsets, shows it and focuses the editor (a result's statement taken back, WP-81). */
+export function selectRange(elementId, start, length) {
+  const editor = editors.get(elementId);
+  if (!editor || !window.monaco) return;
+  const model = editor.getModel();
+  const range = window.monaco.Range.fromPositions(model.getPositionAt(start), model.getPositionAt(start + length));
+  editor.setSelection(range);
+  editor.revealRangeInCenterIfOutsideViewport(range);
+  editor.focus();
+}
+
 /** Puts the cursor at the end of the text, shows it and focuses the editor (a SQL tab just opened, WP-73). */
 export function focusEnd(elementId) {
   const editor = editors.get(elementId);

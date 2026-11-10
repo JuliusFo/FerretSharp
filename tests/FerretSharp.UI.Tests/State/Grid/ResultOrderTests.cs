@@ -90,6 +90,28 @@ public sealed class ResultOrderTests
         Assert.EndsWith("ORDER BY 4", order.Query.Sql, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// WP-81: held rows (a kept result) sort only in memory – a type memory cannot sort (an interval) does not sort at all,
+    /// and no order ever gives the grid a query to read rows of now.
+    /// </summary>
+    [Fact]
+    public void Held_rows_sort_only_in_memory_and_are_never_read_again()
+    {
+        var order = new ResultOrder(Plain, Columns, Rows);
+
+        Assert.Same(Rows, order.Ordered);
+        Assert.Same(Rows, order.All);
+        Assert.True(order.Sortable(1));
+        Assert.False(order.Sortable(3));
+        Assert.False(order.Loaded([Row(9m, "z")])); // the held rows stay
+
+        order.Apply([new ResultSort(1, false)]);
+        Assert.Equal([Rows[1], Rows[0], Rows[2]], order.Ordered);
+
+        order.Apply([new ResultSort(3, false)]); // not offered by the header – and still no read
+        Assert.Same(Rows, order.Ordered);
+    }
+
     /// <summary>ORA-00918 rules the database out: the headers sort once every row is there – and say so to the grid.</summary>
     [Fact]
     public void A_query_the_database_cannot_sort_sorts_once_loaded()

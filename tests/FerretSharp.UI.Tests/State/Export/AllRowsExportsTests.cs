@@ -3,6 +3,7 @@ using FerretSharp.Core.Data;
 using FerretSharp.Core.Display;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
+using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using NSubstitute;
 
@@ -121,6 +122,32 @@ public sealed class AllRowsExportsTests
         Assert.Equal("Alle Zeilen des Ergebnisses · 42 Zeilen", all.Heading);
         Assert.Same(xlsx, all.Excel().Columns);
         Assert.Null(all.Excel().Names);
+    }
+
+    /// <summary>
+    /// WP-81: a kept result exports the rows it holds – the query does not run again (it would bring rows of now) – in
+    /// blocks, with the workspace's session to look up the names.
+    /// </summary>
+    [Fact]
+    public async Task Held_rows_are_exported_as_they_are_without_running_the_query_again()
+    {
+        var rows = Enumerable.Range(0, IDataAccess.BlockSize + 1).Select(i => new RowData(RowKey.None.Instance, [i])).ToList();
+        var workspace = Guid.NewGuid();
+        var blocks = new List<(int Count, IRowLookup Lookup)>();
+
+        var all = AllRowsExports.ForHeld(rows, "Behaltene Zeilen{0}", _ => ExportColumn.Raw(Kunden), DisplayNames.None, TablePresentation.Plain, workspace, DataOf);
+        await all.Read((block, lookup, _) =>
+        {
+            blocks.Add((block.Count, lookup));
+            return Task.FromResult(true);
+        }, Ct);
+
+        Assert.Equal([(IDataAccess.BlockSize, (IRowLookup)_data), (1, _data)], blocks);
+        Assert.Empty(_data.ReceivedCalls());
+        Assert.Equal([workspace], _workspaces);
+        Assert.Equal(rows.Count, all.Total);
+        Assert.Equal("Behaltene Zeilen · " + ExportActions.RowsText(rows.Count), all.Heading);
+        Assert.Equal(GridText.GridMenu_HeldRowsTitle, all.Note); // the tooltip does not claim to read again
     }
 
     /// <summary>WP-73: a result's names beside foreign keys are looked up anew while reading, as a table's are.</summary>

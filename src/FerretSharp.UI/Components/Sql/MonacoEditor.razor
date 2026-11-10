@@ -217,6 +217,9 @@
 
     public Task RevealOffsetAsync(int offset) => CallAsync("revealOffset", _id, offset);
 
+    /// <summary>Selects text by offsets, shows it and focuses the editor (WP-81: a result's statement taken back).</summary>
+    public Task SelectAsync(int start, int length) => CallAsync("selectRange", _id, start, length);
+
     public sealed record EditorRunContext(string Text, int Start, int End);
 
     public sealed record EditorMarker(int Start, int Length, string Severity, string Message);

@@ -291,6 +291,35 @@ public static class SqlSplitter
         return (prefix + Terminated(statement.Trim(), newLine) + suffix, prefix.Length);
     }
 
+    /// <summary>
+    /// The statement of <paramref name="script"/> with exactly the text of <paramref name="statement"/> (a result's statement
+    /// taken back into the editor, WP-81): the one still where it was, else the first; null if the script no longer has it.
+    /// </summary>
+    public static SqlStatement? Find(string script, SqlStatement statement)
+    {
+        var same = Split(script).Where(s => string.Equals(s.Text, statement.Text, StringComparison.Ordinal)).ToList();
+        return same.FirstOrDefault(s => s.Start == statement.Start) ?? same.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Where a statement taken back into the editor goes (WP-81, review): at the cursor, but never inside a statement –
+    /// <see cref="Insert"/> would end the text before the cursor and cut it in two. Inside one – also after its code with
+    /// only blanks before the cursor, ahead of its <c>;</c> or <c>/</c> line (second review: that one was left on its own) –
+    /// behind it: where the next statement starts, else at the end of the script.
+    /// </summary>
+    public static int InsertionPoint(string script, int cursor)
+    {
+        cursor = Math.Clamp(cursor, 0, script.Length);
+        var statements = Split(script);
+        // A span, not a substring: each statement before the cursor would copy the script up to it (third review).
+        if (statements.FirstOrDefault(s => s.Start < cursor && (cursor <= s.End || script.AsSpan(s.End, cursor - s.End).IsWhiteSpace())) is not { } inside)
+        {
+            return cursor;
+        }
+
+        return statements.FirstOrDefault(s => s.Start >= inside.End)?.Start ?? script.Length;
+    }
+
     private static string LineEndOf(string text, string otherwise) =>
         text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : text.Contains('\n', StringComparison.Ordinal) ? "\n" : otherwise;
 

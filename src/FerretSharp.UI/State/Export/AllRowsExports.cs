@@ -23,7 +23,11 @@ public sealed record AllRowsExcel(IReadOnlyList<ExportColumn> Columns, DisplayNa
 /// on every opening of the menu.
 /// </param>
 /// <param name="WorkspaceId">The workspace whose session reads the rows (<see cref="BackgroundRead.WorkspaceId"/>).</param>
-public sealed record AllRowsExport(string Heading, RowReader Read, long? Total, Func<AllRowsExcel> Excel, Guid WorkspaceId);
+public sealed record AllRowsExport(string Heading, RowReader Read, long? Total, Func<AllRowsExcel> Excel, Guid WorkspaceId)
+{
+    /// <summary>What the export does, under heading and format in its tooltip: read again, or write the rows held (WP-81).</summary>
+    public string Note { get; init; } = GridText.GridMenu_AllRowsTitle;
+}
 
 /// <summary>What "all rows" of a table tab and of a SQL editor result read and write (WP-54).</summary>
 public static class AllRowsExports
@@ -96,6 +100,40 @@ public static class AllRowsExports
             },
             workspaceId);
     }
+
+    /// <summary>
+    /// The rows a result holds in memory (WP-81: kept, or all loaded): exported as they are, the query does not run again.
+    /// Names beside foreign keys are looked up anew in the workspace's session, as for <see cref="ForResult"/>.
+    /// </summary>
+    /// <param name="headingFormat">The menu group's heading with <c>{0}</c> for the number of rows (kept rows, all rows).</param>
+    public static AllRowsExport ForHeld(
+        IReadOnlyList<RowData> rows, string headingFormat, Func<DisplayNames?, IReadOnlyList<ExportColumn>> xlsxColumns,
+        DisplayNames gridNames, Func<TableDetails, TablePresentation> presentationOf, Guid workspaceId,
+        Func<Guid, CancellationToken, Task<IDataAccess>> dataOf) =>
+        new(
+            Heading(headingFormat, rows.Count),
+            async (onBlock, ct) =>
+            {
+                var lookup = await dataOf(workspaceId, ct);
+                foreach (var block in rows.Chunk(IDataAccess.BlockSize))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!await onBlock(block, lookup, ct))
+                    {
+                        return;
+                    }
+                }
+            },
+            rows.Count,
+            () =>
+            {
+                var names = FreshNames(gridNames, presentationOf);
+                return new AllRowsExcel(xlsxColumns(names), names);
+            },
+            workspaceId)
+        {
+            Note = GridText.GridMenu_HeldRowsTitle,
+        };
 
     /// <summary>The rows of a table tab's query, if known: counted, or all loaded.</summary>
     internal static long? TotalOf(TableTab tab) => tab.TotalCount ?? (tab.AllRowsLoaded ? tab.RowsLoaded : null);

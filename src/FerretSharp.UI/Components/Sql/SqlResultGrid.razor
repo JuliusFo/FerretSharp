@@ -106,6 +106,17 @@
     [Parameter]
     public SqlPage? FirstPage { get; set; }
 
+    /// <summary>
+    /// Rows held in memory (WP-81: a kept result, or all rows loaded at once): only these are shown, sorted in memory,
+    /// copied and exported – the query never runs again here. Null reads the query page by page.
+    /// </summary>
+    [Parameter]
+    public HeldRows? Held { get; set; }
+
+    /// <summary>Heading of "all rows" in the menus for <see cref="Held"/> rows (<c>{0}</c>: their number); null for all rows of the result.</summary>
+    [Parameter]
+    public string? HeldHeading { get; set; }
+
     /// <summary>The single table the query reads: target of "Copy as INSERT" (WP-17); null disables it.</summary>
     [Parameter]
     public TableSummary? InsertTarget { get; set; }
@@ -219,26 +230,36 @@
         _rowsLoaded = 0;
         _allLoaded = false;
         await Status(new SqlGridStatus(true, 0, false, null, null, null));
-        if (FirstPage is { } preloaded)
+        if (Held is { } held)
         {
-            _firstPage = preloaded;
+            _columns = held.Columns;
+            _order = new ResultOrder(Query, _columns, held.Rows);
+            (_dataAsOf, _snapshotMoved) = (held.DataAsOf, held.SnapshotMoved);
         }
         else
         {
-            var query = Query;
-            var result = await Shell.RunDbAsync(Logger, Active, async () =>
-                await Workspaces.ReadSqlAsync(WorkspaceId, query, 0, PageSize, CancellationToken.None));
-            if (result.Value is not { } first)
+            if (FirstPage is { } preloaded)
             {
-                await Status(new SqlGridStatus(false, 0, false, null, null, result.Error));
-                return;
+                _firstPage = preloaded;
+            }
+            else
+            {
+                var query = Query;
+                var result = await Shell.RunDbAsync(Logger, Active, async () =>
+                    await Workspaces.ReadSqlAsync(WorkspaceId, query, 0, PageSize, CancellationToken.None));
+                if (result.Value is not { } first)
+                {
+                    await Status(new SqlGridStatus(false, 0, false, null, null, result.Error));
+                    return;
+                }
+
+                _firstPage = first;
             }
 
-            _firstPage = first;
+            _columns = _firstPage.Columns;
+            _order = new ResultOrder(Query, _columns);
         }
 
-        _columns = _firstPage.Columns;
-        _order = new ResultOrder(Query, _columns);
         _presentation = SqlResultPresentation.Plain(_columns);
         var traced = TraceAsync(Query.Sql, _columns);
         await Task.WhenAny(traced, Task.Delay(SourcesWait));
@@ -497,9 +518,16 @@
         _blocks.Keep(startRow, block);
         _rowsLoaded = ordered.Count;
         _allLoaded = true;
-        await Status(new SqlGridStatus(false, _rowsLoaded, true, null, _dataAsOf, null, _snapshotMoved));
+
+        // Held rows that are not the whole result (WP-81): the footer says "≥", the rows say no more.
+        await Status(new SqlGridStatus(false, _rowsLoaded, Held?.Complete ?? true, null, _dataAsOf, null, _snapshotMoved));
         var (presentation, names) = (_presentation, Names);
         var rows = block.Select(r => presentation.Row(r.Values, names)).ToList();
+        if (Held is not null)
+        {
+            DisplayNamesOf.Queue([.. block.Select(r => r.Values)]); // a new grid: its names were never looked up
+        }
+
         RowsChanged?.Invoke();
         return new GridPage(rows, ordered.Count);
     }
@@ -568,18 +596,59 @@
     /// again (WP-57) – in the order the headers sort.
     /// </summary>
     private AllColumnValues AllValuesOf(IReadOnlyList<int> columns) => LoadedRows() is { } rows
-        ? ColumnValueCopies.ForLoaded(rows, columns, WorkspaceId)
+        ? ColumnValueCopies.ForLoaded(rows, columns, WorkspaceId, Held is null ? null : HeldHeading ?? GridText.GridMenu_AllResultRowsGroup)
         : ColumnValueCopies.ForResult(_order.Query, _columns, columns, _allLoaded ? _rowsLoaded : null, WorkspaceId, Workspaces.GetDataAsync);
 
     /// <summary>A column as the result presents it; the names of a traced foreign key follow it with the same source.</summary>
     private ExportColumn PresentedColumn(int column) => _presentation.ExportColumns().First(c => c.Source == column);
 
-    /// <summary>All rows of the query, run again in the workspace's session (WP-54), sorted as the headers ask.</summary>
+    /// <summary>
+    /// All rows of the query, run again in the workspace's session (WP-54), sorted as the headers ask – or the rows held in
+    /// memory (WP-81), never read again.
+    /// </summary>
     private AllRowsExport AllRowsOf()
     {
         var presentation = _presentation;
-        return AllRowsExports.ForResult(_order.Query, _columns, _allLoaded ? _rowsLoaded : null, presentation.ExportColumns, Names, Presentations.For,
-            WorkspaceId, Workspaces.GetDataAsync);
+        return Held is not null && _order.Ordered is { } held
+            ? AllRowsExports.ForHeld(held, HeldHeading ?? GridText.GridMenu_AllResultRowsGroup, presentation.ExportColumns, Names, Presentations.For,
+                WorkspaceId, Workspaces.GetDataAsync)
+            : AllRowsExports.ForResult(_order.Query, _columns, _allLoaded ? _rowsLoaded : null, presentation.ExportColumns, Names, Presentations.For,
+                WorkspaceId, Workspaces.GetDataAsync);
+    }
+
+    // ---------- rows held in memory (WP-81) ----------
+
+    /// <summary>
+    /// The rows to keep, as the grid shows them now: every row in the query's own order if all are known, else the rows
+    /// loaded from the first one on without a gap (in the order the database sorted them) – at most <paramref name="max"/>.
+    /// Null before the grid has its columns.
+    /// </summary>
+    public HeldRows? Hold(int max)
+    {
+        if (_columns.Count == 0)
+        {
+            return null;
+        }
+
+        return HeldRows.Of(_columns, _order.All, Held?.Complete ?? true, _blocks.At, _rowsLoaded, _allLoaded, _firstPage ?? FirstPage,
+            _dataAsOf, _snapshotMoved, max);
+    }
+
+    /// <summary>
+    /// The rows to keep after reading the ones not loaded yet, up to <paramref name="max"/>, in the order the grid shows (WP-81:
+    /// "Load all rows"); null if reading failed (shown) or was cancelled.
+    /// </summary>
+    public async Task<HeldRows?> LoadAllAsync(int max, CancellationToken cancellationToken)
+    {
+        if (Hold(max) is not { } held || held.Complete || held.Rows.Count >= max)
+        {
+            return Hold(max);
+        }
+
+        var (query, start) = (_order.Query, held.Rows.Count);
+        var result = await Shell.RunDbAsync(Logger, Active, async () =>
+            await Workspaces.ReadSqlAsync(WorkspaceId, query, start, max - start, cancellationToken), cancellationToken);
+        return Shell.ShowFailure(result) && result.Value is { } page ? held.With(page) : null;
     }
 
     /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>

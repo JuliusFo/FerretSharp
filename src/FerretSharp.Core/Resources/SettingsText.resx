@@ -474,4 +474,11 @@
   <data name="HintToggleCondition" xml:space="preserve">
     <value>The active table tab filters by its filter rows or by a condition written in SQL; not in a time travel tab.</value>
   </data>
+  <data name="ActionKeepResult" xml:space="preserve">
+    <value>Keep or let go of result</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintKeepResult" xml:space="preserve">
+    <value>In the SQL editor: the result shown stays when the next statement runs.</value>
+  </data>
 </root>

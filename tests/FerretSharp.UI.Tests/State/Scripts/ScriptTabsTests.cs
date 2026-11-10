@@ -25,7 +25,7 @@ public sealed class ScriptTabsTests : IAsyncDisposable
         Assert.Equal([new SqlVariable("id", SqlVariableType.Number, "")], tab.Variables);
         Assert.Equal((ScriptRootKind.Personal, "Orders/Open orders.sql", "HASH"), (tab.Script!.Root, tab.Script.Path, tab.Script.FileHash));
         Assert.False(tab.ScriptChanged);
-        Assert.Empty(tab.Runs);
+        Assert.Empty(tab.Results.All);
         Assert.Same(tab, _app.Shell.ActiveTab);
     }
 

@@ -149,13 +149,16 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
     /// <summary>Bind variables in order of use, with type and value; unused ones are kept at the end.</summary>
     public IReadOnlyList<Core.Query.SqlVariable> Variables { get; set; } = [];
 
-    /// <summary>The statements of the last run – one for Ctrl+Enter, several for a script (Alt+X). Not saved.</summary>
-    public IReadOnlyList<SqlRun> Runs { get; set; } = [];
+    /// <summary>
+    /// The kept results and the statements of the last run – one for Ctrl+Enter, several for a script (Alt+X; WP-81). Not
+    /// saved: rows stay in memory only.
+    /// </summary>
+    public ResultShelf Results { get; } = new();
 
-    /// <summary>Index into <see cref="Runs"/> of the result shown.</summary>
-    public int SelectedRun { get; set; }
+    public SqlRun? ShownRun => Results.Shown;
 
-    public SqlRun? ShownRun => Runs.Count == 0 ? null : Runs[Math.Clamp(SelectedRun, 0, Runs.Count - 1)];
+    /// <summary>The header above the result shows the whole statement and its variables (WP-81); not saved.</summary>
+    public bool ResultHeaderOpen { get; set; }
 
     /// <summary>
     /// Opened just now (<see cref="ShellState.OpenSql"/>, WP-73): the editor takes the focus once, with the cursor at the end.
@@ -420,4 +423,23 @@ public sealed record SqlRun(
     TimeSpan? Elapsed = null,
     bool Cancelled = false,
     bool SchemaChanged = false,
-    TableLock? Lock = null);
+    TableLock? Lock = null)
+{
+    /// <summary>Tells results apart in the bar (WP-81) – also two runs of the same statement; kept by <c>with</c>.</summary>
+    public Guid Id { get; init; } = Guid.NewGuid();
+
+    /// <summary>The variables the statement bound, with the values it ran with (WP-81: the result's header shows them).</summary>
+    public IReadOnlyList<Core.Query.SqlVariable> Variables { get; init; } = [];
+
+    /// <summary>
+    /// A query read while the workspace had an open write transaction: since when. Its rows may show uncommitted writes
+    /// that a rollback took back (WP-81: a kept result says so).
+    /// </summary>
+    public DateTimeOffset? ReadInTransaction { get; init; }
+
+    /// <summary>The rows held in memory (WP-81: kept, or all loaded): the grid shows these and never reads again.</summary>
+    public HeldRows? Held { get; init; }
+
+    /// <summary>A name of the user's for a kept result; null for the label of table and time (<see cref="ResultShelf.Label"/>).</summary>
+    public string? Name { get; init; }
+}

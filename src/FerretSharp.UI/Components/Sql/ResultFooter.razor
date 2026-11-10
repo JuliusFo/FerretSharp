@@ -25,6 +25,17 @@
                 </Fmt>
             </span>
             <SelectionCount Grid="Grid" AllLoaded="grid.AllLoaded" />
+            @if (LoadingAll)
+            {
+                <span><span class="spinner small"></span> @SqlEditorText.Result_LoadingAll</span>
+                <button class="btn ghost small" @onclick="OnCancelLoadAll">@CommonText.Cancel</button>
+            }
+            else if (!grid.AllLoaded && OnLoadAll.HasDelegate)
+            {
+                @* WP-81: the remaining rows now, held in memory as read – then they sort in memory and can be kept whole. *@
+                <button class="btn ghost small" title="@TextFormat.Format(SqlEditorText.Result_LoadAllTitle, ResultShelf.MaxRows.ToString("N0", CultureInfo.CurrentCulture))"
+                        @onclick="OnLoadAll">@SqlEditorText.Result_LoadAll</button>
+            }
             @if (grid.Elapsed is { } elapsed)
             {
                 <span>@TimeText.Duration(elapsed)</span>
@@ -77,4 +88,15 @@
     /// <summary>The switch: the view opens or closes the form.</summary>
     [Parameter]
     public EventCallback OnToggleForm { get; set; }
+
+    /// <summary>"Load all rows" (WP-81, SQL editor); without a delegate there is no button.</summary>
+    [Parameter]
+    public EventCallback OnLoadAll { get; set; }
+
+    /// <summary>The remaining rows are being read: progress and "Cancel" in place of the button.</summary>
+    [Parameter]
+    public bool LoadingAll { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelLoadAll { get; set; }
 }

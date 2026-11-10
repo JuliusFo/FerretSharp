@@ -740,4 +740,86 @@
   <data name="ResultForm_HideEmptyTitle" xml:space="preserve">
     <value>Hide fields without a value (NULL); applies to this tab</value>
   </data>
+  <data name="Result_Keep" xml:space="preserve">
+    <value>Keep result</value>
+    <comment>Button above a SQL result (WP-81)</comment>
+  </data>
+  <data name="Result_KeepTitle" xml:space="preserve">
+    <value>Keeps this result with its rows as they are: it stays when the next statement runs</value>
+  </data>
+  <data name="Result_Release" xml:space="preserve">
+    <value>Let go</value>
+    <comment>Button above a kept SQL result (WP-81)</comment>
+  </data>
+  <data name="Result_ReleaseTitle" xml:space="preserve">
+    <value>The result is no longer kept: the next run replaces it</value>
+  </data>
+  <data name="Result_Close" xml:space="preserve">
+    <value>Close result</value>
+  </data>
+  <data name="Result_ChipTitle" xml:space="preserve">
+    <value>{0}
+
+Double-click to rename the result.</value>
+    <comment>Tooltip of a kept result in the bar; {0}: its statement</comment>
+  </data>
+  <data name="Result_RenamePlaceholder" xml:space="preserve">
+    <value>Name of the result</value>
+  </data>
+  <data name="Result_TakeToEditor" xml:space="preserve">
+    <value>To the editor</value>
+    <comment>Button above a SQL result (WP-81)</comment>
+  </data>
+  <data name="Result_TakeToEditorTitle" xml:space="preserve">
+    <value>Selects the statement in the editor – or inserts it at the cursor if the editor no longer has it</value>
+  </data>
+  <data name="Result_KeptRowsOne" xml:space="preserve">
+    <value>1 row kept</value>
+  </data>
+  <data name="Result_KeptRowsOther" xml:space="preserve">
+    <value>{0:N0} rows kept</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Result_KeptFirstRows" xml:space="preserve">
+    <value>First {0} rows kept – the result had more</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Result_ReadInTransaction" xml:space="preserve">
+    <value>Read in an open transaction (since {0})</value>
+    <comment>{0}: time of day the transaction started</comment>
+  </data>
+  <data name="Result_ReadInTransactionTitle" xml:space="preserve">
+    <value>The rows may show uncommitted changes – after a rollback they never existed.</value>
+  </data>
+  <data name="Result_RanAt" xml:space="preserve">
+    <value>Ran at {0}</value>
+    <comment>{0}: time of day</comment>
+  </data>
+  <data name="Result_ShowStatement" xml:space="preserve">
+    <value>Show statement and variables</value>
+  </data>
+  <data name="Result_HideStatement" xml:space="preserve">
+    <value>Hide statement and variables</value>
+  </data>
+  <data name="Result_KeepFull" xml:space="preserve">
+    <value>{0} results are kept already – close one first.</value>
+    <comment>{0}: the limit</comment>
+  </data>
+  <data name="Result_KeepNotAResult" xml:space="preserve">
+    <value>Only the result of a query that ran can be kept.</value>
+  </data>
+  <data name="Result_LoadAll" xml:space="preserve">
+    <value>Load all rows</value>
+    <comment>Button in the footer of a SQL result (WP-81)</comment>
+  </data>
+  <data name="Result_LoadAllTitle" xml:space="preserve">
+    <value>Reads the remaining rows now, up to {0}. Then they sort in memory and stay as read – "Keep result" keeps them all.</value>
+    <comment>{0}: the limit of rows</comment>
+  </data>
+  <data name="Result_LoadingAll" xml:space="preserve">
+    <value>Loading all rows …</value>
+  </data>
+  <data name="Result_HeldTitle" xml:space="preserve">
+    <value>The rows are held in memory as they were read – they are not read again.</value>
+  </data>
 </root>

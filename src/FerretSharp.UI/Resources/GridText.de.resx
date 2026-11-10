@@ -1446,4 +1446,16 @@
   <data name="Condition_NotWithCondition" xml:space="preserve">
     <value>Nicht mit einer SQL-Bedingung – nur mit der Filterleiste.</value>
   </data>
+  <data name="GridMenu_KeptRowsGroup" xml:space="preserve">
+    <value>Behaltene Zeilen{0}</value>
+  </data>
+  <data name="GridMenu_LoadedRowsGroup" xml:space="preserve">
+    <value>Geladene Zeilen{0}</value>
+  </data>
+  <data name="GridMenu_HeldRowsTitle" xml:space="preserve">
+    <value>Schreibt die Zeilen, die das Ergebnis hält, so wie sie gelesen wurden – die Abfrage läuft nicht noch einmal.</value>
+  </data>
+  <data name="ColumnMenu_HeldValuesTitle" xml:space="preserve">
+    <value>Die Werte kommen aus den Zeilen, die das Ergebnis hält, so wie sie gelesen wurden – die Abfrage läuft nicht noch einmal. Mehr als {0:N0} Werte werden nicht kopiert.</value>
+  </data>
 </root>
