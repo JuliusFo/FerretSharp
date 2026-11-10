@@ -177,6 +177,34 @@ public sealed class SchemaCompareServiceTests : IDisposable
         Assert.Empty(service.Chosen);
     }
 
+    /// <summary>Review: a side that failed left a smaller matrix, and every object differing only against it lost its choice for good.</summary>
+    [Fact]
+    public async Task A_side_failing_on_comparing_again_keeps_the_choice_until_all_sides_load()
+    {
+        _secrets.SetPassword(_dev.Id, "pw");
+        _secrets.SetPassword(_test.Id, "pw");
+        Opens(_dev, ["A", "B", "C"]);
+        Opens(_test, ["C"]);
+        var service = await ServiceAsync();
+        SetSides(service, _dev.Id, _test.Id);
+        await service.CompareAsync();
+        service.Choose(service.Result!.Objects, on: true);
+
+        _connector.OpenAsync(_test, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DatabaseException("TNS: Zeitüberschreitung", "ORA-12170"));
+        await service.CompareAsync();
+
+        Assert.Equal([0], service.ResultSides);
+        Assert.Empty(service.ChosenRows); // one side: nothing differs, nothing to propose
+        Assert.Equal(["A", "B"], service.Chosen.Order(StringComparer.Ordinal)); // but the choice waits
+
+        Opens(_test, ["A", "C"]); // reachable again, A was created meanwhile
+        await service.CompareAsync();
+
+        Assert.Equal(["B"], service.ChosenRows.Select(r => r.Name));
+        Assert.Equal(["B"], service.Chosen);
+    }
+
     /// <summary>Compared from the UI thread, the sides load and the matrix builds without holding it (the window froze).</summary>
     [Fact]
     public async Task Comparing_from_the_ui_thread_leaves_it_free()

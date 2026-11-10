@@ -65,15 +65,19 @@ public sealed class SchemaCompareService(
 
     /// <summary>
     /// Keys of the objects chosen in the matrix for the DDL proposal: none at first, kept while filters hide them and over
-    /// a new comparison of the same sides (objects no longer there or alike everywhere drop out), not saved.
+    /// a new comparison of the same sides (objects no longer there or alike everywhere drop out once all sides loaded),
+    /// not saved. What counts for the matrix is <see cref="IsChosen"/>.
     /// </summary>
     public IReadOnlySet<string> Chosen => _chosen;
 
     /// <summary>The chosen objects of the matrix in its order; what the DDL proposal covers.</summary>
-    public IReadOnlyList<CompareRow> ChosenRows => Result is { } result ? result.Objects.Where(o => _chosen.Contains(o.Key)).ToList() : [];
+    public IReadOnlyList<CompareRow> ChosenRows => Result is { } result ? result.Objects.Where(IsChosen).ToList() : [];
 
     /// <summary>Only an object that differs somewhere can be chosen: one alike on all sides never gets a step.</summary>
     public static bool CanChoose(CompareRow row) => row.HasDifferences;
+
+    /// <summary>Chosen and differing in this matrix; a key that is alike here (a side missing, column order off) waits.</summary>
+    public bool IsChosen(CompareRow row) => CanChoose(row) && _chosen.Contains(row.Key);
 
     /// <summary>Chooses objects for the DDL proposal or takes them out; rows that cannot be chosen are left alone.</summary>
     public void Choose(IEnumerable<CompareRow> rows, bool on)
@@ -254,7 +258,7 @@ public sealed class SchemaCompareService(
             return; // cancelled by a newer comparison, which builds the matrix when it ends
         }
 
-        await RecomputeAsync();
+        await RecomputeAsync(afterRead: true);
         Changed?.Invoke();
     }
 
@@ -328,7 +332,12 @@ public sealed class SchemaCompareService(
     /// The matrix over the sides that loaded; the reference only if it loaded too. Computed on the thread pool – over
     /// large schemas the diff took long enough to freeze the window – and dropped if the sides or options changed meanwhile.
     /// </summary>
-    private async Task RecomputeAsync()
+    /// <param name="afterRead">
+    /// The sides were just read: if all of them loaded, chosen objects that are gone or alike everywhere drop out. Not
+    /// after a side failed (an object that differs only against it would be lost, review) and not for a new matrix from
+    /// the same snapshots (column order on and off) – there <see cref="IsChosen"/> only hides them.
+    /// </param>
+    private async Task RecomputeAsync(bool afterRead = false)
     {
         var version = Interlocked.Increment(ref _matrix);
         var loaded = Sides.Select((state, index) => (state, index)).Where(s => s.state.Snapshot is not null).ToList();
@@ -345,8 +354,11 @@ public sealed class SchemaCompareService(
         if (version == Volatile.Read(ref _matrix))
         {
             (Result, ResultSides) = (result, loaded.Select(s => s.index).ToList());
-            var choosable = result.Objects.Where(CanChoose).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
-            _chosen.IntersectWith(choosable); // e.g. compared again after running the script: aligned objects drop out
+            if (afterRead && loaded.Count == Sides.Count)
+            {
+                // e.g. compared again after running the script: aligned objects drop out
+                _chosen.IntersectWith(result.Objects.Where(CanChoose).Select(o => o.Key));
+            }
         }
     }
 }
