@@ -40,6 +40,23 @@ Entscheidungen zum Plan (2026-11-10, „Ja, loslegen“): Ein elftes behaltenes 
 - Falle beim Testen: Scheitert `Start-TestInstance.ps1` an einem noch belegten Port, baut es nicht – die Instanz danach mit `-NoBuild` lief mit der alten DLL (das CSS kam trotzdem neu, es wird im Debug aus dem Quellordner geladen).
 - Die Testinstanz wurde während des Wartens einmal von außen geschlossen („Main window closing by the user“), vermutlich von einer parallelen Session; danach neu gestartet.
 
+## Nachtrag: Code-Review (2026-11-10)
+Reviewer-Agent (`/branch-code-review`), drei Durchgänge. Entscheidung des Nutzers: „Alle beheben“ (erster Durchgang, acht Befunde) und „Alle beheben“ (zweiter Durchgang, A–E). Zu Befund 6 der Vorschlag „Hinweis bei allen gehaltenen Zeilen“; zu Befund 8 bestätigt: „B - Hiermit bestätigt.“ (nur im Speicher).
+- 1 (M) „In den Editor übernehmen“ zerteilte ein Statement, wenn der Cursor darin stand (`Insert` beendet den Text davor): behoben, `SqlScript.InsertionPoint` – hinter dem Statement unter dem Cursor; Test.
+- 2 (M) Behalten nach weitem Scrollen (Block 0 aus `RowBlocks` verdrängt) oder direkt nach einem Kopfklick behielt 0 Zeilen: behoben, `HeldRows.Of` nimmt dann die erste Seite des Laufs; Test.
+- 3 (M) „Alle Zeilen laden“ hing an der Ansicht (Fortschritt und Abbrechen beim gezeigten Ergebnis, Fußzeile eines anderen geleert): behoben, Ladezustand je Ergebnis (`_loadingAllOf`); im E2E geprüft. Teil c (Sortierung während des Ladens) bleibt, siehe „Offen“.
+- 4 (K) Snapshot-Wechsel beim Halten und Laden verloren: behoben, `HeldRows.SnapshotMoved`, `HeldRows.With`; Test.
+- 5 (K) Das Kürzel behielt ein hinter einem Problem verborgenes Ergebnis: behoben (nicht im E2E, das Kürzel hat keine Standardtaste).
+- 6 (K) Transaktionshinweis nur bei behaltenen Ergebnissen: behoben, bei allen gehaltenen Zeilen; im E2E geprüft.
+- 7 (K) Name ohne Längengrenze: behoben, 60 Zeichen (`ResultShelf.MaxNameLength`), Chip mit „…“; Test, E2E.
+- 8 (K) Doku/Tests: Entscheidungen im Protokoll nachgetragen, Tests für zweites Behalten und Schließen während eines Laufs.
+- A (K) Cursor zwischen Statement und seinem `;`/`/`: das Endzeichen blieb lose stehen – behoben, Leerraum bis dahin zählt zum Statement; Test.
+- B (K) Rückschritt durch 2: ein leeres Ergebnis, vor dem ersten Block behalten, hieß „Erste 0 Zeilen behalten“ – behoben; Test.
+- C (K) Der Transaktionshinweis kannte nur das erste Lesen – behoben, beim Behalten und Laden erfasst (konservativ); im E2E geprüft.
+- D (K) Kürzen konnte ein Surrogatpaar teilen, der volle Name stand nirgends – behoben, Name im Tooltip des Chips; Test (Tooltip nicht im E2E gelesen: `tooltip.js` hatte ihn beim Hover übernommen).
+- E (K) Dieser Nachtrag.
+
 ## Offen / Backlog
 - LINQ-Konsole: Ergebnisse behalten (Backlog, Entscheidung des Nutzers).
 - Ein Grid, das zu gehaltenen Zeilen wechselt (Behalten, Alle Zeilen laden), wird neu aufgebaut: Scrollposition und eine Sortierung über die Datenbank gehen verloren (die Zeilen bleiben in der gezeigten Ordnung).
+- Fehlt nach einer Sortierung über die Datenbank Block 0, behält „Behalten“ die erste Seite in der Ordnung der Abfrage vom Zeitpunkt des Laufs, nicht die sortierten Zeilen von jetzt (Review, sehr selten). Ebenso geht eine Sortierung über die Datenbank verloren, die während „Alle Zeilen laden“ geklickt wird.
