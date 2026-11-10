@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.UI.State;
 
@@ -54,6 +55,12 @@ public sealed class ResultShelfTests
 
         Assert.Equal(KeepRefusal.NotAResult, shelf.Keep(failed, Rows));
         Assert.Equal(KeepRefusal.NotAResult, shelf.Keep(update, Rows));
+        var twice = Run();
+        shelf.Add(twice);
+        Assert.Null(shelf.Keep(twice, Rows));
+        Assert.Null(shelf.Keep(twice, new HeldRows([], [], Complete: false))); // kept already: nothing changes
+        Assert.Same(Rows, shelf.Kept[0].Held);
+        shelf.Close(twice);
 
         for (var i = 0; i < ResultShelf.MaxKept; i++)
         {
@@ -100,6 +107,21 @@ public sealed class ResultShelfTests
         Assert.Equal(2, shelf.All.Count);
     }
 
+    /// <summary>While a run starts nothing is chosen: closing a kept result then leaves the newest one shown.</summary>
+    [Fact]
+    public void Closing_while_a_run_starts_shows_the_last_kept_result()
+    {
+        var (a, b) = (Run(), Run());
+        var shelf = ShelfWith(a, b);
+        shelf.Keep(a, Rows);
+        shelf.Keep(b, Rows);
+        shelf.StartRun();
+
+        shelf.Close(a);
+
+        Assert.Equal(b.Id, shelf.Shown?.Id);
+    }
+
     [Fact]
     public void The_result_shown_is_remembered_across_updates()
     {
@@ -110,6 +132,64 @@ public sealed class ResultShelfTests
         shelf.Update(a with { Held = Rows });
 
         Assert.Same(Rows, shelf.Shown?.Held);
+    }
+
+    private static readonly IReadOnlyList<SqlColumn> Columns = [];
+
+    private static RowData Row(int n) => new(RowKey.None.Instance, [n]);
+
+    private static SqlPage Page(int from, int count, bool last, DateTimeOffset? asOf = null) =>
+        new(Columns, [.. Enumerable.Range(from, count).Select(n => (IReadOnlyList<object?>)[n])], last, TimeSpan.Zero, asOf);
+
+    /// <summary>Rows from the first one on without a gap; the whole result only if every row read is among them.</summary>
+    [Theory]
+    [InlineData(1000, 1000, true, 1000, true)] // all loaded
+    [InlineData(1000, 1500, false, 1000, false)] // more to read
+    [InlineData(1000, 1000, true, 800, false)] // more than the limit
+    public void The_rows_loaded_from_the_first_on_are_held(int loaded, int rowsLoaded, bool allLoaded, int max, bool complete)
+    {
+        var held = HeldRows.Of(Columns, null, true, i => i < loaded ? Row(i) : null, rowsLoaded, allLoaded, Page(0, 500, false), null, false, max);
+
+        Assert.Equal((Math.Min(loaded, max), complete), (held.Rows.Count, held.Complete));
+    }
+
+    /// <summary>
+    /// Review WP-81: scrolled beyond the grid's cache (block 0 gone) or just sorted anew (no block yet), keeping held no
+    /// row at all – the statement's first page stands in.
+    /// </summary>
+    [Fact]
+    public void Without_the_first_block_the_first_page_is_held()
+    {
+        var asOf = DateTimeOffset.Now;
+
+        var held = HeldRows.Of(Columns, null, true, i => i >= 500 ? Row(i) : null, 21_000, false, Page(0, 500, false, asOf), null, false, 10_000);
+
+        Assert.Equal((500, false, asOf), (held.Rows.Count, held.Complete, held.DataAsOf));
+        Assert.Equal(0, held.Rows[0].Values[0]);
+    }
+
+    [Fact]
+    public void Rows_known_in_the_query_s_order_are_held_up_to_the_limit()
+    {
+        var all = Enumerable.Range(0, 12).Select(Row).ToList();
+
+        Assert.True(HeldRows.Of(Columns, all, true, _ => null, 0, false, null, null, false, 12).Complete);
+        Assert.False(HeldRows.Of(Columns, all, false, _ => null, 0, false, null, null, false, 12).Complete); // held rows that were not all
+        Assert.Equal(10, HeldRows.Of(Columns, all, true, _ => null, 0, false, null, null, false, 10).Rows.Count);
+    }
+
+    /// <summary>Review WP-81: "Load all rows" in a locked workspace lost that its later rows came from another snapshot.</summary>
+    [Fact]
+    public void Rows_loaded_later_from_another_snapshot_say_so()
+    {
+        var (first, later) = (DateTimeOffset.Now, DateTimeOffset.Now.AddMinutes(1));
+        var held = new HeldRows(Columns, [Row(0)], false, first);
+
+        var same = held.With(Page(1, 2, true, first));
+        var moved = held.With(Page(1, 2, false, later));
+
+        Assert.Equal((3, true, first, false), (same.Rows.Count, same.Complete, same.DataAsOf, same.SnapshotMoved));
+        Assert.Equal((false, first, true), (moved.Complete, moved.DataAsOf, moved.SnapshotMoved));
     }
 
     /// <summary>Decision of the user: the table (or the first word) and the time it ran, or a name of the user's.</summary>

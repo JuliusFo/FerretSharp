@@ -9,8 +9,64 @@ namespace FerretSharp.UI.State;
 /// <param name="Columns">The result's columns.</param>
 /// <param name="Rows">From the first row on, in the order the grid showed them.</param>
 /// <param name="Complete">The rows are the whole result; false if it had more (beyond <see cref="ResultShelf.MaxRows"/> or not loaded).</param>
-/// <param name="DataAsOf">Snapshot of a locked workspace the rows came from; null outside one.</param>
-public sealed record HeldRows(IReadOnlyList<SqlColumn> Columns, IReadOnlyList<RowData> Rows, bool Complete, DateTimeOffset? DataAsOf = null);
+/// <param name="DataAsOf">Snapshot of a locked workspace the rows came from (of their first row); null outside one.</param>
+/// <param name="SnapshotMoved">Later rows came from another snapshot than the first (<see cref="Snapshots.Next"/>).</param>
+public sealed record HeldRows(
+    IReadOnlyList<SqlColumn> Columns, IReadOnlyList<RowData> Rows, bool Complete, DateTimeOffset? DataAsOf = null, bool SnapshotMoved = false)
+{
+    /// <summary>
+    /// The rows a grid can hold now, at most <paramref name="max"/>: every row in the query's own order if all are known,
+    /// else the rows loaded from the first one on without a gap. Fewer than the first page – its block went from the
+    /// grid's cache after scrolling far, or a new order was not read yet – takes the first page as read when the statement
+    /// ran (review WP-81: keeping held no rows at all).
+    /// </summary>
+    /// <param name="all">Every row in the query's own order, if known (<see cref="ResultOrder.All"/>).</param>
+    /// <param name="allComplete">Whether <paramref name="all"/> is the whole result (held rows may not be).</param>
+    /// <param name="loaded">The loaded row at a grid index, null if its block is not held.</param>
+    /// <param name="rowsLoaded">Rows read so far; with <paramref name="allLoaded"/> the result's size.</param>
+    /// <param name="firstPage">The statement's first page, read when it ran; null if there is none.</param>
+    public static HeldRows Of(
+        IReadOnlyList<SqlColumn> columns, IReadOnlyList<RowData>? all, bool allComplete, Func<int, RowData?> loaded, int rowsLoaded,
+        bool allLoaded, SqlPage? firstPage, DateTimeOffset? dataAsOf, bool snapshotMoved, int max)
+    {
+        ArgumentNullException.ThrowIfNull(loaded);
+        if (all is not null)
+        {
+            return new HeldRows(columns, [.. all.Take(max)], allComplete && all.Count <= max, dataAsOf, snapshotMoved);
+        }
+
+        var rows = new List<RowData>();
+        while (rows.Count < max && loaded(rows.Count) is { } row)
+        {
+            rows.Add(row);
+        }
+
+        if (firstPage is { } first && rows.Count < Math.Min(first.Rows.Count, max))
+        {
+            return new HeldRows(columns, [.. first.Rows.Take(max).Select(values => new RowData(RowKey.None.Instance, values))],
+                first.IsLastPage && first.Rows.Count <= max, first.DataAsOf);
+        }
+
+        return new HeldRows(columns, rows, allLoaded && rows.Count == rowsLoaded, dataAsOf, snapshotMoved);
+    }
+
+    /// <summary>
+    /// These rows and the ones read after them ("Load all rows"): complete if that was the last page; a page from another
+    /// snapshot than the first rows says so (review WP-81: it was lost).
+    /// </summary>
+    public HeldRows With(SqlPage next)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+        var (asOf, moved) = Snapshots.Next(Rows.Count, DataAsOf, SnapshotMoved, next.DataAsOf);
+        return this with
+        {
+            Rows = [.. Rows, .. next.Rows.Select(values => new RowData(RowKey.None.Instance, values))],
+            Complete = next.IsLastPage,
+            DataAsOf = asOf,
+            SnapshotMoved = moved,
+        };
+    }
+}
 
 /// <summary>Why a result could not be kept.</summary>
 public enum KeepRefusal

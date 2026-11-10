@@ -783,8 +783,7 @@
 
     /// <summary>The rows of a result not shown: its first page as read when the statement ran.</summary>
     private static HeldRows? HeldOf(SqlRun run) => run.FirstPage is { } page
-        ? new HeldRows(page.Columns, [.. page.Rows.Take(ResultShelf.MaxRows).Select(v => new Core.Data.RowData(Core.Data.RowKey.None.Instance, v))],
-            page.IsLastPage && page.Rows.Count <= ResultShelf.MaxRows, page.DataAsOf)
+        ? HeldRows.Of(page.Columns, null, true, _ => null, 0, false, page, page.DataAsOf, false, ResultShelf.MaxRows)
         : null;
 
     private void Release(SqlRun run) => Tab.Results.Release(run);
