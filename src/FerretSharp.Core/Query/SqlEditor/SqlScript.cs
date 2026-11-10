@@ -31,6 +31,9 @@ public static class SqlScript
     /// <inheritdoc cref="SqlSplitter.CountStatements"/>
     public static int CountStatements(string text) => SqlSplitter.CountStatements(text);
 
+    /// <inheritdoc cref="SqlSplitter.Find"/>
+    public static SqlStatement? Find(string script, SqlStatement statement) => SqlSplitter.Find(script, statement);
+
     /// <inheritdoc cref="SqlSplitter.StatementsIn"/>
     public static IReadOnlyList<SqlStatement> StatementsIn(string text, int selectionStart, int selectionEnd) => SqlSplitter.StatementsIn(text, selectionStart, selectionEnd);
 

@@ -291,6 +291,16 @@ public static class SqlSplitter
         return (prefix + Terminated(statement.Trim(), newLine) + suffix, prefix.Length);
     }
 
+    /// <summary>
+    /// The statement of <paramref name="script"/> with exactly the text of <paramref name="statement"/> (a result's statement
+    /// taken back into the editor, WP-81): the one still where it was, else the first; null if the script no longer has it.
+    /// </summary>
+    public static SqlStatement? Find(string script, SqlStatement statement)
+    {
+        var same = Split(script).Where(s => string.Equals(s.Text, statement.Text, StringComparison.Ordinal)).ToList();
+        return same.FirstOrDefault(s => s.Start == statement.Start) ?? same.FirstOrDefault();
+    }
+
     private static string LineEndOf(string text, string otherwise) =>
         text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : text.Contains('\n', StringComparison.Ordinal) ? "\n" : otherwise;
 

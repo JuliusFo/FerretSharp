@@ -149,6 +149,24 @@ public sealed class SqlScriptTests
     }
 
     /// <summary>
+    /// WP-81: a result's statement is found again in the editor only with exactly its text – where it was if it still is
+    /// there (the same text twice: not the first one), else wherever it went; changed or gone, it is not found.
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT 1 FROM dual;\nSELECT 2 FROM dual;", 20, 20)] // where it was
+    [InlineData("SELECT 2 FROM dual;\nSELECT 1 FROM dual;", 20, 0)] // moved
+    [InlineData("SELECT 2 FROM dual;\nSELECT 2 FROM dual;", 20, 20)] // twice: the one where it was
+    [InlineData("SELECT 2 FROM dual;\n\nSELECT 2 FROM dual;", 20, 0)] // twice, neither where it was: the first
+    [InlineData("SELECT 1 FROM dual;\nSELECT 2 FROM dual WHERE 1 = 1;", 20, -1)] // changed
+    [InlineData("SELECT 1 FROM dual;", 20, -1)] // gone
+    public void A_result_s_statement_is_found_again_only_with_its_exact_text(string script, int was, int expected)
+    {
+        var found = SqlScript.Find(script, new SqlStatement(was, 18, "SELECT 2 FROM dual"));
+
+        Assert.Equal(expected, found?.Start ?? -1);
+    }
+
+    /// <summary>
     /// Review: a block behind a statement without ";" fell apart at its inner ";" – Ctrl+Enter on its DELETE line ran the
     /// DELETE. Decision of the user: a PL/SQL object's CREATE starts a statement of its own, a BEGIN block is refused.
     /// </summary>
