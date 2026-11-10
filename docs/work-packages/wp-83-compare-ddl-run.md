@@ -38,3 +38,13 @@ Branch `wp/83-compare-ddl-run`. Drei Punkte aus der Planung „[Ohne WP] Schema-
 - Bestätigung über dem DDL-Dialog gestapelt, beide bedienbar. Log: nur die erwartete `[WRN]` zu ORA-01758.
 - Nicht per E2E: die Selects von `SubgraphCopyDialog` und `AppStatementsPage` (nur die Klasse `.field` wie überall), Prod mit gesperrtem Workspace (kein Unterschied zum Designer-Weg, `DdlDraftPanel` unverändert), Verbindungsfehler beim Verbinden fürs Ausführen.
 
+## Nachtrag: Code-Review (2026-11-10)
+Eigener Reviewer-Agent, danach jeder Befund nachgeprüft (alle sieben bestätigt). Entscheidung des Nutzers: „Jup, das passt.“ – alle beheben, Nr. 2 wie vorgeschlagen (Hinweis mit Wechsel zum Ziel statt Freischalt-Dialog für eine Verbindung im Hintergrund).
+- M1 behoben: Esc, ✕ und „Im SQL-Editor öffnen“ schlossen den Dialog während des Laufs – der Lauf ging unsichtbar weiter, das Ziel wurde nie neu gelesen, der nächste Vorschlag bot Gelaufenes erneut an. Jetzt `DdlDraftPanel.Running` → `SchemaCompareService.SetRunning`/`DdlRunning`: Schließen gesperrt, das Ziel des Laufs (`_runTarget`) wird auch ohne Dialog neu gelesen (Test `The_dialog_stays_while_its_ddl_runs_…`; E2E mit `CREATE INDEX` über 5 Mio. Zeilen).
+- M2 behoben: „Freischalten“ für ein gesperrtes Ziel im Hintergrund tat nichts (der Freischalt-Dialog des `DialogHost` bedient nur die angezeigte Verbindung) und öffnete später ungefragt. Jetzt Hinweis „Der Workspace … ist gesperrt“ mit „Zu … wechseln“ (`Hub.ShowWorkspace`), danach das normale Freischalten (E2E mit Prod im Hintergrund).
+- M3 behoben: Esc in der Bestätigung (ein `ModalFrame` im `ModalFrame`) schloss auch den DDL-Dialog. `ModalFrame` stoppt `keydown` am Backdrop (`@onkeydown:stopPropagation`); `shortcuts.js` braucht Esc aus Dialogen nicht (E2E).
+- K4 behoben: Während das Ziel nach einem Fehler neu gelesen wird, läuft das Panel nicht (Problem „Lese … neu“) und „Im SQL-Editor öffnen“ ist aus (nicht per E2E, Timing).
+- K5 behoben: Ein abgebrochenes Neu-Lesen einer Seite verwirft ihren alten Snapshot (Test `Cancelling_a_side_read_again_…`).
+- K6 behoben: Ein verlorenes Ziel (`Active.Lost`, Status bleibt `Connected`) bietet „Neu verbinden“ statt auf der toten Session zu laufen (nicht per E2E).
+- K7 behoben: README nennt das Ausführen; Doc-Kommentar zu `DdlChoice.Run`; `Connection_ConnectingTo`/`ConnectionMenu_Connect` statt eigener Texte; „Speichern …“ im Panel schreibt den ganzen Vorschlag (`DdlDraftPanel.SaveText`); Tests für `ShellState.ActiveWorkspaceOf` und den Rückfall des Dialogs aufs Standardpaar mit zwei verbleibenden Spalten.
+
