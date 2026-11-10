@@ -1591,6 +1591,15 @@ table.compare-matrix td.different.g0 { background: var(--accent-weak); }
 table.compare-matrix td.different.g1 { background: color-mix(in srgb, var(--warn) 14%, transparent); }
 table.compare-matrix td.different.g2 { background: var(--clr-weak); }
 table.compare-matrix td.different.g3 { background: color-mix(in srgb, var(--test) 14%, transparent); }
+table.compare-matrix td.unknown { color: var(--faint); font-style: italic; }
+/* WP-82: the query of a view in three lines; the whole text per variant in the dialog. */
+table.compare-matrix tr.definition { cursor: pointer; }
+table.compare-matrix tr.definition:hover td { background: var(--hover); }
+table.compare-matrix tr.definition td.cell .mono { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.view-definition-variant { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.view-definition-variant h4 { margin: 0 0 6px; font-size: 12.5px; font-weight: 600; }
+.view-definition-variant .muted { margin-top: 6px; }
+.view-definition-missing { padding: 10px 16px; }
 .compare-alias { margin-left: 6px; color: var(--warn); font-size: 11.5px; }
 .compare-count { margin-left: 8px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; }
 .compare-none { padding: 18px 16px; color: var(--muted); }

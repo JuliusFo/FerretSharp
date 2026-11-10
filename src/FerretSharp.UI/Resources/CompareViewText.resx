@@ -12,6 +12,14 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="Compare_KindDefinition" xml:space="preserve">
+    <value>Definition (query and options) – click the row for the full texts</value>
+    <comment>Kind of a row in the matrix (tooltip)</comment>
+  </data>
+  <data name="Compare_KindStatus" xml:space="preserve">
+    <value>Status (valid or invalid)</value>
+    <comment>Kind of a row in the matrix (tooltip)</comment>
+  </data>
   <data name="Compare_Title" xml:space="preserve">
     <value>Schema comparison</value>
     <comment>Page title</comment>
@@ -336,5 +344,30 @@
   <data name="Compare_WaitingObjectsOther" xml:space="preserve">
     <value>the {0:N0} waiting objects</value>
     <comment>Part of Compare_UnchooseShownAndWaiting. {0} = number of waiting objects</comment>
+  </data>
+  <data name="ViewDefinition_Missing" xml:space="preserve">
+    <value>Missing on: {0}</value>
+    <comment>{0}: the sides without the view, comma-separated</comment>
+  </data>
+  <data name="ViewDefinition_Note" xml:space="preserve">
+    <value>Sides with the same definition share a variant: spaces, comments, letter case and the own schema do not count. Each variant shows the text of its first side.</value>
+  </data>
+  <data name="ViewDefinition_Options" xml:space="preserve">
+    <value>Options: {0}</value>
+    <comment>{0}: e.g. WITH READ ONLY or REFRESH FORCE ON DEMAND</comment>
+  </data>
+  <data name="ViewDefinition_Title" xml:space="preserve">
+    <value>Definition of {0}</value>
+    <comment>Dialog title; {0}: view name</comment>
+  </data>
+  <data name="ViewDefinition_Truncated" xml:space="preserve">
+    <value>Longer than 32,767 characters: cut off when read.</value>
+  </data>
+  <data name="ViewDefinition_Unknown" xml:space="preserve">
+    <value>The dictionary does not show the definition.</value>
+  </data>
+  <data name="ViewDefinition_Variant" xml:space="preserve">
+    <value>Variant {0}: {1}</value>
+    <comment>{0}: number of the variant; {1}: the sides that have it, comma-separated</comment>
   </data>
 </root>

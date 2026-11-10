@@ -12,6 +12,12 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="Compare_KindDefinition" xml:space="preserve">
+    <value>Definition (Abfrage und Optionen) – Klick auf die Zeile zeigt die ganzen Texte</value>
+  </data>
+  <data name="Compare_KindStatus" xml:space="preserve">
+    <value>Status (gültig oder ungültig)</value>
+  </data>
   <data name="Compare_Title" xml:space="preserve">
     <value>Schema-Vergleich</value>
   </data>
@@ -269,5 +275,26 @@
   </data>
   <data name="Compare_WaitingObjectsOther" xml:space="preserve">
     <value>die {0:N0} wartenden Objekte</value>
+  </data>
+  <data name="ViewDefinition_Missing" xml:space="preserve">
+    <value>Fehlt auf: {0}</value>
+  </data>
+  <data name="ViewDefinition_Note" xml:space="preserve">
+    <value>Seiten mit gleicher Definition teilen sich eine Variante: Leerraum, Kommentare, Groß-/Kleinschreibung und das eigene Schema zählen nicht. Jede Variante zeigt den Text ihrer ersten Seite.</value>
+  </data>
+  <data name="ViewDefinition_Options" xml:space="preserve">
+    <value>Optionen: {0}</value>
+  </data>
+  <data name="ViewDefinition_Title" xml:space="preserve">
+    <value>Definition von {0}</value>
+  </data>
+  <data name="ViewDefinition_Truncated" xml:space="preserve">
+    <value>Länger als 32.767 Zeichen: beim Lesen gekürzt.</value>
+  </data>
+  <data name="ViewDefinition_Unknown" xml:space="preserve">
+    <value>Das Dictionary zeigt die Definition nicht.</value>
+  </data>
+  <data name="ViewDefinition_Variant" xml:space="preserve">
+    <value>Variante {0}: {1}</value>
   </data>
 </root>

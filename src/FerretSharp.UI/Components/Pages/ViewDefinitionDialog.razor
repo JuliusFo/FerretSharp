@@ -1,0 +1,80 @@
+@* The definitions of a view or materialized view in the schema comparison (WP-82): one block per variant – sides whose
+   compared definition is the same – with the text as the first of them keeps it. *@
+@using FerretSharp.Core.Compare
+@using FerretSharp.Core.Schema
+
+<ModalFrame Label="@Title" Class="sql-dialog view-definition-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+    <header>
+        <span>@Title</span>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
+    </header>
+    <div class="sql-dialog-body">
+        <div class="settings-note compare-ddl-note">@CompareViewText.ViewDefinition_Note</div>
+        @foreach (var variant in Variants())
+        {
+            <section class="view-definition-variant">
+                <h4>@(Variants().Count > 1 ? TextFormat.Format(CompareViewText.ViewDefinition_Variant, variant.Group + 1, variant.Sides) : variant.Sides)</h4>
+                @if (variant.View.Definition is { } text)
+                {
+                    <SqlCode Sql="@text" />
+                    @if (variant.View.DefinitionTruncated)
+                    {
+                        <div class="muted">@CompareViewText.ViewDefinition_Truncated</div>
+                    }
+                }
+                else
+                {
+                    <div class="muted">@CompareViewText.ViewDefinition_Unknown</div>
+                }
+                @if (Options(variant.View) is { } options)
+                {
+                    <div class="muted">@TextFormat.Format(CompareViewText.ViewDefinition_Options, options)</div>
+                }
+            </section>
+        }
+        @if (Missing() is { Length: > 0 } missing)
+        {
+            <div class="muted view-definition-missing">@TextFormat.Format(CompareViewText.ViewDefinition_Missing, missing)</div>
+        }
+    </div>
+</ModalFrame>
+
+@code {
+    /// <summary>The definition row of a view or materialized view (<see cref="CompareKind.Definition"/>).</summary>
+    [Parameter, EditorRequired]
+    public CompareRow Row { get; set; } = null!;
+
+    /// <summary>The name of the object the row belongs to.</summary>
+    [Parameter, EditorRequired]
+    public string ObjectName { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Labels { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string Title => TextFormat.Format(CompareViewText.ViewDefinition_Title, ObjectName);
+
+    private List<(int Group, string Sides, ObjectSnapshot View)> Variants() =>
+        Row.Cells
+            .Select((cell, side) => (Cell: cell, Side: side))
+            .Where(c => c.Cell.Group >= 0 && c.Cell.Object is not null)
+            .GroupBy(c => c.Cell.Group)
+            .OrderBy(g => g.Key)
+            .Select(g => (g.Key, string.Join(", ", g.Select(c => Labels[c.Side])), g.First().Cell.Object!))
+            .ToList();
+
+    private string Missing() => string.Join(", ", Row.Cells.Select((cell, side) => (cell, side)).Where(c => c.cell.State == CellState.Missing).Select(c => Labels[c.side]));
+
+    /// <summary>What the query does not show: WITH READ ONLY / CHECK OPTION of a view, the refresh of a materialized view.</summary>
+    private static string? Options(ObjectSnapshot view) =>
+        view.MView is { } mview ? mview.RefreshClause + (mview.QueryRewrite ? " · ENABLE QUERY REWRITE" : "")
+        : view.ViewOption switch
+        {
+            ViewOption.ReadOnly => "WITH READ ONLY",
+            ViewOption.CheckOption => "WITH CHECK OPTION",
+            _ => null,
+        };
+}

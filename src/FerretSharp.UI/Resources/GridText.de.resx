@@ -12,6 +12,9 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="CompareCell_Unknown" xml:space="preserve">
+    <value>Nicht verglichen: Die View ist ungültig, ihre Spaltentypen sind unbekannt</value>
+  </data>
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>Diese Tabelle lässt sich hier nicht bearbeiten.</value>
   </data>
