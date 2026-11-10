@@ -1,4 +1,4 @@
-# Klein: Kopfzeile des DDL-Vorschlags (Schema-Vergleich)
+# Klein: Kopfzeile des DDL-Vorschlags (Schema-Vergleich) → Release 3.68.1
 
 Branch `fix/compare-ddl-dialog-header` (von `main`), 2026-11-10. Baut auf WP-20/WP-22 und `small-compare-ddl-selection`.
 
