@@ -1,0 +1,39 @@
+# WP-82 View-Definitionen im Schema-Vergleich
+
+Branch `wp/82-compare-view-definitions` (von `main`), 2026-11-10, noch ohne Release. Kein ADR: weder Stack noch Lese-, Schreib- oder Schemaweg ändern sich (die neuen Statements laufen wie bisher über „Im SQL-Editor öffnen“ und den Schemaweg).
+
+## Planung (aus `docs/roadmap.md`)
+Branch `wp/82-compare-view-definitions`. Aus dem Backlog („Schema-Vergleich, zweite Stufe“); WP-20 hatte View-Definitionen und den Status INVALID bewusst auf später gelegt (`docs/work-packages/wp-20-schema-compare.md`). Plan mit dem Nutzer abgestimmt am 2026-11-10.
+- **Snapshot:** `ObjectSnapshot` bekommt für Views und MViews `Definition`, `DefinitionTruncated` und `Status` (VALID/INVALID). Views über `ALL_VIEWS.TEXT_VC` + `TEXT_LENGTH`, den LONG-Text `TEXT` nur für Views mit `text_length > 4000` (eine zweite Abfrage, sonst kein LONG-Fetch); MViews über `ALL_MVIEWS.QUERY` mit `REFRESH_MODE`/`REFRESH_METHOD`; Status aus `ALL_OBJECTS`; `WITH READ ONLY`/`WITH CHECK OPTION` (Constraints Typ `O`/`V`, nicht im Text); Abhängigkeiten View → View im Schema über `ALL_DEPENDENCIES` für die Reihenfolge im Skript. Integrationstest: Snapshot liest dieselbe Definition wie `GetDetailsAsync`.
+- **Vergleich:** neue Zeile „Definition“ unter Views und MViews (`CompareKind.Definition`). Normalisiert über `SqlTokenizer`: ohne Kommentare, Leerraum zählt einfach, außerhalb von Literalen und gequoteten Namen in Großbuchstaben, das Präfix des eigenen Schemas fällt weg – gequotet und ungequotet (Entscheidung des Nutzers, 2026-11-10; Restrisiko: ein Tabellenalias, der wie das Schema heißt, fällt mit weg). Nur Vergleich und Anzeige, der DDL-Vorschlag übernimmt den Originaltext.
+- **Status INVALID** als eigene Zeile, zählt als Abweichung (Entscheidung des Nutzers, 2026-11-10). Spalten einer ungültigen Seite (Typ `UNDEFINED`) zählen nicht mehr als Abweichung, die Zelle zeigt „ungültig, Spalten unbekannt“.
+- **DDL-Vorschlag:** fehlende View → `CREATE VIEW … ("A", "B") AS <Text der Referenz>` mit der Spaltenliste der Referenz (die Aliasliste steht nicht in `ALL_VIEWS.TEXT`), `WITH READ ONLY`/`CHECK OPTION`, Kommentar wie bei Tabellen; abweichende View → `CREATE OR REPLACE VIEW` (Grants bleiben). Reihenfolge nach den Abhängigkeiten, nach den Tabellen. Text über 32 767 Zeichen nur als Hinweis; nennt der Text das Schema der Referenz, eine Warnung (kein Umschreiben).
+- **MViews:** eine fehlende wird ausführbar angelegt (Query, Refresh-Optionen); eine abweichende nur als auskommentiertes DROP + CREATE mit Warnung, weil der Bestand verloren geht (Entscheidung des Nutzers, 2026-11-10).
+- **UI:** die Definitionszeile zeigt gleich/abweichend/fehlt; ein Klick öffnet einen Dialog mit dem Text je Gruppe gleicher Definitionen (Entscheidung des Nutzers, 2026-11-10). Ein Monaco-Diff-Editor zwischen Referenz und Ziel kommt in den Backlog.
+
+## Entscheidungen des Nutzers (2026-11-10)
+- Unterschiede im Text: ein **Dialog je Gruppe** gleicher Definitionen; ein Monaco-Diff-Editor zwischen Referenz und Ziel kommt in den Backlog.
+- **MView mit anderer Definition:** nur als auskommentiertes DROP + CREATE mit Warnung (der Bestand ginge verloren); eine fehlende MView wird ausführbar angelegt.
+- **Status INVALID** zählt als Abweichung (eigene Zeile).
+- **Schema-Präfix** im Text fällt beim Vergleich weg, gequotet und ungequotet (`ERP.X` = `ERP_TEST.X`); Restrisiko: ein Tabellenalias, der wie das Schema heißt, fällt mit weg.
+- Vorschlag (nicht bestätigt): Definitions- und Statuszeile hängen am Filter „Objekte“, kein eigener Filter.
+
+## Gebaut
+- **Snapshot** (`OracleSchemaReader.Snapshot`): `ObjectSnapshot` mit `Definition`, `DefinitionTruncated`, `Invalid`, `MView` (`MViewOptions`: Refresh-Methode und -Modus, Query Rewrite, Prebuilt) und `DependsOn`; Views behalten von ihren Constraints `WITH READ ONLY`/`WITH CHECK OPTION` (`ObjectSnapshot.ViewOption`). Vier Abfragen mehr: `ALL_VIEWS.TEXT_VC` + `TEXT_LENGTH`, den LONG-Text `TEXT` nur für Views über 4000 Byte, `ALL_MVIEWS` (QUERY als LONG, Optionen), `ALL_DEPENDENCIES` (View → View/MView im Schema; ohne Views fallen Definitionen und Abhängigkeiten weg). Fortschrittsschritt „View-Definitionen“.
+- **Vergleich** (`SchemaDiff`, `CompareDefinitions`): Views und MViews bekommen vor den Spalten die Zeilen `CompareKind.Definition` (normalisierter Text samt Optionen, `ViewText.Normalize`: Tokens über den `SqlTokenizer`, ohne Kommentare, Wörter groß, `"KUNDE"` ohne Anführungszeichen, Präfix des eigenen Schemas weg) und `CompareKind.Status`. Neuer Zustand `CellState.Unknown`: Spalten einer ungültigen View mit Typ `UNDEFINED` zählen nicht als Abweichung, gegen eine unbekannte Referenz sind die anderen Seiten gleich.
+- **DDL-Vorschlag** (`DdlWriter`, `OracleDdl`): fehlende View → `CREATE VIEW … ("A", "B") AS <Text der Referenz>` mit Spaltenliste (die Aliasliste von `CREATE VIEW v (a, b)` steht nicht im Text) und `WITH READ ONLY`/`CHECK OPTION`, Kommentare danach (`DdlStepKind.ViewComment`, `COMMENT ON MATERIALIZED VIEW` für MViews); andere Definition oder andere Spaltennamen → `CREATE OR REPLACE VIEW`; nur andere Spaltentypen → kein Schritt (folgen den Tabellen); ungültig im Ziel bei gleicher Definition → `ALTER VIEW|MATERIALIZED VIEW … COMPILE`. Fehlende MView → `CREATE MATERIALIZED VIEW … BUILD IMMEDIATE REFRESH … AS` mit Warnung (füllt sich beim Anlegen, bei FAST: Logs nötig), Prebuilt nur als Hinweis; abweichende MView → DROP und CREATE als Hinweise. Warnungen, wenn der Text das Schema der Referenz nennt oder die View dort ungültig ist; ein gekürzter oder nicht sichtbarer Text bleibt ein Hinweis. Views laufen nach den Views, auf denen sie stehen (`SchemaDdl.ViewRanks`, `DdlScript.Order` mit Rang).
+- **Gespeicherte Vergleiche:** ein Filter von vor WP-82 bekommt die neuen Zeilen, wenn er Views zeigt (`ComparisonStore.WithViewRows`). Eine ältere FerretSharp-Version liest eine danach gespeicherte Datei mit diesen Arten nicht mehr (Enum als Text) – nur nach einem Downgrade, sie überschreibt sie dann nicht.
+- **UI:** Kürzel `DEF`/`ST`, der Text der Definition in drei Zeilen; Klick auf die Definitionszeile öffnet `ViewDefinitionDialog` (je Variante die Seiten und der Text ihrer ersten Seite mit `SqlCode`, Optionen, gekürzt/unbekannt, fehlende Seiten). Markdown-Export markiert unbekannte Zellen.
+- **Texte** (Englisch, Deutsch): `CompareText` (Zeilennamen, Warnungen, `ViewDefinitionUnreadable` statt „gehört nicht zum Vergleich“), `OracleText.SnapshotStepDefinitions`, `CompareViewText.ViewDefinition_*`/`Compare_Kind*`, `GridText.CompareCell_Unknown`.
+- **Tests:** Core `ViewDefinitionTests` (Normalisierung, Zeilen, unbekannte Spalten, alle DDL-Fälle, Reihenfolge), `CompareExportTests`, `SchemaCompareLoaderTests` (alter Filter); Integration `SchemaSnapshotTests` (Snapshot = Einzel-Methoden auch für Definition und Status, Text über 4000 Byte, Spaltenliste, CHECK OPTION, Abhängigkeit, ungültige View), `ViewCompareTests` (Rundlauf über den Schemaweg in einem eigenen Schema `SNAP_VIEWS`, danach keine Abweichung in Definition und Status).
+
+## Gelernt (Oracle 23, Integrationstest)
+- Eine View, deren Basisspalte gelöscht wurde, ist INVALID, behält aber ihre alten Spalten mit Typ. `UNDEFINED` zeigen die Spalten erst nach einer gescheiterten Kompilierung (`ALTER VIEW … COMPILE`, ODP.NET meldet ORA-24344) – so wie nach Data Pump.
+- `ALL_VIEWS.TEXT_VC` (12c+) hält die ersten 4000 Byte; `TEXT_LENGTH` zählt Bytes. Den LONG-Text nur für die längeren Views zu lesen, spart die 32 KB je Zeile im Fetch.
+
+## E2E
+Offen.
+
+## Offen / Backlog
+- Monaco-Diff-Editor für die Definitionen (Backlog-Zeile „Schema-Vergleich, zweite Stufe“).
+- Frage an den Nutzer: Definitions- und Statuszeile am Filter „Objekte“ – so lassen oder eigener Filter „Definitionen“?

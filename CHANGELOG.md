@@ -5,10 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *Schema comparison*: views and materialized views now compare by their definition. Each gets a *Definition* row – its query with `WITH READ ONLY`/`WITH CHECK OPTION` or, for a materialized view, its refresh options; spaces, comments, letter case and the prefix of the own schema do not count, so `ERP.KUNDE` on Dev equals `ERP_TEST.KUNDE` on Test – and a *Status* row, where an invalid view counts as a difference. A click on the definition row shows the text of each variant and the sides that have it.
+- The columns of an invalid view (type `UNDEFINED` after a failed compile, as after a Data Pump import) are no longer reported as differences; the status row shows the cause.
+- The DDL proposal writes views instead of pointing to the DDL view: a missing view is created with the reference’s query, column list, option and comments, a different one is replaced (`CREATE OR REPLACE`, grants stay), an invalid one compiled. Views run after the views they select from. A missing materialized view is created with its refresh options (with a note that it fills on creation); a different one only as a commented-out `DROP` and `CREATE`, since dropping it removes its rows. A warning appears when the query names the reference’s schema.
+
 ### Fixed
 - *Server load* and *App statements*: when Oracle has already freed a statement's plan from the shared pool (it keeps the figures longer), the statement's details say so and that the next run brings the plan back – before, they showed an empty plan with the hint about GATHER_PLAN_STATISTICS. For a statement that never has a plan (a PL/SQL block such as EF’s `SaveChanges`, `CALL`, `ALTER SESSION`, most DDL) they say that instead.
 
 ### Internal
+- The schema snapshot reads view texts from `TEXT_VC` and only those longer than 4000 bytes as LONG. Integration tests cover a long view, a column list with `CHECK OPTION`, a view on a view and an invalid view, and run the proposed view DDL through the schema path in a schema of their own.
 - The integration tests that look up another session's cursor run the statement once more when Oracle has freed its plan meanwhile (the server load test failed so in CI); a new test frees the plan with `DBMS_SHARED_POOL.PURGE` and checks figures without plan and the plan after the next run, another one a PL/SQL block found without plan.
 
 ## [3.68.1] - 2026-11-10
