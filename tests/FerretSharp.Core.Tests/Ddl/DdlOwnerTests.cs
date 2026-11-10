@@ -33,15 +33,28 @@ public class DdlOwnerTests
             """, DdlOwner.Omit(ddl, "SHOP"));
     }
 
-    // Other schemas, the owner in another case, a column called like the owner, nothing to omit.
+    // Other schemas, the owner in another case, a column called like the owner, nothing to omit, the owner's name as the
+    // object of another schema.
     [Theory]
     [InlineData("""CONSTRAINT "FK" FOREIGN KEY ("COUNTRY") REFERENCES "MASTER"."COUNTRY" ("CODE") ENABLE""")]
     [InlineData("""CREATE TABLE "shop"."T" ("A" NUMBER)""")]
     [InlineData("""CREATE TABLE "T" ("SHOP" VARCHAR2(10), CHECK ("SHOP" IS NOT NULL))""")]
     [InlineData("")]
+    [InlineData("""DEFAULT "OTHER"."SHOP"."NEXTVAL" """)]
     public void Only_the_quoted_owner_before_a_dot_goes(string ddl)
     {
         Assert.Equal(ddl, DdlOwner.Omit(ddl, "SHOP"));
+    }
+
+    [Fact]
+    public void Only_the_first_part_of_a_dotted_name_is_the_owner()
+    {
+        // A sequence or function named like its schema (Review): only the schema goes.
+        Assert.Equal("""
+            CREATE TABLE "T" ("ID" NUMBER DEFAULT "SHOP"."NEXTVAL", "V" AS ("SHOP"."F"("ID")))
+            """, DdlOwner.Omit("""
+            CREATE TABLE "SHOP"."T" ("ID" NUMBER DEFAULT "SHOP"."SHOP"."NEXTVAL", "V" AS ("SHOP"."SHOP"."F"("ID")))
+            """, "SHOP"));
     }
 
     [Fact]
