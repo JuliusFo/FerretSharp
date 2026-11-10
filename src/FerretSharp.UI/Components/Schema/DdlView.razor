@@ -12,7 +12,7 @@
 @if (Data is { } ddl)
 {
     <section>
-        <div class="structure-columns-head">
+        <div class="structure-columns-head ddl-head">
             <h2>DDL</h2>
             <button type="button" class="btn ghost small @(WithoutOwner ? "active" : "")" aria-pressed="@(WithoutOwner ? "true" : "false")"
                     title="@TextFormat.Format(SchemaViewText.Ddl_WithoutOwnerTitle, OracleIdentifier.Quote(Table.Owner) + ".")"
