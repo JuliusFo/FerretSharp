@@ -22,6 +22,7 @@ public enum SettingKey
     HeaderTypes,
     HeaderNotNull,
     FilterSql,
+    DdlWithoutOwner,
     ClrNames,
     CodeEditor,
     ReportExceptionsFile,
@@ -72,6 +73,7 @@ public static class SettingsCatalog
     public const string HeaderTypeExample = "NUMBER(10)";
     public const string NotNull = ColumnHeaderLines.NotNullText;
     public const string FilterSqlStar = FerretSharp.Core.Query.QueryBuilder.StarSelect;
+    public const string DdlOwnerExample = "\"OWNER\".";
 
     // Properties, not static fields: the texts would keep the language of the first access.
     public static IReadOnlyList<(SettingsPart Part, string Label)> Parts =>
@@ -129,6 +131,8 @@ public static class SettingsCatalog
                 SettingsViewText.Settings_HeaderNotNullHint),
             Setting(SettingKey.FilterSql, SettingsPart.DataView, SettingsViewText.Settings_FilterSql,
                 TextFormat.Format(SettingsViewText.Settings_FilterSqlHint, FilterSqlStar)),
+            Setting(SettingKey.DdlWithoutOwner, SettingsPart.DataView, SettingsViewText.Settings_DdlWithoutOwner,
+                TextFormat.Format(SettingsViewText.Settings_DdlWithoutOwnerHint, DdlOwnerExample)),
             Setting(SettingKey.ClrNames, SettingsPart.ClrModel, SettingsViewText.Settings_ClrNames, SettingsViewText.Settings_ClrNamesHint),
             Setting(SettingKey.CodeEditor, SettingsPart.ClrModel, SettingsViewText.Settings_CodeEditor, SettingsViewText.Settings_CodeEditorHint),
             Setting(SettingKey.ReportExceptionsFile, SettingsPart.ClrModel, SettingsViewText.Settings_ReportExceptionsFile, SettingsViewText.Settings_ReportExceptionsFileHint),

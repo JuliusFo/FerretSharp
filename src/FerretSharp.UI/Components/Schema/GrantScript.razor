@@ -17,7 +17,7 @@
         }
         else
         {
-            <SqlCode Sql="@string.Concat(GrantDdl.Script(Target, grants).Select(s => s + ";\n"))" Class="ddl" />
+            <SqlCode Sql="@Script(grants)" Class="ddl" />
         }
         @if (Active.Profile is { } profile && Target.Owner != OracleIdentifier.Normalize(profile.User))
         {
@@ -29,6 +29,24 @@
 @code {
     [Parameter, EditorRequired]
     public TableRef Target { get; set; } = null!;
+
+    /// <summary>"Without owner" of the DDL view: the statements leave the owner of <see cref="Target"/> out.</summary>
+    [Parameter]
+    public bool WithoutOwner { get; set; }
+
+    // Renders with every render of the tab (Review): built once per list of grants and switch.
+    private (IReadOnlyList<ObjectGrant>? Grants, bool Without, string Text) _script;
+
+    private string Script(IReadOnlyList<ObjectGrant> grants)
+    {
+        if (!ReferenceEquals(_script.Grants, grants) || _script.Without != WithoutOwner)
+        {
+            var statements = GrantDdl.Script(Target, grants).Select(s => (WithoutOwner ? DdlOwner.Omit(s, Target.Owner) : s) + ";\n");
+            _script = (grants, WithoutOwner, string.Concat(statements));
+        }
+
+        return _script.Text;
+    }
 
     protected override Task<IReadOnlyList<ObjectGrant>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         schema.GetGrantsAsync(Target, cancellationToken);
