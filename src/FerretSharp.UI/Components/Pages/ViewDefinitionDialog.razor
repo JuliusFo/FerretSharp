@@ -11,10 +11,14 @@
     </header>
     <div class="sql-dialog-body">
         <div class="settings-note compare-ddl-note">@CompareViewText.ViewDefinition_Note</div>
-        @foreach (var variant in Variants())
+        @{
+            var variants = Variants();
+            var numbered = variants.Count(v => v.Group >= 0) > 1;
+        }
+        @foreach (var variant in variants)
         {
             <section class="view-definition-variant">
-                <h4>@(Variants().Count > 1 ? TextFormat.Format(CompareViewText.ViewDefinition_Variant, variant.Group + 1, variant.Sides) : variant.Sides)</h4>
+                <h4>@(numbered && variant.Group >= 0 ? TextFormat.Format(CompareViewText.ViewDefinition_Variant, variant.Group + 1, variant.Sides) : variant.Sides)</h4>
                 @if (variant.View.Definition is { } text)
                 {
                     <SqlCode Sql="@text" />
@@ -27,7 +31,7 @@
                 {
                     <div class="muted">@CompareViewText.ViewDefinition_Unknown</div>
                 }
-                @if (Options(variant.View) is { } options)
+                @if (variant.View.Options is { } options)
                 {
                     <div class="muted">@TextFormat.Format(CompareViewText.ViewDefinition_Options, options)</div>
                 }
@@ -57,24 +61,18 @@
 
     private string Title => TextFormat.Format(CompareViewText.ViewDefinition_Title, ObjectName);
 
+    /// <summary>
+    /// One entry per group of equal definitions, in group order; a side whose text is not compared (cut or not visible,
+    /// <see cref="CellState.Unknown"/>) has an entry of its own after them, with group -1.
+    /// </summary>
     private List<(int Group, string Sides, ObjectSnapshot View)> Variants() =>
         Row.Cells
             .Select((cell, side) => (Cell: cell, Side: side))
-            .Where(c => c.Cell.Group >= 0 && c.Cell.Object is not null)
-            .GroupBy(c => c.Cell.Group)
+            .Where(c => c.Cell.State != CellState.Missing && c.Cell.Object is not null)
+            .GroupBy(c => c.Cell.Group >= 0 ? c.Cell.Group : Row.Cells.Count + c.Side)
             .OrderBy(g => g.Key)
-            .Select(g => (g.Key, string.Join(", ", g.Select(c => Labels[c.Side])), g.First().Cell.Object!))
+            .Select(g => (g.First().Cell.Group, string.Join(", ", g.Select(c => Labels[c.Side])), g.First().Cell.Object!))
             .ToList();
 
     private string Missing() => string.Join(", ", Row.Cells.Select((cell, side) => (cell, side)).Where(c => c.cell.State == CellState.Missing).Select(c => Labels[c.side]));
-
-    /// <summary>What the query does not show: WITH READ ONLY / CHECK OPTION of a view, the refresh of a materialized view.</summary>
-    private static string? Options(ObjectSnapshot view) =>
-        view.MView is { } mview ? mview.RefreshClause + (mview.QueryRewrite ? " · ENABLE QUERY REWRITE" : "")
-        : view.ViewOption switch
-        {
-            ViewOption.ReadOnly => "WITH READ ONLY",
-            ViewOption.CheckOption => "WITH CHECK OPTION",
-            _ => null,
-        };
 }

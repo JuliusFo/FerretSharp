@@ -16,6 +16,10 @@
     <value>Not compared: the view is invalid, its column types are unknown</value>
     <comment>Tooltip of a comparison cell</comment>
   </data>
+  <data name="CompareCell_UnknownDefinition" xml:space="preserve">
+    <value>Not compared: the text is longer than 32,767 characters or not visible</value>
+    <comment>Tooltip of a comparison cell</comment>
+  </data>
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>This table cannot be edited here.</value>
   </data>

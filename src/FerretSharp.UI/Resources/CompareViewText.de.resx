@@ -12,6 +12,9 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="Compare_InvalidHint" xml:space="preserve">
+    <value>Oracle markiert eine View nach DDL an ihren Tabellen als ungültig und kompiliert sie bei der nächsten Verwendung; kaputt ist sie erst, wenn das scheitert</value>
+  </data>
   <data name="Compare_KindDefinition" xml:space="preserve">
     <value>Definition (Abfrage und Optionen) – Klick auf die Zeile zeigt die ganzen Texte</value>
   </data>

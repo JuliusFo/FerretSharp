@@ -188,17 +188,30 @@
                             {
                                 @foreach (var child in children)
                                 {
-                                    @* The query of a view is long: a few lines in the cells, all of it per variant in a dialog (WP-82). *@
-                                    var isDefinition = child.Kind == CompareKind.Definition;
-                                    <tr class="child @(child.Differs ? "differs" : "") @(isDefinition ? "definition" : "")"
-                                        @onclick="() => { if (isDefinition) _definition = (child, row.Name); }">
-                                        <td class="choose off"></td>
-                                        <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
-                                        @foreach (var cell in child.Cells)
-                                        {
-                                            @CellView(cell)
-                                        }
-                                    </tr>
+                                    @if (child.Kind == CompareKind.Definition)
+                                    {
+                                        @* The query of a view is long: a few lines in the cells, all of it per variant in a dialog (WP-82).
+                                           Only this row has a handler – a click on another child would render the whole matrix (review). *@
+                                        <tr class="child definition @(child.Differs ? "differs" : "")" @onclick="() => _definition = (child, row.Name)">
+                                            <td class="choose off"></td>
+                                            <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
+                                            @foreach (var cell in child.Cells)
+                                            {
+                                                @CellView(cell)
+                                            }
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        <tr class="child @(child.Differs ? "differs" : "")">
+                                            <td class="choose off"></td>
+                                            <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
+                                            @foreach (var cell in child.Cells)
+                                            {
+                                                @CellView(cell)
+                                            }
+                                        </tr>
+                                    }
                                 }
                             }
                         }
@@ -472,9 +485,13 @@
         CellState.Missing => GridText.CompareCell_Missing,
         CellState.OtherCase => TextFormat.Format(GridText.CompareCell_OtherCase, cell.Name),
         CellState.Different => TextFormat.Format(GridText.CompareCell_Different, cell.Group + 1),
-        CellState.Unknown => GridText.CompareCell_Unknown,
+        CellState.Unknown => cell.Column is null ? GridText.CompareCell_UnknownDefinition : GridText.CompareCell_Unknown,
         _ => GridText.CompareCell_Same,
-    } + (cell.Name is { } name && ShownName(cell) is null ? $" · {name}" : "");
+    } + (cell.Name is { } name && ShownName(cell) is null ? $" · {name}" : "")
+        + (IsInvalidStatus(cell) ? " · " + CompareViewText.Compare_InvalidHint : "");
+
+    /// <summary>The status cell of an invalid view: often only marked for compiling after DDL on its tables (E2E WP-82).</summary>
+    private static bool IsInvalidStatus(CompareCell cell) => cell is { Object.Invalid: true, Column: null, Definition: "INVALID" };
 
     private IEnumerable<CompareRow> Children(CompareRow row) =>
         row.Children.Where(c => (!Compare.Current.OnlyDifferences || c.Differs) && (Compare.Current.Kinds is not { } kinds || kinds.Contains(c.Kind)));

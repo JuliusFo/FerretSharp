@@ -12,6 +12,10 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="Compare_InvalidHint" xml:space="preserve">
+    <value>Oracle marks a view invalid after DDL on its tables and compiles it on its next use; it is broken only if that fails</value>
+    <comment>Tooltip part after the state of an INVALID status cell</comment>
+  </data>
   <data name="Compare_KindDefinition" xml:space="preserve">
     <value>Definition (query and options) – click the row for the full texts</value>
     <comment>Kind of a row in the matrix (tooltip)</comment>
