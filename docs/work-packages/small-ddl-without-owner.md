@@ -1,4 +1,4 @@
-# Klein: DDL ohne Owner
+# Klein: DDL ohne Owner → Release 3.68.0
 
 Branch `feat/ddl-without-owner` (von `main`), 2026-11-10, Release offen. Baut auf v1.7 (Ansicht DDL) und WP-71 (GRANT-Statements im DDL-Tab).
 

@@ -1,4 +1,4 @@
-# Klein: Objekte für den DDL-Vorschlag des Schema-Vergleichs auswählen
+# Klein: Objekte für den DDL-Vorschlag des Schema-Vergleichs auswählen → Release 3.68.0
 
 Branch `feat/schema-compare-ddl-selection` (von `main`), 2026-11-10. Baut auf WP-20 (Schema-Vergleich, DDL-Vorschlag) und WP-22 (Ausführen im SQL-Editor).
 

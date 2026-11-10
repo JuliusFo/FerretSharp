@@ -1,4 +1,4 @@
-# WP-81 Ergebnisse im SQL-Editor behalten → Release offen
+# WP-81 Ergebnisse im SQL-Editor behalten → Release 3.68.0
 
 Branch `wp/81-keep-results` (von `main`), 2026-11-10. Kein ADR (weder Stack noch Lese-/Schreibweg ändern sich).
 
