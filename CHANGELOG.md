@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- *Server load* and *App statements*: when Oracle has already freed a statement's plan from the shared pool (it keeps the figures longer), the statement's details say so and that the next run brings the plan back – before, they showed an empty plan with the hint about GATHER_PLAN_STATISTICS. For a statement that never has a plan (a PL/SQL block such as EF’s `SaveChanges`, `CALL`, `ALTER SESSION`, most DDL) they say that instead.
+
+### Internal
+- The integration tests that look up another session's cursor run the statement once more when Oracle has freed its plan meanwhile (the server load test failed so in CI); a new test frees the plan with `DBMS_SHARED_POOL.PURGE` and checks figures without plan and the plan after the next run, another one a PL/SQL block found without plan.
+
 ## [3.68.1] - 2026-11-10
 
 Fixes for the SQL dialogs – the DDL proposal’s header, the intended width and scrolling – and the table comment in the schema comparison’s DDL proposal.

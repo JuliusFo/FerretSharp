@@ -11,11 +11,22 @@
     <span>@AppStatementsText.AppStatements_Children <b>@Cursor.Children</b></span>
 </div>
 @ChildContent
-@if (!Cursor.HasActualFigures)
+@if (Cursor.HasNoPlanAtAll)
 {
-    <p class="hint">@AppStatementsText.AppStatements_NoActualFigures</p>
+    <p class="hint">@AppStatementsText.AppStatements_NoPlanForStatement</p>
 }
-<PlanTable Plan="Cursor.Plan" ShowActual="Cursor.HasActualFigures" Owner="@Owner" />
+else if (!Cursor.HasPlan)
+{
+    <p class="hint">@AppStatementsText.AppStatements_PlanDropped</p>
+}
+else
+{
+    @if (!Cursor.HasActualFigures)
+    {
+        <p class="hint">@AppStatementsText.AppStatements_NoActualFigures</p>
+    }
+    <PlanTable Plan="Cursor.Plan" ShowActual="Cursor.HasActualFigures" Owner="@Owner" />
+}
 
 @code {
     [Parameter, EditorRequired]

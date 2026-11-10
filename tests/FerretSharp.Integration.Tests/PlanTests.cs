@@ -142,10 +142,11 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
     {
         // Like EF: a statement over several lines with a bind, run by another session (the traced app, WP-33).
         var sql = $"SELECT \"ID\", \"N\"\r\nFROM \"PL_T\" /* {Guid.NewGuid():N} */\r\nWHERE \"ID\" <= :p0";
-        await using (var app = new OracleConnection(oracle.RequireConnectionString()))
+        async Task RunAsync(int times)
         {
+            await using var app = new OracleConnection(oracle.RequireConnectionString());
             await app.OpenAsync(Ct);
-            for (var i = 0; i < 3; i++)
+            for (var i = 0; i < times; i++)
             {
                 await using var command = app.CreateCommand();
                 command.CommandText = sql;
@@ -157,6 +158,7 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
             }
         }
 
+        await RunAsync(3);
         await using var connection = await OpenAsync("Cursor lookup");
         var cursor = await connection.Schema.GetCursorAsync(sql, Ct);
 
@@ -168,7 +170,9 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.NotNull(cursor.LastActive);
         Assert.Equal(PlanSource.Actual, cursor.Plan.Source);
         Assert.Equal(sql, cursor.Plan.Sql);
-        Assert.Contains(cursor.Plan.Steps, s => s.ObjectName == "PL_T");
+        // Oracle may have dropped the plan meanwhile (fix-cursor-plan-child): then the next run brings it back.
+        var plan = await CursorPlans.ReadAsync(() => connection.Schema.GetCursorAsync(sql, Ct), () => RunAsync(1));
+        Assert.Contains(plan.Steps, s => s.ObjectName == "PL_T");
         Assert.Null(await connection.Schema.GetCursorAsync(sql + " ", Ct)); // another text, another SQL_ID
     }
 
