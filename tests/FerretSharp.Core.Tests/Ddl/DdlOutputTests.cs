@@ -16,7 +16,8 @@ public class DdlOutputTests
 
     private static readonly ColumnInfo Id = Column("ID", "NUMBER", precision: 10, scale: 0, nullable: false);
 
-    internal static DdlProposal Comparison()
+    /// <param name="chosen">Objects chosen in the matrix; none = all differing objects.</param>
+    internal static DdlProposal Comparison(params string[] chosen)
     {
         var reference = new[]
         {
@@ -60,7 +61,8 @@ public class DdlOutputTests
             [UniqueIndex(Tgt, "PK_KUNDE", On("ID")), Index(Tgt, "IX_KUNDE_LAND", On("LAND")), Index(Tgt, "IX_KUNDE_ALT", On("ALT"))]),
             Table("ZOMBIE", [Id]),
         };
-        return SchemaDdl.Align(Of(new CompareOptions(Reference: 0), Snapshot(Ref, reference), Snapshot(Tgt, target)), 0, 1);
+        var comparison = Of(new CompareOptions(Reference: 0), Snapshot(Ref, reference), Snapshot(Tgt, target));
+        return SchemaDdl.Align(comparison, 0, 1, chosen.Length == 0 ? null : comparison.Objects.Where(o => chosen.Contains(o.Name)).ToList());
     }
 
     private static readonly ColumnInfo DId = new("ID", "NUMBER", null, false, 10, 0, false, false, null, 1);
@@ -311,6 +313,38 @@ public class DdlOutputTests
 
             """.ReplaceLineEndings("\n"),
             script);
+    }
+
+    [Fact]
+    public void The_comparison_writes_only_the_chosen_objects_under_a_line_that_says_so()
+    {
+        Assert.Equal(
+            """
+            -- DDL-Vorschlag: TEST (Seite 2) an die Referenz DEV (Seite 1) angleichen.
+            -- Von FerretSharp erzeugt, nicht ausgeführt: vor dem Ausführen prüfen. Auskommentiertes bewusst entscheiden.
+            -- Nur die 2 in der Matrix ausgewählten Objekte.
+
+            CREATE TABLE "TEST"."AUFTRAG" (
+                "ID" NUMBER(10) NOT NULL,
+                "KUNDE_ID" NUMBER(10),
+                "NR" VARCHAR2(20 BYTE),
+                "MENGE" NUMBER);
+
+            ALTER TABLE "TEST"."AUFTRAG" ADD CONSTRAINT "PK_AUFTRAG" PRIMARY KEY ("ID");
+
+            ALTER TABLE "TEST"."AUFTRAG" ADD CHECK (MENGE > 0);
+
+            ALTER TABLE "TEST"."AUFTRAG" ADD CONSTRAINT "FK_AUFTRAG_KUNDE" FOREIGN KEY ("KUNDE_ID") REFERENCES "TEST"."KUNDE" ("ID") ON DELETE CASCADE;
+
+            CREATE INDEX "TEST"."IX_AUFTRAG_KUNDE" ON "TEST"."AUFTRAG" ("KUNDE_ID");
+
+            COMMENT ON COLUMN "TEST"."AUFTRAG"."NR" IS 'Auftragsnummer';
+
+            -- ⚠ Löscht die Tabelle mit allen Daten.
+            -- DROP TABLE "TEST"."ZOMBIE"
+
+            """.ReplaceLineEndings("\n"),
+            Comparison("AUFTRAG", "ZOMBIE").Script.ReplaceLineEndings("\n"));
     }
 
     /// <summary>The script's steps (blocks between blank lines), in ordinal order.</summary>
