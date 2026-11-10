@@ -35,7 +35,7 @@ else
         <div class="ddl-actions">
             @Actions(close: false)
             <span class="spacer"></span>
-            <button class="btn ghost" disabled="@(_running is not null)" @onclick="OnClose">@CommonText.Close</button>
+            <button class="btn ghost" disabled="@_busy" @onclick="OnClose">@CommonText.Close</button>
         </div>
     </div>
 }
@@ -48,6 +48,15 @@ else
 @code {
     private bool _confirm;
     private string? _running;
+
+    /// <summary>
+    /// From the confirmation until the run is over – also while the open write transaction is rolled back first, before
+    /// any statement (<see cref="_running"/> is set only then; review WP-83: Close was free during the rollback).
+    /// </summary>
+    private bool _busy;
+
+    /// <summary>The open write transaction is rolled back before the DDL; <see cref="_running"/> holds the text shown.</summary>
+    private bool _rollingBack;
     private DateTimeOffset _started;
     private DdlRunResult? _result;
     private CancellationTokenSource? _cts;
@@ -126,6 +135,24 @@ else
 
     protected override void OnInitialized() => _confirm = ConfirmAtOnce && CanRun;
 
+    /// <summary>
+    /// "Open in SQL editor" among the actions. Off where the caller has its own (the schema comparison's DDL dialog, WP-83):
+    /// it opens in the shown connection, and the panel may run on one in the background.
+    /// </summary>
+    [Parameter]
+    public bool OfferSqlEditor { get; set; } = true;
+
+    /// <summary>
+    /// The statements start (true) and are over (false) – also after an exception, unlike <see cref="Ended"/>. For a caller
+    /// that must not let the user leave while DDL runs (the schema comparison's dialog, WP-83).
+    /// </summary>
+    [Parameter]
+    public Action<bool>? Running { get; set; }
+
+    /// <summary>What "Save …" writes; null: the steps as a script. The schema comparison saves its whole proposal (header, hints).</summary>
+    [Parameter]
+    public string? SaveText { get; set; }
+
     /// <summary>Lays the panel out as the head of the table designer: this beside the actions (designer tabs).</summary>
     [Parameter]
     public RenderFragment? Head { get; set; }
@@ -143,11 +170,14 @@ else
             }
             @CommonText.Run
         </button>
-        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@CommonText.OpenInSqlEditor</button>
+        @if (OfferSqlEditor)
+        {
+            <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@CommonText.OpenInSqlEditor</button>
+        }
         <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="SaveAsync">@SchemaViewText.Ddl_Save</button>
         @if (close)
         {
-            <button class="btn" disabled="@(_running is not null)" @onclick="OnClose">@CommonText.Close</button>
+            <button class="btn" disabled="@_busy" @onclick="OnClose">@CommonText.Close</button>
         }
     </span>;
 
@@ -155,8 +185,10 @@ else
     private RenderFragment RunState() => @<text>
         @if (_running is { } running)
         {
-            <RunProgress WorkspaceId="WorkspaceId" Title="@SqlScript.Analyze(running).FirstWord" Detail="@running" Started="_started"
-                         Hint="@SqlEditorText.Run_DdlWaiting" MayWaitForLock="true" OnCancel="Cancel" />
+            @* Cancelling the rollback lets it finish – half a rollback would leave the transaction unclear – and runs no DDL
+               after it; a rollback that hangs offers "Disconnect session" like any statement. *@
+            <RunProgress WorkspaceId="WorkspaceId" Title="@(_rollingBack ? "ROLLBACK" : SqlScript.Analyze(running).FirstWord)" Detail="@running" Started="_started"
+                         Hint="@(_rollingBack ? null : SqlEditorText.Run_DdlWaiting)" MayWaitForLock="@(!_rollingBack)" OnCancel="Cancel" />
         }
         else if ((_result ?? Earlier) is { Succeeded: false } result)
         {
@@ -179,7 +211,7 @@ else
     /// <summary>The steps as a script (<see cref="DdlScript.Render"/>): each ends with a semicolon, a blank line between them.</summary>
     private string Script => DdlScript.Render(Steps);
 
-    private bool CanRun => FerretSharp.Core.Design.DesignPlan.Runnable(Steps, Problems) && _running is null && Workspaces.IsWritable(WorkspaceId);
+    private bool CanRun => FerretSharp.Core.Design.DesignPlan.Runnable(Steps, Problems) && !_busy && Workspaces.IsWritable(WorkspaceId);
 
     private string? RunBlocked => Problems.Count > 0 ? Problems[0] : !Workspaces.IsWritable(WorkspaceId) ? SchemaViewText.Ddl_WorkspaceLocked : null;
 
@@ -188,18 +220,26 @@ else
         _confirm = false;
         _result = null;
         using var cts = _cts = new CancellationTokenSource();
+        _busy = true;
+        if (discard is not null)
+        {
+            (_running, _started, _rollingBack) = (SchemaViewText.Ddl_RollingBack, DateTimeOffset.Now, true);
+        }
+
+        Running?.Invoke(true);
         try
         {
             _result = await Lifecycle.Statements.RunDdlAsync(WorkspaceId, Statements, discard, statement =>
             {
-                (_running, _started) = (statement, DateTimeOffset.Now); // the progress shows the statement at hand
+                (_running, _started, _rollingBack) = (statement, DateTimeOffset.Now, false); // the progress shows the statement at hand
                 StateHasChanged();
             }, Ended, cts.Token);
         }
         finally
         {
-            _running = null;
+            (_running, _rollingBack, _busy) = (null, false, false);
             _cts = null;
+            Running?.Invoke(false);
         }
 
         if (_result.Succeeded)
@@ -254,7 +294,7 @@ else
         var folder = Connections.Profiles.FirstOrDefault(p => p.Id == connection)?.ScriptFolder;
         try
         {
-            if (await Files.SaveTextAsync(FileName, SchemaViewText.Ddl_SaveFilter, Script + "\n", utf8Bom: false, folder) is not { } path)
+            if (await Files.SaveTextAsync(FileName, SchemaViewText.Ddl_SaveFilter, SaveText ?? Script + "\n", utf8Bom: false, folder) is not { } path)
             {
                 return;
             }

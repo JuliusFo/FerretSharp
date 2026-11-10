@@ -4,7 +4,9 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div class="modal-backdrop" @onclick="OnBackdropClickAsync" @onkeydown="OnKeyDownAsync">
+@* Keys stop here: a dialog inside another one (the DDL confirmation inside the schema comparison's DDL dialog) would
+   otherwise pass its Escape on to the outer one, which closed as well (review WP-83). *@
+<div class="modal-backdrop" @onclick="OnBackdropClickAsync" @onkeydown="OnKeyDownAsync" @onkeydown:stopPropagation="true">
     <div class="modal dialog @Class" @onclick:stopPropagation="true" role="@(Alert ? "alertdialog" : "dialog")" aria-label="@Label"
          tabindex="-1" @ref="_box">
         @ChildContent

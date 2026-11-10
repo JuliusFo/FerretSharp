@@ -66,6 +66,29 @@ public sealed class DdlRunTests
     }
 
     /// <summary>
+    /// Review WP-83: cancelling while the open write transaction is rolled back first lets the rollback finish – half a
+    /// rollback would leave the transaction unclear – and runs no DDL after it.
+    /// </summary>
+    [Fact]
+    public async Task Cancelling_during_the_rollback_finishes_it_and_runs_no_ddl()
+    {
+        await using var app = new TestApp();
+        var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = scope.Workspaces.Active!.Id;
+        var editor = await scope.Workspaces.GetEditorAsync(workspace, Ct);
+        await editor.ExecuteAsync(new FerretSharp.Core.Query.QuerySpec("UPDATE KUNDEN SET NAME = 'x'", []), Ct);
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync(); // the user cancelled before the rollback was through
+
+        var result = await app.Lifecycle.Statements.RunDdlAsync(workspace, [First], app.WorkspaceOf(scope), null, _ => { }, cancelled.Token);
+
+        Assert.True(result.Cancelled);
+        Assert.Empty(result.Ran);
+        Assert.Empty(app.RanDdl);
+        Assert.Null(app.Lifecycle.OpenTransactionOf(workspace)); // rolled back all the same
+    }
+
+    /// <summary>
     /// R4a: a statement the schema path refuses stopped the run with an unhandled programming error, after the statements
     /// before it had run (DDL commits each one). All are checked first; nothing runs, nothing is rolled back.
     /// </summary>

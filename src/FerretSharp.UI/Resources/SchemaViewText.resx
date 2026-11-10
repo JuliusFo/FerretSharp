@@ -2366,4 +2366,8 @@
   <data name="Paths_CopyMermaidTitle" xml:space="preserve">
     <value>All ways found as a Mermaid diagram (erDiagram) for documentation and tickets</value>
   </data>
+  <data name="Ddl_RollingBack" xml:space="preserve">
+    <value>Rolling back the open write transaction first …</value>
+    <comment>Progress before running DDL: the confirmed rollback of the workspace's open write transaction</comment>
+  </data>
 </root>

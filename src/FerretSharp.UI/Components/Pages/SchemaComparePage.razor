@@ -13,7 +13,7 @@
     <div class="page-head">
         <h1>@CompareViewText.Compare_Title</h1>
         @* value, not selected=: after the user picked an option the browser ignores the attribute (.claude/rules/ui.md). *@
-        <select class="compare-saved" title="@CompareViewText.Compare_SavedTitle" value="@(Compare.IsSaved ? Compare.Current.Id.ToString() : "")" @onchange="OpenSaved">
+        <select class="field compare-saved" title="@CompareViewText.Compare_SavedTitle" value="@(Compare.IsSaved ? Compare.Current.Id.ToString() : "")" @onchange="OpenSaved">
             <option value="">@(Compare.IsSaved ? CompareViewText.Compare_New : CompareViewText.Compare_NotSaved)</option>
             @foreach (var saved in Compare.Saved)
             {
@@ -45,14 +45,14 @@
                 var profile = Connections.Profiles.FirstOrDefault(p => p.Id == state.Side.ConnectionId);
                 <div class="compare-side">
                     <span class="compare-side-no">@(index + 1)</span>
-                    <select title="@CompareViewText.Compare_Connection" disabled="@Compare.Loading" value="@(profile?.Id.ToString() ?? "")" @onchange="e => SetConnection(index, e.Value as string)">
+                    <select class="field" title="@CompareViewText.Compare_Connection" disabled="@Compare.Loading" value="@(profile?.Id.ToString() ?? "")" @onchange="e => SetConnection(index, e.Value as string)">
                         <option value="">@CompareViewText.Compare_ChooseConnection</option>
                         @foreach (var p in Compare.ChoicesIn(Groups.Order))
                         {
                             <option value="@p.Id">@Compare.ChoiceLabel(p)</option>
                         }
                     </select>
-                    <input class="compare-schema mono" placeholder="@(profile?.EffectiveSchema ?? CompareViewText.Compare_SchemaPlaceholder)" title="@CompareViewText.Compare_SchemaTitle"
+                    <input class="field mono compare-schema" placeholder="@(profile?.EffectiveSchema ?? CompareViewText.Compare_SchemaPlaceholder)" title="@CompareViewText.Compare_SchemaTitle"
                            value="@state.Side.Schema" disabled="@Compare.Loading" @onchange="e => SetSchema(index, e.Value as string)" />
                     <label class="compare-ref" title="@CompareViewText.Compare_ReferenceTitle">
                         <input type="checkbox" checked="@(Compare.Current.Reference == index)" @onchange="e => SetReference(index, e.Value is true)" />
@@ -65,7 +65,7 @@
                         }
                         else if (state.NeedsPassword && profile is not null)
                         {
-                            <input type="password" class="compare-password" placeholder="@TextFormat.Format(CompareViewText.Compare_PasswordFor, Compare.ChoiceLabel(profile))" title="@CompareViewText.Compare_PasswordTitle"
+                            <input type="password" class="field compare-password" placeholder="@TextFormat.Format(CompareViewText.Compare_PasswordFor, Compare.ChoiceLabel(profile))" title="@CompareViewText.Compare_PasswordTitle"
                                    value="@_passwords.GetValueOrDefault(profile.Id)" @onchange="e => _passwords[profile.Id] = e.Value as string ?? string.Empty" />
                             <button class="btn" @onclick="() => UsePassword(profile.Id)">@CompareViewText.Compare_Load</button>
                         }
@@ -120,12 +120,12 @@
                         @label
                     </label>
                 }
-                <SearchBox @bind-Value="_search" Class="search compare-search" Placeholder="@CompareViewText.Compare_SearchPlaceholder" />
+                <SearchBox @bind-Value="Compare.Search" Class="search compare-search" Placeholder="@CompareViewText.Compare_SearchPlaceholder" />
                 <span class="grow"></span>
                 <span class="muted">@Summary(result)</span>
                 <button class="btn" @onclick="CopyMarkdownAsync">@CompareViewText.Compare_CopyMarkdown</button>
                 @{
-                    var visible = Visible(result);
+                    var visible = Compare.Visible();
                     var chosen = Compare.ChosenRows.Count;
                     var hidden = chosen - visible.Count(Compare.IsChosen);
                 }
@@ -134,7 +134,7 @@
                     <span class="muted">@TextFormat.Format(CompareViewText.Compare_ChosenHidden, chosen, hidden)</span>
                 }
                 <button class="btn" disabled="@(result.Sides.Count < 2 || chosen == 0)" title="@(chosen == 0 ? CompareViewText.Compare_DdlChooseFirstTitle : null)"
-                        @onclick="() => _ddl = true">@(chosen == 0 ? CompareViewText.Compare_DdlProposalEllipsis : TextFormat.Format(CompareViewText.Compare_DdlProposalChosenEllipsis, chosen))</button>
+                        @onclick="Compare.OpenDdl">@(chosen == 0 ? CompareViewText.Compare_DdlProposalEllipsis : TextFormat.Format(CompareViewText.Compare_DdlProposalChosenEllipsis, chosen))</button>
             </div>
             <div class="compare-matrix-wrap">
                 <table class="compare-matrix">
@@ -158,12 +158,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var row in visible.Take(_shown))
+                        @foreach (var row in visible.Take(Compare.ShownRows))
                         {
-                            var open = _open.Contains(row.Key);
+                            var open = Compare.IsOpen(row.Key);
                             var children = Children(row).ToList();
                             var canChoose = SchemaCompareService.CanChoose(row);
-                            <tr class="object @(row.HasDifferences ? "differs" : "") @(Compare.IsChosen(row) ? "chosen" : "")" @onclick="() => Toggle(row.Key)">
+                            <tr class="object @(row.HasDifferences ? "differs" : "") @(Compare.IsChosen(row) ? "chosen" : "")" @onclick="() => Compare.Toggle(row.Key)">
                                 @* The whole cell chooses (a label fills a cell only in width), and it does not open the row. *@
                                 <td class="choose @(canChoose ? "" : "off")" title="@(canChoose ? CompareViewText.Compare_ChooseTitle : CompareViewText.Compare_ChooseAlikeTitle)"
                                     @onclick="() => Compare.Choose([row], !Compare.IsChosen(row))" @onclick:stopPropagation="true">
@@ -217,12 +217,12 @@
                         }
                     </tbody>
                 </table>
-                @if (visible.Count > _shown)
+                @if (visible.Count > Compare.ShownRows)
                 {
-                    var rest = visible.Count - _shown;
+                    var rest = visible.Count - Compare.ShownRows;
                     <div class="compare-more">
                         <span class="muted">@TextFormat.Plural(rest, CompareViewText.Compare_MoreObjectsOne, CompareViewText.Compare_MoreObjectsOther)</span>
-                        <button class="btn" @onclick="() => _shown += RowsPerStep">@TextFormat.Format(CompareViewText.Compare_ShowMore, Math.Min(rest, RowsPerStep))</button>
+                        <button class="btn" @onclick="Compare.ShowMore">@TextFormat.Format(CompareViewText.Compare_ShowMore, Math.Min(rest, SchemaCompareService.RowsPerStep))</button>
                     </div>
                 }
                 @if (visible.Count == 0)
@@ -262,9 +262,9 @@
     <ViewDefinitionDialog Row="definition.Row" ObjectName="@definition.Object" Labels="Labels" OnClose="() => _definition = null" />
 }
 
-@if (_ddl && Compare.Result is { } ddlResult)
+@if (Compare.Ddl is not null && Compare.Result is { } ddlResult)
 {
-    <SchemaDdlDialog Comparison="ddlResult" Rows="Compare.ChosenRows" Labels="Labels" OnClose="() => _ddl = false" OnOpenInEditor="OpenInEditorAsync" />
+    <SchemaDdlDialog Comparison="ddlResult" Rows="Compare.ChosenRows" Labels="Labels" OnClose="Compare.CloseDdl" OnOpenInEditor="OpenInEditorAsync" />
 }
 
 @code {
@@ -277,18 +277,15 @@
         (CompareViewText.Compare_FilterIndexes, [CompareKind.Index]),
     ];
 
-    private readonly HashSet<string> _open = [];
     private readonly Dictionary<Guid, string> _passwords = new();
     private DomModule? _dom;
 
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
-    private string _search = "";
     private bool _saving;
     private bool _saveAsNew;
     private string _saveName = "";
     private bool _confirmDelete;
-    private bool _ddl;
 
     /// <summary>The definition row shown in <see cref="ViewDefinitionDialog"/> and the name of its object.</summary>
     private (CompareRow Row, string Object)? _definition;
@@ -313,7 +310,7 @@
     /// </summary>
     private async Task OpenInEditorAsync(DdlProposal proposal)
     {
-        _ddl = false;
+        Compare.CloseDdl();
         var side = Compare.Sides[Compare.ResultSides[proposal.Target]].Side;
         if (Connections.Profiles.FirstOrDefault(p => p.Id == side.ConnectionId) is not { } profile)
         {
@@ -354,7 +351,6 @@
 
     private void OpenSaved(ChangeEventArgs e)
     {
-        _open.Clear();
         if (Guid.TryParse(e.Value as string, out var id) && Compare.Saved.FirstOrDefault(s => s.Id == id) is { } saved)
         {
             Compare.Open(saved);
@@ -420,31 +416,6 @@
         }
     }
 
-    /// <summary>Objects rendered at first and added per click: a matrix of thousands of rows froze the window while rendering.</summary>
-    private const int RowsPerStep = 300;
-
-    private int _shown = RowsPerStep;
-    private (SchemaComparison Result, bool OnlyDifferences, IReadOnlyList<CompareKind>? Kinds, string Search, IReadOnlyList<CompareRow> Rows)? _visible;
-
-    /// <summary>
-    /// The objects the filters and the search let through, computed once per change of them rather than on every render
-    /// (a click on a row rendered the page, which filtered all objects twice). A new selection starts with the first rows.
-    /// </summary>
-    private IReadOnlyList<CompareRow> Visible(SchemaComparison result)
-    {
-        var (only, kinds) = (Compare.Current.OnlyDifferences, Compare.Current.Kinds);
-        if (_visible is { } known && ReferenceEquals(known.Result, result) && known.OnlyDifferences == only && ReferenceEquals(known.Kinds, kinds) && known.Search == _search)
-        {
-            return known.Rows;
-        }
-
-        var search = new TextSearch(_search);
-        var rows = result.Objects.Where(row => CompareExport.Shown(row, only, kinds) && search.Matches(row.Name)).ToList();
-        _visible = (result, only, kinds, _search, rows);
-        _shown = RowsPerStep;
-        return rows;
-    }
-
     /// <summary>One cell: the side's definition, coloured by its group; a dash where it is missing. A fragment, not a component – thousands of them re-rendered on every click.</summary>
     private static RenderFragment CellView(CompareCell cell) => __builder =>
     {
@@ -497,14 +468,6 @@
 
     private IEnumerable<CompareRow> Children(CompareRow row) =>
         row.Children.Where(c => (!Compare.Current.OnlyDifferences || c.Differs) && (Compare.Current.Kinds is not { } kinds || kinds.Contains(c.Kind)));
-
-    private void Toggle(string key)
-    {
-        if (!_open.Remove(key))
-        {
-            _open.Add(key);
-        }
-    }
 
     private static string Summary(SchemaComparison result)
     {

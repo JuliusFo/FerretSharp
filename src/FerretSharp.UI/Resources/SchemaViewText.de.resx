@@ -1944,4 +1944,7 @@
   <data name="Paths_CopyMermaidTitle" xml:space="preserve">
     <value>Alle gefundenen Wege als Mermaid-Diagramm (erDiagram) für Doku und Tickets</value>
   </data>
+  <data name="Ddl_RollingBack" xml:space="preserve">
+    <value>Die offene Schreib-Transaktion wird zuerst zurückgerollt …</value>
+  </data>
 </root>

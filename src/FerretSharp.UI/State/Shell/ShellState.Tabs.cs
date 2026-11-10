@@ -25,6 +25,13 @@ public sealed partial class ShellState
     /// <summary>A workspace's tabs, whichever connection it belongs to.</summary>
     public WorkspaceTabs? FindWorkspace(Guid workspaceId) => _workspaces.FirstOrDefault(w => w.WorkspaceId == workspaceId);
 
+    /// <summary>
+    /// The active workspace of an open connection, shown or in the background (WP-83: the DDL proposal of the schema
+    /// comparison runs there without switching to it); null if the connection has none.
+    /// </summary>
+    public WorkspaceTabs? ActiveWorkspaceOf(Guid connectionId) =>
+        _activeByConnection.TryGetValue(connectionId, out var active) ? FindWorkspace(active) : null;
+
     /// <summary>The connection shown (WP-24); null if none.</summary>
     public Guid? CurrentConnection { get; private set; }
 
