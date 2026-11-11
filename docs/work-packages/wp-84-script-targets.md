@@ -29,5 +29,8 @@ Branch `wp/84-script-targets`. Idee des Nutzers (2026-11-11), Fortsetzung von WP
 - **Merkliste** (`ScriptUsage`, Core): wie `WorkClones`; Werte des Dialogs nur im Speicher.
 - **UI:** `ScriptTargetSection` im Zellmenü von Tabellen (vor den FK-Sprüngen), `MenuEntry.Keywords` für die Suche in Beschreibung und Ordner; `ScriptCellLaunch` (State) liest die Datei, baut den Lauf, öffnet über `ShellState.OpenScriptRun` im Workspace des Tabs (nicht im aktiven); `ScriptParamsDialog` mit `SqlVariablesEditor`. Ein Tab, der aus der Zelle läuft, führt das Skript aus, sobald sein Monaco steht (`SqlTab.RunOnOpen`, `MonacoEditor.OnCreated`/`IsCreated`) – der Befehl kommt sonst, bevor die Ansicht da ist.
 
+## E2E (2026-11-12)
+Eigener Container `ferret-wp84`, Rechtsklick und Menüklicks mit echter Windows-Eingabe. Nichts gefunden. Geprüft: Abgleich über die Beziehung (`AUFTRAG.KUNDE_ID` → `KUNDEN.KUNDE_ID`, Ziel in Kleinbuchstaben geschrieben), Skripte mit anderem oder ohne Ziel fehlen, fünf offen und „1 weitere“, Reihenfolge nach letztem Start, Liste aus drei markierten Zeilen (angeklickter Wert zuerst, Tab nicht verbunden), Dialog mit gemerktem Wert beim zweiten Start, DML-Skript nur geöffnet. `script-usage.json` ohne Werte, Log ohne `[ERR]`/`[WRN]`. Nicht geprüft: Prod (gleicher Weg, nur der Leseweg) und ein Skript in einem Gruppenordner.
+
 ## Nicht im Paket (Backlog)
 Ziel beim Speichern vorschlagen, Eintrag in der Befehlspalette, Skripte im Zellmenü des SQL-Ergebnisses und der LINQ-Konsole, Ziel als C#-Name.
