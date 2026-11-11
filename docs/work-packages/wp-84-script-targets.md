@@ -47,3 +47,4 @@ Entscheidung des Nutzers: „Kannst du die Vorschläge vom Code-Review was spät
 - K3 Unbenutzter `@param` konnte einen aufgeklappten Namen tragen: behoben (Kopfparameter gelten als belegt). Test im selben `Naming_ends_when_…`.
 - K4 Zeitreise-Tab: dokumentiert (Wert von damals, Lauf auf dem Stand von jetzt).
 - Hinweis Funktion mit `AUTONOMOUS_TRANSACTION`: im ADR-Nachtrag genannt.
+- Zweiter Durchgang: Fixes decken ihre Befunde, Alt+X unverändert. Zwei neue K: Doc-Kommentar in `TabView` am falschen Member (behoben); der Test zu S2 stellte den Zyklus nicht nach (jetzt mit den Stämmen aller früheren Schemata und Zeitlimit, scheitert statt zu hängen).

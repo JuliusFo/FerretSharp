@@ -54,17 +54,27 @@ public sealed class SqlBindListsTests
         Assert.Equal(12, longName.Names.Distinct().Count());
     }
 
-    /// <summary>Review WP-84, S2: with every candidate of the stems taken, naming looped forever (the window froze).</summary>
-    [Fact]
-    public void Naming_ends_when_the_short_stems_are_taken_too_and_reserved_names_count()
+    /// <summary>
+    /// Review WP-84, S2: with every candidate of the stems taken, naming looped forever (the window froze). The script takes
+    /// the stems of every earlier scheme too – the cut name, it with underscores, <c>v29</c> with underscores – and the call
+    /// runs with a time limit: a cycle fails the test instead of hanging the run.
+    /// </summary>
+    [Fact(Timeout = 10_000)]
+    public async Task Naming_ends_when_the_short_stems_are_taken_too_and_reserved_names_count()
     {
         const string bind = "a_rather_long_bind_name_of_28";
-        var taken = string.Join(" AND ", Enumerable.Range(0, 40).Select(i => $"x{i} = :{(i == 0 ? bind[..28] : "v" + i)}_1"));
+        string[] stems =
+        [
+            .. Enumerable.Range(24, 6).SelectMany(n => Enumerable.Range(0, 30 - n).Select(u => bind[..n] + new string('_', u))),
+            .. Enumerable.Range(0, 27).Select(u => "v29" + new string('_', u)),
+            .. Enumerable.Range(1, 40).Select(i => "v" + i),
+        ];
+        var taken = string.Join(" AND ", stems.Select((s, i) => $"x{i} = :{s}_1"));
 
-        var list = SqlBindLists.Expand($"SELECT * FROM t WHERE id IN (:{bind}) AND {taken}", bind, 2, out _)!;
+        var list = await Task.Run(() => SqlBindLists.Expand($"SELECT * FROM t WHERE id IN (:{bind}) AND {taken}", bind, 2, out _), TestContext.Current.CancellationToken);
         var reserved = SqlBindLists.Expand("SELECT * FROM t WHERE id IN (:ids)", "ids", 2, out _, ["IDS_1"])!;
 
-        Assert.Equal(["v40_1", "v40_2"], list.Names);
+        Assert.Equal(["v41_1", "v41_2"], list!.Names);
         Assert.Equal(["v1_1", "v1_2"], reserved.Names);
     }
 

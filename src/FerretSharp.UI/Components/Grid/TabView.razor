@@ -296,13 +296,13 @@
     /// <summary>A script of the cell menu waiting in its dialog for its other parameters (WP-84).</summary>
     private ScriptCellStart? _scriptStart;
 
+    /// <summary>A script of the cell menu is being read or started: a second click waits for nothing (review WP-84, M3).</summary>
+    private bool _scriptStarting;
+
     /// <summary>
     /// A script of the cell menu (WP-84): the file read again, the cell's value (or the selected rows' for a list) put in;
     /// the dialog asks for the other parameters, else the SQL tab opens and runs it if it only reads.
     /// </summary>
-    /// <summary>A script of the cell menu is being read or started: a second click waits for nothing (review WP-84, M3).</summary>
-    private bool _scriptStarting;
-
     private async Task RunScriptAsync(GridContextMenuRequest menu, FerretSharp.Core.Scripts.ScriptMatch match)
     {
         if (_details is null || _scriptStarting || _scriptStart is not null)
