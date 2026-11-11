@@ -64,6 +64,17 @@ Branch `wp/80-relation-filter`. Die geklickte Form desselben Falls wie WP-79 (`I
 - Erledigt nebenbei den Punkt „das Filtermodell kennt kein `NOT EXISTS`“ aus WP-43 („Zeilen zeigen“ ohne Grenze für verwaiste Werte).
 - Offen (Fragen an den Nutzer, 2026-11-09): Laufen die `IN` der Kollegen über bekannte Beziehungen oder über beliebige Spaltenpaare (Ad-hoc-Paarung „Spalte hier ↔ Spalte dort“ ginge als SQL, nicht sauber als LINQ)? Bedingungen auch auf Zwischentabellen (B) oder nur am Ende des Pfads (deutlich einfachere Oberfläche)?
 
+### WP-84 Skripte mit Ziel im Zellmenü
+Branch `wp/84-script-targets`. Idee des Nutzers (2026-11-11), Fortsetzung von WP-77 (`docs/sql-scripts.md`, ADR 0046); als eigenes Paket gewünscht. Rechtsklick auf eine Zelle mit z. B. `KUNDE_ID` bietet die Skripte an, die einen Kunden als Eingabe nehmen, und führt sie mit dem Wert der Zelle aus. Die Punkte sind Vorschläge (nicht bestätigt), außer wo anders vermerkt.
+- **Ziel im Kopf des Skripts:** Ein Skript enthält weder FK noch Modell – die Verbindung zur Spalte schreibt der Autor ausdrücklich hin, etwa `-- @target kunde_id KUNDE.KUNDE_ID` (eigener Tag neben `@param … number`, damit der Typ bleibt; mehrere Ziele möglich). Ohne Owner, aufgelöst gegen das Default-Schema der Verbindung. FerretSharp leitet aus dem SQL-Text nichts still ab.
+- **Vom Anker zu den Spalten:** Das Skript erscheint auf der Zielspalte selbst und auf jeder Spalte, die über eine bekannte Beziehung darauf zeigt (`Declared`, `Manual`, `Convention`, `ClrModel`), z. B. `AUFTRAG.KUNDE_ID` → `KUNDE.KUNDE_ID`. Wo keine Beziehung bekannt ist, erscheint es dort nicht – eine manuelle Beziehung schließt die Lücke. Ein reiner Namensabgleich (`*.KUNDE_ID`) höchstens später als Notlösung.
+- **Ziel vorschlagen beim Speichern:** Der Speichern-Dialog könnte aus `WHERE t.kunde_id = :kunde_id` (Tokenizer wie `WhereCondition`, kein Parser) die Spalte erraten und als Ziel anbieten; der Nutzer bestätigt.
+- **Ausführen:** nur SELECT/WITH und alle Parameter gefüllt → neuer SQL-Tab, sofort ausgeführt (Leseweg, Lesesperre unverändert). Weitere Parameter ohne Wert → Tab vorbelegt, nichts ausgeführt (oder Abfragedialog, siehe Offen). DML im Skript → nie automatisch, nur vorbelegt öffnen. Wert ist der Rohwert der Zelle, nicht der Anzeigename eines Enums.
+- **Views:** kein eigenes Konzept – „die View für diesen Kunden“ ist ein einzeiliges Skript (`SELECT * FROM v_… WHERE kunde_id = :kunde_id`).
+- **Menülänge (Sorge des Nutzers):** Es erscheinen nur Skripte, deren Ziel zur angeklickten Spalte passt. Eigene Gruppe „Skripte“ im Zellmenü mit höchstens 3–5 Einträgen (zuletzt benutzte zuerst), darunter „Alle N Skripte…“ als durchsuchbare Liste; das Filterfeld des Zellmenüs (WP-61) findet sie ohnehin. Ordner (Persönlich/Gruppe/Allgemein) als Hinweis am Eintrag.
+- Nicht im ersten Wurf (Backlog): mehrere markierte Zeilen (ein Bind ist keine Liste), Spalten im SQL-Ergebnis (nur mit bekannter Herkunft, `SqlResultOrigins`), Ziel als C#-Name (`Kunde.Id`), Eintrag in der Befehlspalette „Skript für diese Zelle…“.
+- Offen: fehlende weitere Parameter per Dialog abfragen oder nur vorbelegt öffnen? Name und Form des Tags (`@target` oder am `@param` angehängt)? Auf Prod genauso sofort ausführen (nur lesend) oder erst öffnen?
+
 
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
