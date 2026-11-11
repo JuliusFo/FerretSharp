@@ -259,15 +259,15 @@ public sealed partial class ShellState
 
     /// <summary>
     /// A script started from a cell (WP-84) in the workspace of the tab it was started from – not the active one: the file
-    /// was read in between, the user may have switched. With <paramref name="list"/> (several values for a list parameter)
-    /// a new tab with the spread text, not linked to the file – saving would write the spread binds into the shared script.
+    /// was read in between, the user may have switched. With <paramref name="spread"/> (the text with several values of a
+    /// list parameter spread, <see cref="Core.Query.SqlBindLists"/>) a new tab with that text, not linked to the file – saving would write the spread binds into the shared script.
     /// Without, the tab linked to the file (an open one is taken, its variables set) or a new one. With
     /// <paramref name="run"/> it runs the whole script once it shows (<see cref="SqlTab.RunOnOpen"/>). Null if the
     /// workspace is gone.
     /// </summary>
     public SqlTab? OpenScriptRun(
         Guid workspaceId, Core.Scripts.ScriptRoot root, string path, Core.Scripts.ScriptDocument document,
-        IReadOnlyList<Core.Query.SqlVariable> variables, Core.Query.SqlBindList? list, bool run)
+        IReadOnlyList<Core.Query.SqlVariable> variables, string? spread, bool run)
     {
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(document);
@@ -280,7 +280,7 @@ public sealed partial class ShellState
         var name = Workspace.FitName(Core.Scripts.ScriptPaths.NameOf(path));
         var script = document.Script;
         SqlTab tab;
-        if (list is null && workspace.Tabs.OfType<SqlTab>().FirstOrDefault(t => t.Script is { } link && root.Is(link.Root, link.Group)
+        if (spread is null && workspace.Tabs.OfType<SqlTab>().FirstOrDefault(t => t.Script is { } link && root.Is(link.Root, link.Group)
                 && string.Equals(link.Path, path, StringComparison.OrdinalIgnoreCase)) is { } open)
         {
             tab = open;
@@ -302,9 +302,9 @@ public sealed partial class ShellState
         {
             tab = InsertAfterActive(workspace, new SqlTab(workspaceId, name)
             {
-                Text = list?.Text ?? script.Body,
+                Text = spread ?? script.Body,
                 Variables = variables,
-                Script = list is null ? Core.Scripts.ScriptLink.To(root, path, script.Header, script.Body, document.FileHash) : null,
+                Script = spread is null ? Core.Scripts.ScriptLink.To(root, path, script.Header, script.Body, document.FileHash) : null,
                 Visited = true,
                 FocusOnOpen = !run,
                 RunOnOpen = run,

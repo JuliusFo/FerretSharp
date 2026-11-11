@@ -210,4 +210,25 @@
   <data name="Explorer_CountOther" xml:space="preserve">
     <value>{0} Skripte</value>
   </data>
+  <data name="CellMenu_Scripts" xml:space="preserve">
+    <value>Skripte</value>
+  </data>
+  <data name="CellMenu_MoreScripts" xml:space="preserve">
+    <value>{0} weitere</value>
+  </data>
+  <data name="CellMenu_ScriptValues" xml:space="preserve">
+    <value>{0} · {1} Werte</value>
+  </data>
+  <data name="CellRun_Title" xml:space="preserve">
+    <value>Skript {0} ausführen</value>
+  </data>
+  <data name="CellRun_Values" xml:space="preserve">
+    <value>{0} Werte der markierten Zeilen</value>
+  </data>
+  <data name="CellRun_OpenInEditor" xml:space="preserve">
+    <value>Im Editor öffnen</value>
+  </data>
+  <data name="CellRun_Run" xml:space="preserve">
+    <value>Ausführen</value>
+  </data>
 </root>

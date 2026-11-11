@@ -1,0 +1,59 @@
+@* The other parameters of a script started from a cell (WP-84, decision of the user): the value from the cell stands above,
+   read only; the fields are those of the SQL tab's variables. "Run" opens the tab and runs it, "Open in editor" opens it
+   with the values and runs nothing. The values typed are kept for the next start until FerretSharp ends (not saved). *@
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Scripts
+
+<ModalFrame Label="@Title" Class="script-params-dialog" OnCancel="OnClose">
+    <header>
+        <span>@Title</span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
+    </header>
+    <div class="dialog-body">
+        @if (Start.Match.Script.Description is { } description)
+        {
+            <p class="hint">@description</p>
+        }
+        <div class="script-params-given">
+            <code>:@Start.Match.Target.Parameter</code>
+            <span class="script-params-value" title="@Given">@Given</span>
+        </div>
+        <SqlVariablesEditor Variables="_variables" Binds="_names" OnChange="v => _variables = v" />
+    </div>
+    <footer>
+        <button class="btn" @onclick="OnClose">@CommonText.Cancel</button>
+        <button class="btn" @onclick="() => FinishAsync(run: false)">@ScriptViewText.CellRun_OpenInEditor</button>
+        <button class="btn primary" @onclick="() => FinishAsync(run: true)">@ScriptViewText.CellRun_Run</button>
+    </footer>
+</ModalFrame>
+
+@code {
+    [Parameter, EditorRequired]
+    public ScriptCellStart Start { get; set; } = null!;
+
+    /// <summary>The variables as typed and whether to run.</summary>
+    [Parameter, EditorRequired]
+    public Func<IReadOnlyList<SqlVariable>, bool, Task> OnFinish { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<SqlVariable> _variables = [];
+    private IReadOnlyList<string> _names = [];
+
+    private string Title => TextFormat.Format(ScriptViewText.CellRun_Title, Start.Match.Script.Name);
+
+    /// <summary>The cell's value, or how many values a list parameter got.</summary>
+    private string Given => Start.Run.Values > 1
+        ? TextFormat.Format(ScriptViewText.CellRun_Values, Start.Run.Values)
+        : Start.Run.Variables.First(v => string.Equals(v.Name, Start.Match.Target.Parameter, StringComparison.OrdinalIgnoreCase)).Value;
+
+    protected override void OnInitialized()
+    {
+        var missing = Start.Run.Missing.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _variables = [.. Start.Run.Variables.Where(v => missing.Contains(v.Name))];
+        _names = [.. _variables.Select(v => v.Name)];
+    }
+
+    private Task FinishAsync(bool run) => OnFinish(_variables, run);
+}

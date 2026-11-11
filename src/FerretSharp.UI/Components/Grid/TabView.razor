@@ -12,6 +12,7 @@
 @inject AppSettingsService Settings
 @inject ConnectionHub Hub
 @inject FerretSharp.Core.Workspaces.ConditionHistoryStore ConditionHistory
+@inject FerretSharp.Core.Scripts.ScriptUsage ScriptUsage
 
 <div class="tabview">
     <div class="tab-toolbar">
@@ -183,7 +184,13 @@
                      OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare"
                      OnFillMarks="fill => _grid?.FillAsync(menu.Marks!.Marks, fill) ?? Task.CompletedTask" OnSetValue="r => _setValue = r"
                      CopyUnavailable="@CopyUnavailable" OnCopyToConnection="() => OpenCopy(menu)"
-                     RecordsUnavailable="@RecordsUnavailable(menu)" OnShowRecords="() => ShowRecords(menu)" />
+                     RecordsUnavailable="@RecordsUnavailable(menu)" OnShowRecords="() => ShowRecords(menu)"
+                     OnRunScript="match => RunScriptAsync(menu, match)" />
+}
+
+@if (_scriptStart is { } scriptStart)
+{
+    <ScriptParamsDialog @key="scriptStart" Start="scriptStart" OnFinish="(typed, run) => FinishScriptAsync(scriptStart, typed, run)" OnClose="() => _scriptStart = null" />
 }
 
 @if (_copy is { } copy)
@@ -285,6 +292,43 @@
 
     /// <summary>"Set value…" of the cell menu, open (WP-59).</summary>
     private SetValueRequest? _setValue;
+
+    /// <summary>A script of the cell menu waiting in its dialog for its other parameters (WP-84).</summary>
+    private ScriptCellStart? _scriptStart;
+
+    /// <summary>
+    /// A script of the cell menu (WP-84): the file read again, the cell's value (or the selected rows' for a list) put in;
+    /// the dialog asks for the other parameters, else the SQL tab opens and runs it if it only reads.
+    /// </summary>
+    private async Task RunScriptAsync(GridContextMenuRequest menu, FerretSharp.Core.Scripts.ScriptMatch match)
+    {
+        if (_details is null)
+        {
+            return;
+        }
+
+        var values = ScriptCellLaunch.ValuesOf(menu.Row, menu.Selected, menu.Column);
+        var (start, refusal) = await ScriptCellLaunch.PrepareAsync(Tab.WorkspaceId, match, _details.Columns[menu.Column], values, ScriptUsage, CancellationToken.None);
+        if (start is null)
+        {
+            Shell.Notify(refusal ?? "");
+        }
+        else if (start.AsksFirst)
+        {
+            _scriptStart = start;
+        }
+        else
+        {
+            await ScriptCellLaunch.StartAsync(Shell, ScriptUsage, start, null, run: true, CancellationToken.None);
+        }
+    }
+
+    private async Task FinishScriptAsync(ScriptCellStart start, IReadOnlyList<SqlVariable> typed, bool run)
+    {
+        _scriptStart = null;
+        StateHasChanged(); // called by the dialog, not as an event of this view
+        await ScriptCellLaunch.StartAsync(Shell, ScriptUsage, start, typed, run, CancellationToken.None);
+    }
 
     /// <summary>"Copy to another connection…" of the cell menu, open (WP-42).</summary>
     private SubgraphCopyDraft? _copy;
