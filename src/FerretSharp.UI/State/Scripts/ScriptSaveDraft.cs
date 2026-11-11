@@ -38,7 +38,7 @@ public sealed class ScriptSaveDraft
 
         Request = request;
         Roots = roots;
-        Parameters = ScriptHeaders.ParametersOf(request.Text, request.Variables);
+        Parameters = ScriptHeaders.ParametersOf(request.Text, request.Variables, request.Link?.Header.Parameters);
         Name = request.Name;
         if (request.Link is { } link)
         {
@@ -96,10 +96,13 @@ public sealed class ScriptSaveDraft
 
     /// <summary>
     /// The header to write: the description as typed, the parameters of the text's binds with the types of its variables,
-    /// and for "Save as" the lines of the linked file FerretSharp does not know.
+    /// and for "Save as" the targets (WP-84) and the lines of the linked file FerretSharp does not know.
     /// </summary>
     public ScriptHeader Header => new(
         string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
         Parameters,
-        Request.Link?.Header.Other ?? []);
+        Request.Link?.Header.Other ?? [])
+    {
+        Targets = Request.Link?.Header.Targets ?? [],
+    };
 }

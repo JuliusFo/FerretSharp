@@ -345,4 +345,13 @@
   <data name="ConditionTopLevel" xml:space="preserve">
     <value>{0} gehört nicht in eine Bedingung – sortieren über die Spaltenköpfe, alles andere im SQL-Editor.</value>
   </data>
+  <data name="BindListTooMany" xml:space="preserve">
+    <value>In eine IN-Liste passen höchstens {0} Werte; markiert sind {1}.</value>
+  </data>
+  <data name="BindListPlacement" xml:space="preserve">
+    <value>:{0} nimmt eine Liste: Der Bind muss allein in IN ( … ) stehen, etwa WHERE id IN (:{0}).</value>
+  </data>
+  <data name="BindListMissing" xml:space="preserve">
+    <value>Das Skript verwendet :{0} nicht.</value>
+  </data>
 </root>
