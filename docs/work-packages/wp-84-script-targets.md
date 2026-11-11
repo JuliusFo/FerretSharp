@@ -48,3 +48,4 @@ Entscheidung des Nutzers: „Kannst du die Vorschläge vom Code-Review was spät
 - K4 Zeitreise-Tab: dokumentiert (Wert von damals, Lauf auf dem Stand von jetzt).
 - Hinweis Funktion mit `AUTONOMOUS_TRANSACTION`: im ADR-Nachtrag genannt.
 - Zweiter Durchgang: Fixes decken ihre Befunde, Alt+X unverändert. Zwei neue K: Doc-Kommentar in `TabView` am falschen Member (behoben); der Test zu S2 stellte den Zyklus nicht nach (jetzt mit den Stämmen aller früheren Schemata und Zeitlimit, scheitert statt zu hängen).
+- E2E nach den Fixes (echte Maus): Start aus der Zelle über `RunFromCell` in einen wiederhergestellten verbundenen Tab läuft; ein verbundener Tab mit angehängtem `UPDATE` bleibt unberührt (kein Lauf, Text unverändert), ein neuer, nicht verbundener Tab führt den Text der Datei aus. Dritter Durchgang des Reviewers ohne Befund.
