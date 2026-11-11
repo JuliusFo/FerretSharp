@@ -454,4 +454,8 @@
     <value>The script does not use :{0}.</value>
     <comment>{0}: name of the bind</comment>
   </data>
+  <data name="BindListTooLong" xml:space="preserve">
+    <value>Spreading the values over :{0} would make the script too long.</value>
+    <comment>{0}: name of the bind</comment>
+  </data>
 </root>

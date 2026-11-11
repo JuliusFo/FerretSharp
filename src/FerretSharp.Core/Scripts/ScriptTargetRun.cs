@@ -56,7 +56,9 @@ public sealed record ScriptTargetRun(
         IReadOnlyList<string> names = [parameter.Name];
         if (texts.Count > 1)
         {
-            if (SqlBindLists.Expand(body, parameter.Name, texts.Count, out refusal) is not { } list)
+            // The other parameters get a variable each: no spread name may be one of them (review WP-84, K3).
+            if (SqlBindLists.Expand(body, parameter.Name, texts.Count, out refusal,
+                    header.Parameters.Where(p => p != parameter).Select(p => p.Name)) is not { } list)
             {
                 return null;
             }

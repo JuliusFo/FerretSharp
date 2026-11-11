@@ -354,4 +354,7 @@
   <data name="BindListMissing" xml:space="preserve">
     <value>Das Skript verwendet :{0} nicht.</value>
   </data>
+  <data name="BindListTooLong" xml:space="preserve">
+    <value>Mit den Werten für :{0} würde das Skript zu lang.</value>
+  </data>
 </root>

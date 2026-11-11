@@ -48,9 +48,35 @@ public sealed class SqlBindListsTests
         var quoted = SqlBindLists.Expand("SELECT * FROM t WHERE id IN (:\"my ids\")", "my ids", 2, out _)!;
         var longName = SqlBindLists.Expand("SELECT * FROM t WHERE id IN (:a_rather_long_bind_name_of_30)", "a_rather_long_bind_name_of_30", 12, out _)!;
 
-        Assert.Equal(["ids__1", "ids__2"], taken.Names);
+        Assert.Equal(["v1_1", "v1_2"], taken.Names);
         Assert.Equal(["v_1", "v_2"], quoted.Names);
         Assert.All(longName.Names, n => Assert.True(n.Length <= 30, n));
         Assert.Equal(12, longName.Names.Distinct().Count());
+    }
+
+    /// <summary>Review WP-84, S2: with every candidate of the stems taken, naming looped forever (the window froze).</summary>
+    [Fact]
+    public void Naming_ends_when_the_short_stems_are_taken_too_and_reserved_names_count()
+    {
+        const string bind = "a_rather_long_bind_name_of_28";
+        var taken = string.Join(" AND ", Enumerable.Range(0, 40).Select(i => $"x{i} = :{(i == 0 ? bind[..28] : "v" + i)}_1"));
+
+        var list = SqlBindLists.Expand($"SELECT * FROM t WHERE id IN (:{bind}) AND {taken}", bind, 2, out _)!;
+        var reserved = SqlBindLists.Expand("SELECT * FROM t WHERE id IN (:ids)", "ids", 2, out _, ["IDS_1"])!;
+
+        Assert.Equal(["v40_1", "v40_2"], list.Names);
+        Assert.Equal(["v1_1", "v1_2"], reserved.Names);
+    }
+
+    /// <summary>Review WP-84, M1: many uses in a large script grew the text quadratically, to gigabytes.</summary>
+    [Fact]
+    public void A_spread_beyond_the_size_limit_is_refused()
+    {
+        var script = string.Join("\nUNION ALL ", Enumerable.Repeat("SELECT 1 FROM t WHERE id IN (:ids)", 2_000));
+
+        Assert.Null(SqlBindLists.Expand(script, "ids", SqlBindLists.MaxValues, out var refusal));
+        Assert.Contains(":ids", refusal, StringComparison.Ordinal);
+        var small = SqlBindLists.Expand(script, "ids", 2, out _)!;
+        Assert.Equal(2_000, small.Text.Split(":ids_2").Length - 1);
     }
 }

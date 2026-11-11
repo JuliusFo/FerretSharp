@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Query;
@@ -22,11 +23,18 @@ public static class SqlBindLists
     private const int MaxNameBytes = 30;
 
     /// <summary>
+    /// The spread text at most (characters): a script from a shared folder with many uses of the bind would otherwise grow
+    /// to gigabytes (review WP-84, M1). Four times the largest script file.
+    /// </summary>
+    public const int MaxTextLength = 4 * 1024 * 1024;
+
+    /// <summary>
     /// <paramref name="script"/> with each use of <c>:<paramref name="bind"/></c> replaced by <paramref name="count"/> binds;
     /// null with <paramref name="refusal"/> if a use is not alone in an <c>IN ( … )</c>, the script does not use it, or the
-    /// count is beyond <see cref="MaxValues"/>. The new names are not used elsewhere in the script.
+    /// count is beyond <see cref="MaxValues"/>, or the text would grow beyond <see cref="MaxTextLength"/>. The new names
+    /// are not used elsewhere in the script nor among <paramref name="reserved"/> (the script's other parameters).
     /// </summary>
-    public static SqlBindList? Expand(string script, string bind, int count, out string? refusal)
+    public static SqlBindList? Expand(string script, string bind, int count, out string? refusal, IEnumerable<string>? reserved = null)
     {
         ArgumentNullException.ThrowIfNull(script);
         ArgumentNullException.ThrowIfNull(bind);
@@ -62,32 +70,43 @@ public static class SqlBindLists
         }
 
         var taken = new HashSet<string>(tokens.Where(t => t.Kind == SqlTokenKind.Bind).Select(t => t.Value), StringComparer.OrdinalIgnoreCase);
+        taken.UnionWith(reserved ?? []);
         var names = Names(bind, count, taken);
         var list = string.Join(", ", names.Select(n => ":" + n));
-        var text = script;
-        foreach (var use in uses.OrderByDescending(u => u.Start))
+        if (script.Length + (long)uses.Count * list.Length > MaxTextLength)
         {
-            text = string.Concat(text.AsSpan(0, use.Start), list, text.AsSpan(use.End));
+            refusal = TextFormat.Format(QueryText.BindListTooLong, bind);
+            return null;
+        }
+
+        // Once over the text: replacing use by use copied the whole text each time (review WP-84, M1).
+        var text = new StringBuilder(script.Length + uses.Count * list.Length);
+        var at = 0;
+        foreach (var use in uses)
+        {
+            text.Append(script, at, use.Start - at).Append(list);
+            at = use.End;
         }
 
         refusal = null;
-        return new SqlBindList(text, names);
+        return new SqlBindList(text.Append(script, at, script.Length - at).ToString(), names);
     }
 
     /// <summary>
     /// <c>bind_1</c> … <c>bind_n</c>; a name with characters a bind without quotes cannot have, or too long for Oracle with
-    /// the number, gets a short stem. Another underscore until no name is taken.
+    /// the number, gets a short stem. Taken: <c>v1_1</c> …, then <c>v2_1</c> … – each attempt a new stem, so it ends once
+    /// past the names taken (an underscore more and a reset made a cycle, review WP-84, S2).
     /// </summary>
     private static List<string> Names(string bind, int count, HashSet<string> taken)
     {
         var suffix = count.ToString(CultureInfo.InvariantCulture).Length + 1;
         var stem = bind.Length > 0 && char.IsAsciiLetter(bind[0]) && bind.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') ? bind : "v";
-        if (stem.Length + suffix > MaxNameBytes - 2)
+        if (stem.Length + suffix > MaxNameBytes)
         {
-            stem = stem[..(MaxNameBytes - 2 - suffix)];
+            stem = stem[..(MaxNameBytes - suffix)];
         }
 
-        while (true)
+        for (var attempt = 1; ; attempt++)
         {
             var names = Enumerable.Range(1, count).Select(i => stem + "_" + i.ToString(CultureInfo.InvariantCulture)).ToList();
             if (!names.Any(taken.Contains))
@@ -95,11 +114,7 @@ public static class SqlBindLists
                 return names;
             }
 
-            stem += "_";
-            if (stem.Length + suffix > MaxNameBytes)
-            {
-                stem = "v" + stem.Length.ToString(CultureInfo.InvariantCulture);
-            }
+            stem = "v" + attempt.ToString(CultureInfo.InvariantCulture);
         }
     }
 }
