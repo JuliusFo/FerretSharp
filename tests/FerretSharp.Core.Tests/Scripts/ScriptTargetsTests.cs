@@ -1,3 +1,4 @@
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Scripts;
@@ -109,22 +110,48 @@ public sealed class ScriptTargetsTests
         Assert.Null(ScriptTargets.Resolve("customer", tables, "APP"));
     }
 
-    [Fact]
-    public void A_run_gets_the_cells_value_for_the_targets_parameter_and_asks_for_the_others()
-    {
-        ScriptParameter[] parameters = [new("id", SqlVariableType.Number), new("since", SqlVariableType.Date), new("none", SqlVariableType.Null)];
-        var column = new ColumnInfo("CUSTOMER_ID", "NUMBER", null, false, 10, 0, false, false, null, 1);
+    private static readonly ColumnInfo Number = new("CUSTOMER_ID", "NUMBER", null, false, 10, 0, true, false, null, 1);
+    private static readonly Dictionary<string, string> NoneTyped = new();
 
-        var run = ScriptTargetRun.Of(parameters, new ScriptTarget("ID", "CUSTOMER", "ID"), "SELECT * FROM orders WHERE customer_id = :id",
-            column, 4711m, new Dictionary<string, string> { ["since"] = "2026-01-01" }, out var refusal);
+    private static ScriptHeader Header(params ScriptParameter[] parameters) =>
+        new(null, parameters, []) { Targets = [new(parameters[0].Name, "CUSTOMER", "ID")] };
+
+    [Fact]
+    public void A_run_gets_the_clicked_cells_value_for_the_targets_parameter_and_asks_for_the_others()
+    {
+        var header = Header(new ScriptParameter("id", SqlVariableType.Number), new ScriptParameter("since", SqlVariableType.Date), new ScriptParameter("none", SqlVariableType.Null));
+        const string body = "SELECT * FROM orders WHERE customer_id = :id";
+
+        var run = ScriptTargetRun.Of(header, body, header.Targets[0], Number, [4711m, 4712m],
+            new Dictionary<string, string> { ["SINCE"] = "2026-01-01" }, out var refusal);
 
         Assert.Null(refusal);
         Assert.NotNull(run);
+        Assert.Equal(body, run.Text);
         Assert.Equal(
             [new SqlVariable("id", SqlVariableType.Number, "4711"), new SqlVariable("since", SqlVariableType.Date, "2026-01-01"), new SqlVariable("none", SqlVariableType.Null, "")],
             run.Variables);
-        Assert.Equal([parameters[1]], run.Missing); // NULL needs no value
+        Assert.Equal([header.Parameters[1]], run.Missing); // NULL needs no value
+        Assert.False(run.Spread);
         Assert.True(run.ReadOnly);
+    }
+
+    [Fact]
+    public void A_list_parameter_takes_each_value_of_the_marked_rows_once_and_spreads_the_text()
+    {
+        var header = Header(new ScriptParameter("ids", SqlVariableType.Number, List: true));
+
+        var run = ScriptTargetRun.Of(header, "SELECT * FROM orders WHERE customer_id IN (:ids)", header.Targets[0], Number, [2m, null, 1m, 2m], NoneTyped, out _)!;
+        var single = ScriptTargetRun.Of(header, "SELECT * FROM orders WHERE customer_id IN (:ids)", header.Targets[0], Number, [null, 7m, null], NoneTyped, out _)!;
+
+        Assert.Equal("SELECT * FROM orders WHERE customer_id IN (:ids_1, :ids_2)", run.Text);
+        Assert.Equal([new SqlVariable("ids_1", SqlVariableType.Number, "2"), new SqlVariable("ids_2", SqlVariableType.Number, "1")], run.Variables);
+        Assert.True(run.Spread);
+        Assert.Equal(2, run.Values);
+        // One value left: a plain bind, the text as the file has it (the tab stays linked).
+        Assert.Equal("SELECT * FROM orders WHERE customer_id IN (:ids)", single.Text);
+        Assert.Equal([new SqlVariable("ids", SqlVariableType.Number, "7")], single.Variables);
+        Assert.False(single.Spread);
     }
 
     [Fact]
@@ -132,28 +159,35 @@ public sealed class ScriptTargetsTests
     {
         var nvarchar = new ColumnInfo("NAME", "NVARCHAR2", 50, true, null, null, true, false, null, 1);
         var date = new ColumnInfo("BORN", "DATE", null, false, null, null, true, false, null, 2);
-        var empty = new Dictionary<string, string>();
+        var text = Header(new ScriptParameter("n", SqlVariableType.Text));
+        var day = Header(new ScriptParameter("d", SqlVariableType.Date));
 
-        var text = ScriptTargetRun.Of([new("n", SqlVariableType.Text)], new("n", "T", "NAME"), "SELECT :n FROM dual", nvarchar, "Ünal", empty, out _)!;
-        var day = ScriptTargetRun.Of([new("d", SqlVariableType.Date)], new("d", "T", "BORN"), "SELECT :d FROM dual", date, new DateTime(2026, 11, 11, 8, 30, 0), empty, out _)!;
+        var name = ScriptTargetRun.Of(text, "SELECT :n FROM dual", text.Targets[0], nvarchar, ["Ünal"], NoneTyped, out _)!;
+        var born = ScriptTargetRun.Of(day, "SELECT :d FROM dual", day.Targets[0], date, [new DateTime(2026, 11, 11, 8, 30, 0)], NoneTyped, out _)!;
 
-        Assert.True(text.Variables[0].National);
-        Assert.Equal("Ünal", text.Variables[0].Value);
-        Assert.Equal("2026-11-11 08:30:00", day.Variables[0].Value);
-        Assert.True(ValueInput.TryParseDate(day.Variables[0].Value, out var parsed, out _));
+        Assert.True(name.Variables[0].National);
+        Assert.Equal("Ünal", name.Variables[0].Value);
+        Assert.Equal("2026-11-11 08:30:00", born.Variables[0].Value);
+        Assert.True(ValueInput.TryParseDate(born.Variables[0].Value, out var parsed, out _));
         Assert.Equal(new DateTime(2026, 11, 11, 8, 30, 0), parsed);
     }
 
     [Fact]
-    public void Null_and_values_that_cannot_be_compared_are_refused()
+    public void Null_values_that_cannot_be_compared_a_target_the_file_lost_and_a_list_out_of_place_are_refused()
     {
-        var number = new ColumnInfo("ID", "NUMBER", null, false, 10, 0, false, false, null, 1);
         var clob = new ColumnInfo("NOTE", "CLOB", null, false, null, null, true, false, null, 2);
+        var plain = Header(new ScriptParameter("id", SqlVariableType.Number));
+        var list = Header(new ScriptParameter("ids", SqlVariableType.Number, List: true));
+        const string body = "SELECT * FROM t WHERE id = :id";
 
-        Assert.Null(ScriptTargetRun.Of([new("id", SqlVariableType.Number)], new("id", "T", "ID"), "SELECT 1 FROM dual", number, null, new Dictionary<string, string>(), out var isNull));
-        Assert.NotNull(isNull);
-        Assert.NotNull(ScriptTargetRun.Refusal(clob, "text"));
-        Assert.Null(ScriptTargetRun.Refusal(number, 1m));
+        Assert.Null(ScriptTargetRun.Of(plain, body, plain.Targets[0], Number, [null, 1m], NoneTyped, out var isNull)); // the clicked cell counts
+        Assert.Equal(ScriptText.Target_ValueIsNull, isNull);
+        Assert.Null(ScriptTargetRun.Of(plain, body, plain.Targets[0], clob, ["text"], NoneTyped, out var lob));
+        Assert.Equal(ScriptText.Target_ValueNotPassable, lob);
+        Assert.Null(ScriptTargetRun.Of(plain, body, new ScriptTarget("id", "ORDERS", "ID"), Number, [1m], NoneTyped, out var gone));
+        Assert.Equal(ScriptText.Target_Gone, gone);
+        Assert.Null(ScriptTargetRun.Of(list, "SELECT * FROM t WHERE id = :ids", list.Targets[0], Number, [1m, 2m], NoneTyped, out var placement));
+        Assert.Contains(":ids", placement, StringComparison.Ordinal);
     }
 
     [Theory]

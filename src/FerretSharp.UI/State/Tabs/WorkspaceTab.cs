@@ -166,6 +166,12 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
     /// </summary>
     public bool FocusOnOpen { get; set; }
 
+    /// <summary>
+    /// Started from a cell (WP-84, <see cref="ShellState.OpenScriptRun"/>): the whole script runs once – by the command if
+    /// the view is there, else on its first render. Not saved.
+    /// </summary>
+    public bool RunOnOpen { get; set; }
+
     /// <summary>Height of the editor as dragged, in CSS pixels; null for the default (decision of the user: per tab).</summary>
     public int? EditorHeight { get; set; }
 

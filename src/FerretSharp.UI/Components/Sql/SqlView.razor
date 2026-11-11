@@ -66,7 +66,7 @@
     <div class="sql-main">
         <div class="sql-editors">
             <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync" FocusOnCreate="_focusOnCreate"
-                          ContextActions="EditorActions" Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
+                          OnCreated="OnEditorCreated" ContextActions="EditorActions" Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
             <SqlVariablesEditor Variables="Tab.Variables" Binds="_binds" OnChange="SetVariables" />
         </div>
 
@@ -384,6 +384,20 @@
         Library.Changed += OnLibraryChanged;
         await UpdateVariablesAsync(Tab.Text);
         Fire(CheckScriptFileAsync); // a restored tab: the file may have changed while FerretSharp was closed
+        // Started from a cell (WP-84): the command came before this view was there; it runs once the editor has the text.
+        (_runOnCreate, Tab.RunOnOpen) = (Tab.RunOnOpen, false);
+    }
+
+    /// <summary>The whole script runs as soon as the editor is created (<see cref="SqlTab.RunOnOpen"/>).</summary>
+    private bool _runOnCreate;
+
+    private void OnEditorCreated()
+    {
+        if (_runOnCreate)
+        {
+            _runOnCreate = false;
+            Fire(RunScriptAsync);
+        }
     }
 
     private void OnTabCommand(WorkspaceTab tab, TabCommand command)
@@ -395,8 +409,13 @@
 
         switch (command)
         {
-            case TabCommand.RunScript:
+            case TabCommand.RunScript when _editor is { IsCreated: true }:
+                Tab.RunOnOpen = false;
                 Fire(RunScriptAsync);
+                break;
+            case TabCommand.RunScript:
+                Tab.RunOnOpen = false;
+                _runOnCreate = true; // the editor is still being created
                 break;
             case TabCommand.ApplyFilters or TabCommand.Refresh:
                 Fire(RunAsync);

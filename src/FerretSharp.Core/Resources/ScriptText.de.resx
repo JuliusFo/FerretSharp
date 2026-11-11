@@ -87,4 +87,7 @@
   <data name="Target_ValueNotPassable" xml:space="preserve">
     <value>Werte dieser Spalte lassen sich nicht an ein Skript übergeben (LOB, Gleitkomma, mehr als 28 Stellen …).</value>
   </data>
+  <data name="Target_Gone" xml:space="preserve">
+    <value>Das Skript nimmt diese Spalte nicht mehr (die Datei hat sich geändert). Menü neu öffnen.</value>
+  </data>
 </root>

@@ -258,6 +258,68 @@ public sealed partial class ShellState
     }
 
     /// <summary>
+    /// A script started from a cell (WP-84) in the workspace of the tab it was started from – not the active one: the file
+    /// was read in between, the user may have switched. With <paramref name="list"/> (several values for a list parameter)
+    /// a new tab with the spread text, not linked to the file – saving would write the spread binds into the shared script.
+    /// Without, the tab linked to the file (an open one is taken, its variables set) or a new one. With
+    /// <paramref name="run"/> it runs the whole script once it shows (<see cref="SqlTab.RunOnOpen"/>). Null if the
+    /// workspace is gone.
+    /// </summary>
+    public SqlTab? OpenScriptRun(
+        Guid workspaceId, Core.Scripts.ScriptRoot root, string path, Core.Scripts.ScriptDocument document,
+        IReadOnlyList<Core.Query.SqlVariable> variables, Core.Query.SqlBindList? list, bool run)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(variables);
+        if (FindWorkspace(workspaceId) is not { } workspace)
+        {
+            return null;
+        }
+
+        var name = Workspace.FitName(Core.Scripts.ScriptPaths.NameOf(path));
+        var script = document.Script;
+        SqlTab tab;
+        if (list is null && workspace.Tabs.OfType<SqlTab>().FirstOrDefault(t => t.Script is { } link && root.Is(link.Root, link.Group)
+                && string.Equals(link.Path, path, StringComparison.OrdinalIgnoreCase)) is { } open)
+        {
+            tab = open;
+            Set(() =>
+            {
+                // The script's values replace the tab's of the same name; the tab's others stay.
+                open.Variables =
+                [
+                    .. open.Variables.Select(v => variables.FirstOrDefault(n => string.Equals(n.Name, v.Name, StringComparison.OrdinalIgnoreCase)) ?? v),
+                    .. variables.Where(n => !open.Variables.Any(v => string.Equals(v.Name, n.Name, StringComparison.OrdinalIgnoreCase))),
+                ];
+                open.RunOnOpen = run;
+                open.Visited = true;
+                workspace.ActiveTab = open;
+                Page = ShellPage.Explorer;
+            });
+        }
+        else
+        {
+            tab = InsertAfterActive(workspace, new SqlTab(workspaceId, name)
+            {
+                Text = list?.Text ?? script.Body,
+                Variables = variables,
+                Script = list is null ? Core.Scripts.ScriptLink.To(root, path, script.Header, script.Body, document.FileHash) : null,
+                Visited = true,
+                FocusOnOpen = !run,
+                RunOnOpen = run,
+            });
+        }
+
+        if (run)
+        {
+            RequestTabCommand(tab, TabCommand.RunScript); // a view already shown runs now; a new one on its first render
+        }
+
+        return tab;
+    }
+
+    /// <summary>
     /// Inserts a script of the library into the active SQL tab at its cursor (WP-77, explorer menu); false if the active
     /// tab is no SQL tab. The tab's view reads the file and inserts it.
     /// </summary>

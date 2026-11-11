@@ -186,6 +186,7 @@ public partial class App : Application
         builder.Services.AddScoped<LinqConsoleService>();
         builder.Services.AddSingleton(new CodeUsageBuilder(paths.CodeUsageCacheDirectory));
         builder.Services.AddSingleton(new WorkClones(paths.WorkClonesFile));
+        builder.Services.AddSingleton(new FerretSharp.Core.Scripts.ScriptUsage(paths.ScriptUsageFile));
         // Order and collapsed connection groups (WP-66), one state for the switcher and the connections page.
         builder.Services.AddSingleton(new ConnectionGroupState(paths.ConnectionGroupsFile));
         builder.Services.AddSingleton<ConnectionGroups>();

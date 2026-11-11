@@ -112,4 +112,8 @@
     <value>Values of this column cannot be handed to a script (LOB, float, more than 28 digits …).</value>
     <comment>Why a script of the cell menu is unavailable</comment>
   </data>
+  <data name="Target_Gone" xml:space="preserve">
+    <value>The script no longer takes this column (the file changed). Open the menu again.</value>
+    <comment>A script of the cell menu whose file changed since the menu opened</comment>
+  </data>
 </root>
