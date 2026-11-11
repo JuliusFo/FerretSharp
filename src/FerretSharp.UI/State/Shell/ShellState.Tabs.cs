@@ -261,7 +261,8 @@ public sealed partial class ShellState
     /// A script started from a cell (WP-84) in the workspace of the tab it was started from – not the active one: the file
     /// was read in between, the user may have switched. With <paramref name="spread"/> (the text with several values of a
     /// list parameter spread, <see cref="Core.Query.SqlBindLists"/>) a new tab with that text, not linked to the file – saving would write the spread binds into the shared script.
-    /// Without, the tab linked to the file (an open one is taken, its variables set) or a new one. With
+    /// Without, the tab linked to the file – an open one only if its text is the file's (review WP-84, S1: it ran its own
+    /// edited text, a DML too; another text gets a new tab, not linked: one tab per file) – or a new one. With
     /// <paramref name="run"/> it runs the whole script once it shows (<see cref="SqlTab.RunOnOpen"/>). Null if the
     /// workspace is gone.
     /// </summary>
@@ -280,8 +281,9 @@ public sealed partial class ShellState
         var name = Workspace.FitName(Core.Scripts.ScriptPaths.NameOf(path));
         var script = document.Script;
         SqlTab tab;
-        if (spread is null && workspace.Tabs.OfType<SqlTab>().FirstOrDefault(t => t.Script is { } link && root.Is(link.Root, link.Group)
-                && string.Equals(link.Path, path, StringComparison.OrdinalIgnoreCase)) is { } open)
+        var linked = workspace.Tabs.OfType<SqlTab>().FirstOrDefault(t => t.Script is { } link && root.Is(link.Root, link.Group)
+            && string.Equals(link.Path, path, StringComparison.OrdinalIgnoreCase));
+        if (spread is null && linked is { } open && Core.Scripts.ScriptLink.BodyHash(open.Text) == Core.Scripts.ScriptLink.BodyHash(script.Body))
         {
             tab = open;
             Set(() =>
@@ -304,7 +306,7 @@ public sealed partial class ShellState
             {
                 Text = spread ?? script.Body,
                 Variables = variables,
-                Script = spread is null ? Core.Scripts.ScriptLink.To(root, path, script.Header, script.Body, document.FileHash) : null,
+                Script = spread is null && linked is null ? Core.Scripts.ScriptLink.To(root, path, script.Header, script.Body, document.FileHash) : null,
                 Visited = true,
                 FocusOnOpen = !run,
                 RunOnOpen = run,
@@ -313,7 +315,7 @@ public sealed partial class ShellState
 
         if (run)
         {
-            RequestTabCommand(tab, TabCommand.RunScript); // a view already shown runs now; a new one on its first render
+            RequestTabCommand(tab, TabCommand.RunFromCell); // a view already shown runs now; a new one once its editor is there
         }
 
         return tab;

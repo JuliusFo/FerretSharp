@@ -34,3 +34,16 @@ Eigener Container `ferret-wp84`, Rechtsklick und Menüklicks mit echter Windows-
 
 ## Nicht im Paket (Backlog)
 Ziel beim Speichern vorschlagen, Eintrag in der Befehlspalette, Skripte im Zellmenü des SQL-Ergebnisses und der LINQ-Konsole, Ziel als C#-Name.
+
+## Nachtrag: Code-Review (2026-11-12)
+Entscheidung des Nutzers: „Kannst du die Vorschläge vom Code-Review was später kommt selbst bewerten und die beste Variante umsetzen? So viele Runden, bis wir sauber sind.“
+- S1 Wiederverwendeter Tab führte seinen eigenen, geänderten Text aus (auch DML, auch nur die Markierung): behoben – der verbundene Tab wird nur genommen, wenn sein Text der Datei gleicht, sonst neuer, nicht verbundener Tab; der Start aus der Zelle (`TabCommand.RunFromCell`) führt das ganze Skript aus und prüft den Editortext erneut auf reine Abfragen. Test `A_linked_tab_with_another_text_is_left_alone_…`.
+- S2 Endlosschleife beim Benennen der Listen-Binds: behoben (fortlaufender Stamm `v1`, `v2` …). Test `Naming_ends_when_…`.
+- M1 Aufklappen quadratisch, ohne Grenze, im UI-Thread: behoben (einmal per `StringBuilder`, höchstens 4 Mio. Zeichen, `ScriptTargetRun.Of` per `Task.Run`). Test `A_spread_beyond_the_size_limit_is_refused`.
+- M2 Liste nahm still nur geladene markierte Zeilen: behoben – Eintrag gesperrt mit Grund, solange markierte Zeilen nicht geladen sind. Nicht im E2E geprüft (braucht eine Auswahl über nicht geladene Blöcke).
+- M3 Über 1000 Werte erst nach dem Klick abgelehnt, Doppelstart möglich: behoben – Grenze im Eintrag, Sperre in `TabView` und im Dialog.
+- K1 Dialogwerte gelten über Verbindungen hinweg: nicht geändert – Entscheidung „je Skript und Parameter merken“, der Wert steht sichtbar im Dialog.
+- K2 Lauf-Merker erst nach dem ersten `await` übernommen: behoben (vor dem `await`).
+- K3 Unbenutzter `@param` konnte einen aufgeklappten Namen tragen: behoben (Kopfparameter gelten als belegt). Test im selben `Naming_ends_when_…`.
+- K4 Zeitreise-Tab: dokumentiert (Wert von damals, Lauf auf dem Stand von jetzt).
+- Hinweis Funktion mit `AUTONOMOUS_TRANSACTION`: im ADR-Nachtrag genannt.

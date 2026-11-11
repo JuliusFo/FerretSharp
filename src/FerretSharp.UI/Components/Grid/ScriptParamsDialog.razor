@@ -22,8 +22,8 @@
     </div>
     <footer>
         <button class="btn" @onclick="OnClose">@CommonText.Cancel</button>
-        <button class="btn" @onclick="() => FinishAsync(run: false)">@ScriptViewText.CellRun_OpenInEditor</button>
-        <button class="btn primary" @onclick="() => FinishAsync(run: true)">@ScriptViewText.CellRun_Run</button>
+        <button class="btn" disabled="@_done" @onclick="() => FinishAsync(run: false)">@ScriptViewText.CellRun_OpenInEditor</button>
+        <button class="btn primary" disabled="@_done" @onclick="() => FinishAsync(run: true)">@ScriptViewText.CellRun_Run</button>
     </footer>
 </ModalFrame>
 
@@ -55,5 +55,17 @@
         _names = [.. _variables.Select(v => v.Name)];
     }
 
-    private Task FinishAsync(bool run) => OnFinish(_variables, run);
+    /// <summary>A button was clicked: a second click starts nothing more (review WP-84, M3).</summary>
+    private bool _done;
+
+    private Task FinishAsync(bool run)
+    {
+        if (_done)
+        {
+            return Task.CompletedTask;
+        }
+
+        _done = true;
+        return OnFinish(_variables, run);
+    }
 }

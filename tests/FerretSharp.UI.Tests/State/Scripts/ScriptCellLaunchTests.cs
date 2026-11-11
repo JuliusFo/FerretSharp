@@ -78,6 +78,28 @@ public sealed class ScriptCellLaunchTests : IAsyncDisposable
         Assert.True(tab.RunOnOpen);
     }
 
+    /// <summary>Review WP-84, S1: the linked tab ran its own edited text – an UPDATE added to it – because the file only reads.</summary>
+    [Fact]
+    public async Task A_linked_tab_with_another_text_is_left_alone_and_a_new_tab_runs_the_files_text()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.Shell.ActiveWorkspace!.WorkspaceId;
+        var match = Write("orders.sql", "-- @param id number\n-- @target id CUSTOMER.ID\n\nSELECT * FROM orders WHERE customer_id = :id");
+        var (first, _) = await ScriptCellLaunch.PrepareAsync(workspace, match, Id, [1m], Usage, TestContext.Current.CancellationToken);
+        var edited = (await ScriptCellLaunch.StartAsync(_app.Shell, Usage, first!, null, run: false, TestContext.Current.CancellationToken))!;
+        edited.Text += ";\nUPDATE orders SET note = 'x' WHERE customer_id = :id";
+
+        var (second, _) = await ScriptCellLaunch.PrepareAsync(workspace, match, Id, [2m], Usage, TestContext.Current.CancellationToken);
+        var tab = (await ScriptCellLaunch.StartAsync(_app.Shell, Usage, second!, null, run: true, TestContext.Current.CancellationToken))!;
+
+        Assert.NotSame(edited, tab);
+        Assert.False(edited.RunOnOpen);
+        Assert.Equal([new SqlVariable("id", SqlVariableType.Number, "1")], edited.Variables);
+        Assert.Equal("SELECT * FROM orders WHERE customer_id = :id", tab.Text);
+        Assert.Null(tab.Script); // one tab per file stays linked
+        Assert.True(tab.RunOnOpen);
+    }
+
     [Fact]
     public async Task A_list_of_values_opens_an_unlinked_tab_and_a_script_that_writes_only_opens()
     {

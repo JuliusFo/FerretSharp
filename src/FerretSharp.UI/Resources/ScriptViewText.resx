@@ -304,4 +304,8 @@
     <value>Run</value>
     <comment>Button: opens the script and runs it</comment>
   </data>
+  <data name="CellMenu_RowsNotLoaded" xml:space="preserve">
+    <value>{0} of the selection are not loaded: the list would miss their values. Scroll to them or select fewer.</value>
+    <comment>{0}: rows text such as "3 rows"</comment>
+  </data>
 </root>

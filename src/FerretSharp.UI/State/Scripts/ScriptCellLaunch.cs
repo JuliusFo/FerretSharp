@@ -43,7 +43,13 @@ public static class ScriptCellLaunch
             return (null, ex.Message);
         }
 
-        var run = ScriptTargetRun.Of(document.Script.Header, document.Script.Body, match.Target, column, values, usage.ValuesOf(match.Script), out var refusal);
+        // Off the UI thread: the text comes from a shared folder, spreading a list over it is work (review WP-84, M1).
+        var remembered = usage.ValuesOf(match.Script);
+        var (run, refusal) = await Task.Run(() =>
+        {
+            var run = ScriptTargetRun.Of(document.Script.Header, document.Script.Body, match.Target, column, values, remembered, out var refusal);
+            return (run, refusal);
+        }, cancellationToken);
         return run is null ? (null, refusal) : (new ScriptCellStart(workspaceId, match, document, run), null);
     }
 

@@ -231,4 +231,7 @@
   <data name="CellRun_Run" xml:space="preserve">
     <value>Ausführen</value>
   </data>
+  <data name="CellMenu_RowsNotLoaded" xml:space="preserve">
+    <value>{0} der Auswahl sind nicht geladen: Ihre Werte fehlten in der Liste. Bis dorthin scrollen oder weniger auswählen.</value>
+  </data>
 </root>

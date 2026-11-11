@@ -249,10 +249,27 @@
         ? CellValues.Where(v => v is not (null or DBNull)).Select(v => FkNavigation.FilterValue(Column, v!)).Distinct(StringComparer.Ordinal).Count()
         : 1;
 
-    private string? ScriptUnavailable(FerretSharp.Core.Scripts.ScriptMatch match) => IsList(match)
-        ? CellValues.Where(v => v is not (null or DBNull)).Select(v => FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, v)).FirstOrDefault(r => r is not null)
-            ?? (CellValues.All(v => v is null or DBNull) ? FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, null) : null)
-        : FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, Request.Row.Values[Request.Column]);
+    /// <summary>
+    /// Why the script cannot start from here. A list parameter also when marked rows are not loaded – it would run with
+    /// part of them, unnoticed – or with more values than one IN list takes (review WP-84, M2 and M3).
+    /// </summary>
+    private string? ScriptUnavailable(FerretSharp.Core.Scripts.ScriptMatch match)
+    {
+        if (!IsList(match))
+        {
+            return FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, Request.Row.Values[Request.Column]);
+        }
+
+        if (CellValues.All(v => v is null or DBNull))
+        {
+            return FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, null);
+        }
+
+        return CellValues.Where(v => v is not (null or DBNull)).Select(v => FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, v)).FirstOrDefault(r => r is not null)
+            ?? (Request.MissingRows > 0 ? TextFormat.Format(ScriptViewText.CellMenu_RowsNotLoaded, ExportActions.RowsText(Request.MissingRows))
+            : ScriptValues(match) is > Core.Query.SqlBindLists.MaxValues and var count ? TextFormat.Format(QueryText.BindListTooMany, Core.Query.SqlBindLists.MaxValues, count)
+            : null);
+    }
 
     private async Task CopyToConnectionAsync()
     {
