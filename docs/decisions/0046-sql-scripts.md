@@ -31,3 +31,12 @@ Ein Kollege des Nutzers wollte im SQL-Editor Statements markieren und speichern 
 - Eine Datei, die außen geändert wurde (etwa durch `git pull`), lädt ein unveränderter Tab still neu; ein geänderter fragt „neu laden / behalten“, und Speichern über eine geänderte Datei fragt vorher.
 - Umbenennt jemand die Gruppe, wandert ihr Skriptordner mit (wie die Audit-Vorlage). Ein Tab, der mit einem Skript der alten Gruppe verbunden ist, findet seinen Ordner nicht mehr und bietet „Speichern unter“ an.
 - Umbenennen und Verschieben im Explorer kommen später (Backlog); Löschen gibt es.
+
+## Nachtrag WP-84 (2026-11-12): Skripte aus einer Zelle starten
+
+Entscheidungen des Nutzers (2026-11-11):
+- Zwei neue Kopfangaben: `-- @target name TABELLE.SPALTE` (eigene Zeile, nicht an `@param` gehängt – ältere FerretSharp behalten eine unbekannte Zeile still, ein erweitertes `@param` wäre dort ein Fehler) und `-- @param name typ list` (Listen aus markierten Zeilen). Ziele ohne Owner.
+- Ein Skript, das nur liest, läuft aus dem Zellmenü sofort, **auch auf Prod** (wie ein FK-Sprung). Fehlen weitere Parameter, fragt ein Dialog (*Ausführen* / *Im Editor öffnen*); ein Skript mit DML öffnet nur.
+- „Zuletzt benutzt“ in einer eigenen Datei ohne Werte; die Werte des Dialogs nur im Speicher.
+
+Sicherheit: Weiter kein neuer Weg zur Datenbank – der Tab führt das Skript über den Leseweg aus, die Lesesperre prüft jedes Statement wie sonst. „Sofort ausführen“ gilt nur, wenn **jedes** Statement eine reine Abfrage ist (`SqlStatementInfo.IsQuery`); alles andere öffnet nur. Werte aus der Zelle sind Binds; eine Liste wird zu einem Bind je Wert (`SqlBindLists`, nur allein in `IN ( … )`), nie zu einem Literal. Ein Ziel nennt nur, wo das Skript im Menü steht – es wird nie zu SQL.

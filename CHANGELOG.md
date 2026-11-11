@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *Scripts in the cell menu*: a SQL script can name the column a parameter takes its value from – `-- @target customer_id CUSTOMER.CUSTOMER_ID` in its head. Right-clicking a cell of that column, or of any column that refers to it through a known relationship (foreign key, manual, by convention, from the C# model, also over several steps), shows the script under *Scripts*; a click opens it in a SQL tab of the same workspace with the cell's value and runs it at once if it only reads – also on Prod. Other parameters are asked for in a small dialog (*Run* or *Open in editor*), and their values come back next time until FerretSharp ends. A script with INSERT, UPDATE, DELETE or MERGE only opens. The scripts started last come first; five show, the rest behind *N more*, and the menu's filter finds them by name, description and folder.
+- *List parameters*: `-- @param ids number list` marks a bind that stands alone in `IN ( … )`. Started from several marked rows, it takes the column's values of all of them, each once and without NULL, as one bind per value (up to 1000); the tab then is not linked to the file. With one value it stays a plain bind.
+
 ## [3.69.0] - 2026-11-10
 
 Compare views by their definition in the schema comparison, and run its DDL proposal right on the target.

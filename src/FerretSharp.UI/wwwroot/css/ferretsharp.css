@@ -1154,6 +1154,11 @@ button.badge-btn:hover { filter: brightness(1.08); }
 .dialog.set-value-dialog { width: min(640px, 94vw); }
 .set-value-dialog .form-field { border-bottom: none; padding-left: 0; }
 .set-value-dialog .ff-copy { display: none; }
+/* WP-84: the other parameters of a script started from a cell, the cell's value above them. */
+.dialog.script-params-dialog { width: min(640px, 94vw); }
+.script-params-given { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; min-width: 0; }
+.script-params-given code { flex: none; font-size: 12px; }
+.script-params-value { font-family: var(--mono); font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-value-hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 
 /* Copy to another connection (WP-42): target, tree of child relationships, preview of the tables, parents, check */

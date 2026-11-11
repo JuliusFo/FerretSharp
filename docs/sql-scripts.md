@@ -18,6 +18,7 @@ Unterordner sind Kategorien (höchstens acht Ebenen). Versteckte Ordner (`.git`,
 -- @description Offene Aufträge eines Kunden
 -- @param kunde_id number
 -- @param seit date
+-- @target kunde_id KUNDE.KUNDE_ID
 
 SELECT *
   FROM auftrag
@@ -28,6 +29,8 @@ SELECT *
 - Der **Kopf** sind die `-- @…`-Zeilen ganz oben (Leerzeilen davor erlaubt); die erste andere Zeile beendet ihn, eine Leerzeile direkt danach gehört noch dazu. Was darunter steht, zeigt der SQL-Tab.
 - `-- @description text` – Beschreibung; mehrere Zeilen ergeben mehrere Absätze.
 - `-- @param name typ` – ein Bind des Skripts mit seinem Typ: `text`, `char`, `number`, `date`, `raw`, `null` (wie im Variablen-Editor). Ein Name mit Leerzeichen in Anführungszeichen (`-- @param "ab datum" date`). **Nie ein Wert.**
+- `-- @param name typ list` (WP-84) – ein Bind, der mehrere Werte nimmt: Er steht allein in `IN ( … )` (`WHERE kunde_id IN (:kunden)`). Mit einem Wert ist er ein gewöhnlicher Bind; mit mehreren (Start aus markierten Zeilen, unten) wird er zu je einem Bind pro Wert (`:kunden_1, :kunden_2, …`), höchstens 1000 (Grenze von Oracle). Ein Wert wird nie zum Literal.
+- `-- @target name TABELLE.SPALTE` (WP-84) – die Spalte, aus der der Parameter seinen Wert nimmt: Das Skript erscheint im Zellmenü dieser Spalte und jeder Spalte, die auf sie zeigt (unten). Tabelle **ohne Owner**, Namen ohne Anführungszeichen werden groß geschrieben (`kunde.kunde_id` = `KUNDE.KUNDE_ID`), mit Anführungszeichen genau so. Der Parameter braucht ein `@param`; mehrere Ziele je Parameter sind mehrere Zeilen. Die Reihenfolge der Kopfzeilen ist frei.
 - Unbekannte `-- @…`-Zeilen und Zeilen mit Fehlern bleiben beim Speichern erhalten (Fehler mit Zeilennummer im Tooltip des Skripts).
 - Beim Speichern schreibt FerretSharp den Kopf neu: Beschreibung, dann die Parameter der Binds, die der Text benutzt, mit den Typen der Variablen, dann die übrigen Zeilen.
 
@@ -38,6 +41,16 @@ SELECT *
 - Explorer › *Skripte*: Baum je Ordner, Suche nach Namen. Klick öffnet einen neuen SQL-Tab mit dem Text, **ausgeführt wird nichts**; die Parameter stehen als Variablen mit Typ bereit. Rechtsklick: öffnen, in den aktuellen SQL-Tab einfügen, im Datei-Explorer zeigen, löschen.
 - SQL-Editor › *Skripte* (neben *Verlauf*): Suche über Name, Beschreibung und Ordner; Klick fügt am Cursor ein bzw. ersetzt die Markierung. Das Statement davor wird abgeschlossen, Parameter kommen zu den Variablen, vorhandene Werte bleiben. Einfügen verbindet den Tab nicht mit der Datei.
 - Befehlspalette: Skripte nach Namen.
+
+## Aus einer Zelle starten (WP-84)
+
+Rechtsklick auf eine Zelle zeigt unter **Skripte** die Skripte, deren `@target` zur Spalte passt:
+
+- **Passend** ist die Zielspalte selbst und jede Spalte, die über eine bekannte Beziehung auf sie zeigt – deklarierter FK, manuelle Beziehung, Konvention, C#-Modell, auch über mehrere Schritte (`POSITION.AUFTRAG_ID` → `AUFTRAG.ID`, `AUFTRAG.KUNDE_ID` → `KUNDE.KUNDE_ID`). Nicht passend sind Geschwister (zwei Spalten, die auf dieselbe Tabelle zeigen) und die Gegenrichtung: Das Ziel ist die Spalte, aus der die Werte stammen, meist der Primärschlüssel. Fehlt eine Beziehung, schließt eine manuelle sie. Die Tabelle des Ziels sucht FerretSharp im Schema der Verbindung (eigenes Objekt vor Synonym); gibt es sie dort nicht, erscheint das Skript nirgends.
+- **Reihenfolge:** zuletzt aus einer Zelle gestartete zuerst (`script-usage.json` im Datenordner: Ordnerart, Gruppe, Pfad, Zeit – keine Werte), dann wie in der Liste. Bis zu fünf stehen offen, der Rest hinter „N weitere“; das Filterfeld des Menüs sucht in Name, Beschreibung und Ordner.
+- **Wert:** der Wert der Zelle, wie die Datenbank ihn hat (nicht der Anzeigename eines Enums). Ein `list`-Parameter nimmt die Werte der Spalte aus allen markierten Zeilen, jeden einmal, ohne NULL – der Eintrag zeigt „· N Werte“. NULL, LOBs und Gleitkommazahlen lassen sich nicht übergeben (Eintrag gesperrt, Grund im Tooltip).
+- **Ausführen:** Besteht das Skript nur aus Abfragen (SELECT/WITH ohne `FOR UPDATE`), öffnet ein SQL-Tab im Workspace der Tabelle und führt es sofort aus – auch auf Prod, es liest nur. Haben weitere Parameter keinen Wert aus der Zelle, fragt vorher ein Dialog danach (*Ausführen* oder *Im Editor öffnen*); die Werte merkt sich FerretSharp für den nächsten Start, nur bis zum Beenden. Ein Skript mit DML öffnet nur, vorbelegt, und führt nichts aus.
+- **Tab:** Ein Tab, der schon mit der Datei verbunden ist, wird genommen, seine Variablen gesetzt. Mit mehreren Werten eines `list`-Parameters öffnet ein neuer Tab mit dem aufgeklappten Text, **nicht** mit der Datei verbunden (Speichern schriebe sonst die aufgeklappten Binds ins Skript).
 
 ## Speichern
 
