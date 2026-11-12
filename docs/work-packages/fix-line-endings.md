@@ -33,6 +33,7 @@ Entscheidung des Nutzers: „Alle beheben“.
 9. K – „noch ohne Release“ im Kopf, Job im Kopfkommentar von `ci.yml`, `tools/linux/*.sh` in `release.md`: behoben.
 - Dritter Durchgang, Entscheidung des Nutzers „Beides beheben“:
 10. K – der erweiterte lokale Filter meldete auch Dateien mit einzelnem CR oder NUL ohne CRLF, die die CI durchlässt: behoben, für `i/-text` unter `text` wird der Blob wie bei `git add` neu gehasht (`git hash-object --stdin --path`, schreibt nichts); nachgestellt, gleiche Treffer wie die CI auf einem frischen Clone.
+- Vorher schon da: Auf `main` waren keine Status-Checks Pflicht. Nutzer: „Können wir den Pflicht-Status-Check direkt machen?“, Bypass „Admin darf umgehen“. Umgesetzt im Ruleset „Protect main“ (Linux, Windows, Line endings; Repo-Admin mit Bypass `always`), Doku in `release.md` und `build-release.md`.
 - Vorher schon da, mit behoben – `pages/** text eol=lf` gewann gegen `*.png binary`, ein Bild unter `pages/` wäre beim `git add` beschädigt worden: zuerst `pages/**/*.png` und `*.ico` binär, dann durch Punkt 13 ersetzt.
 - Vierter Durchgang, Entscheidung des Nutzers „Beheben und pushen“ (ohne weiteren Reviewer-Durchgang):
 11. K – der Hash-Vergleich braucht pwsh 7.4+ (Bytes unverändert durch die Pipe), Windows PowerShell 5.1 hätte falsch gemeldet: behoben, `#Requires -Version 7.4`.
