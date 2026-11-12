@@ -25,7 +25,7 @@ public static class AuditGroupTemplates
         ArgumentNullException.ThrowIfNull(profiles);
         ArgumentNullException.ThrowIfNull(entries);
         var groups = ConnectionSearch.Group(profiles, order: order).Select(g => g.Name).OfType<string>().ToList();
-        var rows = groups.Select(g => new AuditGroupTemplate(g, AuditTemplateSource.GroupEntry(entries, g)?.Value, Orphaned: false)).ToList();
+        var rows = groups.Select(g => new AuditGroupTemplate(g, ConnectionSearch.GroupEntry(entries, g)?.Value, Orphaned: false)).ToList();
         rows.AddRange(entries
             .Where(e => !string.IsNullOrWhiteSpace(e.Value) && !groups.Any(g => ConnectionSearch.SameGroup(g, e.Key)))
             .Select(e => new AuditGroupTemplate(e.Key, e.Value, Orphaned: true))

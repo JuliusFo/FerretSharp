@@ -1,4 +1,3 @@
-using FerretSharp.Core.Audit;
 using FerretSharp.Core.Settings;
 
 namespace FerretSharp.Core.Connections;
@@ -74,9 +73,9 @@ public sealed record ConnectionGroupRename(
     /// <summary>The file of <paramref name="source"/> under <paramref name="target"/>, unless the target has one already.</summary>
     private static (SettingsMap Entries, string? Dropped) Move(SettingsMap entries, string source, string target)
     {
-        var sourceFile = AuditTemplateSource.GroupEntry(entries, source)?.Value;
+        var sourceFile = ConnectionSearch.GroupEntry(entries, source)?.Value;
         // Also an entry of a group without connections (left after an earlier rename): it was set for this name.
-        var targetFile = ConnectionSearch.SameGroup(source, target) ? null : AuditTemplateSource.GroupEntry(entries, target)?.Value;
+        var targetFile = ConnectionSearch.SameGroup(source, target) ? null : ConnectionSearch.GroupEntry(entries, target)?.Value;
         var result = SettingsMap.From(entries.Where(e => !ConnectionSearch.SameGroup(e.Key, source)));
         string? dropped = null;
         if (sourceFile is not null)

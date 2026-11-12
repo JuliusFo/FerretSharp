@@ -65,6 +65,24 @@ public static class ConnectionSearch
         NormalizeGroup(a) is { } left && NormalizeGroup(b) is { } right && GroupComparer.Equals(left, right);
 
     /// <summary>
+    /// The entry of <paramref name="group"/> in <paramref name="groups"/>, matched as the connection lists match groups
+    /// (trimmed, case ignored) – the file kept per group of audit templates, report exceptions and SQL scripts; null without one or for an entry without a path.
+    /// </summary>
+    public static KeyValuePair<string, string>? GroupEntry(IReadOnlyDictionary<string, string> groups, string? group)
+    {
+        ArgumentNullException.ThrowIfNull(groups);
+        foreach (var entry in groups)
+        {
+            if (SameGroup(entry.Key, group) && !string.IsNullOrWhiteSpace(entry.Value))
+            {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// The same entry of something kept per group, where connections without a group share one (the work clone, WP-40) –
     /// unlike <see cref="SameGroup"/>, for which no group is never the same (review 3.44.0, B8: the rule stood inline twice).
     /// </summary>

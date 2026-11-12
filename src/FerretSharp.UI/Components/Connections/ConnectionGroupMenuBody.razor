@@ -21,11 +21,11 @@
         {
             <span class="ctx-fact fk">@TextFormat.Format(ConnectionViewText.GroupMenu_Connected, open.Count)</span>
         }
-        @if (Group.Name is not null && AuditTemplateSource.GroupEntry(Settings.Current.AuditTemplateGroups, Group.Name) is { } template)
+        @if (Group.Name is not null && ConnectionSearch.GroupEntry(Settings.Current.AuditTemplateGroups, Group.Name) is { } template)
         {
             <span class="ctx-fact" title="@template.Value">@TextFormat.Format(ConnectionViewText.GroupMenu_AuditTemplate, Path.GetFileName(template.Value))</span>
         }
-        @if (Group.Name is not null && AuditTemplateSource.GroupEntry(Settings.Current.SqlScriptsGroups, Group.Name) is { } scripts)
+        @if (Group.Name is not null && ConnectionSearch.GroupEntry(Settings.Current.SqlScriptsGroups, Group.Name) is { } scripts)
         {
             <span class="ctx-fact" title="@scripts.Value">@TextFormat.Format(ConnectionViewText.GroupMenu_SqlScripts, Path.GetFileName(Path.TrimEndingDirectorySeparator(scripts.Value)))</span>
         }
