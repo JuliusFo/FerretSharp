@@ -182,7 +182,12 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
             hang.TrySetCanceled(); // closing the session ends a call hanging on it (OracleSession.DisposeAsync)
             return ValueTask.CompletedTask;
         });
+        // Every opening waits for the test until its limit is seen: the fakes answer at once, and an opening that has ended
+        // before WithinLimitAsync waits for it sets no timer (Task.WaitAsync of a finished task) – CI red on main.
+        var opening = OpeningHeld();
         await _service.ShowAsync(_profile);
+        await Wait.UntilAsync(() => _time.DueTimes.Count(d => d == ServerLoadService.BaselineTimeout) == 1, "the baseline's limit");
+        opening.SetResult(new ServerEnvironment(0, 1, 4));
         await ParkedAsync();
         var view = _service.For(_profile.Id);
         _reader.ReadCountersAsync(Arg.Any<CancellationToken>()).Returns(
@@ -197,14 +202,23 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         Assert.Contains("120", view.Error, StringComparison.Ordinal);
         await _connection.Received().DisposeAsync();
 
+        opening = OpeningHeld();
         _time.Advance(ServerLoadService.Interval);
+        // Third review of WP-75: only the first opening read the baseline – the reopening has the short limit.
+        await Wait.UntilAsync(() => _time.DueTimes.Count(d => d == ServerLoadService.LookTimeout) == 2, "the reopening's limit");
+        opening.SetResult(new ServerEnvironment(0, 1, 4));
         await ParkedAsync(3);
         Assert.Equal(ServerLoadStatus.Watching, view.Status);
         await _connector.Received(2).OpenAsync(_profile, "secret", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
-
-        // Third review of WP-75: only the first opening read the baseline – the reopening has the short limit.
         Assert.Equal(1, _time.DueTimes.Count(d => d == ServerLoadService.BaselineTimeout));
-        Assert.Equal(2, _time.DueTimes.Count(d => d == ServerLoadService.LookTimeout));
+    }
+
+    /// <summary>The next opening hangs on reading the environment until the result is set; like the session, it ends when cancelled.</summary>
+    private TaskCompletionSource<ServerEnvironment> OpeningHeld()
+    {
+        var opening = new TaskCompletionSource<ServerEnvironment>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _reader.ReadEnvironmentAsync(Arg.Any<CancellationToken>()).Returns(call => opening.Task.WaitAsync(call.Arg<CancellationToken>()));
+        return opening;
     }
 
     [Fact]
