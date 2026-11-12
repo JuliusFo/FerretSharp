@@ -116,12 +116,59 @@ public sealed class SettingsStoreTests : IDisposable
     [Theory]
     [InlineData("{ not json")]
     [InlineData("""{ "version": 99, "settings": { "theme": "dark" } }""")]
-    [InlineData("""{ "version": 1, "settings": { "theme": "purple" } }""")]
+    [InlineData("""{ "version": 1, "settings": [ "theme" ] }""")]
     public async Task Broken_or_newer_files_are_reported(string content)
     {
         await File.WriteAllTextAsync(_store.FilePath, content, Ct);
 
         await Assert.ThrowsAsync<SettingsStoreException>(() => _store.LoadAsync(Ct));
+    }
+
+    /// <summary>
+    /// fix/robustness (code review of small-tab-open-options): an enum value this version does not know – written by a newer
+    /// one or by hand – dropped the whole file. Now only that setting has its default.
+    /// </summary>
+    [Fact]
+    public async Task A_setting_this_version_cannot_read_has_its_default_and_the_others_stay()
+    {
+        await File.WriteAllTextAsync(_store.FilePath,
+            """{ "version": 1, "settings": { "theme": "purple", "language": "german", "fkCounts": 3, "keepAlive": false } }""", Ct);
+
+        var read = await _store.ReadAsync(Ct);
+
+        Assert.Equal(AppSettings.Default with { Language = UiLanguage.German, KeepAlive = false }, read.Settings);
+        Assert.Equal(["theme", "fkCounts"], read.Skipped);
+    }
+
+    [Theory]
+    [InlineData("$.settings.theme", "theme")]
+    [InlineData("$.settings.shortcuts.openTable", "shortcuts")] // a value inside a map: the whole setting
+    [InlineData("$.settings.pathAvoidedTables[0]", "pathAvoidedTables")]
+    [InlineData("$.settings['odd.name'].x", "odd.name")]
+    [InlineData("$.settings", null)]
+    [InlineData("$.version", null)]
+    [InlineData(null, null)]
+    public void An_error_path_names_the_setting_it_lies_in(string? path, string? setting)
+    {
+        Assert.Equal(setting, SettingsStore.SettingOf(path));
+    }
+
+    /// <summary>The unreadable value is kept in a copy, since the next save writes the default (fix/robustness).</summary>
+    [Fact]
+    public async Task Settings_left_out_are_told_at_start_and_the_file_is_kept_as_a_copy()
+    {
+        const string content = """{ "version": 1, "settings": { "theme": "purple", "language": "german" } }""";
+        await File.WriteAllTextAsync(_store.FilePath, content, Ct);
+
+        var service = await AppSettingsService.OpenAsync(_store, Start, Ct);
+
+        var copy = _store.FilePath + ".bad-20261011-153000";
+        Assert.Equal(content, await File.ReadAllTextAsync(copy, Ct));
+        Assert.Equal(UiLanguage.German, service.Current.Language);
+        Assert.Equal(
+            $"Einige Einstellungen in {_store.FilePath} ließen sich nicht lesen und haben ihren Standard: theme. Die übrigen wurden gelesen; die Datei bleibt als {copy} erhalten.",
+            service.StartupNotice);
+        Assert.Null(service.NotSaving);
     }
 
     /// <summary>R5b (review 3.31.0, B2): a newer file with a value this version does not know said "no valid settings file".</summary>

@@ -354,6 +354,12 @@
     <value>The settings file could not be read at start.</value>
     <comment>Follows “Setting applied but not saved:”</comment>
   </data>
+  <data name="SomeNotReadKept" xml:space="preserve">
+    <value>Some settings in {0} could not be read and have their defaults: {1}. The other settings were read; the file was kept as {2}.</value>
+  </data>
+  <data name="SomeNotReadNotSaving" xml:space="preserve">
+    <value>Some settings in {0} could not be read and have their defaults: {1}. The other settings were read; FerretSharp saves no settings in this session, so the file stays as it is.</value>
+  </data>
   <data name="ActionCloseOtherTabs" xml:space="preserve">
     <value>Close other tabs</value>
     <comment>Shortcut action: closes every tab of the workspace except the active one</comment>
