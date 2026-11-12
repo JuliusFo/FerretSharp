@@ -30,7 +30,7 @@ public static class WrittenKey
         var values = new List<object?>(table.PrimaryKey.Count);
         for (var i = 0; i < table.PrimaryKey.Count; i++)
         {
-            var index = table.Columns.ToList().FindIndex(c => c.Name == table.PrimaryKey[i]);
+            var index = table.IndexOf(table.PrimaryKey[i]);
             if (index >= 0 && operation.Values.TryGetValue(index, out var written) && written is not null)
             {
                 values.Add(AsRead(table.Columns[index], written));
@@ -48,9 +48,17 @@ public static class WrittenKey
         return new RowKey.PrimaryKey(values);
     }
 
-    /// <summary>A value as typed in the form a read returns it: CHAR and NCHAR filled with blanks to their length.</summary>
+    /// <summary>
+    /// A value as typed in the form a read returns it: CHAR and NCHAR filled with blanks to their length, a TIMESTAMP(8/9) as
+    /// <see cref="PreciseTimestamp"/> (a key keeps all its digits).
+    /// </summary>
     private static object AsRead(ColumnInfo column, object value)
     {
+        if (value is DateTime time && ColumnCategories.LosesFractionsWhenRead(column))
+        {
+            return PreciseTimestamp.Of(time);
+        }
+
         if (value is not string text || !OracleTypes.IsFixedChar(column.DataType) || column.Length is not { } length)
         {
             return value;

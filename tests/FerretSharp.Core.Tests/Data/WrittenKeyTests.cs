@@ -50,6 +50,18 @@ public class WrittenKeyTests
         Assert.Equal(Key("C  ", 5m), WrittenKey.Of(Parent, Operation(tracker)));
     }
 
+    /// <summary>A TIMESTAMP(9) key typed (7 digits at most) is a <see cref="PreciseTimestamp"/>, as a read gives it.</summary>
+    [Fact]
+    public void A_typed_timestamp_key_is_precise_like_a_read()
+    {
+        var table = new TableDetails(new TableSummary("APP", "LOG", TableKind.Table),
+            [new ColumnInfo("TS", "TIMESTAMP(9)", null, false, null, 9, false, false, null, 1)], ["TS"], [], false);
+        var tracker = new ChangeTracker(table);
+        tracker.SetValue(tracker.AddRow(), 0, "01.10.2026 14:30:05,1234567");
+
+        Assert.Equal(Key(new PreciseTimestamp(new DateTime(2026, 10, 1, 14, 30, 5), 123456700)), WrittenKey.Of(table, Operation(tracker)));
+    }
+
     /// <summary>A key column left to the database (identity, trigger, default), or a table keyed by ROWID: the ROWID stays.</summary>
     [Fact]
     public void Without_every_key_column_or_without_a_primary_key_there_is_none()

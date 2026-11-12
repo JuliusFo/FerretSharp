@@ -62,6 +62,31 @@ public sealed record BigNumber(string Invariant)
     public override string ToString() => Invariant;
 }
 
+/// <summary>
+/// A TIMESTAMP(8/9) value of a primary key with all its digits (WP-85, review 3.31.0 A33): <see cref="DateTime"/> holds 7,
+/// and a key without the last two found no row ("deleted meanwhile"). Only keys are read so; the row's values stay
+/// <see cref="DateTime"/> (review 3.44.0, A12). Bound as such (<c>OracleParameters</c>).
+/// </summary>
+/// <param name="Second">Date and time to the whole second.</param>
+/// <param name="Nanosecond">The fraction of the second, 0 to 999 999 999.</param>
+public sealed record PreciseTimestamp(DateTime Second, int Nanosecond)
+{
+    /// <summary>A value typed or read as <see cref="DateTime"/> (7 digits).</summary>
+    public static PreciseTimestamp Of(DateTime value)
+    {
+        var fraction = value.Ticks % TimeSpan.TicksPerSecond;
+        return new PreciseTimestamp(value.AddTicks(-fraction), (int)fraction * 100);
+    }
+
+    /// <summary>As <see cref="DateTime"/>: the last two digits cut off.</summary>
+    public DateTime Value => Second.AddTicks(Nanosecond / 100);
+
+    /// <summary>ISO notation with all nine digits.</summary>
+    public override string ToString() =>
+        Second.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) + "."
+        + Nanosecond.ToString("D9", System.Globalization.CultureInfo.InvariantCulture);
+}
+
 /// <summary>CLOB: first characters plus total length. BLOB: length only (<see cref="Preview"/> is null).</summary>
 public sealed record LobValue(string? Preview, long Length)
 {

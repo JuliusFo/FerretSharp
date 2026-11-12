@@ -35,6 +35,9 @@ public class CellFormatterTests
         Assert.Equal("01.10.2026 14:30:05,123", CellFormatter.Format(Col("TIMESTAMP(3)", scale: 3), value));
         Assert.Equal("01.10.2026 14:30:05 +02:00",
             CellFormatter.Format(Col("DATE"), new DateTimeOffset(new DateTime(2026, 10, 1, 14, 30, 5), TimeSpan.FromHours(2))));
+        // A TIMESTAMP(9) key (WP-85, change overview and write problem): all its digits.
+        Assert.Equal("01.10.2026 14:30:05,123456789",
+            CellFormatter.Format(Col("TIMESTAMP(9)", scale: 9), new PreciseTimestamp(new DateTime(2026, 10, 1, 14, 30, 5), 123456789)));
     }
 
     [Fact]

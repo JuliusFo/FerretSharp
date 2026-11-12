@@ -49,12 +49,17 @@ internal static class OracleParameters
 
     /// <summary>
     /// The value for ODP.NET: a <see cref="DateTimeOffset"/> for TIMESTAMP WITH TIME ZONE becomes an
-    /// <see cref="OracleTimeStampTZ"/> with its offset as the time zone (+02:00), so time and offset are stored as given.
+    /// <see cref="OracleTimeStampTZ"/> with its offset as the time zone (+02:00), so time and offset are stored as given; a
+    /// <see cref="PreciseTimestamp"/> key an <see cref="OracleTimeStamp"/> with all nine digits (WP-85).
     /// </summary>
     private static object ValueOf(QueryParameter parameter) => (parameter.Type, parameter.Value) switch
     {
         (_, null) => DBNull.Value,
         (OracleTypeHint.TimeStampTZ, DateTimeOffset dto) => new OracleTimeStampTZ(dto.DateTime, OffsetText(dto.Offset)),
+        (OracleTypeHint.TimeStampLTZ, PreciseTimestamp p) => new OracleTimeStampLTZ(
+            p.Second.Year, p.Second.Month, p.Second.Day, p.Second.Hour, p.Second.Minute, p.Second.Second, p.Nanosecond),
+        (_, PreciseTimestamp p) => new OracleTimeStamp(
+            p.Second.Year, p.Second.Month, p.Second.Day, p.Second.Hour, p.Second.Minute, p.Second.Second, p.Nanosecond),
         (_, BigNumber big) => ToOracle(big),
         (_, var value) => value,
     };
