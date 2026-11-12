@@ -230,6 +230,29 @@ public sealed class FormCursorTests
         Assert.Same(moved, cursor.Change);
     }
 
+    /// <summary>
+    /// Review of WP-85 (before already so): the shown row was deleted and another row took its key in the same write – after
+    /// the reload the form showed that row under the old key. It is lost instead, once the rows are read again.
+    /// </summary>
+    [Fact]
+    public void A_shown_row_deleted_while_another_takes_its_key_is_lost()
+    {
+        var a = Row(1);
+        _grid.Load(a, Row(2));
+        var cursor = new FormCursor(_grid);
+        cursor.Show(new GridCell(0, null, 1));
+        _grid.Changes.Delete(a);
+        var deleted = _grid.Changes.Find(a.Key)!;
+        Assert.Equal(FormFollow.Unchanged, cursor.RowsChanged()); // the delete redraws the row
+        var other = _grid.Changes.SetValue(Row(2), 0, "1").Change!;
+        _grid.Changes.MarkFlushed(_grid.Changes.PendingOperations(), new Dictionary<Guid, RowKey> { [other.Id] = Row(1).Key });
+
+        Assert.Equal(FormFollow.Unchanged, cursor.RowsChanged()); // not reloaded yet
+        _grid.Load(Row(1)); // reloaded: B under key 1
+        Assert.Equal(FormFollow.Lost, cursor.RowsChanged());
+        Assert.Same(deleted, _grid.Changes.Changes.Single(c => c.Deleted is not null));
+    }
+
     /// <summary>Loaded rows by position and the tab's changes, like FerretGrid's blocks.</summary>
     private sealed class FakeGrid : IFormGrid
     {
@@ -253,5 +276,7 @@ public sealed class FormCursorTests
         public int? RowCount { get; set; }
 
         public RowKey KeyNow(RowKey key) => Changes.KeyNow(key);
+
+        public bool Tracks(RowChange change) => Changes.Tracks(change);
     }
 }

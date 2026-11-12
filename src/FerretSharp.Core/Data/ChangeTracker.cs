@@ -293,6 +293,9 @@ public sealed partial class ChangeTracker(TableDetails table)
 
     public RowChange? Find(RowKey key) => _byKey.GetValueOrDefault(key);
 
+    /// <summary>Whether <paramref name="change"/> is one of the tab's changes – also one kept aside; false after commit or rollback.</summary>
+    public bool Tracks(RowChange change) => Changes.Contains(change);
+
     /// <summary>
     /// The key a row has now that had <paramref name="key"/> when it was shown: its changed primary key was written (or taken
     /// back); <paramref name="key"/> itself if no tracked row moved away from it. Kept past commit and rollback – the grid

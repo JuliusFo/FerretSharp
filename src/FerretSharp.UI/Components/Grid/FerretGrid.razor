@@ -777,6 +777,9 @@
     /// <summary>The key a row has now whose primary key was changed and written (the form follows it).</summary>
     public RowKey KeyNow(RowKey key) => Tab.Changes?.KeyNow(key) ?? key;
 
+    /// <summary>Whether the tab's changes still hold the change (the form follows only one that is).</summary>
+    public bool Tracks(RowChange change) => Tab.Changes?.Tracks(change) == true;
+
     /// <summary>The grid position of a new row that is not inserted yet; null if it is gone (inserted or removed).</summary>
     public GridCell? CellOf(RowChange newRow, int? column) =>
         Tab.Changes?.NewRows.Contains(newRow) == true ? new GridCell(-1, GridRows.NewRowId(newRow), column) : null;

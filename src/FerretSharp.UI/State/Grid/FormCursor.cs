@@ -31,6 +31,9 @@ public interface IFormGrid
 
     /// <summary>The key a row has now that had <paramref name="key"/> (its primary key was changed and written); the same otherwise.</summary>
     RowKey KeyNow(RowKey key) => key;
+
+    /// <summary>Whether the tab's changes still hold <paramref name="change"/> (a commit or rollback cleared them).</summary>
+    bool Tracks(RowChange change) => false;
 }
 
 /// <summary>What became of the shown row after the grid's rows changed (<see cref="FormCursor.RowsChanged"/>).</summary>
@@ -152,6 +155,13 @@ public sealed class FormCursor(IFormGrid grid)
         if (Change is { Key: RowKey.PrimaryKey moved } && !Equals(moved, Key))
         {
             return FollowChange(cell, loaded, moved);
+        }
+
+        if (Change is { } mine && current.Change is { } other && !ReferenceEquals(mine, other) && grid.Tracks(mine))
+        {
+            // Another row holds the shown row's key now (it was deleted, another took the key in the same write; review of
+            // WP-85): not the shown row – once the rows are read again.
+            return ReferenceEquals(loaded, _loaded) ? FormFollow.Unchanged : LoseRow(GridText.Form_RowNotLoaded);
         }
 
         if (Key is RowKey.None || Equals(loaded.Key, Key))
