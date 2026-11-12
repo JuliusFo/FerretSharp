@@ -62,10 +62,14 @@ public static class ColumnChanges
         var matched = new HashSet<string>(StringComparer.Ordinal);
         var assigned = new Dictionary<string, ColumnInfo>(StringComparer.Ordinal);
         // Renames first: "drop STATUS, rename STATUS_NEU to STATUS" must not give the new STATUS to the old one (second
-        // review of WP-41). A rename counts if its target is there and its source is gone – else it did not run.
+        // review of WP-41). A rename counts if its target is there and it ran: its source is gone, or the target was no
+        // column before (A → B with a new A), or the target was renamed away itself (A ↔ B; third review of WP-41). A target
+        // that was there before, kept its name and whose source is still there means the rename did not run.
+        var beforeNames = before.Columns.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
         foreach (var column in before.Columns)
         {
-            if (renames.TryGetValue(column.Name, out var renamed) && renamed != column.Name && !now.ContainsKey(column.Name)
+            if (renames.TryGetValue(column.Name, out var renamed) && renamed != column.Name
+                && (!now.ContainsKey(column.Name) || !beforeNames.Contains(renamed) || renames.ContainsKey(renamed))
                 && now.TryGetValue(renamed, out var moved) && matched.Add(moved.Name))
             {
                 assigned[column.Name] = moved;

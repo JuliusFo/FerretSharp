@@ -50,6 +50,7 @@ Entscheidung des Nutzers: „Alle beheben, Punkt 6 passt so“; zum zweiten Durc
   - N2 Neuplanen während des Schreibens ging verloren: behoben (läuft danach); nicht automatisch getestet (Razor).
   - N3 Sperre ohne Lösch-Freigabe erst beim Ersetzen bemerkt: behoben (Prüfung mit `FileShare.None`), Test.
   - N4 `<Nullable>` per Regex aus Kommentaren und Bedingungen: behoben (`XDocument`, nur unbedingte Gruppen, sonst entscheiden die Dateien), Test.
+  - Dritter Durchgang, R1 (aus dem Fix zu N1): Eine Umbenennung zählte nur, wenn der alte Name weg war – ein Tausch A ↔ B und „A → B plus neue A“ galten als nicht gelaufen. Entscheidung des Nutzers: „Ja, R1 beheben und danach pushen“. Behoben: Sie zählt auch, wenn das Ziel vorher keine Spalte oder selbst umbenannt war; Testfälle.
   - N5 bekannte Grenze, nicht geändert: Wird zwischen Designer-Lauf und Schreiben eine Spalte außerhalb des Designers umbenannt (SQL-Editor, Kollege), erscheint das als „gelöscht“ plus „neu“ – im Diff vor dem Schreiben sichtbar. Ebenso zeigt ein Tab, der wegen ausstehender Grid-Änderungen seine alte Struktur behält, die Änderung erst nach Commit oder Rollback richtig.
 
 ## Offen (Fragen an den Nutzer)
