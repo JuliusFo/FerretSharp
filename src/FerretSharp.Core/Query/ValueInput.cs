@@ -82,6 +82,14 @@ public static class ValueInput
         value = default;
         offsetText = "";
         dateOnly = false;
+
+        // A date with time and offset fits easily; the expression backtracks quadratically over long texts (a value from a
+        // link or a filter preset of 32 000 blanks took half a second per check, review of WP-85).
+        if (text.Length > MaxDateLength)
+        {
+            return null;
+        }
+
         if (OffsetSuffix.Match(text.Trim()) is not { Success: true } match || !TryParseDate(match.Groups["time"].Value, out var time, out dateOnly))
         {
             return null;
@@ -96,6 +104,9 @@ public static class ValueInput
         value = new DateTimeOffset(time, offset);
         return true;
     }
+
+    /// <summary>Longer texts are no date: <c>2026-10-08T12:00:00.1234567 +02:00</c> has 35 characters.</summary>
+    private const int MaxDateLength = 64;
 
     private static readonly System.Text.RegularExpressions.Regex OffsetSuffix = new(
         @"^(?<time>.+?)\s*(?<offset>Z|[+-]\d{1,2}(?::?\d{2})?)$",

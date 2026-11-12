@@ -63,4 +63,18 @@ public class FilterRulesTests
     {
         Assert.Equal(expected, ColumnCategories.Of(dataType));
     }
+
+    /// <summary>
+    /// Review of WP-85: the offset expression backtracks quadratically; a filter value of 32 000 blanks from a link took half
+    /// a second per check. Long texts are no date at once.
+    /// </summary>
+    [Fact]
+    public void A_long_value_on_a_time_with_time_zone_is_refused_at_once()
+    {
+        var column = new ColumnInfo("BEGINN", "TIMESTAMP(6) WITH TIME ZONE", null, false, null, 6, true, false, null, 1);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        Assert.False(ValueInput.TryParseFilterDate(column, "a" + new string(' ', 32_000) + "b", out _));
+        Assert.InRange(watch.ElapsedMilliseconds, 0, 100);
+    }
 }
