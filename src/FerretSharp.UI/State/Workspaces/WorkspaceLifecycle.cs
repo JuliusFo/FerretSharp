@@ -322,9 +322,27 @@ public sealed partial class WorkspaceLifecycle(
     {
         foreach (var workspace in shell.AllWorkspaces.Where(w => !IsLost(w.WorkspaceId) && editing.SummaryOf(w).HasWork).ToList())
         {
-            // Prod commits what the native question summed up, as the leave dialog's list would show it.
+            // Prod commits the writes there are now: whatever comes up between the native question and here is not
+            // committed unseen (the leave dialog passes the list it showed).
             var shown = ScopeOf(workspace.WorkspaceId).Profile?.Kind == ConnectionKind.Prod ? editing.SummaryOf(workspace).Actions : null;
             if (!(commit ? await editing.CommitAsync(workspace, shown) : await editing.RollbackAsync(workspace)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Grid changes not written yet, in all workspaces: they go with the page when it is loaded anew.</summary>
+    public int PendingChanges => shell.AllWorkspaces.Sum(w => editing.SummaryOf(w).Pending);
+
+    /// <summary>Writes the pending changes of every workspace (no commit) before the page loads anew; true if all were written.</summary>
+    public async Task<bool> FlushAllAsync()
+    {
+        foreach (var workspace in shell.AllWorkspaces.Where(w => !IsLost(w.WorkspaceId) && editing.SummaryOf(w).Pending > 0).ToList())
+        {
+            if (!await editing.FlushAsync(workspace))
             {
                 return false;
             }

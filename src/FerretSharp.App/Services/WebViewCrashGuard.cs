@@ -1,4 +1,5 @@
 using System.Windows.Threading;
+using FerretSharp.Core.Resources;
 using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.Logging;
@@ -44,21 +45,24 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
         logger.LogError("WebView process failed: {Kind}, reason {Reason}, exit code {ExitCode}, {Process}",
             e.ProcessFailedKind, e.Reason, e.ExitCode, e.ProcessDescription);
         var browserGone = e.ProcessFailedKind == CoreWebView2ProcessFailedKind.BrowserProcessExited;
-        if (!browserGone && e.ProcessFailedKind is not (CoreWebView2ProcessFailedKind.RenderProcessExited or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive))
+        // A renderer that does not answer may come back (code review of R9, finding 1); the GPU and helper processes come
+        // back by themselves.
+        if (!browserGone && e.ProcessFailedKind != CoreWebView2ProcessFailedKind.RenderProcessExited)
         {
-            return; // the GPU and helper processes come back by themselves
+            return;
         }
 
         PageDead = true;
         var now = _time.GetUtcNow();
         if (!browserGone && (_reloadedAt is not { } at || now - at > AgainWithin))
         {
-            Reload(core, now, "once after a crash");
+            _reloadedAt = now; // a second crash while the question below is open asks about the restart
+            Dispatcher.CurrentDispatcher.BeginInvoke(async () => await ReloadAsync(core, "once after a crash"));
             return;
         }
 
         // After the event: a dialog inside it would run while WebView2 is still reporting.
-        Dispatcher.CurrentDispatcher.BeginInvoke(() =>
+        Dispatcher.CurrentDispatcher.BeginInvoke(async () =>
         {
             if (dialogs.Ask(CommonText.WebViewCrash_Title, browserGone ? CommonText.WebViewCrash_BrowserGone : CommonText.WebViewCrash_Again))
             {
@@ -67,9 +71,36 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
             }
             else if (!browserGone)
             {
-                Reload(core, _time.GetUtcNow(), "again, as the user chose");
+                await ReloadAsync(core, "again, as the user chose");
             }
         });
+    }
+
+    /// <summary>
+    /// Loads the page anew – after asking natively if grid changes are not written yet: they live in the page and would go
+    /// without a word (code review of R9, finding 1). Write them (no commit) and load, discard them and load, or leave the
+    /// page dead – closing then asks about the changes.
+    /// </summary>
+    private async Task ReloadAsync(CoreWebView2 core, string why)
+    {
+        var pending = exitGuard.PendingChanges is { } count ? await count() : 0;
+        if (pending > 0)
+        {
+            switch (dialogs.AskYesNoCancel(CommonText.WebViewCrash_Title, TextFormat.Format(CommonText.WebViewCrash_Pending, pending)))
+            {
+                case null:
+                    logger.LogInformation("Not reloading the page: {Pending} pending changes, the user keeps it as it is", pending);
+                    return;
+                case true when exitGuard.FlushAll is { } flush && !await flush()
+                               && !dialogs.Ask(CommonText.WebViewCrash_Title, CommonText.WebViewCrash_FlushFailed):
+                    return;
+                case false:
+                    logger.LogWarning("Reloading the page drops {Pending} pending changes, as the user chose", pending);
+                    break;
+            }
+        }
+
+        Reload(core, _time.GetUtcNow(), why);
     }
 
     private void Reload(CoreWebView2 core, DateTimeOffset now, string why)

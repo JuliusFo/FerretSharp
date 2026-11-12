@@ -10,6 +10,12 @@ public partial class MainWindow : Window
 {
     private bool _exitApproved;
 
+    /// <summary>
+    /// The native commit or rollback of a dead page runs: a second close waits for it instead of asking again and closing
+    /// in the middle of the first commit (code review of R9, finding 2).
+    /// </summary>
+    private bool _finishing;
+
     public MainWindow(IServiceProvider services, WindowTheme theme, WebViewCapture capture, WebViewSizeWatch sizes, ExitGuard exitGuard,
         WebViewCrashGuard crashes, ILogger<MainWindow> logger)
     {
@@ -69,11 +75,28 @@ public partial class MainWindow : Window
             e.Cancel = true;
             if (crashes.PageDead)
             {
+                if (_finishing)
+                {
+                    logger.LogInformation("Main window closing {By}: the native commit or rollback still runs", by);
+                    return;
+                }
+
                 // The shell would ask in the dead page (review 3.70.0, A2): the host asks itself, after this event.
                 logger.LogInformation("Main window closing {By}: the page has crashed, asking natively", by);
+                _finishing = true;
                 Dispatcher.BeginInvoke(async () =>
                 {
-                    if (await crashes.FinishNativelyAsync())
+                    bool close;
+                    try
+                    {
+                        close = await crashes.FinishNativelyAsync();
+                    }
+                    finally
+                    {
+                        _finishing = false;
+                    }
+
+                    if (close)
                     {
                         _exitApproved = true;
                         Close();

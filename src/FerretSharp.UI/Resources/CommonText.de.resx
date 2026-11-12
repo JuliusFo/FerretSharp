@@ -159,6 +159,18 @@ Abbrechen: FerretSharp offen lassen</value>
 
 Trotzdem schließen? Was nicht committet ist, rollt Oracle zurück, wenn die Sessions enden.</value>
   </data>
+  <data name="WebViewCrash_Pending" xml:space="preserve">
+    <value>Die Anzeige ist abgestürzt. {0} Änderungen im Grid sind noch nicht geschrieben und gingen beim Neuladen verloren.
+
+Ja: schreiben (ohne Commit) und neu laden
+Nein: verwerfen und neu laden
+Abbrechen: die Anzeige so lassen – beim Schließen von FerretSharp wirst du nach den Änderungen gefragt</value>
+  </data>
+  <data name="WebViewCrash_FlushFailed" xml:space="preserve">
+    <value>Nicht alle Änderungen ließen sich schreiben.
+
+Die Anzeige trotzdem neu laden? Was nicht geschrieben ist, geht verloren.</value>
+  </data>
   <data name="LinkNotHandedOver" xml:space="preserve">
     <value>FerretSharp läuft schon, aber der Link konnte nicht übergeben werden. Den Link gleich noch einmal anklicken.</value>
   </data>
