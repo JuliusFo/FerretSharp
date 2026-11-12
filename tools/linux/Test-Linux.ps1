@@ -25,6 +25,8 @@
 .EXAMPLE
     pwsh -NoProfile -File tools/linux/Test-Linux.ps1 -Project tests/FerretSharp.UI.Tests
 #>
+# 7.4: the line endings check pipes a blob between two git calls and needs the bytes unchanged.
+#Requires -Version 7.4
 param(
     [string[]]$Project = @('tests/FerretSharp.Core.Tests', 'tests/FerretSharp.UI.Tests')
 )
@@ -46,10 +48,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'git ls-files failed.' }
     # Like the CI job line-endings, but read-only (no renormalize, the index stays as it is): a text file whose
     # staged or committed form has CRLF. Only what is in the index counts; unstaged edits are normalized on git add.
-    # Lines: "<mode> <blob> <stage>`t<i/… w/… attr/…>`t<path>".
-    $eol = git -C $root -c core.quotePath=false ls-files --stage --eol
+    # Records "<mode> <blob> <stage>`t<i/… w/… attr/…>`t<path>", NUL-terminated so a path is never quoted.
+    $eol = git -C $root ls-files -z --stage --eol
     if ($LASTEXITCODE -ne 0) { throw 'git ls-files --eol failed.' }
-    $crlf = @(foreach ($line in $eol) {
+    $crlf = @(foreach ($line in (($eol -join '') -split "`0" | Where-Object { $_ })) {
         $meta, $info, $path = $line -split "`t", 3
         if ($info -match '^i/(crlf|mixed)\s' -and $info -notmatch '\sattr/-text\s') { "$info $path"; continue }
         # i/-text is a stray CR or a NUL byte. Under an explicit "text" attribute the CI renormalizes such a file all
