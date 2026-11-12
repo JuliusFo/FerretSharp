@@ -347,7 +347,7 @@ public sealed class ServerLoadService(
         view.SinceLoadLoading = true;
         view.SinceLoadError = null;
         Changed?.Invoke();
-        using var timeout = new CancellationTokenSource(LookupTimeout);
+        using var timeout = new CancellationTokenSource(LookupTimeout, _time); // the page's clock (review 3.70.0, C5)
         try
         {
             var (sort, filter) = (view.Sort, view.Filter);
@@ -385,7 +385,7 @@ public sealed class ServerLoadService(
             return;
         }
 
-        using var timeout = new CancellationTokenSource(LookupTimeout);
+        using var timeout = new CancellationTokenSource(LookupTimeout, _time); // the page's clock (review 3.70.0, C5)
         using var lookup = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
         view.Lookup = lookup;
         CursorInfo? cursor = null;

@@ -1,6 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.ServerLoad;
 using FerretSharp.Testing;
+using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -195,6 +196,40 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
 
         await _connector.Received(1).OpenAsync(typed, "wrong", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
         Assert.Contains("„Typed“", view.Error, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Review 3.70.0, C5: the list since loading had no test at all – it needs the page's session, reads with the view's
+    /// sort and filter, and a read past its limit says so instead of spinning.
+    /// </summary>
+    [Fact]
+    public async Task The_list_since_loading_reads_on_the_page_s_session_and_gives_up_past_its_limit()
+    {
+        await _service.LoadSinceLoadAsync(_profile);
+        var view = _service.For(_profile.Id);
+        Assert.Equal(ServerLoadText.ServerLoad_NotWatching, view.SinceLoadError);
+
+        await _service.ShowAsync(_profile);
+        await ParkedAsync();
+        var rows = new List<StatementRow>();
+        _reader.ReadTopSinceLoadAsync(Arg.Any<TopStatementSort>(), Arg.Any<StatementFilter>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(rows);
+        await _service.LoadSinceLoadAsync(_profile);
+        Assert.Same(rows, view.SinceLoad);
+        Assert.Null(view.SinceLoadError);
+
+        _reader.ReadTopSinceLoadAsync(Arg.Any<TopStatementSort>(), Arg.Any<StatementFilter>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>()); // a silent line; ends with the limit
+                return (IReadOnlyList<StatementRow>)[];
+            });
+        var loading = _service.LoadSinceLoadAsync(_profile);
+        await Wait.UntilAsync(() => _time.DueTimes.Contains(ServerLoadService.LookupTimeout), "the limit of the read");
+        _time.Advance(ServerLoadService.LookupTimeout);
+        await loading.WaitAsync(Wait.Limit, TestContext.Current.CancellationToken);
+
+        Assert.Equal(ServerLoadText.ServerLoad_TimedOut, view.SinceLoadError);
+        Assert.False(view.SinceLoadLoading);
     }
 
     [Fact]
