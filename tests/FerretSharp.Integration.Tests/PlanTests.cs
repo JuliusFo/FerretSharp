@@ -15,6 +15,8 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
 {
     private const string NoRightsUser = "FS_PLAN_NORIGHTS";
     private const string NoRightsPassword = "Plan2026x";
+    private const string HeapPlanUser = "FS_PLAN_HEAP";
+    private const string HeapPlanPassword = "Plan2026h";
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private static bool _created;
 
@@ -40,7 +42,25 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
             await ExecuteAsync(System(),
                 $"GRANT SELECT_CATALOG_ROLE TO {OracleIdentifier.Quote(Owner)}",
                 $"CREATE USER {NoRightsUser} IDENTIFIED BY {NoRightsPassword}",
-                $"GRANT CREATE SESSION TO {NoRightsUser}");
+                $"GRANT CREATE SESSION TO {NoRightsUser}",
+                $"CREATE USER {HeapPlanUser} IDENTIFIED BY {HeapPlanPassword} QUOTA UNLIMITED ON USERS",
+                $"GRANT CREATE SESSION, CREATE TABLE, CREATE TRIGGER TO {HeapPlanUser}");
+            // An old PLAN_TABLE of the schema (utlxplan.sql): a heap table that hides the public synonym. The trigger notes
+            // every row written into it, committed or not – without a transaction, ODP.NET commits each statement (A37).
+            await ExecuteAsync(User(HeapPlanUser, HeapPlanPassword),
+                """
+                CREATE TABLE PLAN_TABLE (
+                  statement_id VARCHAR2(30), plan_id NUMBER, timestamp DATE, remarks VARCHAR2(4000), operation VARCHAR2(30),
+                  options VARCHAR2(255), object_node VARCHAR2(128), object_owner VARCHAR2(128), object_name VARCHAR2(128),
+                  object_alias VARCHAR2(261), object_instance NUMBER, object_type VARCHAR2(30), optimizer VARCHAR2(255),
+                  search_columns NUMBER, id NUMBER, parent_id NUMBER, depth NUMBER, position NUMBER, cost NUMBER,
+                  cardinality NUMBER, bytes NUMBER, other_tag VARCHAR2(255), partition_start VARCHAR2(255),
+                  partition_stop VARCHAR2(255), partition_id NUMBER, other LONG, distribution VARCHAR2(30), cpu_cost NUMBER,
+                  io_cost NUMBER, temp_space NUMBER, access_predicates VARCHAR2(4000), filter_predicates VARCHAR2(4000),
+                  projection VARCHAR2(4000), time NUMBER, qblock_name VARCHAR2(128), other_xml CLOB)
+                """,
+                "CREATE TABLE PLAN_WRITES (N NUMBER)",
+                "CREATE TRIGGER PLAN_WRITES_T AFTER INSERT ON PLAN_TABLE FOR EACH ROW BEGIN INSERT INTO PLAN_WRITES VALUES (1); END;");
             _created = true;
         }
         finally
@@ -52,6 +72,9 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     private string System() => new OracleConnectionStringBuilder(oracle.RequireConnectionString()) { UserID = "system" }.ConnectionString;
+
+    private string User(string user, string password) =>
+        new OracleConnectionStringBuilder(oracle.RequireConnectionString()) { UserID = user, Password = password }.ConnectionString;
 
     private static async Task ExecuteAsync(string connectionString, params string[] statements)
     {
@@ -99,8 +122,28 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.Null(plan.Steps[0].ActualRows);
         Assert.Equal(query.Sql, plan.Sql);
         // The PLAN_TABLE rows are gone again.
-        var left = await connection.Data.ReadSqlAsync(new QuerySpec("SELECT COUNT(*) FROM PLAN_TABLE", []), 0, 1, Ct);
+        var left = await connection.Data.ReadSqlAsync(new QuerySpec("SELECT COUNT(*) FROM SYS.PLAN_TABLE$", []), 0, 1, Ct);
         Assert.Equal(0m, left.Rows[0][0]);
+    }
+
+    [Fact]
+    public async Task The_estimated_plan_never_writes_into_a_plan_table_of_the_schema()
+    {
+        await using var connection = await OpenAsync("Plan heap table", HeapPlanUser, HeapPlanPassword);
+
+        var plan = await connection.Schema.ExplainAsync(new QuerySpec("SELECT * FROM DUAL WHERE DUMMY = :p0", []), Ct);
+
+        Assert.Contains(plan.Steps, s => s.ObjectName == "DUAL");
+        // Counted from another session: what the explain wrote and committed into the schema's own table.
+        await using var other = new OracleConnection(User(HeapPlanUser, HeapPlanPassword));
+        await other.OpenAsync(Ct);
+        await using var count = other.CreateCommand();
+        count.CommandText = "SELECT COUNT(*) FROM PLAN_WRITES";
+        Assert.Equal(0m, (decimal)(await count.ExecuteScalarAsync(Ct))!);
+        // A table of the query that does not exist stays the query's error, not a missing right on the plan table.
+        var missing = await Assert.ThrowsAsync<DatabaseException>(() => connection.Schema.ExplainAsync(new QuerySpec("SELECT * FROM NO_SUCH_TABLE", []), Ct));
+        Assert.IsNotType<PlanUnavailableException>(missing);
+        Assert.Equal("ORA-00942", missing.ErrorCode);
     }
 
     [Fact]
