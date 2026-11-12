@@ -169,6 +169,8 @@ public sealed class ServerLoadTrackerTests
         Assert.Equal(["app"], tracker.Top(null, TopStatementSort.Cpu, new StatementFilter(" shop ", "API"), 10).Select(r => r.SqlId));
         Assert.Equal(["batch", "app"], tracker.Top(null, TopStatementSort.Cpu, new StatementFilter("shop"), 10).Select(r => r.SqlId));
         Assert.Equal(3, tracker.Top(null, TopStatementSort.Cpu, new StatementFilter(" ", ""), 10).Count);
+        // Every word somewhere, as in every search box (review 3.70.0, B8: the whole text had to stand as typed).
+        Assert.Equal(["batch"], tracker.Top(null, TopStatementSort.Cpu, new StatementFilter("batch shop", "plus sql"), 10).Select(r => r.SqlId));
     }
 
     [Fact]

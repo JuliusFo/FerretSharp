@@ -229,9 +229,9 @@
         _ => request,
     };
 
-    private void OnClonesChanged() => InvokeAsync(() => Replan(0));
+    private void OnClonesChanged() => Fire(() => Replan(0)); // Fire: an exception is not lost (review 3.70.0, A22)
 
-    private void OnModelChanged() => InvokeAsync(() =>
+    private void OnModelChanged() => Fire(() =>
     {
         // A written change stays with its results: the model reloads after the user's build, "Reload" plans again.
         if (_change?.Stage is not (CodeChangeStage.Planning or CodeChangeStage.Writing or CodeChangeStage.Written) && Models.Mapping is not null && _mapping != Models.Mapping)

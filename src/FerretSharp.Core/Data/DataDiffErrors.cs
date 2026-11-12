@@ -15,10 +15,10 @@ public static class DataDiffErrors
     private const int NoFlashbackRight = 1031;
 
     /// <summary>
-    /// The undo does not reach back: snapshot too old (ORA-01555), no valid SCN (ORA-08181), no snapshot for the time
-    /// (ORA-08180).
+    /// The undo does not reach back: snapshot too old (ORA-01555, for a LOB's older version ORA-22924 – review 3.70.0, A19),
+    /// no valid SCN (ORA-08181), no snapshot for the time (ORA-08180).
     /// </summary>
-    private static readonly IReadOnlySet<int> UndoTooShort = new HashSet<int> { 1555, 8180, 8181 };
+    private static readonly IReadOnlySet<int> UndoTooShort = new HashSet<int> { 1555, 8180, 8181, 22924 };
 
     /// <summary>The message to show for <paramref name="error"/>; null if it is none of those, then the error's own.</summary>
     /// <param name="startedAt">When the start point was set (or the time a tab travels to), named in the message about the undo.</param>
