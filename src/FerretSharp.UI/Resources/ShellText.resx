@@ -1251,9 +1251,6 @@
   <data name="DataDiff_Cancelled" xml:space="preserve">
     <value>Cancelled.</value>
   </data>
-  <data name="DataDiff_NotConnected" xml:space="preserve">
-    <value>The connection is not open.</value>
-  </data>
   <data name="DataDiff_TableGone" xml:space="preserve">
     <value>{0}.{1} no longer exists or is not visible.</value>
     <comment>{0} = owner, {1} = table</comment>

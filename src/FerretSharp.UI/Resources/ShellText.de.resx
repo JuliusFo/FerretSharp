@@ -1014,9 +1014,6 @@
   <data name="DataDiff_Cancelled" xml:space="preserve">
     <value>Abgebrochen.</value>
   </data>
-  <data name="DataDiff_NotConnected" xml:space="preserve">
-    <value>Die Verbindung ist nicht geöffnet.</value>
-  </data>
   <data name="DataDiff_TableGone" xml:space="preserve">
     <value>{0}.{1} gibt es nicht mehr, oder sie ist nicht sichtbar.</value>
   </data>

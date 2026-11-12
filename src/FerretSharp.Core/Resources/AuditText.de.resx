@@ -15,9 +15,6 @@
   <data name="TemplateHasErrors" xml:space="preserve">
     <value>Die Audit-Vorlage hat Fehler:</value>
   </data>
-  <data name="ErrorInLine" xml:space="preserve">
-    <value>Zeile {0}: {1}</value>
-  </data>
   <data name="UnknownDirective" xml:space="preserve">
     <value>Unbekannte Anweisung @{0}.</value>
   </data>

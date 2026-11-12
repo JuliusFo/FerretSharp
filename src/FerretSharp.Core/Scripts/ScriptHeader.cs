@@ -26,7 +26,7 @@ public sealed record ScriptTarget(string Parameter, string Table, string Column)
 /// <summary>A line of a script's header that cannot be used, with its number in the file (1-based).</summary>
 public sealed record ScriptHeaderError(int Line, string Message)
 {
-    public override string ToString() => TextFormat.Format(ScriptText.ErrorInLine, Line, Message);
+    public override string ToString() => TextFormat.Format(CoreText.ErrorInLine, Line, Message);
 }
 
 /// <summary>

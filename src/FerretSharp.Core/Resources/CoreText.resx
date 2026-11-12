@@ -12,6 +12,10 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="ErrorInLine" xml:space="preserve">
+    <value>Line {0}: {1}</value>
+    <comment>{0}: line number in a file (a script, an audit template); {1}: what is wrong</comment>
+  </data>
   <data name="NameInvalid" xml:space="preserve">
     <value>{0}: a name cannot contain double quotes.</value>
     <comment>{0}: the name as typed (table, column, index, constraint, audit template)</comment>

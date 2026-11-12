@@ -77,7 +77,7 @@ public enum AuditActionKind
 /// <param name="Line">Line in the template (1-based); 0 for the template as a whole (a directive is missing).</param>
 public sealed record AuditTemplateError(int Line, string Message)
 {
-    public override string ToString() => Line > 0 ? TextFormat.Format(AuditText.ErrorInLine, Line, Message) : Message;
+    public override string ToString() => Line > 0 ? TextFormat.Format(CoreText.ErrorInLine, Line, Message) : Message;
 }
 
 /// <summary>The template has errors; <see cref="Errors"/> lists them with their lines, the message too.</summary>

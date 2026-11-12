@@ -192,7 +192,7 @@ public sealed partial class WorkspaceLifecycle
     {
         if (active.Schema is not { } schema)
         {
-            return new DataDiffResult(entry, null, ShellText.DataDiff_NotConnected);
+            return new DataDiffResult(entry, null, ConnectionText.ReadSessionNotConnected);
         }
 
         if ((schema.Find(entry.Table) ?? ShellState.OpenedByName(entry.Table, schema)) is not { } summary)
