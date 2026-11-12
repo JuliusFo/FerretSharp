@@ -150,27 +150,9 @@ public static class ScriptPaths
             : null;
     }
 
-    /// <summary>
-    /// What every path below <paramref name="fullRoot"/> starts with: the root and a separator – a drive keeps its own
-    /// (<c>S:\</c>), which <see cref="Path.TrimEndingDirectorySeparator(string)"/> does not remove (review WP-77, M2).
-    /// </summary>
-    private static string Below(string fullRoot) =>
-        Path.EndsInDirectorySeparator(fullRoot) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
+    /// <inheritdoc cref="UserFolderPaths.Prefix"/>
+    private static string Below(string fullRoot) => UserFolderPaths.Prefix(fullRoot);
 
-    /// <summary>
-    /// A file or folder that is a symbolic link or junction; false for one that does not exist. Other reparse points (files
-    /// of OneDrive kept only online) are no links: <see cref="FileSystemInfo.LinkTarget"/> names only links.
-    /// </summary>
-    public static bool IsLink(string path)
-    {
-        try
-        {
-            FileSystemInfo info = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
-            return info.Exists && info.LinkTarget is not null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            return true; // cannot be looked at: not followed
-        }
-    }
+    /// <inheritdoc cref="UserFolderPaths.IsLink"/>
+    public static bool IsLink(string path) => UserFolderPaths.IsLink(path);
 }

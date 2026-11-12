@@ -50,6 +50,52 @@ public sealed class CodeChangeWriterTests
         Assert.Equal("// mine", File.ReadAllText(clone.Combine("C.cs")));
     }
 
+    /// <summary>Review WP-41, M2: a junction in the work clone is neither read nor written through; a junction needs no rights.</summary>
+    [Fact]
+    public async Task A_junction_in_the_work_clone_is_not_scanned_and_not_written_through()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Junctions exist only on Windows.");
+        }
+
+        using var folder = new TestFolder();
+        var outside = folder.Combine("outside");
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "Kunde.cs"), "class Kunde {}");
+        var clone = folder.Combine("clone");
+        Directory.CreateDirectory(clone);
+        using (var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe")
+               {
+                   ArgumentList = { "/c", "mklink", "/J", Path.Combine(clone, "joined"), outside },
+                   UseShellExecute = false,
+                   RedirectStandardOutput = true,
+                   CreateNoWindow = true,
+               })!)
+        {
+            mklink.WaitForExit();
+            Assert.Equal(0, mklink.ExitCode);
+        }
+
+        var scan = CodeScan.Read(clone, ["Kunde"], TestContext.Current.CancellationToken);
+        var plan = new CodeChangePlan(clone, [new FileChange(Path.Combine(clone, "joined", "Neu.cs"), Path.Combine("joined", "Neu.cs"), null, "class Neu {}", CodeFileFormat.Default)], [], []);
+        var results = await CodeChangeWriter.WriteAsync(plan, TestContext.Current.CancellationToken);
+
+        Assert.Empty(scan.Files);
+        Assert.Equal(FileWriteOutcome.Failed, Assert.Single(results).Outcome);
+        Assert.False(File.Exists(Path.Combine(outside, "Neu.cs")));
+    }
+
+    /// <summary>Review WP-41, M2: a drive (S:\) keeps its separator – every path below it was "outside".</summary>
+    [Fact]
+    public void A_drive_as_work_clone_has_its_files_below_it()
+    {
+        var drive = Path.GetPathRoot(Path.GetTempPath())!;
+
+        Assert.True(CodeChangeWriter.Below(drive, Path.Combine(drive, "no-such-folder-wp41", "A.cs")));
+        Assert.False(CodeChangeWriter.Below(drive, drive));
+    }
+
     [Theory]
     [InlineData("..")] // beside the work clone
     [InlineData("")] // the work clone itself

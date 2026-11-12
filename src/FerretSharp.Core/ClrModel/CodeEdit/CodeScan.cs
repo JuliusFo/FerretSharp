@@ -402,16 +402,6 @@ public sealed class CodeScan
         }
     }
 
-    /// <summary>A junction, symbolic link or other reparse point – or a path that cannot be looked at.</summary>
-    internal static bool IsLink(string path)
-    {
-        try
-        {
-            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
+    /// <summary>A junction or symbolic link – or a path that cannot be looked at (not OneDrive placeholders, review WP-41).</summary>
+    internal static bool IsLink(string path) => FerretSharp.Core.IO.UserFolderPaths.IsLink(path);
 }

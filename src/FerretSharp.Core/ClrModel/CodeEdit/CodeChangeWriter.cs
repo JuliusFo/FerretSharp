@@ -34,8 +34,6 @@ public sealed record FileWriteResult(string Relative, FileWriteOutcome Outcome, 
 /// </summary>
 public static class CodeChangeWriter
 {
-    private static readonly StringComparison PathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-
     public static async Task<IReadOnlyList<FileWriteResult>> WriteAsync(CodeChangePlan plan, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(plan);
@@ -118,18 +116,13 @@ public static class CodeChangeWriter
     /// </summary>
     internal static bool Below(string root, string path)
     {
-        if (!Path.IsPathFullyQualified(root) || !Path.IsPathFullyQualified(path))
+        if (!UserFolderPaths.IsBelow(root, path))
         {
-            return false;
+            return false; // also a drive as root (S:\), review WP-41
         }
 
         var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         var full = Path.GetFullPath(path);
-        if (!full.StartsWith(fullRoot + Path.DirectorySeparatorChar, PathComparison))
-        {
-            return false;
-        }
-
         for (var folder = Path.GetDirectoryName(full); folder is not null && folder.Length > fullRoot.Length; folder = Path.GetDirectoryName(folder))
         {
             if (Directory.Exists(folder) && CodeScan.IsLink(folder))
