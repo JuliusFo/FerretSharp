@@ -1664,6 +1664,7 @@
   </data>
   <data name="Synonyms_DropTitle" xml:space="preserve">
     <value>Drop synonym {0}</value>
+    <comment>{0}: the synonym</comment>
   </data>
   <data name="Synonyms_NameMissing" xml:space="preserve">
     <value>The synonym needs a name.</value>
@@ -1695,6 +1696,7 @@
   </data>
   <data name="SynonymList_Heading" xml:space="preserve">
     <value>Private synonyms of {0}</value>
+    <comment>{0}: the schema (owner)</comment>
   </data>
   <data name="SynonymList_None" xml:space="preserve">
     <value>The schema has no private synonyms.</value>

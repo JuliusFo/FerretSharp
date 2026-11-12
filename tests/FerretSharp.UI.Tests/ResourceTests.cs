@@ -17,6 +17,11 @@ public sealed class ResourceTests
         Assert.Empty(ResourceChecks.Problems(type));
     }
 
+    /// <summary>Review 3.70.0, D11: every English text with a placeholder says in its comment what the placeholder stands for.</summary>
+    [Fact]
+    public void Every_text_with_a_placeholder_has_a_comment_for_the_translator() =>
+        Assert.Empty(ResourceChecks.UncommentedPlaceholders("FerretSharp.UI"));
+
     [Fact]
     public void The_texts_follow_the_UI_culture()
     {

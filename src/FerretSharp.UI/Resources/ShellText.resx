@@ -1116,6 +1116,7 @@
   </data>
   <data name="WorkClone_StatusTitle" xml:space="preserve">
     <value>Work clone of this group: {0}. Click to switch.</value>
+    <comment>{0}: path of the work clone</comment>
   </data>
   <data name="Status_CopyValuesLabel" xml:space="preserve">
     <value>{0} → clipboard</value>
@@ -1444,6 +1445,7 @@
   </data>
   <data name="DataDiff_Restore" xml:space="preserve">
     <value>Set back to {0} ({1})</value>
+    <comment>{0}: the start point in time; {1}: number of rows chosen</comment>
   </data>
   <data name="DataDiff_RestoreTitle" xml:space="preserve">
     <value>The ticked rows become pending changes of the table's tab: a deleted row is inserted again, a changed one gets its old values, an added one is deleted. Nothing is written until you write.</value>
@@ -1459,27 +1461,35 @@
   </data>
   <data name="Restore_DoneOne" xml:space="preserve">
     <value>{0} change in {1} pending – back to {2:g}. Nothing is written yet.</value>
+    <comment>{0}: number of changes; {1}: the table; {2}: the start point in time</comment>
   </data>
   <data name="Restore_DoneOther" xml:space="preserve">
     <value>{0} changes in {1} pending – back to {2:g}. Nothing is written yet.</value>
+    <comment>{0}: number of changes; {1}: the table; {2}: the start point in time</comment>
   </data>
   <data name="Restore_AlreadyChangedOne" xml:space="preserve">
     <value>{0} row left alone: the tab has changes of it already.</value>
+    <comment>{0}: number of rows</comment>
   </data>
   <data name="Restore_AlreadyChangedOther" xml:space="preserve">
     <value>{0} rows left alone: the tab has changes of them already.</value>
+    <comment>{0}: number of rows</comment>
   </data>
   <data name="Restore_NotRestorableOne" xml:space="preserve">
     <value>{0} row left alone: a value cannot be written back exactly as it was (a LONG or XMLTYPE, a type the grid does not write such as INTERVAL or BINARY_DOUBLE, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
+    <comment>{0}: number of rows</comment>
   </data>
   <data name="Restore_NotRestorableOther" xml:space="preserve">
     <value>{0} rows left alone: a value cannot be written back exactly as it was (a LONG or XMLTYPE, a type the grid does not write such as INTERVAL or BINARY_DOUBLE, a time zone region, fractions of a second beyond 7 digits, a number of more than 28 digits).</value>
+    <comment>{0}: number of rows</comment>
   </data>
   <data name="Restore_GoneOne" xml:space="preserve">
     <value>{0} row is no longer as the comparison saw it (deleted or inserted again since) – compare again.</value>
+    <comment>{0}: number of rows</comment>
   </data>
   <data name="Restore_GoneOther" xml:space="preserve">
     <value>{0} rows are no longer as the comparison saw them (deleted or inserted again since) – compare again.</value>
+    <comment>{0}: number of rows</comment>
   </data>
   <data name="Restore_StructureChanged" xml:space="preserve">
     <value>The table's tab works with another version of its columns. Write or discard its changes and reload it first.</value>
@@ -1498,6 +1508,7 @@
   </data>
   <data name="TimePoint_TravelText" xml:space="preserve">
     <value>Show {0} as it was at:</value>
+    <comment>{0}: the table</comment>
   </data>
   <data name="TimePoint_DiffText" xml:space="preserve">
     <value>Compare with the state at:</value>
@@ -1507,15 +1518,18 @@
   </data>
   <data name="TimePoint_MinutesAgo" xml:space="preserve">
     <value>{0} min ago</value>
+    <comment>{0}: number of minutes</comment>
   </data>
   <data name="TimePoint_Time" xml:space="preserve">
     <value>Date and time</value>
   </data>
   <data name="TimePoint_UndoReach" xml:space="preserve">
     <value>The database's undo reaches back to about {0:t} – earlier states may be gone.</value>
+    <comment>{0}: the earliest time the undo reaches</comment>
   </data>
   <data name="TimePoint_BeforeUndo" xml:space="preserve">
     <value>Before {0:t}: the database's undo probably no longer reaches back so far.</value>
+    <comment>{0}: the earliest time the undo reaches</comment>
   </data>
   <data name="TimePoint_BeyondUndo" xml:space="preserve">
     <value>Probably beyond the database's undo</value>
@@ -1534,9 +1548,11 @@
   </data>
   <data name="Restore_TooLargeOne" xml:space="preserve">
     <value>{0} row left alone: a LOB is longer than {1}.</value>
+    <comment>{0}: number of rows; {1}: the size limit</comment>
   </data>
   <data name="Restore_TooLargeOther" xml:space="preserve">
     <value>{0} rows left alone: a LOB is longer than {1}.</value>
+    <comment>{0}: number of rows; {1}: the size limit</comment>
   </data>
   <data name="DataDiff_Restoring" xml:space="preserve">
     <value>Reading the rows to set back …</value>

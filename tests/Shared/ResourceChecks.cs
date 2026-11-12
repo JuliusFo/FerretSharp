@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Resources;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace FerretSharp.Testing;
 
@@ -21,6 +22,21 @@ internal static partial class ResourceChecks
                 && t.Name.EndsWith("Text", StringComparison.Ordinal)
                 && t.GetProperty("ResourceManager", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static) is not null)
             .OrderBy(t => t.Name, StringComparer.Ordinal)];
+
+    /// <summary>
+    /// The English texts of a project's <c>Resources/*.resx</c> with a placeholder but no comment that says what it stands for
+    /// (review 3.70.0, D11: 44 such texts, after D14 of 3.54 the second time). The translator sees only the text.
+    /// </summary>
+    public static IReadOnlyList<string> UncommentedPlaceholders(string project) =>
+        [.. Directory.GetFiles(Path.Combine(Repository.Root, "src", project, "Resources"), "*.resx")
+            .Where(f => !f.EndsWith(".de.resx", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(f => XDocument.Load(f).Root!.Elements("data")
+                .Where(d => Placeholder().IsMatch((string?)d.Element("value") ?? "") && string.IsNullOrWhiteSpace((string?)d.Element("comment")))
+                .Select(d => $"{Path.GetFileName(f)}: {(string?)d.Attribute("name")}"))
+            .Order(StringComparer.Ordinal)];
+
+    [GeneratedRegex(@"\{\d")]
+    private static partial Regex Placeholder();
 
     /// <summary>Everything wrong with the texts of one class, as readable lines; empty if all is well.</summary>
     public static IReadOnlyList<string> Problems(Type textClass)
