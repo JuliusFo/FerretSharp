@@ -45,7 +45,7 @@ public sealed class SettingsStore(string filePath)
                 case JsonFileState.Ok:
                     var skipped = new List<string>();
                     return new(Normalized(read.Document!.Settings!, skipped), skipped);
-                case JsonFileState.Broken when read.Error is JsonException error && await WithoutUnreadableAsync(error, cancellationToken) is { } partly:
+                case JsonFileState.Broken when read.Error is JsonException && WithoutUnreadable(read.Content) is { } partly:
                     return partly;
                 case JsonFileState.Empty:
                     throw new SettingsStoreException(TextFormat.Format(CoreText.FileEmpty, FilePath));
@@ -118,52 +118,74 @@ public sealed class SettingsStore(string filePath)
         typeof(AppSettings).GetProperties().Where(p => p.PropertyType.IsEnum && p.CanWrite).ToArray();
 
     /// <summary>
-    /// The settings without those the serializer could not read: each error names its setting in its path
-    /// (<c>$.settings.theme</c>, also <c>$.settings.shortcuts.x</c> for a value inside one); that setting is left out and the
-    /// rest read again, until it works. Null if an error lies outside a single setting – then the file stays broken.
+    /// The settings of a file the serializer could not read, without what it could not read (<paramref name="content"/> is the
+    /// text <see cref="VersionedJsonFile"/> read). First an entry of a map that is no text (<c>"shortcuts": { "x": 5 }</c>):
+    /// only that entry goes – its error names no setting in its path (<c>$.x</c>, the map's converter reads on its own) and
+    /// would otherwise lose the whole file (code review). Then each error names its setting in its path (<c>$.settings.theme</c>);
+    /// that setting is left out and the rest read again, until it works. Null if an error lies outside a single setting, or the
+    /// text cannot be taken apart (a duplicate key throws <see cref="ArgumentException"/> only when the object is first used –
+    /// it stopped the start, code review): then the file stays broken.
     /// </summary>
-    private async Task<SettingsRead?> WithoutUnreadableAsync(JsonException first, CancellationToken cancellationToken)
+    private static SettingsRead? WithoutUnreadable(string? content)
     {
-        JsonNode? root;
+        if (content is null)
+        {
+            return null;
+        }
+
         try
         {
-            root = JsonNode.Parse(await File.ReadAllTextAsync(FilePath, cancellationToken));
-        }
-        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-
-        if (root is not JsonObject { } document || document["settings"] is not JsonObject settings)
-        {
-            return null;
-        }
-
-        var skipped = new List<string>();
-        for (var error = first; ;)
-        {
-            if (SettingOf(error.Path) is not { } name
-                || settings.FirstOrDefault(p => string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase)).Key is not { } key)
+            if (JsonNode.Parse(content) is not JsonObject document || document["settings"] is not JsonObject settings)
             {
                 return null;
             }
 
-            settings.Remove(key);
-            skipped.Add(key);
-            try
+            var skipped = new List<string>();
+            foreach (var (name, value) in settings.ToList())
             {
-                return document.Deserialize<SettingsDocument>(JsonFiles.Options)?.Settings is { } read ? new(Normalized(read, skipped), skipped) : null;
+                if (value is JsonObject map && MapSettings.Contains(name))
+                {
+                    foreach (var (key, entry) in map.ToList())
+                    {
+                        if (entry?.GetValueKind() is not JsonValueKind.String)
+                        {
+                            map.Remove(key);
+                            skipped.Add($"{name}.{key}");
+                        }
+                    }
+                }
             }
-            catch (JsonException next)
+
+            while (true)
             {
-                error = next;
+                try
+                {
+                    return document.Deserialize<SettingsDocument>(JsonFiles.Options)?.Settings is { } read ? new(Normalized(read, skipped), skipped) : null;
+                }
+                catch (JsonException error)
+                {
+                    if (SettingOf(error.Path) is not { } name
+                        || settings.FirstOrDefault(p => string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase)).Key is not { } key)
+                    {
+                        return null;
+                    }
+
+                    settings.Remove(key); // one setting less each round: the loop ends
+                    skipped.Add(key);
+                }
             }
-            catch (NotSupportedException)
-            {
-                return null;
-            }
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException or ArgumentException or InvalidOperationException)
+        {
+            return null;
         }
     }
+
+    /// <summary>The settings that are maps of text (<see cref="SettingsMap"/>), by their name in the file (any case, as the serializer reads them).</summary>
+    private static readonly HashSet<string> MapSettings = typeof(AppSettings).GetProperties()
+        .Where(p => p.PropertyType == typeof(SettingsMap))
+        .Select(p => JsonNamingPolicy.CamelCase.ConvertName(p.Name))
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The setting a JSON path lies in: <c>theme</c> for <c>$.settings.theme</c>, <c>$.settings.theme.x</c> or <c>$.settings['theme']</c>.</summary>
     internal static string? SettingOf(string? path)

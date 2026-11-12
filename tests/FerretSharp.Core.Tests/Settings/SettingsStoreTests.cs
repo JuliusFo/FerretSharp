@@ -140,6 +140,36 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(["theme", "fkCounts"], read.Skipped);
     }
 
+    /// <summary>
+    /// Code review: an entry of a map that is no text failed with the path <c>$.openTable</c> (the map's converter reads on its
+    /// own), naming no setting – the whole file was lost. Now only that entry goes.
+    /// </summary>
+    [Fact]
+    public async Task An_entry_of_a_map_that_is_no_text_goes_alone()
+    {
+        await File.WriteAllTextAsync(_store.FilePath,
+            """{ "version": 1, "settings": { "shortcuts": { "openTable": 5, "openSql": "Ctrl+K", "x": null }, "language": "german" } }""", Ct);
+
+        var read = await _store.ReadAsync(Ct);
+
+        Assert.Equal(("Ctrl+K", 1, UiLanguage.German), (read.Settings.Shortcuts["openSql"], read.Settings.Shortcuts.Count, read.Settings.Language));
+        Assert.Equal(["shortcuts.openTable", "shortcuts.x"], read.Skipped);
+    }
+
+    /// <summary>
+    /// Code review: a duplicate key alone is read (the last one wins), but taking the file apart to leave out an unreadable
+    /// value threw ArgumentException at the first use of the object – past every handler, FerretSharp did not start.
+    /// </summary>
+    [Fact]
+    public async Task A_file_that_cannot_be_taken_apart_stays_broken()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "purple", "theme": "dark", "language": "german" } }""", Ct);
+
+        await Assert.ThrowsAsync<SettingsStoreException>(() => _store.ReadAsync(Ct));
+        var service = await AppSettingsService.OpenAsync(_store, Start, Ct);
+        Assert.Equal(AppSettings.Default, service.Current);
+    }
+
     [Theory]
     [InlineData("$.settings.theme", "theme")]
     [InlineData("$.settings.shortcuts.openTable", "shortcuts")] // a value inside a map: the whole setting
@@ -291,6 +321,30 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Die Einstellungsdatei ließ sich beim Start nicht lesen.", refused.Message);
         Assert.EndsWith("FerretSharp startet mit den Standardeinstellungen und speichert in dieser Sitzung keine Einstellungen, damit die Datei bleibt, wie sie ist.",
             service.StartupNotice);
+    }
+
+    /// <summary>
+    /// Code review: without a copy, a file read in part is not saved over either; and the notice is in the language of the
+    /// moment it is shown – the language is one of the settings read, and the app sets it only after reading them.
+    /// </summary>
+    [Fact]
+    public async Task Settings_left_out_without_a_copy_save_nothing_and_are_told_in_the_language_set_later()
+    {
+        const string content = """{ "version": 1, "settings": { "theme": "purple", "language": "english" } }""";
+        await File.WriteAllTextAsync(_store.FilePath, content, Ct);
+        await File.WriteAllTextAsync(_store.FilePath + ".bad-20261011-153000", "", Ct); // the copy cannot be made
+
+        var service = await AppSettingsService.OpenAsync(_store, Start, Ct);
+        await Assert.ThrowsAsync<IOException>(() => service.UpdateAsync(s => s with { KeepAlive = false }, Ct));
+
+        Assert.Equal(content, await File.ReadAllTextAsync(_store.FilePath, Ct));
+        using (UiCulture.Use("en"))
+        {
+            Assert.Equal(
+                $"Some settings in {_store.FilePath} could not be read and have their defaults: theme. The other settings were read; FerretSharp saves no settings in this session, so the file stays as it is.",
+                service.StartupNotice);
+            Assert.Equal("The settings file could not be read at start.", service.NotSaving);
+        }
     }
 
     [Fact]

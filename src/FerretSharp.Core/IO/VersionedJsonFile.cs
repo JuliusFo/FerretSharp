@@ -27,7 +27,9 @@ public enum JsonFileState
 /// <summary>A read of a versioned JSON file: its state, the document (only <see cref="JsonFileState.Ok"/>) and why not.</summary>
 /// <param name="Version">The <c>version</c> in the file; null if it has none or it was not read.</param>
 /// <param name="Error">What went wrong for <see cref="JsonFileState.Broken"/> and <see cref="JsonFileState.Unreadable"/>.</param>
-public sealed record JsonFileRead<T>(JsonFileState State, T? Document, int? Version, Exception? Error = null) where T : class;
+/// <param name="Content">The text read, for <see cref="JsonFileState.Broken"/> only: a store that can mend part of it (the settings,
+/// fix/robustness) reads it from here, not from the file a second time.</param>
+public sealed record JsonFileRead<T>(JsonFileState State, T? Document, int? Version, Exception? Error = null, string? Content = null) where T : class;
 
 /// <summary>
 /// Reading FerretSharp's own versioned JSON files (connections, recent connections, settings, workspaces, SQL history,
@@ -53,10 +55,11 @@ public static class VersionedJsonFile
         }
 
         int? version = null;
+        string? content = null;
         try
         {
-            await using var stream = File.OpenRead(path);
-            using var json = await JsonDocument.ParseAsync(stream, default, cancellationToken);
+            content = await File.ReadAllTextAsync(path, cancellationToken);
+            using var json = JsonDocument.Parse(content);
             var root = json.RootElement;
             if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("version", out var number) && number.TryGetInt32(out var found))
             {
@@ -75,7 +78,7 @@ public static class VersionedJsonFile
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             // NotSupportedException: polymorphic JSON without "type", or with "type" not first (edited by hand).
-            return new(JsonFileState.Broken, null, version, ex);
+            return new(JsonFileState.Broken, null, version, ex, content);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
