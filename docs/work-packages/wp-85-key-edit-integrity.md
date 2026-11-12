@@ -48,3 +48,5 @@ Zweiter Durchgang über die Fixes:
 - C. K – Die Längengrenze galt vor dem Trimmen (ein eingefügter Wert mit Leerzeichen drumherum wurde abgelehnt): behoben.
 - D. K – Der Zeittest konnte am ersten Zugriff (Regex, JIT) flackern: aufgewärmt, 100 000 Zeichen, Grenze 1 s.
 
+E2E nach dem Review (eigene Testinstanz und Container wie oben): Der Filter auf der TSTZ-Spalte zeigt den Platzhalter `TT.MM.JJJJ [hh:mm] [+hh:mm]`. Die TIMESTAMP(9)-Zeile aus einer zweiten Session gesperrt, dann geschrieben: Schreibproblem-Dialog „Zeile ist gesperrt“ mit „Zeile 08.10.2026 12:00:00,123456789“ – Oracle fand die Zeile über den exakten Schlüssel (Sperre statt „inzwischen gelöscht“). Keine neuen Warnungen im Log. Formular bei gelöschter Zeile und Umsortieren nur per Unit-Test geprüft.
+
