@@ -57,7 +57,7 @@ Entscheidung des Nutzers: Auch `DROP TABLE … PURGE` (am Papierkorb vorbei, kei
 Entscheidung des Nutzers: Auch diese Formen werden wie TRUNCATE nie ausgeführt (gegen Oracle 23 gemessen):
 - `ALTER TABLE … MOVE [ONLINE] INCLUDING ROWS WHERE …`, ebenso `SPLIT`/`MERGE PARTITION(S) … INCLUDING ROWS`: Nur die Zeilen der Bedingung bleiben, die anderen sind weg, ohne Eintrag im Papierkorb (10 Zeilen → 5).
 - `DROP TYPE … FORCE`: Die Spalten dieses Typs in anderen Tabellen sind danach weg (unused). Ohne `FORCE` lehnt Oracle ab, solange eine Tabelle den Typ nutzt (ORA-02303).
-- `ALTER TYPE … DROP ATTRIBUTE … CASCADE` und `… INVALIDATE`: Die Werte des Attributs sind in jeder Tabelle weg (auch nach erneutem `ADD ATTRIBUTE` NULL). Ohne eins von beiden lehnt Oracle ab, solange eine Tabelle den Typ nutzt (ORA-22312). `INVALIDATE` steht nicht in der Frage des Reviews, wirkt aber gemessen gleich.
+- `ALTER TYPE … DROP ATTRIBUTE … CASCADE` und `… INVALIDATE`: Die Werte des Attributs sind in jeder Tabelle weg (auch nach erneutem `ADD ATTRIBUTE` NULL). Ohne eins von beiden lehnt Oracle ab, solange eine Tabelle den Typ nutzt (ORA-22312). `INVALIDATE` steht nicht in der Frage des Reviews, wirkt aber gemessen gleich – Vorschlag (nicht bestätigt).
 
 Gemessen außerdem: `CREATE INDEX … ONLINE` und `ALTER INDEX … REBUILD ONLINE` warten wie `ALTER TABLE … ADD` auf jede offene Transaktion auf der Tabelle, auch über einen Abbruch hinweg (164 s). Der Schemaweg holt sich deshalb auch vor `CREATE INDEX` die Tabelle und vor `ALTER INDEX … ONLINE` die Tabelle des Index (`ALL_INDEXES`). Ohne `ONLINE` scheitern beide sofort mit ORA-00054.
 

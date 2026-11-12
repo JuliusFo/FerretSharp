@@ -65,7 +65,7 @@ public sealed class DisplayColumnSource : IDisposable
         _defaultPath = defaultPath;
         _clock = clock ?? TimeProvider.System;
         _file = new(Read, Unreadable, _clock);
-        _quiet = new QuietTimer(Quiet, Reload);
+        _quiet = new QuietTimer(Quiet, Reload, _clock);
         _reported = (PathOf(settings.Current), settings.Current.ShowDisplayNames, Load(PathOf(settings.Current)));
         Watching = watch;
         if (watch)

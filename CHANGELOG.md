@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 Fixes, structure, tests and docs after the review of 3.70.0 (R9).
 
 ### Security
-- DDL that drops rows or the data of a type is never run, like TRUNCATE: `ALTER TABLE … MOVE/SPLIT/MERGE … INCLUDING ROWS WHERE`, `DROP TYPE … FORCE` and `ALTER TYPE … DROP ATTRIBUTE … CASCADE` or `INVALIDATE`.
+- DDL that drops rows or the data of a type is never run, like TRUNCATE: `ALTER TABLE … MOVE/SPLIT/MERGE … INCLUDING ROWS WHERE`, `DROP TYPE … FORCE` and `ALTER TYPE … DROP ATTRIBUTE … CASCADE` (and `INVALIDATE`, which loses the values the same way).
 - A password typed for this run and refused by the database is forgotten everywhere: "Refresh" on the server load page sent it again and could lock the account.
 - "Usage" looks for a moved class only in files really below the work clone, never behind a junction or symbolic link.
 

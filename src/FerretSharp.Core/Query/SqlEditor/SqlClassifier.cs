@@ -107,8 +107,9 @@ public static class SqlClassifier
             // only the rows of the condition, the others are gone without a trace in the recycle bin.
             "ALTER" when second == "TABLE" && Follows(tokens, "INCLUDING", "ROWS") => SqlStatementKind.Truncate,
             // The same: DROP TYPE … FORCE drops the columns of that type in other tables (unused, data gone); dropping an
-            // attribute with CASCADE or INVALIDATE drops its values in every table – without either, Oracle refuses while
-            // tables use the type (ORA-02303, ORA-22312).
+            // attribute with CASCADE drops its values in every table – without CASCADE or INVALIDATE, Oracle refuses while
+            // tables use the type (ORA-02303, ORA-22312). INVALIDATE: a proposal, not confirmed by the user yet – measured,
+            // it loses the values the same way.
             "DROP" when second == "TYPE" && Follows(tokens, "FORCE") => SqlStatementKind.Truncate,
             "ALTER" when second == "TYPE" && Follows(tokens, "DROP", "ATTRIBUTE") && (Follows(tokens, "CASCADE") || Follows(tokens, "INVALIDATE"))
                 => SqlStatementKind.Truncate,

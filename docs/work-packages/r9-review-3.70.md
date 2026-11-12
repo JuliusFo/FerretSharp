@@ -43,4 +43,4 @@ Eigene Testinstanz (`tools/e2e`, `--data-dir` im Scratchpad, `--lang=de`), eigen
 
 ## Tests
 Vor R9 (Snapshot `213bd507`): 4848 (Core 3438, UI 1044 inkl. JS, Integration 366).
-Nach R9: 4916 (Core 3495, UI 1055 inkl. JS, Integration 366), `dotnet build -warnaserror` ohne Warnung. Der Integrationstest `Index_on_a_table_another_session_has_written_to_fails_at_once` erwartet jetzt `TableBusyException` statt ORA-00054 (Folge von A17; der Designer zeigt die Sperrhalter für beide).
+Nach R9: 4916 (Core 3496, UI 1054 inkl. JS, Integration 366), `dotnet build -warnaserror` ohne Warnung. Der Integrationstest `Index_on_a_table_another_session_has_written_to_fails_at_once` erwartet jetzt `TableBusyException` statt ORA-00054 (Folge von A17; der Designer zeigt die Sperrhalter für beide).
