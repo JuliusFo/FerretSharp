@@ -46,17 +46,25 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'git ls-files failed.' }
     # Like the CI job line-endings, but read-only (no renormalize, the index stays as it is): a text file whose
     # staged or committed form has CRLF. Only what is in the index counts; unstaged edits are normalized on git add.
-    $eol = git -C $root -c core.quotePath=false ls-files --eol
+    # Lines: "<mode> <blob> <stage>`t<i/… w/… attr/…>`t<path>".
+    $eol = git -C $root -c core.quotePath=false ls-files --stage --eol
     if ($LASTEXITCODE -ne 0) { throw 'git ls-files --eol failed.' }
+    $crlf = @(foreach ($line in $eol) {
+        $meta, $info, $path = $line -split "`t", 3
+        if ($info -match '^i/(crlf|mixed)\s' -and $info -notmatch '\sattr/-text\s') { "$info $path"; continue }
+        # i/-text is a stray CR or a NUL byte. Under an explicit "text" attribute the CI renormalizes such a file all
+        # the same, which only changes it if it has a CRLF: hash the blob as git add would, without writing anything
+        # (pwsh 7.4+ pipes bytes between native commands unchanged). Under text=auto it stays binary in both places.
+        if ($info -match '^i/-text\s' -and $info -match '\sattr/text(\s|$)') {
+            $blob = ($meta -split ' ')[1]
+            $clean = git -C $root cat-file blob $blob | git -C $root hash-object --stdin "--path=$path"
+            if ($LASTEXITCODE -ne 0) { throw "git hash-object failed for $path." }
+            if ($clean -ne $blob) { "$info $path" }
+        }
+    })
 } finally {
     [Console]::OutputEncoding = $encoding
 }
-# A stray CR (CR CR LF) makes git call the content binary (i/-text) even under an explicit "text" attribute; the CI
-# renormalizes such a file all the same, so it counts here too. Under text=auto it stays binary in both places.
-$crlf = @($eol | Where-Object {
-    ($_ -match '^i/(crlf|mixed)\s' -and $_ -notmatch '\sattr/-text\s') -or
-    ($_ -match '^i/-text\s' -and $_ -match '\sattr/text(\s|$)')
-})
 if ($crlf.Count -gt 0) {
     $crlf | ForEach-Object { Write-Host $_ }
     throw ("$($crlf.Count) file(s) with CRLF in the index; the CI job line-endings fails on them. Fix with: " +
