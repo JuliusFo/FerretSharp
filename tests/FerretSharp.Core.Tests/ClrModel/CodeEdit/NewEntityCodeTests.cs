@@ -176,6 +176,21 @@ public sealed class NewEntityCodeTests
         Assert.Contains("    public string? Notiz { get; set; }\n", valid.Files.Single(f => f.Relative == Path.Combine("App", "Auftrag.cs")).NewText, StringComparison.Ordinal);
     }
 
+    /// <summary>Second review of WP-41, N4: a regex read &lt;Nullable&gt; from comments and conditions.</summary>
+    [Theory]
+    [InlineData("<Project><!-- <Nullable>disable</Nullable> --><PropertyGroup><Nullable>enable</Nullable></PropertyGroup></Project>", true)]
+    [InlineData("<Project><PropertyGroup Condition=\"'$(X)' == 'y'\"><Nullable>enable</Nullable></PropertyGroup></Project>", null)]
+    [InlineData("<Project><PropertyGroup><Nullable>enable</Nullable></PropertyGroup><PropertyGroup><Nullable>disable</Nullable></PropertyGroup></Project>", false)]
+    [InlineData("not xml", null)]
+    public void Nullable_reference_types_are_read_as_msbuild_reads_them(string project, bool? expected)
+    {
+        using var clone = new TestFolder();
+        Write(clone, "Directory.Build.props", "<Project><PropertyGroup><Nullable>enable</Nullable></PropertyGroup></Project>");
+        Write(clone, "App/App.csproj", project);
+
+        Assert.Equal(expected, EntityCodeChanges.ProjectNullable(clone.Path, clone.Combine("App")));
+    }
+
     [Fact]
     public async Task A_file_or_type_that_exists_is_never_written_over()
     {

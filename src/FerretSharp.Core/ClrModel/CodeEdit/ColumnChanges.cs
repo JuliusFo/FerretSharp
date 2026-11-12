@@ -60,18 +60,37 @@ public static class ColumnChanges
         ArgumentNullException.ThrowIfNull(renames);
         var now = after.GroupBy(c => c.Name, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var matched = new HashSet<string>(StringComparer.Ordinal);
+        var assigned = new Dictionary<string, ColumnInfo>(StringComparer.Ordinal);
+        // Renames first: "drop STATUS, rename STATUS_NEU to STATUS" must not give the new STATUS to the old one (second
+        // review of WP-41). A rename counts if its target is there and its source is gone – else it did not run.
+        foreach (var column in before.Columns)
+        {
+            if (renames.TryGetValue(column.Name, out var renamed) && renamed != column.Name && !now.ContainsKey(column.Name)
+                && now.TryGetValue(renamed, out var moved) && matched.Add(moved.Name))
+            {
+                assigned[column.Name] = moved;
+            }
+        }
+
+        // Then the same names, each column of now once.
+        foreach (var column in before.Columns)
+        {
+            if (!assigned.ContainsKey(column.Name) && now.TryGetValue(column.Name, out var same) && matched.Add(same.Name))
+            {
+                assigned[column.Name] = same;
+            }
+        }
+
         var changes = new List<ColumnChange>();
         foreach (var column in before.Columns)
         {
-            var current = renames.TryGetValue(column.Name, out var renamed) && now.TryGetValue(renamed, out var moved) ? moved
-                : now.GetValueOrDefault(column.Name);
+            var current = assigned.GetValueOrDefault(column.Name);
             if (current is null)
             {
                 changes.Add(new ColumnChange(ColumnChangeKind.Dropped, column.Name, column, null));
                 continue;
             }
 
-            matched.Add(current.Name);
             if (current.Name != column.Name)
             {
                 changes.Add(new ColumnChange(ColumnChangeKind.Renamed, column.Name, column, current));

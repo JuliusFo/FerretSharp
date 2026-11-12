@@ -584,26 +584,30 @@ public static partial class EntityCodeChanges
     internal static bool? ProjectNullable(string root, string folder)
     {
         var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-        bool? project = null;
         var projectSeen = false;
         for (var current = Path.GetFullPath(folder); current is not null && current.Length >= fullRoot.Length; current = Path.GetDirectoryName(current))
         {
             try
             {
-                if (!projectSeen && Directory.GetFiles(current, "*.csproj") is [var csproj, ..])
+                if (!projectSeen && Directory.GetFiles(current, "*.csproj") is { Length: > 0 } projects)
                 {
                     projectSeen = true;
-                    project = NullableSetting(File.ReadAllText(csproj));
-                    if (project is not null)
+                    if (projects.Length > 1)
                     {
-                        return project;
+                        return null; // which one owns the file is not known: the files decide
+                    }
+
+                    if (NullableSetting(File.ReadAllText(projects[0])) is { } setting)
+                    {
+                        return setting.Value;
                     }
                 }
 
+                // MSBuild imports only the nearest Directory.Build.props; one above it only if that one says so.
                 var props = Path.Combine(current, "Directory.Build.props");
-                if (File.Exists(props) && NullableSetting(File.ReadAllText(props)) is { } inherited)
+                if (File.Exists(props))
                 {
-                    return inherited;
+                    return NullableSetting(File.ReadAllText(props))?.Value;
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -612,20 +616,46 @@ public static partial class EntityCodeChanges
             }
         }
 
-        return project;
+        return null;
     }
 
-    private static bool? NullableSetting(string msbuild) => NullableElement().Match(msbuild) is { Success: true } match
-        ? match.Groups[1].Value.ToLowerInvariant() switch
+    /// <summary>
+    /// The <c>&lt;Nullable&gt;</c> of a project or props file as MSBuild reads it: only from property groups without a
+    /// condition, the last one wins, comments do not count (second review of WP-41: a regex read them). A setting under a
+    /// condition, or a file that is no XML, gives an unknown value (<c>(null)</c>) – then the files decide; no setting at
+    /// all gives null.
+    /// </summary>
+    private static (bool? Value, bool Unknown)? NullableSetting(string msbuild)
+    {
+        System.Xml.Linq.XDocument document;
+        try
+        {
+            document = System.Xml.Linq.XDocument.Parse(msbuild);
+        }
+        catch (System.Xml.XmlException)
+        {
+            return (null, true);
+        }
+
+        var settings = document.Root?.Descendants().Where(e => e.Name.LocalName == "Nullable").ToList() ?? [];
+        if (settings.Count == 0)
+        {
+            return null;
+        }
+
+        if (settings.Any(e => e.Attribute("Condition") is not null || e.Parent is not { Name.LocalName: "PropertyGroup" } group
+                              || group.Attribute("Condition") is not null || group.Parent != document.Root))
+        {
+            return (null, true);
+        }
+
+        return (settings[^1].Value.Trim().ToLowerInvariant() switch
         {
             "enable" or "annotations" => true,
             "disable" or "warnings" => false,
             _ => null,
-        }
-        : null;
-
-    [GeneratedRegex(@"<Nullable>\s*(\w+)\s*</Nullable>", RegexOptions.IgnoreCase)]
-    private static partial Regex NullableElement();
+        }, false);
+    }
 
     /// <summary><c>string?</c> or <c>byte[]?</c> before the name of a declaration.</summary>
     [GeneratedRegex(@"\b(string|byte\[\])\? ")]

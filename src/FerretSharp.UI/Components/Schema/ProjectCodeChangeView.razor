@@ -194,6 +194,9 @@
 
     /// <summary>Writing ends only with the view: a new plan must not cut it off after the first file (review WP-41).</summary>
     private readonly CancellationTokenSource _lifetime = new();
+
+    /// <summary>A plan was asked for while writing (a name typed, a folder chosen): it runs once writing is done.</summary>
+    private bool _replanAfterWrite;
     private bool _disposed;
 
     protected override void OnInitialized()
@@ -236,9 +239,15 @@
     /// <summary>Starts a new plan after <paramref name="delayMs"/>; a plan still running is cancelled.</summary>
     private void Replan(double delayMs)
     {
-        if (_disposed || Models.Mapping is not { } mapping || _change?.Stage == CodeChangeStage.Writing)
+        if (_disposed || Models.Mapping is not { } mapping)
         {
-            return; // while writing, the plan stays – "Look at the work clone again" afterwards
+            return;
+        }
+
+        if (_change?.Stage == CodeChangeStage.Writing)
+        {
+            _replanAfterWrite = true; // not lost: once the files are written (second review of WP-41)
+            return;
         }
 
         _work?.Cancel();
@@ -270,6 +279,12 @@
             if (change.Results is { Count: > 0 } results && results.All(r => r.Succeeded))
             {
                 await OnWritten.InvokeAsync();
+            }
+
+            if (_replanAfterWrite)
+            {
+                _replanAfterWrite = false;
+                Replan(0);
             }
         }
     });

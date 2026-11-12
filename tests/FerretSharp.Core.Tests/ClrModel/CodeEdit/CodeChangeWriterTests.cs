@@ -77,6 +77,30 @@ public sealed class CodeChangeWriterTests
         }
     }
 
+    /// <summary>Second review of WP-41, N3: open in a program without delete sharing – the move over it failed halfway.</summary>
+    [Fact]
+    public async Task A_file_held_open_without_delete_sharing_keeps_every_file_of_the_plan_as_it_is()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Sharing is only advisory under Linux.");
+        }
+
+        using var clone = new TestFolder();
+        File.WriteAllText(clone.Combine("A.cs"), "class A {}");
+        File.WriteAllText(clone.Combine("B.cs"), "class B {}");
+        var plan = new CodeChangePlan(clone.Path, [Changed(clone, "A.cs", "class A { }"), Changed(clone, "B.cs", "class B { }")], [], []);
+
+        IReadOnlyList<FileWriteResult> results;
+        using (new FileStream(clone.Combine("B.cs"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+            results = await CodeChangeWriter.WriteAsync(plan, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal([FileWriteOutcome.Skipped, FileWriteOutcome.Failed], results.Select(r => r.Outcome));
+        Assert.Equal("class A {}", File.ReadAllText(clone.Combine("A.cs")));
+    }
+
     /// <summary>Review WP-41, M2: a junction in the work clone is neither read nor written through; a junction needs no rights.</summary>
     [Fact]
     public async Task A_junction_in_the_work_clone_is_not_scanned_and_not_written_through()

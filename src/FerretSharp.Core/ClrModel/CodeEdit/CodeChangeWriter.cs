@@ -113,7 +113,9 @@ public static class CodeChangeWriter
                 return (FileWriteOutcome.Failed, CodeEditText.Write_ReadOnly);
             }
 
-            using (new FileStream(file.Path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            // Without sharing: the move over it needs delete access, which a program holding it open without FILE_SHARE_DELETE
+            // refuses only at the move – halfway through the plan (second review of WP-41).
+            using (new FileStream(file.Path, FileMode.Open, FileAccess.Write, FileShare.None))
             {
             }
 
