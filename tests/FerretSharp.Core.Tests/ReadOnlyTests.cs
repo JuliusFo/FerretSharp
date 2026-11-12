@@ -193,8 +193,9 @@ public class ReadOnlyTests
         { typeof(IDatabaseConnection), ["PingIfIdleAsync", "SetActionAsync", "StopReadOnlySnapshotsAsync", "UseReadOnlySnapshotsAsync"] },
         { typeof(IDatabaseConnector), ["OpenAsync"] },
 
-        // WP-44, ADR 0047: the session beside the workspaces hands out only the read path (WP-78: also AS OF an SCN, and the current SCN).
-        { typeof(ReadSession), ["AsOf", "CurrentPointAsync", "ReadAsync"] },
+        // WP-44, ADR 0047: the session beside the workspaces hands out only the read path (WP-78: also AS OF an SCN, and the current SCN;
+        // review 3.70.0, A1: giving it up when a read hangs).
+        { typeof(ReadSession), ["AsOf", "CurrentPointAsync", "ReadAsync", "Reset"] },
         {
             typeof(IServerLoadReader), [
                 "ReadActiveSessionsAsync", "ReadCountersAsync", "ReadEnvironmentAsync", "ReadFullTextAsync", "ReadStatementInfoAsync", "ReadStatementsAsync", "ReadTopSinceLoadAsync",
