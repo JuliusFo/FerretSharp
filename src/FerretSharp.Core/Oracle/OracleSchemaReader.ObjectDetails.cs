@@ -127,7 +127,7 @@ public sealed partial class OracleSchemaReader
     private const string DdlSql = "SELECT DBMS_METADATA.GET_DDL(:object_type, :name, :owner) FROM DUAL";
 
     public Task<ObjectInfo> GetObjectInfoAsync(TableSummary table, CancellationToken cancellationToken) =>
-        session.ExecuteReaderAsync(ObjectInfoSql, [new("owner", table.Owner), new("name", table.Name), new("object_type", ObjectType(table.Kind))], async (reader, ct) =>
+        session.ExecuteReaderAsync(ObjectInfoSql, [new("owner", table.Owner), new("name", table.Name), new("object_type", table.Kind.ObjectType())], async (reader, ct) =>
         {
             if (!await reader.ReadAsync(ct))
             {
@@ -200,7 +200,7 @@ public sealed partial class OracleSchemaReader
 
     public Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken)
     {
-        var objectType = ObjectType(table.Kind).Replace(' ', '_');
+        var objectType = table.Kind.ObjectType().Replace(' ', '_');
         return session.ExecuteReaderAsync(DdlSql, [new("object_type", objectType), new("name", table.Name), new("owner", table.Owner)], async (reader, ct) =>
             await reader.ReadAsync(ct) && !reader.IsDBNull(0) ? reader.GetString(0).Trim() : "", cancellationToken);
     }

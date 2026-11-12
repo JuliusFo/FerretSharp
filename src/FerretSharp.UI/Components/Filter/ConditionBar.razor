@@ -33,7 +33,7 @@
                 @foreach (var text in _recent)
                 {
                     var t = text;
-                    <button class="menu-item condition-recent" title="@t" @onclick="async () => { menu.Close(); await UseAsync(t); }">@OneLine(t)</button>
+                    <button class="menu-item condition-recent" title="@t" @onclick="async () => { menu.Close(); await UseAsync(t); }">@SqlScript.OneLine(t)</button>
                 }
             </ChildContent>
         </MenuButton>
@@ -143,9 +143,6 @@
             _recent = [];
         }
     }
-
-    /// <summary>A condition on one line for the menu; the whole text is its tooltip.</summary>
-    private static string OneLine(string text) => string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     /// <summary>Completion as in the SQL editor: the condition stands as the WHERE of a query on the table (alias <c>t</c>).</summary>
     private async Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteAsync(string text, int cursor)

@@ -474,11 +474,4 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
 
         return list;
     }
-
-    private static string ObjectType(TableKind kind) => kind switch
-    {
-        TableKind.View => "VIEW",
-        TableKind.MaterializedView => "MATERIALIZED VIEW",
-        _ => "TABLE",
-    };
 }

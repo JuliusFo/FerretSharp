@@ -22,14 +22,6 @@ public static class ObjectMenuFacts
         _ => SchemaViewText.Explorer_KindTable,
     };
 
-    /// <summary>The <c>ALL_OBJECTS.OBJECT_TYPE</c> of a table, view or materialized view.</summary>
-    public static string ObjectType(TableKind kind) => kind switch
-    {
-        TableKind.View => "VIEW",
-        TableKind.MaterializedView => "MATERIALIZED VIEW",
-        _ => "TABLE",
-    };
-
     /// <summary>"Reached through the synonym …" for a tooltip; <paramref name="kind"/> is the real object's kind label.</summary>
     public static string SynonymTooltip(SynonymInfo synonym, string owner, string name, string kind) =>
         TextFormat.Format(synonym.IsPublic ? SchemaViewText.Explorer_PublicSynonymTooltip : SchemaViewText.Explorer_SynonymTooltip, $"{owner}.{name}", kind);

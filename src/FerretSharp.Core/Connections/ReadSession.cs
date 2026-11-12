@@ -43,7 +43,7 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
     private bool _noExactScn;
 
     /// <summary>Whether a session is open or opening (tests, diagnostics).</summary>
-    public bool HasSession
+    internal bool HasSession
     {
         get
         {

@@ -460,25 +460,7 @@
     }
 
     /// <summary>On a pool thread: ODP.NET sends the break synchronously, over a silent VPN it blocks (A3).</summary>
-    private void CancelPreview()
-    {
-        if (_previewRun is not { } run)
-        {
-            return;
-        }
-
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                run.Cancellation.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // the read ended meanwhile
-            }
-        });
-    }
+    private void CancelPreview() => CancelOffThread.Run(_previewRun?.Cancellation);
 
     /// <summary>Leaving the mode or closing the tab cancels a running preview.</summary>
     public void Dispose() => CancelPreview();

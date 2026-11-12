@@ -19,7 +19,7 @@
             }
             @if (table.IsInvalid)
             {
-                <span class="ctx-fact bad" title="@InvalidStatusText.For(ObjectMenuFacts.ObjectType(table.Kind))">@SchemaViewText.InvalidChip</span>
+                <span class="ctx-fact bad" title="@InvalidStatusText.For(table.Kind.ObjectType())">@SchemaViewText.InvalidChip</span>
             }
         }
         else if (Unit is { } unit)

@@ -15,12 +15,7 @@ internal static class CompareDefinitions
     /// <summary><c>TABLE</c>, <c>GLOBAL TEMPORARY TABLE</c>, <c>TABLE (IOT, PARTITIONED)</c>, <c>VIEW</c>, <c>MATERIALIZED VIEW</c>.</summary>
     public static string Object(ObjectSnapshot o)
     {
-        var kind = o.Kind switch
-        {
-            TableKind.View => "VIEW",
-            TableKind.MaterializedView => "MATERIALIZED VIEW",
-            _ => "TABLE",
-        };
+        var kind = o.Kind.ObjectType();
 
         var flags = new List<string>();
         if (o.IsIndexOrganized)
