@@ -26,6 +26,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | UI | `ServerLoadText` | Serverlast (WP-75): Kopf, Kacheln, Diagramme, Top-Statements, aktive Sessions, Hinweise zu PDB, RAC und Lizenz |
 | UI | `ScriptViewText` | SQL-Skripte (WP-77): Bereich im Explorer, Panel neben dem Verlauf, Speichern-Dialog, Hinweise und Rückfragen am SQL-Tab; Skripte im Zellmenü und ihr Parameter-Dialog (WP-84) |
 | Core | `ClrModelText` | C#-Modell, LINQ-Konsole, Code-Generierung, Build-Ausgabe |
+| Core | `CodeEditText` | Designer-Änderungen ins C#-Projekt (WP-41): Probleme und Hinweise der Planung, Ergebnis des Schreibens, Warnungen zum Arbeits-Klon |
 | Core | `QueryText`, `DataText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms |
 | Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich und DDL (`Core/Ddl`), Verbindungen samt Import/Export, Einstellungen (Tastenkürzel), Workspaces und IO |
 | Core | `CoreText` | Texte, die mehrere Core-Bereiche teilen (R5b): Namensprüfung (`OracleIdentifier.Problem`) |

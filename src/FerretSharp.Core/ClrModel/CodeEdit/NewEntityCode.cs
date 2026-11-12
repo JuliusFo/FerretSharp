@@ -28,7 +28,10 @@ public static class NewEntityCode
         ClrModelMapping.ShortName(model.ContextType), ConfigurationInterface, name, name + "Configuration",
     ];
 
-    public static CodeChangePlan Plan(ClrModelMapping mapping, TableDetails table, IReadOnlyList<ForeignKeyInfo> outgoing, string name, CodeScan scan)
+    /// <param name="entityFolder">The folder (relative to the work clone) the user chose for the entity; null for the most used.</param>
+    /// <param name="configurationFolder">The same for the configuration.</param>
+    public static CodeChangePlan Plan(ClrModelMapping mapping, TableDetails table, IReadOnlyList<ForeignKeyInfo> outgoing, string name, CodeScan scan,
+        string? entityFolder = null, string? configurationFolder = null)
     {
         ArgumentNullException.ThrowIfNull(mapping);
         ArgumentNullException.ThrowIfNull(table);
@@ -50,16 +53,20 @@ public static class NewEntityCode
             return new CodeChangePlan(scan.Root, [], notes, [CodeEditText.Problem_NoEntityFolder]);
         }
 
-        var entityPlace = Place.Of(entitySites.Select(s => (s.File, s.Declaration as SyntaxNode)).ToList());
+        var entityDeclarations = entitySites.Select(s => (s.File, s.Declaration as SyntaxNode)).ToList();
+        var entityPlace = Place.Of(entityDeclarations, scan.Root, entityFolder);
         var configurations = scan.Files
             .SelectMany(f => f.Root.DescendantNodes().OfType<ClassDeclarationSyntax>()
                 .Where(c => c.BaseList?.Types.Any(b => b.Type.ToString().Contains(ConfigurationInterface + "<", StringComparison.Ordinal)) == true)
                 .Select(c => (File: f, Node: (SyntaxNode)c)))
             .ToList();
         var contextParts = scan.TypesNamed(model.ContextType);
-        var configPlace = configurations.Count > 0
-            ? Place.Of(configurations)
-            : contextParts.FirstOrDefault() is { } contextPart ? Place.Of([(contextPart.File, contextPart.Declaration)]) : entityPlace;
+        IReadOnlyList<(ScannedFile File, SyntaxNode Node)> configDeclarations = configurations.Count > 0
+            ? configurations
+            : contextParts.FirstOrDefault() is { } contextPart ? [(contextPart.File, contextPart.Declaration)] : entityDeclarations;
+        var configPlace = Place.Of(configDeclarations, scan.Root, configurationFolder);
+        var places = new NewEntityPlaces(Place.Folders(entityDeclarations, scan.Root), Path.GetRelativePath(scan.Root, entityPlace.Folder),
+            Place.Folders(configDeclarations, scan.Root), Path.GetRelativePath(scan.Root, configPlace.Folder));
 
         var entityFile = Path.Combine(entityPlace.Folder, name + ".cs");
         var configName = name + "Configuration";
@@ -139,17 +146,20 @@ public static class NewEntityCode
 
         var (files, built) = edits.Build();
         problems.AddRange(built);
-        return new CodeChangePlan(scan.Root, files, notes, problems);
+        return new CodeChangePlan(scan.Root, files, notes, problems) { Places = places };
     }
 
     /// <summary>A folder new files go to, with the namespace and the way its files are written.</summary>
     private sealed record Place(string Folder, string Namespace, bool FileScoped, CodeFileFormat Format)
     {
-        /// <summary>The folder most of the declarations are in, and what most of its files there have.</summary>
-        public static Place Of(IReadOnlyList<(ScannedFile File, SyntaxNode Node)> declarations)
+        /// <summary>
+        /// The folder <paramref name="chosen"/> (relative to <paramref name="root"/>) if declarations are there, else the one most
+        /// of them are in – and what most of its files there have.
+        /// </summary>
+        public static Place Of(IReadOnlyList<(ScannedFile File, SyntaxNode Node)> declarations, string root, string? chosen)
         {
-            var folder = declarations.GroupBy(d => Path.GetDirectoryName(d.File.Path)!, StringComparer.OrdinalIgnoreCase)
-                .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).First();
+            var groups = Grouped(declarations);
+            var folder = groups.FirstOrDefault(g => chosen is not null && string.Equals(Path.GetRelativePath(root, g.Key), chosen, StringComparison.OrdinalIgnoreCase)) ?? groups[0];
             var there = folder.ToList();
             var ns = Most(there.Select(d => string.Join('.', d.Node.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString()))));
             var fileScoped = there.Count(d => d.Node.Ancestors().OfType<FileScopedNamespaceDeclarationSyntax>().Any()) * 2 >= there.Count;
@@ -157,6 +167,14 @@ public static class NewEntityCode
             var format = new CodeFileFormat(Most(files.Select(f => f.Bom)), Most(files.Select(f => f.NewLine)), Most(files.Select(f => f.Indent)));
             return new Place(folder.Key, ns, fileScoped, format);
         }
+
+        /// <summary>The folders of the declarations relative to <paramref name="root"/>, most used first.</summary>
+        public static IReadOnlyList<string> Folders(IReadOnlyList<(ScannedFile File, SyntaxNode Node)> declarations, string root) =>
+            [.. Grouped(declarations).Select(g => Path.GetRelativePath(root, g.Key))];
+
+        private static List<IGrouping<string, (ScannedFile File, SyntaxNode Node)>> Grouped(IReadOnlyList<(ScannedFile File, SyntaxNode Node)> declarations) =>
+            [.. declarations.GroupBy(d => Path.GetDirectoryName(d.File.Path)!, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)];
 
         private static T Most<T>(IEnumerable<T> values) => values.GroupBy(v => v).OrderByDescending(g => g.Count()).First().Key;
     }

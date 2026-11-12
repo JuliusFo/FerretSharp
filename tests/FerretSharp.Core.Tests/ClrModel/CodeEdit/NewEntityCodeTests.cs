@@ -138,6 +138,24 @@ public sealed class NewEntityCodeTests
     }
 
     [Fact]
+    public async Task Another_folder_of_the_projects_entities_can_be_chosen()
+    {
+        var mapping = await MappingAsync();
+        using var clone = new TestFolder();
+        Write(clone, "App/App.csproj", Sdk);
+        Write(clone, "App/Kunde.cs", "namespace Shop;\npublic class Kunde;\n");
+        Write(clone, "App/Views/KundeView.cs", "namespace Shop;\npublic class KundeView;\n");
+
+        var proposed = Plan(mapping, clone);
+        var chosen = NewEntityCode.Plan(mapping, Auftrag, [ToKunde], "Auftrag",
+            CodeScan.Read(clone.Path, NewEntityCode.Words(mapping.Model, "Auftrag"), TestContext.Current.CancellationToken), entityFolder: Path.Combine("App", "Views"));
+
+        Assert.Equal([Path.Combine("App"), Path.Combine("App", "Views")], proposed.Places!.EntityFolders.Order(StringComparer.Ordinal));
+        Assert.Equal(Path.Combine("App", "Views"), chosen.Places!.EntityFolder);
+        Assert.StartsWith("namespace Shop;", chosen.Files.Single(f => f.Relative == Path.Combine("App", "Views", "Auftrag.cs")).NewText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_file_or_type_that_exists_is_never_written_over()
     {
         var mapping = await MappingAsync();

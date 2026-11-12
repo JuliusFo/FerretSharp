@@ -1992,4 +1992,10 @@
   <data name="CodeChange_Created" xml:space="preserve">
     <value>angelegt</value>
   </data>
+  <data name="CodeChange_EntityFolder" xml:space="preserve">
+    <value>Entity nach</value>
+  </data>
+  <data name="CodeChange_ConfigurationFolder" xml:space="preserve">
+    <value>Konfiguration nach</value>
+  </data>
 </root>

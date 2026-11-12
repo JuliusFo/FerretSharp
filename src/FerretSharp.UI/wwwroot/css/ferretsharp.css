@@ -1957,6 +1957,9 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .code-change-target { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .code-change-target .icon { width: 13px; height: 13px; flex: none; }
 .code-change-problem { color: var(--danger); font-size: 12.5px; }
+.code-change-places { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.code-change-place { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; min-width: 0; }
+.code-change-place .field { max-width: 420px; }
 .code-change-results { margin: 0; padding-left: 0; list-style: none; font-size: 12.5px; }
 .code-change-results li { display: flex; align-items: center; gap: 6px; }
 .code-change-results li.bad { color: var(--danger); }

@@ -91,6 +91,13 @@
         {
             <p class="hint small">@SchemaViewText.CodeChange_AfterRun</p>
         }
+        @if (plan.Places is { } places)
+        {
+            <div class="code-change-places">
+                @FolderChoice(SchemaViewText.CodeChange_EntityFolder, places.EntityFolders, places.EntityFolder, folder => _entityFolder = folder)
+                @FolderChoice(SchemaViewText.CodeChange_ConfigurationFolder, places.ConfigurationFolders, places.ConfigurationFolder, folder => _configurationFolder = folder)
+            </div>
+        }
         @foreach (var note in plan.Notes)
         {
             <p class="hint small">@note</p>
@@ -154,6 +161,26 @@
     [Parameter]
     public EventCallback OnDismiss { get; set; }
 
+    /// <summary>The folders the user chose for a new entity's files; null for the most used (WP-41, second stage).</summary>
+    private string? _entityFolder;
+    private string? _configurationFolder;
+
+    /// <summary>A folder for a new file: a list of the folders the project uses, the chosen one shown.</summary>
+    private RenderFragment FolderChoice(string label, IReadOnlyList<string> folders, string chosen, Action<string> choose) => @<label class="code-change-place">
+        <span class="muted">@label</span>
+        <select class="field mono" value="@chosen" disabled="@(folders.Count < 2)" @onchange="e => { choose((string)e.Value!); Replan(0); }">
+            @foreach (var folder in folders)
+            {
+                <option value="@folder">@folder</option>
+            }
+        </select>
+    </label>;
+
+    /// <summary>The request with the chosen folders.</summary>
+    private CodeChangeRequest Effective => Request is CodeChangeRequest.ForNewEntity created
+        ? created with { EntityFolder = _entityFolder, ConfigurationFolder = _configurationFolder }
+        : Request;
+
     private ProjectCodeChange? _change;
     private object? _planned;
     private CancellationTokenSource? _work;
@@ -167,7 +194,7 @@
 
     protected override void OnParametersSet()
     {
-        var key = KeyOf(Request);
+        var key = KeyOf(Effective);
         if (!Equals(key, _planned))
         {
             _planned = key;
@@ -179,7 +206,7 @@
     private static object KeyOf(CodeChangeRequest request) => request switch
     {
         CodeChangeRequest.ForTable table => (table.Before.Table.Ref, string.Join("|", table.Changes.Select(c => $"{c.Kind}:{c.Column}:{c.After}"))),
-        CodeChangeRequest.ForNewEntity created => (created.Table.Table.Ref, created.Name.Trim(), string.Join("|", created.Outgoing.Select(f => f.Name))),
+        CodeChangeRequest.ForNewEntity created => (created.Table.Table.Ref, created.Name.Trim(), string.Join("|", created.Outgoing.Select(f => f.Name)), created.EntityFolder, created.ConfigurationFolder),
         _ => request,
     };
 
@@ -210,7 +237,7 @@
         var token = work.Token;
         var group = Active.Profile?.Group;
         var linked = Connections.Profiles.Where(p => ConnectionSearch.SameGroupKey(p.Group, group)).Select(p => p.ClrProject?.ProjectFile).OfType<string>().ToList();
-        var change = new ProjectCodeChange(mapping, Models.State.Link, Clones.ActiveFor(group), linked, Request);
+        var change = new ProjectCodeChange(mapping, Models.State.Link, Clones.ActiveFor(group), linked, Effective);
         change.Changed += () => InvokeAsync(StateHasChanged);
         Fire(async () =>
         {

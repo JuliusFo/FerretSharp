@@ -14,7 +14,10 @@ public abstract record CodeChangeRequest
     }
 
     /// <summary>A table without entity: entity and configuration as new files.</summary>
-    public sealed record ForNewEntity(TableDetails Table, IReadOnlyList<ForeignKeyInfo> Outgoing, string Name) : CodeChangeRequest;
+    /// <param name="EntityFolder">The folder the user chose for the entity (relative to the work clone); null for the most used.</param>
+    /// <param name="ConfigurationFolder">The same for the configuration.</param>
+    public sealed record ForNewEntity(TableDetails Table, IReadOnlyList<ForeignKeyInfo> Outgoing, string Name, string? EntityFolder = null, string? ConfigurationFolder = null)
+        : CodeChangeRequest;
 
     /// <summary>Whether the table change touches the project at all (a comment or a constraint does not).</summary>
     public bool HasChanges => this is not ForTable table || table.Changes.Count > 0;
@@ -147,7 +150,7 @@ public sealed class ProjectCodeChange(ClrModelMapping mapping, ClrProjectLink? l
             case CodeChangeRequest.ForNewEntity created:
                 var name = created.Name.Trim().Length > 0 ? created.Name.Trim() : created.Table.Table.Name;
                 var all = CodeScan.Read(workClone!, NewEntityCode.Words(mapping.Model, name), cancellationToken);
-                return NewEntityCode.Plan(mapping, created.Table, created.Outgoing, name, all);
+                return NewEntityCode.Plan(mapping, created.Table, created.Outgoing, name, all, created.EntityFolder, created.ConfigurationFolder);
             default:
                 throw new InvalidOperationException($"Unknown request {request.GetType().Name}.");
         }

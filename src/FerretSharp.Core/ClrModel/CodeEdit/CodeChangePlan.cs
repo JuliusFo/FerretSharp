@@ -25,9 +25,18 @@ public sealed record FileChange(string Path, string Relative, CodeFile? Original
 /// <param name="Root">The work clone the paths lie below.</param>
 public sealed record CodeChangePlan(string Root, IReadOnlyList<FileChange> Files, IReadOnlyList<string> Notes, IReadOnlyList<string> Problems)
 {
+    /// <summary>For a new entity: the folders it and its configuration can go to, and the ones chosen.</summary>
+    public NewEntityPlaces? Places { get; init; }
+
     /// <summary>Something to write and nothing against it.</summary>
     public bool CanWrite => Files.Count > 0 && Problems.Count == 0;
 }
+
+/// <summary>
+/// Folders (relative to the work clone) that hold entity classes and configuration classes, most used first, with the one
+/// each new file goes to (WP-41: the most used, or the one the user chose).
+/// </summary>
+public sealed record NewEntityPlaces(IReadOnlyList<string> EntityFolders, string EntityFolder, IReadOnlyList<string> ConfigurationFolders, string ConfigurationFolder);
 
 /// <summary>
 /// The text changes collected for the files of a plan: insertions and removals at positions of the text as read. A change

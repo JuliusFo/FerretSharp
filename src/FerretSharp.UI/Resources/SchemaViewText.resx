@@ -2421,4 +2421,12 @@
     <value>created</value>
     <comment>after a file name</comment>
   </data>
+  <data name="CodeChange_EntityFolder" xml:space="preserve">
+    <value>Entity to</value>
+    <comment>label before the folder list of a new entity file</comment>
+  </data>
+  <data name="CodeChange_ConfigurationFolder" xml:space="preserve">
+    <value>Configuration to</value>
+    <comment>label before the folder list of a new configuration file</comment>
+  </data>
 </root>
