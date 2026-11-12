@@ -26,7 +26,7 @@ else if (_revoke is { } revoke)
             <h2>@SchemaViewText.Grants_Heading <span class="count">@grants.Count</span></h2>
             @if (_draft is null && _revoke is null)
             {
-                <button class="btn" disabled="@_reading" @onclick="StartGrantAsync"><span class="plus">+</span> @SchemaViewText.Grants_Grant</button>
+                <button class="btn" disabled="@_actions.Reading" @onclick="StartGrantAsync"><span class="plus">+</span> @SchemaViewText.Grants_Grant</button>
             }
         </div>
         @if (grants.Count == 0)
@@ -64,11 +64,7 @@ else if (_revoke is { } revoke)
     /// </summary>
     private IReadOnlyList<SynonymInfo>? _synonyms;
 
-    private bool _reading;
-    private readonly CancellationTokenSource _closing = new();
-
-    /// <summary>The grant or revoke opened last: a newer one, closing or the tab closing gives up its read.</summary>
-    private CancellationTokenSource? _action;
+    private readonly GrantActions _actions = new();
 
     /// <summary>The object: the real one, never a synonym of it.</summary>
     [Parameter, EditorRequired]
@@ -102,19 +98,7 @@ else if (_revoke is { } revoke)
     /// A grant or revoke opens: the read of the one before gives up and its result no longer applies – it came late over the
     /// VPN and replaced what was opened since (fix check of the third pass).
     /// </summary>
-    private CancellationToken NextAction()
-    {
-        if (_disposed)
-        {
-            return new CancellationToken(canceled: true); // OnRan of a run that ended after the tab closed
-        }
-
-        _action?.Cancel();
-        _action?.Dispose();
-        _action = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
-        _reading = false;
-        return _action.Token;
-    }
+    private CancellationToken NextAction() => _actions.Next();
 
     /// <summary>
     /// The users for the grantee's suggestions and checks and the synonyms on the object, each read once after a load; what
@@ -128,7 +112,7 @@ else if (_revoke is { } revoke)
             return false;
         }
 
-        _reading = true;
+        _actions.StartReading();
         if (users && _users is null)
         {
             var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetUserNamesAsync(token), token);
@@ -151,7 +135,7 @@ else if (_revoke is { } revoke)
             _synonyms = result.Succeeded ? result.Value : null;
         }
 
-        _reading = false;
+        _actions.DoneReading();
         return true;
     }
 
@@ -205,9 +189,7 @@ else if (_revoke is { } revoke)
     public override void Dispose()
     {
         _disposed = true;
-        _closing.Cancel();
-        _action?.Dispose();
-        _closing.Dispose();
+        _actions.Dispose();
         base.Dispose();
     }
 }
