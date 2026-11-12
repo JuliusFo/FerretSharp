@@ -1,6 +1,6 @@
 # Fix: Coverage-Badge auf main an Zeilenenden gescheitert
 
-Branch `fix/line-endings` (von `main`), 2026-11-12, PR #178.
+Branch `fix/line-endings` (von `main`), 2026-11-12, PR #178, noch ohne Release.
 
 ## Anlass (Meldung des Nutzers, 2026-11-12)
 - „Das CI auf main ist gefailed“: Lauf 43249065190 nach dem Merge von #177. Build und Tests grün, der Job „Coverage badge“ brach in `git switch --force-create badges FETCH_HEAD` ab („Your local changes … would be overwritten by checkout: src/FerretSharp.Core/Connections/ConnectionSearch.cs“).
@@ -27,4 +27,8 @@ Entscheidung des Nutzers: „Alle beheben“.
 4. K – Kommentar und Doku nannten `text=auto` statt `*.cs text` als Ursache: behoben.
 5. K – CHANGELOG-Eintrag fehlte: behoben (Internal).
 6. K – lokal keine Prüfung: behoben, `Test-Linux.ps1`.
+- Zweiter Durchgang, Entscheidung des Nutzers „Alle beheben“:
+7. K – der lokale Check übersah ein einzelnes CR unter `*.md text` (`i/-text attr/text`), die CI meldet es: behoben, Filter um `i/-text` mit ausdrücklichem `text` erweitert.
+8. K – `git add --renormalize` behebt `CR CR LF` nicht (nur das CR vor dem LF fällt weg): behoben, Hinweis in CI, `Test-Linux.ps1` und `release.md`.
+9. K – „noch ohne Release“ im Kopf, Job im Kopfkommentar von `ci.yml`, `tools/linux/*.sh` in `release.md`: behoben.
 - Vorher schon da: Auf `main` sind keine Status-Checks Pflicht; ein PR lässt sich rot mergen.
