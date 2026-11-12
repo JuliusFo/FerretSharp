@@ -585,6 +585,7 @@
   </data>
   <data name="Ddl_Source" xml:space="preserve">
     <value>From {0} – indexes and triggers are not included; the grants follow below.</value>
+    <comment>{0} = DBMS_METADATA.GET_DDL (code)</comment>
   </data>
   <data name="Ddl_WithoutOwner" xml:space="preserve">
     <value>Without owner</value>

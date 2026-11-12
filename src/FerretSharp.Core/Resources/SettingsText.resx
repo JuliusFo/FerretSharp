@@ -356,9 +356,11 @@
   </data>
   <data name="SomeNotReadKept" xml:space="preserve">
     <value>Some settings in {0} could not be read and have their defaults: {1}. The other settings were read; the file was kept as {2}.</value>
+    <comment>Notice at start. {0}: path of the settings file, {1}: the settings' names as in the file (comma-separated), {2}: path of the copy</comment>
   </data>
   <data name="SomeNotReadNotSaving" xml:space="preserve">
     <value>Some settings in {0} could not be read and have their defaults: {1}. The other settings were read; FerretSharp saves no settings in this session, so the file stays as it is.</value>
+    <comment>Notice at start. {0}: path of the settings file, {1}: the settings' names as in the file (comma-separated)</comment>
   </data>
   <data name="ActionCloseOtherTabs" xml:space="preserve">
     <value>Close other tabs</value>
