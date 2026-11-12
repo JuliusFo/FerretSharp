@@ -200,6 +200,30 @@ public sealed class TimeTravelTests : IAsyncDisposable
             Lifecycle.DataDiffOf(id)!.StartedAt.LocalDateTime), _app.Shell.Notice?.Text);
     }
 
+    /// <summary>
+    /// Review 3.70.0, C3: the tab's changes were tracked with the columns of before (a column added since): without the
+    /// check the tracker laid the values by position into the wrong columns.
+    /// </summary>
+    [Fact]
+    public async Task Rows_are_not_set_back_into_a_tab_whose_changes_have_other_columns()
+    {
+        _app.KundenDetails = Kunden;
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = scope.Workspaces.Active!.Id;
+        var tab = ActiveKunden(scope);
+        tab.Changes = new ChangeTracker(Kunden);
+        await Lifecycle.StartDataDiffAsync(id);
+        _app.Shell.OpenDataDiff(_app.WorkspaceOf(scope));
+        _app.ByKeys = (scn, _, _) => scn is null ? [] : [Row(12, "deleted since")];
+        var wider = Kunden with { Columns = [.. Kunden.Columns, new ColumnInfo("FAX", "VARCHAR2", 30, true, null, null, false, false, null, 99)] };
+        var diff = new TableDiff(wider, [], [Diff(DiffStatus.Deleted, 12)], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false);
+
+        await Lifecycle.RestoreAsync(id, diff, diff.Rows);
+
+        Assert.Equal(UI.Resources.ShellText.Restore_StructureChanged, _app.Shell.Notice?.Text);
+        Assert.Empty(tab.Changes.PendingOperations());
+    }
+
     [Fact]
     public async Task Setting_rows_back_is_refused_in_a_locked_workspace_and_for_rows_moved_by_row_movement()
     {
