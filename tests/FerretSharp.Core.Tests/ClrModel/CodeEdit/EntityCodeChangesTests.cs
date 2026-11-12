@@ -111,10 +111,12 @@ public sealed class EntityCodeChangesTests
         Assert.Empty(plan.Notes);
     }
 
-    [Fact]
-    public async Task A_dropped_column_takes_its_property_with_comment_and_attribute_and_its_lines_and_names_what_still_uses_it()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)] // after the DDL the model is laid over the new schema: NAME is no longer mapped (E2E of WP-41)
+    public async Task A_dropped_column_takes_its_property_with_comment_and_attribute_and_its_lines_and_names_what_still_uses_it(bool remapped)
     {
-        var mapping = await MappingAsync();
+        var mapping = await MappingAsync(dropped: remapped ? "NAME" : null);
         var draft = TableDraft.Of(Kunden);
         draft = draft with { Columns = [.. draft.Columns.Select(c => c.Original is "NAME" or "MANDANT_ID" ? c with { Dropped = true } : c)] };
 

@@ -58,15 +58,15 @@ public static partial class EntityCodeChanges
                     Add(context, mapping, change.After!, added);
                     break;
                 case ColumnChangeKind.Facets:
-                    Adjust(context, mapping.PropertyOf(table, change.Column), change.Before!, change.After!);
+                    Adjust(context, PropertyOf(mapping, entity, table, change.Column), change.Before!, change.After!);
                     break;
                 case ColumnChangeKind.Dropped:
-                    Drop(context, mapping.PropertyOf(table, change.Column), change.Column);
+                    Drop(context, PropertyOf(mapping, entity, table, change.Column), change.Column);
                     break;
-                case ColumnChangeKind.Renamed when mapping.PropertyOf(table, change.Column) is { } renamed:
+                case ColumnChangeKind.Renamed when PropertyOf(mapping, entity, table, change.Column) is { } renamed:
                     notes.Add(TextFormat.Format(CodeEditText.Note_Renamed, change.Column, change.After!.Name, renamed.Name));
                     break;
-                case ColumnChangeKind.TypeChanged when mapping.PropertyOf(table, change.Column) is { } retyped:
+                case ColumnChangeKind.TypeChanged when PropertyOf(mapping, entity, table, change.Column) is { } retyped:
                     notes.Add(TextFormat.Format(CodeEditText.Note_TypeChanged, change.Column, change.After!.DisplayType, retyped.Name, retyped.ClrType));
                     break;
             }
@@ -82,6 +82,14 @@ public static partial class EntityCodeChanges
         problems.AddRange(built);
         return new CodeChangePlan(scan.Root, files, notes, problems);
     }
+
+    /// <summary>
+    /// The property of a column: as the mapping has it, else by the model's column name. After the DDL ran, the model is
+    /// laid over the new schema (`ClrModelManager.RemapAsync`): a dropped column is no longer mapped, its property still is in
+    /// the model – without this its declaration stayed (E2E of WP-41).
+    /// </summary>
+    private static PropertyExport? PropertyOf(ClrModelMapping mapping, EntityExport entity, TableRef table, string column) =>
+        mapping.PropertyOf(table, column) ?? entity.Properties.FirstOrDefault(p => p.Column == column);
 
     /// <summary>What the steps of a plan share.</summary>
     private sealed record Context(
