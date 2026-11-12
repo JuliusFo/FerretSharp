@@ -6,7 +6,9 @@ paths:
   - "src/FerretSharp.Core/Audit/**"
   - "src/FerretSharp.UI/Components/Ddl/**"
   - "src/FerretSharp.UI/Components/Schema/Audit*"
-  - "src/FerretSharp.UI/State/Schema/ColumnDesigner*"
+  - "src/FerretSharp.UI/State/Schema/TableDesignerDraft*"
+  - "src/FerretSharp.UI/State/Schema/Design*"
+  - "src/FerretSharp.UI/State/Schema/AuditDesignRules*"
   - "src/FerretSharp.UI/State/Schema/IndexDraftEditor*"
 ---
 
