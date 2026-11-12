@@ -87,7 +87,9 @@
     private string RowText => Problem.Error.Operation switch
     {
         { Kind: OperationKind.Insert } => GridText.Problem_NewRow,
-        { Key: RowKey.PrimaryKey pk } => TextFormat.Format(GridText.Problem_RowKey, string.Join(", ", pk.Values.Select(v => Show(null, v)))),
+        { Key: RowKey.PrimaryKey pk } => TextFormat.Format(GridText.Problem_RowKey, Problem.Tab.Changes is { } changes
+            ? ChangeOverview.KeyText(changes.Table, pk) // as the change overview shows it (review of WP-85: ISO beside German)
+            : string.Join(", ", pk.Values.Select(v => Show(null, v)))),
         { Kind: OperationKind.Delete } => GridText.Problem_RowToDelete,
         _ => GridText.Problem_ChangedRow,
     };
