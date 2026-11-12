@@ -216,7 +216,9 @@ public sealed class RowTraversal(
             toRead = [];
             foreach (var key in fromRows.Keys)
             {
-                var pk = new RowKey.PrimaryKey([.. details.PrimaryKey.Select(name => key[targetColumns.ToList().IndexOf(name)])]);
+                // As a read keys the parent: a TIMESTAMP(8/9) as PreciseTimestamp (review of WP-85, it was read again every time).
+                var pk = new RowKey.PrimaryKey([.. details.PrimaryKey.Select(name =>
+                    PreciseTimestamp.AsKey(details.Columns[details.IndexOf(name)], key[targetColumns.ToList().IndexOf(name)]))]);
                 if (known.Find(pk) is { } parent)
                 {
                     LinkAll(graph, relation, parents, fromRows.RowsOf(key), parent);
@@ -291,6 +293,9 @@ public sealed class RowTraversal(
             string s => trim ? s.TrimEnd(' ') : s,
             byte[] bytes => Convert.ToHexString(bytes),
             DateTime dt => dt.ToString("O", CultureInfo.InvariantCulture),
+            // A TIMESTAMP(8/9) key (WP-85): the same text as the DateTime of a foreign key holding it, all digits otherwise.
+            PreciseTimestamp { Nanosecond: var ns } p when ns % 100 == 0 => p.Value.ToString("O", CultureInfo.InvariantCulture),
+            PreciseTimestamp p => p.ToString(),
             DateTimeOffset dto => dto.ToString("O", CultureInfo.InvariantCulture),
             IConvertible convertible => convertible.ToString(CultureInfo.InvariantCulture),
             _ => v.ToString() ?? "",
