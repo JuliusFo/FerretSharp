@@ -73,6 +73,23 @@ public sealed class VersionedJsonFileTests : IDisposable
         Assert.NotNull(read.Error);
     }
 
+    /// <summary>
+    /// Second review pass of fix/robustness: read as text, a file saved as ANSI by hand ("Müller" with the byte 0xFC) was read
+    /// with U+FFFD in its place, and the next save kept it. It is broken, without text to mend; a BOM is no problem.
+    /// </summary>
+    [Fact]
+    public async Task A_file_that_is_no_utf8_is_broken_and_a_bom_is_read()
+    {
+        File.WriteAllBytes(File1, [.. "{ \"version\": 1, \"items\": [\"M"u8, 0xFC, .. "ller\"] }"u8]);
+        var ansi = await VersionedJsonFile.ReadAsync<Doc>(File1, 1, JsonFiles.Options, Ct);
+        File.WriteAllBytes(File1, [0xEF, 0xBB, 0xBF, .. "{ \"version\": 1, \"items\": [\"Müller\"] }"u8]);
+        var bom = await VersionedJsonFile.ReadAsync<Doc>(File1, 1, JsonFiles.Options, Ct);
+
+        Assert.Equal((JsonFileState.Broken, null), (ansi.State, ansi.Content));
+        Assert.Equal("Die Datei ist nicht als UTF-8 gespeichert.", ansi.Error?.Message);
+        Assert.Equal(["Müller"], bom.Document!.Items!);
+    }
+
     [Fact]
     public async Task A_locked_file_is_unreadable()
     {

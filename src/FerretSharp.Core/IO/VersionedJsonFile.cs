@@ -1,4 +1,7 @@
+using System.Text;
 using System.Text.Json;
+using System.Text.Unicode;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.IO;
 
@@ -39,6 +42,8 @@ public sealed record JsonFileRead<T>(JsonFileState State, T? Document, int? Vers
 /// </summary>
 public static class VersionedJsonFile
 {
+    private static ReadOnlySpan<byte> Bom => [0xEF, 0xBB, 0xBF];
+
     /// <summary>
     /// Reads <paramref name="path"/>. The version first: above <paramref name="currentVersion"/> the file is
     /// <see cref="JsonFileState.Newer"/> without deserializing it. A document <paramref name="complete"/> rejects (or null)
@@ -55,11 +60,26 @@ public static class VersionedJsonFile
         }
 
         int? version = null;
-        string? content = null;
+        ReadOnlyMemory<byte> utf8 = default;
         try
         {
-            content = await File.ReadAllTextAsync(path, cancellationToken);
-            using var json = JsonDocument.Parse(content);
+            // Bytes, not text: decoding to text put U+FFFD in place of bytes that are no UTF-8 (a file saved as ANSI by hand),
+            // and the next save kept it – in a workspace also in pending values (second review pass of fix/robustness). Such a
+            // file is broken, as before (where reading a string of it threw).
+            utf8 = await File.ReadAllBytesAsync(path, cancellationToken);
+            if (utf8.Span.StartsWith(Bom))
+            {
+                utf8 = utf8[Bom.Length..];
+            }
+
+            if (!Utf8.IsValid(utf8.Span))
+            {
+                var notUtf8 = new JsonException(CoreText.FileNotUtf8);
+                utf8 = default; // no text to mend
+                throw notUtf8;
+            }
+
+            using var json = JsonDocument.Parse(utf8);
             var root = json.RootElement;
             if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("version", out var number) && number.TryGetInt32(out var found))
             {
@@ -78,7 +98,7 @@ public static class VersionedJsonFile
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             // NotSupportedException: polymorphic JSON without "type", or with "type" not first (edited by hand).
-            return new(JsonFileState.Broken, null, version, ex, content);
+            return new(JsonFileState.Broken, null, version, ex, utf8.IsEmpty ? null : Encoding.UTF8.GetString(utf8.Span));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

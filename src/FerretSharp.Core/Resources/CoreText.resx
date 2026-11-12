@@ -28,6 +28,9 @@
     <value>{0} is empty.</value>
     <comment>{0}: path of the file</comment>
   </data>
+  <data name="FileNotUtf8" xml:space="preserve">
+    <value>The file is not saved as UTF-8.</value>
+  </data>
   <data name="FileFromNewerVersion" xml:space="preserve">
     <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
     <comment>{0}: path or name of the file; {1}: format version found in the file</comment>
