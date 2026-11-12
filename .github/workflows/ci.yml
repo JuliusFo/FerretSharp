@@ -39,18 +39,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Every committed file must equal its normalized form. A file committed with mixed line endings shows as modified
-      # under text=auto (.gitattributes) and broke the badge job's branch switch (2026-11-12); this names it on the pull
-      # request. git status alone misses it while the index stat data is fresh, renormalize compares the content.
-      - name: Line endings
-        run: |
-          git add --renormalize .
-          if ! git diff --cached --quiet; then
-            echo "::error::Files differ from their normalized form (mixed line endings?). Fix with: git add --renormalize <file>"
-            git ls-files --eol $(git diff --cached --name-only)
-            exit 1
-          fi
-
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
@@ -90,6 +78,26 @@ jobs:
           path: coverage/report
           retention-days: 14
 
+  # Every committed text file must equal its normalized form. A .cs file (attribute "text") committed with CRLF in some
+  # lines is modified right after checkout and broke the badge job's branch switch (2026-11-12). The check is stricter
+  # than that: it also names files under text=auto. Its own job, so a hit does not skip build and tests. git status
+  # misses such a file while the index stat data is fresh; renormalize compares the content.
+  line-endings:
+    name: Line endings
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Normalized form
+        run: |
+          git add --renormalize .
+          if ! git diff --cached --quiet; then
+            echo "::error::Files differ from their normalized form (CRLF in the repository). Fix with: git add --renormalize <file>"
+            git -c core.quotePath=false diff --cached --stat=200
+            exit 1
+          fi
+
   coverage-badge:
     name: Coverage badge
     needs: linux
@@ -108,7 +116,7 @@ jobs:
           path: ${{ runner.temp }}/coverage
 
       # The branch "badges" holds only coverage.json; it is created on the first run. --discard-changes: the badge must
-      # not fail on a dirty checkout of main (the Linux job reports that).
+      # not fail on a dirty checkout of main (the job line-endings reports that).
       - name: Publish coverage.json
         run: |
           if git fetch --depth=1 origin badges; then
