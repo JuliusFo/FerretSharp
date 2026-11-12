@@ -1,6 +1,6 @@
 # ADR 0039: Auf die GPU-Kopie eines WebView-Bildes warten
 
-- Status: akzeptiert
+- Status: akzeptiert (Entscheidung des Nutzers zum Weg, 2026-11-12, Review 3.70.0, D12)
 - Datum: 2026-10-30
 - Paket: Fix `fix/typing-delay`
 
