@@ -253,6 +253,27 @@ public sealed class FormCursorTests
         Assert.Same(deleted, _grid.Changes.Changes.Single(c => c.Deleted is not null));
     }
 
+    /// <summary>
+    /// Second review of WP-85: both rows had a written change, and after the reload the other row stood at the shown row's
+    /// place (sorted by name) – the form lost its row instead of following it.
+    /// </summary>
+    [Fact]
+    public void A_row_sorted_elsewhere_while_another_changed_row_takes_its_place_is_followed()
+    {
+        _grid.Load(Row(1), Row(2));
+        var cursor = new FormCursor(_grid);
+        cursor.Show(new GridCell(0, null, 1));
+        _grid.Changes.SetValue(Row(1), 1, "Zora");
+        Assert.Equal(FormFollow.Unchanged, cursor.RowsChanged());
+        _grid.Changes.SetValue(Row(2), 1, "Bert");
+        _grid.Changes.MarkFlushed(_grid.Changes.PendingOperations(), new Dictionary<Guid, RowKey>());
+
+        _grid.Load(Row(2), Row(1)); // sorted by name: Bert before Zora
+
+        Assert.Equal(FormFollow.Moved, cursor.RowsChanged());
+        Assert.Equal((new GridCell(1, null, 1), Row(1).Key), (cursor.Cell, cursor.Key));
+    }
+
     /// <summary>Loaded rows by position and the tab's changes, like FerretGrid's blocks.</summary>
     private sealed class FakeGrid : IFormGrid
     {

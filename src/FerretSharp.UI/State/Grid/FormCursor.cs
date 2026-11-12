@@ -157,10 +157,11 @@ public sealed class FormCursor(IFormGrid grid)
             return FollowChange(cell, loaded, moved);
         }
 
-        if (Change is { } mine && current.Change is { } other && !ReferenceEquals(mine, other) && grid.Tracks(mine))
+        if (Equals(loaded.Key, Key) && Change is { } mine && current.Change is { } other && !ReferenceEquals(mine, other) && grid.Tracks(mine))
         {
             // Another row holds the shown row's key now (it was deleted, another took the key in the same write; review of
-            // WP-85): not the shown row – once the rows are read again.
+            // WP-85): not the shown row – once the rows are read again. A row at another key there goes the usual way below
+            // (sorted elsewhere: Moved).
             return ReferenceEquals(loaded, _loaded) ? FormFollow.Unchanged : LoseRow(GridText.Form_RowNotLoaded);
         }
 
