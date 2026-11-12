@@ -188,7 +188,12 @@ public sealed partial class AppTraceSourceTests(OracleContainerFixture oracle)
         Assert.NotNull(cursor);
         Assert.Equal(36, cursor.Executions);
         Assert.Equal(lazy.Rows, cursor.RowsProcessed);
-        Assert.Contains(cursor.Plan.Steps, s => s.ObjectName == "TR_POSITION");
+        // Oracle frees a cursor's plan before the cursor (oracle.md, the flickering server load test): the plan of a foreign
+        // statement is checked only while it is there – reading it again is CursorPlans' job (review 3.70.0, C7).
+        if (cursor.HasPlan)
+        {
+            Assert.Contains(cursor.Plan.Steps, s => s.ObjectName == "TR_POSITION");
+        }
     }
 
     /// <summary>Attaches, waits until the app's warm-up query shows up (the session is live), runs the app to its end.</summary>
