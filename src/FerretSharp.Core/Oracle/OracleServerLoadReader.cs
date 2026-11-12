@@ -144,6 +144,17 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
          GROUP BY s.sql_id
         """;
 
+    /// <summary>
+    /// The statement and its binds for <paramref name="sqlIds"/>, the IN list filled up to the next of
+    /// <see cref="QueryBuilder.LookupSizes"/> with the last id: a list of each length was a statement of its own in the shared
+    /// pool of the database being watched, up to 100 of them (review 3.70.0, A18).
+    /// </summary>
+    internal static (string Sql, IReadOnlyList<QueryParameter> Parameters) InfoLookup(IReadOnlyList<string> sqlIds)
+    {
+        var size = QueryBuilder.LookupSizes.First(s => s >= sqlIds.Count);
+        return (InfoSql(size), [.. Enumerable.Range(0, size).Select(i => new QueryParameter($"id{i}", sqlIds[Math.Min(i, sqlIds.Count - 1)]))]);
+    }
+
     internal static string SortExpression(TopStatementSort sort) => sort switch
     {
         TopStatementSort.Cpu => "s.cpu_time",
@@ -201,8 +212,9 @@ internal sealed class OracleServerLoadReader(OracleSession session) : IServerLoa
             return Task.FromResult<IReadOnlyList<StatementInfo>>([]);
         }
 
+        var (sql, parameters) = InfoLookup(sqlIds);
         return GuardAsync<IReadOnlyList<StatementInfo>>(async () => await session.ReadListAsync(
-            InfoSql(sqlIds.Count), [.. sqlIds.Select((id, i) => new QueryParameter($"id{i}", id))],
+            sql, parameters,
             reader => new StatementInfo(Text(reader, 0) ?? "", Text(reader, 1), Text(reader, 2), Text(reader, 3)), cancellationToken));
     }
 
