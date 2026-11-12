@@ -59,6 +59,28 @@ public sealed class ScriptHeadersTests
         Assert.Equal(body, ScriptHeaders.Compose(ScriptHeader.Empty, body)); // without header nothing is added
     }
 
+    /// <summary>
+    /// Review 3.70.0, A9: a line break in a parameter's name (a quoted bind) or a separator the reader splits at (U+2028) moved
+    /// header text into the shared script's SQL. Every header line stays one line.
+    /// </summary>
+    [Theory]
+    [InlineData("a\nDELETE FROM t")]
+    [InlineData("a\r\nDELETE FROM t")]
+    [InlineData("a\u2028DELETE FROM t")]
+    [InlineData("a\u0085DELETE FROM t")]
+    public void A_line_break_in_a_header_line_never_reaches_the_body(string broken)
+    {
+        var header = new ScriptHeader(null, [new(broken, SqlVariableType.Text)], ["-- @connections " + broken])
+        {
+            Targets = [new ScriptTarget(broken, "T", "C")],
+        };
+        const string body = "SELECT 1 FROM dual";
+
+        var parsed = ScriptHeaders.Parse(ScriptHeaders.Compose(header, body));
+
+        Assert.Equal(body, parsed.Body);
+    }
+
     [Fact]
     public void Parameters_are_the_binds_of_the_text_with_the_types_of_their_variables()
     {

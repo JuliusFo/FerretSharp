@@ -209,7 +209,7 @@ public static partial class ScriptHeaders
         // A target whose parameter is gone (its bind left the text) is still written: the next read reports it, nothing is lost.
         foreach (var target in header.Targets)
         {
-            text.Append("-- @target ").Append(ParameterName(OneLine(target.Parameter))).Append(' ')
+            text.Append("-- @target ").Append(ParameterName(target.Parameter)).Append(' ')
                 .Append(TargetName(target.Table)).Append('.').Append(TargetName(target.Column)).Append('\n');
         }
 
@@ -275,10 +275,16 @@ public static partial class ScriptHeaders
     }
 
     /// <summary>A line of the header holds no line break: one in a description would end the header.</summary>
-    private static string OneLine(string line) => line.Replace('\r', ' ').Replace('\n', ' ');
+    /// <summary>
+    /// Every separator the reader splits at (<see cref="string.ReplaceLineEndings()"/>: also NEL, U+2028, U+2029, form feed)
+    /// as a space: a header line must stay one line, or its rest lands in the shared script's SQL (review 3.70.0, A9).
+    /// </summary>
+    private static string OneLine(string line) => line.ReplaceLineEndings(" ");
 
     /// <summary>A name with characters a bind written without quotes cannot have, in quotes (as in the SQL: <c>:"a b"</c>).</summary>
-    private static string ParameterName(string name) =>
+    private static string ParameterName(string name) => QuotedName(OneLine(name));
+
+    private static string QuotedName(string name) =>
         name.Length > 0 && name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$' or '#') ? name : "\"" + name.Replace("\"", "", StringComparison.Ordinal) + "\"";
 
     /// <summary>A table or column of a target as written: plain if Oracle takes it so, else in quotes.</summary>
