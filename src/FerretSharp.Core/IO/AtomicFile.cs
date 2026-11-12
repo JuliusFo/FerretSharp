@@ -26,6 +26,14 @@ public static class AtomicFile
         WriteAsync(path, $"{path}.{Guid.NewGuid():N}.tmp", FileMode.CreateNew, write, cancellationToken);
 
     /// <summary>
+    /// A new file in a folder of the user's: like <see cref="WriteInUserFolderAsync{T}"/>, but never over a file that came
+    /// up meanwhile – the move fails then (a new SQL script, a new C# file of WP-41; review 3.70.0, B4).
+    /// </summary>
+    /// <exception cref="IOException">The file exists now.</exception>
+    public static Task<T> CreateInUserFolderAsync<T>(string path, Func<Stream, CancellationToken, Task<T>> write, CancellationToken cancellationToken) =>
+        WriteAsync(path, $"{path}.{Guid.NewGuid():N}.tmp", FileMode.CreateNew, write, cancellationToken, overwrite: false);
+
+    /// <summary>
     /// An export to a file the user chose (WP-54): like <see cref="WriteAsync{T}"/>, but the target is checked first – a file
     /// open in Excel would otherwise fail only at the move, after minutes of reading – and the temporary file gets a name
     /// of its own, so a file of the user's called <c>file.tmp</c> is never replaced or removed.
@@ -46,7 +54,8 @@ public static class AtomicFile
     }
 
     private static async Task<T> WriteAsync<T>(
-        string path, string temp, FileMode mode, Func<Stream, CancellationToken, Task<T>> write, CancellationToken cancellationToken)
+        string path, string temp, FileMode mode, Func<Stream, CancellationToken, Task<T>> write, CancellationToken cancellationToken,
+        bool overwrite = true)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         try
@@ -59,7 +68,7 @@ public static class AtomicFile
                 stream.Flush(flushToDisk: true);
             }
 
-            File.Move(temp, path, overwrite: true);
+            File.Move(temp, path, overwrite);
             return result;
         }
         catch

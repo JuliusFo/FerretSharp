@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -130,29 +131,7 @@ public sealed class CodeFile
             return null;
         }
 
-        return new CodeFile(path, text, new CodeFileFormat(bom, NewLineOf(text), IndentOf(text)), SHA256.HashData(bytes));
-    }
-
-    /// <summary>The line ending most lines end with; <c>\r\n</c> for a file of one line.</summary>
-    internal static string NewLineOf(string text)
-    {
-        var (crlf, lf) = (0, 0);
-        for (var i = 0; i < text.Length; i++)
-        {
-            if (text[i] == '\n')
-            {
-                if (i > 0 && text[i - 1] == '\r')
-                {
-                    crlf++;
-                }
-                else
-                {
-                    lf++;
-                }
-            }
-        }
-
-        return lf > crlf ? "\n" : "\r\n";
+        return new CodeFile(path, text, new CodeFileFormat(bom, TextFileFormat.LineBreakOf(text), IndentOf(text)), SHA256.HashData(bytes));
     }
 
     /// <summary>

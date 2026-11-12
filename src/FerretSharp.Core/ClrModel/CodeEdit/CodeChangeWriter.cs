@@ -62,7 +62,11 @@ public static class CodeChangeWriter
                 var bytes = file.Format.Encode(file.NewText);
                 if (file.IsNew)
                 {
-                    await CreateAsync(file.Path, bytes, token);
+                    await AtomicFile.CreateInUserFolderAsync(file.Path, async (stream, ct) =>
+                    {
+                        await stream.WriteAsync(bytes, ct);
+                        return true;
+                    }, token);
                     results.Add(new FileWriteResult(file.Relative, FileWriteOutcome.Created));
                 }
                 else
@@ -152,34 +156,5 @@ public static class CodeChangeWriter
         }
 
         return true;
-    }
-
-    /// <summary>A new file: written beside it under a name of its own, then moved – never over a file that came up meanwhile.</summary>
-    private static async Task CreateAsync(string path, byte[] bytes, CancellationToken cancellationToken)
-    {
-        var temp = $"{path}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            await using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 1 << 16, useAsync: true))
-            {
-                await stream.WriteAsync(bytes, cancellationToken);
-                stream.Flush(flushToDisk: true);
-            }
-
-            File.Move(temp, path, overwrite: false);
-        }
-        catch
-        {
-            try
-            {
-                File.Delete(temp);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // left behind: a .tmp beside the file
-            }
-
-            throw;
-        }
     }
 }
