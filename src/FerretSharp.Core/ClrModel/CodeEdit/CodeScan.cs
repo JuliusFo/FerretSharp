@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -84,7 +85,7 @@ public sealed class CodeScan
         var wanted = new HashSet<string>(words, StringComparer.Ordinal);
         var files = new List<ScannedFile>();
         var unreadable = new List<string>();
-        foreach (var path in SourceFiles(root))
+        foreach (var path in UserFolderPaths.SourceFiles(root))
         {
             cancellationToken.ThrowIfCancellationRequested();
             CodeFile? file;
@@ -386,48 +387,6 @@ public sealed class CodeScan
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// The <c>.cs</c> files below the root in ordinal order; <c>bin</c>, <c>obj</c>, dot folders and links skipped (a
-    /// junction in the work clone could lead anywhere – only files really below it are read and written).
-    /// </summary>
-    internal static IEnumerable<string> SourceFiles(string root)
-    {
-        var pending = new Stack<string>([root]);
-        while (pending.TryPop(out var directory))
-        {
-            string[] files, directories;
-            try
-            {
-                files = Directory.GetFiles(directory, "*.cs");
-                directories = Directory.GetDirectories(directory);
-                Array.Sort(files, StringComparer.Ordinal);
-                Array.Sort(directories, StringComparer.Ordinal);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                continue;
-            }
-
-            foreach (var file in files)
-            {
-                if (!IsLink(file))
-                {
-                    yield return file;
-                }
-            }
-
-            for (var i = directories.Length - 1; i >= 0; i--)
-            {
-                var child = directories[i];
-                var name = System.IO.Path.GetFileName(child);
-                if (!name.StartsWith('.') && !name.Equals("bin", StringComparison.OrdinalIgnoreCase) && !name.Equals("obj", StringComparison.OrdinalIgnoreCase) && !IsLink(child))
-                {
-                    pending.Push(child);
-                }
-            }
-        }
     }
 
     /// <summary>A junction or symbolic link – or a path that cannot be looked at (not OneDrive placeholders, review WP-41).</summary>
