@@ -16,17 +16,17 @@ public class ColumnPinningTests
     private static readonly TableDetails NoKey = new(
         new TableSummary("APP", "V_UMSATZ", TableKind.View), [Col("A"), Col("B"), Col("C")], [], [], false);
 
-    [Fact]
-    public void Without_user_pins_the_primary_key_comes_first_then_the_schema_order() =>
-        Assert.Equal([1, 3, 0, 2, 4, 5], ColumnPinning.DisplayOrder(Position, []));
-
-    [Fact]
-    public void User_pins_follow_the_primary_key_in_pin_order() =>
-        Assert.Equal([1, 3, 5, 2, 0, 4], ColumnPinning.DisplayOrder(Position, ["PREIS", "ARTIKEL"]));
-
-    [Fact]
-    public void Table_without_primary_key_starts_with_the_user_pins() =>
-        Assert.Equal([2, 0, 1], ColumnPinning.DisplayOrder(NoKey, ["C"]));
+    /// <summary>
+    /// The primary key first, then the user's pins in pin order, then the schema order; a pin of a column that is gone does
+    /// not count (review 3.70.0, C17: four tests of one call).
+    /// </summary>
+    [Theory]
+    [InlineData(true, "", new[] { 1, 3, 0, 2, 4, 5 })]
+    [InlineData(true, "PREIS,ARTIKEL", new[] { 1, 3, 5, 2, 0, 4 })]
+    [InlineData(false, "C", new[] { 2, 0, 1 })] // without a primary key the pins come first
+    [InlineData(false, "GELOESCHT", new[] { 0, 1, 2 })]
+    public void Display_order_is_the_primary_key_then_the_pins_then_the_schema_order(bool withKey, string pins, int[] expected) =>
+        Assert.Equal(expected, ColumnPinning.DisplayOrder(withKey ? Position : NoKey, pins.Split(',', StringSplitOptions.RemoveEmptyEntries)));
 
     [Fact]
     public void Primary_key_is_always_pinned_and_cannot_be_released()
@@ -54,8 +54,4 @@ public class ColumnPinningTests
     [Fact]
     public void Normalize_drops_dropped_columns_primary_key_and_duplicates_and_respects_case() =>
         Assert.Equal(["PREIS", "MENGE"], ColumnPinning.Normalize(Position, ["GELOESCHT", "PREIS", "POS_NR", "preis", "PREIS", "MENGE"]));
-
-    [Fact]
-    public void Display_order_ignores_columns_that_no_longer_exist() =>
-        Assert.Equal([0, 1, 2], ColumnPinning.DisplayOrder(NoKey, ["GELOESCHT"]));
 }
