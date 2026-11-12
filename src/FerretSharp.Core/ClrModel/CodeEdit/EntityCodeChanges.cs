@@ -53,7 +53,8 @@ public static partial class EntityCodeChanges
         var sites = scan.ConfigurationsOf(entity.ClrType)
             .OrderBy(s => s.Kind) // a configuration class before a lambda in OnModelCreating before chains there
             .ToList();
-        var context = new Context(scan, entityMapping, types, sites, new FileEdits(scan.Root), notes, NullableReferences(scan));
+        var nullable = ProjectNullable(scan.Root, Path.GetDirectoryName(types[0].File.Path)!) ?? NullableReferences(scan);
+        var context = new Context(scan, entityMapping, types, sites, new FileEdits(scan.Root), notes, nullable);
         var added = new List<string>();
         foreach (var change in changes)
         {
@@ -208,10 +209,7 @@ public static partial class EntityCodeChanges
                         break;
                     case "Precision" when after.Precision is { } precision && attribute.ArgumentList?.Arguments is { Count: > 0 } precisionArgs:
                         precisionTouched |= Number(context, file, precisionArgs[0].Expression, precision, before.Precision != after.Precision);
-                        if (precisionArgs.Count > 1)
-                        {
-                            Number(context, file, precisionArgs[1].Expression, after.Scale ?? 0, before.Scale != after.Scale);
-                        }
+                        Scale(context, file, precisionArgs.Count > 1 ? precisionArgs[1].Expression : null, precisionArgs[0].Expression, before, after);
 
                         break;
                     case "Column" when attribute.ArgumentList?.Arguments.FirstOrDefault(a => a.NameEquals?.Name.Identifier.ValueText == "TypeName") is { } typeName:
@@ -237,10 +235,7 @@ public static partial class EntityCodeChanges
                         break;
                     case "HasPrecision" when after.Precision is { } precision && args.Count > 0:
                         precisionTouched |= Number(context, site.File, args[0].Expression, precision, before.Precision != after.Precision);
-                        if (args.Count > 1)
-                        {
-                            Number(context, site.File, args[1].Expression, after.Scale ?? 0, before.Scale != after.Scale);
-                        }
+                        Scale(context, site.File, args.Count > 1 ? args[1].Expression : null, args[0].Expression, before, after);
 
                         break;
                     case "HasColumnType" when args is [var type]:
@@ -346,6 +341,22 @@ public static partial class EntityCodeChanges
             .OrderByDescending(g => g.Count())
             .Select(g => g.Key)
             .FirstOrDefault();
+
+    /// <summary>
+    /// The scale of <c>HasPrecision(p, s)</c>/<c>[Precision(p, s)]</c>; one written without (<c>HasPrecision(12)</c>) gets it
+    /// behind the precision when the scale changed – before, nothing changed and nothing was said (review WP-41).
+    /// </summary>
+    private static void Scale(Context context, ScannedFile file, ExpressionSyntax? scale, ExpressionSyntax precision, ColumnInfo before, ColumnInfo after)
+    {
+        if (scale is not null)
+        {
+            Number(context, file, scale, after.Scale ?? 0, before.Scale != after.Scale);
+        }
+        else if (before.Scale != after.Scale && after.Scale is { } value)
+        {
+            context.Edits.Insert(file, precision.Span.End, ", " + value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+    }
 
     /// <summary>Replaces a number literal; anything else (a constant) is named for the user.</summary>
     /// <returns>Whether the project configures this facet here.</returns>
@@ -563,6 +574,58 @@ public static partial class EntityCodeChanges
     internal static bool NullableReferences(CodeScan scan) =>
         scan.Files.Any(f => f.Root.DescendantNodes().OfType<PropertyDeclarationSyntax>()
             .Any(p => p.Type is NullableTypeSyntax { ElementType: PredefinedTypeSyntax { Keyword.RawKind: (int)SyntaxKind.StringKeyword } or ArrayTypeSyntax }));
+
+    /// <summary>
+    /// <c>&lt;Nullable&gt;</c> of the project a folder belongs to: its project file, else the nearest <c>Directory.Build.props</c>
+    /// above it, not above the work clone (the project file is read after the props and wins). True for <c>enable</c> and
+    /// <c>annotations</c>, false for <c>disable</c> and <c>warnings</c>, null if neither says – then the files decide
+    /// (review WP-41: a project with nullable reference types and no <c>string?</c> yet got none).
+    /// </summary>
+    internal static bool? ProjectNullable(string root, string folder)
+    {
+        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        bool? project = null;
+        var projectSeen = false;
+        for (var current = Path.GetFullPath(folder); current is not null && current.Length >= fullRoot.Length; current = Path.GetDirectoryName(current))
+        {
+            try
+            {
+                if (!projectSeen && Directory.GetFiles(current, "*.csproj") is [var csproj, ..])
+                {
+                    projectSeen = true;
+                    project = NullableSetting(File.ReadAllText(csproj));
+                    if (project is not null)
+                    {
+                        return project;
+                    }
+                }
+
+                var props = Path.Combine(current, "Directory.Build.props");
+                if (File.Exists(props) && NullableSetting(File.ReadAllText(props)) is { } inherited)
+                {
+                    return inherited;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        return project;
+    }
+
+    private static bool? NullableSetting(string msbuild) => NullableElement().Match(msbuild) is { Success: true } match
+        ? match.Groups[1].Value.ToLowerInvariant() switch
+        {
+            "enable" or "annotations" => true,
+            "disable" or "warnings" => false,
+            _ => null,
+        }
+        : null;
+
+    [GeneratedRegex(@"<Nullable>\s*(\w+)\s*</Nullable>", RegexOptions.IgnoreCase)]
+    private static partial Regex NullableElement();
 
     /// <summary><c>string?</c> or <c>byte[]?</c> before the name of a declaration.</summary>
     [GeneratedRegex(@"\b(string|byte\[\])\? ")]

@@ -50,6 +50,33 @@ public sealed class CodeChangeWriterTests
         Assert.Equal("// mine", File.ReadAllText(clone.Combine("C.cs")));
     }
 
+    /// <summary>Review WP-41, K9: a read-only file showed only when it was its turn – the files before it were written.</summary>
+    [Fact]
+    public async Task A_read_only_file_keeps_every_file_of_the_plan_as_it_is()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Under Linux root writes read-only files (the test container).");
+        }
+
+        using var clone = new TestFolder();
+        File.WriteAllText(clone.Combine("A.cs"), "class A {}");
+        File.WriteAllText(clone.Combine("B.cs"), "class B {}");
+        var plan = new CodeChangePlan(clone.Path, [Changed(clone, "A.cs", "class A { }"), Changed(clone, "B.cs", "class B { }")], [], []);
+        File.SetAttributes(clone.Combine("B.cs"), FileAttributes.ReadOnly);
+        try
+        {
+            var results = await CodeChangeWriter.WriteAsync(plan, TestContext.Current.CancellationToken);
+
+            Assert.Equal([FileWriteOutcome.Skipped, FileWriteOutcome.Failed], results.Select(r => r.Outcome));
+            Assert.Equal("class A {}", File.ReadAllText(clone.Combine("A.cs")));
+        }
+        finally
+        {
+            File.SetAttributes(clone.Combine("B.cs"), FileAttributes.Normal);
+        }
+    }
+
     /// <summary>Review WP-41, M2: a junction in the work clone is neither read nor written through; a junction needs no rights.</summary>
     [Fact]
     public async Task A_junction_in_the_work_clone_is_not_scanned_and_not_written_through()

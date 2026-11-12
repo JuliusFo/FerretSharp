@@ -220,6 +220,31 @@ public sealed class EntityCodeChangesTests
         ], plan.Notes);
     }
 
+    /// <summary>Review WP-41, K11: a precision without scale got no scale, and a member sharing its line went with a dropped one.</summary>
+    [Fact]
+    public async Task A_precision_without_scale_gets_it_and_a_member_on_the_same_line_stays()
+    {
+        var mapping = await MappingAsync();
+        var entity = Entity.Replace("    public int KundeId { get; set; }\n", "    public int KundeId { get; set; } public bool? Geprueft { get; set; }\n", StringComparison.Ordinal)
+            .Replace("    public DateTime ErstelltAm { get; set; }\n", "    public DateTime ErstelltAm { get; set; } public string? Notiz2 { get; set; }\n", StringComparison.Ordinal);
+        var configurations = Configurations.Replace("HasPrecision(12, 2)", "HasPrecision(12)", StringComparison.Ordinal);
+        var draft = TableDraft.Of(Kunden);
+        draft = draft with
+        {
+            Columns = [.. draft.Columns.Select(c => c.Original switch
+            {
+                "UMSATZ" => c with { Column = c.Column with { Scale = 3 } },
+                "GEPRUEFT" => c with { Dropped = true },
+                _ => c,
+            })],
+        };
+
+        var plan = EntityCodeChanges.Plan(mapping, Kunden.Table.Ref, ColumnChanges.Of(Kunden, draft), Scan(entity, configurations));
+
+        Assert.Equal(configurations.Replace("HasPrecision(12)", "HasPrecision(12, 3)", StringComparison.Ordinal), TextOf(plan, "Configurations.cs"));
+        Assert.Equal(entity.Replace(" public bool? Geprueft { get; set; }", "", StringComparison.Ordinal), TextOf(plan, "Kunde.cs"));
+    }
+
     /// <summary>Review WP-41, M3: the guard against writing twice asked for the plain name, which a navigation had taken.</summary>
     [Fact]
     public async Task A_new_column_whose_name_is_taken_gets_the_unique_name_and_is_added()

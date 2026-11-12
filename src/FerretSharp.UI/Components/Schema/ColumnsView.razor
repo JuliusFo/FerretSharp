@@ -192,7 +192,7 @@
     @if (_entityName is not null && mapping is not null && entity is null)
     {
         var outgoing = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? []).ToList();
-        var entityCode = EntityCode.Write(mapping, Details, outgoing, _entityName.Trim().Length > 0 ? _entityName : Details.Table.Name);
+        var entityCode = EntityCode.Write(mapping, Details, outgoing, _entityName.Trim().Length > 0 ? _entityName : EntityCode.SuggestName(mapping.Model, Details.Table.Name));
         <section class="entity-code">
             <div class="index-draft-form">
                 <label for="@_entityId">@SchemaViewText.Entity_Name</label>
@@ -207,7 +207,7 @@
             @if (Details.Table.Kind == TableKind.Table || Details.Table.Kind == TableKind.View)
             {
                 @* WP-41, second stage: the same as new files in the work clone, with DbSet and registration *@
-                <ProjectCodeChangeView Request="@(new CodeChangeRequest.ForNewEntity(Details, outgoing, entityCode.Name))" />
+                <ProjectCodeChangeView Request="@(new CodeChangeRequest.ForNewEntity(Details, outgoing, _entityName))" />
             }
         </section>
     }

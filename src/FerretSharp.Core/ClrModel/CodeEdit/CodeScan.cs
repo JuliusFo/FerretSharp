@@ -100,7 +100,12 @@ public sealed class CodeScan
             var relative = System.IO.Path.GetRelativePath(root, path);
             if (file is null)
             {
-                unreadable.Add(relative);
+                // Only if it could matter: an ANSI file read as Latin-1 for the words (review WP-41: every one was named).
+                if (HoldsWordRaw(path, wanted))
+                {
+                    unreadable.Add(relative);
+                }
+
                 continue;
             }
 
@@ -340,6 +345,20 @@ public sealed class CodeScan
         var ns = string.Join('.', type.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString().Replace(" ", "", StringComparison.Ordinal)));
         var nested = string.Join('+', names);
         return ns.Length == 0 ? nested : $"{ns}.{nested}";
+    }
+
+    /// <summary>A file that is no UTF-8/UTF-16 or too large to read for a change: does it name one of the words (up to 16 MB)?</summary>
+    private static bool HoldsWordRaw(string path, HashSet<string> words)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Length <= 16L * 1024 * 1024 && HoldsWord(System.Text.Encoding.Latin1.GetString(File.ReadAllBytes(path)), words);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Whether the text holds one of the words as an identifier (letters, digits, <c>_</c>).</summary>

@@ -64,6 +64,32 @@ internal sealed class FileEdits(string root)
     public void RemoveLines(ScannedFile file, SyntaxNode node)
     {
         var text = file.File.Text;
+        var lineEnd = LineEnd(text, node.Span.End);
+        var rest = text[node.Span.End..lineEnd].Trim();
+        if (text[LineStart(text, node.SpanStart)..node.SpanStart].Trim().Length > 0 || (rest.Length > 0 && !rest.StartsWith("//", StringComparison.Ordinal)))
+        {
+            // It shares its line with another member or statement: only the node goes, with the spaces after it – at the end of
+            // the line with those before it (review WP-41).
+            var (from, to) = (node.SpanStart, node.Span.End);
+            if (rest.Length == 0)
+            {
+                while (from > 0 && text[from - 1] is ' ' or '\t')
+                {
+                    from--;
+                }
+            }
+            else
+            {
+                while (to < text.Length && text[to] is ' ' or '\t')
+                {
+                    to++;
+                }
+            }
+
+            Remove(file, TextSpan.FromBounds(from, to));
+            return;
+        }
+
         var start = LineStart(text, node.SpanStart);
         while (start > 0)
         {

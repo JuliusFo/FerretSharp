@@ -122,7 +122,7 @@ public sealed class NewEntityCodeTests
         using var clone = new TestFolder();
         Write(clone, "App/App.csproj", "<Project ToolsVersion=\"15.0\"><ItemGroup><Compile Include=\"Kunde.cs\" /></ItemGroup></Project>");
         Write(clone, "App/Kunde.cs", "namespace Shop\n{\n\tpublic class Kunde\n\t{\n\t}\n}\n");
-        var context = "namespace Shop\n{\n\tpublic class Ctx : DbContext\n\t{\n\t\tpublic DbSet<Kunde> Kunden => Set<Kunde>();\n\n"
+        var context = "namespace Shop\n{\n\tpublic class Ctx : DbContext\n\t{\n\t\t[Display(Name = \"Kunde\")] public DbSet<Kunde> Kunden => Set<Kunde>();\n\n"
                       + "\t\tprotected override void OnModelCreating(ModelBuilder modelBuilder)\n\t\t{\n"
                       + "\t\t\tmodelBuilder.ApplyConfigurationsFromAssembly(typeof(Ctx).Assembly);\n\t\t}\n\t}\n}\n";
         Write(clone, "App/Ctx.cs", context);
@@ -132,7 +132,9 @@ public sealed class NewEntityCodeTests
         var configuration = plan.Files.Single(f => f.Relative == Path.Combine("App", "AuftragConfiguration.cs"));
         Assert.StartsWith("using Microsoft.EntityFrameworkCore;\nusing Microsoft.EntityFrameworkCore.Metadata.Builders;\n\nnamespace Shop\n{\n\tpublic class AuftragConfiguration", configuration.NewText, StringComparison.Ordinal);
         Assert.Contains("\n\t\t\tbuilder.HasKey(x => x.AuftragId);\n", configuration.NewText, StringComparison.Ordinal);
-        Assert.Equal(context.Replace("\t\tpublic DbSet<Kunde> Kunden => Set<Kunde>();\n", "\t\tpublic DbSet<Kunde> Kunden => Set<Kunde>();\n\t\tpublic DbSet<Auftrag> Auftrag => Set<Auftrag>();\n", StringComparison.Ordinal),
+        // the type is exchanged where it is written as a type, not in the attribute's string (review WP-41)
+        Assert.Equal(context.Replace("\t\t[Display(Name = \"Kunde\")] public DbSet<Kunde> Kunden => Set<Kunde>();\n",
+                "\t\t[Display(Name = \"Kunde\")] public DbSet<Kunde> Kunden => Set<Kunde>();\n\t\t[Display(Name = \"Kunde\")] public DbSet<Auftrag> Auftrag => Set<Auftrag>();\n", StringComparison.Ordinal),
             plan.Files.Single(f => f.Relative.EndsWith("Ctx.cs", StringComparison.Ordinal)).NewText);
         Assert.Contains($"{Path.Combine("App", "App.csproj")} ist kein SDK-Projekt: die neuen Dateien bitte von Hand eintragen (Compile Include).", plan.Notes);
     }
@@ -153,6 +155,25 @@ public sealed class NewEntityCodeTests
         Assert.Equal([Path.Combine("App"), Path.Combine("App", "Views")], proposed.Places!.EntityFolders.Order(StringComparer.Ordinal));
         Assert.Equal(Path.Combine("App", "Views"), chosen.Places!.EntityFolder);
         Assert.StartsWith("namespace Shop;", chosen.Files.Single(f => f.Relative == Path.Combine("App", "Views", "Auftrag.cs")).NewText, StringComparison.Ordinal);
+    }
+
+    /// <summary>Review WP-41, K7 and K11: the name became class, file and DbSet unchecked; nullable reference types were guessed.</summary>
+    [Fact]
+    public async Task The_name_must_be_a_csharp_name_and_nullable_reference_types_come_from_the_project()
+    {
+        var mapping = await MappingAsync();
+        using var clone = new TestFolder();
+        Write(clone, "Directory.Build.props", "<Project><PropertyGroup><Nullable>enable</Nullable></PropertyGroup></Project>");
+        Write(clone, "App/App.csproj", Sdk);
+        Write(clone, "App/Kunde.cs", "namespace Shop;\npublic class Kunde { public string Name { get; set; } = \"\"; }\n"); // no string? anywhere
+        var table = Auftrag with { Columns = [.. Auftrag.Columns, new ColumnInfo("NOTIZ", "VARCHAR2", 40, true, null, null, true, false, null, 4)] };
+        var scan = CodeScan.Read(clone.Path, NewEntityCode.Words(mapping.Model, "Auftrag"), TestContext.Current.CancellationToken);
+
+        var invalid = NewEntityCode.Plan(mapping, table, [], "Auftrag-Alt", scan);
+        var valid = NewEntityCode.Plan(mapping, table, [], "Auftrag", scan);
+
+        Assert.Equal(["Auftrag-Alt ist kein C#-Name (Buchstaben, Ziffern und _, nicht mit einer Ziffer beginnend, kein Schlüsselwort)."], invalid.Problems);
+        Assert.Contains("    public string? Notiz { get; set; }\n", valid.Files.Single(f => f.Relative == Path.Combine("App", "Auftrag.cs")).NewText, StringComparison.Ordinal);
     }
 
     [Fact]

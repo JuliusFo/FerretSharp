@@ -198,7 +198,7 @@ public sealed class ProjectCodeChange(ClrModelMapping mapping, ClrProjectLink? l
                 var scan = CodeScan.Read(workClone!, EntityCodeChanges.Words(entity), cancellationToken);
                 return EntityCodeChanges.Plan(mapping, table.Before.Table.Ref, table.Changes, scan);
             case CodeChangeRequest.ForNewEntity created:
-                var name = created.Name.Trim().Length > 0 ? created.Name.Trim() : created.Table.Table.Name;
+                var name = created.Name.Trim().Length > 0 ? created.Name.Trim() : EntityCode.SuggestName(mapping.Model, created.Table.Table.Name);
                 var all = CodeScan.Read(workClone!, NewEntityCode.Words(mapping.Model, name), cancellationToken);
                 return NewEntityCode.Plan(mapping, created.Table, created.Outgoing, name, all, created.EntityFolder, created.ConfigurationFolder);
             default:

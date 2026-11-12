@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using Microsoft.CodeAnalysis;
@@ -37,6 +36,13 @@ public static class NewEntityCode
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(scan);
         var model = mapping.Model;
+        name = name.Trim();
+        if (!SyntaxFacts.IsValidIdentifier(name) || SyntaxFacts.GetKeywordKind(name) != SyntaxKind.None)
+        {
+            // It becomes the class, the file and the DbSet: no syntax error later, but a reason now (review WP-41).
+            return new CodeChangePlan(scan.Root, [], [], [TextFormat.Format(CodeEditText.Problem_InvalidName, name)]);
+        }
+
         var suggestion = EntityCode.Write(mapping, table, outgoing, name);
         name = suggestion.Name;
         var notes = suggestion.Notes.Where(n => n != TextFormat.Format(ClrModelText.EntityDbSet, name)).ToList();
@@ -90,7 +96,7 @@ public static class NewEntityCode
             }
         }
 
-        var nullableReferences = EntityCodeChanges.NullableReferences(scan);
+        var nullableReferences = EntityCodeChanges.ProjectNullable(scan.Root, entityPlace.Folder) ?? EntityCodeChanges.NullableReferences(scan);
         var globalUsings = scan.Files.SelectMany(f => f.Root.Usings.Where(u => u.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword)).Select(u => u.NamespaceOrType.ToString())).ToHashSet(StringComparer.Ordinal);
 
         // The entity.
@@ -244,10 +250,20 @@ public static class NewEntityCode
         var oldType = ((GenericNameSyntax)last.Type).TypeArgumentList.Arguments[0].ToString();
         var text = part.File.File.Text;
         var start = FileEdits.LineStart(text, last.SpanStart);
-        // The last DbSet's text with the name and the entity exchanged – also in its body (=> Set<Kunde>()): modifiers,
-        // accessors and initializer stay as the context writes them.
-        var copy = text[start..last.Identifier.SpanStart] + setName + text[last.Identifier.Span.End..last.Span.End];
-        copy = Regex.Replace(copy, $@"(?<![\w.]){Regex.Escape(oldType)}(?!\w)", name.Replace("$", "$$", StringComparison.Ordinal));
+        // The last DbSet's text with the name and the entity exchanged – also in its body (=> Set<Kunde>()), but only where a
+        // type is written, not in a string of an attribute (review WP-41): modifiers, accessors, initializer stay as they are.
+        var types = last.DescendantNodes().OfType<TypeSyntax>().Where(t => t.ToString() == oldType).ToList();
+        var exchanges = types.Where(t => !types.Any(o => o != t && o.Span.Contains(t.Span)))
+            .Select(t => (t.Span, Text: name))
+            .Append((last.Identifier.Span, Text: setName))
+            .OrderByDescending(e => e.Span.Start)
+            .ToList();
+        var copy = text[start..last.Span.End];
+        foreach (var (span, replacement) in exchanges)
+        {
+            copy = copy[..(span.Start - start)] + replacement + copy[(span.End - start)..];
+        }
+
         edits.Insert(part.File, FileEdits.LineEnd(text, last.Span.End), copy + part.File.File.Format.NewLine);
         AddUsing(scan, edits, part.File, last, entityNamespace);
     }

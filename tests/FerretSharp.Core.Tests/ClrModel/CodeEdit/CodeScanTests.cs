@@ -53,4 +53,17 @@ public sealed class CodeScanTests
 
         Assert.Equal([Path.Combine("src", "Kunde.cs")], scan.Files.Select(f => f.Relative));
     }
+
+    /// <summary>Review WP-41, K8: every ANSI file of the clone was named, also those that have nothing to do with the entity.</summary>
+    [Fact]
+    public void A_file_that_is_no_utf8_is_named_only_if_it_holds_a_wanted_word()
+    {
+        using var clone = new TestFolder();
+        File.WriteAllBytes(clone.Combine("Kunde.cs"), [.. "class Kunde { } // Gr"u8, 0xF6, 0xDF, 0x65]); // "Größe" in Windows-1252
+        File.WriteAllBytes(clone.Combine("Other.cs"), [.. "class Other { } // Gr"u8, 0xF6, 0xDF, 0x65]);
+
+        var scan = CodeScan.Read(clone.Path, ["Kunde"], TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Kunde.cs"], scan.Unreadable);
+    }
 }
