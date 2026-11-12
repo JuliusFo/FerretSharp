@@ -19,6 +19,12 @@ Vorschlag aus der Backlog-Priorisierung (2026-11-12, `docs/roadmap.md`); am 2026
 - **Link mit Ansicht „Verwendung“ ohne verknüpftes Projekt** zeigt die Daten: `TableTab.ViewFromSetting`/`UseViewFromSetting` heißen jetzt `ViewFallsBack`/`UseViewOrData`, und `OpenPendingLink` öffnet die Ansicht des Links darüber.
 - **Kleinkram:** `.settings-nav-item.dim:hover` (nach `.dim`, gleiche Spezifität); Esc oder Klick neben dem Menü eines `MenuButton` gibt dem Knopf den Fokus (`CloseFromMenuAsync`); Satz unter dem DDL-Tab (`Ddl_Source`: „Indizes und Trigger stehen nicht darin; die Grants folgen darunter.“); linke Ziehgriffe (`.resize-handle.left`) liegen innen (`left: 0`) – Änderungsübersicht und Formular wie schon „Abfrage bauen“, deren eigene Regel entfällt.
 
+## E2E (Testinstanz, eigener Container)
+- Gefunden: Die Log-Zeile beim Start („Settings could not be read, using defaults“) passte nicht zum Teilfall, jetzt „Settings file: …“.
+- Nur eine Meldung zur Zeit: Sind beim Start `settings.json` und `connections.json` beide unlesbar, verdrängt der Hinweis zu den Verbindungen den zu den Einstellungen (beide stehen im Log). Nicht geändert.
+- „Neu laden“ nur per CDP (`Page.reload`) und mit offener Einstellungsseite: danach kein `[ERR]`, keine Fehlerleiste. Grid und Monaco waren dabei nicht offen.
+- Nicht in der App geprüft (nur Tests): EXPLAIN gegen eine `PLAN_TABLE` des Schemas (Integrationstest), „Verbindung testen“ bei hängendem Öffnen, Link mit „Verwendung“, Grid ab Zeile −500 (nicht nachstellbar), ModelHost-Ende beim Start.
+
 ## Nicht gemacht
 - Kein Test für den Fall ohne Zugriff auf `SYS.PLAN_TABLE$`: Dafür müsste der Grant an PUBLIC im geteilten Test-Container entzogen werden.
 - Die Ursache des Blocks −1 im Grid ist weiter offen.
