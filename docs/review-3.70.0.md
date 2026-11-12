@@ -7,7 +7,7 @@ Auftrag des Nutzers (2026-11-12): `/complete-code-review` nach dem Release 3.70.
 
 Acht parallele Agenten nach Themen, nur lesend, auf einer festen Kopie von `213bd507`: DB-Zugriff (DB), Zustand/Nebenläufigkeit (ST), UI/JS/CSS (UI), Host/Prozesse/Build (PH), Sicherheit (SE), Wiederverwendung/toter Code (RE), Tests (TE), Doku (DO). Befunde aus `docs/review-3.54.0.md` und dem Backlog wurden nur gemeldet, wenn ihre Umsetzung fehlt oder fehlerhaft ist. Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = zusätzlich von Hand im Code bestätigt; sonst die Einschätzung des Agenten.
 
-**Stand:** in Umsetzung mit R9 (Branch `wp/r9-review-3.70`).
+**Stand:** umgesetzt mit R9 (`docs/work-packages/r9-review-3.70.md`, Branch `wp/r9-review-3.70`), noch ohne Release; A10 nicht nachgestellt (Begründung im Protokoll); offen im Backlog: C6-Rest, C9 (CI), C12, C13, C15 (Wege-Panel), D2-Rest, die README-Bilder (D8).
 
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
