@@ -375,8 +375,37 @@ public sealed class ClrModelManager : IDisposable
         }
     }
 
+    /// <summary>
+    /// The project's build waits for another build of the app (one at a time, review 3.54.0, A6) – "Build" said nothing
+    /// about it and could not be stopped (review 3.70.0, A13).
+    /// </summary>
+    public bool WaitingForBuild { get; private set; }
+
+    private CancellationTokenSource? _building;
+
+    /// <summary>Stops the project's build, also while it waits for another one; its result is then null.</summary>
+    public void CancelBuild()
+    {
+        try
+        {
+            _building?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // ended meanwhile
+        }
+    }
+
     /// <summary><c>dotnet build</c> of the linked project, then reads the model again if the build succeeded.</summary>
-    public Task<DotNetRun?> BuildAsync() => BuildAsync((link, ct) => _runner.BuildAsync(link, ct), ofProject: true);
+    public Task<DotNetRun?> BuildAsync() => BuildAsync((link, ct) =>
+    {
+        WaitingForBuild = true;
+        return _runner.BuildAsync(link, ct, onStart: () =>
+        {
+            WaitingForBuild = false;
+            Changed?.Invoke();
+        });
+    }, ofProject: true);
 
     /// <summary>
     /// <c>dotnet build</c> of a solution with the linked project, in its configuration (code usage: projects not built). One
@@ -405,6 +434,11 @@ public sealed class ClrModelManager : IDisposable
         try
         {
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, cancellationToken);
+            if (ofProject)
+            {
+                _building = cancel;
+            }
+
             run = await Task.Run(() => build(link, cancel.Token));
         }
         catch (OperationCanceledException)
@@ -418,9 +452,14 @@ public sealed class ClrModelManager : IDisposable
         }
         finally
         {
-            if (ofProject && run is not null)
+            if (ofProject)
             {
-                LastBuild = run;
+                _building = null;
+                WaitingForBuild = false;
+                if (run is not null)
+                {
+                    LastBuild = run;
+                }
             }
 
             IsBuilding = false;

@@ -93,6 +93,33 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     /// <summary>
+    /// Review 3.70.0, A13: "Build" behind another build of the app (one at a time) waited silently and could not be stopped.
+    /// It says that it waits, and cancelling ends it without a result.
+    /// </summary>
+    [Fact]
+    public async Task A_build_waiting_for_another_says_so_and_can_be_cancelled()
+    {
+        await ConnectAsync();
+        var started = new TaskCompletionSource();
+        _runner.BuildAsync(Arg.Any<ClrProjectLink>(), Arg.Any<CancellationToken>(), Arg.Any<Action?>()).Returns(async call =>
+        {
+            started.SetResult();
+            await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>()); // the other build does not end
+            return new DotNetRun(0, "", "");
+        });
+
+        var build = _models.BuildAsync();
+        await started.Task.WaitAsync(Wait.Limit, Ct);
+        Assert.True(_models.WaitingForBuild);
+
+        _models.CancelBuild();
+
+        Assert.Null(await build.WaitAsync(Wait.Limit, Ct));
+        Assert.False(_models.IsBuilding);
+        Assert.False(_models.WaitingForBuild);
+    }
+
+    /// <summary>
     /// Connects and waits for the model load that connecting starts in the background. While it runs it reads the deps.json
     /// (<c>File.OpenRead</c>), so a test that rewrites the file or deletes the folder at that moment fails with a sharing
     /// violation; a load cancelled by <see cref="ClrModelManager.LoadAsync()"/> keeps reading until its step ends.

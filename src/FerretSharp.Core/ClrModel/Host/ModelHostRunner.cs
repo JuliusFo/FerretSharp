@@ -16,7 +16,8 @@ public interface IModelHostRunner
     Task<ModelHostResult> ReadModelAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null);
 
     /// <summary><c>dotnet build</c> of the linked project in its configuration.</summary>
-    Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken);
+    /// <param name="onStart">Called once no other build of the app runs and this one starts (review 3.70.0, A13).</param>
+    Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken, Action? onStart = null);
 
     /// <summary><c>dotnet build</c> of a whole solution in the given configuration (code usage reads all its projects).</summary>
     /// <param name="progress">How many of the solution's projects are built; may be called on any thread.</param>
@@ -211,8 +212,8 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     /// Without build servers (review 3.44.0, A26): the build runs in FerretSharp's job object, which ends everything in it
     /// with the app – a compiler or Razor server it started would end with it, in the middle of other builds sharing it.
     /// </remarks>
-    public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken) =>
-        Build(link.ProjectFile, link.Configuration, TimeSpan.FromMinutes(10), cancellationToken);
+    public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken, Action? onStart = null) =>
+        Build(link.ProjectFile, link.Configuration, TimeSpan.FromMinutes(10), cancellationToken, onStart: onStart);
 
     /// <remarks>
     /// As <see cref="BuildAsync"/>; longer limit, a solution may have dozens of projects. Minimal verbosity, not quiet: only

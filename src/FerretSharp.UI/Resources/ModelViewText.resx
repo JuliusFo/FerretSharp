@@ -20,6 +20,9 @@
     <value>Rebuild</value>
     <comment>Button: dotnet build, then reload the model</comment>
   </data>
+  <data name="Model_BuildWaiting" xml:space="preserve">
+    <value>Waiting for another build of FerretSharp to end …</value>
+  </data>
   <data name="Model_BuildTitle" xml:space="preserve">
     <value>dotnet build, then reload</value>
   </data>
