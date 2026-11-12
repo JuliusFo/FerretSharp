@@ -49,14 +49,15 @@ public static class WrittenKey
     }
 
     /// <summary>
-    /// A value as typed in the form a read returns it: CHAR and NCHAR filled with blanks to their length, a TIMESTAMP(8/9) as
+    /// A value as typed in the form a read returns it: CHAR and NCHAR filled with blanks to their length; a time as the column
+    /// stores it – DATE without fractions, TIMESTAMP(n) rounded to n digits (review of WP-85), TIMESTAMP(8/9) as
     /// <see cref="PreciseTimestamp"/> (a key keeps all its digits).
     /// </summary>
     private static object AsRead(ColumnInfo column, object value)
     {
-        if (value is DateTime time && ColumnCategories.LosesFractionsWhenRead(column))
+        if (value is DateTime time)
         {
-            return PreciseTimestamp.Of(time);
+            return PreciseTimestamp.AsKey(column, Stored(column, time))!;
         }
 
         if (value is not string text || !OracleTypes.IsFixedChar(column.DataType) || column.Length is not { } length)
@@ -66,5 +67,27 @@ public static class WrittenKey
 
         var used = OracleTypes.LengthInBytes(column) ? Encoding.UTF8.GetByteCount(text) : text.Length;
         return used < length ? text + new string(' ', length - used) : text;
+    }
+
+    /// <summary>A time as Oracle stores it in <paramref name="column"/>: DATE cuts the fraction off, TIMESTAMP(n) rounds to n digits.</summary>
+    private static DateTime Stored(ColumnInfo column, DateTime time)
+    {
+        var category = ColumnCategories.Of(column);
+        var digits = category switch
+        {
+            ColumnCategory.Date => 0,
+            ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => ColumnCategories.FractionalDigits(column),
+            _ => ColumnCategories.ReadFractionalDigits,
+        };
+        if (digits >= ColumnCategories.ReadFractionalDigits)
+        {
+            return time;
+        }
+
+        var unit = (long)Math.Pow(10, ColumnCategories.ReadFractionalDigits - digits); // ticks of the last digit kept
+        var fraction = time.Ticks % unit;
+        var whole = time.Ticks - fraction;
+        var truncated = category == ColumnCategory.Date; // DATE cuts off, TIMESTAMP rounds half up
+        return new DateTime(truncated || fraction * 2 < unit ? whole : whole + unit, time.Kind);
     }
 }

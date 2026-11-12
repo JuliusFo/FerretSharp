@@ -62,6 +62,26 @@ public class WrittenKeyTests
         Assert.Equal(Key(new PreciseTimestamp(new DateTime(2026, 10, 1, 14, 30, 5), 123456700)), WrittenKey.Of(table, Operation(tracker)));
     }
 
+    /// <summary>
+    /// Review of WP-85: a typed time is stored as the column stores it – DATE without fraction, TIMESTAMP(3) rounded to three
+    /// digits (also into the next second) –, else the key of a row not read back matched no reload.
+    /// </summary>
+    [Theory]
+    [InlineData("DATE", null, "01.10.2026 14:30:05,7", "2026-10-01T14:30:05.0000000")]
+    [InlineData("TIMESTAMP(3)", 3, "01.10.2026 14:30:05,1234567", "2026-10-01T14:30:05.1230000")]
+    [InlineData("TIMESTAMP(3)", 3, "01.10.2026 14:30:05,9996", "2026-10-01T14:30:06.0000000")]
+    [InlineData("TIMESTAMP(0)", 0, "01.10.2026 14:30:05,5", "2026-10-01T14:30:06.0000000")]
+    [InlineData("TIMESTAMP(6)", 6, "01.10.2026 14:30:05,1234564", "2026-10-01T14:30:05.1234560")]
+    public void A_typed_time_key_is_rounded_as_the_column_stores_it(string type, int? scale, string typed, string stored)
+    {
+        var table = new TableDetails(new TableSummary("APP", "LOG", TableKind.Table),
+            [new ColumnInfo("TS", type, null, false, null, scale, false, false, null, 1)], ["TS"], [], false);
+        var tracker = new ChangeTracker(table);
+        Assert.True(tracker.SetValue(tracker.AddRow(), 0, typed).IsValid);
+
+        Assert.Equal(Key(DateTime.Parse(stored, System.Globalization.CultureInfo.InvariantCulture)), WrittenKey.Of(table, Operation(tracker)));
+    }
+
     /// <summary>A key column left to the database (identity, trigger, default), or a table keyed by ROWID: the ROWID stays.</summary>
     [Fact]
     public void Without_every_key_column_or_without_a_primary_key_there_is_none()

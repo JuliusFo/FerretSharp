@@ -78,6 +78,13 @@ public sealed record PreciseTimestamp(DateTime Second, int Nanosecond)
         return new PreciseTimestamp(value.AddTicks(-fraction), (int)fraction * 100);
     }
 
+    /// <summary>
+    /// A value of <paramref name="column"/> as a key holds it: a <see cref="DateTime"/> of a TIMESTAMP(8/9) as
+    /// <see cref="PreciseTimestamp"/>, anything else unchanged – for keys built from other values (a foreign key's, written ones).
+    /// </summary>
+    public static object? AsKey(Schema.ColumnInfo column, object? value) =>
+        value is DateTime time && Schema.ColumnCategories.LosesFractionsWhenRead(column) ? Of(time) : value;
+
     /// <summary>As <see cref="DateTime"/>: the last two digits cut off.</summary>
     public DateTime Value => Second.AddTicks(Nanosecond / 100);
 

@@ -70,6 +70,7 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
                 // WP-85: a policy (VPD) hides rows with NR >= 100 from SELECT – a row written there cannot be read back.
                 "CREATE TABLE ED_HIDDEN (MANDANT CHAR(3), NR NUMBER(10), TXT VARCHAR2(10), CONSTRAINT PK_ED_HIDDEN PRIMARY KEY (MANDANT, NR)) SEGMENT CREATION IMMEDIATE",
                 "INSERT INTO ED_HIDDEN VALUES ('A', 1, 'sichtbar')",
+                "CREATE TABLE ED_ROUNDED (TS TIMESTAMP(3), D DATE, CONSTRAINT PK_ED_ROUNDED PRIMARY KEY (TS, D)) SEGMENT CREATION IMMEDIATE",
                 "CREATE OR REPLACE FUNCTION ED_HIDDEN_POLICY (schema_name VARCHAR2, object_name VARCHAR2) RETURN VARCHAR2 AS BEGIN RETURN 'NR < 100'; END;",
             })
             {
@@ -711,6 +712,28 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         await a.Editor.RollbackAsync(Ct);
     }
 
+    /// <summary>
+    /// Review of WP-85: the key built from the values written rounds as Oracle stores them – TIMESTAMP(3) to three digits (here
+    /// into the next second), DATE without its fraction –, the same key the read back gives.
+    /// </summary>
+    [Fact]
+    public async Task The_key_from_the_values_written_is_the_key_oracle_stored()
+    {
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_ROUNDED");
+        var tracker = new ChangeTracker(table);
+        var added = tracker.AddRow();
+        Assert.True(tracker.SetValue(added, I(table, "TS"), "01.10.2026 14:30:05,9996").IsValid);
+        Assert.True(tracker.SetValue(added, I(table, "D"), "01.10.2026 14:30:05,7").IsValid);
+        var operation = Assert.Single(tracker.PendingOperations());
+
+        var stored = (await a.Editor.FlushAsync(table, [operation], new FlushOptions(), Ct)).NewKeys[added.Id];
+
+        Assert.Equal(new RowKey.PrimaryKey([new DateTime(2026, 10, 1, 14, 30, 6), new DateTime(2026, 10, 1, 14, 30, 5)]), stored);
+        Assert.Equal(stored, WrittenKey.Of(table, operation));
+        await a.Editor.RollbackAsync(Ct);
+    }
+
     /// <summary>As SYSTEM: the select policy of ED_HIDDEN, once (the policy outlives the test run's sessions).</summary>
     private async Task AddHiddenPolicyAsync()
     {
@@ -728,9 +751,9 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
             {
                 await connection.OpenAsync(Ct);
             }
-            catch (OracleException ex)
+            catch (OracleException ex) when (!OracleContainerFixture.InCi)
             {
-                Assert.Skip($"SYSTEM login not possible: {ex.Message}");
+                Assert.Skip($"SYSTEM login not possible: {ex.Message}"); // in the CI only a missing Docker skips (review of WP-85)
             }
 
             await using var command = connection.CreateCommand();
