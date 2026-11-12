@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Problem_Overlap" xml:space="preserve">
+    <value>Two changes in {0} touch the same text – nothing is written. Make the change by hand.</value>
+    <comment>{0}: file path below the work clone</comment>
+  </data>
+  <data name="Problem_InvalidResult" xml:space="preserve">
+    <value>The change would leave {0} with a syntax error ({1}) – nothing is written.</value>
+    <comment>{0}: file path; {1}: line and message of the first syntax error</comment>
+  </data>
+  <data name="Problem_NoEntity" xml:space="preserve">
+    <value>The C# model has no entity for this table.</value>
+  </data>
+  <data name="Problem_ClassNotFound" xml:space="preserve">
+    <value>The class {0} is not in the work clone.</value>
+    <comment>{0}: full type name of the entity</comment>
+  </data>
+  <data name="Problem_NoEntityFolder" xml:space="preserve">
+    <value>No entity class of the model is in the work clone, so it is not known where a new one goes.</value>
+  </data>
+  <data name="Problem_FileExists" xml:space="preserve">
+    <value>{0} exists already – it is not overwritten. Choose another entity name.</value>
+    <comment>{0}: file path below the work clone</comment>
+  </data>
+  <data name="Problem_TypeExists" xml:space="preserve">
+    <value>The type {0} exists already in the work clone.</value>
+    <comment>{0}: full type name</comment>
+  </data>
+  <data name="Note_Unreadable" xml:space="preserve">
+    <value>{0} was not read (larger than 2 MB, or neither UTF-8 nor UTF-16).</value>
+    <comment>{0}: file path below the work clone</comment>
+  </data>
+  <data name="Note_Renamed" xml:space="preserve">
+    <value>{0} → {1}: renaming is not changed in the code yet – adjust {2} (HasColumnName) by hand.</value>
+    <comment>{0}: old column name; {1}: new column name; {2}: property name</comment>
+  </data>
+  <data name="Note_TypeChanged" xml:space="preserve">
+    <value>{0} is now {1}: check the type of {2} ({3}) by hand.</value>
+    <comment>{0}: column; {1}: new Oracle type; {2}: property; {3}: its C# type</comment>
+  </data>
+  <data name="Note_OtherEntities" xml:space="preserve">
+    <value>{0} also map this table – only {1} is changed.</value>
+    <comment>{0}: list of entity names; {1}: the entity that is changed</comment>
+  </data>
+  <data name="Note_NoConfiguration" xml:space="preserve">
+    <value>No configuration of {0} found – add this line by hand: {1}</value>
+    <comment>{0}: entity name; {1}: the configuration line</comment>
+  </data>
+  <data name="Note_LengthNotConfigured" xml:space="preserve">
+    <value>{0}: the project configures no length – nothing changed for {1}.</value>
+    <comment>{0}: property; {1}: the column's new Oracle type</comment>
+  </data>
+  <data name="Note_PrecisionNotConfigured" xml:space="preserve">
+    <value>{0}: the project configures no precision – nothing changed for {1}.</value>
+    <comment>{0}: property; {1}: the column's new Oracle type</comment>
+  </data>
+  <data name="Note_ClrTypeTooSmall" xml:space="preserve">
+    <value>{0}: {1} may not hold every value of {2} – EF reads it as {3}.</value>
+    <comment>{0}: property; {1}: its C# type; {2}: new Oracle type; {3}: the C# type EF reads</comment>
+  </data>
+  <data name="Note_DeclaredElsewhere" xml:space="preserve">
+    <value>{0} is not declared in {1} itself (a base class?) – remove it by hand.</value>
+    <comment>{0}: property; {1}: entity</comment>
+  </data>
+  <data name="Note_StillNamed" xml:space="preserve">
+    <value>{0} is still named in {1}, line {2}: {3}</value>
+    <comment>{0}: property; {1}: file; {2}: line; {3}: the statement</comment>
+  </data>
+  <data name="Note_KeyDropped" xml:space="preserve">
+    <value>{0} ({1}) is part of the key – adjust HasKey by hand.</value>
+    <comment>{0}: property; {1}: column</comment>
+  </data>
+  <data name="Note_NavigationLeft" xml:space="preserve">
+    <value>The navigation {0} uses {1} as foreign key – adjust it by hand.</value>
+    <comment>{0}: navigation name; {1}: property</comment>
+  </data>
+  <data name="Note_NotALiteral" xml:space="preserve">
+    <value>{0} in {1}, line {2} is no number in the code – set it to {3} by hand.</value>
+    <comment>{0}: the expression as written; {1}: file; {2}: line; {3}: the new value</comment>
+  </data>
+  <data name="Note_ConverterNamespace" xml:space="preserve">
+    <value>The namespace of {0} is not known – add its using by hand.</value>
+    <comment>{0}: converter type name</comment>
+  </data>
+  <data name="Note_ContextNotFound" xml:space="preserve">
+    <value>The DbContext {0} is not in the work clone – add a DbSet&lt;{1}&gt; and register the configuration by hand.</value>
+    <comment>{0}: full type name of the context; {1}: entity name</comment>
+  </data>
+  <data name="Note_NoProject" xml:space="preserve">
+    <value>No project file found above {0} – check that the new file is compiled.</value>
+    <comment>{0}: folder below the work clone</comment>
+  </data>
+  <data name="Note_OldProject" xml:space="preserve">
+    <value>{0} is no SDK-style project: add the new files to it by hand (Compile Include).</value>
+    <comment>{0}: project file</comment>
+  </data>
+  <data name="Note_InverseNavigation" xml:space="preserve">
+    <value>{0} gets no collection of {1} – add one by hand if you need it (and WithMany(x =&gt; x.…)).</value>
+    <comment>{0}: principal entity; {1}: new entity</comment>
+  </data>
+  <data name="Note_Register" xml:space="preserve">
+    <value>Register {0} in OnModelCreating by hand – the context registers its configurations neither one by one nor from the assembly.</value>
+    <comment>{0}: configuration class name</comment>
+  </data>
+  <data name="Write_Skipped" xml:space="preserve">
+    <value>Not written: another file of the change could not be.</value>
+  </data>
+  <data name="Write_OutsideRoot" xml:space="preserve">
+    <value>{0} is not below the work clone – not written.</value>
+    <comment>{0}: full path</comment>
+  </data>
+  <data name="Write_ExistsNow" xml:space="preserve">
+    <value>The file exists now – not overwritten.</value>
+  </data>
+  <data name="Write_Link" xml:space="preserve">
+    <value>{0} is a link – not written.</value>
+    <comment>{0}: file path below the work clone</comment>
+  </data>
+  <data name="Write_ChangedMeanwhile" xml:space="preserve">
+    <value>The file changed since the preview – not written. Look at the preview again.</value>
+  </data>
+  <data name="Warning_ConnectionBranch" xml:space="preserve">
+    <value>The work clone is on {0} – the branch of a connection's linked clone. Write only if you mean to.</value>
+    <comment>{0}: branch name</comment>
+  </data>
+  <data name="Warning_NoGit" xml:space="preserve">
+    <value>Git was not found: uncommitted changes of the files are not checked.</value>
+  </data>
+  <data name="Warning_Uncommitted" xml:space="preserve">
+    <value>{0} has uncommitted changes.</value>
+    <comment>{0}: file path below the work clone</comment>
+  </data>
+</root>

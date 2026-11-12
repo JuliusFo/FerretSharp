@@ -173,7 +173,7 @@ public static partial class PropertyCode
     private static bool IsTypeName(string converter) => !converter.Contains('<', StringComparison.Ordinal) && !converter.StartsWith("ValueConverter", StringComparison.Ordinal);
 
     /// <summary>What EF Core with the Oracle provider reads from the column (.claude/rules/oracle.md, Typen).</summary>
-    private static string DefaultType(ColumnInfo column) => column.DataType switch
+    internal static string DefaultType(ColumnInfo column) => column.DataType switch
     {
         "NUMBER" when column.Scale is 0 && column.Precision is { } p => p <= 9 ? "int" : p <= 18 ? "long" : "decimal",
         "NUMBER" => "decimal",
