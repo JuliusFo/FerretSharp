@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [3.70.0] - 2026-11-12
 
-Run SQL scripts from a cell: scripts that name a column as their target show in the cell menu and run with the cell's value or the marked rows' values.
+Write the designer's changes of a mapped table into your C# project, and run SQL scripts from a cell: scripts that name a column as their target show in the cell menu and run with the cell's value or the marked rows' values.
 
 ### Added
 - *Designer changes into the C# project*: the designer's *C#* tab previews what a change of a mapped table means for the entity and its configuration; once the DDL ran, the *Columns* view offers it with *Write to project* – compared with the table as it is then, so a run that stopped halfway brings what ran, and several runs before writing come together. A new column becomes a property behind the last one and – if it says more than its name – a configuration line written like the others; a changed length, precision, scale or NULL adjusts `HasMaxLength`, `HasPrecision`, `HasColumnType`, `IsRequired`, the attributes and the `?` of the type, and adds nothing your project does not configure; a dropped column takes its property and its configuration lines with it, and what still names it (an index, a key, a navigation) is listed. Renames and type changes are only named for now. *Entity from table* writes a table without entity as two new files where most of your entities and configurations lie – folder, namespace, file-scoped or block namespace, encoding, line ending and indentation as there –, adds its `DbSet` in the style of the context's last one and registers the configuration where the context registers them one by one. Every file is shown as a diff first. FerretSharp writes only into the connection group's work clone, only one that holds the linked project and never the linked clone of a connection; it warns when the work clone is on the branch of a connection's linked clone or a file has uncommitted changes, writes a file only if it is unchanged since the preview, never overwrites an existing one, and builds and commits nothing.
@@ -16,6 +16,9 @@ Run SQL scripts from a cell: scripts that name a column as their target show in 
 
 ### Internal
 - Unit tests cover the script header's targets and list parameters, the search for scripts over relationships, the order of recently started scripts, the spreading of list binds (also with taken names and the size limit) and the start of a script from a cell.
+- The Core reads and edits C# files with Roslyn (`Microsoft.CodeAnalysis.CSharp` 5.9, syntax only – no compilation, no workspace; ADR 0050). The ModelHost keeps Roslyn 4.11 for its scripting, since later versions do not load on .NET 8.
+- Unit tests cover planning and writing designer changes into the C# project: the changes of an entity and its configuration, new entity files, the work clone as target, the diff preview and writing only unchanged files.
+- The test for a hanging session opening holds every opening until its time limit is seen – it failed on main when the opening finished at once and set no timer.
 
 ## [3.69.0] - 2026-11-10
 
