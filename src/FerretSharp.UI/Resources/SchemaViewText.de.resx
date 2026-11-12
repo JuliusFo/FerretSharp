@@ -1947,4 +1947,58 @@
   <data name="Ddl_RollingBack" xml:space="preserve">
     <value>Die offene Schreib-Transaktion wird zuerst zurückgerollt …</value>
   </data>
+  <data name="CodeChange_Heading" xml:space="preserve">
+    <value>C# im Projekt</value>
+  </data>
+  <data name="CodeChange_ChooseClone" xml:space="preserve">
+    <value>Arbeits-Klon …</value>
+  </data>
+  <data name="CodeChange_Reload" xml:space="preserve">
+    <value>Arbeits-Klon neu ansehen</value>
+  </data>
+  <data name="CodeChange_Write" xml:space="preserve">
+    <value>Ins Projekt schreiben</value>
+  </data>
+  <data name="CodeChange_WriteTitle" xml:space="preserve">
+    <value>Schreibt die Dateien in den Arbeits-Klon – nur, wenn sie seit der Vorschau unverändert sind. Nichts wird gebaut oder committet.</value>
+  </data>
+  <data name="CodeChange_Dismiss" xml:space="preserve">
+    <value>Ausblenden</value>
+  </data>
+  <data name="CodeChange_Reading" xml:space="preserve">
+    <value>Lese den Arbeits-Klon …</value>
+  </data>
+  <data name="CodeChange_NoWorkClone" xml:space="preserve">
+    <value>Für die Gruppe ist kein Arbeits-Klon gewählt: FerretSharp schreibt nur in einen Arbeits-Klon, nie in den verknüpften Klon einer Verbindung.</value>
+  </data>
+  <data name="CodeChange_NoProject" xml:space="preserve">
+    <value>Das Modell kommt aus einer Modelldatei: Es gibt kein Projekt zum Schreiben.</value>
+  </data>
+  <data name="CodeChange_Nothing" xml:space="preserve">
+    <value>Im Projekt ist nichts zu ändern.</value>
+  </data>
+  <data name="CodeChange_AfterRun" xml:space="preserve">
+    <value>Geschrieben wird nach dem Ausführen: Dann bietet die Spaltenansicht diese Änderung fürs Projekt an.</value>
+  </data>
+  <data name="CodeChange_AfterWrite" xml:space="preserve">
+    <value>Nach deinem Build lädt das Modell neu – der Abgleich zeigt, ob es passt.</value>
+  </data>
+  <data name="CodeChange_New" xml:space="preserve">
+    <value>neu</value>
+  </data>
+  <data name="CodeChange_Written" xml:space="preserve">
+    <value>geschrieben</value>
+  </data>
+  <data name="CodeChange_Created" xml:space="preserve">
+    <value>angelegt</value>
+  </data>
+  <data name="CodeChange_EntityFolder" xml:space="preserve">
+    <value>Entity nach</value>
+  </data>
+  <data name="CodeChange_ConfigurationFolder" xml:space="preserve">
+    <value>Konfiguration nach</value>
+  </data>
+  <data name="CodeChange_LinkedClone" xml:space="preserve">
+    <value>Der Arbeits-Klon ist der verknüpfte Klon einer Verbindung: Er muss zu ihrer Datenbank passen und wird gepullt, deshalb schreibt FerretSharp dort nicht. Bitte einen eigenen Arbeits-Klon wählen.</value>
+  </data>
 </root>

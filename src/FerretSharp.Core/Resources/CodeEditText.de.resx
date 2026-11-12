@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Problem_Overlap" xml:space="preserve">
+    <value>Zwei Änderungen in {0} betreffen dieselbe Stelle – nichts wird geschrieben. Bitte von Hand ändern.</value>
+  </data>
+  <data name="Problem_InvalidResult" xml:space="preserve">
+    <value>Die Änderung hinterließe in {0} einen Syntaxfehler ({1}) – nichts wird geschrieben.</value>
+  </data>
+  <data name="Problem_NoEntity" xml:space="preserve">
+    <value>Das C#-Modell hat keine Entity für diese Tabelle.</value>
+  </data>
+  <data name="Problem_ClassNotFound" xml:space="preserve">
+    <value>Die Klasse {0} ist nicht im Arbeits-Klon.</value>
+  </data>
+  <data name="Problem_Ambiguous" xml:space="preserve">
+    <value>{0} ist im Arbeits-Klon mehrfach deklariert, nicht als partial class ({1}) – unklar, welche das Modell meint. Nichts wird geschrieben.</value>
+  </data>
+  <data name="Problem_InvalidName" xml:space="preserve">
+    <value>{0} ist kein C#-Name (Buchstaben, Ziffern und _, nicht mit einer Ziffer beginnend, kein Schlüsselwort).</value>
+  </data>
+  <data name="Problem_NoEntityFolder" xml:space="preserve">
+    <value>Keine Entity-Klasse des Modells ist im Arbeits-Klon – unbekannt, wohin eine neue gehört.</value>
+  </data>
+  <data name="Problem_FileExists" xml:space="preserve">
+    <value>{0} gibt es schon – die Datei wird nicht überschrieben. Bitte einen anderen Entity-Namen wählen.</value>
+  </data>
+  <data name="Problem_TypeExists" xml:space="preserve">
+    <value>Den Typ {0} gibt es im Arbeits-Klon schon.</value>
+  </data>
+  <data name="Note_Unreadable" xml:space="preserve">
+    <value>{0} wurde nicht gelesen (größer als 2 MB oder weder UTF-8 noch UTF-16).</value>
+  </data>
+  <data name="Note_Renamed" xml:space="preserve">
+    <value>{0} → {1}: Umbenennungen werden im Code noch nicht angepasst – {2} (HasColumnName) bitte von Hand ändern.</value>
+  </data>
+  <data name="Note_TypeChanged" xml:space="preserve">
+    <value>{0} ist jetzt {1}: den Typ von {2} ({3}) bitte von Hand prüfen.</value>
+  </data>
+  <data name="Note_OtherEntities" xml:space="preserve">
+    <value>{0} bilden diese Tabelle ebenfalls ab – geändert wird nur {1}.</value>
+  </data>
+  <data name="Note_AlreadyDeclared" xml:space="preserve">
+    <value>{1} deklariert {0} schon – es wird nicht noch einmal angelegt. Nach deinem Build kennt das Modell es.</value>
+  </data>
+  <data name="Note_NoConfiguration" xml:space="preserve">
+    <value>Keine Konfiguration von {0} gefunden – diese Zeile bitte von Hand eintragen: {1}</value>
+  </data>
+  <data name="Note_LengthNotConfigured" xml:space="preserve">
+    <value>{0}: Das Projekt konfiguriert keine Länge – für {1} wurde nichts geändert.</value>
+  </data>
+  <data name="Note_PrecisionNotConfigured" xml:space="preserve">
+    <value>{0}: Das Projekt konfiguriert keine Stellen – für {1} wurde nichts geändert.</value>
+  </data>
+  <data name="Note_ClrTypeTooSmall" xml:space="preserve">
+    <value>{0}: {1} fasst eventuell nicht jeden Wert von {2} – EF liest die Spalte als {3}.</value>
+  </data>
+  <data name="Note_DeclaredElsewhere" xml:space="preserve">
+    <value>{0} ist nicht in {1} selbst deklariert (Basisklasse?) – bitte von Hand entfernen.</value>
+  </data>
+  <data name="Note_StillNamed" xml:space="preserve">
+    <value>{0} steht noch in {1}, Zeile {2}: {3}</value>
+  </data>
+  <data name="Note_KeyDropped" xml:space="preserve">
+    <value>{0} ({1}) gehört zum Schlüssel – HasKey bitte von Hand anpassen.</value>
+  </data>
+  <data name="Note_NavigationLeft" xml:space="preserve">
+    <value>Die Navigation {0} nutzt {1} als Fremdschlüssel – bitte von Hand anpassen.</value>
+  </data>
+  <data name="Note_NotALiteral" xml:space="preserve">
+    <value>{0} in {1}, Zeile {2} ist keine Zahl im Code – bitte von Hand auf {3} setzen.</value>
+  </data>
+  <data name="Note_ConverterNamespace" xml:space="preserve">
+    <value>Der Namespace von {0} ist unbekannt – das using bitte von Hand ergänzen.</value>
+  </data>
+  <data name="Note_ContextNotFound" xml:space="preserve">
+    <value>Der DbContext {0} ist nicht im Arbeits-Klon – DbSet&lt;{1}&gt; und die Konfiguration bitte von Hand eintragen.</value>
+  </data>
+  <data name="Note_NoProject" xml:space="preserve">
+    <value>Keine Projektdatei über {0} gefunden – bitte prüfen, ob die neue Datei kompiliert wird.</value>
+  </data>
+  <data name="Note_OldProject" xml:space="preserve">
+    <value>{0} ist kein SDK-Projekt: die neuen Dateien bitte von Hand eintragen (Compile Include).</value>
+  </data>
+  <data name="Note_InverseNavigation" xml:space="preserve">
+    <value>{0} bekommt keine Collection von {1} – bei Bedarf bitte von Hand ergänzen (und WithMany(x =&gt; x.…)).</value>
+  </data>
+  <data name="Note_Register" xml:space="preserve">
+    <value>{0} bitte von Hand in OnModelCreating eintragen – der Kontext bindet seine Konfigurationen weder einzeln noch aus der Assembly ein.</value>
+  </data>
+  <data name="Write_Skipped" xml:space="preserve">
+    <value>Nicht geschrieben: Eine andere Datei der Änderung ging nicht.</value>
+  </data>
+  <data name="Write_OutsideRoot" xml:space="preserve">
+    <value>{0} liegt nicht unter dem Arbeits-Klon – nicht geschrieben.</value>
+  </data>
+  <data name="Write_ExistsNow" xml:space="preserve">
+    <value>Die Datei gibt es inzwischen – nicht überschrieben.</value>
+  </data>
+  <data name="Write_Link" xml:space="preserve">
+    <value>{0} ist eine Verknüpfung – nicht geschrieben.</value>
+  </data>
+  <data name="Write_ChangedMeanwhile" xml:space="preserve">
+    <value>Die Datei hat sich seit der Vorschau geändert – nicht geschrieben. Bitte die Vorschau neu ansehen.</value>
+  </data>
+  <data name="Warning_ConnectionBranch" xml:space="preserve">
+    <value>Der Arbeits-Klon steht auf {0} – dem Branch des verknüpften Klons einer Verbindung. Nur schreiben, wenn das gewollt ist.</value>
+  </data>
+  <data name="Write_ReadOnly" xml:space="preserve">
+    <value>Die Datei lässt sich nicht schreiben (schreibgeschützt oder in einem anderen Programm geöffnet) – nichts wird geschrieben.</value>
+  </data>
+  <data name="Warning_GitFailed" xml:space="preserve">
+    <value>Git hat für den Arbeits-Klon nicht geantwortet: Nicht committete Änderungen der Dateien werden nicht geprüft.</value>
+  </data>
+  <data name="Warning_NoGit" xml:space="preserve">
+    <value>Git wurde nicht gefunden: Nicht committete Änderungen der Dateien werden nicht geprüft.</value>
+  </data>
+  <data name="Warning_Uncommitted" xml:space="preserve">
+    <value>{0} hat nicht committete Änderungen.</value>
+  </data>
+</root>

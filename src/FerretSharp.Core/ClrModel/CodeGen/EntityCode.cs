@@ -215,9 +215,30 @@ public static class EntityCode
         ArgumentNullException.ThrowIfNull(entity);
         ArgumentNullException.ThrowIfNull(column);
         var entityName = ClrModelMapping.ShortName(entity.Entity.ClrType);
+        var suggestion = PropertyFor(mapping, entity, column, []);
+        var text = new StringBuilder($"// {entityName}\n{suggestion.Declaration}\n\n// {entityName}Configuration\n{suggestion.Configuration}");
+        foreach (var note in suggestion.Notes)
+        {
+            text.Append("\n// ").Append(note.ReplaceLineEndings(" ")); // names from the database or the model: one line each
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// The suggestion for a column of a mapped table (<see cref="PropertyCode.Suggest"/>), its name made unique among the
+    /// entity's members, its class name and <paramref name="taken"/> (properties added beside it, WP-41).
+    /// </summary>
+    public static PropertySuggestion PropertyFor(ClrModelMapping mapping, EntityMapping entity, ColumnInfo column, IEnumerable<string> taken)
+    {
+        ArgumentNullException.ThrowIfNull(mapping);
+        ArgumentNullException.ThrowIfNull(entity);
+        ArgumentNullException.ThrowIfNull(column);
+        ArgumentNullException.ThrowIfNull(taken);
         var used = entity.Entity.Properties.Select(p => p.Name)
             .Concat(entity.Entity.ForeignKeys.Select(f => f.Navigation).OfType<string>())
-            .Append(entityName)
+            .Append(ClrModelMapping.ShortName(entity.Entity.ClrType))
+            .Concat(taken)
             .ToHashSet(StringComparer.Ordinal);
         var suggestion = PropertyCode.Suggest(mapping.Model, column);
         var unique = suggestion.Name;
@@ -226,18 +247,7 @@ public static class EntityCode
             unique = suggestion.Name + n.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        if (unique != suggestion.Name)
-        {
-            suggestion = Rename(suggestion, unique);
-        }
-
-        var text = new StringBuilder($"// {entityName}\n{suggestion.Declaration}\n\n// {entityName}Configuration\n{suggestion.Configuration}");
-        foreach (var note in suggestion.Notes)
-        {
-            text.Append("\n// ").Append(note.ReplaceLineEndings(" ")); // names from the database or the model: one line each
-        }
-
-        return text.ToString();
+        return unique == suggestion.Name ? suggestion : Rename(suggestion, unique);
     }
 
     /// <summary>The navigation property and its <c>HasOne(…).WithMany()…</c> line.</summary>
@@ -269,7 +279,8 @@ public static class EntityCode
     private static string NavigationName(string foreignKeyProperty) =>
         foreignKeyProperty.EndsWith("Id", StringComparison.Ordinal) && foreignKeyProperty.Length > 2 ? foreignKeyProperty[..^2] : foreignKeyProperty + "Navigation";
 
-    private static bool IsBare(string configuration) =>
+    /// <summary>Only <c>builder.Property(x =&gt; x.Name);</c>: says nothing a convention does not.</summary>
+    internal static bool IsBare(string configuration) =>
         configuration.StartsWith("builder.Property(x => x.", StringComparison.Ordinal) && configuration.IndexOf(").", StringComparison.Ordinal) < 0;
 
     /// <summary>

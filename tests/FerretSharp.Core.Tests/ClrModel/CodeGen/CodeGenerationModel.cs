@@ -35,7 +35,8 @@ internal static class CodeGenerationModel
     private static PropertyExport Property(string name, string type, string column, bool nullable = false) =>
         new(name, type, nullable, false, column, null, null, null, false, null);
 
-    public static async Task<ClrModelMapping> MappingAsync(string? dbSet = "Kunden")
+    /// <param name="dropped">A column the database no longer has (the model laid over the schema after DDL, WP-41).</param>
+    public static async Task<ClrModelMapping> MappingAsync(string? dbSet = "Kunden", string? dropped = null)
     {
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Kunden.Table, View.Table]);
@@ -44,7 +45,7 @@ internal static class CodeGenerationModel
         reader.GetColumnsAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)
             new Dictionary<string, IReadOnlyList<ColumnInfo>>
             {
-                ["KUNDEN"] = Kunden.Columns,
+                ["KUNDEN"] = Kunden.Columns.Where(c => c.Name != dropped).ToList(),
                 ["V_KUNDEN"] = Kunden.Columns.Where(c => c.Name == "KUNDE_ID").ToList(),
             });
         var schema = new SchemaCache(reader, Owner);

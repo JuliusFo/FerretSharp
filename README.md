@@ -298,6 +298,12 @@ changes, and a new build is picked up automatically:
 - **Code generation**: the grid's filters as a LINQ `Where`, rows as C# objects or `HasData` seed data – and, DB-first,
   the entity class and its `IEntityTypeConfiguration` for a table the model does not know yet (or the property and
   configuration line for a new column), in the style of your project.
+- **Designer changes into your project**: after the table designer ran its DDL, *Write to project* brings the entity
+  along – a new column becomes a property and its configuration line, a changed length, precision or NULL adjusts what
+  your project configures, a dropped column takes its property with it. A table without entity becomes new files where
+  your entities and configurations lie, with its `DbSet` and registration. Each file is shown as a diff first and written
+  only into the *work clone* of the connection group, never into the linked clone of a connection – nothing is built or
+  committed.
 - **App statements**: attach to your app while it runs (debugging in Visual Studio, `dotnet run`) – no code change – and
   see every statement it sends through EF Core, grouped by origin (LINQ, lazy loading, raw SQL, `SaveChanges` …), the
   most frequent and most expensive ones, and N+1 patterns. Look a statement up in V$SQL of the app's connection with its

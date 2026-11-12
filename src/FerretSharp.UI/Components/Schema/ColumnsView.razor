@@ -76,6 +76,11 @@
     {
         <AuditStatusLine Details="Details" OnOpen="() => (_editing, _startWithAudit) = (true, true)" />
     }
+    @if (Tab?.CodeChange is CodeChangeRequest.ForTable pending && entity is not null && pending with { After = Details.Columns } is { HasChanges: true } codeChange)
+    {
+        @* WP-41: the designer changes that ran, against the table as it is now, for the C# project *@
+        <ProjectCodeChangeView Request="codeChange" OnDismiss="() => Tab.CodeChange = null" OnWritten="() => Tab.CodeChange = pending with { Written = true }" />
+    }
     <table class="columns @(pickable ? "pickable" : "")">
         <thead>
             <tr>
@@ -186,8 +191,8 @@
     }
     @if (_entityName is not null && mapping is not null && entity is null)
     {
-        var entityCode = EntityCode.Write(mapping, Details, (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? []).ToList(),
-            _entityName.Trim().Length > 0 ? _entityName : Details.Table.Name);
+        var outgoing = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? []).ToList();
+        var entityCode = EntityCode.Write(mapping, Details, outgoing, _entityName.Trim().Length > 0 ? _entityName : EntityCode.SuggestName(mapping.Model, Details.Table.Name));
         <section class="entity-code">
             <div class="index-draft-form">
                 <label for="@_entityId">@SchemaViewText.Entity_Name</label>
@@ -198,6 +203,11 @@
             @foreach (var note in entityCode.Notes)
             {
                 <p class="hint small">@note</p>
+            }
+            @if (Details.Table.Kind == TableKind.Table || Details.Table.Kind == TableKind.View)
+            {
+                @* WP-41, second stage: the same as new files in the work clone, with DbSet and registration *@
+                <ProjectCodeChangeView Request="@(new CodeChangeRequest.ForNewEntity(Details, outgoing, _entityName))" />
             }
         </section>
     }

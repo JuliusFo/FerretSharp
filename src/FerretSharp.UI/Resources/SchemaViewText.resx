@@ -2370,4 +2370,66 @@
     <value>Rolling back the open write transaction first …</value>
     <comment>Progress before running DDL: the confirmed rollback of the workspace's open write transaction</comment>
   </data>
+  <data name="CodeChange_Heading" xml:space="preserve">
+    <value>C# in the project</value>
+  </data>
+  <data name="CodeChange_ChooseClone" xml:space="preserve">
+    <value>Work clone…</value>
+    <comment>link that opens the work clone dialog</comment>
+  </data>
+  <data name="CodeChange_Reload" xml:space="preserve">
+    <value>Look at the work clone again</value>
+  </data>
+  <data name="CodeChange_Write" xml:space="preserve">
+    <value>Write to project</value>
+    <comment>button</comment>
+  </data>
+  <data name="CodeChange_WriteTitle" xml:space="preserve">
+    <value>Writes the files into the work clone – only those unchanged since the preview. Nothing is built or committed.</value>
+  </data>
+  <data name="CodeChange_Dismiss" xml:space="preserve">
+    <value>Put away</value>
+    <comment>tooltip of the close button of the section</comment>
+  </data>
+  <data name="CodeChange_Reading" xml:space="preserve">
+    <value>Reading the work clone …</value>
+  </data>
+  <data name="CodeChange_NoWorkClone" xml:space="preserve">
+    <value>No work clone chosen for the group: FerretSharp writes only into a work clone, never into the linked clone of a connection.</value>
+  </data>
+  <data name="CodeChange_NoProject" xml:space="preserve">
+    <value>The model comes from a model file: there is no project to write into.</value>
+  </data>
+  <data name="CodeChange_Nothing" xml:space="preserve">
+    <value>Nothing to change in the project.</value>
+  </data>
+  <data name="CodeChange_AfterRun" xml:space="preserve">
+    <value>Written after the DDL ran: the “Columns” view then offers this change for the project.</value>
+  </data>
+  <data name="CodeChange_AfterWrite" xml:space="preserve">
+    <value>After your build the model loads again – the comparison shows whether it fits.</value>
+  </data>
+  <data name="CodeChange_New" xml:space="preserve">
+    <value>new</value>
+    <comment>badge of a new file</comment>
+  </data>
+  <data name="CodeChange_Written" xml:space="preserve">
+    <value>written</value>
+    <comment>after a file name</comment>
+  </data>
+  <data name="CodeChange_Created" xml:space="preserve">
+    <value>created</value>
+    <comment>after a file name</comment>
+  </data>
+  <data name="CodeChange_EntityFolder" xml:space="preserve">
+    <value>Entity to</value>
+    <comment>label before the folder list of a new entity file</comment>
+  </data>
+  <data name="CodeChange_ConfigurationFolder" xml:space="preserve">
+    <value>Configuration to</value>
+    <comment>label before the folder list of a new configuration file</comment>
+  </data>
+  <data name="CodeChange_LinkedClone" xml:space="preserve">
+    <value>The work clone is the linked clone of a connection: it must match its database and is pulled, so FerretSharp does not write there. Choose a work clone of your own.</value>
+  </data>
 </root>
