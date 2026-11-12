@@ -59,6 +59,20 @@ public sealed class CodeTargetTests
         ], check.Warnings);
     }
 
+    /// <summary>Review WP-41, K10: git refusing (no repository, safe.directory) was reported as "git not found".</summary>
+    [Fact]
+    public async Task Git_that_does_not_answer_for_the_folder_is_not_reported_as_missing()
+    {
+        Assert.SkipWhen(Git is null, "git is not installed");
+        using var folder = new TestFolder();
+        File.WriteAllText(folder.Combine("A.cs"), "class A {}");
+        var plan = new CodeChangePlan(folder.Path, [Change(folder.Path, "A.cs")], [], []);
+
+        var check = await CodeTarget.CheckAsync(plan, [], TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Git hat für den Arbeits-Klon nicht geantwortet: Nicht committete Änderungen der Dateien werden nicht geprüft."], check.Warnings);
+    }
+
     [Fact]
     public async Task The_linked_clone_itself_and_another_branch_are_no_warning()
     {

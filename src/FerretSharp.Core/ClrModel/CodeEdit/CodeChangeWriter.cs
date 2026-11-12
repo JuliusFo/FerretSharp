@@ -102,7 +102,22 @@ public static class CodeChangeWriter
             }
 
             var now = File.ReadAllBytes(file.Path);
-            return SHA256.HashData(now).AsSpan().SequenceEqual(file.Original!.Hash) ? null : (FileWriteOutcome.Changed, CodeEditText.Write_ChangedMeanwhile);
+            if (!SHA256.HashData(now).AsSpan().SequenceEqual(file.Original!.Hash))
+            {
+                return (FileWriteOutcome.Changed, CodeEditText.Write_ChangedMeanwhile);
+            }
+
+            // Read-only or locked shows now, before any file is written – not halfway through the plan (review WP-41).
+            if (File.GetAttributes(file.Path).HasFlag(FileAttributes.ReadOnly))
+            {
+                return (FileWriteOutcome.Failed, CodeEditText.Write_ReadOnly);
+            }
+
+            using (new FileStream(file.Path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            {
+            }
+
+            return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

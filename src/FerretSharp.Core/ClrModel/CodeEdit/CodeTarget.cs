@@ -37,30 +37,33 @@ public static class CodeTarget
         var changed = plan.Files.Where(f => !f.IsNew).Select(f => f.Relative).ToList();
         if (changed.Count > 0)
         {
-            var dirty = await DirtyAsync(plan.Root, changed, cancellationToken);
-            if (dirty is null)
+            var status = await DirtyAsync(plan.Root, changed, cancellationToken);
+            warnings.AddRange(status switch
             {
-                warnings.Add(CodeEditText.Warning_NoGit);
-            }
-            else
-            {
-                warnings.AddRange(dirty.Select(f => TextFormat.Format(CodeEditText.Warning_Uncommitted, f)));
-            }
+                { Found: false } => [CodeEditText.Warning_NoGit],
+                { Dirty: null } => [CodeEditText.Warning_GitFailed], // safe.directory, no repository, too slow (review WP-41)
+                _ => status.Dirty.Select(f => TextFormat.Format(CodeEditText.Warning_Uncommitted, f)),
+            });
         }
 
         return new CodeTargetCheck(branch, warnings);
     }
 
+    /// <summary>What <c>git status</c> said.</summary>
+    /// <param name="Found">git is installed.</param>
+    /// <param name="Dirty">The files it reports as changed; null if it did not answer (an error, not in time).</param>
+    public sealed record GitStatus(bool Found, IReadOnlyList<string>? Dirty);
+
     /// <summary>
-    /// Which of the files (relative to <paramref name="root"/>) <c>git status</c> reports as changed; null if git is not
-    /// there or did not answer in time. <c>core.fsmonitor</c> is switched off – a repository's config could name a program
-    /// for it – and optional locks too, so the index is not written while the user works in the clone.
+    /// Which of the files (relative to <paramref name="root"/>) <c>git status</c> reports as changed. <c>core.fsmonitor</c>
+    /// is switched off – a repository's config could name a program for it –, optional locks too, so the index is not
+    /// written while the user works in the clone, and the paths are taken literally, not as patterns (<c>[Kunde].cs</c>).
     /// </summary>
-    public static async Task<IReadOnlyList<string>?> DirtyAsync(string root, IReadOnlyList<string> relative, CancellationToken cancellationToken)
+    public static async Task<GitStatus> DirtyAsync(string root, IReadOnlyList<string> relative, CancellationToken cancellationToken)
     {
         if (ExecutableSearch.FindOnPath(OperatingSystem.IsWindows() ? "git.exe" : "git") is not { } git)
         {
-            return null;
+            return new GitStatus(false, null);
         }
 
         var start = new ProcessStartInfo(git)
@@ -71,7 +74,7 @@ public static class CodeTarget
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        foreach (var argument in (string[])["-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=no", "--"])
+        foreach (var argument in (string[])["--literal-pathspecs", "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=no", "--"])
         {
             start.ArgumentList.Add(argument);
         }
@@ -90,7 +93,7 @@ public static class CodeTarget
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            return null;
+            return new GitStatus(false, null);
         }
 
         ChildProcesses.Started(process);
@@ -103,19 +106,19 @@ public static class CodeTarget
             await process.WaitForExitAsync(limit.Token);
             if (process.ExitCode != 0)
             {
-                return null;
+                return new GitStatus(true, null);
             }
 
             var entries = (await output).Split('\0', StringSplitOptions.RemoveEmptyEntries)
                 .Where(e => e.Length > 3)
                 .Select(e => e[3..].Replace('\\', '/'))
                 .ToList();
-            return [.. relative.Where(r => entries.Any(e => e == r.Replace('\\', '/') || e.EndsWith("/" + r.Replace('\\', '/'), StringComparison.Ordinal)))];
+            return new GitStatus(true, [.. relative.Where(r => entries.Any(e => e == r.Replace('\\', '/') || e.EndsWith("/" + r.Replace('\\', '/'), StringComparison.Ordinal)))]);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             Kill(process);
-            return null;
+            return new GitStatus(true, null);
         }
         catch
         {
