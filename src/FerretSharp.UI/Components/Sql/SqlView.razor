@@ -66,7 +66,7 @@
     <div class="sql-main">
         <div class="sql-editors">
             <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync" FocusOnCreate="_focusOnCreate"
-                          ContextActions="EditorActions" Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
+                          OnCreated="OnEditorCreated" ContextActions="EditorActions" Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
             <SqlVariablesEditor Variables="Tab.Variables" Binds="_binds" OnChange="SetVariables" />
         </div>
 
@@ -379,11 +379,43 @@
     protected override async Task OnInitializedAsync()
     {
         (_focusOnCreate, Tab.FocusOnOpen) = (Tab.FocusOnOpen, false);
+        // Started from a cell (WP-84): the command came before this view was there; it runs once the editor has the text.
+        // Before the first await: the view renders there, and the editor may be created before the rest (review WP-84, K2).
+        (_runOnCreate, Tab.RunOnOpen) = (Tab.RunOnOpen, false);
         Shell.TabCommandRequested += OnTabCommand;
         Workspaces.Changed += OnWorkspacesChanged;
         Library.Changed += OnLibraryChanged;
         await UpdateVariablesAsync(Tab.Text);
         Fire(CheckScriptFileAsync); // a restored tab: the file may have changed while FerretSharp was closed
+    }
+
+    /// <summary>The whole script runs as soon as the editor is created (<see cref="SqlTab.RunOnOpen"/>).</summary>
+    private bool _runOnCreate;
+
+    private void OnEditorCreated()
+    {
+        if (_runOnCreate)
+        {
+            _runOnCreate = false;
+            Fire(RunFromCellAsync);
+        }
+    }
+
+    private Task RunFromCellAsync() => StartOnceAsync(RunFromCellCoreAsync);
+
+    /// <summary>
+    /// A script started from a cell (WP-84): the whole text, never only a selection, and only if every statement of the
+    /// text that runs is a plain query – checked again here, on the editor's text (review WP-84, S1). Otherwise it stays
+    /// open with its values, as a script with DML does.
+    /// </summary>
+    private async Task RunFromCellCoreAsync()
+    {
+        if (await PrepareAsync() is not { } context || !Core.Scripts.ScriptTargetRun.IsReadOnly(context.Text))
+        {
+            return;
+        }
+
+        await StartAsync(SqlScript.StatementsIn(context.Text, 0, 0), single: false);
     }
 
     private void OnTabCommand(WorkspaceTab tab, TabCommand command)
@@ -397,6 +429,14 @@
         {
             case TabCommand.RunScript:
                 Fire(RunScriptAsync);
+                break;
+            case TabCommand.RunFromCell when _editor is { IsCreated: true }:
+                Tab.RunOnOpen = false;
+                Fire(RunFromCellAsync);
+                break;
+            case TabCommand.RunFromCell:
+                Tab.RunOnOpen = false;
+                _runOnCreate = true; // the editor is still being created
                 break;
             case TabCommand.ApplyFilters or TabCommand.Refresh:
                 Fire(RunAsync);

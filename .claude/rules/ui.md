@@ -21,6 +21,7 @@ UI-Konzept und Tastenkürzel: `docs/architecture.md` 2–3. Zustand, Dienste und
 
 ## Rendern
 - Ein Kind, das einen Wert des Elternteils zeigt und ändert (Auswahlzeile, Schalter), meldet die Änderung als `EventCallback<T>`, nicht als `Func<T, Task>`: Nur der Callback rendert den Empfänger neu; mit dem Delegaten rendert nur das Kind – mit dem alten Wert (R6b, `SettingsChoice`, im E2E gefunden). Bei generischen Kindern dann `TValue` angeben, Razor leitet ihn aus dem Lambda nicht mehr ab.
+- Blazor rendert beim ersten `await` in `OnInitializedAsync`: Ein Kind kann dann schon fertig sein und sein Ereignis melden (`MonacoEditor.OnCreated`). Was so ein Ereignis braucht, vor dem ersten `await` übernehmen (Review WP-84: ein Skript aus der Zelle lief sonst nie).
 - Komponenten ohne Parameter rendern bei Parent-Updates nicht neu → sie abonnieren `ShellState.Changed` bzw. `ConnectionManager.Changed`/`WorkspaceManager.Changed` selbst. Tab-Zustand ohne Neurendern (Tippen im Filter, Scrollen, Sortieren) meldet `ShellState.MarkDirty()`.
 - `ShellState.Changed` feuert bei jeder Zellbearbeitung. Eine Komponente, die viel rendert und nur einen kleinen Teil der Shell zeigt, rendert nur, wenn sich dieser Teil geändert hat (Explorer: `ShellKey`).
 - Ansichten eines Tabs mit komplexen Parametern (`Details`, `TableRef`) rendern mit jedem Rendern des Tabs, also mit jeder Zellbearbeitung irgendwo: Teures aus geladenen Daten (Text zerlegen, umbauen) je Daten und Schalterstand halten, nicht im Markup rechnen (`DdlView.Shown`, Review `small-ddl-without-owner`).

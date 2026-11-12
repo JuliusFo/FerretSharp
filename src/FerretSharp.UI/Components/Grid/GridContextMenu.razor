@@ -20,6 +20,8 @@
 @inject IFileSaveService Files
 @inject ShortcutService Shortcuts
 @inject ILogger<GridContextMenu> Logger
+@inject FerretSharp.Core.Scripts.ScriptLibrary Library
+@inject FerretSharp.Core.Scripts.ScriptUsage Usage
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
              Width="MenuWidth" EstimatedHeight="EstimatedHeight" KeyNavigation="true" OnClose="CloseAsync">
@@ -114,6 +116,8 @@
                           XlsxColumnsToSave="@(() => PresentedExport.Columns(_presentation, Names.Copy()))" AllRows="_allRows" Marked="@(Request.Marks is not null)" More="_csharp"
                           Column="@PresentedExport.Column(_presentation, Request.Column, Column.Name, Request.Column)" />
 
+            <ScriptTargetSection Scripts="_scripts" Values="ScriptValues" Unavailable="ScriptUnavailable" OnRun="RunScriptAsync" />
+
             <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="InvolvesColumn" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
                            WorkspaceId="Tab.WorkspaceId" AsOf="Tab.TimeTravel?.Scn" ShowEmpty="true" OnJumped="CloseAsync" />
         </div>
@@ -135,6 +139,9 @@
 
     private readonly MenuFilter _filter = new();
     private FkJumpLists _jumps = FkJumpLists.None;
+
+    /// <summary>The scripts whose target the clicked column reaches (WP-84), the ones started last first.</summary>
+    private IReadOnlyList<FerretSharp.Core.Scripts.ScriptMatch> _scripts = [];
 
     /// <summary>C# objects and seed data of the selected rows as rows of the export matrix; none without an entity.</summary>
     private IReadOnlyList<ExportMatrixRow> _csharp = [];
@@ -221,6 +228,49 @@
     [Parameter]
     public EventCallback OnCopyToConnection { get; set; }
 
+    /// <summary>Starts a script of the menu for the clicked cell or the selected rows (WP-84).</summary>
+    [Parameter]
+    public EventCallback<FerretSharp.Core.Scripts.ScriptMatch> OnRunScript { get; set; }
+
+    private async Task RunScriptAsync(FerretSharp.Core.Scripts.ScriptMatch match)
+    {
+        await CloseAsync();
+        await OnRunScript.InvokeAsync(match);
+    }
+
+    /// <summary>The values of the clicked column a script would get: the clicked cell's, then the other selected rows'.</summary>
+    private IReadOnlyList<object?> CellValues => ScriptCellLaunch.ValuesOf(Request.Row, Request.Selected, Request.Column);
+
+    private bool IsList(FerretSharp.Core.Scripts.ScriptMatch match) =>
+        match.Script.Parameters.Any(p => p.List && string.Equals(p.Name, match.Target.Parameter, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>How many values the script gets: those of the selected rows for a list parameter (each once, no NULL), else one.</summary>
+    private int ScriptValues(FerretSharp.Core.Scripts.ScriptMatch match) => IsList(match)
+        ? CellValues.Where(v => v is not (null or DBNull)).Select(v => FkNavigation.FilterValue(Column, v!)).Distinct(StringComparer.Ordinal).Count()
+        : 1;
+
+    /// <summary>
+    /// Why the script cannot start from here. A list parameter also when marked rows are not loaded – it would run with
+    /// part of them, unnoticed – or with more values than one IN list takes (review WP-84, M2 and M3).
+    /// </summary>
+    private string? ScriptUnavailable(FerretSharp.Core.Scripts.ScriptMatch match)
+    {
+        if (!IsList(match))
+        {
+            return FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, Request.Row.Values[Request.Column]);
+        }
+
+        if (CellValues.All(v => v is null or DBNull))
+        {
+            return FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, null);
+        }
+
+        return CellValues.Where(v => v is not (null or DBNull)).Select(v => FerretSharp.Core.Scripts.ScriptTargetRun.Refusal(Column, v)).FirstOrDefault(r => r is not null)
+            ?? (Request.MissingRows > 0 ? TextFormat.Format(ScriptViewText.CellMenu_RowsNotLoaded, ExportActions.RowsText(Request.MissingRows))
+            : ScriptValues(match) is > Core.Query.SqlBindLists.MaxValues and var count ? TextFormat.Format(QueryText.BindListTooMany, Core.Query.SqlBindLists.MaxValues, count)
+            : null);
+    }
+
     private async Task CopyToConnectionAsync()
     {
         await CloseAsync();
@@ -295,8 +345,11 @@
     }
 
     /// <summary>For the first placement; dom.js menuKeys corrects it once rendered, and whenever the menu grows.</summary>
-    private double EstimatedHeight => 170 + LineHeight * (ExportMatrix.Lines(_xlsxColumns, _csharp.Count) + JumpLines + (CanEdit ? 3 : 0))
+    private double EstimatedHeight => 170 + LineHeight * (ExportMatrix.Lines(_xlsxColumns, _csharp.Count) + JumpLines + ScriptLines + (CanEdit ? 3 : 0))
                                       + (Request.Marks is null ? 0 : LineHeight * MarkedCellsMenuItems.Entries);
+
+    /// <summary>Scripts shown before "N more" opens, with heading and that line.</summary>
+    private int ScriptLines => _scripts.Count == 0 ? 0 : 1 + Math.Min(_scripts.Count, ScriptTargetSection.Shown + 1);
 
     /// <summary>Jumps shown before a folded line opens, with their headings.</summary>
     private int JumpLines =>
@@ -319,6 +372,10 @@
         }
 
         var row = Details.Table.Ref;
+        var scripts = Library.For(Active.Profile).SelectMany(scan => scan.Scripts).Where(script => script.Targets.Count > 0);
+        _scripts = Usage.Ordered(FerretSharp.Core.Scripts.ScriptTargets.For(
+            new FerretSharp.Core.Scripts.ColumnRef(row, Column.Name), scripts,
+            table => FerretSharp.Core.Scripts.ScriptTargets.Resolve(table, schema.Tables, schema.Owner), schema.LinksOf));
         _jumps = FkJumpLists.Of(
             FkNavigation.JumpsFor(Details, Request.JumpRows, schema.LinksOf(row), schema.IncomingOf(row), schema.InheritedIncomingOf(row)), InvolvesColumn);
     }

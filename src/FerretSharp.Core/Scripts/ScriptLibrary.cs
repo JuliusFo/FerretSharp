@@ -17,10 +17,13 @@ public sealed record ScriptEntry(
     /// <summary>The folder below the root, "" for the root itself.</summary>
     public string Folder => ScriptPaths.FolderOf(Path);
 
+    /// <summary>The columns its parameters take their values from (WP-84, <see cref="ScriptHeader.Targets"/>).</summary>
+    public IReadOnlyList<ScriptTarget> Targets { get; init; } = [];
+
     /// <summary>The same file as listed (records compare lists by reference).</summary>
     public bool SameAs(ScriptEntry other) =>
         Root == other.Root && Path == other.Path && Description == other.Description && Written == other.Written && Length == other.Length
-        && Parameters.SequenceEqual(other.Parameters) && Problems.SequenceEqual(other.Problems);
+        && Parameters.SequenceEqual(other.Parameters) && Targets.SequenceEqual(other.Targets) && Problems.SequenceEqual(other.Problems);
 }
 
 /// <summary>What a root holds as last read.</summary>
@@ -401,7 +404,10 @@ public sealed class ScriptLibrary : IDisposable
                 var buffer = new byte[(int)Math.Min(length, HeaderBytes)];
                 stream.ReadExactly(buffer);
                 var parsed = ScriptHeaders.Parse(ScriptFiles.DecodeHead(buffer, cut: buffer.Length < length));
-                entry = new ScriptEntry(root, path, parsed.Header.Description, parsed.Header.Parameters, [.. parsed.Errors.Select(e => e.ToString())], written, length);
+                entry = new ScriptEntry(root, path, parsed.Header.Description, parsed.Header.Parameters, [.. parsed.Errors.Select(e => e.ToString())], written, length)
+                {
+                    Targets = parsed.Header.Targets,
+                };
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

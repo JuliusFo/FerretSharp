@@ -1,0 +1,51 @@
+# WP-84 Skripte mit Ziel im Zellmenü
+
+Branch `wp/84-script-targets` (von `main`), 2026-11-12, noch ohne Release. ADR 0046 mit Nachtrag; Lese-, Schreib- und Schemaweg bleiben unverändert.
+
+## Planung (aus `docs/roadmap.md`)
+Branch `wp/84-script-targets`. Idee des Nutzers (2026-11-11), Fortsetzung von WP-77 (`docs/sql-scripts.md`, ADR 0046); als eigenes Paket gewünscht. Rechtsklick auf eine Zelle mit z. B. `KUNDE_ID` bietet die Skripte an, die einen Kunden als Eingabe nehmen, und führt sie mit dem Wert der Zelle aus. Die Punkte sind Vorschläge (nicht bestätigt), außer wo anders vermerkt.
+- **Ziel im Kopf des Skripts:** Ein Skript enthält weder FK noch Modell – die Verbindung zur Spalte schreibt der Autor ausdrücklich hin: `-- @target kunde_id KUNDE.KUNDE_ID`. **Eigener Tag `@target`, nicht an `@param` angehängt** (Entscheidung des Nutzers, 2026-11-11): ältere FerretSharp behalten einen unbekannten Tag still, ein erweitertes `@param` wäre dort eine fehlerhafte Zeile; mehrere Ziele je Parameter als eine Zeile je Ziel; `@param` bleibt Name und Typ. Ohne Owner, aufgelöst gegen das Default-Schema der Verbindung. FerretSharp leitet aus dem SQL-Text nichts still ab.
+- **Vom Anker zu den Spalten:** Das Skript erscheint auf der Zielspalte selbst und auf jeder Spalte, die über eine bekannte Beziehung darauf zeigt (`Declared`, `Manual`, `Convention`, `ClrModel`), z. B. `AUFTRAG.KUNDE_ID` → `KUNDE.KUNDE_ID`. Wo keine Beziehung bekannt ist, erscheint es dort nicht – eine manuelle Beziehung schließt die Lücke. Ein reiner Namensabgleich (`*.KUNDE_ID`) höchstens später als Notlösung.
+- **Ziel vorschlagen beim Speichern:** Der Speichern-Dialog könnte aus `WHERE t.kunde_id = :kunde_id` (Tokenizer wie `WhereCondition`, kein Parser) die Spalte erraten und als Ziel anbieten; der Nutzer bestätigt.
+- **Ausführen:** nur SELECT/WITH und alle Parameter gefüllt → neuer SQL-Tab, sofort ausgeführt (Leseweg, Lesesperre unverändert). DML im Skript → nie automatisch, nur vorbelegt öffnen. Wert ist der Rohwert der Zelle, nicht der Anzeigename eines Enums.
+- **Weitere Parameter ohne Wert: Dialog** (Entscheidung des Nutzers, 2026-11-11): nur die fehlenden Parameter mit den Feldern des Variablen-Editors (Typ aus `@param`), der Wert der Zelle schreibgeschützt darüber; Knöpfe *Ausführen* und *Im Editor öffnen* (Tab vorbelegt, nichts ausgeführt); der zuletzt eingegebene Wert je Skript und Parameter wird gemerkt. Ohne weitere Parameter kein Dialog.
+- **Prod: genauso sofort ausführen** (Entscheidung des Nutzers, 2026-11-11): nur lesend wie ein FK-Sprung, keine eigene Rückfrage; abbrechbar wie jeder SQL-Lauf.
+- **Views:** kein eigenes Konzept – „die View für diesen Kunden“ ist ein einzeiliges Skript (`SELECT * FROM v_… WHERE kunde_id = :kunde_id`).
+- **Menülänge (Sorge des Nutzers):** Es erscheinen nur Skripte, deren Ziel zur angeklickten Spalte passt. Eigene Gruppe „Skripte“ im Zellmenü mit höchstens 3–5 Einträgen (zuletzt benutzte zuerst), darunter „Alle N Skripte…“ als durchsuchbare Liste; das Filterfeld des Zellmenüs (WP-61) findet sie ohnehin. Ordner (Persönlich/Gruppe/Allgemein) als Hinweis am Eintrag.
+- Nicht im ersten Wurf (Backlog): mehrere markierte Zeilen (ein Bind ist keine Liste), Spalten im SQL-Ergebnis (nur mit bekannter Herkunft, `SqlResultOrigins`), Ziel als C#-Name (`Kunde.Id`), Eintrag in der Befehlspalette „Skript für diese Zelle…“.
+- Offen: wo der gemerkte Dialogwert liegt (Workspace oder eigene Datei, Regel je Datei `docs/architecture.md` 1.7) – beim Start klären.
+
+## Entscheidungen des Nutzers (2026-11-11)
+- Eigener Tag `@target`, nicht an `@param` angehängt.
+- Fehlen weitere Parameter: Dialog mit *Ausführen* und *Im Editor öffnen*.
+- Prod: genauso sofort ausführen (nur lesend).
+- Plan bestätigt mit: „Zuletzt benutzt“ in `script-usage.json` (nur Ordnerart, Gruppe, Pfad, Zeit), Dialogwerte nur im Speicher; fünf Skripte offen, der Rest gefaltet an Ort und Stelle (statt einer eigenen durchsuchbaren Liste – wie die eingehenden FK-Sprünge).
+- **Listen** (Wunsch des Nutzers während des Baus): mehrere markierte Zeilen → `KUNDE_ID IN (…)`. Umgesetzt als `-- @param name typ list`, im Paket statt im Backlog.
+
+## Gebaut
+- **Kopf** (`ScriptHeaders`): `ScriptTarget(Parameter, Table, Column)` in `ScriptHeader.Targets` (init-Property, nicht im Konstruktor: Links in alten Workspace-Dateien haben keine); `@target` vor seinem `@param` erlaubt, geprüft erst nach dem Kopf. Fehler (Syntax, Owner, unbekannter Parameter, doppelt) mit Zeile, die Zeile bleibt in `Other`. `ScriptParameter.List` aus `@param … list`; `ParametersOf(…, previous)` hält die Markierung beim Speichern (eine Variable kennt sie nicht), `ScriptSaveDraft` gibt Ziele bei „Speichern unter“ mit. `ScriptEntry.Targets` aus der Liste der Bibliothek.
+- **Abgleich** (`ScriptTargets`): `Reached` folgt von der geklickten Spalte allen Beziehungen nach außen (`SchemaCache.LinksOf`, also auch die Kopien der Audit-Tabellen), je Position der Spalte, bis 8 Schritte, zyklenfest. Ein Skript passt, wenn sein Ziel darunter ist. Bewusst **nicht** die Gegenrichtung und keine Geschwister: Mit einem gemeinsamen Ursprung zeigte ein Kunden-Skript auch an Lieferanten-IDs, sobald beide auf eine Basistabelle `PERSON` zeigen. `Resolve`: eigenes Objekt, dann Synonym.
+- **Lauf** (`ScriptTargetRun`): Wert über `FkNavigation.FilterValue` (parst exakt zurück; NULL, LOB, Gleitkomma abgelehnt), national gebunden, wenn die Spalte es ist; Liste: Werte der markierten Zeilen, je einmal, ohne NULL; ab zwei Werten `SqlBindLists.Expand` (Core/Query: nur allein in `IN ( … )`, auch `NOT IN`; neue Namen kollidieren nicht, ≤ 30 Byte; ≤ 1000). „Sofort“ nur, wenn jedes Statement `IsQuery` ist (kein `FOR UPDATE`). Prüft gegen den Kopf der **neu gelesenen** Datei – ein Ziel, das sie nicht mehr hat, wird abgelehnt.
+- **Merkliste** (`ScriptUsage`, Core): wie `WorkClones`; Werte des Dialogs nur im Speicher.
+- **UI:** `ScriptTargetSection` im Zellmenü von Tabellen (vor den FK-Sprüngen), `MenuEntry.Keywords` für die Suche in Beschreibung und Ordner; `ScriptCellLaunch` (State) liest die Datei, baut den Lauf, öffnet über `ShellState.OpenScriptRun` im Workspace des Tabs (nicht im aktiven); `ScriptParamsDialog` mit `SqlVariablesEditor`. Ein Tab, der aus der Zelle läuft, führt das Skript aus, sobald sein Monaco steht (`SqlTab.RunOnOpen`, `MonacoEditor.OnCreated`/`IsCreated`) – der Befehl kommt sonst, bevor die Ansicht da ist.
+
+## E2E (2026-11-12)
+Eigener Container `ferret-wp84`, Rechtsklick und Menüklicks mit echter Windows-Eingabe. Nichts gefunden. Geprüft: Abgleich über die Beziehung (`AUFTRAG.KUNDE_ID` → `KUNDEN.KUNDE_ID`, Ziel in Kleinbuchstaben geschrieben), Skripte mit anderem oder ohne Ziel fehlen, fünf offen und „1 weitere“, Reihenfolge nach letztem Start, Liste aus drei markierten Zeilen (angeklickter Wert zuerst, Tab nicht verbunden), Dialog mit gemerktem Wert beim zweiten Start, DML-Skript nur geöffnet. `script-usage.json` ohne Werte, Log ohne `[ERR]`/`[WRN]`. Nicht geprüft: Prod (gleicher Weg, nur der Leseweg) und ein Skript in einem Gruppenordner.
+
+## Nicht im Paket (Backlog)
+Ziel beim Speichern vorschlagen, Eintrag in der Befehlspalette, Skripte im Zellmenü des SQL-Ergebnisses und der LINQ-Konsole, Ziel als C#-Name.
+
+## Nachtrag: Code-Review (2026-11-12)
+Entscheidung des Nutzers: „Kannst du die Vorschläge vom Code-Review was später kommt selbst bewerten und die beste Variante umsetzen? So viele Runden, bis wir sauber sind.“
+- S1 Wiederverwendeter Tab führte seinen eigenen, geänderten Text aus (auch DML, auch nur die Markierung): behoben – der verbundene Tab wird nur genommen, wenn sein Text der Datei gleicht, sonst neuer, nicht verbundener Tab; der Start aus der Zelle (`TabCommand.RunFromCell`) führt das ganze Skript aus und prüft den Editortext erneut auf reine Abfragen. Test `A_linked_tab_with_another_text_is_left_alone_…`.
+- S2 Endlosschleife beim Benennen der Listen-Binds: behoben (fortlaufender Stamm `v1`, `v2` …). Test `Naming_ends_when_…`.
+- M1 Aufklappen quadratisch, ohne Grenze, im UI-Thread: behoben (einmal per `StringBuilder`, höchstens 4 Mio. Zeichen, `ScriptTargetRun.Of` per `Task.Run`). Test `A_spread_beyond_the_size_limit_is_refused`.
+- M2 Liste nahm still nur geladene markierte Zeilen: behoben – Eintrag gesperrt mit Grund, solange markierte Zeilen nicht geladen sind. Nicht im E2E geprüft (braucht eine Auswahl über nicht geladene Blöcke).
+- M3 Über 1000 Werte erst nach dem Klick abgelehnt, Doppelstart möglich: behoben – Grenze im Eintrag, Sperre in `TabView` und im Dialog.
+- K1 Dialogwerte gelten über Verbindungen hinweg: nicht geändert – Entscheidung „je Skript und Parameter merken“, der Wert steht sichtbar im Dialog.
+- K2 Lauf-Merker erst nach dem ersten `await` übernommen: behoben (vor dem `await`).
+- K3 Unbenutzter `@param` konnte einen aufgeklappten Namen tragen: behoben (Kopfparameter gelten als belegt). Test im selben `Naming_ends_when_…`.
+- K4 Zeitreise-Tab: dokumentiert (Wert von damals, Lauf auf dem Stand von jetzt).
+- Hinweis Funktion mit `AUTONOMOUS_TRANSACTION`: im ADR-Nachtrag genannt.
+- Zweiter Durchgang: Fixes decken ihre Befunde, Alt+X unverändert. Zwei neue K: Doc-Kommentar in `TabView` am falschen Member (behoben); der Test zu S2 stellte den Zyklus nicht nach (jetzt mit den Stämmen aller früheren Schemata und Zeitlimit, scheitert statt zu hängen).
+- E2E nach den Fixes (echte Maus): Start aus der Zelle über `RunFromCell` in einen wiederhergestellten verbundenen Tab läuft; ein verbundener Tab mit angehängtem `UPDATE` bleibt unberührt (kein Lauf, Text unverändert), ein neuer, nicht verbundener Tab führt den Text der Datei aus. Dritter Durchgang des Reviewers ohne Befund.

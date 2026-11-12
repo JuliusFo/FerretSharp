@@ -1,0 +1,76 @@
+@* The scripts of a cell menu (WP-84): those whose @target the clicked column reaches, the ones started last first. Up to
+   five stand open, the rest behind "N more" (like the incoming foreign keys); typing into the menu's filter shows every
+   one whose name, description or folder it matches. A list parameter takes the values of all marked rows. *@
+@using FerretSharp.Core.Scripts
+
+@{
+    var shown = Filter?.Active == true ? Scripts : Scripts.Take(Shown).ToList();
+    var folded = Filter?.Active == true ? [] : Scripts.Skip(Shown).ToList();
+}
+@if (Scripts.Count > 0 && Filter?.KeepsHeading(ScriptViewText.CellMenu_Scripts, Scripts.Select(Label).Concat(Scripts.Select(Keywords))) != false)
+{
+    <div class="group-head-btn static">@ScriptViewText.CellMenu_Scripts</div>
+    @foreach (var script in shown)
+    {
+        <MenuEntry Label="@Label(script)" Group="@ScriptViewText.CellMenu_Scripts" Keywords="@Keywords(script)" Title="@Title(script)"
+                   Unavailable="@Unavailable(script)" OnClick="() => OnRun.InvokeAsync(script)" />
+    }
+    @if (folded.Count > 0)
+    {
+        <button type="button" class="menu-item ctx-fold" aria-expanded="@(_open ? "true" : "false")"
+                title="@string.Join(Environment.NewLine, folded.Select(Label))" @onclick="() => _open = !_open">
+            <span class="ctx-arrow">…</span>
+            <span class="ctx-fold-text">@TextFormat.Format(ScriptViewText.CellMenu_MoreScripts, folded.Count)</span>
+            <span class="chev @(_open ? "" : "closed")">@Icons.ChevronDown</span>
+        </button>
+        @if (_open)
+        {
+            @foreach (var script in folded)
+            {
+                <MenuEntry Label="@Label(script)" Group="@ScriptViewText.CellMenu_Scripts" Keywords="@Keywords(script)" Title="@Title(script)"
+                           Unavailable="@Unavailable(script)" OnClick="() => OnRun.InvokeAsync(script)" />
+            }
+        }
+    }
+}
+
+@code {
+    /// <summary>Scripts shown before "N more" (decision of the user: a short menu).</summary>
+    public const int Shown = 5;
+
+    [CascadingParameter]
+    public MenuFilter? Filter { get; set; }
+
+    /// <summary>The scripts for the clicked column, in the order to show (<see cref="ScriptUsage.Ordered"/>).</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ScriptMatch> Scripts { get; set; } = [];
+
+    /// <summary>How many values a script would get (the marked rows' for a list parameter); 0 if none can be handed on.</summary>
+    [Parameter, EditorRequired]
+    public Func<ScriptMatch, int> Values { get; set; } = null!;
+
+    /// <summary>Why a script cannot start from this cell (NULL, a LOB); null if it can.</summary>
+    [Parameter, EditorRequired]
+    public Func<ScriptMatch, string?> Unavailable { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<ScriptMatch> OnRun { get; set; }
+
+    /// <summary>"N more" is open.</summary>
+    private bool _open;
+
+    private string Label(ScriptMatch match) =>
+        Values(match) is > 1 and var count ? TextFormat.Format(ScriptViewText.CellMenu_ScriptValues, match.Script.Name, count) : match.Script.Name;
+
+    private static string Keywords(ScriptMatch match) => string.Join(' ', match.Script.Description, match.Script.Folder, RootText(match.Script.Root));
+
+    private static string Title(ScriptMatch match) =>
+        string.Join(Environment.NewLine, new[] { match.Script.Description, $"{RootText(match.Script.Root)} · {match.Script.Path}" }.OfType<string>());
+
+    private static string RootText(ScriptRoot root) => root.Kind switch
+    {
+        ScriptRootKind.Group => $"{ScriptViewText.Root_Group} {root.Group}",
+        ScriptRootKind.General => ScriptViewText.Root_General,
+        _ => ScriptViewText.Root_Personal,
+    };
+}

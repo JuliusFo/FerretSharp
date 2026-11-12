@@ -56,6 +56,9 @@ public sealed class AppPaths
     /// <summary>The active work clone of each connection group and the recently chosen folders (WP-40).</summary>
     public string WorkClonesFile => Path.Combine(Root, "work-clones.json");
 
+    /// <summary>The scripts last started from a cell (WP-84): folder kind, group, path and time, no values.</summary>
+    public string ScriptUsageFile => Path.Combine(Root, "script-usage.json");
+
     /// <summary>The order of the connection groups and which are collapsed (WP-66).</summary>
     public string ConnectionGroupsFile => Path.Combine(Root, "connection-groups.json");
 

@@ -72,4 +72,22 @@
   <data name="FolderUnreadable" xml:space="preserve">
     <value>Der Skriptordner {0} kann nicht gelesen werden: {1}</value>
   </data>
+  <data name="TargetSyntax" xml:space="preserve">
+    <value>@target braucht einen Parameter und eine Spalte einer Tabelle, ohne Owner: -- @target customer_id CUSTOMER.CUSTOMER_ID</value>
+  </data>
+  <data name="TargetUnknownParameter" xml:space="preserve">
+    <value>@target nennt {0}, aber es gibt kein @param {0}.</value>
+  </data>
+  <data name="TargetRepeated" xml:space="preserve">
+    <value>Das Ziel {0} steht für diesen Parameter doppelt da.</value>
+  </data>
+  <data name="Target_ValueIsNull" xml:space="preserve">
+    <value>Die Zelle ist NULL: Es gibt keinen Wert für das Skript.</value>
+  </data>
+  <data name="Target_ValueNotPassable" xml:space="preserve">
+    <value>Werte dieser Spalte lassen sich nicht an ein Skript übergeben (LOB, Gleitkomma, mehr als 28 Stellen …).</value>
+  </data>
+  <data name="Target_Gone" xml:space="preserve">
+    <value>Das Skript nimmt diese Spalte nicht mehr (die Datei hat sich geändert). Menü neu öffnen.</value>
+  </data>
 </root>

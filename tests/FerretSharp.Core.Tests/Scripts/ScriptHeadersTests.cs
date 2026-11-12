@@ -123,4 +123,48 @@ public sealed class ScriptHeadersTests
 
         Assert.Equal("-- @connections all\n\nSELECT 1 FROM dual", ScriptHeaders.Compose(header, "SELECT 1 FROM dual"));
     }
+
+    [Fact]
+    public void Targets_and_list_parameters_are_read_and_written_back_the_same()
+    {
+        var parsed = ScriptHeaders.Parse(
+            "-- @target ID customer.id\n-- @param id number\n-- @param ids number LIST\n-- @target ids \"Orders\" . \"Customer Id\"\n-- @target :ids CUSTOMER.ID\nSELECT 1");
+
+        Assert.Empty(parsed.Errors);
+        Assert.Equal([new ScriptParameter("id", SqlVariableType.Number), new ScriptParameter("ids", SqlVariableType.Number, List: true)], parsed.Header.Parameters);
+        // A target above its parameter counts; the parameter's spelling wins, a name without quotes is upper case.
+        Assert.Equal(
+            [new ScriptTarget("id", "CUSTOMER", "ID"), new ScriptTarget("ids", "Orders", "Customer Id"), new ScriptTarget("ids", "CUSTOMER", "ID")],
+            parsed.Header.Targets);
+
+        var text = ScriptHeaders.Compose(parsed.Header, parsed.Body);
+
+        Assert.Equal(
+            "-- @param id number\n-- @param ids number list\n-- @target id CUSTOMER.ID\n-- @target ids \"Orders\".\"Customer Id\"\n-- @target ids CUSTOMER.ID\n\nSELECT 1",
+            text);
+        Assert.True(ScriptHeaders.Parse(text).Header.SameAs(parsed.Header));
+    }
+
+    [Fact]
+    public void A_target_with_errors_is_reported_with_its_line_and_kept()
+    {
+        var parsed = ScriptHeaders.Parse(
+            "-- @param id number\n-- @target id APP.CUSTOMER.ID\n-- @target other CUSTOMER.ID\n-- @target id CUSTOMER.ID\n-- @target ID customer.ID\n-- @target id\nSELECT 1");
+
+        Assert.Equal([2, 3, 5, 6], parsed.Errors.Select(e => e.Line));
+        Assert.Equal([new ScriptTarget("id", "CUSTOMER", "ID")], parsed.Header.Targets);
+        Assert.Equal(["-- @target id APP.CUSTOMER.ID", "-- @target id", "-- @target other CUSTOMER.ID", "-- @target ID customer.ID"], parsed.Header.Other);
+    }
+
+    [Fact]
+    public void Saving_keeps_a_list_parameter_a_list_and_the_targets_of_the_file()
+    {
+        var header = new ScriptHeader(null, [new("ids", SqlVariableType.Text, List: true)], []) { Targets = [new("ids", "CUSTOMER", "ID")] };
+        var link = ScriptLink.To(new ScriptRoot(ScriptRootKind.Personal, "/s"), "a.sql", header, "SELECT 1", "hash");
+
+        var saved = link.HeaderFor("SELECT * FROM t WHERE id IN (:ids) AND x = :x", [new SqlVariable("ids", SqlVariableType.Number, "")]);
+
+        Assert.Equal([new ScriptParameter("ids", SqlVariableType.Number, List: true), new ScriptParameter("x", SqlVariableType.Text)], saved.Parameters);
+        Assert.Equal(header.Targets, saved.Targets);
+    }
 }

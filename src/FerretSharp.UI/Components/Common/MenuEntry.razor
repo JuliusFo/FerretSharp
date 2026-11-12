@@ -1,7 +1,7 @@
 @* A text line of a right-click menu with a quick bar (WP-61): the groups that stay lines – editing rows, marked cells –
    under their heading. Left out while the menu's filter (MenuFilter) matches neither its label nor its group. *@
 
-@if (Filter?.Matches(Label, Group) != false)
+@if (Filter?.Matches(Label, Group, Keywords) != false)
 {
     <button type="button" class="menu-item @(Danger ? "danger" : "")" disabled="@(Unavailable is not null)" title="@(Unavailable ?? Title)" @onclick="OnClick">
         @Label
@@ -21,6 +21,10 @@
 
     [Parameter]
     public string? Title { get; set; }
+
+    /// <summary>More text the filter finds it by (a script's description, WP-84).</summary>
+    [Parameter]
+    public string? Keywords { get; set; }
 
     /// <summary>Why it is not possible here (disabled, as tooltip); null if it is.</summary>
     [Parameter]

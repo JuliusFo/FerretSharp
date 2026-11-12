@@ -276,4 +276,36 @@
     <value>{0} scripts</value>
     <comment>Count in the explorer head; {0}: number of scripts</comment>
   </data>
+  <data name="CellMenu_Scripts" xml:space="preserve">
+    <value>Scripts</value>
+    <comment>Heading of the scripts in a cell's right-click menu</comment>
+  </data>
+  <data name="CellMenu_MoreScripts" xml:space="preserve">
+    <value>{0} more</value>
+    <comment>{0}: number of folded scripts</comment>
+  </data>
+  <data name="CellMenu_ScriptValues" xml:space="preserve">
+    <value>{0} · {1} values</value>
+    <comment>{0}: script name; {1}: number of values of the marked rows</comment>
+  </data>
+  <data name="CellRun_Title" xml:space="preserve">
+    <value>Run script {0}</value>
+    <comment>{0}: script name</comment>
+  </data>
+  <data name="CellRun_Values" xml:space="preserve">
+    <value>{0} values of the marked rows</value>
+    <comment>{0}: number of values</comment>
+  </data>
+  <data name="CellRun_OpenInEditor" xml:space="preserve">
+    <value>Open in editor</value>
+    <comment>Button: opens the script with the values, runs nothing</comment>
+  </data>
+  <data name="CellRun_Run" xml:space="preserve">
+    <value>Run</value>
+    <comment>Button: opens the script and runs it</comment>
+  </data>
+  <data name="CellMenu_RowsNotLoaded" xml:space="preserve">
+    <value>{0} of the selection are not loaded: the list would miss their values. Scroll to them or select fewer.</value>
+    <comment>{0}: rows text such as "3 rows"</comment>
+  </data>
 </root>

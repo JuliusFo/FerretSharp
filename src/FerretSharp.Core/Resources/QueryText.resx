@@ -442,4 +442,20 @@
     <value>{0} does not belong in a condition – sort with the column headers, anything else in the SQL editor.</value>
     <comment>{0}: what was found – outside of parentheses ORDER, UNION, FOR …; at any depth ; and FOR UPDATE. SQL condition of a table tab</comment>
   </data>
+  <data name="BindListTooMany" xml:space="preserve">
+    <value>At most {0} values fit into one IN list; {1} are marked.</value>
+    <comment>{0}: maximum; {1}: number of values</comment>
+  </data>
+  <data name="BindListPlacement" xml:space="preserve">
+    <value>:{0} takes a list: it must stand alone in IN ( … ), as in WHERE id IN (:{0}).</value>
+    <comment>{0}: name of the bind; keep the SQL example as is</comment>
+  </data>
+  <data name="BindListMissing" xml:space="preserve">
+    <value>The script does not use :{0}.</value>
+    <comment>{0}: name of the bind</comment>
+  </data>
+  <data name="BindListTooLong" xml:space="preserve">
+    <value>Spreading the values over :{0} would make the script too long.</value>
+    <comment>{0}: name of the bind</comment>
+  </data>
 </root>

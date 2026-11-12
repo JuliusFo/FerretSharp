@@ -92,4 +92,28 @@
     <value>The script folder {0} cannot be read: {1}</value>
     <comment>{0}: path of the folder; {1}: error message of the system</comment>
   </data>
+  <data name="TargetSyntax" xml:space="preserve">
+    <value>@target needs a parameter and a column of a table, without owner: -- @target customer_id CUSTOMER.CUSTOMER_ID</value>
+    <comment>Syntax hint; keep the example code as is</comment>
+  </data>
+  <data name="TargetUnknownParameter" xml:space="preserve">
+    <value>@target names {0}, but there is no @param {0}.</value>
+    <comment>{0}: name of the parameter</comment>
+  </data>
+  <data name="TargetRepeated" xml:space="preserve">
+    <value>The target {0} is declared twice for this parameter.</value>
+    <comment>{0}: TABLE.COLUMN</comment>
+  </data>
+  <data name="Target_ValueIsNull" xml:space="preserve">
+    <value>The cell is NULL: there is no value to hand to the script.</value>
+    <comment>Why a script of the cell menu is unavailable</comment>
+  </data>
+  <data name="Target_ValueNotPassable" xml:space="preserve">
+    <value>Values of this column cannot be handed to a script (LOB, float, more than 28 digits …).</value>
+    <comment>Why a script of the cell menu is unavailable</comment>
+  </data>
+  <data name="Target_Gone" xml:space="preserve">
+    <value>The script no longer takes this column (the file changed). Open the menu again.</value>
+    <comment>A script of the cell menu whose file changed since the menu opened</comment>
+  </data>
 </root>

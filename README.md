@@ -234,7 +234,10 @@ developer works with an Oracle database day to day:
   file with a description and typed parameters in its head – in your personal folder, one per connection group or a general one (e.g. a shared
   repository). The explorer lists them as a tree (*Scripts*); a click opens one in a new tab without running it, and the
   panel beside the history inserts one at the cursor. A tab opened from a script saves only when asked and reloads when
-  the file changes on disk (format: `docs/sql-scripts.md`).
+  the file changes on disk (format: `docs/sql-scripts.md`). A script that names the column its parameter comes from
+  (`-- @target customer_id CUSTOMER.CUSTOMER_ID`) shows in the **right-click menu of a cell** of that column and of every
+  column referring to it, and runs right away with the cell's value; a `list` parameter takes the values of all marked
+  rows (`IN (:ids)`). Other parameters are asked for in a small dialog; a script that writes only opens.
 - **Keep results:** *Keep result* above a query's result keeps it, with its rows as they were read, when the next
   statement runs – up to ten per tab, side by side in the bar above the grid, each named by its table and time (a double
   click renames it). A kept result never reads again: it sorts, copies and exports the rows it holds. Every result shows

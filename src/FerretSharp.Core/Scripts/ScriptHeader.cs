@@ -1,13 +1,27 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Scripts;
 
 /// <summary>A parameter of a SQL script (WP-77): a bind of its text with the type it is bound as – never a value.</summary>
-public sealed record ScriptParameter(string Name, SqlVariableType Type);
+/// <param name="List">
+/// <c>-- @param name type list</c> (WP-84, wish of the user 2026-11-11): the bind stands alone in <c>IN ( … )</c> and takes the
+/// values of several marked rows, one bind each (<see cref="SqlBindLists"/>); with one value it is a plain bind.
+/// </param>
+public sealed record ScriptParameter(string Name, SqlVariableType Type, bool List = false);
+
+/// <summary>
+/// The column a parameter of a SQL script takes its value from (WP-84, <c>-- @target name TABLE.COLUMN</c>): the script is
+/// offered in the cell menu of that column and of every column that holds the same values (<see cref="ScriptTargets"/>).
+/// </summary>
+/// <param name="Parameter">The parameter's name as in its <c>@param</c>.</param>
+/// <param name="Table">The table or view without owner, as the dictionary has it (<c>kunde</c> → <c>KUNDE</c>).</param>
+/// <param name="Column">The column, as the dictionary has it.</param>
+public sealed record ScriptTarget(string Parameter, string Table, string Column);
 
 /// <summary>A line of a script's header that cannot be used, with its number in the file (1-based).</summary>
 public sealed record ScriptHeaderError(int Line, string Message)
@@ -16,7 +30,8 @@ public sealed record ScriptHeaderError(int Line, string Message)
 }
 
 /// <summary>
-/// The comment lines at the top of a SQL script (WP-77, ADR 0046): <c>-- @description …</c> and <c>-- @param name type</c>.
+/// The comment lines at the top of a SQL script (WP-77, ADR 0046): <c>-- @description …</c>, <c>-- @param name type</c> and
+/// <c>-- @target name TABLE.COLUMN</c> (WP-84).
 /// Lines it does not know (another directive, a <c>@param</c> with errors) stay as they are in <see cref="Other"/> and are
 /// written back unchanged, so a newer FerretSharp's or a colleague's lines are not lost.
 /// </summary>
@@ -27,11 +42,18 @@ public sealed record ScriptHeader(string? Description, IReadOnlyList<ScriptParam
 {
     public static ScriptHeader Empty { get; } = new(null, [], []);
 
-    public bool IsEmpty => string.IsNullOrWhiteSpace(Description) && Parameters.Count == 0 && Other.Count == 0;
+    /// <summary>
+    /// The columns the parameters take their values from (WP-84), in the order of the file; each names a parameter of
+    /// <see cref="Parameters"/>. Not in the constructor: a link in a workspace file written before WP-84 has none.
+    /// </summary>
+    public IReadOnlyList<ScriptTarget> Targets { get; init; } = [];
+
+    public bool IsEmpty => string.IsNullOrWhiteSpace(Description) && Parameters.Count == 0 && Targets.Count == 0 && Other.Count == 0;
 
     /// <summary>The same lines (records compare lists by reference).</summary>
     public bool SameAs(ScriptHeader other) =>
-        Description == other.Description && Parameters.SequenceEqual(other.Parameters) && Other.SequenceEqual(other.Other);
+        Description == other.Description && Parameters.SequenceEqual(other.Parameters) && Targets.SequenceEqual(other.Targets)
+        && Other.SequenceEqual(other.Other);
 }
 
 /// <summary>A script split into its header and the SQL below it.</summary>
@@ -78,6 +100,7 @@ public static partial class ScriptHeaders
 
         string? description = null;
         var parameters = new List<ScriptParameter>();
+        var targets = new List<(ScriptTarget Target, int Line)>();
         var other = new List<string>();
         var errors = new List<ScriptHeaderError>();
         var n = first;
@@ -102,11 +125,44 @@ public static partial class ScriptHeaders
                     }
 
                     break;
+                case "target":
+                    if (Target(value, n + 1, errors) is { } target)
+                    {
+                        targets.Add((target, n + 1));
+                    }
+                    else
+                    {
+                        other.Add(lines[n]);
+                    }
+
+                    break;
                 default:
                     other.Add(lines[n]); // unknown or with errors: kept
                     break;
             }
         }
+
+        // Only now: a @target may stand above its @param.
+        var known = new List<ScriptTarget>();
+        foreach (var (target, line) in targets)
+        {
+            if (parameters.FirstOrDefault(p => string.Equals(p.Name, target.Parameter, StringComparison.OrdinalIgnoreCase)) is not { } parameter)
+            {
+                errors.Add(new(line, TextFormat.Format(ScriptText.TargetUnknownParameter, target.Parameter)));
+                other.Add(lines[line - 1]);
+            }
+            else if (known.Any(k => string.Equals(k.Parameter, parameter.Name, StringComparison.OrdinalIgnoreCase) && k.Table == target.Table && k.Column == target.Column))
+            {
+                errors.Add(new(line, TextFormat.Format(ScriptText.TargetRepeated, target.Table + "." + target.Column)));
+                other.Add(lines[line - 1]);
+            }
+            else
+            {
+                known.Add(target with { Parameter = parameter.Name });
+            }
+        }
+
+        errors.Sort((a, b) => a.Line.CompareTo(b.Line));
 
         if (n < lines.Length && lines[n].Trim().Length == 0)
         {
@@ -114,11 +170,12 @@ public static partial class ScriptHeaders
         }
 
         var body = string.Join('\n', lines[n..]);
-        return new ParsedScript(new ScriptHeader(string.IsNullOrWhiteSpace(description) ? null : description, parameters, other), body, errors);
+        return new ParsedScript(
+            new ScriptHeader(string.IsNullOrWhiteSpace(description) ? null : description, parameters, other) { Targets = known }, body, errors);
     }
 
     /// <summary>
-    /// The file's text: the header's lines (description, parameters, then the kept ones), a blank line and the body. Line
+    /// The file's text: the header's lines (description, parameters, targets, then the kept ones), a blank line and the body. Line
     /// breaks are <c>\n</c>; the file keeps its own (<see cref="ScriptFiles"/>).
     /// </summary>
     public static string Compose(ScriptHeader header, string body)
@@ -129,7 +186,7 @@ public static partial class ScriptHeaders
         // Only lines that are header lines: one from a workspace file edited by hand ("GRANT …") would end up as SQL in the
         // shared script (review WP-77, K1).
         var other = header.Other.Select(OneLine).Where(l => Directive().IsMatch(l)).ToList();
-        if (string.IsNullOrWhiteSpace(header.Description) && header.Parameters.Count == 0 && other.Count == 0)
+        if (string.IsNullOrWhiteSpace(header.Description) && header.Parameters.Count == 0 && header.Targets.Count == 0 && other.Count == 0)
         {
             return body;
         }
@@ -145,7 +202,15 @@ public static partial class ScriptHeaders
 
         foreach (var parameter in header.Parameters)
         {
-            text.Append("-- @param ").Append(ParameterName(parameter.Name)).Append(' ').Append(TypeName(parameter.Type)).Append('\n');
+            text.Append("-- @param ").Append(ParameterName(parameter.Name)).Append(' ').Append(TypeName(parameter.Type))
+                .Append(parameter.List ? " list" : "").Append('\n');
+        }
+
+        // A target whose parameter is gone (its bind left the text) is still written: the next read reports it, nothing is lost.
+        foreach (var target in header.Targets)
+        {
+            text.Append("-- @target ").Append(ParameterName(OneLine(target.Parameter))).Append(' ')
+                .Append(TargetName(target.Table)).Append('.').Append(TargetName(target.Column)).Append('\n');
         }
 
         foreach (var line in other)
@@ -161,7 +226,8 @@ public static partial class ScriptHeaders
     /// The parameters of <paramref name="body"/>: its binds in order of use, each with the type of its variable in
     /// <paramref name="variables"/> (text without one). Variables of binds no longer in the text are left out.
     /// </summary>
-    public static IReadOnlyList<ScriptParameter> ParametersOf(string body, IReadOnlyList<SqlVariable> variables)
+    /// <param name="previous">The parameters of the file: a <see cref="ScriptParameter.List"/> stays one (a variable has no such mark).</param>
+    public static IReadOnlyList<ScriptParameter> ParametersOf(string body, IReadOnlyList<SqlVariable> variables, IReadOnlyList<ScriptParameter>? previous = null)
     {
         ArgumentNullException.ThrowIfNull(body);
         ArgumentNullException.ThrowIfNull(variables);
@@ -169,7 +235,8 @@ public static partial class ScriptHeaders
         return
         [
             .. binds.Select(b => new ScriptParameter(
-                b, variables.FirstOrDefault(v => string.Equals(v.Name, b, StringComparison.OrdinalIgnoreCase))?.Type ?? SqlVariableType.Text)),
+                b, variables.FirstOrDefault(v => string.Equals(v.Name, b, StringComparison.OrdinalIgnoreCase))?.Type ?? SqlVariableType.Text,
+                previous?.Any(p => p.List && string.Equals(p.Name, b, StringComparison.OrdinalIgnoreCase)) == true)),
         ];
     }
 
@@ -214,6 +281,21 @@ public static partial class ScriptHeaders
     private static string ParameterName(string name) =>
         name.Length > 0 && name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$' or '#') ? name : "\"" + name.Replace("\"", "", StringComparison.Ordinal) + "\"";
 
+    /// <summary>A table or column of a target as written: plain if Oracle takes it so, else in quotes.</summary>
+    private static string TargetName(string name) => OracleIdentifier.QuoteIfNeeded(OneLine(name).Replace("\"", "", StringComparison.Ordinal));
+
+    private static ScriptTarget? Target(string value, int line, List<ScriptHeaderError> errors)
+    {
+        if (TargetValue().Match(value) is not { Success: true } match)
+        {
+            errors.Add(new(line, ScriptText.TargetSyntax));
+            return null;
+        }
+
+        var name = match.Groups["quoted"].Success ? match.Groups["quoted"].Value : match.Groups["plain"].Value;
+        return new ScriptTarget(name, OracleIdentifier.Normalize(match.Groups["table"].Value), OracleIdentifier.Normalize(match.Groups["column"].Value));
+    }
+
     private static ScriptParameter? Parameter(string value, int line, List<ScriptHeaderError> errors)
     {
         if (ParamValue().Match(value) is not { Success: true } match)
@@ -231,12 +313,16 @@ public static partial class ScriptHeaders
             return null;
         }
 
-        return new ScriptParameter(name, type);
+        return new ScriptParameter(name, type, match.Groups["list"].Success);
     }
 
     [GeneratedRegex(@"^\s*--\s*@(?<name>[A-Za-z][A-Za-z-]*)(\s+(?<value>.*))?\s*$")]
     private static partial Regex Directive();
 
-    [GeneratedRegex(@"^:?(?:""(?<quoted>[^""]+)""|(?<plain>[\p{L}\p{N}_$#]+))\s+(?<type>\S+)$")]
+    [GeneratedRegex(@"^:?(?:""(?<quoted>[^""]+)""|(?<plain>[\p{L}\p{N}_$#]+))\s+(?<type>\S+)(?:\s+(?<list>[Ll][Ii][Ss][Tt]))?$")]
     private static partial Regex ParamValue();
+
+    /// <summary>Parameter, then <c>TABLE.COLUMN</c> – each name plain or in quotes, no owner (a script runs on any schema).</summary>
+    [GeneratedRegex(@"^:?(?:""(?<quoted>[^""]+)""|(?<plain>[\p{L}\p{N}_$#]+))\s+(?<table>""[^""]+""|[\p{L}_$#][\p{L}\p{N}_$#]*)\s*\.\s*(?<column>""[^""]+""|[\p{L}_$#][\p{L}\p{N}_$#]*)$")]
+    private static partial Regex TargetValue();
 }
