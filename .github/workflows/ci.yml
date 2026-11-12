@@ -4,6 +4,7 @@
 # The Linux tests measure code coverage (settings: tests/coverage.config): summary on the run page, HTML report as
 # artifact, and on main the badge in the README (coverage.json on the branch "badges", shown by shields.io).
 # Windows: the whole solution including the WPF host; unit tests only (the runner's Docker runs Windows containers).
+# Line endings: every committed text file must equal its normalized form (no CRLF in the repository).
 name: CI
 
 on:
@@ -78,6 +79,26 @@ jobs:
           path: coverage/report
           retention-days: 14
 
+  # Every committed text file must equal its normalized form. A .cs file (attribute "text") committed with CRLF in some
+  # lines is modified right after checkout and broke the badge job's branch switch (2026-11-12). The check is stricter
+  # than that: it also names files under text=auto. Its own job, so a hit does not skip build and tests. git status
+  # misses such a file while the index stat data is fresh; renormalize compares the content.
+  line-endings:
+    name: Line endings
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Normalized form
+        run: |
+          git add --renormalize .
+          if ! git diff --cached --quiet; then
+            echo "::error::Files differ from their normalized form (CRLF in the repository). Fix with: git add --renormalize <file>; a stray CR (CR CR LF) has to be removed in the file itself first."
+            git -c core.quotePath=false diff --cached --stat=200
+            exit 1
+          fi
+
   coverage-badge:
     name: Coverage badge
     needs: linux
@@ -95,13 +116,14 @@ jobs:
           name: coverage-report
           path: ${{ runner.temp }}/coverage
 
-      # The branch "badges" holds only coverage.json; it is created on the first run.
+      # The branch "badges" holds only coverage.json; it is created on the first run. --discard-changes: the badge must
+      # not fail on a dirty checkout of main (the job line-endings reports that).
       - name: Publish coverage.json
         run: |
           if git fetch --depth=1 origin badges; then
-            git switch --force-create badges FETCH_HEAD
+            git switch --discard-changes --force-create badges FETCH_HEAD
           else
-            git switch --orphan badges
+            git switch --discard-changes --orphan badges
           fi
           cp "$RUNNER_TEMP/coverage/coverage.json" coverage.json
           git add coverage.json

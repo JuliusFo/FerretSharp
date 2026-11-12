@@ -1,10 +1,19 @@
 * text=auto
 *.cs text diff=csharp
 *.xaml text
+# A stray CR (CR CR LF) makes text=auto treat a file as binary, so neither normalization nor the CI check sees it.
+*.md text
 *.png binary
 *.ico binary
 src/FerretSharp.UI/wwwroot/lib/** -diff linguist-vendored
 # The redirect page names its script and style by hash in its CSP (ADR 0026, addendum): the bytes must stay LF everywhere.
-pages/** text eol=lf
+# Text types only: "pages/** text" would also convert an image or font there and break it (later lines win over
+# *.png binary). Another text type under pages/ needs its own line.
+pages/**/*.html text eol=lf
+pages/**/*.js text eol=lf
+pages/**/*.css text eol=lf
+pages/**/*.svg text eol=lf
+pages/**/*.json text eol=lf
+pages/**/*.txt text eol=lf
 # Runs with bash inside the Linux test container (tools/linux/Test-Linux.ps1): CRLF would break it.
 tools/linux/*.sh text eol=lf
