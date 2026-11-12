@@ -1,6 +1,8 @@
 * text=auto
 *.cs text diff=csharp
 *.xaml text
+# A stray CR (CR CR LF) makes text=auto treat a file as binary, so neither normalization nor the CI check sees it.
+*.md text
 *.png binary
 *.ico binary
 src/FerretSharp.UI/wwwroot/lib/** -diff linguist-vendored
