@@ -200,6 +200,36 @@ public sealed class FormCursorTests
         Assert.Null(cursor.Lost);
     }
 
+    /// <summary>
+    /// WP-85 (code review of `small-pk-edit`): one write swapped keys, A 1 → 9 and B 2 → 1. The form on A found key 1 at B
+    /// after the reload and showed B without a word. It follows A's change – also while the grid still holds the rows from
+    /// before the write, and back to key 1 when the write is undone.
+    /// </summary>
+    [Fact]
+    public void After_a_key_swap_the_form_follows_its_row_not_the_old_key()
+    {
+        var a = Row(1);
+        _grid.Load(a, Row(2));
+        var cursor = new FormCursor(_grid);
+        cursor.Show(new GridCell(0, null, 1));
+        var moved = _grid.Changes.SetValue(a, 0, "9").Change!;
+        Assert.Equal(FormFollow.Unchanged, cursor.RowsChanged()); // the edit redraws the row
+        var other = _grid.Changes.SetValue(Row(2), 0, "1").Change!;
+        var batch = _grid.Changes.MarkFlushed(
+            _grid.Changes.PendingOperations(), new Dictionary<Guid, RowKey> { [moved.Id] = Row(9).Key, [other.Id] = Row(1).Key });
+
+        Assert.Equal(FormFollow.Unchanged, cursor.RowsChanged()); // not reloaded yet: key 1 is B's already
+        _grid.Load(Row(1), Row(9)); // reloaded: B has key 1, A sorts behind it
+        Assert.Equal(FormFollow.MovedWithNewKey, cursor.RowsChanged());
+        Assert.Equal((new GridCell(1, null, 1), Row(9).Key), (cursor.Cell, cursor.Key));
+
+        _grid.Changes.UndoFlush(batch); // ↶: both keys are as before
+        _grid.Load(Row(1), Row(2));
+        Assert.Equal(FormFollow.MovedWithNewKey, cursor.RowsChanged());
+        Assert.Equal((new GridCell(0, null, 1), Row(1).Key), (cursor.Cell, cursor.Key));
+        Assert.Same(moved, cursor.Change);
+    }
+
     /// <summary>Loaded rows by position and the tab's changes, like FerretGrid's blocks.</summary>
     private sealed class FakeGrid : IFormGrid
     {
