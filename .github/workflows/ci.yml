@@ -4,6 +4,7 @@
 # The Linux tests measure code coverage (settings: tests/coverage.config): summary on the run page, HTML report as
 # artifact, and on main the badge in the README (coverage.json on the branch "badges", shown by shields.io).
 # Windows: the whole solution including the WPF host; unit tests only (the runner's Docker runs Windows containers).
+# Line endings: every committed text file must equal its normalized form (no CRLF in the repository).
 name: CI
 
 on:
@@ -93,7 +94,7 @@ jobs:
         run: |
           git add --renormalize .
           if ! git diff --cached --quiet; then
-            echo "::error::Files differ from their normalized form (CRLF in the repository). Fix with: git add --renormalize <file>"
+            echo "::error::Files differ from their normalized form (CRLF in the repository). Fix with: git add --renormalize <file>; a stray CR (CR CR LF) has to be removed in the file itself first."
             git -c core.quotePath=false diff --cached --stat=200
             exit 1
           fi

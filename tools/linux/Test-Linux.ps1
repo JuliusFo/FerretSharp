@@ -11,7 +11,7 @@
     -warnaserror and runs the tests there. Nothing is written into the repository: bin and obj stay in the
     container, which is removed afterwards. NuGet packages are kept in the Docker volume ferretsharp-linux-nuget.
 
-    First it stops on text files with CRLF in the index, like the CI job line-endings (read-only here).
+    Before the tests it stops on text files with CRLF in the index, like the CI job line-endings (read-only here).
 
     Not part of it: the integration tests (Oracle in Docker) and the JavaScript tests (no Node in the image).
     The CI runs both.
@@ -51,10 +51,16 @@ try {
 } finally {
     [Console]::OutputEncoding = $encoding
 }
-$crlf = @($eol | Where-Object { $_ -match '^i/(crlf|mixed)\s' -and $_ -notmatch '\sattr/-text\s' })
+# A stray CR (CR CR LF) makes git call the content binary (i/-text) even under an explicit "text" attribute; the CI
+# renormalizes such a file all the same, so it counts here too. Under text=auto it stays binary in both places.
+$crlf = @($eol | Where-Object {
+    ($_ -match '^i/(crlf|mixed)\s' -and $_ -notmatch '\sattr/-text\s') -or
+    ($_ -match '^i/-text\s' -and $_ -match '\sattr/text(\s|$)')
+})
 if ($crlf.Count -gt 0) {
     $crlf | ForEach-Object { Write-Host $_ }
-    throw "$($crlf.Count) file(s) with CRLF in the index; the CI job line-endings fails on them. Fix with: git add --renormalize <file>"
+    throw ("$($crlf.Count) file(s) with CRLF in the index; the CI job line-endings fails on them. Fix with: " +
+        'git add --renormalize <file>; a stray CR (CR CR LF) has to be removed in the file itself first.')
 }
 $files = ($names -join '') -split "`0" | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $root $_) -PathType Leaf) }
 
