@@ -1,6 +1,6 @@
 # Fix: CI-Lauf auf main nach dem Merge abgebrochen
 
-Branch `fix/ci-concurrency` (von `main`), 2026-11-10, noch ohne Release.
+Branch `fix/ci-concurrency` (von `main`), 2026-11-10, Release 3.69.0.
 
 ## Anlass (Meldung des Nutzers, 2026-11-10)
 - Nach dem Merge von WP-82 (PR #169) wurde der CI-Lauf auf `main` sofort abgebrochen: „Canceling since a higher priority waiting request for ci-refs/heads/main exists“.

@@ -1,6 +1,6 @@
 # WP-84 Skripte mit Ziel im Zellmenü
 
-Branch `wp/84-script-targets` (von `main`), 2026-11-12, noch ohne Release. ADR 0046 mit Nachtrag; Lese-, Schreib- und Schemaweg bleiben unverändert.
+Branch `wp/84-script-targets` (von `main`), 2026-11-12, Release 3.70.0. ADR 0046 mit Nachtrag; Lese-, Schreib- und Schemaweg bleiben unverändert.
 
 ## Planung (aus `docs/roadmap.md`)
 Branch `wp/84-script-targets`. Idee des Nutzers (2026-11-11), Fortsetzung von WP-77 (`docs/sql-scripts.md`, ADR 0046); als eigenes Paket gewünscht. Rechtsklick auf eine Zelle mit z. B. `KUNDE_ID` bietet die Skripte an, die einen Kunden als Eingabe nehmen, und führt sie mit dem Wert der Zelle aus. Die Punkte sind Vorschläge (nicht bestätigt), außer wo anders vermerkt.
