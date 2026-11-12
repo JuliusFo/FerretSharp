@@ -62,7 +62,7 @@ public sealed class ProjectCodeChangeTests : IDisposable
     private static CodeChangeRequest DropEmail()
     {
         var draft = TableDraft.Of(Kunden);
-        return new CodeChangeRequest.ForTable(Kunden, draft with { Columns = [.. draft.Columns.Select(c => c.Original == "EMAIL" ? c with { Dropped = true } : c)] });
+        return CodeChangeRequest.ForTable.OfDraft(Kunden, draft with { Columns = [.. draft.Columns.Select(c => c.Original == "EMAIL" ? c with { Dropped = true } : c)] });
     }
 
     [Fact]
@@ -80,6 +80,37 @@ public sealed class ProjectCodeChangeTests : IDisposable
         Assert.Equal((CodeChangeStage.WorkCloneDoesNotFit, WorkCloneFit.ProjectMissing), (other.Stage, other.Fit));
         Assert.Null(other.Plan);
         Assert.False(other.CanWrite);
+    }
+
+    /// <summary>
+    /// Review WP-41, M6: after a run that stopped halfway the tab kept nothing, a second run dropped the first one not written.
+    /// Now the table before the first run not written, compared with the database's columns when shown; renames chained.
+    /// </summary>
+    [Fact]
+    public void Runs_before_writing_come_together_against_the_tables_columns_and_a_written_one_starts_anew()
+    {
+        var first = TableDraft.Of(Kunden) with
+        {
+            Columns = [.. TableDraft.Of(Kunden).Columns.Select(c => c.Original == "EMAIL" ? c with { Column = c.Column with { Name = "MAIL" } } : c),
+                new ColumnDraft(null, new ColumnInfo("RABATT", "NUMBER", null, false, 5, 2, true, false, null, 3))],
+        };
+        var afterFirst = Kunden with
+        {
+            Columns = [Kunden.Columns[0], Kunden.Columns[1] with { Name = "MAIL" }, new ColumnInfo("RABATT", "NUMBER", null, false, 5, 2, true, false, null, 3)],
+        };
+        var second = TableDraft.Of(afterFirst) with
+        {
+            Columns = [.. TableDraft.Of(afterFirst).Columns.Select(c => c.Original == "MAIL" ? c with { Column = c.Column with { Name = "E_MAIL", Length = 300 } } : c)],
+        };
+        // The second run stopped after the rename: the length did not change.
+        IReadOnlyList<ColumnInfo> database = [afterFirst.Columns[0], afterFirst.Columns[1] with { Name = "E_MAIL" }, afterFirst.Columns[2]];
+
+        var kept = CodeChangeRequest.ForTable.AfterRun(CodeChangeRequest.ForTable.AfterRun(null, Kunden, first), afterFirst, second);
+        var changes = (kept with { After = database }).Changes;
+
+        Assert.Same(Kunden, kept.Before);
+        Assert.Equal([(ColumnChangeKind.Renamed, "EMAIL", "E_MAIL"), (ColumnChangeKind.Added, "RABATT", "RABATT")], changes.Select(c => (c.Kind, c.Column, c.After!.Name)));
+        Assert.Same(afterFirst, CodeChangeRequest.ForTable.AfterRun(kept with { Written = true }, afterFirst, second).Before);
     }
 
     /// <summary>Review WP-41, M1: the linked clone chosen as work clone was written into – it fits its own project.</summary>

@@ -522,8 +522,10 @@ else
             if (NewTab is null && Tab is not null)
             {
                 Tab.Designer = null;
-                // WP-41: what ran, for the C# project – the "Columns" view offers it once the tab is rebuilt
-                Tab.CodeChange = _designer is { } designer ? CodeChangeOf(designer, designer.ToDraft().Draft) : null;
+                if (_designer is { } designer)
+                {
+                    KeepCodeChange(designer); // the "Columns" view offers it once the tab is rebuilt
+                }
             }
         }
         else if (NewTab is not null)
@@ -532,6 +534,11 @@ else
         }
         else if (Tab is not null && _designer is not null)
         {
+            if (result.Ran.Count > 0)
+            {
+                KeepCodeChange(_designer); // what ran goes into the project too, with the next run or alone
+            }
+
             Tab.Designer = new DesignerSession(_designer, result);
         }
     }
@@ -683,9 +690,21 @@ else
     /// otherwise (a new table gets its entity in the "Columns" view once it exists).
     /// </summary>
     private CodeChangeRequest? CodeChangeOf(TableDesignerDraft designer, TableDraft draft) =>
-        NewTab is null && Models.Mapping?.EntityOf(Details.Table.Ref) is not null && new CodeChangeRequest.ForTable(designer.Table, draft) is { HasChanges: true } request
+        NewTab is null && Models.Mapping?.EntityOf(Details.Table.Ref) is not null && CodeChangeRequest.ForTable.OfDraft(designer.Table, draft) is { HasChanges: true } request
             ? request
             : null;
+
+    /// <summary>
+    /// After a run – also one that stopped halfway – the tab keeps what is to go into the C# project (WP-41): the table before
+    /// the first run not yet written; the "Columns" view compares it with the table as it is then (review WP-41).
+    /// </summary>
+    private void KeepCodeChange(TableDesignerDraft designer)
+    {
+        if (Tab is not null && Models.Mapping?.EntityOf(Details.Table.Ref) is not null)
+        {
+            Tab.CodeChange = CodeChangeRequest.ForTable.AfterRun(Tab.CodeChange as CodeChangeRequest.ForTable, designer.Table, designer.ToDraft().Draft);
+        }
+    }
 
     /// <summary>Property lines for the new columns, if the C# model maps this table.</summary>
     private IReadOnlyList<PropertySuggestion> PropertyLines(TableDesignerDraft designer)

@@ -27,56 +27,68 @@ public enum ColumnChangeKind
 /// <param name="After">The column as it is now; null for a dropped one.</param>
 public sealed record ColumnChange(ColumnChangeKind Kind, string Column, ColumnInfo? Before, ColumnInfo? After);
 
-/// <summary>The changes of a designer draft that matter for the C# project (WP-41), in the draft's order.</summary>
+/// <summary>The changes between two states of a table that matter for the C# project (WP-41).</summary>
 public static class ColumnChanges
 {
+    /// <summary>The changes a designer draft makes, before it runs (the preview).</summary>
     /// <param name="table">The table as it was before the draft.</param>
     public static IReadOnlyList<ColumnChange> Of(TableDetails table, TableDraft draft)
     {
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(draft);
+        return Of(table, After(draft), RenamesOf(draft));
+    }
+
+    /// <summary>The columns a draft leaves, in its order.</summary>
+    public static IReadOnlyList<ColumnInfo> After(TableDraft draft) => [.. draft.Columns.Where(c => !c.Dropped).Select(c => c.Column)];
+
+    /// <summary>The columns a draft renames: old name → new name.</summary>
+    public static IReadOnlyDictionary<string, string> RenamesOf(TableDraft draft) =>
+        draft.Columns.Where(c => c is { Original: not null, Dropped: false } && c.Original != c.Column.Name)
+            .ToDictionary(c => c.Original!, c => c.Column.Name, StringComparer.Ordinal);
+
+    /// <summary>
+    /// The changes between the table as it was and its columns now – after a run that may have stopped halfway, or several
+    /// runs (review WP-41): a rename counts if the new name is there, else the column is looked for under its old name.
+    /// Columns before in their order, then the new ones in theirs.
+    /// </summary>
+    /// <param name="renames">Old name → new name, as the drafts meant them.</param>
+    public static IReadOnlyList<ColumnChange> Of(TableDetails before, IReadOnlyList<ColumnInfo> after, IReadOnlyDictionary<string, string> renames)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(after);
+        ArgumentNullException.ThrowIfNull(renames);
+        var now = after.GroupBy(c => c.Name, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var matched = new HashSet<string>(StringComparer.Ordinal);
         var changes = new List<ColumnChange>();
-        foreach (var column in draft.Columns)
+        foreach (var column in before.Columns)
         {
-            if (column.IsNew)
+            var current = renames.TryGetValue(column.Name, out var renamed) && now.TryGetValue(renamed, out var moved) ? moved
+                : now.GetValueOrDefault(column.Name);
+            if (current is null)
             {
-                if (!column.Dropped)
-                {
-                    changes.Add(new ColumnChange(ColumnChangeKind.Added, column.Column.Name, null, column.Column));
-                }
-
+                changes.Add(new ColumnChange(ColumnChangeKind.Dropped, column.Name, column, null));
                 continue;
             }
 
-            var at = table.IndexOf(column.Original!);
-            if (at < 0)
+            matched.Add(current.Name);
+            if (current.Name != column.Name)
             {
-                continue;
+                changes.Add(new ColumnChange(ColumnChangeKind.Renamed, column.Name, column, current));
             }
 
-            var before = table.Columns[at];
-            if (column.Dropped)
+            if (current.DataType != column.DataType)
             {
-                changes.Add(new ColumnChange(ColumnChangeKind.Dropped, before.Name, before, null));
-                continue;
+                changes.Add(new ColumnChange(ColumnChangeKind.TypeChanged, column.Name, column, current));
             }
-
-            var after = column.Column;
-            if (after.Name != before.Name)
+            else if (FacetsDiffer(column, current))
             {
-                changes.Add(new ColumnChange(ColumnChangeKind.Renamed, before.Name, before, after));
-            }
-
-            if (after.DataType != before.DataType)
-            {
-                changes.Add(new ColumnChange(ColumnChangeKind.TypeChanged, before.Name, before, after));
-            }
-            else if (FacetsDiffer(before, after))
-            {
-                changes.Add(new ColumnChange(ColumnChangeKind.Facets, before.Name, before, after));
+                changes.Add(new ColumnChange(ColumnChangeKind.Facets, column.Name, column, current));
             }
         }
 
+        changes.AddRange(after.Where(c => !matched.Contains(c.Name) && c.Name.Trim().Length > 0)
+            .Select(c => new ColumnChange(ColumnChangeKind.Added, c.Name, null, c)));
         return changes;
     }
 

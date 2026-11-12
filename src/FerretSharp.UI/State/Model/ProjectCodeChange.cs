@@ -7,10 +7,41 @@ namespace FerretSharp.UI.State;
 /// <summary>What the C# project should get (WP-41).</summary>
 public abstract record CodeChangeRequest
 {
-    /// <summary>A designer change of a mapped table: the table as it was and the draft that ran (or is about to).</summary>
-    public sealed record ForTable(TableDetails Before, TableDraft Draft) : CodeChangeRequest
+    /// <summary>
+    /// A designer change of a mapped table: the table as it was and its columns as they are (or as the draft will make them,
+    /// for the preview), with the renames the drafts meant. After a run the columns are the database's, not the draft's: a
+    /// run that stopped halfway brings only what ran, and several runs before writing come together (review WP-41).
+    /// </summary>
+    /// <param name="Written">Written into the project: a later run starts anew instead of adding to it.</param>
+    public sealed record ForTable(TableDetails Before, IReadOnlyList<ColumnInfo> After, IReadOnlyDictionary<string, string> Renames, bool Written = false)
+        : CodeChangeRequest
     {
-        public IReadOnlyList<ColumnChange> Changes { get; } = ColumnChanges.Of(Before, Draft);
+        /// <summary>Computed on each call – a record copy (<c>with</c>) must not keep the changes of other columns.</summary>
+        public IReadOnlyList<ColumnChange> Changes => ColumnChanges.Of(Before, After, Renames);
+
+        /// <summary>The preview of a draft that has not run.</summary>
+        public static ForTable OfDraft(TableDetails before, TableDraft draft) => new(before, ColumnChanges.After(draft), ColumnChanges.RenamesOf(draft));
+
+        /// <summary>
+        /// What the tab keeps after a run (also one that stopped halfway): the table before the first run not yet written, the
+        /// renames of all of them chained (A → B, then B → C is A → C); the columns come from the database when it is shown.
+        /// </summary>
+        public static ForTable AfterRun(ForTable? pending, TableDetails before, TableDraft draft)
+        {
+            var renames = ColumnChanges.RenamesOf(draft);
+            if (pending is not { Written: false } earlier || earlier.Before.Table.Ref != before.Table.Ref)
+            {
+                return new ForTable(before, [], renames);
+            }
+
+            var chained = earlier.Renames.ToDictionary(r => r.Key, r => renames.GetValueOrDefault(r.Value, r.Value), StringComparer.Ordinal);
+            foreach (var (from, to) in renames.Where(r => !earlier.Renames.Values.Contains(r.Key, StringComparer.Ordinal)))
+            {
+                chained[from] = to;
+            }
+
+            return new ForTable(earlier.Before, [], chained);
+        }
     }
 
     /// <summary>A table without entity: entity and configuration as new files.</summary>

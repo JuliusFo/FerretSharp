@@ -76,10 +76,10 @@
     {
         <AuditStatusLine Details="Details" OnOpen="() => (_editing, _startWithAudit) = (true, true)" />
     }
-    @if (Tab?.CodeChange is { HasChanges: true } codeChange && entity is not null)
+    @if (Tab?.CodeChange is CodeChangeRequest.ForTable pending && entity is not null && pending with { After = Details.Columns } is { HasChanges: true } codeChange)
     {
-        @* WP-41: the designer change that ran, for the C# project *@
-        <ProjectCodeChangeView Request="codeChange" OnDismiss="() => Tab.CodeChange = null" />
+        @* WP-41: the designer changes that ran, against the table as it is now, for the C# project *@
+        <ProjectCodeChangeView Request="codeChange" OnDismiss="() => Tab.CodeChange = null" OnWritten="() => Tab.CodeChange = pending with { Written = true }" />
     }
     <table class="columns @(pickable ? "pickable" : "")">
         <thead>
