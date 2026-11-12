@@ -188,7 +188,7 @@ public sealed class NewEntityCodeTests
         Write(clone, "Directory.Build.props", "<Project><PropertyGroup><Nullable>enable</Nullable></PropertyGroup></Project>");
         Write(clone, "App/App.csproj", project);
 
-        Assert.Equal(expected, EntityCodeChanges.ProjectNullable(clone.Path, clone.Combine("App")));
+        Assert.Equal(expected, CodeProject.Nullable(clone.Path, clone.Combine("App")));
     }
 
     [Fact]

@@ -53,7 +53,7 @@ public static partial class EntityCodeChanges
         var sites = scan.ConfigurationsOf(entity.ClrType)
             .OrderBy(s => s.Kind) // a configuration class before a lambda in OnModelCreating before chains there
             .ToList();
-        var nullable = ProjectNullable(scan.Root, Path.GetDirectoryName(types[0].File.Path)!) ?? NullableReferences(scan);
+        var nullable = CodeProject.Nullable(scan.Root, Path.GetDirectoryName(types[0].File.Path)!) ?? NullableReferences(scan);
         var context = new Context(scan, entityMapping, types, sites, new FileEdits(scan.Root), notes, nullable);
         var added = new List<string>();
         foreach (var change in changes)
@@ -574,88 +574,6 @@ public static partial class EntityCodeChanges
     internal static bool NullableReferences(CodeScan scan) =>
         scan.Files.Any(f => f.Root.DescendantNodes().OfType<PropertyDeclarationSyntax>()
             .Any(p => p.Type is NullableTypeSyntax { ElementType: PredefinedTypeSyntax { Keyword.RawKind: (int)SyntaxKind.StringKeyword } or ArrayTypeSyntax }));
-
-    /// <summary>
-    /// <c>&lt;Nullable&gt;</c> of the project a folder belongs to: its project file, else the nearest <c>Directory.Build.props</c>
-    /// above it, not above the work clone (the project file is read after the props and wins). True for <c>enable</c> and
-    /// <c>annotations</c>, false for <c>disable</c> and <c>warnings</c>, null if neither says – then the files decide
-    /// (review WP-41: a project with nullable reference types and no <c>string?</c> yet got none).
-    /// </summary>
-    internal static bool? ProjectNullable(string root, string folder)
-    {
-        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-        var projectSeen = false;
-        for (var current = Path.GetFullPath(folder); current is not null && current.Length >= fullRoot.Length; current = Path.GetDirectoryName(current))
-        {
-            try
-            {
-                if (!projectSeen && Directory.GetFiles(current, "*.csproj") is { Length: > 0 } projects)
-                {
-                    projectSeen = true;
-                    if (projects.Length > 1)
-                    {
-                        return null; // which one owns the file is not known: the files decide
-                    }
-
-                    if (NullableSetting(File.ReadAllText(projects[0])) is { } setting)
-                    {
-                        return setting.Value;
-                    }
-                }
-
-                // MSBuild imports only the nearest Directory.Build.props; one above it only if that one says so.
-                var props = Path.Combine(current, "Directory.Build.props");
-                if (File.Exists(props))
-                {
-                    return NullableSetting(File.ReadAllText(props))?.Value;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return null;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The <c>&lt;Nullable&gt;</c> of a project or props file as MSBuild reads it: only from property groups without a
-    /// condition, the last one wins, comments do not count (second review of WP-41: a regex read them). A setting under a
-    /// condition, or a file that is no XML, gives an unknown value (<c>(null)</c>) – then the files decide; no setting at
-    /// all gives null.
-    /// </summary>
-    private static (bool? Value, bool Unknown)? NullableSetting(string msbuild)
-    {
-        System.Xml.Linq.XDocument document;
-        try
-        {
-            document = System.Xml.Linq.XDocument.Parse(msbuild);
-        }
-        catch (System.Xml.XmlException)
-        {
-            return (null, true);
-        }
-
-        var settings = document.Root?.Descendants().Where(e => e.Name.LocalName == "Nullable").ToList() ?? [];
-        if (settings.Count == 0)
-        {
-            return null;
-        }
-
-        if (settings.Any(e => e.Attribute("Condition") is not null || e.Parent is not { Name.LocalName: "PropertyGroup" } group
-                              || group.Attribute("Condition") is not null || group.Parent != document.Root))
-        {
-            return (null, true);
-        }
-
-        return (settings[^1].Value.Trim().ToLowerInvariant() switch
-        {
-            "enable" or "annotations" => true,
-            "disable" or "warnings" => false,
-            _ => null,
-        }, false);
-    }
 
     /// <summary><c>string?</c> or <c>byte[]?</c> before the name of a declaration.</summary>
     [GeneratedRegex(@"\b(string|byte\[\])\? ")]

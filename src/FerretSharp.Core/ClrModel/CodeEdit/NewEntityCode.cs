@@ -96,7 +96,7 @@ public static class NewEntityCode
             }
         }
 
-        var nullableReferences = EntityCodeChanges.ProjectNullable(scan.Root, entityPlace.Folder) ?? EntityCodeChanges.NullableReferences(scan);
+        var nullableReferences = CodeProject.Nullable(scan.Root, entityPlace.Folder) ?? EntityCodeChanges.NullableReferences(scan);
         var globalUsings = scan.Files.SelectMany(f => f.Root.Usings.Where(u => u.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword)).Select(u => u.NamespaceOrType.ToString())).ToHashSet(StringComparer.Ordinal);
 
         // The entity.
@@ -140,13 +140,15 @@ public static class NewEntityCode
 
         foreach (var folder in new[] { entityPlace.Folder, configPlace.Folder }.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            if (ProjectOf(scan.Root, folder) is not { } project)
+            switch (CodeProject.Of(scan.Root, folder))
             {
-                notes.Add(TextFormat.Format(CodeEditText.Note_NoProject, Path.GetRelativePath(scan.Root, folder)));
-            }
-            else if (!IsSdkProject(project))
-            {
-                notes.Add(TextFormat.Format(CodeEditText.Note_OldProject, Path.GetRelativePath(scan.Root, project)));
+                case []:
+                    notes.Add(TextFormat.Format(CodeEditText.Note_NoProject, Path.GetRelativePath(scan.Root, folder)));
+                    break;
+                case [var project] when !CodeProject.IsSdk(project):
+                    notes.Add(TextFormat.Format(CodeEditText.Note_OldProject, Path.GetRelativePath(scan.Root, project)));
+                    break;
+                // several in one folder, or not to be read: which one compiles the file is not known – no note on a guess
             }
         }
 
@@ -350,42 +352,6 @@ public static class NewEntityCode
         }
 
         return text;
-    }
-
-    /// <summary>The project file nearest above <paramref name="folder"/>, not above the work clone.</summary>
-    private static string? ProjectOf(string root, string folder)
-    {
-        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-        for (var current = Path.GetFullPath(folder); current is not null && current.Length >= fullRoot.Length; current = Path.GetDirectoryName(current))
-        {
-            try
-            {
-                if (Directory.GetFiles(current, "*.csproj") is [var project, ..])
-                {
-                    return project;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return null;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>An SDK-style project compiles every <c>.cs</c> file below it; an old one only those it lists.</summary>
-    private static bool IsSdkProject(string project)
-    {
-        try
-        {
-            var text = File.ReadAllText(project);
-            return text.Contains("Sdk=\"", StringComparison.OrdinalIgnoreCase) || text.Contains("<Sdk ", StringComparison.OrdinalIgnoreCase);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return true; // not to be read: no warning on a guess
-        }
     }
 
     private static string NamespaceOf(string clrType) =>
