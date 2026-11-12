@@ -584,8 +584,7 @@
     <value>Oracle returns the DDL of objects in other schemas only with the SELECT_CATALOG_ROLE role.</value>
   </data>
   <data name="Ddl_Source" xml:space="preserve">
-    <value>From {0} – indexes, triggers and grants are not included.</value>
-    <comment>{0} = DBMS_METADATA.GET_DDL (code)</comment>
+    <value>From {0} – indexes and triggers are not included; the grants follow below.</value>
   </data>
   <data name="Ddl_WithoutOwner" xml:space="preserve">
     <value>Without owner</value>

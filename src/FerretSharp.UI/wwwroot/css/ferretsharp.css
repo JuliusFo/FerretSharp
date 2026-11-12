@@ -1698,7 +1698,9 @@ table.compare-rows td.ff-flushed { box-shadow: inset 2px 0 0 var(--accent); back
 .resize-handle { position: absolute; z-index: 3; touch-action: none; }
 .resize-handle:hover { background: var(--accent-weak); }
 .resize-handle.left, .resize-handle.right { top: 0; bottom: 0; width: 7px; cursor: col-resize; }
-.resize-handle.left { left: -4px; }
+/* Left handles lie inside their panel: half of one outside lay on the vertical scrollbar of the grid or diagram beside it,
+   and grabbing the scrollbar at its right edge resized the panel (review of small-resizable-panels, fix/robustness). */
+.resize-handle.left { left: 0; }
 .resize-handle.right { right: -4px; }
 .resize-handle.bottom { left: 0; right: 0; bottom: -4px; height: 7px; cursor: row-resize; }
 
@@ -2143,6 +2145,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .settings-nav-item:hover { background: var(--hover); color: var(--text); }
 .settings-nav-item.active { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
 .settings-nav-item.dim { color: var(--faint); }
+.settings-nav-item.dim:hover { color: var(--text); } /* after .dim: the same specificity, the later rule wins (fix/robustness) */
 .settings-content { flex: 1; min-width: 0; }
 .settings-content .settings-section { margin-left: 0; margin-right: 0; }
 .settings-content .settings-no-match { margin: 12px 0 0; }
@@ -2199,8 +2202,6 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .relations-node.in-query { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .query-panel { position: relative; flex: none; display: flex; flex-direction: column; width: 460px; min-width: 320px; max-width: 60%; min-height: 0;
     border-top: 1px solid var(--border); border-left: 1px solid var(--border); background: var(--surface); font-size: 13px; }
-/* The handle inside the panel: half of it outside would lie on the diagram's vertical scrollbar (review). */
-.query-panel > .resize-handle.left { left: 0; }
 .query-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 10px 14px 24px; display: flex; flex-direction: column; gap: 8px; }
 .query-panel h3 { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .query-panel h4 { margin: 8px 0 2px; font-size: 12px; font-weight: 600; }

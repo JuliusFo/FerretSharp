@@ -478,7 +478,7 @@
     <value>Oracle liefert die DDL von Objekten anderer Schemas nur mit der Rolle SELECT_CATALOG_ROLE.</value>
   </data>
   <data name="Ddl_Source" xml:space="preserve">
-    <value>Aus {0} – Indizes, Trigger und Grants stehen nicht darin.</value>
+    <value>Aus {0} – Indizes und Trigger stehen nicht darin; die Grants folgen darunter.</value>
   </data>
   <data name="Ddl_WithoutOwner" xml:space="preserve">
     <value>Ohne Owner</value>
