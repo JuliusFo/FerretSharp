@@ -33,6 +33,7 @@ Fixes, structure, tests and docs after the review of 3.70.0 (R9).
 - One building block opens every session beside the main one (`OwnSession`); one folder walk without links (`UserFolderPaths.SourceFiles`); one line-break rule for scripts and C# files; `QuietTimer` and `FileWatch` for the three file watchers; `CodeProject`, `GrantActions`, `TableKinds.ObjectType`.
 - New tests for WP-41's guards and change paths, restoring rows, the script library's limits, the server load's list since loading and the WebView crash path; four groups of tests merged into theories, one removed. Every English text with a placeholder has a comment for the translator (test).
 - Rules: `flashback.md`, `server-load.md`, `app-host.md`; the release skill sets the release state of the packages.
+- CI: a job fails on text files with CRLF in the repository (also `tools/linux/Test-Linux.ps1`, read-only); the coverage badge no longer stops on a dirty checkout; Markdown files are text in `.gitattributes`.
 
 ## [3.70.0] - 2026-11-12
 
