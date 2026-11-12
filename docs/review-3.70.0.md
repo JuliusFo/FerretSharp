@@ -7,7 +7,7 @@ Auftrag des Nutzers (2026-11-12): `/complete-code-review` nach dem Release 3.70.
 
 Acht parallele Agenten nach Themen, nur lesend, auf einer festen Kopie von `213bd507`: DB-Zugriff (DB), Zustand/Nebenläufigkeit (ST), UI/JS/CSS (UI), Host/Prozesse/Build (PH), Sicherheit (SE), Wiederverwendung/toter Code (RE), Tests (TE), Doku (DO). Befunde aus `docs/review-3.54.0.md` und dem Backlog wurden nur gemeldet, wenn ihre Umsetzung fehlt oder fehlerhaft ist. Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = zusätzlich von Hand im Code bestätigt; sonst die Einschätzung des Agenten.
 
-**Stand:** offen – Entscheidungen des Nutzers stehen aus.
+**Stand:** in Umsetzung mit R9 (Branch `wp/r9-review-3.70`).
 
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
@@ -163,3 +163,15 @@ Zehn langsamste Tests: OOB 23,0 s / 7,9 s (C12), `ModelReloadTests` 12,2 s (echt
 5. **A14** – Lokale Release-Builds: `global.json` auf ein SDK mit gepatchter Runtime heben (lokal scheitert der Build bis zum SDK-Update), oder ein Target, das nur den self-contained Publish unter einer Mindestversion abbricht?
 6. **D1** – Den Schritt „Release-Spalte im Index und Kopf der Protokolle setzen, v4-Zeile nachziehen“ in die Release-Skill und `release.md` aufnehmen?
 7. **Umfang und Reihenfolge** – wie bei 3.44/3.54 alles (Teil A bis D) in **einem** Paket R9 und einem Release, oder Fehler (Teil A) als Patch und Struktur/Tests/Doku als Minor?
+
+## Entscheidungen des Nutzers (2026-11-12)
+
+1. **Umfang** – Alles (Teil A bis D) in **einem** Paket R9 und einem Release.
+2. **A3** – `ALTER TABLE … INCLUDING ROWS WHERE …` (Move/Split/Merge), `DROP TYPE … FORCE` und `ALTER TYPE … DROP ATTRIBUTE … CASCADE` kommen nach der Messung im Container auf die Nie-Liste wie TRUNCATE. `DROP TYPE` ohne `FORCE` und `MOVE` ohne `INCLUDING ROWS` bleiben normales DDL.
+3. **A2** – Nach einem Absturz des Renderers lädt die App einmal automatisch neu (Workspaces, Sessions und Transaktionen liegen in den Scopes der Verbindungen am Singleton `ConnectionHub`, nicht im Scope der Seite). Stürzt er kurz danach erneut ab, fragt sie nativ „Neu laden / Neu starten“. Beim Schließen mit toter Seite fragt sie nativ Commit / Rollback / Abbrechen.
+4. **D12** – ADR 0038 und 0039 sind bestätigt. ADR 0040: Steht die Entscheidung im Protokoll von WP-69, wird nur „des Nutzers“ ergänzt, sonst „Vorschlag (nicht bestätigt)“ und Rückfrage.
+5. **D13** – Laptop-Modell und Windows-Build werden durch eine neutrale Angabe ersetzt (Hybrid-Grafik, Windows 11).
+6. **A14** – `global.json` bleibt; ein self-contained Publish bricht ab, wenn die mitgelieferte Runtime unter einer Mindestversion liegt (eine Stelle in `Directory.Build.props`).
+7. **D1** – Die Release-Skill und `release.md` bekommen den Schritt „Release-Spalte im Index und Kopf der Protokolle setzen“; zusätzlich zieht Schritt 1 zuerst `main`, bevor er die Commits zusammenfasst.
+
+Für alle übrigen Punkte gelten die Vorschläge oben. Verdachtsfälle werden vor einer Änderung nachgestellt bzw. gemessen; was sich nicht bestätigt, kommt mit Begründung ins Protokoll.
