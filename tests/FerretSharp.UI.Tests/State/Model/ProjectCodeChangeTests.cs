@@ -82,6 +82,25 @@ public sealed class ProjectCodeChangeTests : IDisposable
         Assert.False(other.CanWrite);
     }
 
+    /// <summary>Review WP-41, M1: the linked clone chosen as work clone was written into – it fits its own project.</summary>
+    [Fact]
+    public async Task The_linked_clone_of_a_connection_as_work_clone_is_refused_also_when_another_connection_links_it()
+    {
+        var mapping = await MappingAsync();
+        var linked = Clone("linked");
+        var otherConnection = Path.Combine(linked, "src", "Shop.Data", "Shop.Data.csproj");
+        var link = new ClrProjectLink(Path.Combine(Clone("own"), "src", "Shop.Data", "Shop.Data.csproj"));
+
+        var itself = new ProjectCodeChange(mapping, new ClrProjectLink(otherConnection), linked, [], DropEmail());
+        await itself.PlanAsync(TestContext.Current.CancellationToken);
+        var ofAnother = new ProjectCodeChange(mapping, link, linked, [otherConnection], DropEmail());
+        await ofAnother.PlanAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal((CodeChangeStage.WorkCloneIsLinked, CodeChangeStage.WorkCloneIsLinked), (itself.Stage, ofAnother.Stage));
+        Assert.False(itself.CanWrite || ofAnother.CanWrite);
+        Assert.Contains("Email", File.ReadAllText(Path.Combine(linked, "src", "Shop.Data", "Kunde.cs")), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_planned_change_is_written_into_the_work_clone_once_never_into_the_linked_clone()
     {

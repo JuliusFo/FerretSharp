@@ -22,7 +22,7 @@
         }
         <button type="button" class="link-btn" @onclick="Shell.OpenWorkClones">@SchemaViewText.CodeChange_ChooseClone</button>
         <span class="spacer"></span>
-        @if (change is { Stage: CodeChangeStage.Planned or CodeChangeStage.Written or CodeChangeStage.Failed or CodeChangeStage.WorkCloneDoesNotFit })
+        @if (change is { Stage: CodeChangeStage.Planned or CodeChangeStage.Written or CodeChangeStage.Failed or CodeChangeStage.WorkCloneDoesNotFit or CodeChangeStage.WorkCloneIsLinked })
         {
             <button type="button" class="icon-btn" title="@SchemaViewText.CodeChange_Reload" @onclick="() => Replan(0)">@Icons.Refresh</button>
         }
@@ -46,6 +46,9 @@
             break;
         case CodeChangeStage.WorkCloneDoesNotFit:
             <p class="hint small">@Icons.Warning @WorkCloneDialog.FitText(change.Fit)</p>
+            break;
+        case CodeChangeStage.WorkCloneIsLinked:
+            <p class="code-change-problem">@Icons.Warning @SchemaViewText.CodeChange_LinkedClone</p>
             break;
         case CodeChangeStage.Failed:
             <p class="hint small bad">@Icons.Warning @change.Error</p>

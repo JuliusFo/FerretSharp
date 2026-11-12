@@ -2429,4 +2429,7 @@
     <value>Configuration to</value>
     <comment>label before the folder list of a new configuration file</comment>
   </data>
+  <data name="CodeChange_LinkedClone" xml:space="preserve">
+    <value>The work clone is the linked clone of a connection: it must match its database and is pulled, so FerretSharp does not write there. Choose a work clone of your own.</value>
+  </data>
 </root>

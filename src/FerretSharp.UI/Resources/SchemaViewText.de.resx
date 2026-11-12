@@ -1998,4 +1998,7 @@
   <data name="CodeChange_ConfigurationFolder" xml:space="preserve">
     <value>Konfiguration nach</value>
   </data>
+  <data name="CodeChange_LinkedClone" xml:space="preserve">
+    <value>Der Arbeits-Klon ist der verknüpfte Klon einer Verbindung: Er muss zu ihrer Datenbank passen und wird gepullt, deshalb schreibt FerretSharp dort nicht. Bitte einen eigenen Arbeits-Klon wählen.</value>
+  </data>
 </root>

@@ -32,6 +32,12 @@ public enum CodeChangeStage
     /// <summary>The work clone does not hold the linked project (<see cref="ProjectCodeChange.Fit"/>).</summary>
     WorkCloneDoesNotFit,
 
+    /// <summary>
+    /// The work clone is the linked clone of a connection of the group: it must match its database and is pulled – never
+    /// written into (decision of the user; review WP-41: it was taken, without even a warning).
+    /// </summary>
+    WorkCloneIsLinked,
+
     Planning,
     Planned,
     Writing,
@@ -86,21 +92,26 @@ public sealed class ProjectCodeChange(ClrModelMapping mapping, ClrProjectLink? l
         Set(CodeChangeStage.Planning);
         try
         {
-            var (fit, plan) = await Task.Run(() =>
+            // The file system and git off the render thread – a linked clone may lie on a share (review WP-41).
+            var (stage, fit, plan, target) = await Task.Run(async () =>
             {
                 var fits = WorkCloneMapping.Check(link.ProjectFile, workClone);
-                return fits == WorkCloneFit.Fits ? (fits, Planned(cancellationToken)) : (fits, (CodeChangePlan?)null);
-            }, cancellationToken);
-            Fit = fit;
-            if (plan is null)
-            {
-                Set(CodeChangeStage.WorkCloneDoesNotFit);
-                return;
-            }
+                if (fits != WorkCloneFit.Fits)
+                {
+                    return (CodeChangeStage.WorkCloneDoesNotFit, fits, (CodeChangePlan?)null, (CodeTargetCheck?)null);
+                }
 
-            Plan = plan;
-            Target = plan.Files.Count > 0 ? await CodeTarget.CheckAsync(plan, linkedProjects, cancellationToken) : null;
-            Set(CodeChangeStage.Planned);
+                if (IsLinkedClone(workClone, linkedProjects.Append(link.ProjectFile)))
+                {
+                    return (CodeChangeStage.WorkCloneIsLinked, fits, null, null);
+                }
+
+                var planned = Planned(cancellationToken);
+                var checkedTarget = planned.Files.Count > 0 ? await CodeTarget.CheckAsync(planned, linkedProjects, cancellationToken) : null;
+                return (CodeChangeStage.Planned, fits, planned, checkedTarget);
+            }, cancellationToken);
+            (Fit, Plan, Target) = (fit, plan, target);
+            Set(stage);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -133,6 +144,14 @@ public sealed class ProjectCodeChange(ClrModelMapping mapping, ClrProjectLink? l
             Set(CodeChangeStage.Planned);
             throw;
         }
+    }
+
+    /// <summary>The folder is the working copy of one of the linked projects (the same Git root).</summary>
+    internal static bool IsLinkedClone(string workClone, IEnumerable<string> linkedProjects)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(GitFolder.FindRoot(workClone) ?? workClone));
+        return linkedProjects.Select(GitFolder.FindRoot).OfType<string>()
+            .Any(r => string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(r)), root, StringComparison.OrdinalIgnoreCase));
     }
 
     private CodeChangePlan Planned(CancellationToken cancellationToken)
