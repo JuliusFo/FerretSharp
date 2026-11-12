@@ -36,6 +36,7 @@ Branch `wp/43-relationship-check`.
 - Kosten: volle Scans großer Tabellen über das VPN – Auswahl der Schemas/Beziehungen, je Beziehung abbrechbar, Laufzeit sichtbar, eigene Lese-Session (die Explorer-Session arbeitet einen Aufruf nach dem anderen ab). Auf Prod erlaubt (nur lesend).
 - Platz in der Oberfläche: ein Bereich „Datenqualität“ der Berichtsseite (WP-72, Idee des Nutzers 2026-11-03), dort mit eigenem „Prüfen“ – die übrigen Bereiche der Seite kosten keine Abfragen.
 - Entschieden (Nutzer, 2026-11-12): **den letzten Lauf je Verbindung speichern**, keine Historie – je Beziehung Zahl der Verwaisten und Zeitpunkt. Die Seite zeigt den letzten Stand sofort, ohne volle Scans über das VPN; ein neuer Lauf zeigt die Änderung zum vorigen („12 → 3“).
+- Vorschlag (nicht bestätigt, Backlog-Priorisierung 2026-11-12): der **Sequenz-Drift-Check** aus dem Backlog („Schema-Vergleich, Designer, Audit“) als weiterer Block des Berichts – Sequenzen und Identity-Spalten, deren nächster Wert unter `MAX(<PK>)` liegt (billig über den PK-Index), Korrektur als DDL über `OracleDdl`. Beziehungen aus WP-87 (`Manual`, `Convention`) prüft der Bericht dann mit.
 
 ### WP-45 Mitschnitt mit Quellzeile und Datenänderungen
 (braucht WP-40 und WP-44.) Branch `wp/45-recording-source-data`. Fortsetzung von WP-33 (ADR 0023).
@@ -53,9 +54,10 @@ Branch `wp/47-since-last-visit`.
 - Entschieden (Nutzer, 2026-11-12):
   - **Hinweis „3 Änderungen seit …“**, der die Seite öffnet; ohne Änderungen kein Hinweis. Keine Seite, die bei jedem Verbinden aufgeht (12+ Verbindungen).
   - **Vor dem Abgleich ist alles Lesende erlaubt** (Tabellen öffnen, filtern, navigieren – Daten sind ohnehin live; FK-Navigation über eine inzwischen gelöschte Beziehung scheitert mit Fehlermeldung). **Was auf dem Schema aufbaut, wartet auf den Abgleich:** Designer, DDL, Schema-Vergleich, Code-Generierung.
+- Vorschlag (nicht bestätigt, 2026-11-12): Das „Vorher messen“ übernimmt WP-86; WP-47 baut den Cache dann auf dessen Zahlen auf.
 
 ### WP-80 Beziehungsfilter („hat … / hat keine …“)
-Branch `wp/80-relation-filter`. Die geklickte Form desselben Falls wie WP-79 (`IN` auf eine andere Tabelle, verschachtelt; SQL-Bedingung, `docs/work-packages/wp-79-sql-where-filter.md`), aber im Filtermodell – also mit Link, Vorlage und LINQ. Braucht WP-79 nicht.
+(braucht WP-87 – manuelle Beziehungen gibt es noch nicht: `FkSource.Manual` hat bisher nur eine Beschriftung in `DiagramStyle`, keine Quelle, und „Beziehung anlegen…“ setzt den Dialog aus WP-87 voraus; festgestellt bei der Backlog-Priorisierung 2026-11-12.) Branch `wp/80-relation-filter`. Die geklickte Form desselben Falls wie WP-79 (`IN` auf eine andere Tabelle, verschachtelt; SQL-Bedingung, `docs/work-packages/wp-79-sql-where-filter.md`), aber im Filtermodell – also mit Link, Vorlage und LINQ. Braucht WP-79 nicht.
 - Filter über einen **Beziehungspfad** wie bei der FK-Navigation (A → B → C), Quellen wie überall (`Declared`, `Manual`, `Convention`, `ClrModel`); Bedingungen mit der gewohnten Filterleiste auf der Zieltabelle, inklusive ODER-/NICHT-Gruppen (WP-50). Die Tiefe kommt über den Pfad, nicht über verschachtelte Gruppen (die bleiben eine Ebene, Entscheidung WP-50).
 - SQL: `IN`/`EXISTS` je Stufe; Art „hat keine …“ als `NOT EXISTS` mit derselben NULL-Sorgfalt wie die NICHT-Gruppen. LINQ: Referenz `x.B.C.Status == …`, Collection `x.Bs.Any(b => b.Cs.Any(c => …))`; ohne Navigation im C#-Modell der ganze Beziehungsfilter als Kommentar (wie eine Gruppe ohne C#-Form).
 - Links: neues Format (`v=3`), ältere FerretSharp lehnen ab.
@@ -68,6 +70,46 @@ Branch `wp/80-relation-filter`. Die geklickte Form desselben Falls wie WP-79 (`I
 Entschieden mit dem Nutzer am 2026-11-12 (vorher offene UX-Fragen).
 - **„Kein Index“ in Spalten-Ansicht und Designer, „Index anlegen“** (`small-usage-filter-without-index.md`): Die Spalten-Ansicht markiert gefilterte Spalten ohne Index wie „ungenutzt“; der Hinweis des Designers nennt sie; der Hinweis bekommt einen Knopf „Index anlegen“, der einen Entwurf in der Index-Ansicht öffnet wie bei Fremdschlüsseln ohne Index.
 - **Ctrl+C auf markierte ganze Spalten über der Grenze** (WP-58): Ist die Zeilenzahl bekannt und Zeilen × Spalten über 100 000, wird nicht gelesen, sondern sofort gemeldet, dass es zu viele Zellen sind, mit einem Knopf zum Export. Bei unbekannter Zeilenzahl bleibt es wie heute (lesen bis zur Grenze, dann „nichts kopiert“).
+
+## Vorschläge aus der Backlog-Priorisierung (2026-11-12)
+Claude hat den Backlog am 2026-11-12 priorisiert; der Nutzer hat die Vorschläge hier eintragen lassen. **Zuschnitt und Inhalt sind Vorschlag (nicht bestätigt)** und werden beim Start wie üblich abgestimmt. Die Einzelheiten stehen weiter im Backlog, die Einträge dort verweisen hierher. Abhängigkeiten: WP-80 braucht WP-87; WP-47 baut auf den Messungen von WP-86 auf; WP-88 teilt die gelesenen Spalten mit dem Modellvergleich (WP-86 liest das Modell dafür ggf. über eine eigene Session). Einschätzung der Dringlichkeit (Vorschlag): zuerst die Fixes „Robustheit“, dann WP-85 oder WP-86; WP-87 vor WP-80.
+
+### Fixes „Robustheit“
+Branch `fix/robustness`, ein Patch-Release. Kleine, sichere Fixes aus „Bekannte Fehler und Lücken“ und „Verbindungen“ des Backlogs:
+- **EXPLAIN in eine eigene Heap-`PLAN_TABLE`** des Schemas (A37, betrifft die Lese-Invariante auf Prod): zuerst gegen eine DB nachstellen (Tabelle aus `utlxplan.sql`), dann `SYS.PLAN_TABLE$` nehmen oder ablehnen.
+- `settings.json`: ein unbekannter Enum-Wert fällt je Property auf den Standard zurück, statt die ganze Datei zu verwerfen.
+- `connections.json`, die sich nicht lesen lässt: Grund (`ConnectionStoreException` mit Zeile/Position) in Log und Oberfläche.
+- ModelHost, der beim Start endet: zusätzlich auf `WaitForExitAsync` warten und sofort „beim Start beendet (Exit-Code n)“ melden statt nach dem Start-Timeout (behebt auch den Test, der unter Last scheitert); Tests mit `FakeModelHost` beenden ihren Host auch beim Scheitern.
+- „Verbindung testen“ über `SessionOpening` (heute bis zu ~20 s Hänger über das VPN).
+- Grid: negative Startzeile ohne Abfrage leer beantworten (`FerretGrid.GetRows`, „Rows -500+“).
+- „Neu laden“: `JSException` „JS object instance … does not exist“ in den Dispose-Pfaden wie einen getrennten Kanal behandeln.
+- `SocketException (995)` aus ODP.NET als unbeobachtete Ausnahme nur als Warnung loggen.
+- Kleinkram: `.settings-nav-item.dim:hover`, Fokus nach Esc zurück auf den `MenuButton`, Satz unter dem DDL-Tab (`Ddl_Source`), Link mit Ansicht „Verwendung“ ohne Projekt fällt auf „Daten“ zurück, linke Ziehgriffe über der Scrollleiste.
+
+### WP-85 Editieren mit Schlüsseln: keine stillen Fehlzuordnungen
+Branch `wp/85-key-edit-integrity`. Commit und Rollback sind nur so viel wert, wie die Anzeige der Änderungen stimmt – diese Fehler zeigen still die falsche Zeile oder verlieren den Bezug (Backlog „Bekannte Fehler und Lücken“, Code-Review `small-pk-edit` und Gesamt-Review 3.31.0 A33):
+- Formular bei einem Schlüsseltausch: dem `RowChange` der gezeigten Zeile folgen statt ihrem Schlüssel.
+- Zeile nach dem Schreiben nicht zurückzulesen (VPD): die Änderung hängt nach dem Neuladen an ihrer Zeile, nicht an der ROWID.
+- Redo eines Grid-Schreibvorgangs, der an einem Verbindungsverlust scheitert: `RedoStopped` setzen.
+- TIMESTAMP(8/9) als Schlüssel über `OracleTimeStamp` statt `DateTime` (sonst „inzwischen gelöscht“); Filter auf TIMESTAMP WITH TIME ZONE mit Offset.
+- Offen: ob INVISIBLE-Spalten (Backlog) mitkommen oder ein eigenes Paket werden.
+
+### WP-86 Reaktionszeit über das VPN: messen, dann weniger Roundtrips
+Branch `wp/86-vpn-roundtrips`. Backlog „Reaktionszeit über das VPN“ (Messen, Punkte 2 und 3, „Hänger beim Verbinden“ a und b); der Schema-Cache (Punkt 1) bleibt bei WP-47.
+- Messen: je Nutzeraktion (Verbinden, Tabelle öffnen, Block laden) Dauer, Roundtrips und Zeilen ins Log, zusammengefasst je Aktion; Integrationstests mit nachgestellter VPN-Latenz (Toxiproxy oder der TCP-Proxy aus „Abbrechen über VPN“, ~40 ms je Richtung).
+- Danach nach den Zahlen: `GetDetailsAsync` mit weniger Roundtrips (Keys/IOT zusammen, Vorladen beim Auswählen im Explorer); Workspace-Session des aktiven Workspaces parallel zum Schema-Laden öffnen; Command-Timeout für Dictionary-Abfragen; C#-Modell über eine eigene Session lesen bzw. „Lade Struktur …“ mit Grund.
+- Schalter für den Ladeumfang (Frage des Nutzers 2026-11-12, bei WP-88): erst mit den Zahlen entscheiden, welche Schritte beim Verbinden sich abschaltbar lohnen (Synonyme, PL/SQL-Objekte, FKs anderer Schemas, C#-Modell). Regel, Vorschlag (nicht bestätigt): Was nur auf Anforderung lädt, braucht keinen Schalter; ein Schalter nur für Kosten, die ohne Zutun anfallen (beim Verbinden, im Hintergrund), und je Verbindung bzw. Gruppe nur, wenn der globale Schalter nicht reicht.
+
+### WP-87 Manuelle Beziehungen und Konventions-Vorschläge
+Branch `wp/87-manual-relations`. Voraussetzung für WP-80; nützt WP-43 (Beziehungen ohne Constraint), FK-Navigation, Diagrammen und Anzeigespalten. Backlog „Grid, Filter, Formular, Editieren“ (virtuelle FKs, FK-Vorschläge per Namenskonvention).
+- `FkSource.Manual`: Dialog zum Anlegen und Bearbeiten (auch mehrspaltig), Einstieg u. a. aus der Ansicht „Beziehungen“, dem Objektmenü und später aus dem Pfad-Auswähler von WP-80.
+- `FkSource.Convention`: `KUNDE_ID` → `KUNDE`/`KUNDEN` mit einspaltigem PK über `Core/Design/ForeignKeyTargets` (wiederverwenden), als „vermutet“ navigierbar und als manuelle Beziehung übernehmbar.
+- Offen: Speicherort – je Verbindung (Empfehlung aus WP-06, sie beschreiben das Schema) oder in der geteilten Datei der Anzeigespalten (WP-31, ADR 0022), damit Kollegen sie haben; Konventions-Vorschläge immer an oder per Schalter.
+
+### WP-88 Spalten in der Schnellsuche
+Branch `wp/88-column-quick-search`. Idee des Nutzers (2026-11-12), ausgearbeitet im Backlog („Schema und Explorer“, Spalten in der Schnellsuche): Spalten aller Tabellen und Views auch nach C#-Property-Namen finden, Enter öffnet die Tabelle mit Spaltensprung; `SchemaCache` hält die Spalten je Owner, Modellvergleich und Suche teilen sie. Dazu wahlweise die Suche in Spaltenkommentaren (Backlog, erweiterte Abfrage).
+- Offen wie im Backlog: eigenes Präfix oder Gruppe „Spalten“; Anzeige `TABELLE.SPALTE` mit Typ und `Entity.Property`.
+- Abschaltbar? (Frage des Nutzers 2026-11-12, um Ladezeit und Roundtrips zu sparen.) Einschätzung: Die Spalten laden erst bei der ersten Spaltensuche, ungenutzt kosten sie also nichts; ist ein C#-Projekt verknüpft, liest der Modellvergleich sie ohnehin. Mit eigenem Präfix lädt nie etwas ungefragt – dann braucht es keinen Schalter. Als Gruppe unter den Objekten löst die erste Suche je Verbindung das Laden aus (einige Sekunden auf `all_tab_cols`, ~1–2 MB): dann im Hintergrund laden, Objekte sofort zeigen, Spalten nachreichen, und ein Schalter „Spalten in der Schnellsuche“ (Standard an) als Ventil. Vorschlag (nicht bestätigt): Schalter nur bei der Gruppen-Variante; entscheidet sich mit der Präfix-Frage.
 
 
 ## Offene UX-Fragen
