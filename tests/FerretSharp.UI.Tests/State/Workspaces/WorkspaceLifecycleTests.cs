@@ -115,6 +115,29 @@ public sealed class WorkspaceLifecycleTests : IAsyncDisposable
     }
 
     /// <summary>
+    /// Review 3.70.0, A2: with the page crashed, the host asks natively and finishes every connection's work without the leave
+    /// dialog – the shell's question would stand in the dead page, and the window could not be closed.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Finishing_all_without_the_dialog_commits_or_rolls_back_every_connection_s_work(bool commit)
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("ERP Dev"));
+        var tabs = new[] { test, dev }.Select(_app.AddPendingWork).ToList();
+        var commits = 0;
+        _app.OnCommit = () => { Interlocked.Increment(ref commits); return Task.CompletedTask; };
+
+        Assert.True(await Lifecycle.FinishAllAsync(commit));
+
+        Assert.Equal(commit ? 2 : 0, commits);
+        Assert.All(tabs, tab => Assert.Equal((0, 0), (tab.Changes!.PendingCount, tab.Changes.FlushedCount)));
+        Assert.Null(Lifecycle.PendingLeave);
+        Assert.True(Lifecycle.CanExit);
+    }
+
+    /// <summary>
     /// "Disconnect all" of a group (WP-66) asks once about the work of all connections; cancelled, nothing closes, discarded,
     /// all of them close (review 3.54.0, C3).
     /// </summary>

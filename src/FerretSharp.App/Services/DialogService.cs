@@ -18,4 +18,12 @@ public sealed class DialogService : IDialogService
     public bool Ask(string title, string message) =>
         MessageBox.Show(Application.Current?.MainWindow!, message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No)
             == MessageBoxResult.Yes;
+
+    public bool? AskYesNoCancel(string title, string message) =>
+        MessageBox.Show(Application.Current?.MainWindow!, message, title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel) switch
+        {
+            MessageBoxResult.Yes => true,
+            MessageBoxResult.No => false,
+            _ => null,
+        };
 }

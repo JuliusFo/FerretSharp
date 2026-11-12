@@ -153,6 +153,33 @@ You can usually keep working. If the window no longer draws correctly, restart F
 
 Restart FerretSharp now?</value>
   </data>
+  <data name="WebViewCrash_Title" xml:space="preserve">
+    <value>Display crashed</value>
+  </data>
+  <data name="WebViewCrash_Again" xml:space="preserve">
+    <value>The display crashed again shortly after it was loaded anew. Your connections, workspaces and open transactions are still there.
+
+Restart FerretSharp? You are asked about uncommitted changes first, as when closing.
+
+“No” loads the display once more.</value>
+  </data>
+  <data name="WebViewCrash_BrowserGone" xml:space="preserve">
+    <value>The display (the WebView2 browser) has ended and cannot be loaded again.
+
+Restart FerretSharp? You are asked about uncommitted changes first, as when closing.</value>
+  </data>
+  <data name="WebViewCrash_Close" xml:space="preserve">
+    <value>The display has crashed, and there are uncommitted changes.
+
+Yes: commit all and close
+No: roll back all and close
+Cancel: keep FerretSharp open</value>
+  </data>
+  <data name="WebViewCrash_FinishFailed" xml:space="preserve">
+    <value>Not everything could be committed or rolled back.
+
+Close anyway? Oracle rolls back what is not committed when the sessions end.</value>
+  </data>
   <data name="LinkNotHandedOver" xml:space="preserve">
     <value>FerretSharp is already running, but the link could not be handed over to it. Click the link again in a moment.</value>
     <comment>Message box at start when a ferretsharp:// link could not be passed to the running instance</comment>

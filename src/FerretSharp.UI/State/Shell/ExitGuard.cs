@@ -17,6 +17,12 @@ public sealed class ExitGuard
     /// <summary>Set by the shell: shows the dialog for the uncommitted changes.</summary>
     public Action? RequestExit { get; set; }
 
+    /// <summary>
+    /// Set by the shell: commits (true) or rolls back every workspace with uncommitted work without asking; true if all
+    /// succeeded. For the host's own question when the page has crashed and cannot ask (review 3.70.0, A2).
+    /// </summary>
+    public Func<bool, Task<bool>>? FinishAll { get; set; }
+
     /// <summary>Raised by the shell after commit or rollback; the host then closes the window for real.</summary>
     public event Action? ExitApproved;
 

@@ -340,6 +340,12 @@
         _reconnect = new AutoReconnect(_state, Hub, _editing, Settings, _lifecycle.ReconnectInPlaceAsync, Run, LoggerFactory.CreateLogger<AutoReconnect>());
         ExitGuard.CanExit = () => _lifecycle.CanExit;
         ExitGuard.RequestExit = () => InvokeAsync(() => _lifecycle.RequestExitAsync(ExitGuard.ApproveExit));
+        ExitGuard.FinishAll = async commit =>
+        {
+            var finished = false;
+            await InvokeAsync(async () => finished = await _lifecycle.FinishAllAsync(commit));
+            return finished;
+        };
         _state.Changed += OnChanged;
         _state.Dirty += _lifecycle.SaveTabs;
         _state.ConnectRequested += OnConnectRequested;

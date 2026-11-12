@@ -199,6 +199,7 @@ public partial class App : Application
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton<WebViewCapture>();
         builder.Services.AddSingleton<WebViewSizeWatch>();
+        builder.Services.AddSingleton<WebViewCrashGuard>();
         builder.Services.AddSingleton(sp => new UiStallMonitor(
             Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>(), paths.LogsDirectory, sp.GetRequiredService<AppSettingsService>()));
         builder.Services.AddSingleton(sp => new UiHangWatch(Dispatcher, sp.GetRequiredService<ILogger<UiHangWatch>>()));
@@ -222,6 +223,7 @@ public partial class App : Application
         _host.Services.GetRequiredService<DisplayWatch>().Start();
         _host.Services.GetRequiredService<UiHangWatch>().Start();
 
+        _host.Services.GetRequiredService<WebViewCrashGuard>().StartAgain = StartAgain;
         var window = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = window;
         window.Show();

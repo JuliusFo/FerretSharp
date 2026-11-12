@@ -314,6 +314,25 @@ public sealed partial class WorkspaceLifecycle(
         await leave.Continue();
     }
 
+    /// <summary>
+    /// Commits or rolls back every workspace with uncommitted work, without the leave dialog – the host asked natively, the
+    /// page has crashed (review 3.70.0, A2). Stops at the first that fails; true if all succeeded.
+    /// </summary>
+    public async Task<bool> FinishAllAsync(bool commit)
+    {
+        foreach (var workspace in shell.AllWorkspaces.Where(w => !IsLost(w.WorkspaceId) && editing.SummaryOf(w).HasWork).ToList())
+        {
+            // Prod commits what the native question summed up, as the leave dialog's list would show it.
+            var shown = ScopeOf(workspace.WorkspaceId).Profile?.Kind == ConnectionKind.Prod ? editing.SummaryOf(workspace).Actions : null;
+            if (!(commit ? await editing.CommitAsync(workspace, shown) : await editing.RollbackAsync(workspace)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public void CancelLeave()
     {
         PendingLeave = null;

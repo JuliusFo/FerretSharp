@@ -11,7 +11,7 @@ public partial class MainWindow : Window
     private bool _exitApproved;
 
     public MainWindow(IServiceProvider services, WindowTheme theme, WebViewCapture capture, WebViewSizeWatch sizes, ExitGuard exitGuard,
-        ILogger<MainWindow> logger)
+        WebViewCrashGuard crashes, ILogger<MainWindow> logger)
     {
         theme.PrepareWebViewBackground();
         InitializeComponent();
@@ -24,6 +24,7 @@ public partial class MainWindow : Window
             HoldMouseWhileDragging(e.WebView);
             capture.Attach(e.WebView);
             sizes.Attach(this, e.WebView);
+            crashes.Attach(e.WebView.CoreWebView2);
         };
         // Back from minimized, the picture is captured anew: the way out should it have frozen after all (2026-10-30).
         var minimized = false;
@@ -65,8 +66,23 @@ public partial class MainWindow : Window
                 return;
             }
 
-            logger.LogInformation("Main window closing {By}: asking about uncommitted changes first", by);
             e.Cancel = true;
+            if (crashes.PageDead)
+            {
+                // The shell would ask in the dead page (review 3.70.0, A2): the host asks itself, after this event.
+                logger.LogInformation("Main window closing {By}: the page has crashed, asking natively", by);
+                Dispatcher.BeginInvoke(async () =>
+                {
+                    if (await crashes.FinishNativelyAsync())
+                    {
+                        _exitApproved = true;
+                        Close();
+                    }
+                });
+                return;
+            }
+
+            logger.LogInformation("Main window closing {By}: asking about uncommitted changes first", by);
             exitGuard.RequestExit?.Invoke();
         };
         exitGuard.ExitApproved += () => Dispatcher.BeginInvoke(() =>
