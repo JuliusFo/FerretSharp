@@ -229,6 +229,29 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         Assert.Contains("kaputt", _models.State.Error!.Message);
     }
 
+    /// <summary>Code review of R9, finding 4: the solution build of the code usage runs, but Cancel on the model page does nothing for it.</summary>
+    [Fact]
+    public async Task A_solution_build_is_no_build_of_the_project_and_offers_no_cancel_on_the_model_page()
+    {
+        await ConnectAsync();
+        var started = new TaskCompletionSource();
+        var release = new TaskCompletionSource<DotNetRun>();
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IProgress<SolutionBuildProgress>?>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                started.SetResult();
+                return release.Task;
+            });
+
+        var build = _models.BuildSolutionAsync("App.sln", null, Ct);
+        await started.Task.WaitAsync(Wait.Limit, Ct);
+
+        Assert.True(_models.IsBuilding);
+        Assert.False(_models.IsBuildingProject);
+        release.SetResult(new DotNetRun(0, "", ""));
+        await build.WaitAsync(Wait.Limit, Ct);
+    }
+
     /// <summary>Review 3.54.0, A19: a build past its time limit showed "exit code -1" and lost what it wrote up to then.</summary>
     [Fact]
     public async Task A_build_past_its_time_limit_keeps_its_output_and_says_why()

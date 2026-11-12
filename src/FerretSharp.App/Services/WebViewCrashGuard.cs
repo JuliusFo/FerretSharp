@@ -24,6 +24,12 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
     /// <summary>The page has crashed and not loaded again: closing asks natively (<see cref="MainWindow"/>).</summary>
     public bool PageDead { get; private set; }
 
+    /// <summary>
+    /// Changes are being written before a reload, or committed or rolled back before closing: a close meanwhile waits
+    /// instead of asking again and closing in the middle (code review of R9, finding 2 and its second pass).
+    /// </summary>
+    public bool Busy { get; private set; }
+
     /// <summary>Set by the app: starts FerretSharp again once this one has ended.</summary>
     public Action? StartAgain { get; set; }
 
@@ -57,12 +63,12 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
         if (!browserGone && (_reloadedAt is not { } at || now - at > AgainWithin))
         {
             _reloadedAt = now; // a second crash while the question below is open asks about the restart
-            Dispatcher.CurrentDispatcher.BeginInvoke(async () => await ReloadAsync(core, "once after a crash"));
+            Dispatcher.CurrentDispatcher.BeginInvoke(() => Logged(() => ReloadAsync(core, "once after a crash")));
             return;
         }
 
         // After the event: a dialog inside it would run while WebView2 is still reporting.
-        Dispatcher.CurrentDispatcher.BeginInvoke(async () =>
+        Dispatcher.CurrentDispatcher.BeginInvoke(() => Logged(async () =>
         {
             if (dialogs.Ask(CommonText.WebViewCrash_Title, browserGone ? CommonText.WebViewCrash_BrowserGone : CommonText.WebViewCrash_Again))
             {
@@ -73,7 +79,7 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
             {
                 await ReloadAsync(core, "again, as the user chose");
             }
-        });
+        }));
     }
 
     /// <summary>
@@ -83,24 +89,43 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
     /// </summary>
     private async Task ReloadAsync(CoreWebView2 core, string why)
     {
-        var pending = exitGuard.PendingChanges is { } count ? await count() : 0;
-        if (pending > 0)
+        Busy = true;
+        bool reload;
+        try
         {
-            switch (dialogs.AskYesNoCancel(CommonText.WebViewCrash_Title, TextFormat.Format(CommonText.WebViewCrash_Pending, pending)))
-            {
-                case null:
-                    logger.LogInformation("Not reloading the page: {Pending} pending changes, the user keeps it as it is", pending);
-                    return;
-                case true when exitGuard.FlushAll is { } flush && !await flush()
-                               && !dialogs.Ask(CommonText.WebViewCrash_Title, CommonText.WebViewCrash_FlushFailed):
-                    return;
-                case false:
-                    logger.LogWarning("Reloading the page drops {Pending} pending changes, as the user chose", pending);
-                    break;
-            }
+            reload = await CrashReload.ShouldReloadAsync(
+                exitGuard,
+                pending => dialogs.AskYesNoCancel(CommonText.WebViewCrash_Title, TextFormat.Plural(pending, CommonText.WebViewCrash_PendingOne, CommonText.WebViewCrash_PendingOther)),
+                () => dialogs.Ask(CommonText.WebViewCrash_Title, CommonText.WebViewCrash_FlushFailed));
+        }
+        finally
+        {
+            Busy = false;
+        }
+
+        if (!reload)
+        {
+            logger.LogInformation("Not reloading the page: pending changes kept, as the user chose");
+            return;
         }
 
         Reload(core, _time.GetUtcNow(), why);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="work"/> after the event, an exception in the log: a task returned to <c>BeginInvoke</c> is never
+    /// observed, the page would stay dead without a word (second pass of the code review of R9).
+    /// </summary>
+    internal async Task Logged(Func<Task> work)
+    {
+        try
+        {
+            await work();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Handling the WebView crash failed");
+        }
     }
 
     private void Reload(CoreWebView2 core, DateTimeOffset now, string why)
@@ -122,6 +147,25 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
     /// finishes through the shell. True if the window may close now.
     /// </summary>
     public async Task<bool> FinishNativelyAsync()
+    {
+        if (Busy)
+        {
+            logger.LogInformation("Closing waits: the changes are being written, committed or rolled back");
+            return false;
+        }
+
+        Busy = true;
+        try
+        {
+            return await FinishCoreAsync();
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private async Task<bool> FinishCoreAsync()
     {
         if (dialogs.AskYesNoCancel(CommonText.WebViewCrash_Title, CommonText.WebViewCrash_Close) is not { } commit)
         {

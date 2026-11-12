@@ -180,13 +180,20 @@ Cancel: keep FerretSharp open</value>
 
 Close anyway? Oracle rolls back what is not committed when the sessions end.</value>
   </data>
-  <data name="WebViewCrash_Pending" xml:space="preserve">
+  <data name="WebViewCrash_PendingOne" xml:space="preserve">
+    <value>The display has crashed. One change in the grid is not written yet and would be lost when it loads anew.
+
+Yes: write it (no commit) and load anew
+No: discard it and load anew
+Cancel: leave the display as it is – closing FerretSharp asks about it</value>
+  </data>
+  <data name="WebViewCrash_PendingOther" xml:space="preserve">
     <value>The display has crashed. {0} changes in the grid are not written yet and would be lost when it loads anew.
 
 Yes: write them (no commit) and load anew
 No: discard them and load anew
 Cancel: leave the display as it is – closing FerretSharp asks about the changes</value>
-    <comment>{0}: number of pending (not written) grid changes</comment>
+    <comment>{0}: number of pending (not written) grid changes, more than one</comment>
   </data>
   <data name="WebViewCrash_FlushFailed" xml:space="preserve">
     <value>Not all changes could be written.

@@ -135,6 +135,21 @@ public sealed class WorkspaceLifecycleTests : IAsyncDisposable
     }
 
     /// <summary>
+    /// Second pass of the code review of R9: changes of a lost connection cannot be written – "written" would let them go
+    /// with the reload unseen; the host asks whether to load anyway.
+    /// </summary>
+    [Fact]
+    public async Task Pending_changes_of_a_lost_connection_are_not_reported_as_written()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        _app.AddPendingWork(test);
+        test.Active.ReportLost(TestApp.LostError());
+
+        Assert.True(Lifecycle.PendingChanges > 0);
+        Assert.False(await Lifecycle.FlushAllAsync());
+    }
+
+    /// <summary>
     /// Review 3.70.0, A2: with the page crashed, the host asks natively and finishes every connection's work without the leave
     /// dialog – the shell's question would stand in the dead page, and the window could not be closed.
     /// </summary>

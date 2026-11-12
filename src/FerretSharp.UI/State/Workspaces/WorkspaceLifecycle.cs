@@ -337,18 +337,20 @@ public sealed partial class WorkspaceLifecycle(
     /// <summary>Grid changes not written yet, in all workspaces: they go with the page when it is loaded anew.</summary>
     public int PendingChanges => shell.AllWorkspaces.Sum(w => editing.SummaryOf(w).Pending);
 
-    /// <summary>Writes the pending changes of every workspace (no commit) before the page loads anew; true if all were written.</summary>
+    /// <summary>
+    /// Writes the pending changes of every workspace (no commit) before the page loads anew; true if all were written. False
+    /// also for changes of a lost connection: they cannot be written, and "written" would let them go unseen (second pass
+    /// of the code review of R9).
+    /// </summary>
     public async Task<bool> FlushAllAsync()
     {
-        foreach (var workspace in shell.AllWorkspaces.Where(w => !IsLost(w.WorkspaceId) && editing.SummaryOf(w).Pending > 0).ToList())
+        var all = true;
+        foreach (var workspace in shell.AllWorkspaces.Where(w => editing.SummaryOf(w).Pending > 0).ToList())
         {
-            if (!await editing.FlushAsync(workspace))
-            {
-                return false;
-            }
+            all &= !IsLost(workspace.WorkspaceId) && await editing.FlushAsync(workspace);
         }
 
-        return true;
+        return all;
     }
 
     public void CancelLeave()
