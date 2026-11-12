@@ -36,6 +36,12 @@
     <PackageVersion Include="SpreadCheetah" Version="1.28.0" />
   </ItemGroup>
 
+  <!-- Designer changes into the C# project (WP-41, ADR 0050): C# syntax only – parsing and locating, no compilation, no
+       workspace. FerretSharp.ModelHost keeps 4.11 for its scripting through a VersionOverride (it runs on .NET 8). -->
+  <ItemGroup Label="Core">
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+  </ItemGroup>
+
   <!-- FerretSharp.ModelHost compiles against the lowest supported EF Core, 8.0.0 (ADR 0009): its own VersionOverride, so
        that the pinning above does not hold the test apps' EF Core at 8.0.0 too. -->
   <ItemGroup Label="ModelHost">

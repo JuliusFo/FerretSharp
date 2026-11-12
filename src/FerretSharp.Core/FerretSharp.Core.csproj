@@ -9,6 +9,8 @@
     <PackageReference Include="Oracle.ManagedDataAccess.Core" />
     <!-- XLSX export (WP-53, ADR 0028); its source generator is not used. -->
     <PackageReference Include="SpreadCheetah" ExcludeAssets="analyzers" />
+    <!-- Syntax of the user's C# files for designer changes (WP-41, ADR 0050). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 
   <ItemGroup>

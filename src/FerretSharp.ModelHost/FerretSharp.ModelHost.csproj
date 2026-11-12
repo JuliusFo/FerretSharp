@@ -17,6 +17,9 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" VersionOverride="8.0.1" ExcludeAssets="runtime" PrivateAssets="all" />
     <!-- Shipped next to the host and resolved from its folder (the project's deps.json does not know it). -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
+    <!-- Scripting 4.11 needs exactly its own Roslyn; the central version (5.x, for the Core) would pin it higher. Roslyn from
+         4.12 on brings System.Reflection.Metadata 9.0, which .NET 8 cannot load (WP-41). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.11.0" />
   </ItemGroup>
 
   <ItemGroup>
