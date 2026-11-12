@@ -141,19 +141,24 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     /// <summary>
-    /// Code review: an entry of a map that is no text failed with the path <c>$.openTable</c> (the map's converter reads on its
-    /// own), naming no setting – the whole file was lost. Now only that entry goes.
+    /// Code review: a map's converter reads on its own, so an error inside it names no setting in its path (<c>$.openTable</c>,
+    /// <c>$.k[0].owner</c>; a map that is no object: <c>$</c>) – the whole file was lost. Now only that entry goes, or that
+    /// map if it is no object. An entry set to null is left out quietly, as in a readable file.
     /// </summary>
-    [Fact]
-    public async Task An_entry_of_a_map_that_is_no_text_goes_alone()
+    [Theory]
+    [InlineData("""{ "shortcuts": { "openTable": 5, "openSql": "Ctrl+K", "x": null } }""", "shortcuts.openTable")]
+    [InlineData("""{ "shortcuts": [ "openSql" ], "auditTemplateGroups": "x" }""", "shortcuts,auditTemplateGroups")]
+    [InlineData("""{ "pathAvoidedTables": { "a": 5, "b": [ { "owner": 5, "name": "T" } ], "c": [ { "owner": "APP", "name": "T" } ] } }""", "pathAvoidedTables.a,pathAvoidedTables.b")]
+    public async Task An_entry_of_a_map_that_cannot_be_read_goes_alone(string settings, string skipped)
     {
-        await File.WriteAllTextAsync(_store.FilePath,
-            """{ "version": 1, "settings": { "shortcuts": { "openTable": 5, "openSql": "Ctrl+K", "x": null }, "language": "german" } }""", Ct);
+        await File.WriteAllTextAsync(_store.FilePath, $$"""{ "version": 1, "settings": { "language": "german", {{settings.Trim()[1..^1]}} } }""", Ct);
 
         var read = await _store.ReadAsync(Ct);
 
-        Assert.Equal(("Ctrl+K", 1, UiLanguage.German), (read.Settings.Shortcuts["openSql"], read.Settings.Shortcuts.Count, read.Settings.Language));
-        Assert.Equal(["shortcuts.openTable", "shortcuts.x"], read.Skipped);
+        Assert.Equal(UiLanguage.German, read.Settings.Language);
+        Assert.Equal(skipped.Split(','), read.Skipped);
+        Assert.Equal(settings.Contains("openSql\": \"Ctrl+K") ? 1 : 0, read.Settings.Shortcuts.Count);
+        Assert.Equal(settings.Contains("\"c\"") ? 1 : 0, read.Settings.PathAvoidedTables.Count);
     }
 
     /// <summary>

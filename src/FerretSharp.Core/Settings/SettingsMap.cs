@@ -66,8 +66,11 @@ public sealed class SettingsMap : IReadOnlyDictionary<string, string>, IEquatabl
 
     private sealed class SettingsMapConverter : JsonConverter<SettingsMap>
     {
+        /// <summary>An entry set to null by hand is left out: the values are never null (code review of fix/robustness).</summary>
         public override SettingsMap Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-            JsonSerializer.Deserialize<Dictionary<string, string>>(ref reader, options) is { } entries ? From(entries) : Empty;
+            JsonSerializer.Deserialize<Dictionary<string, string?>>(ref reader, options) is { } entries
+                ? From(entries.Where(e => e.Value is not null).Select(e => new KeyValuePair<string, string>(e.Key, e.Value!)))
+                : Empty;
 
         public override void Write(Utf8JsonWriter writer, SettingsMap value, JsonSerializerOptions options) =>
             JsonSerializer.Serialize(writer, value._entries.ToDictionary(), options);

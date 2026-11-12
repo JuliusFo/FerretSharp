@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
+using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Settings;
 
@@ -143,15 +144,28 @@ public sealed class SettingsStore(string filePath)
             var skipped = new List<string>();
             foreach (var (name, value) in settings.ToList())
             {
-                if (value is JsonObject map && MapSettings.Contains(name))
+                if (value is null || !MapSettings.TryGetValue(name, out var entryType))
                 {
-                    foreach (var (key, entry) in map.ToList())
+                    continue;
+                }
+
+                if (value is not JsonObject map)
+                {
+                    settings.Remove(name); // "shortcuts": [] fails with the path "$" (second review pass)
+                    skipped.Add(name);
+                    continue;
+                }
+
+                foreach (var (key, entry) in map.ToList())
+                {
+                    try
                     {
-                        if (entry?.GetValueKind() is not JsonValueKind.String)
-                        {
-                            map.Remove(key);
-                            skipped.Add($"{name}.{key}");
-                        }
+                        JsonSerializer.Deserialize(entry, entryType, JsonFiles.Options);
+                    }
+                    catch (JsonException)
+                    {
+                        map.Remove(key);
+                        skipped.Add($"{name}.{key}");
                     }
                 }
             }
@@ -181,11 +195,15 @@ public sealed class SettingsStore(string filePath)
         }
     }
 
-    /// <summary>The settings that are maps of text (<see cref="SettingsMap"/>), by their name in the file (any case, as the serializer reads them).</summary>
-    private static readonly HashSet<string> MapSettings = typeof(AppSettings).GetProperties()
-        .Where(p => p.PropertyType == typeof(SettingsMap))
-        .Select(p => JsonNamingPolicy.CamelCase.ConvertName(p.Name))
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// The settings that are maps read by a converter of their own (<see cref="SettingsMap"/>, <see cref="TableListMap"/>), by
+    /// their name in the file (any case, as the serializer reads them), with the type of one entry – as the converter reads it.
+    /// </summary>
+    private static readonly Dictionary<string, Type> MapSettings = typeof(AppSettings).GetProperties()
+        .Select(p => (Name: JsonNamingPolicy.CamelCase.ConvertName(p.Name),
+            Entry: p.PropertyType == typeof(SettingsMap) ? typeof(string) : p.PropertyType == typeof(TableListMap) ? typeof(List<TableRef?>) : null))
+        .Where(p => p.Entry is not null)
+        .ToDictionary(p => p.Name, p => p.Entry!, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The setting a JSON path lies in: <c>theme</c> for <c>$.settings.theme</c>, <c>$.settings.theme.x</c> or <c>$.settings['theme']</c>.</summary>
     internal static string? SettingOf(string? path)
