@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 
@@ -68,7 +69,7 @@ public sealed class ScriptLibrary : IDisposable
 
     private readonly AppSettingsService _settings;
     private readonly Lock _lock = new();
-    private readonly Timer _quiet;
+    private readonly QuietTimer _quiet;
     private readonly Timer? _poll;
     private readonly bool _watch;
     private readonly Dictionary<string, (DateTime Written, long Length, ScriptEntry Entry)> _headers = new(StringComparer.Ordinal);
@@ -89,7 +90,7 @@ public sealed class ScriptLibrary : IDisposable
         _settings = settings;
         DefaultPersonal = defaultPersonal;
         _watch = watch;
-        _quiet = new Timer(_ => _ = RefreshQuietlyAsync());
+        _quiet = new QuietTimer(Quiet, () => _ = RefreshQuietlyAsync());
         if (watch)
         {
             _poll = new Timer(_ => _ = RefreshQuietlyAsync(), null, TimeSpan.Zero, PollInterval);
@@ -484,39 +485,17 @@ public sealed class ScriptLibrary : IDisposable
     {
         try
         {
-            var watcher = new FileSystemWatcher(path)
+            FileSystemWatcher? watcher = null;
+            watcher = FileWatch.Create(path, "*", subdirectories: true, _ => _quiet.Touch(), () =>
             {
-                IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
-            };
-            watcher.Changed += OnFileChanged;
-            watcher.Created += OnFileChanged;
-            watcher.Deleted += OnFileChanged;
-            watcher.Renamed += OnFileChanged;
-            watcher.Error += (_, _) =>
-            {
-                Unwatch(path, watcher);
-                Touch(); // the next read (or the poll) sets up a new one
-            };
+                Unwatch(path, watcher!);
+                _quiet.Touch(); // the next read (or the poll) sets up a new one
+            });
             return watcher; // switched on by WatchRoot once registered
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or PlatformNotSupportedException)
         {
             return null; // a share that cannot be watched: the poll still sees changes
-        }
-    }
-
-    private void OnFileChanged(object sender, FileSystemEventArgs e) => Touch();
-
-    private void Touch()
-    {
-        try
-        {
-            _quiet.Change(Quiet, Timeout.InfiniteTimeSpan);
-        }
-        catch (ObjectDisposedException)
-        {
-            // an event that arrived while disposing
         }
     }
 
