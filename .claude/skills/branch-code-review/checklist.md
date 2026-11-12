@@ -33,7 +33,7 @@ Shared by `branch-code-review` and `complete-code-review`. Hand this file to eve
 A fixed pass, not a general impression: for every source the change touches, trace the value to every sink it reaches. The rules already named (`CLAUDE.md` §2/§6, `.claude/rules/links.md`, `oracle.md`, `connection-transfer.md`) hold the details; check against them.
 
 Sources (untrusted):
-- Files from others: model files, imported connection files (FerretSharp, DBeaver, SQL Developer), audit templates, display columns, filter presets, workspace and settings files edited by hand.
+- Files from others: model files, imported connection files (FerretSharp, DBeaver, SQL Developer), audit templates, display columns, filter presets, SQL scripts in shared folders (WP-77/84), the report's `report-exceptions.json`, workspace and settings files edited by hand.
 - Links `ferretsharp://` and the redirect page (`pages/`).
 - Pasted text: filters, SQL, LINQ, IN lists.
 - Data from the database: values, comments, quoted names.
@@ -43,8 +43,9 @@ Sinks (never unchecked):
 - Generated code: names from outside files in C# identifiers, type names, `//` comments (line breaks), string literals – pattern: `ModelFileCheck` (WP-64).
 - SQL: binds only, names validated against the schema and quoted; read, write and schema paths never weakened (ADR 0006/0019/0021).
 - WebView: no `innerHTML` or `MarkupString` with outside text; `textContent`, `title` as a property; JS interop arguments as data.
-- Paths: `..`, absolute paths, UNC shares (login to a foreign host, reviews 3.31.0 A4 and 3.44.0 A31), refs or names joined into paths; deleting only via `SafeDelete`.
-- Processes: only via `DotNetCli`, no arguments from outside data; ModelHost and LINQ console run project code, so only for a project the user chose.
+- Paths: `..`, absolute paths, UNC shares (login to a foreign host, reviews 3.31.0 A4 and 3.44.0 A31), refs or names joined into paths, links below a root (`UserFolderPaths`); deleting only via `SafeDelete`.
+- Writing into the user's repository (work clone, WP-41; shared script folders): only strictly below the root, never through a link, a new file never over one that came up meanwhile (`AtomicFile.CreateInUserFolderAsync`), whole or not at all.
+- Processes: only via `DotNetCli` and the few named starts (`CodeTarget.DirtyAsync` for git, `FileReveal`, `CodeEditorLauncher`), always with `ArgumentList`, a time limit and no arguments from outside data unchecked; ModelHost and LINQ console run project code, so only for a project the user chose.
 - Size and load: limits for files and lists, no unbounded loops (watchers, retries).
 - Log, history, error dialog, export, trace: no values or passwords on Prod (`SqlRedaction`), never a connection string.
 
@@ -65,7 +66,7 @@ A security finding names the concrete path from source to sink, the check at the
 
 ## Docs
 
-- `CHANGELOG.md`, work-package protocol plus index line, ADR for non-trivial decisions, `docs/architecture.md` and `.claude/rules/` still true after the change.
+- `CHANGELOG.md`, work-package protocol plus index line, ADR for non-trivial decisions, `docs/architecture.md`, `.claude/rules/` and `README.md` (every visible function) still true after the change.
 - No names or structure from the user's customer database in code, tests, docs or commits; neutral examples only.
 
 ## Not a finding
