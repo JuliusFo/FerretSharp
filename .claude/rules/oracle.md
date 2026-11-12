@@ -53,7 +53,7 @@ Gilt für den Oracle-Layer und alles, was SQL, Typen und Werte anfasst. Domänen
 - Zeilen lesen über `OracleReading` (`ReadListAsync`, `Text`/`Int`/`Long`/`Date`, `FetchManyRows`).
 - Array Binding (WP-42, `ExecuteNonQueryAsync(BatchSpec)`): ODP.NET braucht je Parameter einen festen `OracleDbType` (aus einem Array leitet es keinen ab), NULL als `DBNull` im Array; CLOB/BLOB gehen (gegen Oracle 23 geprüft). Scheitert eine Zeile, kommt **ORA-24381** („Fehler in Array-DML“), der eigentliche Fehler (ORA-02291 …) steht erst in `OracleException.Errors` – `OracleErrors.Translate` nimmt den ersten Fehler einer Zeile.
 - `ReadOnlyTests` prüfen jeden SELECT/WITH-Text (Konstante oder statisches Feld) aller Typen in `Core/Oracle` gegen die Lesesperre.
-- Row-Key: Bei Tabellen ist ein PK nur Row-Key, wenn er `ENABLED` und `VALIDATED` ist (`TableDetails.PrimaryKeyEnforced`), sonst ROWID; UPDATE/DELETE, das nicht genau eine Zeile trifft, geht zum Savepoint zurück (R5a). Schlüssel über INVISIBLE-Spalten → ROWID (die Spaltenliste filtert `hidden_column = 'NO'`).
+- Row-Key: Bei Tabellen ist ein PK nur Row-Key, wenn er `ENABLED` und `VALIDATED` ist (`TableDetails.PrimaryKeyEnforced`), sonst ROWID; UPDATE/DELETE, das nicht genau eine Zeile trifft, geht zum Savepoint zurück (R5a). Schlüssel über INVISIBLE-Spalten → ROWID (die Spaltenliste filtert `hidden_column = 'NO'`). Eine TIMESTAMP(8/9)-Spalte im PK geht als `PreciseTimestamp` in den Schlüssel (alle neun Stellen, gebunden als `OracleTimeStamp`), der Wert der Zeile bleibt `DateTime` – Schlüsselwerte nie aus den Zeilenwerten nachbauen, sondern aus `RowKey` nehmen bzw. über `WrittenKey` angleichen (WP-85).
 
 ## Dictionary & Performance
 - `ALL_*`-Views immer nach `OWNER` filtern (`docs/architecture.md` 1.3).

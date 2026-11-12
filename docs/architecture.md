@@ -118,6 +118,7 @@ record SelectQuery(string Sql, IReadOnlyList<QueryParameter> Parameters, IReadOn
 - `In`: max. 1000 Elemente pro Liste (ORA-01795) → mehrere Listen mit `OR`.
 - **Filtergruppen** (WP-50, `FilterGroups.Terms`): Zeilen ohne Gruppe und je Gruppe ein Term, alle mit AND, in der Reihenfolge ihrer ersten Zeile; Art und Schalter einer Gruppe nimmt ihre erste Zeile. Eine ausgeschaltete Gruppe und eine ohne aktive Zeile filtern nichts (ihre Zeilen werden nicht geprüft). ODER → `(a OR b)`; NICHT folgt C# `!(a || b)`: `CASE WHEN a OR b THEN 1 ELSE 0 END = 0` behält Zeilen, deren Bedingung wegen NULL unbekannt ist – schlicht `NOT (…)` nur, wenn das SQL jeder Bedingung nie unbekannt ist (NULL-Prüfung, „≠“ auf einer nullbaren Spalte mit `OR … IS NULL`); dem NOT NULL des Dictionarys wird nicht getraut (View über Outer Join, ENABLE NOVALIDATE). Die LINQ-Form schützt in NICHT-Gruppen nullbare Properties (`x.Umsatz != null && …`), weil EF Core ein negiertes `<`, `>`, einen Bereich oder ein ODER ohne NULL-Behandlung übersetzt. Gruppen-Ids zählen in der Filterleiste und in Links ab 1 (`FilterGroups.Normalize`). Jede Bedingung ist ein einzelner Term (der Tagesbereich steht in Klammern), damit OR sie verbinden kann. Eine Ebene, `(A UND B) ODER (C UND D)` bleibt im SQL-Editor.
 - Datum ohne Uhrzeit meint den ganzen Tag: `=` → `[d, d+1)`, `>` → `>= d+1`, `≤` → `< d+1`, `zwischen` schließt den letzten Tag ein.
+- `TIMESTAMP WITH TIME ZONE` nimmt einen Offset am Ende (`+05:00`, `-0530`, `Z`; `ValueInput.TryParseFilterDate`, WP-85): gebunden als TSTZ, verglichen wird der Zeitpunkt; ein Datum mit Offset ist der Tag in diesem Offset. Ohne Offset gilt die Zeitzone der Session wie bisher; die LINQ-Form schreibt einen `DateTimeOffset`.
 - Daten: `IDataAccess.ReadPageAsync/CountAsync` (`OracleDataAccess`), Zellanzeige über `CellFormatter` (deutsch, NULL bleibt null). NUMBER > 28 Stellen → `BigNumber` (exakter Text).
 
 ### 1.5 Row-Identität
@@ -128,6 +129,8 @@ abstract record RowKey;   // PrimaryKey(IReadOnlyList<object?> Values) | RowId(s
 - Views ohne PK → `None` → dauerhaft read-only.
 - ROWID ist nicht absolut stabil (`ROW MOVEMENT`, Partitionen, Shrink). Deshalb hat der PK Vorrang.
 - Wird in v1 schon für FK-Navigation und als Paging-Tiebreaker genutzt.
+- Schlüsselwerte wie gelesen: Eine TIMESTAMP(8/9)-Spalte des PK (auch WITH LOCAL TIME ZONE) liest der Schlüssel als `PreciseTimestamp` mit allen neun Stellen und bindet sie als `OracleTimeStamp` – die Werte der Zeile bleiben `DateTime` (7 Stellen). Ohne das fand UPDATE/DELETE die Zeile nicht (WP-85, A33).
+- Nach INSERT oder geschriebener PK-Änderung liest der Schreibweg die Zeile über die ROWID zurück (Schlüssel wie gespeichert). Lässt sie sich nicht lesen (VPD), kommt der Schlüssel aus den geschriebenen Werten (`WrittenKey`, CHAR aufgefüllt); die ROWID nur, wenn diese ihn nicht ergeben (Identity, Trigger) – das Grid schlüsselt nach PK und fände sie nie (WP-85).
 
 ### 1.6 Änderungen (v2)
 Eine Änderung durchläuft drei Zustände, die in Modell und UI explizit sichtbar sind:
