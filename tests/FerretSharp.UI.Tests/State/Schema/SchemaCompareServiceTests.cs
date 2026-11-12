@@ -339,10 +339,10 @@ public sealed class SchemaCompareServiceTests : IDisposable
                 return FakeDatabase.Connection();
             });
         var reading = service.CompareSideAsync(1);
-        await opening.Task.WaitAsync(Ct);
+        await opening.Task.WaitAsync(Wait.Limit, Ct);
         Assert.NotNull(service.Sides[1].Snapshot); // kept while reading
         service.Cancel();
-        await reading.WaitAsync(Ct);
+        await reading.WaitAsync(Wait.Limit, Ct);
 
         Assert.Null(service.Sides[1].Snapshot);
         Assert.Equal([0], service.ResultSides);
@@ -463,10 +463,10 @@ public sealed class SchemaCompareServiceTests : IDisposable
         SetSides(service, _dev.Id);
 
         var comparing = ui.RunAsync(() => service.CompareAsync());
-        await reading.Task.WaitAsync(Ct);
+        await reading.Task.WaitAsync(Wait.Limit, Ct);
         await ui.RunAsync(() => Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5), Ct); // the UI thread still answers
         release.SetResult();
-        await comparing.WaitAsync(Ct);
+        await comparing.WaitAsync(Wait.Limit, Ct);
 
         Assert.NotNull(service.Result);
     }
@@ -487,10 +487,10 @@ public sealed class SchemaCompareServiceTests : IDisposable
         SetSides(service, _dev.Id);
 
         var comparing = service.CompareAsync();
-        await opening.Task.WaitAsync(Ct);
+        await opening.Task.WaitAsync(Wait.Limit, Ct);
         Assert.True(service.Loading);
         service.Cancel();
-        await comparing.WaitAsync(Ct);
+        await comparing.WaitAsync(Wait.Limit, Ct);
 
         Assert.False(service.Loading);
         Assert.Equal((false, null, null), (service.Sides[0].Loading, service.Sides[0].Snapshot, service.Result));
