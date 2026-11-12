@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using Microsoft.CodeAnalysis;
@@ -164,7 +165,9 @@ public static class NewEntityCode
     private static FileChange Created(string root, string path, Place place, IEnumerable<string> usings, IReadOnlySet<string> globalUsings, string type)
     {
         var text = new StringBuilder();
-        var lines = usings.Where(u => !globalUsings.Contains(u)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        // A parent namespace of the file's own is seen without a using.
+        var lines = usings.Where(u => !globalUsings.Contains(u) && place.Namespace != u && !place.Namespace.StartsWith(u + ".", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
         foreach (var line in lines)
         {
             text.Append($"using {line};\n");
@@ -215,21 +218,16 @@ public static class NewEntityCode
             setName = DbSetName(mapping.Model, table, name) + n.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        var generic = (GenericNameSyntax)last.Type;
+        var oldType = ((GenericNameSyntax)last.Type).TypeArgumentList.Arguments[0].ToString();
         var text = part.File.File.Text;
         var start = FileEdits.LineStart(text, last.SpanStart);
-        // The last DbSet's text with the type and the name exchanged: modifiers, accessors and initializer stay.
-        var copy = text[start..last.Span.End];
-        var offset = start;
-        copy = Exchange(copy, generic.TypeArgumentList.Arguments[0].Span.Start - offset, generic.TypeArgumentList.Arguments[0].Span.Length, name,
-            last.Identifier.Span.Start - offset, last.Identifier.Span.Length, setName);
+        // The last DbSet's text with the name and the entity exchanged – also in its body (=> Set<Kunde>()): modifiers,
+        // accessors and initializer stay as the context writes them.
+        var copy = text[start..last.Identifier.SpanStart] + setName + text[last.Identifier.Span.End..last.Span.End];
+        copy = Regex.Replace(copy, $@"(?<![\w.]){Regex.Escape(oldType)}(?!\w)", name.Replace("$", "$$", StringComparison.Ordinal));
         edits.Insert(part.File, FileEdits.LineEnd(text, last.Span.End), copy + part.File.File.Format.NewLine);
         AddUsing(scan, edits, part.File, last, entityNamespace);
     }
-
-    /// <summary>The text with two spans exchanged (the second after the first).</summary>
-    private static string Exchange(string text, int firstStart, int firstLength, string first, int secondStart, int secondLength, string second) =>
-        text[..firstStart] + first + text[(firstStart + firstLength)..secondStart] + second + text[(secondStart + secondLength)..];
 
     /// <summary>The name of a new DbSet as most of the context's DbSets are named: like the entity, the table or the entity plus "s".</summary>
     internal static string DbSetName(ModelExport model, TableDetails table, string name)

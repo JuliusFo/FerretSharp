@@ -264,7 +264,29 @@ public sealed class CodeScan
         }
 
         var ns = fullName.LastIndexOf('.') is var at and > 0 ? fullName[..at] : "";
+        // C# looks in the enclosing namespaces before the usings: a type of that name there is the one meant.
+        var enclosing = Enclosing(type);
+        var nearest = Types.Where(t => ClrModelMapping.ShortName(t.FullName) == simple && !t.FullName.Contains('+', StringComparison.Ordinal))
+            .Select(t => t.Namespace).Where(enclosing.Contains).OrderByDescending(n => n.Length).FirstOrDefault();
+        if (nearest is not null)
+        {
+            return nearest == ns;
+        }
+
         return Sees(file, type, ns) || Types.Count(t => ClrModelMapping.ShortName(t.FullName) == simple) <= 1;
+    }
+
+    /// <summary>The namespace a node stands in and all its parents, down to the global one (<c>""</c>).</summary>
+    private static HashSet<string> Enclosing(SyntaxNode node)
+    {
+        var name = string.Join('.', node.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString().Replace(" ", "", StringComparison.Ordinal)));
+        var result = new HashSet<string>(StringComparer.Ordinal) { "" };
+        for (var at = name.Length; at > 0; at = name.LastIndexOf('.', at - 1) is var dot and >= 0 ? dot : 0)
+        {
+            result.Add(name[..at]);
+        }
+
+        return result;
     }
 
     /// <summary>The file sees the names of <paramref name="ns"/> at <paramref name="node"/>: its namespace or a parent, or a using.</summary>
