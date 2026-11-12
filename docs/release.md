@@ -20,6 +20,7 @@ Aus der `CLAUDE.md` ausgelagert (Gesamt-Review 3.31.0, Teil C). Vor Änderungen 
 ## Distribution (Velopack, ADR 0024)
 
 - Bauen: `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>`, dann `vpk pack` (lokales Tool in `dotnet-tools.json`, gleiche Version wie das Paket `Velopack`).
+- Der self-contained Publish bricht ab, wenn das SDK eine Runtime unter `MinimumBundledRuntime` (`Directory.Build.props`) mitbringen würde – sie hätte bekannte Sicherheitslücken (R9, Entscheidung des Nutzers; `global.json` bleibt). Nach einem Sicherheits-Release der Runtime den Wert anheben; lokal hilft dann nur ein SDK-Update.
 - Release über `.github/workflows/release.yml`: Tag `vX.Y.Z` → Version gegen `Directory.Build.props` prüfen, Core-Tests, bauen, vorheriges Release für die Delta-Pakete holen, packen → `FerretSharp-win-Setup.exe`, `FerretSharp-win-Portable.zip`, volle und Delta-Pakete, `releases.win.json`. Notizen aus dem CHANGELOG-Abschnitt. Für bestehende Tags per `workflow_dispatch`.
 - Das einfache Zip des Ordners gab es bis 3.29.0; seit 3.30.0 nur noch die Velopack-Dateien.
 - `Program.Main` ruft zuerst `VelopackApp…Run()`, dann die Instanzsperre (eine Instanz je Datenordner). Installiert prüft die App auf Updates (Einstellungen › Updates); ohne Installation (Debug, `dotnet run`, E2E) passiert nichts.

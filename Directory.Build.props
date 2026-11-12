@@ -12,6 +12,16 @@
          WebView2; review 3.40.0, B14). -->
     <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
     <Version>3.70.0</Version>
+    <!-- A self-contained publish carries the runtime of the SDK that builds it; below this version it lacks security fixes
+         (10.0.14: Brotli). The publish stops instead of shipping it (review 3.70.0, A14, decision of the user: global.json
+         stays, so building with an older SDK still works). Raise with each security release of the runtime. -->
+    <MinimumBundledRuntime>10.0.14</MinimumBundledRuntime>
   </PropertyGroup>
+
+  <Target Name="CheckBundledRuntime" BeforeTargets="PrepareForPublish"
+          Condition="'$(SelfContained)' == 'true' and '$(BundledNETCoreAppPackageVersion)' != '' and '$(RuntimeFrameworkVersion)' == ''">
+    <Error Condition="$([MSBuild]::VersionLessThan('$(BundledNETCoreAppPackageVersion)', '$(MinimumBundledRuntime)'))"
+           Text="A self-contained publish would bundle .NET runtime $(BundledNETCoreAppPackageVersion), older than $(MinimumBundledRuntime) (security fixes). Update the .NET SDK; the CI builds releases with a current one." />
+  </Target>
 
 </Project>
