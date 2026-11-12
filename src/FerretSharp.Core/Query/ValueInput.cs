@@ -85,7 +85,7 @@ public static class ValueInput
 
         // A date with time and offset fits easily; the expression backtracks quadratically over long texts (a value from a
         // link or a filter preset of 32 000 blanks took half a second per check, review of WP-85).
-        if (text.Length > MaxDateLength)
+        if (text.Trim().Length > MaxDateLength) // blanks around a pasted value do not count
         {
             return null;
         }
