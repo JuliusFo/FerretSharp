@@ -123,7 +123,7 @@ public partial class App : Application
         builder.Services.AddSingleton(paths);
         builder.Services.AddSingleton<IConnectionStore>(new ConnectionStore(paths.ConnectionsFile));
         builder.Services.AddSingleton<ISecretStore, CredentialManagerSecretStore>();
-        builder.Services.AddSingleton<IConnectionTester, OracleConnectionTester>();
+        builder.Services.AddSingleton<IConnectionTester>(services => new OracleConnectionTester(services.GetRequiredService<IDatabaseConnector>(), TimeProvider.System));
         builder.Services.AddSingleton<ConnectionManager>();
         // Import/export of connections (WP-35): DBeaver and SQL Developer are looked for in %APPDATA% (tests: --import-appdata=).
         builder.Services.AddSingleton(services => new ConnectionTransfer(services.GetRequiredService<ConnectionManager>(), ImportAppData(args)));
