@@ -1,5 +1,6 @@
 using System.Globalization;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Query;
 
@@ -56,11 +57,32 @@ public static class ValueInput
     /// <param name="offsetText">The offset as typed, for the message when it is out of range.</param>
     /// <returns>True: parsed. False: the offset is none (out of range). Null: no offset at the end – the text may still be a
     /// plain date (<c>2026-10-08</c>, whose "-08" only looks like one).</returns>
-    public static bool? TryParseDateWithOffset(string text, out DateTimeOffset value, out string offsetText)
+    public static bool? TryParseDateWithOffset(string text, out DateTimeOffset value, out string offsetText) =>
+        TryParseDateWithOffset(text, out value, out offsetText, out _);
+
+    /// <summary>
+    /// A date of a filter on <paramref name="column"/>: with an offset at the end for TIMESTAMP WITH TIME ZONE (WP-85,
+    /// review 3.31.0 A33 – the filter took none), as <see cref="TryParseDate"/> otherwise.
+    /// </summary>
+    public static bool TryParseFilterDate(ColumnInfo column, string text, out FilterDate value)
+    {
+        if (OracleTypes.HasTimeZone(column.DataType) && TryParseDateWithOffset(text, out var stamp, out _, out var dayOnly) is { } parsed)
+        {
+            value = new FilterDate(stamp.DateTime, dayOnly, stamp.Offset);
+            return parsed;
+        }
+
+        var ok = TryParseDate(text, out var plain, out var dateOnly);
+        value = new FilterDate(plain, dateOnly, null);
+        return ok;
+    }
+
+    private static bool? TryParseDateWithOffset(string text, out DateTimeOffset value, out string offsetText, out bool dateOnly)
     {
         value = default;
         offsetText = "";
-        if (OffsetSuffix.Match(text.Trim()) is not { Success: true } match || !TryParseDate(match.Groups["time"].Value, out var time, out _))
+        dateOnly = false;
+        if (OffsetSuffix.Match(text.Trim()) is not { Success: true } match || !TryParseDate(match.Groups["time"].Value, out var time, out dateOnly))
         {
             return null;
         }
@@ -102,4 +124,16 @@ public static class ValueInput
         dateOnly = ok && !trimmed.Contains(':', StringComparison.Ordinal);
         return ok;
     }
+}
+
+/// <summary>A date typed into a filter (<see cref="ValueInput.TryParseFilterDate"/>).</summary>
+/// <param name="DateOnly">No time was given: equality means the whole day.</param>
+/// <param name="Offset">The offset typed after it (TIMESTAMP WITH TIME ZONE only); null: the session's time zone applies.</param>
+public readonly record struct FilterDate(DateTime Value, bool DateOnly, TimeSpan? Offset)
+{
+    /// <summary>The same time a day later (the end of a whole day).</summary>
+    public FilterDate NextDay => this with { Value = Value.AddDays(1) };
+
+    /// <summary>As bound and written in C#: a <see cref="DateTimeOffset"/> with an offset, a <see cref="DateTime"/> otherwise.</summary>
+    public object Bound => Offset is { } offset ? new DateTimeOffset(Value, offset) : (object)Value; // not converted to DateTimeOffset
 }

@@ -261,7 +261,7 @@ public static class FilterRules
             var error = category switch
             {
                 ColumnCategory.Number when !ValueInput.TryParseNumber(value, out _) => TextFormat.Format(QueryText.NotANumber, value),
-                ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone when !ValueInput.TryParseDate(value, out _, out _) =>
+                ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone when !ValueInput.TryParseFilterDate(column, value, out _) =>
                     TextFormat.Format(QueryText.NotADate, value),
                 ColumnCategory.Raw when !ValueInput.TryParseHex(value, out _) => TextFormat.Format(QueryText.NotAHexValue, value),
                 _ => null,

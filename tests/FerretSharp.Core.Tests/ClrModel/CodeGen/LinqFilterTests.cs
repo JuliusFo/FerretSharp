@@ -54,6 +54,22 @@ public sealed class LinqFilterTests
     public async Task Each_operator(string column, FilterOperator op, string[] values, string expected) =>
         Assert.Equal($".Where(x => {expected})", await WhereAsync(new FilterCondition(column, op, values)));
 
+    /// <summary>
+    /// WP-85 (review 3.31.0, A33): a filter on TIMESTAMP WITH TIME ZONE takes an offset – an instant as DateTimeOffset, a
+    /// date with one the whole day in that offset; without one the local time zone applies as before.
+    /// </summary>
+    [Theory]
+    [InlineData(FilterOperator.Equals, "2026-03-15 23:30 +05:00", "x.Beginn == new DateTimeOffset(2026, 3, 15, 23, 30, 0, TimeSpan.FromHours(5))")]
+    [InlineData(FilterOperator.Gt, "15.03.2026 Z", "x.Beginn >= new DateTimeOffset(2026, 3, 16, 0, 0, 0, TimeSpan.Zero)")]
+    [InlineData(FilterOperator.Equals, "2026-03-15 -05:30",
+        "x.Beginn >= new DateTimeOffset(2026, 3, 15, 0, 0, 0, new TimeSpan(-5, -30, 0)) && x.Beginn < new DateTimeOffset(2026, 3, 16, 0, 0, 0, new TimeSpan(-5, -30, 0))")]
+    public async Task A_time_with_time_zone_is_compared_with_the_offset_typed(FilterOperator op, string value, string expected)
+    {
+        var presentation = TablePresentation.Create(CodeGenerationModel.Termine, await CodeGenerationModel.MappingAsync(), ClrNameDisplay.Beside);
+
+        Assert.Equal($".Where(x => {expected})", LinqFilter.Build(presentation, [FilterCondition.Of("BEGINN", op, value)]).Text);
+    }
+
     [Fact]
     public async Task Untranslatable_filters_stay_as_comments_disabled_ones_are_ignored()
     {

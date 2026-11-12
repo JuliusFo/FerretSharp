@@ -368,6 +368,27 @@ public partial class QueryBuilderTests
         Assert.Equal(new DateTime(2026, 10, expectedDay), Assert.Single(parameters).Value);
     }
 
+    /// <summary>
+    /// WP-85 (review 3.31.0, A33): TIMESTAMP WITH TIME ZONE takes an offset – bound as one, compared as the instant it names; a
+    /// date with one is that day in that offset. A plain TIMESTAMP refuses it.
+    /// </summary>
+    [Fact]
+    public void A_time_with_time_zone_is_filtered_with_the_offset_typed()
+    {
+        var table = Kunden with { Columns = [.. Kunden.Columns, Col("BEGINN", "TIMESTAMP(6) WITH TIME ZONE", scale: 6)] };
+        var at = QueryBuilder.BuildCount(table, [FilterCondition.Of("BEGINN", FilterOperator.Equals, "2026-03-15 23:30 +05:00")]);
+        var day = QueryBuilder.BuildCount(table, [FilterCondition.Of("BEGINN", FilterOperator.Equals, "15.03.2026 -05:30")]);
+
+        Assert.EndsWith("WHERE t.\"BEGINN\" = :p0", at.Sql);
+        Assert.Equal(new QueryParameter("p0", new DateTimeOffset(2026, 3, 15, 23, 30, 0, TimeSpan.FromHours(5)), OracleTypeHint.TimeStampTZ), Assert.Single(at.Parameters));
+        Assert.Equal(
+            [new DateTimeOffset(2026, 3, 15, 0, 0, 0, new TimeSpan(-5, -30, 0)), new DateTimeOffset(2026, 3, 16, 0, 0, 0, new TimeSpan(-5, -30, 0))],
+            day.Parameters.Select(p => p.Value));
+        Assert.Empty(QueryBuilder.Validate(table, [FilterCondition.Of("BEGINN", FilterOperator.Gt, "2026-03-15T23:30:00Z")]));
+        Assert.StartsWith("„2026-03-15 23:30 +05:00“ ist kein Datum",
+            QueryBuilder.Validate(table, [FilterCondition.Of("GEAENDERT", FilterOperator.Equals, "2026-03-15 23:30 +05:00")])[0]);
+    }
+
     [Fact]
     public void Date_between_includes_the_last_day()
     {

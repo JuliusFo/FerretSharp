@@ -306,7 +306,7 @@ public static class LinqFilter
             if (ByDay && texts.Any(t => Date(t).DateOnly))
             {
                 var parts = texts.Select(t => Date(t) is { DateOnly: true } day
-                    ? $"({m} >= {DateLiteral(day.Value)} && {m} < {DateLiteral(day.Value.AddDays(1))})"
+                    ? $"({m} >= {DateLiteral(day)} && {m} < {DateLiteral(day.NextDay)})"
                     : $"{m} == {Literal(t)}").ToList();
                 return new CSharpValue(parts.Count == 1 ? parts[0] : $"({string.Join(" || ", parts)})");
             }
@@ -342,8 +342,8 @@ public static class LinqFilter
                 return new CSharpValue(Compare(Symbol(filter.Op), filter.Values[0]));
             }
 
-            var day = DateLiteral(first.Value);
-            var next = DateLiteral(first.Value.AddDays(1));
+            var day = DateLiteral(first);
+            var next = DateLiteral(first.NextDay);
             return new CSharpValue(filter.Op switch
             {
                 FilterOperator.Equals => $"{m} >= {day} && {m} < {next}",
@@ -353,7 +353,7 @@ public static class LinqFilter
                 FilterOperator.Lt => $"{m} < {day}",
                 FilterOperator.Lte => $"{m} < {next}",
                 FilterOperator.Between => Date(filter.Values[1]) is { DateOnly: true } to
-                    ? $"{m} >= {Literal(filter.Values[0])} && {m} < {DateLiteral(to.Value.AddDays(1))}"
+                    ? $"{m} >= {Literal(filter.Values[0])} && {m} < {DateLiteral(to.NextDay)}"
                     : $"{m} >= {Literal(filter.Values[0])} && {m} <= {Literal(filter.Values[1])}",
                 _ => throw new NoLiteralException(TextFormat.Format(ClrModelText.OperatorNotForDates, OperatorLabels.Label(filter.Op))),
             });
@@ -445,7 +445,7 @@ public static class LinqFilter
                 ? $"string.Compare({m}, {value}) {symbol} 0"
                 : $"{m} {symbol} {value}";
 
-        private string DateLiteral(DateTime day) => Literal(day);
+        private string DateLiteral(FilterDate day) => Literal(day.Bound);
 
         private string Literal(string text) => Literal(Raw(text));
 
@@ -457,14 +457,15 @@ public static class LinqFilter
         private object Raw(string text) => _category switch
         {
             ColumnCategory.Number when ValueInput.TryParseNumber(text, out var number) => number,
-            ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => Date(text).Value,
+            ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => Date(text).Bound,
             ColumnCategory.Raw when ValueInput.TryParseHex(text, out var bytes) => bytes,
             _ => text,
         };
 
-        private static (DateTime Value, bool DateOnly) Date(string text) =>
-            ValueInput.TryParseDate(text, out var value, out var dateOnly)
-                ? (value, dateOnly)
+        /// <summary>A filter's date; with an offset for TIMESTAMP WITH TIME ZONE (WP-85), written as DateTimeOffset.</summary>
+        private FilterDate Date(string text) =>
+            ValueInput.TryParseFilterDate(column, text, out var value)
+                ? value
                 : throw new NoLiteralException(TextFormat.Format(ClrModelText.NotADate, text));
 
         private static string Symbol(FilterOperator op) => op switch
