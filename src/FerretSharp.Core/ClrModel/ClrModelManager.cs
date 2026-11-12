@@ -381,6 +381,9 @@ public sealed class ClrModelManager : IDisposable
     /// </summary>
     public bool WaitingForBuild { get; private set; }
 
+    /// <summary>The project's own build runs (not a solution build of the code usage): only it can be cancelled here (code review of R9, finding 4).</summary>
+    public bool IsBuildingProject => _building is not null;
+
     private CancellationTokenSource? _building;
 
     /// <summary>Stops the project's build, also while it waits for another one; its result is then null.</summary>
@@ -400,6 +403,7 @@ public sealed class ClrModelManager : IDisposable
     public Task<DotNetRun?> BuildAsync() => BuildAsync((link, ct) =>
     {
         WaitingForBuild = true;
+        Changed?.Invoke(); // the page shows that it waits (code review of R9, finding 3: set without telling, never shown)
         return _runner.BuildAsync(link, ct, onStart: () =>
         {
             WaitingForBuild = false;

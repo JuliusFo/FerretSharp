@@ -108,15 +108,20 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
             return new DotNetRun(0, "", "");
         });
 
+        var told = false;
+        _models.Changed += () => told |= _models.WaitingForBuild; // the page hears of the wait (code review of R9, finding 3)
         var build = _models.BuildAsync();
         await started.Task.WaitAsync(Wait.Limit, Ct);
         Assert.True(_models.WaitingForBuild);
+        Assert.True(told);
+        Assert.True(_models.IsBuildingProject);
 
         _models.CancelBuild();
 
         Assert.Null(await build.WaitAsync(Wait.Limit, Ct));
         Assert.False(_models.IsBuilding);
         Assert.False(_models.WaitingForBuild);
+        Assert.False(_models.IsBuildingProject);
     }
 
     /// <summary>
