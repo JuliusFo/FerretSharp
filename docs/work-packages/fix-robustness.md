@@ -39,3 +39,8 @@ Entscheidung des Nutzers vorab: „mach bitte ein branch-code-review und arbeite
 6. **K, behoben:** kein zweiter Leseweg mehr – `VersionedJsonFile` liest den Text einmal und gibt ihn bei `Broken` mit (`JsonFileRead.Content`).
 7. **K, verworfen:** `active` und `dim` kommen in der Einstellungsliste nie zusammen vor (`active` nur ohne Suche).
 8. **K, teils behoben:** Test für „Teil gelesen, keine Kopie möglich“ samt Sprache ergänzt; für 3 kein Test.
+
+Zweiter Durchgang (nur die Fix-Commits): 1–6 decken ihre Befunde. Neu:
+- **neu 1, K, behoben:** Der Fix zu 6 las den Text der Datei und ersetzte so Bytes, die kein UTF-8 sind (von Hand als ANSI gespeichert), still durch U+FFFD – für alle Stores, beim nächsten Speichern dauerhaft, in Workspaces auch in ausstehenden Werten. Vorher warf das Lesen eines solchen Strings `InvalidOperationException` an `VersionedJsonFile` vorbei (vorher schon da). Jetzt Bytes lesen, UTF-8 prüfen (`Utf8.IsValid`): ungültig ist `Broken` mit „Die Datei ist nicht als UTF-8 gespeichert.“ (`CoreText.FileNotUtf8`), der Store behält wie gewohnt eine Kopie.
+- **neu 2, K, behoben:** Eine Map-Einstellung, die kein Objekt ist (`"shortcuts": []`, Pfad `$`), und Einträge von `pathAvoidedTables` (`TableListMap`, liest ebenfalls selbst) verloren weiter die ganze Datei. Jetzt liest die Vorreinigung jeden Eintrag so, wie ihn der Converter liest, und entfernt nur ihn bzw. die Einstellung, wenn sie kein Objekt ist.
+- Vorher schon da, mit behoben: Ein Eintrag `null` in einer Text-Map landete als `null` in der `SettingsMap`; `SettingsMapConverter` lässt ihn jetzt aus.

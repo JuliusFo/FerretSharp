@@ -24,6 +24,7 @@ Fixes, structure, tests and docs after the review of 3.70.0 (R9), and robustness
 - A self-contained publish stops if the .NET SDK would bundle a runtime without its security fixes.
 
 ### Fixed
+- A file of FerretSharp saved by hand in another encoding than UTF-8 is reported as not readable instead of stopping the start.
 - A `connections.json` that cannot be read says why (line and position) in a notice and in the log, not only in the status bar's tooltip.
 - A LINQ console helper that ends at start is reported at once with its exit code, not after the start timeout.
 - The grid no longer queries rows before the first one (seen once as "Rows -500+", with "0 rows" in the footer).
