@@ -11,6 +11,8 @@
     -warnaserror and runs the tests there. Nothing is written into the repository: bin and obj stay in the
     container, which is removed afterwards. NuGet packages are kept in the Docker volume ferretsharp-linux-nuget.
 
+    First it stops on text files with CRLF in the index, like the CI job line-endings (read-only here).
+
     Not part of it: the integration tests (Oracle in Docker) and the JavaScript tests (no Node in the image).
     The CI runs both.
 
@@ -42,8 +44,17 @@ $encoding = [Console]::OutputEncoding
 try {
     $names = git -C $root ls-files -z --cached --others --exclude-standard
     if ($LASTEXITCODE -ne 0) { throw 'git ls-files failed.' }
+    # Like the CI job line-endings, but read-only (no renormalize, the index stays as it is): a text file whose
+    # staged or committed form has CRLF. Only what is in the index counts; unstaged edits are normalized on git add.
+    $eol = git -C $root -c core.quotePath=false ls-files --eol
+    if ($LASTEXITCODE -ne 0) { throw 'git ls-files --eol failed.' }
 } finally {
     [Console]::OutputEncoding = $encoding
+}
+$crlf = @($eol | Where-Object { $_ -match '^i/(crlf|mixed)\s' -and $_ -notmatch '\sattr/-text\s' })
+if ($crlf.Count -gt 0) {
+    $crlf | ForEach-Object { Write-Host $_ }
+    throw "$($crlf.Count) file(s) with CRLF in the index; the CI job line-endings fails on them. Fix with: git add --renormalize <file>"
 }
 $files = ($names -join '') -split "`0" | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $root $_) -PathType Leaf) }
 
