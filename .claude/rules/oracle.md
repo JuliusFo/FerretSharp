@@ -21,6 +21,7 @@ Gilt für den Oracle-Layer und alles, was SQL, Typen und Werte anfasst. Domänen
 - Identifier sind uppercase, es sei denn, sie wurden mit `"…"` angelegt → Namen immer aus den `ALL_*`-Views übernehmen und per `OracleIdentifier.Quote()` exakt so quoten.
 - Getippte Namen (Designer, Indizes, Constraints, Audit-Vorlagen) prüft nur `OracleIdentifier.Problem` (Anführungszeichen/NUL, mehr als `MaxBytes` = 128 **Byte**), die Warnung „braucht Anführungszeichen“ nur `NeedsQuotes` (auch reservierte Wörter); gekürzt wird mit `OracleIdentifier.Cut` (nach Bytes, nie ein halbes Zeichen). Vorgeschlagene Namen über `IndexDesign.SuggestName`/`PlainName` (R5b).
 - Text als SQL-Literal (Anzeige, Skripte, nie für ausgeführte Werte – die sind Binds) nur über `OracleLiteral` (`N'…'` für nationale Typen).
+- Regex auf Werte, die aus Links oder Filtervorlagen kommen können (Filtertext), nur mit Längengrenze oder ohne Backtracking: die Offset-Erkennung brauchte für 32 000 Leerzeichen 0,5 s je Prüfung (Review WP-85).
 - Leerer String == NULL. Die UI muss NULL explizit darstellen (kursives `NULL`), nicht als leeres Feld.
 
 ## Typen

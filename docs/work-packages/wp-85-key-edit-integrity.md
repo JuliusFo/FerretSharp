@@ -29,3 +29,22 @@ Eigene Testinstanz (`--lang=de`, eigener Datenordner) gegen einen eigenen Contai
 - `cond ? new DateTimeOffset(…) : dateTime` hat den Typ `DateTimeOffset` – C# wandelt den `DateTime` still um (lokaler Offset). Für ein `object` aus beiden Zweigen einen nach `object` casten (`FilterDate.Bound`); fiel nur über die LINQ-Tests auf (DATE wurde zu `TO_…`-Problem).
 - Das Grid meldet `RowsChanged` auch mit den Blöcken von vor dem Schreiben (`ReloadAsync` → `SetNewRowsAsync`): Wer nach dem Schreiben über den Schlüssel sucht, findet dort den alten Schlüssel womöglich schon bei einer anderen Zeile.
 - Gemeinsame Test-Fixtures (`CodeGenerationModel.Kunden`) nicht um Spalten erweitern – viele Tests prüfen die volle Zeile; eine eigene Tabelle daneben (`TERMINE`).
+
+## Nachtrag: Code-Review (2026-11-13)
+Unabhängiger Reviewer (eigener Agent), jeder Befund am Code nachgeprüft. Entscheidung des Nutzers vorab (2026-11-12, unterwegs): „Wenn du beim Review Fehler findest, überlege was die beste Solution ist und nimm diese/deine Empfehlung. Mach die Review Runden durch und wenn du fertig bist, alles auf den PR pushen.“ Umgesetzt jeweils die Empfehlung:
+1. M – Audit-Markierungen fanden bei einem TIMESTAMP(8/9)-Schlüssel keine Zeile mehr (Regression des Branches: `ReadAuditChangesAsync` las den Schlüssel als `DateTime`): behoben, `ReadKeyValue` für beide Lesewege. Ohne Integrationstest – die Vorlagen schlüsseln Audit-Tabellen über `AUDIT_ID`, der Weg ist derselbe Helfer wie in `ReadRow` (dort gegen Oracle geprüft).
+2. K – Die Offset-Regex backtrackt quadratisch; ein Filterwert aus Link oder Vorlage mit 32 000 Leerzeichen kostete 0,5 s je Prüfung: behoben, Texte über 64 Zeichen (nach dem Trimmen) sind kein Datum (`FilterRulesTests.A_long_value_on_a_time_with_time_zone_is_refused_at_once`).
+3. K – `WrittenKey` rundete nicht wie die Spalte (DATE ohne Bruchteil, TIMESTAMP(n < 7) gerundet): behoben, `Stored`; Integrationstest vergleicht mit dem Schlüssel, den Oracle zurückliest (`The_key_from_the_values_written_is_the_key_oracle_stored`).
+4. K – Schlüsseltext im Schreibproblem-Dialog als ISO neben deutschen Werten: behoben, wie in der Änderungsübersicht (`ChangeOverview.KeyText`).
+5. K – Ein bekannter Elternteil mit TIMESTAMP(8/9)-PK wurde jedes Mal neu gelesen (Datensatz-Diagramm, Kopieren), Node-Ids änderten ihr Format: behoben, `PreciseTimestamp.AsKey` und `RowTraversal.KeyText` (gleicher Text wie der `DateTime` eines FK).
+6. K – Der VPD-Integrationstest übersprang in der CI ohne SYSTEM-Anmeldung: behoben, scheitert dort.
+7. K – Zusatz-Assert lief in jedem Fall einer Theory: eigener Test.
+- „Vorher schon da“, mitgenommen (gleiches Thema): Formular auf einer Zeile, die gelöscht wurde, während eine andere im selben Schreibvorgang ihren Schlüssel übernahm, zeigte nach dem Neuladen still die andere – jetzt „nicht mehr geladen“. Dazu der Platzhalter `TT.MM.JJJJ [hh:mm] [+hh:mm]` für Filter auf TSTZ (Offset sonst nicht auffindbar).
+- „Vorher schon da“, in den Backlog: Kopieren im Update-Modus auf ein Ziel mit TIMESTAMP(9)-PK; TSTZ ohne Offset in der Zelle mit dem Offset des Rechners, im Filter mit der Zeitzone der Session.
+
+Zweiter Durchgang über die Fixes:
+- A. M – Der neue Zweig für die gelöschte Zeile verlor eine Zeile, die nur woanders hin sortiert wurde, wenn an ihrer alten Stelle eine andere Zeile mit eigener Änderung stand: behoben, nur wenn die Zeile dort den Schlüssel der gezeigten trägt (`A_row_sorted_elsewhere_while_another_changed_row_takes_its_place_is_followed`, Gegenprobe rot).
+- B. K – Derselbe Fall bei direktem Commit (ohne Schreiben und Neuladen dazwischen) bleibt offen: Nach dem Leeren des Trackers sehen Commit und Rollback für das Formular gleich aus – Backlog.
+- C. K – Die Längengrenze galt vor dem Trimmen (ein eingefügter Wert mit Leerzeichen drumherum wurde abgelehnt): behoben.
+- D. K – Der Zeittest konnte am ersten Zugriff (Regex, JIT) flackern: aufgewärmt, 100 000 Zeichen, Grenze 1 s.
+
