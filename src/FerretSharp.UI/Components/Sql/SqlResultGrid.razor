@@ -460,6 +460,12 @@
 
     private async Task<GridPage> GetRowsCoreAsync(int startRow, int endRow, IReadOnlyList<ResultSort> sorts)
     {
+        if (startRow < 0)
+        {
+            Logger.LogWarning("Result grid asked for rows from {StartRow}: answered without a query", startRow);
+            return GridPage.BeforeFirstRow;
+        }
+
         if (_order.Apply(sorts))
         {
             // Another order: the kept blocks hold other rows at these indexes, and the first page is the query's own.

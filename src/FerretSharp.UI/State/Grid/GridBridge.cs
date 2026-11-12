@@ -162,6 +162,13 @@ public sealed record GridSort(string ColId, string Sort);
 public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow, bool Failed = false)
 {
     public static readonly GridPage Failure = new([], -1, true);
+
+    /// <summary>
+    /// The answer to a block before the first row (fix/robustness): AG Grid asked once for rows from −500 (E2E 2026-11-05,
+    /// probably <c>getDisplayedRowAtIndex(-1)</c>); the start row went to Oracle as <c>OFFSET</c> and the footer said 0 rows.
+    /// No rows, no query, the row count unknown.
+    /// </summary>
+    public static readonly GridPage BeforeFirstRow = new([], -1);
 }
 
 /// <summary>Result of an edit for grid.js: the redrawn row, or the message to show in the reopened editor.</summary>
