@@ -7,7 +7,9 @@ namespace FerretSharp.Core.Oracle;
 
 /// <summary>
 /// "Test connection": opens a session like the explorer does, through <see cref="SessionOpening"/> – a single attempt hung
-/// for about 20 s when opening hangs over the VPN (fix/robustness); a refused login still ends at once, no second login.
+/// for about 20 s when opening hangs over the VPN (fix/robustness). A refused login ends the test as soon as it is answered;
+/// the same trade-off as connecting: Oracle answers logins late after failed ones, and an answer later than the first limit
+/// (5 s) finds the second attempt started – one more login that counts towards <c>FAILED_LOGIN_ATTEMPTS</c> (code review).
 /// </summary>
 public sealed class OracleConnectionTester(IDatabaseConnector connector, TimeProvider time) : IConnectionTester
 {

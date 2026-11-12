@@ -86,6 +86,10 @@ public sealed partial class OracleSession
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// False only if the probe fails for want of rights; any other failure (the connection lost meanwhile) goes to the caller as
+    /// it is – it was taken for a missing grant, without the banner of a lost connection (code review).
+    /// </summary>
     private async Task<bool> PlanTableUsableAsync(CancellationToken cancellationToken)
     {
         try
@@ -93,7 +97,7 @@ public sealed partial class OracleSession
             await RunAsync(PlanTableProbeSql, [], (command, ct) => command.ExecuteScalarAsync(ct), cancellationToken);
             return true;
         }
-        catch (OracleStatementException)
+        catch (OracleStatementException ex) when (ex.Oracle is { } oracle && OracleErrorCodes.MissingRights.Contains(oracle.Number))
         {
             return false;
         }
