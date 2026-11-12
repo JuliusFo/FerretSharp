@@ -251,8 +251,9 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
     }
 
     /// <summary>
-    /// CREATE INDEX is no ALTER TABLE: the schema path does not take the table first. With another session's uncommitted
-    /// DML it fails at once with ORA-00054 (WP-22) – the designer shows the lock holders as the SQL editor does.
+    /// With another session's uncommitted DML, CREATE INDEX is not started (WP-22; since review 3.70.0, A17 the schema path
+    /// takes the table first, as before ALTER TABLE – without ONLINE Oracle refused with ORA-00054 anyway, with ONLINE it
+    /// waited). The designer shows the lock holders for both.
     /// </summary>
     [Fact]
     public async Task Index_on_a_table_another_session_has_written_to_fails_at_once()
@@ -263,9 +264,9 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
         var draft = new IndexDraft("IX_TD_AUFTRAG_DATUM", ["DATUM"]);
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var error = await Assert.ThrowsAsync<DatabaseException>(() => connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(draft, Ref("TD_AUFTRAG")), Ct));
+        var error = await Assert.ThrowsAsync<TableBusyException>(() => connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(draft, Ref("TD_AUFTRAG")), Ct));
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"Took {stopwatch.Elapsed}.");
-        Assert.Equal("ORA-00054", error.ErrorCode);
+        Assert.StartsWith("Nicht gestartet: Eine andere Session hat in", error.Message, StringComparison.Ordinal);
 
         await writer.Editor.RollbackAsync(Ct);
         await connection.Editor.ExecuteDdlAsync(IndexDesign.Ddl(draft, Ref("TD_AUFTRAG")), Ct);
