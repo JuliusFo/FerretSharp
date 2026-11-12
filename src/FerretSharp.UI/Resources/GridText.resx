@@ -799,6 +799,10 @@
     <value>Number, e.g. 4711 or 12.5</value>
     <comment>Placeholder; German or ISO input works, so 12.5 and 12,5 are both accepted</comment>
   </data>
+  <data name="Filter_DateOffsetPlaceholder" xml:space="preserve">
+    <value>DD.MM.YYYY [hh:mm] [+hh:mm]</value>
+    <comment>Placeholder for TIMESTAMP WITH TIME ZONE: an offset at the end (+02:00, Z) is optional</comment>
+  </data>
   <data name="Filter_DatePlaceholder" xml:space="preserve">
     <value>DD.MM.YYYY [hh:mm]</value>
     <comment>Placeholder; the filter takes German date formats (or ISO)</comment>
