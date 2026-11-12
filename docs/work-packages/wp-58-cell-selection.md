@@ -59,4 +59,4 @@ Im Maustest aufgefallen: Die IN-Liste eines Bereichs (`'041', '054'`) in den Fil
 
 ## Offen
 - Nicht eigens geprüft: Textmarkieren in Monaco über den Fensterrand hinaus mit dem neuen Festhalten der Maus (sollte jetzt wie im Browser weiterlaufen).
-- UX-Frage: Soll Ctrl+C auf markierte Spalten bei bekannter Zeilenzahl über der Grenze gar nicht erst lesen? Heute liest es bis zur Grenze und meldet dann „nichts kopiert“.
+- UX-Frage: Soll Ctrl+C auf markierte Spalten bei bekannter Zeilenzahl über der Grenze gar nicht erst lesen? Heute liest es bis zur Grenze und meldet dann „nichts kopiert“. – Ja, bei bekannter Zeilenzahl nicht lesen, sondern sofort melden, mit Knopf zum Export (Entscheidung des Nutzers, 2026-11-12, eingeplant unter „Kleine Themen“ in `docs/roadmap.md`).
