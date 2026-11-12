@@ -439,8 +439,9 @@ public sealed class OracleDataAccess(OracleSession session, long? asOf = null) :
                 var found = new List<Audit.AuditRowChange>();
                 while (await reader.ReadAsync(ct))
                 {
+                    // As ReadRow keys the rows asked for: a TIMESTAMP(8/9) with all digits (review of WP-85, the marks found no row).
                     RowKey key = byPrimaryKey
-                        ? new RowKey.PrimaryKey([.. keyColumns.Select((c, i) => reader.IsDBNull(i) ? null : ReadValue(oracle, i, table.Columns[c]))])
+                        ? new RowKey.PrimaryKey([.. keyColumns.Select((c, i) => ReadKeyValue(oracle, i, table.Columns[c]))])
                         : new RowKey.RowId(Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture)!);
                     var at = byPrimaryKey ? keyColumns.Count : 1;
                     var first = Convert.ToInt64(reader.GetValue(at), CultureInfo.InvariantCulture) == 1;
@@ -545,7 +546,7 @@ public sealed class OracleDataAccess(OracleSession session, long? asOf = null) :
                     if (keyValues is not null && values[i] is not null && ColumnCategories.LosesFractionsWhenRead(column.Column)
                         && table.PrimaryKey.Contains(column.Column.Name))
                     {
-                        keyValues[i] = ReadPreciseTimestamp(reader, ordinal, column.Column); // the key keeps all digits (WP-85)
+                        keyValues[i] = ReadKeyValue(reader, ordinal, column.Column)!; // the key keeps all digits (WP-85)
                     }
 
                     ordinal++;
@@ -603,6 +604,15 @@ public sealed class OracleDataAccess(OracleSession session, long? asOf = null) :
                 return reader.GetValue(ordinal);
         }
     }
+
+    /// <summary>
+    /// A primary key value as every read keys a row (<see cref="RowKey"/>): a TIMESTAMP(8/9) with all its digits, everything
+    /// else as <see cref="ReadValue"/>. Every read that compares its keys with rows of the grid takes it (review of WP-85).
+    /// </summary>
+    private static object? ReadKeyValue(OracleDataReader reader, int ordinal, ColumnInfo column) =>
+        reader.IsDBNull(ordinal) ? null
+        : ColumnCategories.LosesFractionsWhenRead(column) ? ReadPreciseTimestamp(reader, ordinal, column)
+        : ReadValue(reader, ordinal, column);
 
     /// <summary>A TIMESTAMP(8/9) (also WITH LOCAL TIME ZONE) with all nine digits – for keys only (<see cref="PreciseTimestamp"/>).</summary>
     private static PreciseTimestamp ReadPreciseTimestamp(OracleDataReader reader, int ordinal, ColumnInfo column)
