@@ -355,7 +355,16 @@ public partial class App : Application
 
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
-            Log.Error(args.Exception, "Unobserved task exception");
+            if (UnobservedErrors.IsAbortedSocket(args.Exception))
+            {
+                // ODP.NET's socket task after an open that timed out (fix/robustness): harmless.
+                Log.Warning("Unobserved aborted socket operation: {Message}", args.Exception.GetBaseException().Message);
+            }
+            else
+            {
+                Log.Error(args.Exception, "Unobserved task exception");
+            }
+
             args.SetObserved();
         };
     }
