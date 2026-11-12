@@ -32,6 +32,26 @@ Eigener Container `ferret-wp41`, das Beispielprojekt als zwei Git-Klone im Scrat
 - Geprüft: Vorschau im Reiter „C#“ (Länge/NULL, Stellen, Löschen, neue Spalte im Stil `k => k.`), nach dem Lauf „Ins Projekt schreiben“, nur die zwei Dateien im Arbeits-Klon geändert, CRLF und alle anderen Zeilen unverändert, verknüpfter Klon unberührt; Warnung „nicht committete Änderungen“; eine von außen geänderte Datei wird nicht geschrieben, nach „Arbeits-Klon neu ansehen“ schon (die getippte Zeile bleibt); „Entity anlegen“ für eine Tabelle ohne Entity mit `DbSet` im Stil `=> Set<T>()` und ohne Registrierung (`ApplyConfigurationsFromAssembly`); nach `CREATE TABLE` öffnet der Tab mit der Vorschau. Der Arbeits-Klon baut danach. Hell und dunkel angesehen, Log ohne `[ERR]`/`[WRN]`.
 - Nicht geprüft: die Ordnerauswahl mit mehreren Ordnern in der App (das Beispielprojekt hat je einen; Unit-Test), Warnung „Branch einer Verbindung“ in der App (Unit-Test mit echtem git), ein Projekt ohne nullable reference types.
 
+## Nachtrag: Code-Review (2026-11-12)
+Entscheidung des Nutzers: „Alle beheben, Punkt 6 passt so“; zum zweiten Durchgang: „Ja, N1 bis N4 beheben, N5 ins Protokoll“.
+- M1 Verknüpfter Klon als Arbeits-Klon wurde beschrieben, ohne Warnung: behoben – Stufe `WorkCloneIsLinked` (Git-Wurzel gegen alle verknüpften Projekte der Gruppe), Test.
+- M2 Links über `ReparsePoint` (OneDrive-Platzhalter) und Laufwerk als Wurzel: behoben – `Core/IO/UserFolderPaths` gemeinsam mit `ScriptPaths`; Tests für Junction (Scan und Writer) und Laufwerk.
+- M3 Neue Spalte mit belegtem Namen nicht angelegt (Schutz prüfte den einfachen Namen): behoben, Test.
+- M4 `[Required]` bei jeder Facettenänderung entfernt: behoben (nur bei NULL-Wechsel), Testfall.
+- M5 Gleicher Klassenname in zwei Projekten, beide geändert: behoben – Problem „mehrfach deklariert“ für Entity und Kontext, Test.
+- M6 Teillauf verlor den C#-Teil, ein zweiter Lauf verwarf den ersten: behoben wie vorgeschlagen – der Tab hält den Stand vor dem ersten nicht geschriebenen Lauf und die verketteten Umbenennungen (`ForTable.AfterRun`), die Spaltenansicht vergleicht mit dem aktuellen DB-Stand; nach dem Schreiben beginnt ein Lauf neu. Test; in der App nachgeprüft (neue Spalte nach dem Lauf, bereits geschriebene nicht noch einmal).
+- K7 Entity-Name ungeprüft, Rückfall auf den rohen Tabellennamen: behoben (`SyntaxFacts`, Rückfall `SuggestName`), Test.
+- K8 Jede ANSI-Datei als „nicht gelesen“ genannt: behoben (nur mit gesuchtem Wort, Latin-1), Test.
+- K9 Schreiben konnte halb enden: behoben – eigenes Token, kein Neuplanen während des Schreibens, Schreibbarkeit vorher; Test (Schreibschutz).
+- K10 git: Pfade als Muster, Fehler als „git fehlt“: behoben (`--literal-pathspecs`, eigener Hinweis), Test.
+- K11 Kleines: Scale zu `HasPrecision(p)` ergänzt; ein Element, das seine Zeile teilt, geht allein; `DbSet`-Kopie tauscht nur Typ-Knoten; `<Nullable>` aus Projekt bzw. `Directory.Build.props`; Prüfung des Ziels im Hintergrund. Tests.
+- Zweiter Durchgang:
+  - N1 (Regression aus M6) „`STATUS` löschen, `LEGACY_CODE` → `STATUS`“ gab die neue Spalte der alten: behoben – erst Umbenennungen (Quelle weg, Ziel da), dann gleiche Namen, jede Spalte einmal; Test.
+  - N2 Neuplanen während des Schreibens ging verloren: behoben (läuft danach); nicht automatisch getestet (Razor).
+  - N3 Sperre ohne Lösch-Freigabe erst beim Ersetzen bemerkt: behoben (Prüfung mit `FileShare.None`), Test.
+  - N4 `<Nullable>` per Regex aus Kommentaren und Bedingungen: behoben (`XDocument`, nur unbedingte Gruppen, sonst entscheiden die Dateien), Test.
+  - N5 bekannte Grenze, nicht geändert: Wird zwischen Designer-Lauf und Schreiben eine Spalte außerhalb des Designers umbenannt (SQL-Editor, Kollege), erscheint das als „gelöscht“ plus „neu“ – im Diff vor dem Schreiben sichtbar. Ebenso zeigt ein Tab, der wegen ausstehender Grid-Änderungen seine alte Struktur behält, die Änderung erst nach Commit oder Rollback richtig.
+
 ## Offen (Fragen an den Nutzer)
 - Ordnerauswahl: nur Ordner, in denen das Projekt schon Entities bzw. Konfigurationen hat. Reicht das, oder soll auch ein neuer Ordner gehen?
 - Umbenennen (`HasColumnName`, Property-Name) und Typwechsel als nächste Stufe (Backlog)?
