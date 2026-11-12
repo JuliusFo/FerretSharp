@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -100,8 +101,8 @@ public static partial class WorkCloneMapping
     /// <summary>
     /// The first <c>.cs</c> file below <paramref name="root"/> declaring the type (by its simple name; nested types by the
     /// innermost): files named after the type first, then depth first – a folder's files, then its subfolders, each in
-    /// ordinal order –, the same on every system. A declaration
-    /// behind <c>//</c> on its line does not count. <c>bin</c>, <c>obj</c> and dot folders are skipped.
+    /// ordinal order –, the same on every system (<see cref="UserFolderPaths.SourceFiles"/>, links skipped). A declaration
+    /// behind <c>//</c> on its line does not count.
     /// </summary>
     public static string? FindTypeFile(string root, string typeName, CancellationToken cancellationToken)
     {
@@ -114,7 +115,7 @@ public static partial class WorkCloneMapping
 
         var declaration = new Regex($@"^(?:(?!//).)*\b(class|record|struct|interface|enum)\s+{Regex.Escape(simple)}\b",
             RegexOptions.CultureInvariant | RegexOptions.Multiline);
-        var files = SourceFiles(root).ToList();
+        var files = UserFolderPaths.SourceFiles(root).ToList();
         foreach (var file in files.OrderBy(f => !string.Equals(Path.GetFileNameWithoutExtension(f), simple, StringComparison.OrdinalIgnoreCase)))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -153,42 +154,6 @@ public static partial class WorkCloneMapping
 
         var relative = Path.GetRelativePath(linkedRoot, document);
         return relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathFullyQualified(relative) ? null : relative;
-    }
-
-    private static IEnumerable<string> SourceFiles(string root)
-    {
-        var pending = new Stack<string>([root]);
-        while (pending.TryPop(out var directory))
-        {
-            string[] files, directories;
-            try
-            {
-                files = Directory.GetFiles(directory, "*.cs");
-                directories = Directory.GetDirectories(directory);
-                Array.Sort(files, StringComparer.Ordinal);
-                Array.Sort(directories, StringComparer.Ordinal);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                continue;
-            }
-
-            foreach (var file in files)
-            {
-                yield return file;
-            }
-
-            // pushed in reverse, so the stack pops them in ordinal order
-            for (var i = directories.Length - 1; i >= 0; i--)
-            {
-                var child = directories[i];
-                var name = Path.GetFileName(child);
-                if (!name.StartsWith('.') && !name.Equals("bin", StringComparison.OrdinalIgnoreCase) && !name.Equals("obj", StringComparison.OrdinalIgnoreCase))
-                {
-                    pending.Push(child);
-                }
-            }
-        }
     }
 
     [GeneratedRegex("^/_/(.+)$")]

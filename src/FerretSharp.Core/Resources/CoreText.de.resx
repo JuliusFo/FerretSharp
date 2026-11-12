@@ -12,6 +12,9 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="ErrorInLine" xml:space="preserve">
+    <value>Zeile {0}: {1}</value>
+  </data>
   <data name="NameInvalid" xml:space="preserve">
     <value>{0}: Ein Name darf keine doppelten Anführungszeichen enthalten.</value>
   </data>

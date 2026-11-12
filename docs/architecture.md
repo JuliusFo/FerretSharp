@@ -271,6 +271,9 @@ Eine Aktion im Grid (`ShortcutScope.Grid`, `GridAndForm`) bekommt nie Ctrl+C –
 | Ctrl+Shift+Q | Neuer SQL-Editor; im SQL-Tab führen Ctrl+Enter und F5 das Statement am Cursor aus, Ctrl+F sucht, Ctrl+Leertaste schlägt Tabellen/Spalten vor | 3.2 |
 | Alt+X | Im SQL-Tab: das ganze Skript (bzw. die markierten Statements) nacheinander ausführen | 3.3 |
 | – (frei belegbar) | Im SQL-Tab: das gezeigte Ergebnis behalten bzw. loslassen | WP-81 |
+| – (frei belegbar) | Im SQL-Tab: das Skript in seine Datei speichern bzw. als neues Skript anlegen | WP-77 |
+| – (frei belegbar) | Zeitreise: den aktiven Tabellen-Tab zu einem Zeitpunkt der Vergangenheit öffnen | WP-78 |
+| – (frei belegbar) | SQL-Bedingung des aktiven Tabellen-Tabs ein- bzw. ausschalten | WP-79 |
 | Alt+Enter | Im Grid: Formular der fokussierten Zeile öffnen/schließen; bei mehreren markierten Zeilen: vergleichen. Im Formular: schließen. Nur lokal (nicht in `shortcuts.js`), damit Monaco seine Tasten behält | WP-21 |
 | Alt+↑ / Alt+↓ | Im Formular: vorige/nächste Zeile (bewegt den Fokus im Grid; im Grid selbst reichen ↑/↓). Nur lokal | WP-21 |
 | – (frei belegbar) | Im Grid: die Werte der Spalte der fokussierten Zelle aus den markierten Zeilen kopieren, einer je Zeile (wie „Spalte X kopieren“ im Zellmenü). Nur lokal (`copyColumn`); nicht Ctrl+Shift+C – in WebView2 die Elementauswahl der DevTools | WP-57 |

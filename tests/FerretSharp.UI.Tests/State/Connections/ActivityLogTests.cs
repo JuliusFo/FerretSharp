@@ -46,11 +46,7 @@ public sealed class ActivityLogTests : IAsyncDisposable
         using (new ConnectActivityLog(scope.Active, _logger, "ERP Test"))
         {
             await scope.Active.ConnectAsync(profile, Ct);
-            for (var waited = 0; !_logger.Lines.Any(IsSessionOpenLine); waited += 10)
-            {
-                Assert.True(waited < 5_000, "No line about the session.");
-                await Task.Delay(10, Ct);
-            }
+            await Wait.UntilAsync(() => _logger.Lines.Any(IsSessionOpenLine), "a line about the session");
         }
 
         Assert.Matches(@"^ERP Test: session open after \d+ ms \(attempt 1\)", Assert.Single(_logger.Lines, IsSessionOpenLine));

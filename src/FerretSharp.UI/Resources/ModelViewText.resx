@@ -20,6 +20,9 @@
     <value>Rebuild</value>
     <comment>Button: dotnet build, then reload the model</comment>
   </data>
+  <data name="Model_BuildWaiting" xml:space="preserve">
+    <value>Waiting for another build of FerretSharp to end …</value>
+  </data>
   <data name="Model_BuildTitle" xml:space="preserve">
     <value>dotnet build, then reload</value>
   </data>
@@ -257,15 +260,19 @@
   </data>
   <data name="Usage_Projects" xml:space="preserve">
     <value>{0} projects</value>
+    <comment>{0}: number of projects of the solution</comment>
   </data>
   <data name="Usage_ProjectsNotBuilt" xml:space="preserve">
     <value>{0} not built</value>
+    <comment>{0}: number of projects without build output</comment>
   </data>
   <data name="Usage_ProjectsStale" xml:space="preserve">
     <value>{0} out of date</value>
+    <comment>{0}: number of projects changed after their build</comment>
   </data>
   <data name="Usage_ProjectsFailed" xml:space="preserve">
     <value>{0} unreadable</value>
+    <comment>{0}: number of projects whose build output could not be read</comment>
   </data>
   <data name="Usage_NotBuilt" xml:space="preserve">
     <value>not built (no assembly in the configuration of the link): its uses are missing</value>
@@ -316,6 +323,7 @@
   </data>
   <data name="Usage_Stale" xml:space="preserve">
     <value>out of date: {0} changed after the build</value>
+    <comment>{0}: the file changed after the build</comment>
   </data>
   <data name="Usage_NoPdb" xml:space="preserve">
     <value>no portable PDB: methods without file and line</value>
@@ -325,6 +333,7 @@
   </data>
   <data name="Usage_FileMissing" xml:space="preserve">
     <value>The file no longer exists: {0}</value>
+    <comment>{0}: path of the file</comment>
   </data>
   <data name="Usage_OpenFailed" xml:space="preserve">
     <value>The editor could not be started.</value>
@@ -346,6 +355,7 @@
   </data>
   <data name="Usage_Heading" xml:space="preserve">
     <value>Usage of {0} in the code</value>
+    <comment>{0}: the entity or property</comment>
   </data>
   <data name="Usage_Solution" xml:space="preserve">
     <value>Solution</value>
@@ -355,6 +365,7 @@
   </data>
   <data name="Usage_BuiltAt" xml:space="preserve">
     <value>as of {0}</value>
+    <comment>{0}: time of the build the usage was read from</comment>
   </data>
   <data name="Usage_Reload" xml:space="preserve">
     <value>Read again</value>
@@ -364,6 +375,7 @@
   </data>
   <data name="Usage_Failed" xml:space="preserve">
     <value>The solution could not be read: {0}</value>
+    <comment>{0}: error message</comment>
   </data>
   <data name="Usage_Limits" xml:space="preserve">
     <value>Read from the compiled code: accesses by string (EF.Property, Include("…")), reflection and raw SQL are not found. Code that is not built is missing.</value>
@@ -382,6 +394,7 @@
   </data>
   <data name="Usage_Via" xml:space="preserve">
     <value>via {0}</value>
+    <comment>{0}: the member the usage goes through</comment>
   </data>
   <data name="Usage_Test" xml:space="preserve">
     <value>test</value>
@@ -409,18 +422,23 @@
   </data>
   <data name="Usage_DropUsed" xml:space="preserve">
     <value>Column {0} ({1}) is used in the code at {2} places ({3}): the build breaks once the property is removed.</value>
+    <comment>{0}: column; {1}: its property; {2}: number of places; {3}: the files</comment>
   </data>
   <data name="Usage_RenameUsed" xml:space="preserve">
     <value>Column {0} ({1}) is renamed and used in the code at {2} places ({3}): the mapping of the property must follow.</value>
+    <comment>{0}: column; {1}: its property; {2}: number of places; {3}: the files</comment>
   </data>
   <data name="Usage_DropAlsoNavigation" xml:space="preserve">
     <value>{0} more through {1}: the relationship needs the column, their queries fail at run time without it.</value>
+    <comment>{0}: number of further places; {1}: the navigation they go through</comment>
   </data>
   <data name="Usage_DropUsedNavigation" xml:space="preserve">
     <value>Column {0} is used in the code through {1} at {2} places ({3}): the relationship needs the column, their queries fail at run time without it.</value>
+    <comment>{0}: column; {1}: the navigation; {2}: number of places; {3}: the files</comment>
   </data>
   <data name="Usage_ViaNavigation" xml:space="preserve">
     <value>via navigation {0}</value>
+    <comment>{0}: the navigation property</comment>
   </data>
   <data name="Usage_NavigationsHeading" xml:space="preserve">
     <value>Through navigations</value>
@@ -448,6 +466,7 @@
   </data>
   <data name="Usage_TabUnused" xml:space="preserve">
     <value>{0} unused</value>
+    <comment>{0}: number of unused properties</comment>
   </data>
   <data name="Usage_TabQueries" xml:space="preserve">
     <value>Queries</value>
@@ -490,9 +509,11 @@
   </data>
   <data name="Usage_SolutionNotSaved" xml:space="preserve">
     <value>The solution is read from now on, but could not be saved for the connection: {0}</value>
+    <comment>{0}: error message</comment>
   </data>
   <data name="Usage_NotSourceFile" xml:space="preserve">
     <value>The default program opens source files only: {0}</value>
+    <comment>{0}: path of the file</comment>
   </data>
   <data name="Usage_Shadow" xml:space="preserve">
     <value>Shadow</value>

@@ -1,6 +1,6 @@
 # WP-83 Schema-Vergleich: DDL direkt ausführen, Filter behalten, Felder im Stil
 
-Branch `wp/83-compare-ddl-run` (von `main`), 2026-11-10, noch ohne Release. ADR 0019 mit Nachtrag (Ausführen im Vergleich neben „Im SQL-Editor öffnen“); Lese-, Schreib- und Schemaweg bleiben unverändert.
+Branch `wp/83-compare-ddl-run` (von `main`), 2026-11-10, Release 3.69.0. ADR 0019 mit Nachtrag (Ausführen im Vergleich neben „Im SQL-Editor öffnen“); Lese-, Schreib- und Schemaweg bleiben unverändert.
 
 ## Planung (aus `docs/roadmap.md`)
 Branch `wp/83-compare-ddl-run`. Drei Punkte aus der Planung „[Ohne WP] Schema-Vergleich“ (2026-11-10), in einem Paket, weil sie zusammenhängen: Heute verlässt man den Vergleich über „Im SQL-Editor öffnen“ und verliert beim Zurückkommen die Suche – mit dem Ausführen im Dialog bleibt man auf der Seite, und nach dem Lauf soll der neue Vergleich mit derselben Ansicht kommen. Fortsetzung von WP-20 und WP-22; Bausteine aus WP-23.

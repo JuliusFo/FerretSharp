@@ -16,7 +16,7 @@ public sealed record SideResult(SchemaSnapshot? Snapshot, DatabaseException? Err
 /// sides are read. Sides of the same connection share the session; different connections load in parallel. A side
 /// that fails (VPN, rights, wrong schema) does not stop the others.
 /// </summary>
-public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabaseConnector connector)
+public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabaseConnector connector, TimeProvider? time = null)
 {
     public const string SessionAction = "Schema-Vergleich";
 
@@ -59,9 +59,9 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
             return;
         }
 
-        if (connections.GetPassword(connectionId) is not { } password)
+        if (!connections.HasPassword(connectionId))
         {
-            FailAll(new SideResult(null, new DatabaseException(TextFormat.Format(CompareText.NoPasswordFor, profile.Name)), NeedsPassword: true));
+            FailAll(new SideResult(null, new MissingPasswordException(profile), NeedsPassword: true));
             return;
         }
 
@@ -73,19 +73,13 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
         IDatabaseConnection connection;
         try
         {
-            connection = await connector.OpenAsync(profile, password, SessionAction, cancellationToken);
-            connections.PasswordWorked(connectionId);
+            // In attempts like every other session (review 3.70.0, B1); the snapshot is read as the user is allowed to.
+            connection = await OwnSession.OpenAsync(connector, connections, profile, SessionAction, time ?? TimeProvider.System, readOnlySnapshots: false, cancellationToken);
         }
         catch (DatabaseException ex)
         {
-            // A wrong password typed for this run is forgotten and asked for again (A12), as when connecting.
-            var wrong = ex.ErrorCode == ConnectionManager.WrongPasswordCode;
-            if (wrong)
-            {
-                connections.ForgetSessionPassword(connectionId);
-            }
-
-            FailAll(new SideResult(null, ex, NeedsPassword: wrong && !connections.HasPassword(connectionId)));
+            // A wrong password typed for this run is forgotten (OwnSession) and asked for again (A12), as when connecting.
+            FailAll(new SideResult(null, ex, NeedsPassword: !connections.HasPassword(connectionId)));
             return;
         }
 

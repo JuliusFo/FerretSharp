@@ -13,7 +13,7 @@ Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen e
 | `docs/work-packages/` – Index mit Bereichen, je Paket ein Protokoll mit den Entscheidungen des Nutzers | bevor ein Bereich angefasst wird: im Index suchen, dann nur diese Datei |
 | `docs/roadmap.md` (Geplantes, Labels, UX-Fragen), `docs/backlog.md` (Ideen) | beim Start eines Pakets; neue Ideen in den Backlog |
 | `docs/release.md` – CI, Versionierung, Velopack | vor Änderungen an CI/Version und vor jedem Release |
-| `docs/e2e-testing.md`, `docs/localization.md`, `docs/audit-templates.md` | vor E2E-Läufen, neuen Texten, Änderungen an `Core/Audit` |
+| `docs/e2e-testing.md`, `docs/localization.md`, `docs/audit-templates.md`, `docs/sql-scripts.md` | vor E2E-Läufen, neuen Texten, Änderungen an `Core/Audit` bzw. `Core/Scripts` |
 | `docs/decisions/` – ADRs | bei Stack- oder Architekturänderungen |
 
 ## 1. Ziel
@@ -54,6 +54,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | Icons | **Lucide 1.55** als Pfade in `Icons.cs` (ADR 0035) | Kein Paket, keine Icon-Schrift; neue Icons aus derselben Version. |
 | Excel-Export | **SpreadCheetah** (ADR 0028), nur in `Core/Data/XlsxExport` | Text bleibt Text, nie Formeln. |
 | App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Nie Connection-String oder Parameter (`EfEvents`). |
+| C#-Quelltext | **Roslyn**: `Microsoft.CodeAnalysis.CSharp` 5.9 im Core nur für Syntax (ADR 0050), 4.11 im ModelHost (Scripting, .NET 8) | Im ModelHost nie über 4.11 heben (`code-edit.md`). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, async mit `CancellationToken`. `OFFSET/FETCH` ab 12c, kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; **Testcontainers.Oracle** | Kein VSTest. |
 | Persistenz | JSON (`System.Text.Json`): schreiben über `AtomicJsonFile`, lesen über `VersionedJsonFile` | Regel je Datei: `docs/architecture.md` 1.7. Polymorphie über `[JsonPolymorphic]`; keine `object`-Properties (werden zu `JsonElement`). |
@@ -67,7 +68,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
   Oracle/ Query/ (SqlEditor/, Search/) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/ Ddl/
-  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ Relations/ ServerLoad/ ClrModel/ (Host/ CodeGen/ Usage/) – Unterordner ohne eigenen Namespace
+  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ Relations/ ServerLoad/ Scripts/ ClrModel/ (Host/ CodeGen/ Usage/ CodeEdit/ Report/) – Unterordner ohne eigenen Namespace
 src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/, Components/ (Ordner =
                             Namespace), State/ (Namespace `UI.State`), wwwroot/ (css, js als ES-Module, lib/)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
@@ -77,7 +78,7 @@ tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (T
                             FakeModelHost, FakeEfApp, FakeEfModel; Shared/
 samples/                    Beispielmodell (DbContext + Entities) zur Beispiel-DB
 pages/                      Weiterleitungsseite für Links auf GitHub Pages (ADR 0026)
-tools/                      icon/ (Icon generiert, nicht von Hand), sample-db/, coverage/
+tools/                      icon/ (Icon generiert, nicht von Hand), sample-db/, coverage/, e2e/ (Testinstanz, echte Klicks), linux/
 ```
 
 Regeln:

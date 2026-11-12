@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using FerretSharp.Core.Audit;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
@@ -40,7 +39,7 @@ public sealed class ReportExceptionSource(AppSettingsService settings, string de
     public ReportExceptionLoad For(ConnectionProfile? profile)
     {
         var current = settings.Current;
-        if (AuditTemplateSource.GroupEntry(current.ReportExceptionsGroups, profile?.Group) is { } entry)
+        if (ConnectionSearch.GroupEntry(current.ReportExceptionsGroups, profile?.Group) is { } entry)
         {
             return Load(entry.Value) with { Group = entry.Key };
         }

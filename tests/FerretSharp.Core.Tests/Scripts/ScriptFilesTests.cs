@@ -67,6 +67,21 @@ public sealed class ScriptFilesTests : IDisposable
         Assert.Equal(ScriptWriteOutcome.ChangedOnDisk, gone.Outcome);
     }
 
+    /// <summary>
+    /// Review 3.70.0, A23: one CRLF line pasted into an LF script made the whole file CRLF on saving, and git diff showed every
+    /// line. The line break most lines have wins, as for C# files.
+    /// </summary>
+    [Fact]
+    public async Task One_crlf_line_in_an_lf_script_does_not_turn_the_file_to_crlf()
+    {
+        await File.WriteAllTextAsync(_folder.Combine("a.sql"), "SELECT 1\nFROM dual\r\nWHERE 1 = 1\nORDER BY 1\n", Ct);
+        var read = await ScriptFiles.ReadAsync(Root, "a.sql", Ct);
+
+        await ScriptFiles.WriteAsync(Root, "a.sql", ScriptHeader.Empty, "SELECT 2\nFROM dual\n", ScriptWriteMode.Update, read.FileHash, Ct);
+
+        Assert.Equal("SELECT 2\nFROM dual\n", await File.ReadAllTextAsync(_folder.Combine("a.sql"), Ct));
+    }
+
     [Theory]
     [InlineData(true, "\n")]
     [InlineData(false, "\r\n")]

@@ -124,12 +124,20 @@ public static class ScriptFiles
         try
         {
             // A temporary file of its own name (review WP-77, S1): a link or a file of the user's called "x.sql.tmp" in a
-            // shared folder is never written through or replaced.
-            await AtomicFile.WriteInUserFolderAsync(path, async (stream, ct) =>
+            // shared folder is never written through or replaced. A new script never replaces one that came up since the
+            // check above (review 3.70.0, B4).
+            Func<Stream, CancellationToken, Task<bool>> content = async (stream, ct) =>
             {
                 await stream.WriteAsync(bytes, ct);
                 return true;
-            }, cancellationToken);
+            };
+            await (mode == ScriptWriteMode.New
+                ? AtomicFile.CreateInUserFolderAsync(path, content, cancellationToken)
+                : AtomicFile.WriteInUserFolderAsync(path, content, cancellationToken));
+        }
+        catch (IOException) when (mode == ScriptWriteMode.New && File.Exists(path))
+        {
+            return new ScriptWrite(ScriptWriteOutcome.Exists, null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -222,7 +230,7 @@ public static class ScriptFiles
 
         var preamble = encoding.GetPreamble();
         var text = encoding.GetString(bytes, preamble.Length, bytes.Length - preamble.Length);
-        var lineBreak = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : text.Contains('\n', StringComparison.Ordinal) ? "\n" : NewFileLineBreak;
+        var lineBreak = TextFileFormat.LineBreakOf(text);
         return (encoding, preamble, lineBreak);
     }
 

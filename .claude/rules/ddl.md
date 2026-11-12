@@ -6,7 +6,9 @@ paths:
   - "src/FerretSharp.Core/Audit/**"
   - "src/FerretSharp.UI/Components/Ddl/**"
   - "src/FerretSharp.UI/Components/Schema/Audit*"
-  - "src/FerretSharp.UI/State/Schema/ColumnDesigner*"
+  - "src/FerretSharp.UI/State/Schema/TableDesignerDraft*"
+  - "src/FerretSharp.UI/State/Schema/Design*"
+  - "src/FerretSharp.UI/State/Schema/AuditDesignRules*"
   - "src/FerretSharp.UI/State/Schema/IndexDraftEditor*"
 ---
 
@@ -23,4 +25,4 @@ Schemaweg und Sperren vor `ALTER TABLE`: `.claude/rules/oracle-transactions.md`,
 - Ausgabe absichern: `DdlOutputTests` halten das ganze Skript des Vergleichs und die Statements des Designers fest.
 - Text aus dem Dictionary im Skript (View-Abfrage, gemessen gegen Oracle 23): Er kann mit einem `--`-Kommentar enden (`Render` setzt das `;` dann in eine eigene Zeile) und eine Zeile nur mit `/` enthalten, an der der SQL-Editor das Statement beendet (dann nur Hinweis, `ViewText.HasSlashLine`). `CREATE OR REPLACE VIEW` behält die Grants, löscht aber die INSTEAD-OF-Trigger der View. Ein Test schickt das Skript durch `SqlScript.Split`, nicht nur die einzelnen `Sql` (Review WP-82).
 - Audit (WP-26, `docs/audit-templates.md`): Die Audit-Tabelle plant `AuditPlanner` über `TableDesign` (keine eigenen DDL-Strings), nur der Trigger-Text kommt aus der Vorlage des Nutzers. Ein Trigger aus der Vorlage muss die Schranke des Schemaweges passieren und `SqlScript.Split` als **ein** Statement sehen (Tests in `AuditTemplateTests`). Kommentare im Trigger-Teil einer Vorlage landen im Quelltext in der Datenbank – Erklärungen gehören über `-- @trigger-source`. Die Vorlage hängt an der Verbindung (WP-51): immer `AuditTemplateSource.For(Active.Profile)`, nie eine Vorlage für alle. Typen vorhandener Audit-Spalten nach `OracleTypes.FitOf` (INSERT), nicht nach `ChangeOf` (MODIFY). Seit WP-63 hat eine Audit-Tabelle in `SchemaCache.LinksOf` (nur dort) die Beziehungen ihrer Basistabelle (`ForeignKeyInfo.Audit` gesetzt, Quelle bleibt – auch `Declared`): Lesewege (Grid, Formular, Menüs, Anzeigespalten) fragen `LinksOf`, alles, was Constraints meint, `OutgoingOf` (ADR 0036). Die Audit-Vorlage fragt der Schema-Cache nur beim Laden und mit `RefreshAuditTemplate`, nie je Nachschlagen.
-- Was DDL nie ausführt (Entscheidung des Nutzers): `TRUNCATE`, `ALTER TABLE … TRUNCATE/DROP (SUB)PARTITION`, `FLASHBACK TABLE … TO` (außer `TO BEFORE DROP`), `PURGE`, `DROP TABLE … PURGE`, `DROP USER … CASCADE`, `DROP TABLESPACE/CLUSTER/PLUGGABLE DATABASE … INCLUDING …` (`SqlClassifier`, R5a, R6a, Review 3.44.0; ADR 0019). Integrationstests räumen über den Schemaweg mit `DROP TABLE` ohne `PURGE` auf.
+- Was DDL nie ausführt (Entscheidung des Nutzers): `TRUNCATE`, `ALTER TABLE … TRUNCATE/DROP (SUB)PARTITION`, `FLASHBACK TABLE … TO` (außer `TO BEFORE DROP`), `PURGE`, `DROP TABLE … PURGE`, `DROP USER … CASCADE`, `DROP TABLESPACE/CLUSTER/PLUGGABLE DATABASE … INCLUDING …`, `ALTER TABLE … INCLUDING ROWS WHERE` (Move/Split/Merge), `DROP TYPE … FORCE`, `ALTER TYPE … DROP ATTRIBUTE … CASCADE` (`SqlClassifier`, R5a, R6a, Review 3.44.0, R9; ADR 0019); dazu `… INVALIDATE` als Vorschlag (nicht bestätigt) – gemessen verliert es die Werte gleich (R9). Integrationstests räumen über den Schemaweg mit `DROP TABLE` ohne `PURGE` auf.

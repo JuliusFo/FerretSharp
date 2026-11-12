@@ -42,6 +42,17 @@
                 }
                 @ModelViewText.Model_Build
             </button>
+            @if (Models.IsBuilding)
+            {
+                @if (Models.WaitingForBuild)
+                {
+                    <span class="muted">@ModelViewText.Model_BuildWaiting</span>
+                }
+                @if (Models.IsBuildingProject)
+                {
+                    <button class="btn ghost" @onclick="Models.CancelBuild">@CommonText.Cancel</button>
+                }
+            }
         }
         @if (Profile is { } profile)
         {

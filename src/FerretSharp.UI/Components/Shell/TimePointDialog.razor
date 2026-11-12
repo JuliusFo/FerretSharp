@@ -21,11 +21,11 @@
             {
                 var m = minutes;
                 var at = TimeChoice.Preset(m, now);
-                <button class="seg @(chosen == at ? "active" : "")" title="@(earliest is { } e && at < e ? ShellText.TimePoint_BeyondUndo : null)"
-                        @onclick="() => _text = TimeChoice.ToInput(TimeChoice.Preset(m, DateTimeOffset.Now))">@TextFormat.Format(ShellText.TimePoint_MinutesAgo, m)</button>
+                <button class="seg @(_preset == m && chosen is not null ? "active" : "")" title="@(earliest is { } e && at < e ? ShellText.TimePoint_BeyondUndo : null)"
+                        @onclick="() => Choose(m)">@TextFormat.Format(ShellText.TimePoint_MinutesAgo, m)</button>
             }
         </div>
-        <input @ref="_input" type="datetime-local" step="1" class="field mono" value="@_text" @oninput="e => _text = (string?)e.Value"
+        <input @ref="_input" type="datetime-local" step="1" class="field mono" value="@_text" @oninput="e => (_text, _preset) = ((string?)e.Value, null)"
                @onkeydown="OnKeyDown" max="@TimeChoice.ToInput(now)" min="@(earliest is { } min ? TimeChoice.ToInput(min) : null)"
                aria-label="@ShellText.TimePoint_Time" />
         @if (earliest is { } reach)
@@ -63,9 +63,17 @@
 
     private string Title => Request.Tab is null ? ShellText.TimePoint_DiffTitle : ShellText.TimePoint_TravelTitle;
 
+    /// <summary>
+    /// The preset chosen last, until the time is typed: compared with each render's "now" the mark went away as soon as the
+    /// hint about the undo came in (review 3.70.0, A21).
+    /// </summary>
+    private int? _preset;
+
+    private void Choose(int minutes) => (_text, _preset) = (TimeChoice.ToInput(TimeChoice.Preset(minutes, DateTimeOffset.Now)), minutes);
+
     protected override void OnInitialized()
     {
-        _text = TimeChoice.ToInput(TimeChoice.Preset(TimeChoice.PresetMinutes[1], DateTimeOffset.Now));
+        Choose(TimeChoice.PresetMinutes[1]);
         Fire(async () =>
         {
             // The hint only: without the right, or slow over the VPN, the dialog works without it.

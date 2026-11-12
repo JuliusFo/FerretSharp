@@ -130,6 +130,20 @@ public sealed class WorkCloneTests : IDisposable
         Assert.Null(WorkCloneMapping.Resolve(deterministic, linked, Clone("work", "feature/x"), null, TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    /// Review 3.70.0, A4: "Usage" looked for a moved file's type behind a junction in the clone too – a link to another
+    /// repository or a share, and the editor opened a class outside the clone (on a share, reading it signs in there).
+    /// </summary>
+    [Fact]
+    public void A_type_behind_a_junction_in_the_clone_is_not_found()
+    {
+        var root = Directory.CreateDirectory(_folder.Combine("repo")).FullName;
+        var outside = Write("elsewhere/Customer.cs", "public class Customer { }");
+        TestFolder.Junction(Path.Combine(root, "joined"), Path.GetDirectoryName(outside)!);
+
+        Assert.Null(WorkCloneMapping.FindTypeFile(root, "Shop.Customer", TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public void A_nested_or_generic_type_is_found_by_its_simple_name_files_named_after_it_first()
     {

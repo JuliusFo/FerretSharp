@@ -115,6 +115,64 @@ public sealed class WorkspaceLifecycleTests : IAsyncDisposable
     }
 
     /// <summary>
+    /// Code review of R9, finding 1: grid changes not written yet live in the page – before it loads anew after a crash the
+    /// host asks, and writes them through the shell (no commit).
+    /// </summary>
+    [Fact]
+    public async Task Pending_changes_are_counted_and_written_without_a_commit_before_the_page_loads_anew()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var tab = _app.AddPendingWork(scope);
+        var commits = 0;
+        _app.OnCommit = () => { commits++; return Task.CompletedTask; };
+
+        Assert.True(Lifecycle.PendingChanges > 0);
+        Assert.True(await Lifecycle.FlushAllAsync());
+
+        Assert.Equal(0, Lifecycle.PendingChanges);
+        Assert.True(tab.Changes!.FlushedCount > 0);
+        Assert.Equal(0, commits);
+    }
+
+    /// <summary>
+    /// Second pass of the code review of R9: changes of a lost connection cannot be written – "written" would let them go
+    /// with the reload unseen; the host asks whether to load anyway.
+    /// </summary>
+    [Fact]
+    public async Task Pending_changes_of_a_lost_connection_are_not_reported_as_written()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        _app.AddPendingWork(test);
+        test.Active.ReportLost(TestApp.LostError());
+
+        Assert.True(Lifecycle.PendingChanges > 0);
+        Assert.False(await Lifecycle.FlushAllAsync());
+    }
+
+    /// <summary>
+    /// Review 3.70.0, A2: with the page crashed, the host asks natively and finishes every connection's work without the leave
+    /// dialog – the shell's question would stand in the dead page, and the window could not be closed.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Finishing_all_without_the_dialog_commits_or_rolls_back_every_connection_s_work(bool commit)
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("ERP Dev"));
+        var tabs = new[] { test, dev }.Select(_app.AddPendingWork).ToList();
+        var commits = 0;
+        _app.OnCommit = () => { Interlocked.Increment(ref commits); return Task.CompletedTask; };
+
+        Assert.True(await Lifecycle.FinishAllAsync(commit));
+
+        Assert.Equal(commit ? 2 : 0, commits);
+        Assert.All(tabs, tab => Assert.Equal((0, 0), (tab.Changes!.PendingCount, tab.Changes.FlushedCount)));
+        Assert.Null(Lifecycle.PendingLeave);
+        Assert.True(Lifecycle.CanExit);
+    }
+
+    /// <summary>
     /// "Disconnect all" of a group (WP-66) asks once about the work of all connections; cancelled, nothing closes, discarded,
     /// all of them close (review 3.54.0, C3).
     /// </summary>

@@ -202,7 +202,8 @@
         (_, { } at) => TextFormat.Format(ServerLoadText.ServerLoad_StatusWatching, Clock(at), (int)ServerLoadService.Interval.TotalSeconds),
     };
 
-    private static string Clock(DateTimeOffset at) => at.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
+    /// <summary>In the user's culture like the rest of the app (review 3.70.0, A24: always 24 h).</summary>
+    private static string Clock(DateTimeOffset at) => TimeText.TimeOfDay(at);
 
     private static string Number(double value, string format = "0.0") => value.ToString(format, CultureInfo.CurrentCulture);
 

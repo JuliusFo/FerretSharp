@@ -201,6 +201,19 @@ public static class SqlAnalysis
     }
 
     /// <summary>
+    /// The index of <c>ALTER INDEX [owner.]i … ONLINE</c> (review 3.70.0, A17): an online rebuild waits for every open
+    /// transaction on its table, so the schema path takes that table first; null for anything else.
+    /// </summary>
+    public static SqlTableReference? OnlineIndexOf(string statement)
+    {
+        var tokens = SqlTokenizer.Significant(statement);
+        return tokens.Count > 2 && SqlClassifier.KindOf(tokens) == SqlStatementKind.Ddl && tokens[0].IsWord("ALTER") && tokens[1].IsWord("INDEX")
+            && tokens.Any(t => t.IsWord("ONLINE"))
+                ? DdlTargetAt(tokens, 2)
+                : null;
+    }
+
+    /// <summary>
     /// The object a DDL statement names at <paramref name="i"/>: <c>[IF [NOT] EXISTS] [owner.]name</c>. Unlike a table in a
     /// query, a DDL target has no alias – every word is a name here (R4a: <c>ALTER TABLE log …</c> was not recognised, the
     /// table not taken first, and the ALTER could wait without a way to cancel it).

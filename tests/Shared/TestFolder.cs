@@ -18,6 +18,28 @@ internal sealed class TestFolder : IDisposable
     public string Combine(params string[] parts) => System.IO.Path.Combine([Path, .. parts]);
 
     /// <summary>
+    /// A junction at <paramref name="link"/> to the folder <paramref name="target"/>: unlike a symbolic link it needs no
+    /// rights on Windows (review WP-77, K7). Skips the test elsewhere.
+    /// </summary>
+    public static void Junction(string link, string target)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Junctions exist only on Windows.");
+        }
+
+        using var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe")
+        {
+            ArgumentList = { "/c", "mklink", "/J", link, target },
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            CreateNoWindow = true,
+        })!;
+        mklink.WaitForExit();
+        Assert.Equal(0, mklink.ExitCode);
+    }
+
+    /// <summary>
     /// Retries a few times: work started by the test may still write here (a reconnect runs in the background, a killed
     /// process lets go of its files late). Leaves the folder behind rather than failing the test.
     /// </summary>

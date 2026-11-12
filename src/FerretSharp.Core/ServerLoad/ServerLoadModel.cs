@@ -1,5 +1,6 @@
 using System.Text;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
 
 namespace FerretSharp.Core.ServerLoad;
 
@@ -217,10 +218,7 @@ public sealed record StatementFilter(string? Schema = null, string? Module = nul
 
     /// <summary>A statement whose info is not known does not match a filter that is set.</summary>
     public bool Matches(StatementInfo? info) =>
-        IsEmpty || (info is not null && Contains(info.Schema, Schema) && Contains(info.Module, Module));
-
-    private static bool Contains(string? value, string? part) =>
-        string.IsNullOrWhiteSpace(part) || (value?.Contains(part.Trim(), StringComparison.OrdinalIgnoreCase) ?? false);
+        IsEmpty || (info is not null && new TextSearch(Schema).Matches(info.Schema) && new TextSearch(Module).Matches(info.Module));
 }
 
 /// <summary>A line of the top list.</summary>

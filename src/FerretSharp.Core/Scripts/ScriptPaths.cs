@@ -141,7 +141,7 @@ public static class ScriptPaths
     }
 
     /// <summary>The relative path of <paramref name="full"/> below <paramref name="root"/>, with <c>/</c>; null if it is not below it.</summary>
-    public static string? RelativeOf(string root, string full)
+    internal static string? RelativeOf(string root, string full)
     {
         var prefix = Below(Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)));
         var path = Path.GetFullPath(full);

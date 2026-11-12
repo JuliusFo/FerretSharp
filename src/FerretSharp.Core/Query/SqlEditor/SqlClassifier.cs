@@ -103,6 +103,16 @@ public static class SqlClassifier
                 || (second == "DATABASE" && !(tokens.Count > 2 && tokens[2].IsWord("LINK"))) => SqlStatementKind.SessionControl,
             "TRUNCATE" or "PURGE" => SqlStatementKind.Truncate,
             "ALTER" when second == "TABLE" && DropsPartition(tokens) => SqlStatementKind.Truncate,
+            // Review 3.70.0, A3 (decision of the user, measured on Oracle 23): MOVE/SPLIT/MERGE … INCLUDING ROWS WHERE keeps
+            // only the rows of the condition, the others are gone without a trace in the recycle bin.
+            "ALTER" when second == "TABLE" && Follows(tokens, "INCLUDING", "ROWS") => SqlStatementKind.Truncate,
+            // The same: DROP TYPE … FORCE drops the columns of that type in other tables (unused, data gone); dropping an
+            // attribute with CASCADE drops its values in every table – without CASCADE or INVALIDATE, Oracle refuses while
+            // tables use the type (ORA-02303, ORA-22312). INVALIDATE: a proposal, not confirmed by the user yet – measured,
+            // it loses the values the same way.
+            "DROP" when second == "TYPE" && Follows(tokens, "FORCE") => SqlStatementKind.Truncate,
+            "ALTER" when second == "TYPE" && Follows(tokens, "DROP", "ATTRIBUTE") && (Follows(tokens, "CASCADE") || Follows(tokens, "INVALIDATE"))
+                => SqlStatementKind.Truncate,
             "FLASHBACK" when !Follows(tokens, "TO", "BEFORE", "DROP") => SqlStatementKind.Truncate,
             // Decision of the user (review 3.40.0, SE-8): past the recycle bin, and a schema with all its objects.
             "DROP" when second == "TABLE" && Follows(tokens, "PURGE") => SqlStatementKind.Truncate,

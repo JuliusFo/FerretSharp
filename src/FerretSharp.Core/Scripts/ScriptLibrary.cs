@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 
@@ -57,6 +58,12 @@ public sealed class ScriptLibrary : IDisposable
     /// </summary>
     public const int MaxEntries = 10_000;
 
+    /// <summary><see cref="MaxFiles"/>, lower in tests (review 3.70.0, C4).</summary>
+    internal int FileLimit { get; init; } = MaxFiles;
+
+    /// <summary><see cref="MaxEntries"/>, lower in tests.</summary>
+    internal int EntryLimit { get; init; } = MaxEntries;
+
     /// <summary>Of a file only this much is read for its header.</summary>
     internal const int HeaderBytes = 16 * 1024;
 
@@ -68,8 +75,8 @@ public sealed class ScriptLibrary : IDisposable
 
     private readonly AppSettingsService _settings;
     private readonly Lock _lock = new();
-    private readonly Timer _quiet;
-    private readonly Timer? _poll;
+    private readonly QuietTimer _quiet;
+    private readonly ITimer? _poll;
     private readonly bool _watch;
     private readonly Dictionary<string, (DateTime Written, long Length, ScriptEntry Entry)> _headers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ScriptScan> _scans = new(StringComparer.Ordinal);
@@ -84,15 +91,16 @@ public sealed class ScriptLibrary : IDisposable
 
     /// <param name="defaultPersonal">The personal folder in the data folder (<see cref="AppPaths.ScriptsDirectory"/>).</param>
     /// <param name="watch">Watch and poll the folders (off in tests, which call <see cref="RefreshAsync"/>).</param>
-    public ScriptLibrary(AppSettingsService settings, string defaultPersonal, bool watch = true)
+    /// <param name="time">The clock of the quiet period and the poll (tests); the system's if null (review 3.70.0, C4).</param>
+    public ScriptLibrary(AppSettingsService settings, string defaultPersonal, bool watch = true, TimeProvider? time = null)
     {
         _settings = settings;
         DefaultPersonal = defaultPersonal;
         _watch = watch;
-        _quiet = new Timer(_ => _ = RefreshQuietlyAsync());
+        _quiet = new QuietTimer(Quiet, () => _ = RefreshQuietlyAsync(), time);
         if (watch)
         {
-            _poll = new Timer(_ => _ = RefreshQuietlyAsync(), null, TimeSpan.Zero, PollInterval);
+            _poll = (time ?? TimeProvider.System).CreateTimer(_ => _ = RefreshQuietlyAsync(), null, TimeSpan.Zero, PollInterval);
         }
 
         _settings.Changed += OnSettingsChanged;
@@ -334,7 +342,7 @@ public sealed class ScriptLibrary : IDisposable
                 var (directory, relative, depth) = pending.Pop();
                 foreach (var info in directory.EnumerateFileSystemInfos("*", options))
                 {
-                    if (++seen > MaxEntries)
+                    if (++seen > EntryLimit)
                     {
                         truncated = true;
                         break;
@@ -357,7 +365,7 @@ public sealed class ScriptLibrary : IDisposable
                     }
                     else if (info is FileInfo file && file.Extension.Equals(ScriptPaths.Extension, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (scripts.Count >= MaxFiles)
+                        if (scripts.Count >= FileLimit)
                         {
                             truncated = true;
                             break;
@@ -484,39 +492,17 @@ public sealed class ScriptLibrary : IDisposable
     {
         try
         {
-            var watcher = new FileSystemWatcher(path)
+            FileSystemWatcher? watcher = null;
+            watcher = FileWatch.Create(path, "*", subdirectories: true, _ => _quiet.Touch(), () =>
             {
-                IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
-            };
-            watcher.Changed += OnFileChanged;
-            watcher.Created += OnFileChanged;
-            watcher.Deleted += OnFileChanged;
-            watcher.Renamed += OnFileChanged;
-            watcher.Error += (_, _) =>
-            {
-                Unwatch(path, watcher);
-                Touch(); // the next read (or the poll) sets up a new one
-            };
+                Unwatch(path, watcher!);
+                _quiet.Touch(); // the next read (or the poll) sets up a new one
+            });
             return watcher; // switched on by WatchRoot once registered
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or PlatformNotSupportedException)
         {
             return null; // a share that cannot be watched: the poll still sees changes
-        }
-    }
-
-    private void OnFileChanged(object sender, FileSystemEventArgs e) => Touch();
-
-    private void Touch()
-    {
-        try
-        {
-            _quiet.Change(Quiet, Timeout.InfiniteTimeSpan);
-        }
-        catch (ObjectDisposedException)
-        {
-            // an event that arrived while disposing
         }
     }
 

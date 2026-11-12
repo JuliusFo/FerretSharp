@@ -59,6 +59,32 @@ public sealed class CodeTargetTests
         ], check.Warnings);
     }
 
+    /// <summary>
+    /// Review 3.70.0, A11 and A12: an untracked file (an entity an earlier change wrote) had no warning, and a path with an
+    /// umlaut was read in the console's code page.
+    /// </summary>
+    [Fact]
+    public async Task An_untracked_file_and_one_with_an_umlaut_in_its_name_are_warned_about()
+    {
+        Assert.SkipWhen(Git is null, "git is not installed");
+        using var folder = new TestFolder();
+        var work = Repository(folder, "work", "feature/x");
+        File.WriteAllText(Path.Combine(work, "Neu.cs"), "class Neu {}");
+        File.WriteAllText(Path.Combine(work, "Größe.cs"), "class Groesse {}");
+        var plan = new CodeChangePlan(work, [Change(work, "A.cs"), Change(work, "Neu.cs"), Change(work, "Größe.cs")], [], []);
+
+        var check = await CodeTarget.CheckAsync(plan, [], TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Neu.cs hat nicht committete Änderungen.", "Größe.cs hat nicht committete Änderungen."], check.Warnings);
+    }
+
+    /// <summary>Review 3.70.0, A11: the old path of a rename is a field of its own, no entry.</summary>
+    [Fact]
+    public void A_renamed_file_s_old_path_is_no_entry_of_its_own()
+    {
+        Assert.Equal(["Neu.cs", "src/B.cs", "C.cs"], CodeTarget.StatusPaths("R  Neu.cs\0src/Kunde.cs\0 M src/B.cs\0?? C.cs\0"));
+    }
+
     /// <summary>Review WP-41, K10: git refusing (no repository, safe.directory) was reported as "git not found".</summary>
     [Fact]
     public async Task Git_that_does_not_answer_for_the_folder_is_not_reported_as_missing()

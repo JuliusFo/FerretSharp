@@ -1,6 +1,6 @@
 # ADR 0038: Bild der WebView aktuell halten (Ruhezustand, verlorene Bilder)
 
-- Status: akzeptiert
+- Status: akzeptiert (Entscheidung des Nutzers zum Weg, 2026-11-12, Review 3.70.0, D12)
 - Datum: 2026-10-30
 - Paket: Fix `fix/webview-frozen-after-sleep`
 

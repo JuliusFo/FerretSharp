@@ -48,9 +48,6 @@
   <data name="ConnectionGone" xml:space="preserve">
     <value>Diese Verbindung gibt es nicht mehr.</value>
   </data>
-  <data name="NoPasswordFor" xml:space="preserve">
-    <value>Für „{0}“ ist kein Passwort gespeichert.</value>
-  </data>
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} ist keine gültige Datei mit Schema-Vergleichen: {1}</value>
   </data>

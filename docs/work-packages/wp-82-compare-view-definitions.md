@@ -1,6 +1,6 @@
 # WP-82 View-Definitionen im Schema-Vergleich
 
-Branch `wp/82-compare-view-definitions` (von `main`), 2026-11-10, noch ohne Release. Kein ADR: weder Stack noch Lese-, Schreib- oder Schemaweg ändern sich (die neuen Statements laufen wie bisher über „Im SQL-Editor öffnen“ und den Schemaweg).
+Branch `wp/82-compare-view-definitions` (von `main`), 2026-11-10, Release 3.69.0. Kein ADR: weder Stack noch Lese-, Schreib- oder Schemaweg ändern sich (die neuen Statements laufen wie bisher über „Im SQL-Editor öffnen“ und den Schemaweg).
 
 ## Planung (aus `docs/roadmap.md`)
 Branch `wp/82-compare-view-definitions`. Aus dem Backlog („Schema-Vergleich, zweite Stufe“); WP-20 hatte View-Definitionen und den Status INVALID bewusst auf später gelegt (`docs/work-packages/wp-20-schema-compare.md`). Plan mit dem Nutzer abgestimmt am 2026-11-10.

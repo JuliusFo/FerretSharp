@@ -17,6 +17,21 @@ public sealed class ExitGuard
     /// <summary>Set by the shell: shows the dialog for the uncommitted changes.</summary>
     public Action? RequestExit { get; set; }
 
+    /// <summary>
+    /// Set by the shell: commits (true) or rolls back every workspace with uncommitted work without asking; true if all
+    /// succeeded. For the host's own question when the page has crashed and cannot ask (review 3.70.0, A2).
+    /// </summary>
+    public Func<bool, Task<bool>>? FinishAll { get; set; }
+
+    /// <summary>
+    /// Set by the shell: the grid changes not written yet in any workspace. They live in the page: a reload after a crash
+    /// would drop them without a word (code review of R9, finding 1).
+    /// </summary>
+    public Func<Task<int>>? PendingChanges { get; set; }
+
+    /// <summary>Set by the shell: writes the pending changes of every workspace (no commit); true if all were written.</summary>
+    public Func<Task<bool>>? FlushAll { get; set; }
+
     /// <summary>Raised by the shell after commit or rollback; the host then closes the window for real.</summary>
     public event Action? ExitApproved;
 

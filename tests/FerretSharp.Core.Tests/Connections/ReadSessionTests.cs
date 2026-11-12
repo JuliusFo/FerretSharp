@@ -59,6 +59,34 @@ public sealed class ReadSessionTests
         Assert.Equal(2, _opened.Count); // the next read opens a new one
     }
 
+    /// <summary>
+    /// Review 3.70.0, A1: a read on a silent line ignores the cancel. It ends with the cancel all the same, and "Disconnect
+    /// session" of a time travel or diff tab gives up the read session – the next read opens a new one.
+    /// </summary>
+    [Fact]
+    public async Task A_read_that_ignores_the_cancel_ends_with_it_and_reset_gives_up_the_session()
+    {
+        _reads.Attach(_profile);
+        await ScnAsync();
+        var entered = new TaskCompletionSource();
+        var never = new TaskCompletionSource<DatabasePoint>();
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+
+        var read = _reads.ReadAsync((_, _) =>
+        {
+            entered.SetResult();
+            return never.Task; // the driver does not react
+        }, cancel.Token);
+        await entered.Task.WaitAsync(Wait.Limit, Ct);
+        await cancel.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => read.WaitAsync(Wait.Limit, Ct));
+        _reads.Reset();
+        await Wait.UntilAsync(() => _opened[0].ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)), "the given up session to close");
+        Assert.Equal(4711L, await ScnAsync());
+        Assert.Equal(2, _opened.Count);
+    }
+
     [Fact]
     public async Task A_lost_session_is_dropped_and_the_next_read_opens_a_new_one()
     {

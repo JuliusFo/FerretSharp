@@ -98,6 +98,12 @@ public sealed class DataDiffTab(Guid workspaceId) : WorkspaceTab(workspaceId, "d
         ComparedAt = at;
     }
 
+    /// <summary>
+    /// Cancel was asked while a comparison or a read of rows ran: the view offers to give up the read session, for a read the
+    /// silent VPN keeps from ending (review 3.70.0, A1).
+    /// </summary>
+    public bool Cancelling => (_running?.IsCancellationRequested ?? false) || (_restoring?.IsCancellationRequested ?? false);
+
     /// <summary>Ends a running comparison and a running read of rows to set back.</summary>
     public void Cancel()
     {

@@ -151,6 +151,13 @@
     [Parameter]
     public EventCallback OnCancel { get; set; }
 
+    /// <summary>
+    /// The run reads on the connection's read session (time travel, review 3.70.0, A1): "Disconnect session" gives up that one,
+    /// without asking – the workspace's session and transaction are not involved. Null for a run on the workspace's session.
+    /// </summary>
+    [Parameter]
+    public Action? OnResetReads { get; set; }
+
     /// <summary>The database is at work (not the C# translation): giving up the session can end it.</summary>
     [Parameter]
     public bool Database { get; set; } = true;
@@ -169,7 +176,7 @@
     protected override void OnInitialized()
     {
         Fire(() => TickAsync(_ticks.Token));
-        if (Database)
+        if (Database && OnResetReads is null) // it watches the workspace's session; reads never wait for a lock
         {
             _watch = SessionWatch.For(Shell, Logger, Active, Workspaces, WorkspaceId, () => _ = InvokeAsync(StateHasChanged));
             Fire(_watch.RunAsync);
@@ -228,6 +235,12 @@
     private async Task ResetAsync()
     {
         _confirmReset = false;
+        if (OnResetReads is { } resetReads)
+        {
+            resetReads();
+            return;
+        }
+
         _resetting = true;
         await Lifecycle.ResetSessionAsync(WorkspaceId);
         _resetting = false; // normally the statement has ended and this panel is gone by now
@@ -235,7 +248,7 @@
 
     /// <summary>The uncommitted writes of the workspace's transaction (read without the session, which is busy).</summary>
     private IReadOnlyList<WriteAction> LostActions =>
-        Workspaces.TransactionOf(WorkspaceId) is { Mode: TransactionMode.ReadWrite } ? Workspaces.ActionsOf(WorkspaceId) : [];
+        OnResetReads is not null ? [] : Workspaces.TransactionOf(WorkspaceId) is { Mode: TransactionMode.ReadWrite } ? Workspaces.ActionsOf(WorkspaceId) : [];
 
     private string LossText
     {

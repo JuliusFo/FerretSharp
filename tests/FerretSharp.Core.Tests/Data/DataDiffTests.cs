@@ -72,6 +72,7 @@ public sealed class DataDiffTests
             Assert.Contains("GRANT FLASHBACK ON \"OTHER\".\"ORDERS\"", DataDiffErrors.Explain(new DatabaseException("x", "ORA-01031"), table, at), StringComparison.Ordinal);
             Assert.Contains("undo", DataDiffErrors.Explain(new DatabaseException("x", "ORA-01555"), table, at), StringComparison.Ordinal);
             Assert.Contains("undo", DataDiffErrors.Explain(new DatabaseException("x", "ORA-08181"), table, at), StringComparison.Ordinal);
+            Assert.Contains("undo", DataDiffErrors.Explain(new DatabaseException("x", "ORA-22924"), table, at), StringComparison.Ordinal); // a LOB's version (review 3.70.0, A19)
             Assert.Contains("ORA-01466", DataDiffErrors.Explain(new DatabaseException("x", "ORA-01466"), table, at), StringComparison.Ordinal);
         }
 

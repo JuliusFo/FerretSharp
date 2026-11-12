@@ -74,7 +74,7 @@
                                                 <td>@KindName(o.Kind)</td>
                                                 <td>
                                                     <button class="link-btn" title="@TextFormat.Format(SchemaViewText.GrantList_GrantTitle, o.Object.Name)"
-                                                            disabled="@_reading" @onclick="() => StartGrantAsync(o)">@SchemaViewText.Grants_Grant</button>
+                                                            disabled="@_actions.Reading" @onclick="() => StartGrantAsync(o)">@SchemaViewText.Grants_Grant</button>
                                                 </td>
                                             </tr>
                                         }
@@ -154,11 +154,7 @@
     /// <summary>The synonyms on the object of the open grant or revoke, read when it opens (the query reads all synonyms, WP-68).</summary>
     private IReadOnlyList<SynonymInfo> _synonyms = [];
 
-    private bool _reading;
-    private readonly CancellationTokenSource _closing = new();
-
-    /// <summary>The grant or revoke opened last: a newer one, closing or the tab closing gives up its read.</summary>
-    private CancellationTokenSource? _action;
+    private readonly GrantActions _actions = new();
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -180,6 +176,12 @@
             .Distinct(StringComparer.Ordinal);
 
     protected override void OnInitialized() => Shell.TabCommandRequested += OnTabCommand;
+
+    /// <summary>
+    /// Only the shown tab renders: the shell renders with every edit in any tab, and this one builds its whole list in the
+    /// markup – all grants or synonyms of the schema (review 3.70.0, A6; like the diff tab).
+    /// </summary>
+    protected override bool ShouldRender() => Shell.ActiveTab == Tab;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -275,19 +277,7 @@
     /// A grant or revoke opens: the read of the one before gives up and its result no longer applies – the synonyms of one
     /// object came late and stood under the revoke of another (fix check of the third pass).
     /// </summary>
-    private CancellationToken NextAction()
-    {
-        if (_disposed)
-        {
-            return new CancellationToken(canceled: true); // OnRan of a run that ended after the tab closed
-        }
-
-        _action?.Cancel();
-        _action?.Dispose();
-        _action = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
-        _reading = false;
-        return _action.Token;
-    }
+    private CancellationToken NextAction() => _actions.Next();
 
     /// <summary>
     /// The synonyms on <paramref name="target"/> – for the grantee's synonym and the note before a revoke; none if they cannot
@@ -300,14 +290,14 @@
             return null;
         }
 
-        _reading = true;
+        _actions.StartReading();
         var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetSynonymsAsync(target.Object, token), token);
         if (token.IsCancellationRequested)
         {
             return null;
         }
 
-        _reading = false;
+        _actions.DoneReading();
         return result.Succeeded ? result.Value! : [];
     }
 
@@ -419,9 +409,7 @@
     public void Dispose()
     {
         _disposed = true;
-        _closing.Cancel();
-        _action?.Dispose();
-        _closing.Dispose();
+        _actions.Dispose();
         Shell.TabCommandRequested -= OnTabCommand;
         _cts?.Cancel();
         _cts?.Dispose();

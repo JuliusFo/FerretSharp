@@ -59,31 +59,13 @@ public sealed class AuditTemplateSource(AppSettingsService settings, TimeProvide
             return Load(own) with { Origin = AuditTemplateOrigin.Connection };
         }
 
-        if (GroupEntry(current.AuditTemplateGroups, profile?.Group) is { } entry)
+        if (ConnectionSearch.GroupEntry(current.AuditTemplateGroups, profile?.Group) is { } entry)
         {
             return Load(entry.Value) with { Origin = AuditTemplateOrigin.Group, Group = entry.Key };
         }
 
         var global = Load(current.AuditTemplatePath);
         return global.IsDefault ? global : global with { Origin = AuditTemplateOrigin.Global };
-    }
-
-    /// <summary>
-    /// The entry of <paramref name="group"/> in <paramref name="groups"/>, matched as the connection lists match groups
-    /// (trimmed, case ignored); null without one or for an entry without a path.
-    /// </summary>
-    public static KeyValuePair<string, string>? GroupEntry(IReadOnlyDictionary<string, string> groups, string? group)
-    {
-        ArgumentNullException.ThrowIfNull(groups);
-        foreach (var entry in groups)
-        {
-            if (ConnectionSearch.SameGroup(entry.Key, group) && !string.IsNullOrWhiteSpace(entry.Value))
-            {
-                return entry;
-            }
-        }
-
-        return null;
     }
 
     /// <summary>The template at <paramref name="path"/> (the settings page checks a path before it is saved); empty = built-in.</summary>

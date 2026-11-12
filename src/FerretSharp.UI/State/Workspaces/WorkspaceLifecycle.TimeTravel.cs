@@ -12,6 +12,13 @@ namespace FerretSharp.UI.State;
 public sealed partial class WorkspaceLifecycle
 {
     /// <summary>
+    /// How long a lookup of a point may take on the read session. Past it, the read session is given up (nothing of a workspace
+    /// is lost) and a new try opens a new one: without a limit, a silent VPN held the time dialog and every later read behind
+    /// it (review 3.70.0, A1).
+    /// </summary>
+    internal static readonly TimeSpan PointLimit = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// The SCN of now (exactly where <c>V$DATABASE</c> may be read) or of <paramref name="at"/>, with the database it belongs to;
     /// null after a failure, shown already (a time too far back explained).
     /// </summary>
@@ -20,7 +27,7 @@ public sealed partial class WorkspaceLifecycle
         TimeSpan back = default;
         if (at is { } chosen)
         {
-            (back, var error) = TimePoints.Back(chosen, DateTimeOffset.Now);
+            (back, var error) = TimePoints.Back(chosen, _time.GetLocalNow());
             if (error is not null)
             {
                 shell.Notify(error);
@@ -28,9 +35,14 @@ public sealed partial class WorkspaceLifecycle
             }
         }
 
-        var read = await shell.RunDbAsync(logger, active, () => at is null
-            ? active.Reads.CurrentPointAsync(CancellationToken.None)
-            : active.Reads.ReadAsync((data, ct) => data.PointBackAsync(back, ct), CancellationToken.None));
+        if (await LimitedAsync(active, token => at is null
+                ? active.Reads.CurrentPointAsync(token)
+                : active.Reads.ReadAsync((data, ct) => data.PointBackAsync(back, ct), token)) is not { } read)
+        {
+            shell.Notify(TextFormat.Format(ShellText.Lifecycle_PointTimedOut, (int)PointLimit.TotalSeconds));
+            return null;
+        }
+
         if (read.Error is { } failure && !read.IsRefusal && at is { } time && DataDiffErrors.ExplainPoint(failure, time) is { } why)
         {
             shell.Notify(why);
@@ -38,6 +50,20 @@ public sealed partial class WorkspaceLifecycle
         }
 
         return shell.ShowFailure(read) ? read.Value : null;
+    }
+
+    /// <summary>A lookup on the read session within <see cref="PointLimit"/>; null past it, the read session then given up.</summary>
+    private async Task<DbResult<DatabasePoint>?> LimitedAsync(ActiveConnection active, Func<CancellationToken, Task<DatabasePoint>> lookup)
+    {
+        using var limit = new CancellationTokenSource(PointLimit, _time);
+        var read = await shell.RunDbAsync(logger, active, () => lookup(limit.Token), limit.Token);
+        if (!read.Cancelled || !limit.IsCancellationRequested)
+        {
+            return read;
+        }
+
+        active.Reads.Reset();
+        return null;
     }
 
     /// <summary>
@@ -109,8 +135,8 @@ public sealed partial class WorkspaceLifecycle
         }
 
         var active = ScopeOf(tab.WorkspaceId).Active;
-        var now = await shell.RunDbAsync(logger, active, () => active.Reads.CurrentPointAsync(CancellationToken.None));
-        if (now.Value is not { } point)
+        var now = await LimitedAsync(active, active.Reads.CurrentPointAsync);
+        if (now?.Value is not { } point)
         {
             return; // left unchecked (review of WP-78: a failed check counted as passed); the tab's view checks again when it is built anew – after connecting again or a restart
         }

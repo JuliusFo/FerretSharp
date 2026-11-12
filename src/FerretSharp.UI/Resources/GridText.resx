@@ -1783,12 +1783,15 @@
   </data>
   <data name="TimeTravel_Banner" xml:space="preserve">
     <value>State of {0:G}, read only</value>
+    <comment>{0}: the point in time the tab shows</comment>
   </data>
   <data name="TimeTravel_Footer" xml:space="preserve">
     <value>State of {0:G}</value>
+    <comment>{0}: the point in time the tab shows</comment>
   </data>
   <data name="TimeTravel_FooterTitle" xml:space="preserve">
     <value>Read as of SCN {0} on the connection's own read session: committed data only, nothing of a workspace's open transaction.</value>
+    <comment>{0}: the SCN read as of</comment>
   </data>
   <data name="TimeTravel_OpenNow" xml:space="preserve">
     <value>Open as it is now</value>

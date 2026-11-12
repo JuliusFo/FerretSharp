@@ -33,6 +33,10 @@
   <data name="ClrProjectNotCsproj" xml:space="preserve">
     <value>Select the .csproj of the project with the DbContext, or a model file (.json).</value>
   </data>
+  <data name="NoPasswordFor" xml:space="preserve">
+    <value>No password is saved for “{0}”.</value>
+    <comment>{0}: connection name</comment>
+  </data>
   <data name="NoPasswordSaved" xml:space="preserve">
     <value>No password is saved for this connection. Enter it under “Edit”.</value>
     <comment>"Edit" is the command that opens the connection dialog</comment>

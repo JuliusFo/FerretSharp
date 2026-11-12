@@ -28,18 +28,11 @@ internal static class OracleDdl
     /// <summary><c> TABLESPACE "X"</c>, or nothing for none (the owner's default).</summary>
     private static string Tablespace(string? tablespace) => string.IsNullOrEmpty(tablespace) ? "" : $" TABLESPACE {Q(tablespace)}";
 
-    public static string DropObject(TableKind kind, TableRef table) => $"DROP {ObjectKeyword(kind)} {T(table)}";
+    public static string DropObject(TableKind kind, TableRef table) => $"DROP {kind.ObjectType()} {T(table)}";
 
-    public static string RenameObject(TableKind kind, TableRef table, string to) => $"ALTER {ObjectKeyword(kind)} {T(table)} RENAME TO {Q(to)}";
+    public static string RenameObject(TableKind kind, TableRef table, string to) => $"ALTER {kind.ObjectType()} {T(table)} RENAME TO {Q(to)}";
 
     public static string CommentOnTable(TableRef table, string? comment) => $"COMMENT ON TABLE {T(table)} IS {Literal(comment)}";
-
-    public static string ObjectKeyword(TableKind kind) => kind switch
-    {
-        TableKind.View => "VIEW",
-        TableKind.MaterializedView => "MATERIALIZED VIEW",
-        _ => "TABLE",
-    };
 
     // ---- columns ----
 
@@ -294,10 +287,10 @@ internal static class OracleDdl
 
     /// <summary><c>CREATE [OR REPLACE] VIEW "OWNER"."NAME" AS …</c>: a note in place of a statement whose query cannot be written.</summary>
     public static string ViewPlaceholder(TableKind kind, TableRef view, bool orReplace) =>
-        $"CREATE {(orReplace ? "OR REPLACE " : "")}{ObjectKeyword(kind)} {T(view)} AS …";
+        $"CREATE {(orReplace ? "OR REPLACE " : "")}{kind.ObjectType()} {T(view)} AS …";
 
     /// <summary><c>ALTER VIEW … COMPILE</c>, <c>ALTER MATERIALIZED VIEW … COMPILE</c>: an invalid one compiled again (WP-82).</summary>
-    public static string Compile(TableKind kind, TableRef view) => $"ALTER {ObjectKeyword(kind)} {T(view)} COMPILE";
+    public static string Compile(TableKind kind, TableRef view) => $"ALTER {kind.ObjectType()} {T(view)} COMPILE";
 
     /// <summary><c>COMMENT ON TABLE</c>, for a materialized view <c>COMMENT ON MATERIALIZED VIEW</c> (a view takes TABLE).</summary>
     public static string CommentOn(TableKind kind, TableRef table, string? comment) =>

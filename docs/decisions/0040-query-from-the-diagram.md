@@ -1,6 +1,6 @@
 # ADR 0040: Abfrage aus dem Beziehungsdiagramm
 
-- Status: akzeptiert
+- Status: akzeptiert (Entscheidungen des Nutzers im Protokoll von WP-69, 2026-10-31 und 2026-11-02)
 - Datum: 2026-11-02
 - Paket: WP-69
 

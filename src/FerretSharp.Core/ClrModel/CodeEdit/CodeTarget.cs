@@ -71,10 +71,14 @@ public static class CodeTarget
             WorkingDirectory = root,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            // Paths come as UTF-8 bytes with -z: read in the console's code page, "Größe.cs" matched no file (review 3.70.0, A12).
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        foreach (var argument in (string[])["--literal-pathspecs", "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=no", "--"])
+        // Untracked files count too: an entity written by an earlier change and not committed yet (review 3.70.0, A11).
+        foreach (var argument in (string[])["--literal-pathspecs", "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--"])
         {
             start.ArgumentList.Add(argument);
         }
@@ -109,10 +113,7 @@ public static class CodeTarget
                 return new GitStatus(true, null);
             }
 
-            var entries = (await output).Split('\0', StringSplitOptions.RemoveEmptyEntries)
-                .Where(e => e.Length > 3)
-                .Select(e => e[3..].Replace('\\', '/'))
-                .ToList();
+            var entries = StatusPaths(await output);
             return new GitStatus(true, [.. relative.Where(r => entries.Any(e => e == r.Replace('\\', '/') || e.EndsWith("/" + r.Replace('\\', '/'), StringComparison.Ordinal)))]);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -125,6 +126,32 @@ public static class CodeTarget
             Kill(process);
             throw;
         }
+    }
+
+    /// <summary>
+    /// The paths of <c>git status --porcelain=v1 -z</c>: <c>XY path</c> per entry; a rename or copy (<c>R</c>, <c>C</c>)
+    /// is followed by its old path as a field of its own, which is no entry (review 3.70.0, A11: it was cut like one).
+    /// </summary>
+    internal static IReadOnlyList<string> StatusPaths(string output)
+    {
+        var fields = output.Split('\0');
+        var paths = new List<string>();
+        for (var i = 0; i < fields.Length; i++)
+        {
+            var field = fields[i];
+            if (field.Length <= 3)
+            {
+                continue;
+            }
+
+            paths.Add(field[3..].Replace('\\', '/'));
+            if (field[0] is 'R' or 'C' || field[1] is 'R' or 'C')
+            {
+                i++; // the old path
+            }
+        }
+
+        return paths;
     }
 
     private static void Kill(Process process)

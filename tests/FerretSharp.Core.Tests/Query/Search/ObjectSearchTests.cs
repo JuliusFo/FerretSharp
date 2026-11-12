@@ -41,23 +41,18 @@ public class ObjectSearchTests
         Assert.Equal(["KUNDEN", "KD_STAMM", "KUNDEN_ADRESSEN", "T_KUNDE_ALT", "AUFTRAG_KUNDE", "V_KUNDEN_OFFEN"], FindTables("kunde"));
     }
 
-    [Fact]
-    public void The_entity_name_finds_a_table_its_name_does_not()
-    {
-        Assert.Equal(["KD_STAMM"], FindTables("kundenstamm"));
-        Assert.Equal(["KD_STAMM"], FindTables("stamm"));
-    }
-
-    [Fact]
-    public void Every_term_must_occur_in_one_name() =>
-        Assert.Equal(["KUNDEN_ADRESSEN"], FindTables("adr kunden"));
-
-    [Fact]
-    public void A_synonym_is_found_by_the_name_shown_and_the_real_name()
-    {
-        Assert.Equal(["T_KUNDE_ALT"], FindTables("kunde_alt"));
-        Assert.Equal(["T_KUNDE_ALT"], FindTables("t_kunde"));
-    }
+    /// <summary>
+    /// The entity name finds a table its name does not, every term must occur in one name, and a synonym is found by the name
+    /// shown and the real name (review 3.70.0, C17: three tests of one call).
+    /// </summary>
+    [Theory]
+    [InlineData("kundenstamm", "KD_STAMM")]
+    [InlineData("stamm", "KD_STAMM")]
+    [InlineData("adr kunden", "KUNDEN_ADRESSEN")]
+    [InlineData("kunde_alt", "T_KUNDE_ALT")]
+    [InlineData("t_kunde", "T_KUNDE_ALT")]
+    public void One_table_is_found_by_its_entity_name_every_term_or_a_synonym_s_names(string terms, string table) =>
+        Assert.Equal([table], FindTables(terms));
 
     [Fact]
     public void Without_entity_names_only_database_names_count() =>

@@ -118,6 +118,10 @@ public sealed partial class SafeDeleteTests : IDisposable
     [InlineData("x.cmd", "erase /q /s %DIR%")]
     [InlineData("x.py", "shutil.rmtree(folder)")]
     [InlineData("x.py", "os.removedirs(folder)")]
+    // Review 3.70.0, C10: the scripts of tools/e2e are JavaScript.
+    [InlineData("x.mjs", "fs.rmSync(dir, { recursive: true, force: true });")]
+    [InlineData("x.js", "await fsp.rm(dir, { recursive: true });")]
+    [InlineData("x.mjs", "rmdirSync(dir, {recursive:true})")]
     public void The_check_sees_folder_deletes(string file, string line) => Assert.True(DeletesFolders(file, line));
 
     [Theory]
@@ -128,12 +132,15 @@ public sealed partial class SafeDeleteTests : IDisposable
     [InlineData("x.ps1", "Remove-Item $file -Force")]
     [InlineData("x.cmd", "del /q %FILE%")]
     [InlineData("x.py", "os.remove(file)")]
+    [InlineData("x.mjs", "fs.rmSync(file);")]
+    [InlineData("x.js", "fs.unlinkSync(file);")]
     public void The_check_lets_other_deletes_pass(string file, string line) => Assert.False(DeletesFolders(file, line));
 
     private static bool DeletesFolders(string file, string line) => Path.GetExtension(file) switch
     {
         ".cs" or ".razor" => CSharpFolderDelete().IsMatch(line),
         ".py" => PythonFolderDelete().IsMatch(line),
+        ".js" or ".mjs" => JavaScriptFolderDelete().IsMatch(line),
         _ => ScriptFolderDelete().IsMatch(line),
     };
 
@@ -151,7 +158,11 @@ public sealed partial class SafeDeleteTests : IDisposable
     [GeneratedRegex(@"\bshutil\.rmtree\b|\bos\.removedirs\b|\bos\.rmdir\b|\.rmdir\s*\(")]
     private static partial Regex PythonFolderDelete();
 
-    private static readonly string[] Extensions = [".cs", ".razor", ".ps1", ".psm1", ".sh", ".cmd", ".bat", ".yml", ".yaml", ".props", ".targets", ".csproj", ".py"];
+    /// <summary>Node's <c>rm</c>, <c>rmSync</c>, <c>rmdir</c> and <c>rmdirSync</c> with <c>recursive: true</c> (review 3.70.0, C10).</summary>
+    [GeneratedRegex(@"\b(rm|rmSync|rmdir|rmdirSync)\s*\(.*\brecursive\s*:\s*true")]
+    private static partial Regex JavaScriptFolderDelete();
+
+    private static readonly string[] Extensions = [".cs", ".razor", ".ps1", ".psm1", ".sh", ".cmd", ".bat", ".yml", ".yaml", ".props", ".targets", ".csproj", ".py", ".js", ".mjs"];
     private static readonly string[] SkippedFolders = ["bin", "obj", ".git", ".vs", "artifacts", "node_modules", "lib"];
 
     private static IEnumerable<string> SourceFiles(string root) =>

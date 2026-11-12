@@ -21,8 +21,12 @@ public sealed partial class WorkspaceLifecycle(
     SqlHistoryStore history,
     ConditionHistoryStore conditions,
     WorkspaceEditing editing,
-    ILogger<WorkspaceLifecycle> logger)
+    ILogger<WorkspaceLifecycle> logger,
+    TimeProvider? time = null)
 {
+    /// <summary>The clock of time travel and diff points (review 3.70.0, C11: the tests computed with the real one).</summary>
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+
     /// <summary>The shown connection (an idle one if none is open).</summary>
     private ActiveConnection active => hub.Shown.Active;
 
@@ -84,6 +88,16 @@ public sealed partial class WorkspaceLifecycle(
         shell.Notify(TextFormat.Format(ShellText.Lifecycle_SessionReset, WorkspaceName(workspaceId)));
         shell.NotifyChanged(); // status bar: the transaction is gone
         await closing;
+    }
+
+    /// <summary>
+    /// "Disconnect session" of a time travel or diff tab (review 3.70.0, A1): they read on the connection's read session, so
+    /// that one is given up – the workspace's session and its transaction stay as they are, nothing is lost.
+    /// </summary>
+    public void ResetReads(Guid workspaceId)
+    {
+        ScopeOf(workspaceId).Active.Reads.Reset();
+        shell.Notify(ShellText.Lifecycle_ReadsReset);
     }
 
     /// <summary>
@@ -298,6 +312,45 @@ public sealed partial class WorkspaceLifecycle(
 
         CancelLeave();
         await leave.Continue();
+    }
+
+    /// <summary>
+    /// Commits or rolls back every workspace with uncommitted work, without the leave dialog – the host asked natively, the
+    /// page has crashed (review 3.70.0, A2). Stops at the first that fails; true if all succeeded.
+    /// </summary>
+    public async Task<bool> FinishAllAsync(bool commit)
+    {
+        foreach (var workspace in shell.AllWorkspaces.Where(w => !IsLost(w.WorkspaceId) && editing.SummaryOf(w).HasWork).ToList())
+        {
+            // Prod commits the writes there are now: whatever comes up between the native question and here is not
+            // committed unseen (the leave dialog passes the list it showed).
+            var shown = ScopeOf(workspace.WorkspaceId).Profile?.Kind == ConnectionKind.Prod ? editing.SummaryOf(workspace).Actions : null;
+            if (!(commit ? await editing.CommitAsync(workspace, shown) : await editing.RollbackAsync(workspace)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Grid changes not written yet, in all workspaces: they go with the page when it is loaded anew.</summary>
+    public int PendingChanges => shell.AllWorkspaces.Sum(w => editing.SummaryOf(w).Pending);
+
+    /// <summary>
+    /// Writes the pending changes of every workspace (no commit) before the page loads anew; true if all were written. False
+    /// also for changes of a lost connection: they cannot be written, and "written" would let them go unseen (second pass
+    /// of the code review of R9).
+    /// </summary>
+    public async Task<bool> FlushAllAsync()
+    {
+        var all = true;
+        foreach (var workspace in shell.AllWorkspaces.Where(w => editing.SummaryOf(w).Pending > 0).ToList())
+        {
+            all &= !IsLost(workspace.WorkspaceId) && await editing.FlushAsync(workspace);
+        }
+
+        return all;
     }
 
     public void CancelLeave()

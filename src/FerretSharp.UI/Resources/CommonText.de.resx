@@ -132,6 +132,52 @@ Meist kannst du einfach weiterarbeiten. Zeichnet das Fenster nicht mehr richtig,
 
 FerretSharp jetzt neu starten?</value>
   </data>
+  <data name="WebViewCrash_Title" xml:space="preserve">
+    <value>Anzeige abgestürzt</value>
+  </data>
+  <data name="WebViewCrash_Again" xml:space="preserve">
+    <value>Die Anzeige ist kurz nach dem Neuladen erneut abgestürzt. Verbindungen, Workspaces und offene Transaktionen sind noch da.
+
+FerretSharp neu starten? Nach nicht committeten Änderungen wirst du vorher gefragt wie beim Schließen.
+
+„Nein“ lädt die Anzeige noch einmal neu.</value>
+  </data>
+  <data name="WebViewCrash_BrowserGone" xml:space="preserve">
+    <value>Die Anzeige (der WebView2-Browser) ist beendet und lässt sich nicht neu laden.
+
+FerretSharp neu starten? Nach nicht committeten Änderungen wirst du vorher gefragt wie beim Schließen.</value>
+  </data>
+  <data name="WebViewCrash_Close" xml:space="preserve">
+    <value>Die Anzeige ist abgestürzt, und es gibt nicht committete Änderungen.
+
+Ja: alle committen und schließen
+Nein: alle zurückrollen und schließen
+Abbrechen: FerretSharp offen lassen</value>
+  </data>
+  <data name="WebViewCrash_FinishFailed" xml:space="preserve">
+    <value>Nicht alles ließ sich committen bzw. zurückrollen.
+
+Trotzdem schließen? Was nicht committet ist, rollt Oracle zurück, wenn die Sessions enden.</value>
+  </data>
+  <data name="WebViewCrash_PendingOne" xml:space="preserve">
+    <value>Die Anzeige ist abgestürzt. Eine Änderung im Grid ist noch nicht geschrieben und ginge beim Neuladen verloren.
+
+Ja: schreiben (ohne Commit) und neu laden
+Nein: verwerfen und neu laden
+Abbrechen: die Anzeige so lassen – beim Schließen von FerretSharp wirst du nach der Änderung gefragt</value>
+  </data>
+  <data name="WebViewCrash_PendingOther" xml:space="preserve">
+    <value>Die Anzeige ist abgestürzt. {0} Änderungen im Grid sind noch nicht geschrieben und gingen beim Neuladen verloren.
+
+Ja: schreiben (ohne Commit) und neu laden
+Nein: verwerfen und neu laden
+Abbrechen: die Anzeige so lassen – beim Schließen von FerretSharp wirst du nach den Änderungen gefragt</value>
+  </data>
+  <data name="WebViewCrash_FlushFailed" xml:space="preserve">
+    <value>Nicht alle Änderungen ließen sich schreiben.
+
+Die Anzeige trotzdem neu laden? Was nicht geschrieben ist, geht verloren.</value>
+  </data>
   <data name="LinkNotHandedOver" xml:space="preserve">
     <value>FerretSharp läuft schon, aber der Link konnte nicht übergeben werden. Den Link gleich noch einmal anklicken.</value>
   </data>

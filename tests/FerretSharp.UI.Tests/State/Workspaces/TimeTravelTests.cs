@@ -5,6 +5,7 @@ using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.Testing;
+using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 
 namespace FerretSharp.UI.Tests.State;
@@ -40,7 +41,7 @@ public sealed class TimeTravelTests : IAsyncDisposable
             back = asked;
             return new DatabasePoint(4000, "FREE/FREEPDB1");
         };
-        var at = DateTimeOffset.Now.AddMinutes(-15);
+        var at = _app.Time.GetLocalNow().AddMinutes(-15);
 
         await Lifecycle.TimeTravelAsync(source, at);
 
@@ -64,7 +65,7 @@ public sealed class TimeTravelTests : IAsyncDisposable
     {
         var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
         var now = ActiveKunden(scope);
-        var travel = _app.Shell.OpenTimeTravel(now.WorkspaceId, TestApp.Kunden, [], [], new TimeTravelState(4000, DateTimeOffset.Now, "FREE/FREEPDB1"))!;
+        var travel = _app.Shell.OpenTimeTravel(now.WorkspaceId, TestApp.Kunden, [], [], new TimeTravelState(4000, _app.Time.GetLocalNow(), "FREE/FREEPDB1"))!;
 
         var jumped = _app.Shell.OpenFiltered(TestApp.Kunden, [Open])!;
         Assert.Equal(travel.TimeTravel, jumped.TimeTravel);
@@ -74,20 +75,76 @@ public sealed class TimeTravelTests : IAsyncDisposable
         Assert.Same(now, _app.Shell.OpenTable(TestApp.Kunden)); // the explorer never lands in the past
     }
 
+    /// <summary>
+    /// Review 3.70.0, C6 (fix #10 of WP-78 without a test): after a write the table tabs read their rows again – a time
+    /// travel tab shows a fixed point, nothing written changes it, a reload is a needless round trip.
+    /// </summary>
+    [Fact]
+    public async Task A_write_reloads_the_table_tabs_but_not_a_time_travel_tab()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var now = ActiveKunden(scope);
+        var travel = _app.Shell.OpenTimeTravel(now.WorkspaceId, TestApp.Kunden, [], [], new TimeTravelState(4000, _app.Time.GetLocalNow(), "FREE/FREEPDB1"))!;
+        var reloaded = new List<WorkspaceTab>();
+        _app.Shell.TabCommandRequested += (tab, command) =>
+        {
+            if (command == TabCommand.Reload)
+            {
+                reloaded.Add(tab);
+            }
+        };
+
+        _app.Shell.ReloadTableTabs(now.WorkspaceId);
+
+        Assert.Contains(now, reloaded);
+        Assert.DoesNotContain(travel, reloaded);
+    }
+
     [Fact]
     public async Task A_time_in_the_future_or_beyond_the_database_s_mapping_is_explained_and_opens_nothing()
     {
         var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
         var source = ActiveKunden(scope);
 
-        await Lifecycle.TimeTravelAsync(source, DateTimeOffset.Now.AddMinutes(5));
+        await Lifecycle.TimeTravelAsync(source, _app.Time.GetLocalNow().AddMinutes(5));
         Assert.Equal(DataText.TimeInFuture, _app.Shell.Notice?.Text);
 
         _app.PointBack = _ => throw new DatabaseException("time not in the mapping", "ORA-08180");
-        await Lifecycle.TimeTravelAsync(source, DateTimeOffset.Now.AddDays(-30));
+        await Lifecycle.TimeTravelAsync(source, _app.Time.GetLocalNow().AddDays(-30));
 
         Assert.Contains("ORA-08180", _app.Shell.Notice?.Text, StringComparison.Ordinal);
         Assert.Same(source, _app.WorkspaceOf(scope).ActiveTab);
+    }
+
+    /// <summary>
+    /// Review 3.70.0, A1: the lookup of the point hung on a silent read session with no way out. Past its limit it ends with a
+    /// notice, and the read session is given up – the workspace's session and its transaction are not touched.
+    /// </summary>
+    [Fact]
+    public async Task A_point_lookup_past_its_limit_gives_up_only_the_read_session()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var source = ActiveKunden(scope);
+        var workspaceSession = await scope.Workspaces.GetEditorAsync(source.WorkspaceId, Ct);
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource();
+        _app.PointBack = _ =>
+        {
+            entered.TrySetResult();
+            release.Wait(Wait.Limit); // the line is silent
+            return new DatabasePoint(4000, "FREE/FREEPDB1");
+        };
+
+        var travel = Lifecycle.TimeTravelAsync(source, _app.Time.GetLocalNow().AddMinutes(-15));
+        await entered.Task.WaitAsync(Wait.Limit, Ct);
+        _app.Time.Advance(WorkspaceLifecycle.PointLimit);
+        await travel.WaitAsync(Wait.Limit, Ct);
+        release.Set();
+
+        Assert.Equal(TextFormat.Format(ShellText.Lifecycle_PointTimedOut, 30), _app.Shell.Notice?.Text);
+        Assert.False(scope.Active.Reads.HasSession);
+        Assert.Same(source, _app.WorkspaceOf(scope).ActiveTab);
+        Assert.Same(workspaceSession, await scope.Workspaces.GetEditorAsync(source.WorkspaceId, Ct)); // never the workspace's session
     }
 
     [Fact]
@@ -97,7 +154,7 @@ public sealed class TimeTravelTests : IAsyncDisposable
         var id = scope.Workspaces.Active!.Id;
         ActiveKunden(scope);
         _app.PointBack = _ => new DatabasePoint(3000, "FREE/FREEPDB1");
-        var at = DateTimeOffset.Now.AddHours(-1);
+        var at = _app.Time.GetLocalNow().AddHours(-1);
 
         await Lifecycle.StartDataDiffAsync(id, at);
 
@@ -123,7 +180,7 @@ public sealed class TimeTravelTests : IAsyncDisposable
     {
         var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
         ActiveKunden(scope);
-        var tab = _app.Shell.OpenTimeTravel(scope.Workspaces.Active!.Id, TestApp.Kunden, [], [], new TimeTravelState(9999, DateTimeOffset.Now, "FREE/FREEPDB1"))!;
+        var tab = _app.Shell.OpenTimeTravel(scope.Workspaces.Active!.Id, TestApp.Kunden, [], [], new TimeTravelState(9999, _app.Time.GetLocalNow(), "FREE/FREEPDB1"))!;
         tab.PointChecked = false; // as restored from the file
 
         await Lifecycle.CheckTimeTravelAsync(tab); // SCN 9999 lies ahead of the database (4711): set up anew
@@ -166,6 +223,30 @@ public sealed class TimeTravelTests : IAsyncDisposable
         Assert.Equal([4711L], _app.AsOfReads.Distinct()); // the values then as of the start point
         Assert.Equal(TextFormat.Plural(3, UI.Resources.ShellText.Restore_DoneOne, UI.Resources.ShellText.Restore_DoneOther, "KUNDEN",
             Lifecycle.DataDiffOf(id)!.StartedAt.LocalDateTime), _app.Shell.Notice?.Text);
+    }
+
+    /// <summary>
+    /// Review 3.70.0, C3: the tab's changes were tracked with the columns of before (a column added since): without the
+    /// check the tracker laid the values by position into the wrong columns.
+    /// </summary>
+    [Fact]
+    public async Task Rows_are_not_set_back_into_a_tab_whose_changes_have_other_columns()
+    {
+        _app.KundenDetails = Kunden;
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var id = scope.Workspaces.Active!.Id;
+        var tab = ActiveKunden(scope);
+        tab.Changes = new ChangeTracker(Kunden);
+        await Lifecycle.StartDataDiffAsync(id);
+        _app.Shell.OpenDataDiff(_app.WorkspaceOf(scope));
+        _app.ByKeys = (scn, _, _) => scn is null ? [] : [Row(12, "deleted since")];
+        var wider = Kunden with { Columns = [.. Kunden.Columns, new ColumnInfo("FAX", "VARCHAR2", 30, true, null, null, false, false, null, 99)] };
+        var diff = new TableDiff(wider, [], [Diff(DiffStatus.Deleted, 12)], false, new HashSet<int>(), RowKeyKind.PrimaryKey, false);
+
+        await Lifecycle.RestoreAsync(id, diff, diff.Rows);
+
+        Assert.Equal(UI.Resources.ShellText.Restore_StructureChanged, _app.Shell.Notice?.Text);
+        Assert.Empty(tab.Changes.PendingOperations());
     }
 
     [Fact]
@@ -262,7 +343,7 @@ public sealed class TimeTravelTests : IAsyncDisposable
     {
         var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
         ActiveKunden(scope);
-        var tab = _app.Shell.OpenTimeTravel(scope.Workspaces.Active!.Id, TestApp.Kunden, [], [], new TimeTravelState(4000, DateTimeOffset.Now, "FREE/FREEPDB1"))!;
+        var tab = _app.Shell.OpenTimeTravel(scope.Workspaces.Active!.Id, TestApp.Kunden, [], [], new TimeTravelState(4000, _app.Time.GetLocalNow(), "FREE/FREEPDB1"))!;
 
         tab.Mode = TabMode.Structure; // the menu's views, the designer: structure and grants are of now (review of WP-78)
         Assert.Equal(TabMode.Data, tab.Mode);

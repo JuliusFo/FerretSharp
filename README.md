@@ -172,7 +172,7 @@ developer works with an Oracle database day to day:
 - Optimistic concurrency check on the changed columns; insert and delete rows; edit CLOBs and BLOBs in a dialog
   (text in the code editor with line wrap, JSON/XML coloring and JSON indenting).
 - **Change primary keys** of existing rows like any other value. Before writing, FerretSharp counts the rows that still
-  point to the old key – along constraints and relationships without one (manual, by convention, from the C# model) –
+  point to the old key – along constraints and relationships without one (by convention, from the C# model) –
   and asks first if there are any; behind a constraint Oracle refuses the change, nothing is changed along.
 - **One value for many cells**: type it into one of the marked cells and press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, or
   paste a copied value with <kbd>Ctrl</kbd>+<kbd>V</kbd> – into the marked cells, the selected rows or just the focused
@@ -293,7 +293,8 @@ changes, and a new build is picked up automatically:
   Computed from what is loaded: no query of its own.
 - **Relationships**: navigations without a foreign-key constraint become navigable relationships.
 - **LINQ console**: paste a query from your code – unknown variables become suggested declarations, your context and
-  cancellation token are recognized. FerretSharp shows the SQL EF Core would send and runs it in the workspace's session,
+  cancellation token are recognized, and `using` lines at the top are taken along. FerretSharp shows the SQL EF Core
+  would send and runs it in the workspace's session,
   so your uncommitted changes are visible. Completion knows your DbSets, properties, enums and the LINQ/EF methods.
 - **Code generation**: the grid's filters as a LINQ `Where`, rows as C# objects or `HasData` seed data – and, DB-first,
   the entity class and its `IEntityTypeConfiguration` for a table the model does not know yet (or the property and
@@ -409,7 +410,7 @@ dotnet run --project src/FerretSharp.App
   `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <folder>`.
 
 **Tech stack:** .NET 10, WPF host with Blazor Hybrid (WebView2), [AG Grid Community](https://www.ag-grid.com/),
-[Monaco Editor](https://microsoft.github.io/monaco-editor/), Oracle.ManagedDataAccess.Core, Roslyn for the LINQ console,
+[Monaco Editor](https://microsoft.github.io/monaco-editor/), Oracle.ManagedDataAccess.Core, Roslyn for the LINQ console and for writing designer changes into your C# project,
 [SpreadCheetah](https://github.com/sveinungf/spreadcheetah) for the Excel export, Velopack for install and updates.
 
 **Design notes:** [CHANGELOG.md](CHANGELOG.md) lists every release; architecture decisions are in

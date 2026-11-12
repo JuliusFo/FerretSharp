@@ -93,6 +93,38 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     /// <summary>
+    /// Review 3.70.0, A13: "Build" behind another build of the app (one at a time) waited silently and could not be stopped.
+    /// It says that it waits, and cancelling ends it without a result.
+    /// </summary>
+    [Fact]
+    public async Task A_build_waiting_for_another_says_so_and_can_be_cancelled()
+    {
+        await ConnectAsync();
+        var started = new TaskCompletionSource();
+        _runner.BuildAsync(Arg.Any<ClrProjectLink>(), Arg.Any<CancellationToken>(), Arg.Any<Action?>()).Returns(async call =>
+        {
+            started.SetResult();
+            await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>()); // the other build does not end
+            return new DotNetRun(0, "", "");
+        });
+
+        var told = false;
+        _models.Changed += () => told |= _models.WaitingForBuild; // the page hears of the wait (code review of R9, finding 3)
+        var build = _models.BuildAsync();
+        await started.Task.WaitAsync(Wait.Limit, Ct);
+        Assert.True(_models.WaitingForBuild);
+        Assert.True(told);
+        Assert.True(_models.IsBuildingProject);
+
+        _models.CancelBuild();
+
+        Assert.Null(await build.WaitAsync(Wait.Limit, Ct));
+        Assert.False(_models.IsBuilding);
+        Assert.False(_models.WaitingForBuild);
+        Assert.False(_models.IsBuildingProject);
+    }
+
+    /// <summary>
     /// Connects and waits for the model load that connecting starts in the background. While it runs it reads the deps.json
     /// (<c>File.OpenRead</c>), so a test that rewrites the file or deletes the folder at that moment fails with a sharing
     /// violation; a load cancelled by <see cref="ClrModelManager.LoadAsync()"/> keeps reading until its step ends.
@@ -195,6 +227,29 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
         Assert.Equal(ClrModelPhase.Failed, _models.State.Phase);
         Assert.Contains("kaputt", _models.State.Error!.Message);
+    }
+
+    /// <summary>Code review of R9, finding 4: the solution build of the code usage runs, but Cancel on the model page does nothing for it.</summary>
+    [Fact]
+    public async Task A_solution_build_is_no_build_of_the_project_and_offers_no_cancel_on_the_model_page()
+    {
+        await ConnectAsync();
+        var started = new TaskCompletionSource();
+        var release = new TaskCompletionSource<DotNetRun>();
+        _runner.BuildSolutionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IProgress<SolutionBuildProgress>?>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                started.SetResult();
+                return release.Task;
+            });
+
+        var build = _models.BuildSolutionAsync("App.sln", null, Ct);
+        await started.Task.WaitAsync(Wait.Limit, Ct);
+
+        Assert.True(_models.IsBuilding);
+        Assert.False(_models.IsBuildingProject);
+        release.SetResult(new DotNetRun(0, "", ""));
+        await build.WaitAsync(Wait.Limit, Ct);
     }
 
     /// <summary>Review 3.54.0, A19: a build past its time limit showed "exit code -1" and lost what it wrote up to then.</summary>

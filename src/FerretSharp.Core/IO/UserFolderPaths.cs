@@ -45,4 +45,49 @@ public static class UserFolderPaths
             return true; // cannot be looked at: not followed
         }
     }
+
+    /// <summary>
+    /// The <c>.cs</c> files below the root depth first – a folder's files, then its subfolders, each in ordinal order, the
+    /// same on every system; <c>bin</c>, <c>obj</c>, dot folders and links skipped: a junction in the work clone could lead
+    /// anywhere, only files really below it are read and written (WP-41; review 3.70.0, A4 and B2: "Usage" had its own walk
+    /// that followed links).
+    /// </summary>
+    public static IEnumerable<string> SourceFiles(string root)
+    {
+        var pending = new Stack<string>([root]);
+        while (pending.TryPop(out var directory))
+        {
+            string[] files, directories;
+            try
+            {
+                files = Directory.GetFiles(directory, "*.cs");
+                directories = Directory.GetDirectories(directory);
+                Array.Sort(files, StringComparer.Ordinal);
+                Array.Sort(directories, StringComparer.Ordinal);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            foreach (var file in files)
+            {
+                if (!IsLink(file))
+                {
+                    yield return file;
+                }
+            }
+
+            // pushed in reverse, so the stack pops them in ordinal order
+            for (var i = directories.Length - 1; i >= 0; i--)
+            {
+                var child = directories[i];
+                var name = Path.GetFileName(child);
+                if (!name.StartsWith('.') && !name.Equals("bin", StringComparison.OrdinalIgnoreCase) && !name.Equals("obj", StringComparison.OrdinalIgnoreCase) && !IsLink(child))
+                {
+                    pending.Push(child);
+                }
+            }
+        }
+    }
 }

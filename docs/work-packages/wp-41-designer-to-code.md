@@ -1,6 +1,6 @@
 # WP-41 Designer-Änderungen ins C#-Projekt
 
-Branch `wp/41-designer-to-code` (von `main`), 2026-11-12, noch ohne Release. ADR 0050. Baut auf WP-40 (Arbeits-Klone, ADR 0030) und WP-23 (Designer, „Entity aus Tabelle“).
+Branch `wp/41-designer-to-code` (von `main`), 2026-11-12, Release 3.70.0. ADR 0050. Baut auf WP-40 (Arbeits-Klone, ADR 0030) und WP-23 (Designer, „Entity aus Tabelle“).
 
 ## Planung (aus `docs/roadmap.md`)
 - Nach einer Änderung im Tabellen-Designer die passende Änderung an Entity-Klasse und `IEntityTypeConfiguration` vorschlagen: Spalte hinzu → Property und Konfiguration im Stil des Projekts, Länge/NULL geändert → Facetten anpassen, Spalte gelöscht → Property entfernen. Neue Tabelle → neue Dateien wie „Entity aus Tabelle“.

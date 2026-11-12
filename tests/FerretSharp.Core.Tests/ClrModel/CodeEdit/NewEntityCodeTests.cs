@@ -139,6 +139,51 @@ public sealed class NewEntityCodeTests
         Assert.Contains($"{Path.Combine("App", "App.csproj")} ist kein SDK-Projekt: die neuen Dateien bitte von Hand eintragen (Compile Include).", plan.Notes);
     }
 
+    /// <summary>
+    /// Review 3.70.0, C2: without the using the context does not build, nor with a second member of the DbSet's name; a context
+    /// that registers its configurations neither one by one nor from the assembly gets a note.
+    /// </summary>
+    [Fact]
+    public async Task The_context_gets_a_using_for_another_namespace_a_free_dbset_name_and_a_note_where_it_registers_nothing()
+    {
+        var mapping = await MappingAsync();
+        using var clone = new TestFolder();
+        Write(clone, "Shop.Entities/Shop.Entities.csproj", Sdk);
+        Write(clone, "Shop.Entities/Kunde.cs", "namespace Shop;\n\npublic class Kunde\n{\n    public string? Name { get; set; }\n}\n");
+        Write(clone, "Shop.Data/Shop.Data.csproj", Sdk);
+        Write(clone, "Shop.Data/Configurations/KundeConfiguration.cs",
+            "namespace Shop.Data.Configurations;\n\npublic class KundeConfiguration : IEntityTypeConfiguration<Kunde>\n{\n    public void Configure(EntityTypeBuilder<Kunde> builder)\n    {\n    }\n}\n");
+        var context = """
+            using Microsoft.EntityFrameworkCore;
+
+            namespace Shop;
+
+            public class Ctx : DbContext
+            {
+                public DbSet<Kunde> Kunden { get; set; } = null!;
+                public DbSet<Kunde> Auftrag { get; set; } = null!;
+
+                protected override void OnModelCreating(ModelBuilder modelBuilder)
+                {
+                    modelBuilder.ApplyConfiguration(new KundeConfiguration());
+                }
+            }
+            """.ReplaceLineEndings("\n");
+        Write(clone, "Shop.Data/Ctx.cs", context);
+
+        var plan = Plan(mapping, clone);
+
+        Assert.True(plan.CanWrite, string.Join("\n", plan.Problems));
+        Assert.Equal(context
+                .Replace("using Microsoft.EntityFrameworkCore;\n", "using Microsoft.EntityFrameworkCore;\nusing Shop.Data.Configurations;\n", StringComparison.Ordinal)
+                .Replace("    public DbSet<Kunde> Auftrag { get; set; } = null!;\n", "    public DbSet<Kunde> Auftrag { get; set; } = null!;\n    public DbSet<Auftrag> Auftrag2 { get; set; } = null!;\n", StringComparison.Ordinal)
+                .Replace("        modelBuilder.ApplyConfiguration(new KundeConfiguration());\n", "        modelBuilder.ApplyConfiguration(new KundeConfiguration());\n        modelBuilder.ApplyConfiguration(new AuftragConfiguration());\n", StringComparison.Ordinal),
+            plan.Files.Single(f => f.Relative.EndsWith("Ctx.cs", StringComparison.Ordinal)).NewText);
+
+        Write(clone, "Shop.Data/Ctx.cs", context.Replace("        modelBuilder.ApplyConfiguration(new KundeConfiguration());\n", "", StringComparison.Ordinal));
+        Assert.Contains(Plan(mapping, clone).Notes, n => n.StartsWith("AuftragConfiguration bitte von Hand in OnModelCreating eintragen", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Another_folder_of_the_projects_entities_can_be_chosen()
     {
@@ -188,7 +233,7 @@ public sealed class NewEntityCodeTests
         Write(clone, "Directory.Build.props", "<Project><PropertyGroup><Nullable>enable</Nullable></PropertyGroup></Project>");
         Write(clone, "App/App.csproj", project);
 
-        Assert.Equal(expected, EntityCodeChanges.ProjectNullable(clone.Path, clone.Combine("App")));
+        Assert.Equal(expected, CodeProject.Nullable(clone.Path, clone.Combine("App")));
     }
 
     [Fact]

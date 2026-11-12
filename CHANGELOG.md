@@ -5,6 +5,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+Fixes, structure, tests and docs after the review of 3.70.0 (R9).
+
+### Security
+- DDL that drops rows or the data of a type is never run, like TRUNCATE: `ALTER TABLE … MOVE/SPLIT/MERGE … INCLUDING ROWS WHERE`, `DROP TYPE … FORCE` and `ALTER TYPE … DROP ATTRIBUTE … CASCADE` (and `INVALIDATE`, which loses the values the same way).
+- A password typed for this run and refused by the database is forgotten everywhere: "Refresh" on the server load page sent it again and could lock the account.
+- "Usage" looks for a moved class only in files really below the work clone, never behind a junction or symbolic link.
+
+### Changed
+- "Disconnect session" in a time travel tab gives up the connection's read session – before, it rolled back the workspace's transaction and the tab kept hanging. The diff tab offers the same once cancelled, and looking up a point in time ends after 30 s.
+- If the display (the WebView2 renderer) crashes, FerretSharp loads it again once; a second crash shortly after asks whether to restart. Closing with uncommitted changes while the display is gone asks natively: commit, roll back or keep open.
+- `CREATE INDEX` and `ALTER INDEX … REBUILD ONLINE` are not started while another session has uncommitted changes on the table: an online build waited for them, also past a cancel.
+- "Build" on the model page says when it waits for another build of FerretSharp, and can be cancelled.
+- The server load shows times in your culture and filters schema and module like every search box.
+- A self-contained publish stops if the .NET SDK would bundle a runtime without its security fixes.
+
+### Fixed
+- A script keeps the line break most of its lines have; one pasted CRLF line made the whole file CRLF.
+- A line break in a script's parameter name no longer moves header text into the SQL.
+- Writing a WP-41 plan: a click right after a change no longer writes the old plan, and closing the view no longer stops between two files.
+- The schema compare no longer offers to run the same DDL again when its page is built anew during a run.
+- An untracked file in the work clone gets the "not committed" warning; paths with umlauts are read correctly.
+- Hidden grant and synonym tabs no longer render with every change.
+- ORA-22924 (a LOB's older version is gone) is explained like the other undo errors; the scripts' group tooltip, the mark of the time dialog's preset and a false hang warning while closing are fixed.
+
+### Internal
+- One building block opens every session beside the main one (`OwnSession`); one folder walk without links (`UserFolderPaths.SourceFiles`); one line-break rule for scripts and C# files; `QuietTimer` and `FileWatch` for the three file watchers; `CodeProject`, `GrantActions`, `TableKinds.ObjectType`.
+- New tests for WP-41's guards and change paths, restoring rows, the script library's limits, the server load's list since loading and the WebView crash path; four groups of tests merged into theories, one removed. Every English text with a placeholder has a comment for the translator (test).
+- Rules: `flashback.md`, `server-load.md`, `app-host.md`; the release skill sets the release state of the packages.
+
 ## [3.70.0] - 2026-11-12
 
 Write the designer's changes of a mapped table into your C# project, and run SQL scripts from a cell: scripts that name a column as their target show in the cell menu and run with the cell's value or the marked rows' values.

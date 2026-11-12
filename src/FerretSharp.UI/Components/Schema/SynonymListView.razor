@@ -136,6 +136,12 @@
 
     protected override void OnInitialized() => Shell.TabCommandRequested += OnTabCommand;
 
+    /// <summary>
+    /// Only the shown tab renders: the shell renders with every edit in any tab, and this one builds its whole list in the
+    /// markup – all grants or synonyms of the schema (review 3.70.0, A6; like the diff tab).
+    /// </summary>
+    protected override bool ShouldRender() => Shell.ActiveTab == Tab;
+
     protected override async Task OnParametersSetAsync()
     {
         if (!_loaded)

@@ -17,12 +17,12 @@ public sealed class CancelOffThreadTests
         source.Token.Register(() =>
         {
             entered.TrySetResult();
-            release.Wait(Ct);
+            release.Wait(Wait.Limit, Ct); // never past the limit: a regression fails instead of hanging the run (review 3.70.0, C9)
         });
 
         CancelOffThread.Run(source);
 
-        await entered.Task.WaitAsync(Ct);
+        await entered.Task.WaitAsync(Wait.Limit, Ct);
         release.Set();
 
         var freed = new CancellationTokenSource();

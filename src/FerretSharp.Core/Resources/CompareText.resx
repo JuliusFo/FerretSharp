@@ -53,10 +53,6 @@
   <data name="ConnectionGone" xml:space="preserve">
     <value>This connection no longer exists.</value>
   </data>
-  <data name="NoPasswordFor" xml:space="preserve">
-    <value>No password is saved for “{0}”.</value>
-    <comment>{0}: connection name</comment>
-  </data>
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} is not a valid schema comparison file: {1}</value>
     <comment>{0}: file path; {1}: error message of the JSON reader</comment>

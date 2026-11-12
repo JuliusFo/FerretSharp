@@ -387,6 +387,12 @@
   <data name="Lifecycle_SessionReset" xml:space="preserve">
     <value>Session von „{0}“ getrennt – beim nächsten Zugriff öffnet sich eine neue.</value>
   </data>
+  <data name="Lifecycle_ReadsReset" xml:space="preserve">
+    <value>Lese-Session getrennt – die Workspaces behalten ihre Sessions; beim nächsten Lesen öffnet sich eine neue.</value>
+  </data>
+  <data name="Lifecycle_PointTimedOut" xml:space="preserve">
+    <value>Die Datenbank hat den Zeitpunkt nicht innerhalb von {0} s geliefert. Die Lese-Session wurde getrennt; bitte erneut versuchen.</value>
+  </data>
   <data name="Lifecycle_LockWhat" xml:space="preserve">
     <value>Workspace sperren</value>
   </data>
@@ -1008,9 +1014,6 @@
   <data name="DataDiff_Cancelled" xml:space="preserve">
     <value>Abgebrochen.</value>
   </data>
-  <data name="DataDiff_NotConnected" xml:space="preserve">
-    <value>Die Verbindung ist nicht geöffnet.</value>
-  </data>
   <data name="DataDiff_TableGone" xml:space="preserve">
     <value>{0}.{1} gibt es nicht mehr, oder sie ist nicht sichtbar.</value>
   </data>
@@ -1058,6 +1061,12 @@
   </data>
   <data name="DataDiff_Comparing" xml:space="preserve">
     <value>Vergleiche …</value>
+  </data>
+  <data name="DataDiff_ResetReads" xml:space="preserve">
+    <value>Lese-Session trennen</value>
+  </data>
+  <data name="DataDiff_ResetReadsTitle" xml:space="preserve">
+    <value>Das Lesen endet nicht (VPN still?): die Lese-Session aufgeben, auf der der Diff liest. Die Session des Workspaces und seine Änderungen bleiben.</value>
   </data>
   <data name="DataDiff_Compare" xml:space="preserve">
     <value>Vergleichen</value>

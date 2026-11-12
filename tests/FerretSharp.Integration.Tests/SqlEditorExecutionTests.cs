@@ -244,6 +244,7 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
         await using var writer = await OpenAsync("SQL busy writer");
         await using var ddl = await OpenAsync("SQL busy ddl");
         await ddl.Editor.ExecuteDdlAsync("CREATE TABLE sx_busy (id NUMBER(10))", Ct);
+        await ddl.Editor.ExecuteDdlAsync("CREATE INDEX sx_busy_id ON sx_busy (id)", Ct);
         await writer.Editor.ExecuteAsync(new QuerySpec("INSERT INTO sx_busy VALUES (1)", []), Ct);
         var columns = new QuerySpec("SELECT COUNT(*) FROM user_tab_columns WHERE table_name = 'SX_BUSY'", []);
 
@@ -255,6 +256,17 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
         var busy = await Assert.ThrowsAsync<TableBusyException>(() => ddl.Editor.ExecuteDdlAsync("ALTER TABLE sx_busy ADD (name VARCHAR2(10))", Ct));
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"Took {stopwatch.Elapsed}.");
         Assert.StartsWith("Nicht gestartet: Eine andere Session hat in SX_BUSY geschrieben", busy.Message);
+
+        // Review 3.70.0, A17: ONLINE waits for that transaction too (164 s, past a cancel) – the table is taken first.
+        foreach (var online in new[] { "CREATE INDEX sx_busy_id2 ON sx_busy (id, 1) ONLINE", "ALTER INDEX sx_busy_id REBUILD ONLINE" })
+        {
+            stopwatch.Restart();
+            await Assert.ThrowsAsync<TableBusyException>(() => ddl.Editor.ExecuteDdlAsync(online, Ct));
+            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"{online} took {stopwatch.Elapsed}.");
+        }
+
+        var rebuild = await Assert.ThrowsAsync<DatabaseException>(() => ddl.Editor.ExecuteDdlAsync("ALTER INDEX sx_busy_id REBUILD", Ct));
+        Assert.Equal("ORA-00054", rebuild.ErrorCode); // without ONLINE it does not wait
         Assert.Equal(TransactionMode.None, ddl.Editor.Transaction.Mode);
         Assert.Equal(1m, (await ddl.Data.ReadSqlAsync(columns, 0, 1, Ct)).Rows.Single()[0]);
         await ddl.Editor.ExecuteDdlAsync("COMMENT ON TABLE sx_busy IS 'kein Konflikt'", Ct); // COMMENT does not take the table

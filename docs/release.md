@@ -5,6 +5,7 @@ Aus der `CLAUDE.md` ausgelagert (Gesamt-Review 3.31.0, Teil C). Vor Änderungen 
 ## Versionierung
 
 - SemVer, Version in `Directory.Build.props`, `CHANGELOG.md` pflegen (Abschnitt `## [X.Y.Z] - Datum`).
+- Mit dem CHANGELOG den Release-Stand der Pakete setzen (Entscheidung des Nutzers, Review 3.70.0, D1): Spalte „Release“ im Index `docs/work-packages/README.md` (Zeilen in Release-Reihenfolge, Paketbereich der Versionszeile), „noch ohne Release“ im Kopf jedes Protokolls. Schritt 7 der Release-Skill zählt nach dieser Spalte.
 - Reihenfolge der Unterabschnitte (Entscheidung des Nutzers, 2026-10-26): `Security`, `Added`, `Changed`, `Fixed`, `Internal`. Liegt das Hauptthema eines Releases in einem anderen Abschnitt, darf dieser nach vorn (3.49.0: `Changed` vor `Added`). Kein Test, nur Regel.
 - Git-Tag `vX.Y.Z` je Release. **Der Push des Tags veröffentlicht das GitHub-Release** – erst taggen, wenn der CHANGELOG-Abschnitt steht (er wird zu den Release-Notizen und zum Text im Update-Dialog der App).
 - Nicht pushen und nicht taggen ohne Rückfrage beim Nutzer.
@@ -20,6 +21,7 @@ Aus der `CLAUDE.md` ausgelagert (Gesamt-Review 3.31.0, Teil C). Vor Änderungen 
 ## Distribution (Velopack, ADR 0024)
 
 - Bauen: `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>`, dann `vpk pack` (lokales Tool in `dotnet-tools.json`, gleiche Version wie das Paket `Velopack`).
+- Der self-contained Publish bricht ab, wenn das SDK eine Runtime unter `MinimumBundledRuntime` (`Directory.Build.props`) mitbringen würde – sie hätte bekannte Sicherheitslücken (R9, Entscheidung des Nutzers; `global.json` bleibt). Nach einem Sicherheits-Release der Runtime den Wert anheben; lokal hilft dann nur ein SDK-Update.
 - Release über `.github/workflows/release.yml`: Tag `vX.Y.Z` → Version gegen `Directory.Build.props` prüfen, Core-Tests, bauen, vorheriges Release für die Delta-Pakete holen, packen → `FerretSharp-win-Setup.exe`, `FerretSharp-win-Portable.zip`, volle und Delta-Pakete, `releases.win.json`. Notizen aus dem CHANGELOG-Abschnitt. Für bestehende Tags per `workflow_dispatch`.
 - Das einfache Zip des Ordners gab es bis 3.29.0; seit 3.30.0 nur noch die Velopack-Dateien.
 - `Program.Main` ruft zuerst `VelopackApp…Run()`, dann die Instanzsperre (eine Instanz je Datenordner). Installiert prüft die App auf Updates (Einstellungen › Updates); ohne Installation (Debug, `dotnet run`, E2E) passiert nichts.

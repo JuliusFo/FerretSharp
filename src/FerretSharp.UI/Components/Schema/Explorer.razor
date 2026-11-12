@@ -575,7 +575,7 @@
     {
         var kind = ObjectMenuFacts.KindLabel(table.Kind);
         var text = table.Synonym is { } synonym ? ObjectMenuFacts.SynonymTooltip(synonym, table.Owner, table.Name, kind) : kind;
-        return table.IsInvalid ? text + Environment.NewLine + InvalidStatusText.For(ObjectMenuFacts.ObjectType(table.Kind)) : text;
+        return table.IsInvalid ? text + Environment.NewLine + InvalidStatusText.For(table.Kind.ObjectType()) : text;
     }
 
     private static string Tooltip(PlSqlObjectSummary unit)

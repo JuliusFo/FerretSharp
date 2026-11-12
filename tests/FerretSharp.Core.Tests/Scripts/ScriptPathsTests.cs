@@ -77,27 +77,12 @@ public sealed class ScriptPathsTests : IDisposable
     [Fact]
     public void A_junction_below_the_root_is_not_followed()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            Assert.Skip("Junctions exist only on Windows.");
-        }
-
         var outside = _folder.Combine("outside");
         Directory.CreateDirectory(outside);
         File.WriteAllText(Path.Combine(outside, "secret.sql"), "SELECT 1 FROM dual");
         var root = _folder.Combine("root");
         Directory.CreateDirectory(root);
-        using (var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe")
-               {
-                   ArgumentList = { "/c", "mklink", "/J", Path.Combine(root, "joined"), outside },
-                   UseShellExecute = false,
-                   RedirectStandardOutput = true,
-                   CreateNoWindow = true,
-               })!)
-        {
-            mklink.WaitForExit();
-            Assert.Equal(0, mklink.ExitCode);
-        }
+        TestFolder.Junction(Path.Combine(root, "joined"), outside);
 
         Assert.Throws<RefusedException>(() => ScriptPaths.Resolve(root, "joined/secret.sql"));
     }

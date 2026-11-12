@@ -69,7 +69,7 @@
 
     private static string RootText(ScriptRoot root) => root.Kind switch
     {
-        ScriptRootKind.Group => $"{ScriptViewText.Root_Group} {root.Group}",
+        ScriptRootKind.Group => TextFormat.Format(ScriptViewText.Root_Group, root.Group), // review 3.70.0, A20: "Gruppe {0} Team"
         ScriptRootKind.General => ScriptViewText.Root_General,
         _ => ScriptViewText.Root_Personal,
     };

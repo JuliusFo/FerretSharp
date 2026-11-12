@@ -7,6 +7,20 @@ public enum TableKind
     MaterializedView,
 }
 
+public static class TableKinds
+{
+    /// <summary>
+    /// <c>TABLE</c>, <c>VIEW</c> or <c>MATERIALIZED VIEW</c>: the <c>ALL_OBJECTS.OBJECT_TYPE</c> and the DDL keyword
+    /// (review 3.70.0, B7: the switch stood five times).
+    /// </summary>
+    public static string ObjectType(this TableKind kind) => kind switch
+    {
+        TableKind.View => "VIEW",
+        TableKind.MaterializedView => "MATERIALIZED VIEW",
+        _ => "TABLE",
+    };
+}
+
 /// <summary>Exact (case-sensitive) owner and object name as stored in the data dictionary.</summary>
 public sealed record TableRef(string Owner, string Name)
 {

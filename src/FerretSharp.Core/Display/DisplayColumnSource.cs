@@ -50,7 +50,7 @@ public sealed class DisplayColumnSource : IDisposable
     private readonly Lock _reporting = new();
 
     private readonly SemaphoreSlim _writing = new(1, 1);
-    private readonly Timer _quiet;
+    private readonly QuietTimer _quiet;
     private readonly Timer? _poll;
     private readonly CachedFileRead<DisplayColumnLoad> _file;
     private (string Path, bool Enabled, DisplayColumnLoad Load) _reported;
@@ -65,7 +65,7 @@ public sealed class DisplayColumnSource : IDisposable
         _defaultPath = defaultPath;
         _clock = clock ?? TimeProvider.System;
         _file = new(Read, Unreadable, _clock);
-        _quiet = new Timer(_ => Reload());
+        _quiet = new QuietTimer(Quiet, Reload, _clock);
         _reported = (PathOf(settings.Current), settings.Current.ShowDisplayNames, Load(PathOf(settings.Current)));
         Watching = watch;
         if (watch)
@@ -302,20 +302,12 @@ public sealed class DisplayColumnSource : IDisposable
             var directory = System.IO.Path.GetDirectoryName(full);
             if (directory is not null && Directory.Exists(directory))
             {
-                watcher = new FileSystemWatcher(directory, System.IO.Path.GetFileName(full))
+                // Broken (a share that went away, a buffer overflow): watch anew (the poll covers the time until then).
+                watcher = FileWatch.Create(directory, System.IO.Path.GetFileName(full), subdirectories: false, _ => _quiet.Touch(), () =>
                 {
-                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
-                };
-                watcher.Changed += OnFileChanged;
-                watcher.Created += OnFileChanged;
-                watcher.Deleted += OnFileChanged;
-                watcher.Renamed += OnFileChanged;
-                // A share that went away or a buffer overflow: watch anew (the poll covers the time until then).
-                watcher.Error += (_, _) =>
-                {
-                    Touch();
+                    _quiet.Touch();
                     Watch(PathOf(_settings.Current));
-                };
+                });
                 watcher.EnableRaisingEvents = true;
             }
         }
@@ -338,20 +330,6 @@ public sealed class DisplayColumnSource : IDisposable
         }
 
         old?.Dispose();
-    }
-
-    private void OnFileChanged(object sender, FileSystemEventArgs e) => Touch();
-
-    private void Touch()
-    {
-        try
-        {
-            _quiet.Change(Quiet, Timeout.InfiniteTimeSpan);
-        }
-        catch (ObjectDisposedException)
-        {
-            // an event that arrived while disposing
-        }
     }
 
     public void Dispose()

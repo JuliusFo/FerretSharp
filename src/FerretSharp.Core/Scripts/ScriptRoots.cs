@@ -1,4 +1,3 @@
-using FerretSharp.Core.Audit;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Settings;
@@ -44,7 +43,7 @@ public static class ScriptRoots
         var roots = new List<ScriptRoot> { Personal(settings, defaultPersonal) };
         // As All() does (review WP-77, K4): a path in quotes otherwise named another root than the one the library reads;
         // one of only quotes (set by hand) is none (second review pass: a root without path broke the explorer's render).
-        if (AuditTemplateSource.GroupEntry(settings.SqlScriptsGroups, profile?.Group) is { } entry && PathInput.Normalize(entry.Value) is { } groupPath)
+        if (ConnectionSearch.GroupEntry(settings.SqlScriptsGroups, profile?.Group) is { } entry && PathInput.Normalize(entry.Value) is { } groupPath)
         {
             roots.Add(new ScriptRoot(ScriptRootKind.Group, groupPath, entry.Key));
         }

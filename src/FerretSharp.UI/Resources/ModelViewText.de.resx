@@ -18,6 +18,9 @@
   <data name="Model_Build" xml:space="preserve">
     <value>Neu bauen</value>
   </data>
+  <data name="Model_BuildWaiting" xml:space="preserve">
+    <value>Wartet, bis ein anderer Build von FerretSharp fertig ist …</value>
+  </data>
   <data name="Model_BuildTitle" xml:space="preserve">
     <value>dotnet build, danach neu laden</value>
   </data>

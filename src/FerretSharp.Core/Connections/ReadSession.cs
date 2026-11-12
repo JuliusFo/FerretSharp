@@ -43,7 +43,7 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
     private bool _noExactScn;
 
     /// <summary>Whether a session is open or opening (tests, diagnostics).</summary>
-    public bool HasSession
+    internal bool HasSession
     {
         get
         {
@@ -115,6 +115,24 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
         return await data.CurrentPointAsync(exact: false, ct);
     }, cancellationToken);
 
+    /// <summary>
+    /// "Disconnect session" of a diff or time travel tab whose read hangs (review 3.70.0, A1): the session leaves at once and
+    /// closes in the background, reads on it end, the next read opens a new one. A workspace's session is never touched.
+    /// </summary>
+    public void Reset()
+    {
+        Task<IDatabaseConnection>? session;
+        lock (_lock)
+        {
+            session = TakeSession();
+        }
+
+        if (session is not null)
+        {
+            _ = CloseAsync(session);
+        }
+    }
+
     /// <summary>The connection closes: the session too; reads still running end with a cancel.</summary>
     internal Task DetachAsync()
     {
@@ -161,11 +179,13 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
 
         try
         {
+            // A read that does not react to the cancel (silent VPN; ODP.NET may also block synchronously) is left behind, as a
+            // workspace's is (review 3.70.0, A1).
             return await Task.Run(async () =>
             {
                 var connection = await session.WaitAsync(cancellationToken);
                 return await read(connection.Data, cancellationToken);
-            }, CancellationToken.None);
+            }, CancellationToken.None).WaitAsync(cancellationToken);
         }
         catch (DatabaseException ex) when (ex.IsConnectionLost)
         {
@@ -231,13 +251,10 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
 
     private async Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, CancellationToken cancellationToken)
     {
-        var password = connections.GetPassword(profile.Id)
-            ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
-        IDatabaseConnection connection;
         try
         {
-            connection = await SessionOpening.OpenAsync(
-                (_, token) => connector.OpenAsync(profile, password, Action, token), _time, retrying: null, cancellationToken);
+            // Read-only profile (Prod by default): Oracle itself rejects DML in this session, as in a locked workspace.
+            return await OwnSession.OpenAsync(connector, connections, profile, Action, _time, profile.ReadOnly, cancellationToken);
         }
         catch (DatabaseException ex) when (ex is not SessionOpenTimeoutException && !ReconnectPolicy.IsNetworkError(ex.ErrorCode))
         {
@@ -249,28 +266,6 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
                 }
             }
 
-            if (ex.ErrorCode == ConnectionManager.WrongPasswordCode)
-            {
-                connections.ForgetSessionPassword(profile.Id); // asked again on the next connect, as ActiveConnection does
-            }
-
-            throw;
-        }
-
-        if (!profile.ReadOnly)
-        {
-            return connection;
-        }
-
-        // Read-only profile (Prod by default): Oracle itself rejects DML in this session, as in a locked workspace.
-        try
-        {
-            await connection.UseReadOnlySnapshotsAsync(cancellationToken);
-            return connection;
-        }
-        catch
-        {
-            await connection.DisposeAsync();
             throw;
         }
     }

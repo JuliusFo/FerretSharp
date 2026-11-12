@@ -199,6 +199,7 @@ public partial class App : Application
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton<WebViewCapture>();
         builder.Services.AddSingleton<WebViewSizeWatch>();
+        builder.Services.AddSingleton<WebViewCrashGuard>();
         builder.Services.AddSingleton(sp => new UiStallMonitor(
             Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>(), paths.LogsDirectory, sp.GetRequiredService<AppSettingsService>()));
         builder.Services.AddSingleton(sp => new UiHangWatch(Dispatcher, sp.GetRequiredService<ILogger<UiHangWatch>>()));
@@ -222,6 +223,7 @@ public partial class App : Application
         _host.Services.GetRequiredService<DisplayWatch>().Start();
         _host.Services.GetRequiredService<UiHangWatch>().Start();
 
+        _host.Services.GetRequiredService<WebViewCrashGuard>().StartAgain = StartAgain;
         var window = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = window;
         window.Show();
@@ -273,6 +275,10 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("FerretSharp shutting down");
+        // Closing blocks the UI thread for up to 13 s (sessions over a silent VPN): the watches would log that as a hang
+        // (review 3.70.0, A15).
+        _host?.Services.GetService<UiHangWatch>()?.Dispose();
+        _host?.Services.GetService<UiStallMonitor>()?.Dispose();
         if (_powerModeChanged is not null)
         {
             SystemEvents.PowerModeChanged -= _powerModeChanged; // a static event: it would keep the app's objects alive

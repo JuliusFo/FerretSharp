@@ -1,6 +1,6 @@
 # Fix: Serverlast-Test findet den Cursor ohne Plan
 
-Branch `fix/cursor-plan-child` (von `main`), 2026-11-10, noch ohne Release.
+Branch `fix/cursor-plan-child` (von `main`), 2026-11-10, Release 3.69.0.
 
 ## Anlass
 CI-Lauf 42817332499 (Versuch 1, PR #166, ein reiner Doku-Commit; der Code-Commit davor war im selben Job grün):

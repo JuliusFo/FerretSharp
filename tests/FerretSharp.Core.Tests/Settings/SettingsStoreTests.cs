@@ -35,18 +35,6 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(TabBarLayout.SingleRow, settings.TabBar);
     }
 
-    [Theory]
-    [InlineData(ThemeMode.Dark)]
-    [InlineData(ThemeMode.Light)]
-    [InlineData(ThemeMode.System)]
-    public async Task Theme_round_trips(ThemeMode theme)
-    {
-        await _store.SaveAsync(new AppSettings { Theme = theme }, Ct);
-
-        Assert.Equal(theme, (await _store.LoadAsync(Ct)).Theme);
-        Assert.False(File.Exists(_store.FilePath + ".tmp"));
-    }
-
     /// <summary>
     /// A file written before a setting existed gives that setting its default – every setting at once (review 3.54.0, C13: one
     /// test per setting before, ten of them, each new setting brought another).

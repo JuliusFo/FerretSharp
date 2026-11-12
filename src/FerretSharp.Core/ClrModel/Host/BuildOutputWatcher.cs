@@ -1,3 +1,5 @@
+using FerretSharp.Core.IO;
+
 namespace FerretSharp.Core.ClrModel;
 
 /// <summary>
@@ -11,8 +13,7 @@ public sealed class BuildOutputWatcher : IDisposable
     public static readonly TimeSpan DefaultQuiet = TimeSpan.FromSeconds(1.5);
 
     private readonly FileSystemWatcher _watcher;
-    private readonly ITimer _timer;
-    private readonly TimeSpan _quiet;
+    private readonly QuietTimer _timer;
     private readonly bool _depsOnly;
     private int _disposed;
     private int _seen;
@@ -31,32 +32,21 @@ public sealed class BuildOutputWatcher : IDisposable
     {
         Directory = directory;
         File = file;
-        _quiet = quiet;
         _depsOnly = depsOnly;
-        _timer = (time ?? TimeProvider.System).CreateTimer(_ =>
+        _timer = new QuietTimer(quiet, () =>
         {
             if (Volatile.Read(ref _disposed) == 0)
             {
                 Interlocked.Increment(ref _reported);
                 changed();
             }
-        }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _watcher = new FileSystemWatcher(directory, file ?? "*")
+        }, time);
+        // Broken: too many changes at once (the buffer overflowed) – something changed for sure.
+        _watcher = FileWatch.Create(directory, file ?? "*", file is null, OnChanged, () =>
         {
-            IncludeSubdirectories = file is null,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
-            InternalBufferSize = 64 * 1024,
-        };
-        _watcher.Changed += OnChanged;
-        _watcher.Created += OnChanged;
-        _watcher.Deleted += OnChanged;
-        _watcher.Renamed += OnChanged;
-        // Too many changes at once (the buffer overflowed): something changed for sure.
-        _watcher.Error += (_, _) =>
-        {
-            Touch();
+            _timer.Touch();
             Interlocked.Increment(ref _seen);
-        };
+        });
         _watcher.EnableRaisingEvents = true;
     }
 
@@ -84,11 +74,11 @@ public sealed class BuildOutputWatcher : IDisposable
     /// <summary>After each file event, counted or not, with its path (tests).</summary>
     internal event Action<string>? Handled;
 
-    private void OnChanged(object sender, FileSystemEventArgs e)
+    private void OnChanged(FileSystemEventArgs e)
     {
         if (!_depsOnly || e.FullPath.EndsWith(".deps.json", StringComparison.OrdinalIgnoreCase) || HasDepsFile(e))
         {
-            Touch();
+            _timer.Touch();
         }
 
         Interlocked.Increment(ref _seen);
@@ -113,19 +103,6 @@ public sealed class BuildOutputWatcher : IDisposable
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false; // deleted again or being rewritten: a later event follows
-        }
-    }
-
-    /// <summary>(Re)starts the quiet period.</summary>
-    private void Touch()
-    {
-        try
-        {
-            _timer.Change(_quiet, Timeout.InfiniteTimeSpan);
-        }
-        catch (ObjectDisposedException)
-        {
-            // an event that arrived while disposing
         }
     }
 

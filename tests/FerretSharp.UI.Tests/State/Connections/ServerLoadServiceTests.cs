@@ -1,6 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.ServerLoad;
 using FerretSharp.Testing;
+using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -171,6 +172,64 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
 
         await _service.RefreshAsync(_profile);
         await Wait.UntilAsync(() => _connector.ReceivedCalls().Count() == 2, "the second attempt");
+    }
+
+    /// <summary>
+    /// Review 3.70.0, A5: a password typed for this run and refused is forgotten, as by the other sessions – the server load
+    /// sent it again with every "Refresh", and a few clicks locked the account (FAILED_LOGIN_ATTEMPTS).
+    /// </summary>
+    [Fact]
+    public async Task A_password_entered_for_this_run_and_refused_is_asked_for_again_instead_of_sent_on_refresh()
+    {
+        var typed = Profile("Typed");
+        var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
+        connections.SetPassword(typed.Id, "wrong", remember: false);
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<IDatabaseConnection>(new DatabaseException("ORA-01017: invalid credential or not authorized", "ORA-01017")));
+        await using var service = new ServerLoadService(connections, _connector, NullLogger<ServerLoadService>.Instance, _time);
+
+        await service.ShowAsync(typed);
+        var view = service.For(typed.Id);
+        await Wait.UntilAsync(() => view.Stopped, "the refusal");
+        await service.RefreshAsync(typed);
+        await Wait.UntilAsync(() => view.Error?.Contains("kein Passwort", StringComparison.Ordinal) == true, "the question for the password");
+
+        await _connector.Received(1).OpenAsync(typed, "wrong", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
+        Assert.Contains("„Typed“", view.Error, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Review 3.70.0, C5: the list since loading had no test at all – it needs the page's session, reads with the view's
+    /// sort and filter, and a read past its limit says so instead of spinning.
+    /// </summary>
+    [Fact]
+    public async Task The_list_since_loading_reads_on_the_page_s_session_and_gives_up_past_its_limit()
+    {
+        await _service.LoadSinceLoadAsync(_profile);
+        var view = _service.For(_profile.Id);
+        Assert.Equal(ServerLoadText.ServerLoad_NotWatching, view.SinceLoadError);
+
+        await _service.ShowAsync(_profile);
+        await ParkedAsync();
+        var rows = new List<StatementRow>();
+        _reader.ReadTopSinceLoadAsync(Arg.Any<TopStatementSort>(), Arg.Any<StatementFilter>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(rows);
+        await _service.LoadSinceLoadAsync(_profile);
+        Assert.Same(rows, view.SinceLoad);
+        Assert.Null(view.SinceLoadError);
+
+        _reader.ReadTopSinceLoadAsync(Arg.Any<TopStatementSort>(), Arg.Any<StatementFilter>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>()); // a silent line; ends with the limit
+                return (IReadOnlyList<StatementRow>)[];
+            });
+        var loading = _service.LoadSinceLoadAsync(_profile);
+        await Wait.UntilAsync(() => _time.DueTimes.Contains(ServerLoadService.LookupTimeout), "the limit of the read");
+        _time.Advance(ServerLoadService.LookupTimeout);
+        await loading.WaitAsync(Wait.Limit, TestContext.Current.CancellationToken);
+
+        Assert.Equal(ServerLoadText.ServerLoad_TimedOut, view.SinceLoadError);
+        Assert.False(view.SinceLoadLoading);
     }
 
     [Fact]

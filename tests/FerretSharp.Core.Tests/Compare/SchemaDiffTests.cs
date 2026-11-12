@@ -224,22 +224,16 @@ public class SchemaDiffTests
         Assert.Equal([Same, Same], States(row));
     }
 
-    [Fact]
-    public void Letter_case_inside_literals_counts()
+    /// <summary>Inside a string literal letter case and whitespace count (review 3.70.0, C17: two tests of one call).</summary>
+    [Theory]
+    [InlineData("'Ja'", "'JA'")]
+    [InlineData("'a  b'", "'a b'")]
+    public void Letter_case_and_whitespace_inside_string_literals_count(string left, string right)
     {
-        var row = Row(Compare(Schema(Table("T", [Col("C", defaultValue: "'Ja'")])), Schema(Table("T", [Col("C", defaultValue: "'JA'")]))), "T/col/C");
+        var row = Row(Compare(Schema(Table("T", [Col("C", defaultValue: left)])), Schema(Table("T", [Col("C", defaultValue: right)]))), "T/col/C");
 
         Assert.Equal([Different, Different], States(row));
-        Assert.Equal("NUMBER NULL DEFAULT 'Ja'", row.Cells[0].Definition);
-    }
-
-    [Fact]
-    public void Whitespace_inside_string_literals_counts()
-    {
-        var row = Row(Compare(Schema(Table("T", [Col("C", defaultValue: "'a  b'")])), Schema(Table("T", [Col("C", defaultValue: "'a b'")]))), "T/col/C");
-
-        Assert.Equal([Different, Different], States(row));
-        Assert.Equal("NUMBER NULL DEFAULT 'a  b'", row.Cells[0].Definition);
+        Assert.Equal($"NUMBER NULL DEFAULT {left}", row.Cells[0].Definition);
     }
 
     [Fact]
