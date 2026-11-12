@@ -191,6 +191,31 @@ public sealed class ScriptLibraryTests : IDisposable
     /// Review WP-77, K9: only the first 16 KB are read for the header; a UTF-8 character cut at that edge made the whole
     /// head read as Windows-1252 ("AuftrÃ¤ge").
     /// </summary>
+    /// <summary>
+    /// Review 3.70.0, C4: a shared folder with a huge tree (a repository's node_modules) or thousands of scripts is listed
+    /// only up to the limits, and says so (review fix M5 of WP-77 had no test).
+    /// </summary>
+    [Theory]
+    [InlineData(2, 100, 2)] // the scripts
+    [InlineData(100, 3, 3)] // the entries: the fourth of the root is not looked at, nor anything below
+    public async Task A_folder_past_the_limits_is_listed_up_to_them_and_marked_as_cut(int files, int entries, int listed)
+    {
+        foreach (var name in new[] { "a.sql", "b.sql", "c.sql" })
+        {
+            Write(Path.Combine(Personal, name), "SELECT 1 FROM dual");
+        }
+
+        Write(Path.Combine(Personal, "sub", "d.sql"), "SELECT 1 FROM dual");
+        var service = new AppSettingsService(new SettingsStore(_folder.Combine("settings.json")), AppSettings.Default);
+        using var library = new ScriptLibrary(service, Personal, watch: false) { FileLimit = files, EntryLimit = entries };
+
+        await library.RefreshAsync(Ct);
+        var scan = library.For(null)[0];
+
+        Assert.True(scan.Truncated);
+        Assert.True(scan.Scripts.Count <= listed, $"{scan.Scripts.Count} listed");
+    }
+
     [Fact]
     public async Task A_head_cut_inside_a_character_still_reads_as_utf8()
     {
