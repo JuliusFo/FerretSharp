@@ -257,3 +257,5 @@ Nicht planen, bevor die genannte Rückmeldung da ist.
 - README (D8): neue Bilder (Synonyme, Rechte, Bericht, Serverlast, Skripte, Tab-Leiste) nach `e2e-testing.md` › README-Screenshots.
 - A2: der Pfad „zweiter Absturz binnen 2 min → native Frage“ ist nur im Code geprüft, nicht im E2E (die Frage blockiert die Testinstanz).
 - B4-Rest: Erkennung von BOM und Kodierung bleibt bei Skripten (ANSI erlaubt) und C#-Dateien (abgelehnt) getrennt.
+- WebView: Ein Renderer, der dauerhaft nicht antwortet (`RenderProcessUnresponsive`), wird bewusst nicht neu geladen; mit offener Arbeit lässt sich das Fenster dann nicht schließen (die Shell fragt in der hängenden Seite). Prüfen, ob WebView2 meldet, wenn er wieder antwortet – dann `PageDead` setzen, damit das Schließen nativ fragt (Code-Review R9).
+- Schemaweg: Die Tabelle ist nur bis zum impliziten Commit vor dem DDL gesperrt; im Fenster dazwischen kann fremde DML beginnen, ein `ONLINE`-DDL wartete dann wieder (ADR 0019, Code-Review R9).
