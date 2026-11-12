@@ -14,7 +14,7 @@ powershell -ExecutionPolicy Bypass -File tools/e2e/Start-TestInstance.ps1 -Root 
 node tools/e2e/cdp.mjs 9333 eval <scratch>\find-target.js
 
 # 4. Real Windows click at a CSS position (also -Button Right|Middle, -Clicks 2, -ToX/-ToY to drag, -HoldMs, -MoveOnly)
-powershell -ExecutionPolicy Bypass -File tools/e2e/Invoke-RealClick.ps1 -ProcessId <id> -X 188 -Y 22.5
+powershell -ExecutionPolicy Bypass -File tools/e2e/Invoke-RealClick.ps1 -Root <scratch>\e2e -ProcessId <id> -X 188 -Y 22.5
 
 # 5. Screenshot from the surface (also when the window is covered), optional clip in CSS pixels
 node tools/e2e/cdp.mjs 9333 screenshot <scratch>\shot.png 0 0 800 600

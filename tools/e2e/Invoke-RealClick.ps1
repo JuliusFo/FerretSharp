@@ -12,13 +12,18 @@
     Holding the window in front gives the focus back to the last focused field; blur it via CDP first if a column
     picker could open and cover the target.
 
-.EXAMPLE
-    powershell -ExecutionPolicy Bypass -File tools/e2e/Invoke-RealClick.ps1 -ProcessId 12345 -X 188 -Y 22.5
+    Only clicks into a process whose executable lies below <Root>\app, like Stop-TestInstance.ps1: the id of the user's own
+    instance would click for real into it - connections, commit, Prod (review 3.70.0, A25).
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File tools/e2e/Invoke-RealClick.ps1 -ProcessId 12345 -X 40 -Y 300 -ToX 40 -ToY 420
+    powershell -ExecutionPolicy Bypass -File tools/e2e/Invoke-RealClick.ps1 -Root <scratch>\e2e -ProcessId 12345 -X 188 -Y 22.5
+
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File tools/e2e/Invoke-RealClick.ps1 -Root <scratch>\e2e -ProcessId 12345 -X 40 -Y 300 -ToX 40 -ToY 420
 #>
 param(
+    # The folder Start-TestInstance.ps1 was given: the test instance runs from <Root>\app.
+    [Parameter(Mandatory)][string]$Root,
     # Process id of the test instance (Start-TestInstance.ps1).
     [Parameter(Mandatory)][int]$ProcessId,
     # Position in CSS pixels of the page.
@@ -68,7 +73,13 @@ public static class RealInput {
 Add-Type $src
 [RealInput]::SetProcessDPIAware() | Out-Null
 
-$window = (Get-Process -Id $ProcessId).MainWindowHandle
+$app = (Join-Path ([IO.Path]::GetFullPath($Root)) 'app').TrimEnd('\') + '\'
+$process = Get-Process -Id $ProcessId
+if (-not $process.Path -or -not $process.Path.StartsWith($app, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Process $ProcessId ($($process.Path)) is not a test instance below $app - no input sent."
+}
+
+$window = $process.MainWindowHandle
 if ($window -eq [IntPtr]::Zero) { throw "Process $ProcessId has no window." }
 
 function ScreenPoint([double]$cssX, [double]$cssY) {
