@@ -21,8 +21,12 @@ public sealed partial class WorkspaceLifecycle(
     SqlHistoryStore history,
     ConditionHistoryStore conditions,
     WorkspaceEditing editing,
-    ILogger<WorkspaceLifecycle> logger)
+    ILogger<WorkspaceLifecycle> logger,
+    TimeProvider? time = null)
 {
+    /// <summary>The clock of time travel and diff points (review 3.70.0, C11: the tests computed with the real one).</summary>
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+
     /// <summary>The shown connection (an idle one if none is open).</summary>
     private ActiveConnection active => hub.Shown.Active;
 
@@ -84,6 +88,16 @@ public sealed partial class WorkspaceLifecycle(
         shell.Notify(TextFormat.Format(ShellText.Lifecycle_SessionReset, WorkspaceName(workspaceId)));
         shell.NotifyChanged(); // status bar: the transaction is gone
         await closing;
+    }
+
+    /// <summary>
+    /// "Disconnect session" of a time travel or diff tab (review 3.70.0, A1): they read on the connection's read session, so
+    /// that one is given up – the workspace's session and its transaction stay as they are, nothing is lost.
+    /// </summary>
+    public void ResetReads(Guid workspaceId)
+    {
+        ScopeOf(workspaceId).Active.Reads.Reset();
+        shell.Notify(ShellText.Lifecycle_ReadsReset);
     }
 
     /// <summary>

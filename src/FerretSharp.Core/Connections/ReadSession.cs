@@ -115,6 +115,24 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
         return await data.CurrentPointAsync(exact: false, ct);
     }, cancellationToken);
 
+    /// <summary>
+    /// "Disconnect session" of a diff or time travel tab whose read hangs (review 3.70.0, A1): the session leaves at once and
+    /// closes in the background, reads on it end, the next read opens a new one. A workspace's session is never touched.
+    /// </summary>
+    public void Reset()
+    {
+        Task<IDatabaseConnection>? session;
+        lock (_lock)
+        {
+            session = TakeSession();
+        }
+
+        if (session is not null)
+        {
+            _ = CloseAsync(session);
+        }
+    }
+
     /// <summary>The connection closes: the session too; reads still running end with a cancel.</summary>
     internal Task DetachAsync()
     {
@@ -161,11 +179,13 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
 
         try
         {
+            // A read that does not react to the cancel (silent VPN; ODP.NET may also block synchronously) is left behind, as a
+            // workspace's is (review 3.70.0, A1).
             return await Task.Run(async () =>
             {
                 var connection = await session.WaitAsync(cancellationToken);
                 return await read(connection.Data, cancellationToken);
-            }, CancellationToken.None);
+            }, CancellationToken.None).WaitAsync(cancellationToken);
         }
         catch (DatabaseException ex) when (ex.IsConnectionLost)
         {

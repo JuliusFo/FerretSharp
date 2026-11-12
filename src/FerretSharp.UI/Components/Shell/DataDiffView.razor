@@ -23,8 +23,16 @@
             </span>
             @if (Tab.Running || Tab.Restoring)
             {
-                <button class="btn" @onclick="Tab.Cancel">@CommonText.Cancel</button>
-                <span class="muted">@(Tab.Restoring ? ShellText.DataDiff_Restoring : ShellText.DataDiff_Comparing)</span>
+                @if (Tab.Cancelling)
+                {
+                    <button class="btn danger" title="@ShellText.DataDiff_ResetReadsTitle" @onclick="() => Lifecycle.ResetReads(Tab.WorkspaceId)">@ShellText.DataDiff_ResetReads</button>
+                    <span class="muted">@SqlEditorText.Run_Canceling</span>
+                }
+                else
+                {
+                    <button class="btn" @onclick="Tab.Cancel">@CommonText.Cancel</button>
+                    <span class="muted">@(Tab.Restoring ? ShellText.DataDiff_Restoring : ShellText.DataDiff_Comparing)</span>
+                }
             }
             else
             {

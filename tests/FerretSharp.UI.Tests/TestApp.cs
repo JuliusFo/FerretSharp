@@ -65,7 +65,7 @@ internal sealed class TestApp : IAsyncDisposable
         Editing = new WorkspaceEditing(Shell, Hub, _services.GetRequiredService<AppSettingsService>(), NullLogger<WorkspaceEditing>.Instance, Time);
         Lifecycle = new WorkspaceLifecycle(
             Shell, Hub, _services.GetRequiredService<ConnectionManager>(), History = new SqlHistoryStore(_folder.Combine("history")),
-            new ConditionHistoryStore(_folder.Combine("conditions")), Editing, NullLogger<WorkspaceLifecycle>.Instance);
+            new ConditionHistoryStore(_folder.Combine("conditions")), Editing, NullLogger<WorkspaceLifecycle>.Instance, Time);
     }
 
     /// <summary>The tables of the fake schema; KUNDEN unless a test adds some before connecting.</summary>

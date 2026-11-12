@@ -26,7 +26,8 @@
 @if (_loads.Shown is { } load)
 {
     <div class="grid-loading">
-        <RunProgress @key="load" WorkspaceId="Tab.WorkspaceId" Title="@GridText.Load_Running" Started="load.Started" OnCancel="_loads.Cancel" />
+        <RunProgress @key="load" WorkspaceId="Tab.WorkspaceId" Title="@GridText.Load_Running" Started="load.Started" OnCancel="_loads.Cancel"
+                     OnResetReads="@(Tab.TimeTravel is null ? null : () => Lifecycle.ResetReads(Tab.WorkspaceId))" />
     </div>
 }
 

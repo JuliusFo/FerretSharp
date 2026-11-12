@@ -336,7 +336,7 @@
     {
         _state.CurrentSettings = () => Settings.Current;
         _editing = new WorkspaceEditing(_state, Hub, Settings, LoggerFactory.CreateLogger<WorkspaceEditing>());
-        _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, ConditionHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>());
+        _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, ConditionHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>(), TimeProvider.System);
         _reconnect = new AutoReconnect(_state, Hub, _editing, Settings, _lifecycle.ReconnectInPlaceAsync, Run, LoggerFactory.CreateLogger<AutoReconnect>());
         ExitGuard.CanExit = () => _lifecycle.CanExit;
         ExitGuard.RequestExit = () => InvokeAsync(() => _lifecycle.RequestExitAsync(ExitGuard.ApproveExit));

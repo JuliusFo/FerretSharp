@@ -41,7 +41,7 @@ public sealed partial class WorkspaceLifecycle
         }
 
         var before = DataDiffOf(workspaceId);
-        var state = new DataDiffState(point.Scn, at ?? DateTimeOffset.Now, before?.Entries ?? []) { Database = point.Database };
+        var state = new DataDiffState(point.Scn, at ?? _time.GetLocalNow(), before?.Entries ?? []) { Database = point.Database };
         if (state.Entries.Count == 0 && shell.FindWorkspace(workspaceId)?.ActiveTab is TableTab active && DataDiffUnavailable(active) is null)
         {
             state = state.WithEntry(active.Table.Ref, active.ReadFilter.Conditions);
@@ -183,7 +183,7 @@ public sealed partial class WorkspaceLifecycle
                 tab.Set(new DataDiffResult(entry, null, ShellText.DataDiff_Cancelled), state.Scn);
             }
 
-            tab.End(DateTimeOffset.Now);
+            tab.End(_time.GetLocalNow());
             shell.NotifyChanged();
         }
     }
