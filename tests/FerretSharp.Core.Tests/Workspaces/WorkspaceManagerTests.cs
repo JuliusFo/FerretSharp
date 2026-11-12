@@ -603,11 +603,7 @@ public sealed class WorkspaceManagerTests
         Assert.NotNull(_manager.SaveError);
 
         _time.Advance(TimeSpan.FromSeconds(30));
-        for (var waited = 0; _manager.SaveError is not null; waited += 10)
-        {
-            Assert.True(waited < 5_000, "The save was not tried again.");
-            await Task.Delay(10, Ct); // the timer's save runs on the pool
-        }
+        await Wait.UntilAsync(() => _manager.SaveError is null, "the save to be tried again"); // the timer's save runs on the pool
 
         Assert.Single(_store.Saved[id].Tabs);
     }

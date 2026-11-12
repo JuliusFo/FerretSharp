@@ -112,11 +112,7 @@ public sealed class LinqConsoleRestartTests
 
         public async Task WaitForStartsAsync(int count)
         {
-            for (var i = 0; i < 300 && Started < count; i++)
-            {
-                await Task.Delay(10, TestContext.Current.CancellationToken);
-            }
-
+            await Wait.UntilAsync(() => Started >= count, $"{count} starts");
             Assert.Equal(count, Started);
         }
     }
