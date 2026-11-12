@@ -211,16 +211,32 @@ public sealed partial class OracleSession
     /// <summary>
     /// ALTER TABLE first takes the table with <c>LOCK TABLE … IN EXCLUSIVE MODE NOWAIT</c> and holds it until Oracle commits
     /// before the DDL: with uncommitted DML of another session on the table, ALTER TABLE … ADD would wait for it and could
-    /// not be cancelled (ADR 0019). Other DDL either fails at once itself (ORA-00054) or does not conflict (COMMENT, GRANT),
-    /// so it runs as it is. Caller holds the gate.
+    /// not be cancelled (ADR 0019). So do CREATE INDEX and an online rebuild (<c>ALTER INDEX … ONLINE</c>): ONLINE waits
+    /// for every open transaction on the table, also past a cancel (Oracle 23: 164 s; review 3.70.0, A17). Other DDL either
+    /// fails at once itself (ORA-00054) or does not conflict (COMMENT, GRANT), so it runs as it is. Caller holds the gate.
     /// </summary>
     private async Task<int> RunDdlCoreAsync(string sql, CancellationToken cancellationToken)
     {
-        await using var hold = SqlAnalysis.Analyze(sql).FirstWord == "ALTER" && SqlAnalysis.DdlTableOf(sql) is { } table
-            ? await HoldForDdlCoreAsync(table, cancellationToken)
-            : null;
+        var table = SqlAnalysis.Analyze(sql).FirstWord is "ALTER" or "CREATE" ? SqlAnalysis.DdlTableOf(sql) : null;
+        if (table is null && SqlAnalysis.OnlineIndexOf(sql) is { } index)
+        {
+            table = await IndexTableCoreAsync(index, cancellationToken);
+        }
+
+        await using var hold = table is not null ? await HoldForDdlCoreAsync(table, cancellationToken) : null;
         return await RunAsync(sql, [], (command, ct) => command.ExecuteNonQueryAsync(ct), cancellationToken);
     }
+
+    /// <summary>The table of an index, in the current schema without an owner; null if Oracle does not show it.</summary>
+    private Task<SqlTableReference?> IndexTableCoreAsync(SqlTableReference index, CancellationToken cancellationToken) =>
+        ReadCoreAsync<SqlTableReference?>(
+            IndexTableSql,
+            [new("owner", index.Owner), new("name", index.Name)],
+            async (reader, ct) => await reader.ReadAsync(ct) ? new SqlTableReference(reader.GetString(0), reader.GetString(1), null, 0) : null,
+            cancellationToken);
+
+    private const string IndexTableSql =
+        "SELECT table_owner, table_name FROM all_indexes WHERE owner = NVL(:owner, SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')) AND index_name = :name";
 
     /// <summary>
     /// Takes the table for the DDL that follows; the DDL's implicit commit releases it. Null if Oracle cannot lock it at all

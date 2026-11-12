@@ -426,6 +426,15 @@ public sealed class SqlScriptTests
     public void Ddl_names_the_table_it_changes(string sql, string? owner, string name) =>
         Assert.Equal(new SqlTableReference(owner, name, null, 0), SqlScript.DdlTableOf(sql));
 
+    /// <summary>Review 3.70.0, A17: an online rebuild waits for the open transactions on its table – the schema path takes it first.</summary>
+    [Theory]
+    [InlineData("ALTER INDEX ix REBUILD ONLINE", null, "IX")]
+    [InlineData("alter index app.\"Ix\" rebuild partition p1 online", "APP", "Ix")]
+    [InlineData("ALTER INDEX ix REBUILD", null, null)] // fails at once with ORA-00054 by itself
+    [InlineData("ALTER TABLE t MOVE ONLINE", null, null)] // its table comes from DdlTableOf
+    public void An_online_index_rebuild_names_its_index(string sql, string? owner, string? name) =>
+        Assert.Equal(name is null ? null : new SqlTableReference(owner, name, null, 0), SqlAnalysis.OnlineIndexOf(sql));
+
     [Theory]
     [InlineData("CREATE TABLE neu (id NUMBER)")]
     [InlineData("CREATE OR REPLACE VIEW v AS SELECT * FROM kunden")]
@@ -607,6 +616,18 @@ public sealed class SqlScriptTests
     [InlineData("DROP PLUGGABLE DATABASE pdb1 INCLUDING DATAFILES", SqlStatementKind.Truncate)]
     [InlineData("DROP TABLESPACE ts", SqlStatementKind.Ddl)] // fails while it holds objects
     [InlineData("DROP PLUGGABLE DATABASE pdb1 KEEP DATAFILES", SqlStatementKind.Ddl)]
+    // Review 3.70.0, A3 (decision of the user, measured on Oracle 23): the rows outside the condition, the columns or
+    // attribute values of a type are gone.
+    [InlineData("ALTER TABLE t MOVE INCLUDING ROWS WHERE id <= 5", SqlStatementKind.Truncate)]
+    [InlineData("alter table app.t move online including rows where id > 0", SqlStatementKind.Truncate)]
+    [InlineData("ALTER TABLE t MERGE PARTITIONS p1, p2 INTO PARTITION p INCLUDING ROWS WHERE id > 0", SqlStatementKind.Truncate)]
+    [InlineData("DROP TYPE pt FORCE", SqlStatementKind.Truncate)]
+    [InlineData("ALTER TYPE at DROP ATTRIBUTE b CASCADE", SqlStatementKind.Truncate)]
+    [InlineData("alter type at drop attribute (b, c) invalidate", SqlStatementKind.Truncate)]
+    [InlineData("ALTER TABLE t MOVE ONLINE", SqlStatementKind.Ddl)] // keeps every row
+    [InlineData("DROP TYPE pt", SqlStatementKind.Ddl)] // ORA-02303 while a table uses it
+    [InlineData("ALTER TYPE at DROP ATTRIBUTE b", SqlStatementKind.Ddl)] // ORA-22312 while a table uses it
+    [InlineData("ALTER TYPE at ADD ATTRIBUTE c NUMBER CASCADE", SqlStatementKind.Ddl)]
     [InlineData("ALTER DATABASE CLOSE", SqlStatementKind.SessionControl)]
     [InlineData("ALTER PLUGGABLE DATABASE pdb1 CLOSE IMMEDIATE", SqlStatementKind.SessionControl)]
     // A link's DDL like ALTER PUBLIC DATABASE LINK (review 3.54.0, A13, decision of the user).

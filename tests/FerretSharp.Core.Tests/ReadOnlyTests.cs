@@ -131,6 +131,9 @@ public class ReadOnlyTests
     [InlineData("DROP TABLESPACE ts INCLUDING CONTENTS")] // review 3.44.0, A14
     [InlineData("DROP CLUSTER c INCLUDING TABLES")]
     [InlineData("DROP PLUGGABLE DATABASE pdb1 INCLUDING DATAFILES")]
+    [InlineData("ALTER TABLE t MOVE INCLUDING ROWS WHERE id <= 5")] // review 3.70.0, A3
+    [InlineData("DROP TYPE pt FORCE")]
+    [InlineData("ALTER TYPE at DROP ATTRIBUTE b CASCADE")]
     [InlineData("ALTER DATABASE CLOSE")]
     [InlineData("ALTER SESSION SET CURRENT_SCHEMA = X")]
     [InlineData("ALTER SYSTEM KILL SESSION '1,2'")]
