@@ -66,7 +66,7 @@ Branch `wp/80-relation-filter`. Die geklickte Form desselben Falls wie WP-79 (`I
 
 ### Kleine Themen
 Entschieden mit dem Nutzer am 2026-11-12 (vorher offene UX-Fragen).
-- **„Kein Index“ im Designer und „Index anlegen“** (`small-usage-filter-without-index.md`): Der Hinweis des Designers nennt gefilterte Spalten ohne Index; der Hinweis bekommt einen Knopf „Index anlegen“, der einen Entwurf in der Index-Ansicht öffnet wie bei Fremdschlüsseln ohne Index. Offen: die Markierung auch in der Spalten-Ansicht (wie „ungenutzt“).
+- **„Kein Index“ in Spalten-Ansicht und Designer, „Index anlegen“** (`small-usage-filter-without-index.md`): Die Spalten-Ansicht markiert gefilterte Spalten ohne Index wie „ungenutzt“; der Hinweis des Designers nennt sie; der Hinweis bekommt einen Knopf „Index anlegen“, der einen Entwurf in der Index-Ansicht öffnet wie bei Fremdschlüsseln ohne Index.
 - **Ctrl+C auf markierte ganze Spalten über der Grenze** (WP-58): Ist die Zeilenzahl bekannt und Zeilen × Spalten über 100 000, wird nicht gelesen, sondern sofort gemeldet, dass es zu viele Zellen sind, mit einem Knopf zum Export. Bei unbekannter Zeilenzahl bleibt es wie heute (lesen bis zur Grenze, dann „nichts kopiert“).
 
 

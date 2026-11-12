@@ -25,7 +25,7 @@ Ohne Rückfrage entschieden (einfachste Variante, Fragen unten):
 - **Nicht in der App geprüft:** In dieser Sitzung war kein Docker verfügbar, also kein eigener Container für einen E2E-Lauf. Offen sind Hinweis und Markierung in hell und dunkel (Kontrast der Markierung) und das Neuladen der Indizes nach F5 bzw. nach „Index anlegen“.
 
 ## Fragen an den Nutzer
-- Soll die Markierung auch in die Spalten-Ansicht (wie „ungenutzt“) und in den Hinweis des Designers? – Designer: ja (Entscheidung des Nutzers, 2026-11-12, eingeplant unter „Kleine Themen“ in `docs/roadmap.md`); Spalten-Ansicht noch offen.
+- Soll die Markierung auch in die Spalten-Ansicht (wie „ungenutzt“) und in den Hinweis des Designers? – Beides ja (Entscheidung des Nutzers, 2026-11-12, eingeplant unter „Kleine Themen“ in `docs/roadmap.md`).
 - Soll der Hinweis einen Knopf „Index anlegen“ bekommen (Entwurf in der Index-Ansicht wie bei Fremdschlüsseln ohne Index)? – Ja (Entscheidung des Nutzers, 2026-11-12, eingeplant).
 
 ## Nachtrag: Code-Review (2026-10-28)
