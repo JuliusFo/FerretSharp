@@ -19,19 +19,19 @@ public sealed class CrashReloadTests
     };
 
     [Theory]
-    [InlineData(0, null, true, false, true, "")] // nothing pending: load without asking
-    [InlineData(3, null, true, false, false, "ask")] // keep the page as it is
-    [InlineData(3, false, true, false, true, "ask")] // discard and load: nothing written
-    [InlineData(3, true, true, false, true, "ask flush")] // write, then load
-    [InlineData(3, true, false, false, false, "ask flush anyway")] // not all written, keep the page
-    [InlineData(3, true, false, true, true, "ask flush anyway")] // not all written, load all the same
+    [InlineData(0, null, true, false, CrashReloadChoice.NothingPending, true, "")] // nothing pending: load without asking
+    [InlineData(3, null, true, false, CrashReloadChoice.Kept, false, "ask")] // keep the page as it is
+    [InlineData(3, false, true, false, CrashReloadChoice.Discarded, true, "ask")] // discard and load: nothing written
+    [InlineData(3, true, true, false, CrashReloadChoice.Written, true, "ask flush")] // write, then load
+    [InlineData(3, true, false, false, CrashReloadChoice.NotAllWrittenKept, false, "ask flush anyway")] // not all written, keep the page
+    [InlineData(3, true, false, true, CrashReloadChoice.NotAllWrittenReloaded, true, "ask flush anyway")] // not all written, load all the same
     public async Task The_page_loads_anew_only_as_the_user_chose_for_pending_changes(
-        int pending, bool? answer, bool flushed, bool anyway, bool reload, string expected)
+        int pending, bool? answer, bool flushed, bool anyway, CrashReloadChoice choice, bool reload, string expected)
     {
         var calls = new List<string>();
         var guard = Guard(pending, flushed, calls);
 
-        var result = await CrashReload.ShouldReloadAsync(
+        var result = await CrashReload.DecideAsync(
             guard,
             count =>
             {
@@ -45,7 +45,8 @@ public sealed class CrashReloadTests
                 return anyway;
             });
 
-        Assert.Equal(reload, result);
+        Assert.Equal(new CrashReloadDecision(choice, pending), result); // the log names choice and count (third pass)
+        Assert.Equal(reload, result.Reload);
         Assert.Equal(expected, string.Join(' ', calls));
     }
 }

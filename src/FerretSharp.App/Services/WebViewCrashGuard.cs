@@ -89,11 +89,18 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
     /// </summary>
     private async Task ReloadAsync(CoreWebView2 core, string why)
     {
+        if (Busy)
+        {
+            // A native commit or rollback runs: a reload now would also clear its hold on closing (third pass of the code review).
+            logger.LogInformation("Not reloading the page: changes are being written, committed or rolled back");
+            return;
+        }
+
         Busy = true;
-        bool reload;
+        CrashReloadDecision decision;
         try
         {
-            reload = await CrashReload.ShouldReloadAsync(
+            decision = await CrashReload.DecideAsync(
                 exitGuard,
                 pending => dialogs.AskYesNoCancel(CommonText.WebViewCrash_Title, TextFormat.Plural(pending, CommonText.WebViewCrash_PendingOne, CommonText.WebViewCrash_PendingOther)),
                 () => dialogs.Ask(CommonText.WebViewCrash_Title, CommonText.WebViewCrash_FlushFailed));
@@ -103,9 +110,13 @@ public sealed class WebViewCrashGuard(IDialogService dialogs, ExitGuard exitGuar
             Busy = false;
         }
 
-        if (!reload)
+        if (decision.Pending > 0)
         {
-            logger.LogInformation("Not reloading the page: pending changes kept, as the user chose");
+            logger.LogWarning("Pending grid changes before reloading the page: {Pending}, {Choice}", decision.Pending, decision.Choice);
+        }
+
+        if (!decision.Reload)
+        {
             return;
         }
 
