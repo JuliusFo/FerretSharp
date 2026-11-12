@@ -45,6 +45,9 @@
   <data name="Note_OtherEntities" xml:space="preserve">
     <value>{0} bilden diese Tabelle ebenfalls ab – geändert wird nur {1}.</value>
   </data>
+  <data name="Note_AlreadyDeclared" xml:space="preserve">
+    <value>{1} deklariert {0} schon – es wird nicht noch einmal angelegt. Nach deinem Build kennt das Modell es.</value>
+  </data>
   <data name="Note_NoConfiguration" xml:space="preserve">
     <value>Keine Konfiguration von {0} gefunden – diese Zeile bitte von Hand eintragen: {1}</value>
   </data>

@@ -102,7 +102,19 @@ public static partial class EntityCodeChanges
 
     private static void Add(Context context, ClrModelMapping mapping, ColumnInfo column, List<string> added)
     {
+        if (mapping.PropertyOf(context.Entity.Table.Ref, column.Name) is not null)
+        {
+            return; // mapped already: the model was reloaded after the change was written
+        }
+
         var suggestion = EntityCode.PropertyFor(mapping, context.Entity, column, added);
+        if (context.Declarations(PropertyCode.Suggest(mapping.Model, column).Name).Any())
+        {
+            // in the class, not yet in the model: written before the build (a second "Write" must not add it again)
+            context.Notes.Add(TextFormat.Format(CodeEditText.Note_AlreadyDeclared, PropertyCode.Suggest(mapping.Model, column).Name, context.Name));
+            return;
+        }
+
         added.Add(suggestion.Name);
         foreach (var note in suggestion.Notes)
         {

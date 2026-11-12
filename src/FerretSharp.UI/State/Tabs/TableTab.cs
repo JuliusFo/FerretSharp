@@ -547,6 +547,12 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// </summary>
     public bool OpenEntityCode { get; set; }
 
+    /// <summary>
+    /// A designer change that ran and touches the C# model (WP-41): the "Columns" view offers it for the project until it is
+    /// written or put away. Kept here because the DDL rebuilt the tab's views. Not saved.
+    /// </summary>
+    public CodeChangeRequest? CodeChange { get; set; }
+
     private readonly List<ForeignKeyInfo> _designerForeignKeys = [];
 
     /// <summary>

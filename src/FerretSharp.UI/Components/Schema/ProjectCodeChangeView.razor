@@ -1,0 +1,244 @@
+@* A designer change in the C# project (WP-41, ADR 0050): where it goes (the group's work clone and its branch), what speaks
+   against it, what is left to do by hand, and each file's diff – with "Write to project" once the DDL ran. The work clone
+   is read and the change planned off the render thread; a new request (another draft, another entity name) plans again
+   after a short pause. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@inherits FerretComponent
+@implements IDisposable
+@inject WorkClones Clones
+@inject ConnectionManager Connections
+
+@{
+    var change = _change;
+    var plan = change?.Plan;
+}
+<section class="code-change">
+    <div class="code-change-head">
+        <strong>@SchemaViewText.CodeChange_Heading</strong>
+        @if (change?.WorkClone is { } clone)
+        {
+            <span class="muted code-change-target" title="@clone">@Icons.Branch @System.IO.Path.GetFileName(System.IO.Path.TrimEndingDirectorySeparator(clone))@(change.Target?.Branch is { } branch ? $" ({branch})" : "")</span>
+        }
+        <button type="button" class="link-btn" @onclick="Shell.OpenWorkClones">@SchemaViewText.CodeChange_ChooseClone</button>
+        <span class="spacer"></span>
+        @if (change is { Stage: CodeChangeStage.Planned or CodeChangeStage.Written or CodeChangeStage.Failed or CodeChangeStage.WorkCloneDoesNotFit })
+        {
+            <button type="button" class="icon-btn" title="@SchemaViewText.CodeChange_Reload" @onclick="() => Replan(0)">@Icons.Refresh</button>
+        }
+        @if (!Preview)
+        {
+            <button type="button" class="btn primary" disabled="@(change is not { CanWrite: true })" title="@SchemaViewText.CodeChange_WriteTitle"
+                    @onclick="WriteAsync">@SchemaViewText.CodeChange_Write</button>
+        }
+        @if (OnDismiss.HasDelegate)
+        {
+            <button type="button" class="icon-btn" title="@SchemaViewText.CodeChange_Dismiss" @onclick="() => OnDismiss.InvokeAsync()">@Icons.Close</button>
+        }
+    </div>
+    @switch (change?.Stage)
+    {
+        case null or CodeChangeStage.Planning:
+            <p class="hint small"><span class="spinner"></span> @SchemaViewText.CodeChange_Reading</p>
+            break;
+        case CodeChangeStage.NoWorkClone:
+            <p class="hint small">@(Models.State.Link is null ? SchemaViewText.CodeChange_NoProject : SchemaViewText.CodeChange_NoWorkClone)</p>
+            break;
+        case CodeChangeStage.WorkCloneDoesNotFit:
+            <p class="hint small">@Icons.Warning @WorkCloneDialog.FitText(change.Fit)</p>
+            break;
+        case CodeChangeStage.Failed:
+            <p class="hint small bad">@Icons.Warning @change.Error</p>
+            break;
+    }
+    @if (plan is not null)
+    {
+        @foreach (var problem in plan.Problems)
+        {
+            <p class="code-change-problem">@Icons.Warning @problem</p>
+        }
+        @foreach (var warning in change!.Target?.Warnings ?? [])
+        {
+            <p class="designer-note">@Icons.Warning @warning</p>
+        }
+        @if (change.Results is { } results)
+        {
+            <ul class="code-change-results">
+                @foreach (var result in results)
+                {
+                    <li class="@(result.Succeeded ? "" : "bad")">
+                        @(result.Succeeded ? Icons.Check : Icons.Warning)
+                        <span class="mono">@result.Relative</span>
+                        @(result.Outcome switch
+                        {
+                            FileWriteOutcome.Created => SchemaViewText.CodeChange_Created,
+                            FileWriteOutcome.Written => SchemaViewText.CodeChange_Written,
+                            _ => result.Message,
+                        })
+                    </li>
+                }
+            </ul>
+            @if (results.All(r => r.Succeeded))
+            {
+                <p class="hint small">@SchemaViewText.CodeChange_AfterWrite</p>
+            }
+        }
+        else if (plan.Files.Count == 0 && plan.Problems.Count == 0)
+        {
+            <p class="muted small">@SchemaViewText.CodeChange_Nothing</p>
+        }
+        else if (Preview && plan.Files.Count > 0)
+        {
+            <p class="hint small">@SchemaViewText.CodeChange_AfterRun</p>
+        }
+        @foreach (var note in plan.Notes)
+        {
+            <p class="hint small">@note</p>
+        }
+        @foreach (var file in plan.Files)
+        {
+            var hunks = file.Diff;
+            <details class="code-diff" open="@(plan.Files.Count <= 3)">
+                <summary>
+                    <span class="mono">@file.Relative</span>
+                    @if (file.IsNew)
+                    {
+                        <span class="fs-badge new">@SchemaViewText.CodeChange_New</span>
+                    }
+                    <span class="diff-counts"><span class="new">+@hunks.Sum(h => h.Lines.Count(l => l.Kind == DiffLineKind.Added))</span>
+                        <span class="gone">−@hunks.Sum(h => h.Lines.Count(l => l.Kind == DiffLineKind.Removed))</span></span>
+                </summary>
+                <table>
+                    @for (var i = 0; i < hunks.Count; i++)
+                    {
+                        @if (i > 0)
+                        {
+                            <tr class="gap"><td colspan="3">⋯</td></tr>
+                        }
+                        @foreach (var line in hunks[i].Lines)
+                        {
+                            <tr class="@(line.Kind switch { DiffLineKind.Added => "added", DiffLineKind.Removed => "removed", _ => "" })">
+                                <td class="num">@line.OldNumber</td>
+                                <td class="num">@line.NewNumber</td>
+                                <td class="code">@(line.Kind switch { DiffLineKind.Added => "+ ", DiffLineKind.Removed => "− ", _ => "  " })@line.Text</td>
+                            </tr>
+                        }
+                    }
+                </table>
+            </details>
+        }
+    }
+</section>
+
+@code {
+    /// <summary>How long a new request waits before the work clone is read (typing an entity name).</summary>
+    private static readonly TimeSpan Pause = TimeSpan.FromMilliseconds(400);
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public CodeChangeRequest Request { get; set; } = null!;
+
+    /// <summary>Before the DDL ran (the designer's "C#" tab): only the preview, writing comes after the run.</summary>
+    [Parameter]
+    public bool Preview { get; set; }
+
+    /// <summary>Puts the change away (the "Columns" view after the run); without it there is no ✕.</summary>
+    [Parameter]
+    public EventCallback OnDismiss { get; set; }
+
+    private ProjectCodeChange? _change;
+    private object? _planned;
+    private CancellationTokenSource? _work;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        Clones.Changed += OnClonesChanged;
+        Models.Changed += OnModelChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        var key = KeyOf(Request);
+        if (!Equals(key, _planned))
+        {
+            _planned = key;
+            Replan(_change is null ? 0 : Pause.TotalMilliseconds);
+        }
+    }
+
+    /// <summary>What decides the plan: the column changes, or table, foreign keys and name of a new entity.</summary>
+    private static object KeyOf(CodeChangeRequest request) => request switch
+    {
+        CodeChangeRequest.ForTable table => (table.Before.Table.Ref, string.Join("|", table.Changes.Select(c => $"{c.Kind}:{c.Column}:{c.After}"))),
+        CodeChangeRequest.ForNewEntity created => (created.Table.Table.Ref, created.Name.Trim(), string.Join("|", created.Outgoing.Select(f => f.Name))),
+        _ => request,
+    };
+
+    private void OnClonesChanged() => InvokeAsync(() => Replan(0));
+
+    private void OnModelChanged() => InvokeAsync(() =>
+    {
+        // A written change stays with its results: the model reloads after the user's build, "Reload" plans again.
+        if (_change?.Stage is not (CodeChangeStage.Planning or CodeChangeStage.Writing or CodeChangeStage.Written) && Models.Mapping is not null && _mapping != Models.Mapping)
+        {
+            Replan(0);
+        }
+    });
+
+    private ClrModelMapping? _mapping;
+
+    /// <summary>Starts a new plan after <paramref name="delayMs"/>; a plan still running is cancelled.</summary>
+    private void Replan(double delayMs)
+    {
+        if (_disposed || Models.Mapping is not { } mapping)
+        {
+            return;
+        }
+
+        _work?.Cancel();
+        _work?.Dispose();
+        var work = _work = new CancellationTokenSource();
+        var token = work.Token;
+        var group = Active.Profile?.Group;
+        var linked = Connections.Profiles.Where(p => ConnectionSearch.SameGroupKey(p.Group, group)).Select(p => p.ClrProject?.ProjectFile).OfType<string>().ToList();
+        var change = new ProjectCodeChange(mapping, Models.State.Link, Clones.ActiveFor(group), linked, Request);
+        change.Changed += () => InvokeAsync(StateHasChanged);
+        Fire(async () =>
+        {
+            if (delayMs > 0)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(delayMs), token);
+            }
+
+            (_change, _mapping) = (change, mapping);
+            StateHasChanged();
+            await change.PlanAsync(token);
+        });
+    }
+
+    private Task WriteAsync() => GuardAsync(async () =>
+    {
+        if (_change is { CanWrite: true } change && _work is not null)
+        {
+            await change.WriteAsync(_work.Token);
+        }
+    });
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Clones.Changed -= OnClonesChanged;
+        Models.Changed -= OnModelChanged;
+        _work?.Cancel();
+        _work?.Dispose();
+    }
+}

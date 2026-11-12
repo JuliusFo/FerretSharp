@@ -54,6 +54,10 @@
     <value>{0} also map this table – only {1} is changed.</value>
     <comment>{0}: list of entity names; {1}: the entity that is changed</comment>
   </data>
+  <data name="Note_AlreadyDeclared" xml:space="preserve">
+    <value>{1} declares {0} already – it is not added again. After your build the model knows it.</value>
+    <comment>{0}: property; {1}: entity</comment>
+  </data>
   <data name="Note_NoConfiguration" xml:space="preserve">
     <value>No configuration of {0} found – add this line by hand: {1}</value>
     <comment>{0}: entity name; {1}: the configuration line</comment>

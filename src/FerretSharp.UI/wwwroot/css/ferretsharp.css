@@ -1949,6 +1949,30 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .entity-code { max-width: 1100px; display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .entity-code .index-draft-form { margin-bottom: 0; }
 
+/* Designer changes in the C# project (WP-41): target, warnings, notes and a diff per file. */
+.code-change { max-width: 1100px; display: flex; flex-direction: column; gap: 6px; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.code-change p { margin: 0; }
+.code-change-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.code-change-head .spacer { flex: 1; }
+.code-change-target { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-change-target .icon { width: 13px; height: 13px; flex: none; }
+.code-change-problem { color: var(--danger); font-size: 12.5px; }
+.code-change-results { margin: 0; padding-left: 0; list-style: none; font-size: 12.5px; }
+.code-change-results li { display: flex; align-items: center; gap: 6px; }
+.code-change-results li.bad { color: var(--danger); }
+.code-change-results .icon { width: 13px; height: 13px; }
+.code-diff { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+.code-diff summary { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; font-size: 12.5px; }
+.code-diff summary .fs-badge.new { margin-left: 0; background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green-text); }
+.code-diff .diff-counts .gone { color: var(--danger); }
+.code-diff > table { width: 100%; border-collapse: collapse; font: 12px/1.45 var(--mono); border-top: 1px solid var(--border); }
+.code-diff td { padding: 0 6px; vertical-align: top; }
+.code-diff td.num { width: 1%; color: var(--faint); text-align: right; user-select: none; white-space: nowrap; }
+.code-diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.code-diff tr.added td { background: color-mix(in srgb, var(--green) 14%, transparent); }
+.code-diff tr.removed td { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.code-diff tr.gap td { color: var(--faint); text-align: center; background: var(--surface-2); }
+
 /* App statements (WP-33): a page like the schema comparison, tables of origins and statements, the detail with V$SQL. */
 .app-statements-page .settings-section > p.hint { margin: 10px 16px; }
 .app-statements-page .settings-section > .test-result { margin: 0 16px 10px; }

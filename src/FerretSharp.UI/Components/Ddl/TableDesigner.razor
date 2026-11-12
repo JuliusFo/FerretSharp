@@ -47,8 +47,10 @@ else
     var warnings = plan.Warnings.Concat(usageNotes).Concat(auditWarning is null ? [] : [auditWarning]).ToList();
     IReadOnlyList<DdlStep> steps = counting ? [] : plan.Steps;
     var suggestions = PropertyLines(designer);
-    // The C# tab goes with the last new column; the view falls back to the columns.
-    var shown = designer.Section == DesignerSection.CSharp && suggestions.Count == 0 ? DesignerSection.Columns : designer.Section;
+    // WP-41: what the draft comes to in the C# project, for a mapped table.
+    var codeChange = CodeChangeOf(designer, draft);
+    // The C# tab goes with the last change for the project; the view falls back to the columns.
+    var shown = designer.Section == DesignerSection.CSharp && codeChange is null ? DesignerSection.Columns : designer.Section;
     <section class="designer">
         <WorkspaceLockedBanner WorkspaceId="WorkspaceId" />
         @if (Tab?.Changes is { PendingCount: > 0 } or { FlushedCount: > 0 })
@@ -89,9 +91,9 @@ else
                     @TabButton(designer, shown, DesignerSection.Constraints, SchemaViewText.Designer_TabConstraints,
                         designer.Existing.Count + designer.AddedConstraints.Count - designer.DroppedConstraints.Count, designer.ConstraintsChanged, constraintProblems)
                     @TabButton(designer, shown, DesignerSection.Audit, SchemaViewText.Designer_TabAudit, problem: auditProblems, warning: auditWarning)
-                    @if (suggestions.Count > 0)
+                    @if (codeChange is CodeChangeRequest.ForTable forTable)
                     {
-                        @TabButton(designer, shown, DesignerSection.CSharp, SchemaViewText.Designer_TabCSharp, suggestions.Count)
+                        @TabButton(designer, shown, DesignerSection.CSharp, SchemaViewText.Designer_TabCSharp, forTable.Changes.Count)
                     }
                     @TabButton(designer, shown, DesignerSection.Script, SchemaViewText.Designer_TabScript, steps.Count, problem: problems.Count > 0)
                 </div>
@@ -109,7 +111,11 @@ else
                             break;
                         case DesignerSection.CSharp:
                             <p class="muted">@TextFormat.Format(SchemaViewText.Designer_CSharpHeading, ClrModelMapping.ShortName(Models.Mapping!.EntityOf(Details.Table.Ref)!.Entity.ClrType))</p>
-                            <PropertySuggestions Suggestions="suggestions" />
+                            <ProjectCodeChangeView Request="codeChange!" Preview="true" />
+                            @if (suggestions.Count > 0)
+                            {
+                                <PropertySuggestions Suggestions="suggestions" />
+                            }
                             break;
                         default:
                             <DdlDraftMessages Steps="steps" Problems="problems" Warnings="warnings" Empty="@(counting ? null : SchemaViewText.Designer_NoScript)">
@@ -516,6 +522,8 @@ else
             if (NewTab is null && Tab is not null)
             {
                 Tab.Designer = null;
+                // WP-41: what ran, for the C# project – the "Columns" view offers it once the tab is rebuilt
+                Tab.CodeChange = _designer is { } designer ? CodeChangeOf(designer, designer.ToDraft().Draft) : null;
             }
         }
         else if (NewTab is not null)
@@ -534,6 +542,8 @@ else
         if (Active.Schema?.Find(created.Table.Ref) is { } summary && Shell.OpenTable(summary, TabMode.Structure) is { } tab)
         {
             tab.Designer = rest;
+            // WP-41, second stage: with a C# model the new table's entity opens, with "Write to project"
+            tab.OpenEntityCode = rest is null && Models.Mapping is not null;
         }
 
         Shell.CloseTab(created);
@@ -668,6 +678,15 @@ else
             StateHasChanged();
         }
     }
+    /// <summary>
+    /// The draft for the C# project (WP-41): for an existing table the C# model maps, if a column change touches it; null
+    /// otherwise (a new table gets its entity in the "Columns" view once it exists).
+    /// </summary>
+    private CodeChangeRequest? CodeChangeOf(TableDesignerDraft designer, TableDraft draft) =>
+        NewTab is null && Models.Mapping?.EntityOf(Details.Table.Ref) is not null && new CodeChangeRequest.ForTable(designer.Table, draft) is { HasChanges: true } request
+            ? request
+            : null;
+
     /// <summary>Property lines for the new columns, if the C# model maps this table.</summary>
     private IReadOnlyList<PropertySuggestion> PropertyLines(TableDesignerDraft designer)
     {
