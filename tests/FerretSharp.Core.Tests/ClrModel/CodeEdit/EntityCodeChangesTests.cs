@@ -23,6 +23,8 @@ public sealed class EntityCodeChangesTests
             public DateTime ErstelltAm { get; set; }
             public decimal? Umsatz { get; set; }
             public bool Gesperrt { get; set; }
+            [Required, MaxLength(20)]
+            public KundeStatus? Status { get; set; }
             public string? Notiz { get; set; }
 
             public ICollection<Auftrag> Auftraege { get; set; } = [];
@@ -92,6 +94,7 @@ public sealed class EntityCodeChangesTests
                 "NAME" => c with { Column = c.Column with { Length = 150, Nullable = true } },
                 "UMSATZ" => c with { Column = c.Column with { Precision = 14, Scale = 3 } },
                 "ERSTELLT_AM" => c with { Column = c.Column with { Nullable = true } }, // nothing configured but the type
+                "STATUS" => c with { Column = c.Column with { Length = 30 } }, // nullable already: [Required] stays (review WP-41)
                 _ => c,
             })],
         };
@@ -102,7 +105,8 @@ public sealed class EntityCodeChangesTests
         Assert.Equal(Entity
                 .Replace("[MaxLength(100)]", "[MaxLength(150)]", StringComparison.Ordinal)
                 .Replace("public string Name", "public string? Name", StringComparison.Ordinal)
-                .Replace("public DateTime ErstelltAm", "public DateTime? ErstelltAm", StringComparison.Ordinal),
+                .Replace("public DateTime ErstelltAm", "public DateTime? ErstelltAm", StringComparison.Ordinal)
+                .Replace("[Required, MaxLength(20)]", "[Required, MaxLength(30)]", StringComparison.Ordinal),
             TextOf(plan, "Kunde.cs"));
         Assert.Equal(Configurations
                 .Replace("b.Property(k => k.Name).HasMaxLength(100).IsRequired();", "b.Property(k => k.Name).HasMaxLength(150);", StringComparison.Ordinal)
@@ -214,6 +218,35 @@ public sealed class EntityCodeChangesTests
             "MandantId: int fasst eventuell nicht jeden Wert von NUMBER(12) – EF liest die Spalte als long.",
             "NOTIZ → BEMERKUNG: Umbenennungen werden im Code noch nicht angepasst – Notiz (HasColumnName) bitte von Hand ändern.",
         ], plan.Notes);
+    }
+
+    /// <summary>Review WP-41, M3: the guard against writing twice asked for the plain name, which a navigation had taken.</summary>
+    [Fact]
+    public async Task A_new_column_whose_name_is_taken_gets_the_unique_name_and_is_added()
+    {
+        var mapping = await MappingAsync();
+        var column = new ColumnInfo("NAME_", "VARCHAR2", 10, true, null, null, true, false, null, 13); // PascalCase: Name, taken
+        var draft = TableDraft.Of(Kunden) with { Columns = [.. TableDraft.Of(Kunden).Columns, new ColumnDraft(null, column)] };
+
+        var plan = EntityCodeChanges.Plan(mapping, Kunden.Table.Ref, ColumnChanges.Of(Kunden, draft), Scan());
+
+        Assert.Contains("    public string? Name2 { get; set; }\n", TextOf(plan, "Kunde.cs"), StringComparison.Ordinal);
+        Assert.Contains("        b.Property(k => k.Name2).HasColumnName(\"NAME_\").HasMaxLength(10);\n", TextOf(plan, "Configurations.cs"), StringComparison.Ordinal);
+    }
+
+    /// <summary>Review WP-41, M5: the same class in two projects of the clone was changed in both.</summary>
+    [Fact]
+    public async Task A_class_declared_twice_without_partial_is_a_problem_and_nothing_is_written()
+    {
+        var mapping = await MappingAsync();
+        var draft = TableDraft.Of(Kunden);
+        draft = draft with { Columns = [.. draft.Columns.Select(c => c.Original == "NAME" ? c with { Dropped = true } : c)] };
+        var scan = CodeScan.Of(Root, [(Path.Combine("Entities", "Kunde.cs"), Entity), (Path.Combine("Old", "Kunde.cs"), "namespace Shop;\npublic class Kunde { public string Name { get; set; } = \"\"; }\n")]);
+
+        var plan = EntityCodeChanges.Plan(mapping, Kunden.Table.Ref, ColumnChanges.Of(Kunden, draft), scan);
+
+        Assert.False(plan.CanWrite);
+        Assert.Equal([$"Shop.Kunde ist im Arbeits-Klon mehrfach deklariert, nicht als partial class ({Path.Combine("Entities", "Kunde.cs")}, {Path.Combine("Old", "Kunde.cs")}) – unklar, welche das Modell meint. Nichts wird geschrieben."], plan.Problems);
     }
 
     [Fact]

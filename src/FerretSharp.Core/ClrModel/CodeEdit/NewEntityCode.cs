@@ -61,6 +61,11 @@ public static class NewEntityCode
                 .Select(c => (File: f, Node: (SyntaxNode)c)))
             .ToList();
         var contextParts = scan.TypesNamed(model.ContextType);
+        if (CodeScan.Ambiguous(contextParts) is { } ambiguous)
+        {
+            problems.Add(ambiguous);
+        }
+
         IReadOnlyList<(ScannedFile File, SyntaxNode Node)> configDeclarations = configurations.Count > 0
             ? configurations
             : contextParts.FirstOrDefault() is { } contextPart ? [(contextPart.File, contextPart.Declaration)] : entityDeclarations;

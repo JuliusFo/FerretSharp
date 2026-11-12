@@ -27,6 +27,14 @@
     <value>The class {0} is not in the work clone.</value>
     <comment>{0}: full type name of the entity</comment>
   </data>
+  <data name="Problem_Ambiguous" xml:space="preserve">
+    <value>{0} is declared more than once in the work clone, not as partial class ({1}) – it is not known which one the model means. Nothing is written.</value>
+    <comment>{0}: full type name; {1}: the files</comment>
+  </data>
+  <data name="Problem_InvalidName" xml:space="preserve">
+    <value>{0} is no C# name (letters, digits and _, not starting with a digit, no keyword).</value>
+    <comment>{0}: the entity name as typed</comment>
+  </data>
   <data name="Problem_NoEntityFolder" xml:space="preserve">
     <value>No entity class of the model is in the work clone, so it is not known where a new one goes.</value>
   </data>
@@ -138,6 +146,12 @@
   <data name="Warning_ConnectionBranch" xml:space="preserve">
     <value>The work clone is on {0} – the branch of a connection's linked clone. Write only if you mean to.</value>
     <comment>{0}: branch name</comment>
+  </data>
+  <data name="Write_ReadOnly" xml:space="preserve">
+    <value>The file cannot be written (read-only or open in another program) – nothing is written.</value>
+  </data>
+  <data name="Warning_GitFailed" xml:space="preserve">
+    <value>Git did not answer for the work clone: uncommitted changes of the files are not checked.</value>
   </data>
   <data name="Warning_NoGit" xml:space="preserve">
     <value>Git was not found: uncommitted changes of the files are not checked.</value>

@@ -132,6 +132,15 @@ public sealed class CodeScan
     internal static IReadOnlyList<string> SyntaxErrors(CompilationUnitSyntax root) =>
         [.. root.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => $"{d.Location.GetLineSpan().StartLinePosition.Line + 1}: {d.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}")];
 
+    /// <summary>
+    /// The problem with declarations of one full name that are not all <c>partial</c>: the same class in several projects of
+    /// the clone (an old copy, a tool) – which one the model means is not known (review WP-41: both were changed).
+    /// </summary>
+    internal static string? Ambiguous(IReadOnlyList<TypeSite> parts) =>
+        parts.Count > 1 && parts.Any(p => !p.Declaration.Modifiers.Any(SyntaxKind.PartialKeyword))
+            ? Resources.TextFormat.Format(Resources.CodeEditText.Problem_Ambiguous, parts[0].FullName, string.Join(", ", parts.Select(p => p.File.Relative).Distinct()))
+            : null;
+
     /// <summary>The declarations (all parts) of the type with this full name.</summary>
     public IReadOnlyList<TypeSite> TypesNamed(string fullName) => [.. Types.Where(t => t.FullName == fullName)];
 

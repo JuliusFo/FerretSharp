@@ -40,6 +40,11 @@ public static partial class EntityCodeChanges
             return new CodeChangePlan(scan.Root, [], [], [TextFormat.Format(CodeEditText.Problem_ClassNotFound, entity.ClrType)]);
         }
 
+        if (CodeScan.Ambiguous(types) is { } ambiguous)
+        {
+            return new CodeChangePlan(scan.Root, [], [], [ambiguous]);
+        }
+
         foreach (var unreadable in scan.Unreadable)
         {
             notes.Add(TextFormat.Format(CodeEditText.Note_Unreadable, unreadable));
@@ -116,10 +121,11 @@ public static partial class EntityCodeChanges
         }
 
         var suggestion = EntityCode.PropertyFor(mapping, context.Entity, column, added);
-        if (context.Declarations(PropertyCode.Suggest(mapping.Model, column).Name).Any())
+        if (context.Declarations(suggestion.Name).Any())
         {
-            // in the class, not yet in the model: written before the build (a second "Write" must not add it again)
-            context.Notes.Add(TextFormat.Format(CodeEditText.Note_AlreadyDeclared, PropertyCode.Suggest(mapping.Model, column).Name, context.Name));
+            // In the class, not yet in the model: written before the build (a second "Write" must not add it again). The
+            // name made unique, not the plain one – a navigation "Adresse" must not keep a new column ADRESSE out (review WP-41).
+            context.Notes.Add(TextFormat.Format(CodeEditText.Note_AlreadyDeclared, suggestion.Name, context.Name));
             return;
         }
 
@@ -212,7 +218,7 @@ public static partial class EntityCodeChanges
                         var touched = ColumnType(context, file, typeName.Expression, before, after);
                         (lengthTouched, precisionTouched) = (lengthTouched || touched, precisionTouched || touched);
                         break;
-                    case "Required" when after.Nullable:
+                    case "Required" when after.Nullable && !before.Nullable: // only when NULL changes (review WP-41)
                         RemoveAttribute(context, file, attribute);
                         break;
                 }

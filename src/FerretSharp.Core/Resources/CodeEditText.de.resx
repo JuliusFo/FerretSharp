@@ -24,6 +24,12 @@
   <data name="Problem_ClassNotFound" xml:space="preserve">
     <value>Die Klasse {0} ist nicht im Arbeits-Klon.</value>
   </data>
+  <data name="Problem_Ambiguous" xml:space="preserve">
+    <value>{0} ist im Arbeits-Klon mehrfach deklariert, nicht als partial class ({1}) – unklar, welche das Modell meint. Nichts wird geschrieben.</value>
+  </data>
+  <data name="Problem_InvalidName" xml:space="preserve">
+    <value>{0} ist kein C#-Name (Buchstaben, Ziffern und _, nicht mit einer Ziffer beginnend, kein Schlüsselwort).</value>
+  </data>
   <data name="Problem_NoEntityFolder" xml:space="preserve">
     <value>Keine Entity-Klasse des Modells ist im Arbeits-Klon – unbekannt, wohin eine neue gehört.</value>
   </data>
@@ -110,6 +116,12 @@
   </data>
   <data name="Warning_ConnectionBranch" xml:space="preserve">
     <value>Der Arbeits-Klon steht auf {0} – dem Branch des verknüpften Klons einer Verbindung. Nur schreiben, wenn das gewollt ist.</value>
+  </data>
+  <data name="Write_ReadOnly" xml:space="preserve">
+    <value>Die Datei lässt sich nicht schreiben (schreibgeschützt oder in einem anderen Programm geöffnet) – nichts wird geschrieben.</value>
+  </data>
+  <data name="Warning_GitFailed" xml:space="preserve">
+    <value>Git hat für den Arbeits-Klon nicht geantwortet: Nicht committete Änderungen der Dateien werden nicht geprüft.</value>
   </data>
   <data name="Warning_NoGit" xml:space="preserve">
     <value>Git wurde nicht gefunden: Nicht committete Änderungen der Dateien werden nicht geprüft.</value>
