@@ -194,14 +194,14 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         await _app.Settings.UpdateAsync(s => s with { OpenView = TabMode.Ddl, LoadRows = RowLoadMode.OnRequest }, TestContext.Current.CancellationToken);
 
         var tab = _app.Shell.OpenTable(TestApp.Kunden)!;
-        Assert.Equal((TabMode.Ddl, true, true), (tab.Mode, tab.ViewFromSetting, tab.RowsDeferred));
+        Assert.Equal((TabMode.Ddl, true, true), (tab.Mode, tab.ViewFallsBack, tab.RowsDeferred));
 
         tab.Mode = TabMode.Indexes;
         Assert.Same(tab, _app.Shell.OpenTable(TestApp.Kunden));
-        Assert.Equal((TabMode.Indexes, false), (tab.Mode, tab.ViewFromSetting)); // the open tab keeps its view
+        Assert.Equal((TabMode.Indexes, false), (tab.Mode, tab.ViewFallsBack)); // the open tab keeps its view
 
         var asked = _app.Shell.OpenTable(new TableSummary("APP_USER", "AUFTRAEGE", TableKind.Table), TabMode.Structure)!;
-        Assert.Equal((TabMode.Structure, false), (asked.Mode, asked.ViewFromSetting));
+        Assert.Equal((TabMode.Structure, false), (asked.Mode, asked.ViewFallsBack));
 
         var jump = _app.Shell.OpenFiltered(TestApp.Kunden, [FilterCondition.Of("ID", FilterOperator.Equals, "1")])!;
         Assert.Equal((TabMode.Data, false), (jump.Mode, jump.RowsDeferred));

@@ -449,9 +449,9 @@
         {
             Fire(() => Lifecycle.CheckTimeTravelAsync(Tab)); // restored from the file: still the same database? (WP-78)
         }
-        if (Tab.ViewFromSetting && TableOpening.Shown(Tab.Mode, Models.State.Link is not null) is var shown && shown != Tab.Mode)
+        if (Tab.ViewFallsBack && TableOpening.Shown(Tab.Mode, Models.State.Link is not null) is var shown && shown != Tab.Mode)
         {
-            Tab.Mode = shown; // the setting's view cannot show here ("Usage" without a linked project)
+            Tab.Mode = shown; // the setting's or a link's view cannot show here ("Usage" without a linked project)
         }
 
         if (Active.Schema is not { } schema)
