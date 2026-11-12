@@ -31,4 +31,7 @@ Entscheidung des Nutzers: „Alle beheben“.
 7. K – der lokale Check übersah ein einzelnes CR unter `*.md text` (`i/-text attr/text`), die CI meldet es: behoben, Filter um `i/-text` mit ausdrücklichem `text` erweitert.
 8. K – `git add --renormalize` behebt `CR CR LF` nicht (nur das CR vor dem LF fällt weg): behoben, Hinweis in CI, `Test-Linux.ps1` und `release.md`.
 9. K – „noch ohne Release“ im Kopf, Job im Kopfkommentar von `ci.yml`, `tools/linux/*.sh` in `release.md`: behoben.
+- Dritter Durchgang, Entscheidung des Nutzers „Beides beheben“:
+10. K – der erweiterte lokale Filter meldete auch Dateien mit einzelnem CR oder NUL ohne CRLF, die die CI durchlässt: behoben, für `i/-text` unter `text` wird der Blob wie bei `git add` neu gehasht (`git hash-object --stdin --path`, schreibt nichts); nachgestellt, gleiche Treffer wie die CI auf einem frischen Clone.
+11. Vorher schon da – `pages/** text eol=lf` gewann gegen `*.png binary`, ein Bild unter `pages/` wäre beim `git add` beschädigt worden: behoben, `pages/**/*.png` und `*.ico` binär.
 - Vorher schon da: Auf `main` sind keine Status-Checks Pflicht; ein PR lässt sich rot mergen.
