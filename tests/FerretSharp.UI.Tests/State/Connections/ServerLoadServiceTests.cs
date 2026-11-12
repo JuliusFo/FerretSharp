@@ -173,6 +173,30 @@ public sealed class ServerLoadServiceTests : IAsyncDisposable
         await Wait.UntilAsync(() => _connector.ReceivedCalls().Count() == 2, "the second attempt");
     }
 
+    /// <summary>
+    /// Review 3.70.0, A5: a password typed for this run and refused is forgotten, as by the other sessions – the server load
+    /// sent it again with every "Refresh", and a few clicks locked the account (FAILED_LOGIN_ATTEMPTS).
+    /// </summary>
+    [Fact]
+    public async Task A_password_entered_for_this_run_and_refused_is_asked_for_again_instead_of_sent_on_refresh()
+    {
+        var typed = Profile("Typed");
+        var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
+        connections.SetPassword(typed.Id, "wrong", remember: false);
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<IDatabaseConnection>(new DatabaseException("ORA-01017: invalid credential or not authorized", "ORA-01017")));
+        await using var service = new ServerLoadService(connections, _connector, NullLogger<ServerLoadService>.Instance, _time);
+
+        await service.ShowAsync(typed);
+        var view = service.For(typed.Id);
+        await Wait.UntilAsync(() => view.Stopped, "the refusal");
+        await service.RefreshAsync(typed);
+        await Wait.UntilAsync(() => view.Error?.Contains("kein Passwort", StringComparison.Ordinal) == true, "the question for the password");
+
+        await _connector.Received(1).OpenAsync(typed, "wrong", ServerLoadService.SessionAction, Arg.Any<CancellationToken>());
+        Assert.Contains("„Typed“", view.Error, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_look_hanging_on_a_silent_line_gives_up_closes_the_session_and_the_next_look_opens_a_new_one()
     {

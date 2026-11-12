@@ -226,27 +226,7 @@ internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabase
         }
     }
 
-    private async Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, Guid workspaceId, string action, CancellationToken cancellationToken)
-    {
-        var password = connections.GetPassword(profile.Id)
-            ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
-        var connection = await SessionOpening.OpenAsync(
-            (_, token) => connector.OpenAsync(profile, password, action, token), time, retrying: null, cancellationToken);
-        if (!profile.ReadOnly || IsUnlocked(workspaceId))
-        {
-            return connection;
-        }
-
-        // Read-only profile (Prod by default): Oracle itself rejects DML in this session.
-        try
-        {
-            await connection.UseReadOnlySnapshotsAsync(cancellationToken);
-            return connection;
-        }
-        catch
-        {
-            await connection.DisposeAsync();
-            throw;
-        }
-    }
+    /// <summary>Read-only profile (Prod by default): Oracle itself rejects DML in the session, until the workspace is unlocked.</summary>
+    private Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, Guid workspaceId, string action, CancellationToken cancellationToken) =>
+        OwnSession.OpenAsync(connector, connections, profile, action, time, profile.ReadOnly && !IsUnlocked(workspaceId), cancellationToken);
 }

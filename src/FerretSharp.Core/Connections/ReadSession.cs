@@ -231,13 +231,10 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
 
     private async Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, CancellationToken cancellationToken)
     {
-        var password = connections.GetPassword(profile.Id)
-            ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
-        IDatabaseConnection connection;
         try
         {
-            connection = await SessionOpening.OpenAsync(
-                (_, token) => connector.OpenAsync(profile, password, Action, token), _time, retrying: null, cancellationToken);
+            // Read-only profile (Prod by default): Oracle itself rejects DML in this session, as in a locked workspace.
+            return await OwnSession.OpenAsync(connector, connections, profile, Action, _time, profile.ReadOnly, cancellationToken);
         }
         catch (DatabaseException ex) when (ex is not SessionOpenTimeoutException && !ReconnectPolicy.IsNetworkError(ex.ErrorCode))
         {
@@ -249,28 +246,6 @@ public sealed class ReadSession(ConnectionManager connections, IDatabaseConnecto
                 }
             }
 
-            if (ex.ErrorCode == ConnectionManager.WrongPasswordCode)
-            {
-                connections.ForgetSessionPassword(profile.Id); // asked again on the next connect, as ActiveConnection does
-            }
-
-            throw;
-        }
-
-        if (!profile.ReadOnly)
-        {
-            return connection;
-        }
-
-        // Read-only profile (Prod by default): Oracle itself rejects DML in this session, as in a locked workspace.
-        try
-        {
-            await connection.UseReadOnlySnapshotsAsync(cancellationToken);
-            return connection;
-        }
-        catch
-        {
-            await connection.DisposeAsync();
             throw;
         }
     }

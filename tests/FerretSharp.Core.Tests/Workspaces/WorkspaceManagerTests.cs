@@ -432,7 +432,7 @@ public sealed class WorkspaceManagerTests
         await _manager.AttachAsync(_profile, Ct);
         _secrets.DeletePassword(_profile.Id);
 
-        var error = await Assert.ThrowsAsync<DatabaseException>(() => _manager.GetDataAsync(_manager.Active!.Id, Ct));
+        var error = await Assert.ThrowsAsync<MissingPasswordException>(() => _manager.GetDataAsync(_manager.Active!.Id, Ct));
 
         Assert.Contains("Passwort", error.Message);
     }

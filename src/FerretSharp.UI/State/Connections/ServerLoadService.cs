@@ -542,17 +542,12 @@ public sealed class ServerLoadService(
 
     private async Task OpenAsync(ServerLoadView view, ConnectionProfile profile, CancellationToken cancellationToken)
     {
-        if (connections.GetPassword(profile.Id) is not { } password)
-        {
-            throw new DatabaseException(TextFormat.Format(CompareText.NoPasswordFor, profile.Name));
-        }
-
         Set(view, ServerLoadStatus.Connecting);
         IDatabaseConnection opened;
         try
         {
-            opened = await SessionOpening.OpenAsync(
-                (_, token) => connector.OpenAsync(profile, password, SessionAction, token), _time, null, cancellationToken);
+            // Reads only V$ views, without read-only snapshots as before; a missing password or a refused login stops the loop.
+            opened = await OwnSession.OpenAsync(connector, connections, profile, SessionAction, _time, readOnlySnapshots: false, cancellationToken);
         }
         catch (DatabaseException ex) when (ex is not SessionOpenTimeoutException && !ReconnectPolicy.IsNetworkError(ex.ErrorCode))
         {
