@@ -216,7 +216,7 @@ public partial class App : Application
         }
         if (settings.StartupNotice is { } notice)
         {
-            _logger.LogWarning("Settings could not be read, using defaults: {Notice}", notice);
+            _logger.LogWarning("Settings file: {Notice}", notice); // all settings or some have their defaults
         }
 
         // Before the window: its WebView control handles display changes too, and this log line must come first (2026-11-02).
