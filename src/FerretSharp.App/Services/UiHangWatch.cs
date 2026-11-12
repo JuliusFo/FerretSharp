@@ -52,9 +52,15 @@ public sealed class UiHangWatch(Dispatcher dispatcher, ILogger<UiHangWatch> logg
         }
     }
 
+    private int _disposed;
+
+    /// <summary>Stops the watch; also before the host disposes it (<c>App.OnExit</c>), so a second call does nothing.</summary>
     public void Dispose()
     {
-        _stop.Cancel();
-        _stop.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            _stop.Cancel();
+            _stop.Dispose();
+        }
     }
 }

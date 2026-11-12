@@ -227,8 +227,24 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
                 return null;
             }
 
-            var path = process.StandardOutput.ReadToEnd().Trim();
-            process.WaitForExit(5000);
+            // The limit covers the reading: ReadToEnd first waited for vswhere's end without one (review 3.70.0, A16).
+            var output = process.StandardOutput.ReadToEndAsync();
+            if (!output.Wait(TimeSpan.FromSeconds(5)))
+            {
+                logger.LogWarning("vswhere did not answer within 5 s");
+                try
+                {
+                    process.Kill();
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                    // ended meanwhile
+                }
+
+                return null;
+            }
+
+            var path = output.Result.Trim();
             return File.Exists(path) ? path : null;
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)

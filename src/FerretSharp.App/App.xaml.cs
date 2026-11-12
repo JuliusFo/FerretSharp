@@ -275,6 +275,10 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("FerretSharp shutting down");
+        // Closing blocks the UI thread for up to 13 s (sessions over a silent VPN): the watches would log that as a hang
+        // (review 3.70.0, A15).
+        _host?.Services.GetService<UiHangWatch>()?.Dispose();
+        _host?.Services.GetService<UiStallMonitor>()?.Dispose();
         if (_powerModeChanged is not null)
         {
             SystemEvents.PowerModeChanged -= _powerModeChanged; // a static event: it would keep the app's objects alive
