@@ -264,10 +264,10 @@
                 }
                 <ConnectionScopeView @key="scope" Scope="scope">
                     <DdlDraftPanel @key="workspace.WorkspaceId" WorkspaceId="workspace.WorkspaceId" Steps="_runnable" ConfirmNotes="RiskNotes"
-                                   Problems="@(TargetReading ? [TextFormat.Format(CompareViewText.CompareDdl_Reading, label)] : [])"
+                                   Problems="@(Compare.DdlRunning ? [TextFormat.Format(CompareViewText.CompareDdl_RunningOn, label)] : TargetReading ? [TextFormat.Format(CompareViewText.CompareDdl_Reading, label)] : [])"
                                    Running="Compare.SetRunning" SaveText="@proposal.Script"
                                    FileName="@($"{DateTime.Now:yyyy-MM-dd}_ALIGN_{proposal.TargetOwner ?? "TARGET"}.sql")"
-                                   ConfirmAtOnce="@(Choice.Failed is null)" Earlier="Choice.Failed" OfferSqlEditor="false"
+                                   ConfirmAtOnce="@(Choice.Failed is null && !Compare.DdlRunning)" Earlier="Choice.Failed" OfferSqlEditor="false"
                                    OnRan="RanAsync" OnFailed="Compare.RanAsync" OnClose="() => Compare.RequestRun(false)" />
                 </ConnectionScopeView>
             }

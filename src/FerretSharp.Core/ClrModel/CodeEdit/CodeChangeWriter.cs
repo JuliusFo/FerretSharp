@@ -53,13 +53,16 @@ public static class CodeChangeWriter
         var results = new List<FileWriteResult>();
         foreach (var file in plan.Files)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            // Cancelling counts until the first file is written, then the plan is written whole: closing the view stopped it
+            // between two files – a property without its configuration (review 3.70.0, A8).
+            var token = results.Count == 0 ? cancellationToken : CancellationToken.None;
+            token.ThrowIfCancellationRequested();
             try
             {
                 var bytes = file.Format.Encode(file.NewText);
                 if (file.IsNew)
                 {
-                    await CreateAsync(file.Path, bytes, cancellationToken);
+                    await CreateAsync(file.Path, bytes, token);
                     results.Add(new FileWriteResult(file.Relative, FileWriteOutcome.Created));
                 }
                 else
@@ -68,7 +71,7 @@ public static class CodeChangeWriter
                     {
                         await stream.WriteAsync(bytes, ct);
                         return true;
-                    }, cancellationToken);
+                    }, token);
                     results.Add(new FileWriteResult(file.Relative, FileWriteOutcome.Written));
                 }
             }

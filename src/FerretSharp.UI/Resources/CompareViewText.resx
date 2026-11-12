@@ -409,6 +409,10 @@
     <value>Reading {0} again …</value>
     <comment>{0} = label of the target side, read again after running the proposal</comment>
   </data>
+  <data name="CompareDdl_RunningOn" xml:space="preserve">
+    <value>Running on {0} …</value>
+    <comment>{0} = label of the target side; the steps run there, this page was built anew meanwhile</comment>
+  </data>
   <data name="CompareDdl_RanOne" xml:space="preserve">
     <value>1 statement ran on {1} – it is read again.</value>
     <comment>{1} = label of the target side</comment>

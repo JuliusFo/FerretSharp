@@ -28,7 +28,7 @@
         }
         @if (!Preview)
         {
-            <button type="button" class="btn primary" disabled="@(change is not { CanWrite: true })" title="@SchemaViewText.CodeChange_WriteTitle"
+            <button type="button" class="btn primary" disabled="@(_replanPending || change is not { CanWrite: true })" title="@SchemaViewText.CodeChange_WriteTitle"
                     @onclick="WriteAsync">@SchemaViewText.CodeChange_Write</button>
         }
         @if (OnDismiss.HasDelegate)
@@ -197,6 +197,12 @@
 
     /// <summary>A plan was asked for while writing (a name typed, a folder chosen): it runs once writing is done.</summary>
     private bool _replanAfterWrite;
+
+    /// <summary>
+    /// A new plan waits out its pause: the plan shown is old and must not be written (review 3.70.0, A8 – a click in those
+    /// 400 ms wrote it, and the new plan then ran against a half written clone).
+    /// </summary>
+    private bool _replanPending;
     private bool _disposed;
 
     protected override void OnInitialized()
@@ -252,6 +258,7 @@
 
         _work?.Cancel();
         _work?.Dispose();
+        _replanPending = delayMs > 0;
         var work = _work = new CancellationTokenSource();
         var token = work.Token;
         var group = Active.Profile?.Group;
@@ -263,6 +270,12 @@
             if (delayMs > 0)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(delayMs), token);
+                _replanPending = false;
+                if (_change?.Stage == CodeChangeStage.Writing)
+                {
+                    _replanAfterWrite = true;
+                    return;
+                }
             }
 
             (_change, _mapping) = (change, mapping);
@@ -273,7 +286,7 @@
 
     private Task WriteAsync() => GuardAsync(async () =>
     {
-        if (_change is { CanWrite: true } change)
+        if (!_replanPending && _change is { CanWrite: true } change)
         {
             await change.WriteAsync(_lifetime.Token);
             if (change.Results is { Count: > 0 } results && results.All(r => r.Succeeded))
