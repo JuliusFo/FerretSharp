@@ -75,6 +75,31 @@ public sealed class TimeTravelTests : IAsyncDisposable
         Assert.Same(now, _app.Shell.OpenTable(TestApp.Kunden)); // the explorer never lands in the past
     }
 
+    /// <summary>
+    /// Review 3.70.0, C6 (fix #10 of WP-78 without a test): after a write the table tabs read their rows again – a time
+    /// travel tab shows a fixed point, nothing written changes it, a reload is a needless round trip.
+    /// </summary>
+    [Fact]
+    public async Task A_write_reloads_the_table_tabs_but_not_a_time_travel_tab()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        var now = ActiveKunden(scope);
+        var travel = _app.Shell.OpenTimeTravel(now.WorkspaceId, TestApp.Kunden, [], [], new TimeTravelState(4000, _app.Time.GetLocalNow(), "FREE/FREEPDB1"))!;
+        var reloaded = new List<WorkspaceTab>();
+        _app.Shell.TabCommandRequested += (tab, command) =>
+        {
+            if (command == TabCommand.Reload)
+            {
+                reloaded.Add(tab);
+            }
+        };
+
+        _app.Shell.ReloadTableTabs(now.WorkspaceId);
+
+        Assert.Contains(now, reloaded);
+        Assert.DoesNotContain(travel, reloaded);
+    }
+
     [Fact]
     public async Task A_time_in_the_future_or_beyond_the_database_s_mapping_is_explained_and_opens_nothing()
     {
