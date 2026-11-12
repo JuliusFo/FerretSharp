@@ -141,7 +141,7 @@ public sealed partial class ShellState
                 tab = new TableTab(workspace.WorkspaceId, table) { RowsDeferred = TableOpening.DefersRows(settings) };
                 if (mode is null)
                 {
-                    tab.UseViewFromSetting(TableOpening.View(settings));
+                    tab.UseViewOrData(TableOpening.View(settings));
                 }
 
                 // A tab without filter rows: the setting says whether it starts with a SQL condition (WP-79).

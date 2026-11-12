@@ -5,14 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
-Fixes, structure, tests and docs after the review of 3.70.0 (R9).
+Fixes, structure, tests and docs after the review of 3.70.0 (R9), and robustness fixes from the backlog.
 
 ### Security
+- The estimated plan (EXPLAIN) always writes into Oracle's session-private plan table `SYS.PLAN_TABLE$`. A `PLAN_TABLE` of the schema (an old `utlxplan.sql`) hid it, and FerretSharp committed the plan rows into that table – also on Prod. Without access to `SYS.PLAN_TABLE$` the plan is refused with the grant to ask for.
 - DDL that drops rows or the data of a type is never run, like TRUNCATE: `ALTER TABLE … MOVE/SPLIT/MERGE … INCLUDING ROWS WHERE`, `DROP TYPE … FORCE` and `ALTER TYPE … DROP ATTRIBUTE … CASCADE` (and `INVALIDATE`, which loses the values the same way).
 - A password typed for this run and refused by the database is forgotten everywhere: "Refresh" on the server load page sent it again and could lock the account.
 - "Usage" looks for a moved class only in files really below the work clone, never behind a junction or symbolic link.
 
 ### Changed
+- A setting FerretSharp cannot read (a value of a newer version, a hand edit) gets its default alone; before, the whole settings file was dropped. The file is kept as a copy, and the start notice names the settings.
+- "Test connection" tries again when opening hangs, like connecting (up to 43 s); before, it waited about 20 s on a hanging VPN.
 - "Disconnect session" in a time travel tab gives up the connection's read session – before, it rolled back the workspace's transaction and the tab kept hanging. The diff tab offers the same once cancelled, and looking up a point in time ends after 30 s.
 - If the display (the WebView2 renderer) crashes, FerretSharp loads it again once; a second crash shortly after asks whether to restart. Closing with uncommitted changes while the display is gone asks natively: commit, roll back or keep open.
 - `CREATE INDEX` and `ALTER INDEX … REBUILD ONLINE` are not started while another session has uncommitted changes on the table: an online build waited for them, also past a cancel.
@@ -21,6 +24,14 @@ Fixes, structure, tests and docs after the review of 3.70.0 (R9).
 - A self-contained publish stops if the .NET SDK would bundle a runtime without its security fixes.
 
 ### Fixed
+- A file of FerretSharp saved by hand in another encoding than UTF-8 is reported as not readable instead of stopping the start.
+- A `connections.json` that cannot be read says why (line and position) in a notice and in the log, not only in the status bar's tooltip.
+- A LINQ console helper that ends at start is reported at once with its exit code, not after the start timeout.
+- The grid no longer queries rows before the first one (seen once as "Rows -500+", with "0 rows" in the footer).
+- "Reload" after an error no longer logs unhandled errors of the old page's components and brings the error bar back.
+- An aborted socket operation ODP.NET leaves after a connection timeout is logged as a warning, not as an error.
+- A link asking for the "Usage" view opens the data when no C# project is linked.
+- A dimmed settings area turns full on hover; Esc in a menu button's menu gives the button the focus; the note under the DDL says the grants follow below; the left resize handle of the change overview and the form no longer lies on the grid's scrollbar.
 - A script keeps the line break most of its lines have; one pasted CRLF line made the whole file CRLF.
 - A line break in a script's parameter name no longer moves header text into the SQL.
 - Writing a WP-41 plan: a click right after a change no longer writes the old plan, and closing the view no longer stops between two files.

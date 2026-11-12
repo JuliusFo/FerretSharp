@@ -60,6 +60,9 @@
   <data name="ExplainInReadOnlyTransaction" xml:space="preserve">
     <value>In einer READ ONLY-Transaktion lehnt Oracle EXPLAIN PLAN ab.</value>
   </data>
+  <data name="ExplainNoPlanTable" xml:space="preserve">
+    <value>Für den geschätzten Plan fehlt der Zugriff auf SYS.PLAN_TABLE$, den Oracle an PUBLIC vergibt – ein DBA kann ihn geben: GRANT SELECT, INSERT, DELETE ON SYS.PLAN_TABLE$ TO &lt;user&gt;. Eine PLAN_TABLE des Schemas wird nicht verwendet: FerretSharp würde die Planzeilen dort hinein committen.</value>
+  </data>
   <data name="WriteTransactionOpen" xml:space="preserve">
     <value>Eine schreibende Transaktion ist offen.</value>
   </data>

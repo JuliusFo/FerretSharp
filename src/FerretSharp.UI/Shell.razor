@@ -376,6 +376,13 @@
         }
 
         await Connections.LoadAsync(CancellationToken.None);
+        if (Connections.LoadError is { } loadError)
+        {
+            // The reason (line and position of a hand edit) was only in the status bar's tooltip (E2E 2026-10-22).
+            LoggerFactory.CreateLogger("FerretSharp.UI.Shell").LogWarning("Connections could not be loaded: {Reason}", loadError);
+            _state.Notify(ShellText.Status_ConnectionsNotLoaded, [loadError]);
+        }
+
         await Recent.LoadAsync(CancellationToken.None);
         await WorkClones.LoadAsync(CancellationToken.None);
         await ScriptUsage.LoadAsync(CancellationToken.None);

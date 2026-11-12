@@ -1,4 +1,7 @@
+using System.Text;
 using System.Text.Json;
+using System.Text.Unicode;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.IO;
 
@@ -27,7 +30,9 @@ public enum JsonFileState
 /// <summary>A read of a versioned JSON file: its state, the document (only <see cref="JsonFileState.Ok"/>) and why not.</summary>
 /// <param name="Version">The <c>version</c> in the file; null if it has none or it was not read.</param>
 /// <param name="Error">What went wrong for <see cref="JsonFileState.Broken"/> and <see cref="JsonFileState.Unreadable"/>.</param>
-public sealed record JsonFileRead<T>(JsonFileState State, T? Document, int? Version, Exception? Error = null) where T : class;
+/// <param name="Content">The text read, for <see cref="JsonFileState.Broken"/> only: a store that can mend part of it (the settings,
+/// fix/robustness) reads it from here, not from the file a second time.</param>
+public sealed record JsonFileRead<T>(JsonFileState State, T? Document, int? Version, Exception? Error = null, string? Content = null) where T : class;
 
 /// <summary>
 /// Reading FerretSharp's own versioned JSON files (connections, recent connections, settings, workspaces, SQL history,
@@ -37,6 +42,8 @@ public sealed record JsonFileRead<T>(JsonFileState State, T? Document, int? Vers
 /// </summary>
 public static class VersionedJsonFile
 {
+    private static ReadOnlySpan<byte> Bom => [0xEF, 0xBB, 0xBF];
+
     /// <summary>
     /// Reads <paramref name="path"/>. The version first: above <paramref name="currentVersion"/> the file is
     /// <see cref="JsonFileState.Newer"/> without deserializing it. A document <paramref name="complete"/> rejects (or null)
@@ -53,10 +60,26 @@ public static class VersionedJsonFile
         }
 
         int? version = null;
+        ReadOnlyMemory<byte> utf8 = default;
         try
         {
-            await using var stream = File.OpenRead(path);
-            using var json = await JsonDocument.ParseAsync(stream, default, cancellationToken);
+            // Bytes, not text: decoding to text put U+FFFD in place of bytes that are no UTF-8 (a file saved as ANSI by hand),
+            // and the next save kept it – in a workspace also in pending values (second review pass of fix/robustness). Such a
+            // file is broken, as before (where reading a string of it threw).
+            utf8 = await File.ReadAllBytesAsync(path, cancellationToken);
+            if (utf8.Span.StartsWith(Bom))
+            {
+                utf8 = utf8[Bom.Length..];
+            }
+
+            if (!Utf8.IsValid(utf8.Span))
+            {
+                var notUtf8 = new JsonException(CoreText.FileNotUtf8);
+                utf8 = default; // no text to mend
+                throw notUtf8;
+            }
+
+            using var json = JsonDocument.Parse(utf8);
             var root = json.RootElement;
             if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("version", out var number) && number.TryGetInt32(out var found))
             {
@@ -75,7 +98,7 @@ public static class VersionedJsonFile
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             // NotSupportedException: polymorphic JSON without "type", or with "type" not first (edited by hand).
-            return new(JsonFileState.Broken, null, version, ex);
+            return new(JsonFileState.Broken, null, version, ex, utf8.IsEmpty ? null : Encoding.UTF8.GetString(utf8.Span));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

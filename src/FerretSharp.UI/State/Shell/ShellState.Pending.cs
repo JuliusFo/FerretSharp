@@ -66,7 +66,8 @@ public sealed partial class ShellState
             return;
         }
 
-        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = link.Filters, Sorts = link.Sorts, Mode = link.Mode ?? TabMode.Data, Visited = true, FitToStructure = true };
+        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = link.Filters, Sorts = link.Sorts, Visited = true, FitToStructure = true };
+        tab.UseViewOrData(link.Mode ?? TabMode.Data); // a link built by hand may ask for "Usage" without a linked project
         tab.SetFilterRows(link.Filters);
         InsertAfterActive(workspace, tab);
     }

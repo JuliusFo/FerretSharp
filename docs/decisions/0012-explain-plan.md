@@ -26,3 +26,10 @@ Spike im Container (Oracle 23 Free):
 - Der tatsächliche Plan führt die Abfrage aus – Kosten wie im Grid bzw. für das ganze Ergebnis; schreibt nichts.
 - Ohne V$-Rechte bleibt nur der geschätzte Plan.
 - SQL-Text muss exakt so gehasht werden, wie er gesendet wird (keine Normalisierung von Leerzeichen).
+
+
+## Nachtrag (fix/robustness, 2026-11-12): `SYS.PLAN_TABLE$` statt `PLAN_TABLE`
+
+- Gesamt-Review 3.31.0, A37, gegen Oracle 23 nachgestellt (`PlanTests.The_estimated_plan_never_writes_into_a_plan_table_of_the_schema`): Hat ein Schema eine eigene `PLAN_TABLE` (Heap-Tabelle aus einem alten `utlxplan.sql`), verdeckt sie das öffentliche Synonym. Die Explorer-Session hat keine Transaktion, ODP.NET committet also jedes Statement – `EXPLAIN PLAN` schrieb die Planzeilen dauerhaft in diese Tabelle (auch auf Prod), das `DELETE` danach ebenso committet.
+- `ExplainPlanAsync` schreibt deshalb mit `EXPLAIN PLAN … INTO SYS.PLAN_TABLE$` in die globale temporäre Tabelle hinter dem Synonym und liest und löscht dort; eine `PLAN_TABLE` des Schemas wird nie benutzt (Vorschlag aus dem Review, vom Nutzer am 2026-11-12 so bestätigt).
+- Oracle gibt `SYS.PLAN_TABLE$` an PUBLIC. Fehlt der Zugriff doch, scheitert `EXPLAIN PLAN` mit ORA-00942/ORA-01031; erst ein Probe-SELECT auf die Tabelle unterscheidet das von einer fehlenden Tabelle der Abfrage. Dann lehnt FerretSharp mit dem Grant ab, statt auf eine Tabelle des Schemas auszuweichen.

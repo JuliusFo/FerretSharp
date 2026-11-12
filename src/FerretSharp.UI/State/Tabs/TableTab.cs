@@ -87,7 +87,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         set
         {
             field = TimeTravel is null ? value : TabMode.Data; // a time travel tab has its data view only (review of WP-78)
-            ViewFromSetting = false;
+            ViewFallsBack = false;
             if (value != TabMode.Synonyms)
             {
                 DropRequested = null;
@@ -98,16 +98,18 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     public SynonymInfo? DropRequested { get; set; }
 
     /// <summary>
-    /// <see cref="Mode"/> is the setting's view for a new tab (<see cref="TableOpening"/>), not one asked for: the tab's view
-    /// falls back to the data if it cannot show it ("Usage" without a linked C# project). Setting the mode clears it. Not saved.
+    /// <see cref="Mode"/> is a view the tab may not be able to show – the setting's view for a new tab
+    /// (<see cref="TableOpening"/>) or a link's –, not one the user picked here: it falls back to the data if it cannot show it
+    /// ("Usage" without a linked C# project; a link built by hand could ask for it, fix/robustness). Setting the mode clears
+    /// it. Not saved.
     /// </summary>
-    public bool ViewFromSetting { get; private set; }
+    public bool ViewFallsBack { get; private set; }
 
-    /// <summary>Opens the tab on the setting's view (<see cref="TableOpening.View"/>).</summary>
-    public void UseViewFromSetting(TabMode mode)
+    /// <summary>Opens the tab on a view it shows only if it can, else on the data (<see cref="TableOpening.Shown"/>).</summary>
+    public void UseViewOrData(TabMode mode)
     {
         Mode = mode;
-        ViewFromSetting = true;
+        ViewFallsBack = true;
     }
 
     /// <summary>

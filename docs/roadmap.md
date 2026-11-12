@@ -72,19 +72,7 @@ Entschieden mit dem Nutzer am 2026-11-12 (vorher offene UX-Fragen).
 - **Ctrl+C auf markierte ganze Spalten über der Grenze** (WP-58): Ist die Zeilenzahl bekannt und Zeilen × Spalten über 100 000, wird nicht gelesen, sondern sofort gemeldet, dass es zu viele Zellen sind, mit einem Knopf zum Export. Bei unbekannter Zeilenzahl bleibt es wie heute (lesen bis zur Grenze, dann „nichts kopiert“).
 
 ## Vorschläge aus der Backlog-Priorisierung (2026-11-12)
-Claude hat den Backlog am 2026-11-12 priorisiert; der Nutzer hat die Vorschläge hier eintragen lassen. **Zuschnitt und Inhalt sind Vorschlag (nicht bestätigt)** und werden beim Start wie üblich abgestimmt. Die Einzelheiten stehen weiter im Backlog, die Einträge dort verweisen hierher. Abhängigkeiten: WP-80 braucht WP-87; WP-47 baut auf den Messungen von WP-86 auf; WP-88 teilt die gelesenen Spalten mit dem Modellvergleich (WP-86 liest das Modell dafür ggf. über eine eigene Session). Einschätzung der Dringlichkeit (Vorschlag): zuerst die Fixes „Robustheit“, dann WP-85 oder WP-86; WP-87 vor WP-80.
-
-### Fixes „Robustheit“
-Branch `fix/robustness`, ein Patch-Release. Kleine, sichere Fixes aus „Bekannte Fehler und Lücken“ und „Verbindungen“ des Backlogs:
-- **EXPLAIN in eine eigene Heap-`PLAN_TABLE`** des Schemas (A37, betrifft die Lese-Invariante auf Prod): zuerst gegen eine DB nachstellen (Tabelle aus `utlxplan.sql`), dann `SYS.PLAN_TABLE$` nehmen oder ablehnen.
-- `settings.json`: ein unbekannter Enum-Wert fällt je Property auf den Standard zurück, statt die ganze Datei zu verwerfen.
-- `connections.json`, die sich nicht lesen lässt: Grund (`ConnectionStoreException` mit Zeile/Position) in Log und Oberfläche.
-- ModelHost, der beim Start endet: zusätzlich auf `WaitForExitAsync` warten und sofort „beim Start beendet (Exit-Code n)“ melden statt nach dem Start-Timeout (behebt auch den Test, der unter Last scheitert); Tests mit `FakeModelHost` beenden ihren Host auch beim Scheitern.
-- „Verbindung testen“ über `SessionOpening` (heute bis zu ~20 s Hänger über das VPN).
-- Grid: negative Startzeile ohne Abfrage leer beantworten (`FerretGrid.GetRows`, „Rows -500+“).
-- „Neu laden“: `JSException` „JS object instance … does not exist“ in den Dispose-Pfaden wie einen getrennten Kanal behandeln.
-- `SocketException (995)` aus ODP.NET als unbeobachtete Ausnahme nur als Warnung loggen.
-- Kleinkram: `.settings-nav-item.dim:hover`, Fokus nach Esc zurück auf den `MenuButton`, Satz unter dem DDL-Tab (`Ddl_Source`), Link mit Ansicht „Verwendung“ ohne Projekt fällt auf „Daten“ zurück, linke Ziehgriffe über der Scrollleiste.
+Claude hat den Backlog am 2026-11-12 priorisiert; der Nutzer hat die Vorschläge hier eintragen lassen. **Zuschnitt und Inhalt sind Vorschlag (nicht bestätigt)** und werden beim Start wie üblich abgestimmt. Die Einzelheiten stehen weiter im Backlog, die Einträge dort verweisen hierher. Abhängigkeiten: WP-80 braucht WP-87; WP-47 baut auf den Messungen von WP-86 auf; WP-88 teilt die gelesenen Spalten mit dem Modellvergleich (WP-86 liest das Modell dafür ggf. über eine eigene Session). Einschätzung der Dringlichkeit (Vorschlag): WP-85 oder WP-86 zuerst; WP-87 vor WP-80. Die Fixes „Robustheit“ sind gebaut (`docs/work-packages/fix-robustness.md`).
 
 ### WP-85 Editieren mit Schlüsseln: keine stillen Fehlzuordnungen
 Branch `wp/85-key-edit-integrity`. Commit und Rollback sind nur so viel wert, wie die Anzeige der Änderungen stimmt – diese Fehler zeigen still die falsche Zeile oder verlieren den Bezug (Backlog „Bekannte Fehler und Lücken“, Code-Review `small-pk-edit` und Gesamt-Review 3.31.0 A33):

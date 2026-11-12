@@ -123,7 +123,7 @@ public partial class App : Application
         builder.Services.AddSingleton(paths);
         builder.Services.AddSingleton<IConnectionStore>(new ConnectionStore(paths.ConnectionsFile));
         builder.Services.AddSingleton<ISecretStore, CredentialManagerSecretStore>();
-        builder.Services.AddSingleton<IConnectionTester, OracleConnectionTester>();
+        builder.Services.AddSingleton<IConnectionTester>(services => new OracleConnectionTester(services.GetRequiredService<IDatabaseConnector>(), TimeProvider.System));
         builder.Services.AddSingleton<ConnectionManager>();
         // Import/export of connections (WP-35): DBeaver and SQL Developer are looked for in %APPDATA% (tests: --import-appdata=).
         builder.Services.AddSingleton(services => new ConnectionTransfer(services.GetRequiredService<ConnectionManager>(), ImportAppData(args)));
@@ -216,7 +216,7 @@ public partial class App : Application
         }
         if (settings.StartupNotice is { } notice)
         {
-            _logger.LogWarning("Settings could not be read, using defaults: {Notice}", notice);
+            _logger.LogWarning("Settings file: {Notice}", notice); // all settings or some have their defaults
         }
 
         // Before the window: its WebView control handles display changes too, and this log line must come first (2026-11-02).
@@ -355,7 +355,16 @@ public partial class App : Application
 
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
-            Log.Error(args.Exception, "Unobserved task exception");
+            if (UnobservedErrors.IsAbortedSocket(args.Exception))
+            {
+                // ODP.NET's socket task after an open that timed out (fix/robustness): harmless.
+                Log.Warning("Unobserved aborted socket operation: {Message}", args.Exception.GetBaseException().Message);
+            }
+            else
+            {
+                Log.Error(args.Exception, "Unobserved task exception");
+            }
+
             args.SetObserved();
         };
     }

@@ -85,7 +85,18 @@ public class JsModule(IJSRuntime js, string path) : IAsyncDisposable
     }
 
     /// <summary>The page went away, or the component did while the call ran.</summary>
-    private bool Gone(Exception ex) => ex is JSDisconnectedException || (IsDisposed && ex is ObjectDisposedException or JSException);
+    private bool Gone(Exception ex) => ex is JSDisconnectedException || PageReloaded(ex) || (IsDisposed && ex is ObjectDisposedException or JSException);
+
+    /// <summary>
+    /// The page was loaded anew ("Reload" of the error bar): the JS objects of the old page are gone, and a call on one ends
+    /// with "JS object instance with ID … does not exist" – a <see cref="JSException"/>, not a
+    /// <see cref="JSDisconnectedException"/>. The components of the old page are torn down after it; their last calls were
+    /// unhandled errors in the log and brought the error bar back (backlog, R4a E2E).
+    /// </summary>
+    internal static bool PageReloaded(Exception ex) =>
+        ex is JSException { Message: var message }
+        && message.Contains("JS object instance with ID", StringComparison.Ordinal)
+        && message.Contains("does not exist", StringComparison.Ordinal);
 
     private async ValueTask<IJSObjectReference?> ModuleAsync()
     {
@@ -120,7 +131,7 @@ public class JsModule(IJSRuntime js, string path) : IAsyncDisposable
         {
             await module.DisposeAsync();
         }
-        catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException)
+        catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException || PageReloaded(ex))
         {
         }
     }

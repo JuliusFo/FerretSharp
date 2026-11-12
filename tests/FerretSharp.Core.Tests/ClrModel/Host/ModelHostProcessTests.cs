@@ -44,7 +44,7 @@ public sealed class ModelHostProcessTests : IDisposable
     {
         var steps = new StepRecorder();
         var work = NewWork();
-        var host = await StartAsync("ready", work, progress: steps);
+        await using var host = await StartAsync("ready", work, progress: steps); // also ended when an assert fails
 
         var result = await host.RunAsync("return 1;", "", Ct);
 
@@ -68,13 +68,16 @@ public sealed class ModelHostProcessTests : IDisposable
     }
 
     /// <summary>
-    /// The exit code and what the host wrote to stderr – reported once the start timeout is over: the wait for the pipe does
-    /// not end when the process does (backlog: notice the exit right away).
+    /// The exit code and what the host wrote to stderr – at once, not after the start timeout (fix/robustness: the wait for
+    /// the pipe does not end when the process does; under load the 3 s timeout of this test came first, "did not answer").
     /// </summary>
     [Fact]
-    public async Task A_host_that_exits_at_start_says_so_with_its_error_output()
+    public async Task A_host_that_exits_at_start_says_so_with_its_error_output_at_once()
     {
-        var failure = await Assert.ThrowsAsync<ClrModelException>(() => StartAsync("exit-at-start", start: TimeSpan.FromSeconds(3)));
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        var failure = await Assert.ThrowsAsync<ClrModelException>(() => StartAsync("exit-at-start", start: TimeSpan.FromMinutes(2)));
+
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(60), $"took {started.Elapsed}"); // a dotnet start, not the start timeout
 
         Assert.Equal(TextFormat.Format(ClrModelText.HelperExitedAtStart, 3), failure.Message);
         Assert.Contains("The fake host gave up.", failure.Detail, StringComparison.Ordinal);
@@ -143,7 +146,7 @@ public sealed class ModelHostProcessTests : IDisposable
     [Fact]
     public async Task Disposing_the_console_during_a_run_ends_the_run_with_a_console_error()
     {
-        var host = await StartAsync("hangs-in-run");
+        await using var host = await StartAsync("hangs-in-run");
         var run = host.RunAsync("while (true) { }", "", Ct);
         await Task.Delay(200, Ct); // the request is on its way (if not yet, it finds the console gone – the same error)
 

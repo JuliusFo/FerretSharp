@@ -1048,6 +1048,12 @@
 
     private async Task<GridPage> GetRowsCoreAsync(int startRow, int endRow, GridSort[] sortModel)
     {
+        if (startRow < 0)
+        {
+            Logger.LogWarning("Grid asked for rows from {StartRow}: answered without a query", startRow);
+            return GridPage.BeforeFirstRow;
+        }
+
         var sorted = sortModel
             .Select(s => new SortSpec(Details.Columns[ColumnIndex(s.ColId)].Name, s.Sort == "desc"))
             .ToList();

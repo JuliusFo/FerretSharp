@@ -48,6 +48,7 @@ public sealed class LinqConsoleHost : ILinqConsole
     private readonly TimeSpan _runTimeout;
     private int _nextId;
     private bool _dead;
+    private int _disposed;
 
     private LinqConsoleHost(
         Process process, NamedPipeServerStream pipe, DirectoryInfo work, string workRoot, IDisposable? lease, BuildOutput output, StringBuilder errors, TimeSpan runTimeout)
@@ -107,7 +108,7 @@ public sealed class LinqConsoleHost : ILinqConsole
             var host = new LinqConsoleHost(process, pipe, work, root, lease, output, errors, runTimeout);
             try
             {
-                await pipe.WaitForConnectionAsync(timeout.Token).WaitAsync(timeout.Token);
+                await ConnectedAsync(pipe, process, timeout.Token);
                 // Only now: with AutoFlush, a writer flushes at once, and an unconnected pipe refuses that.
                 host._reader = new StreamReader(pipe, new UTF8Encoding(false));
                 host._writer = new StreamWriter(pipe, new UTF8Encoding(false)) { AutoFlush = true };
@@ -241,8 +242,36 @@ public sealed class LinqConsoleHost : ILinqConsole
         DotNetCli.Kill(_process);
     }
 
+    /// <summary>
+    /// Waits until the host connects to the pipe – or ends: the wait for the pipe does not end with the process, a host that
+    /// exits at start (crash, missing runtime, wrong project) was only reported after the start timeout (backlog,
+    /// fix/robustness). <see cref="IOException"/> when it ended first; the caller reads its exit code.
+    /// </summary>
+    private static async Task ConnectedAsync(NamedPipeServerStream pipe, Process process, CancellationToken cancellationToken)
+    {
+        var connecting = pipe.WaitForConnectionAsync(cancellationToken);
+        var exiting = process.WaitForExitAsync(cancellationToken); // also waits for the end of its output: stderr is complete
+        // The one not awaited below ends later with an error (pipe or process disposed): observed, not an [ERR] in the log.
+        Observe(connecting);
+        Observe(exiting);
+        if (await Task.WhenAny(connecting, exiting) == exiting && exiting.IsCompletedSuccessfully && !connecting.IsCompleted)
+        {
+            throw new IOException("The helper process ended before it connected.");
+        }
+
+        await connecting.WaitAsync(cancellationToken);
+    }
+
+    private static void Observe(Task task) =>
+        task.ContinueWith(t => t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        {
+            return; // a second call found the process disposed: HasExited threw
+        }
+
         if (IsAlive)
         {
             try

@@ -10,7 +10,7 @@
 @if (_at is { } at)
 {
     <PopoverMenu X="at.X" Y="at.Y" ViewportWidth="at.ViewportWidth" ViewportHeight="at.ViewportHeight" Width="Width"
-                 EstimatedHeight="EstimatedHeight" KeyNavigation="KeyNavigation" Above="_above" OnClose="Close">
+                 EstimatedHeight="EstimatedHeight" KeyNavigation="KeyNavigation" Above="_above" OnClose="CloseFromMenuAsync">
         @ChildContent?.Invoke(this)
     </PopoverMenu>
 }
@@ -93,6 +93,16 @@
 
         _at = null;
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Esc or a click beside the menu: closed, and the focus back on the button, as after a pick – it was left on the gone
+    /// menu, and the keyboard started from the page (code review of small-fk-target-picker, fix/robustness).
+    /// </summary>
+    private async Task CloseFromMenuAsync()
+    {
+        Close();
+        await FocusAsync();
     }
 
     /// <summary>Gives the button the focus – after a pick, so the keyboard goes on from there.</summary>

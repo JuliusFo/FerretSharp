@@ -76,12 +76,22 @@ public sealed class JsModuleTests
         });
     }
 
-    [Fact]
-    public async Task A_page_that_is_gone_is_no_error()
+    /// <summary>
+    /// Reloaded: "Reload" of the error bar loads the page anew; the old page's components are torn down after it, and their
+    /// calls end with "JS object instance … does not exist" – a JSException, which went to the log as an unhandled error
+    /// and brought the error bar back (fix/robustness).
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_page_that_is_gone_is_no_error(bool reloaded)
     {
+        Exception Gone() => reloaded
+            ? new JSException("JS object instance with ID 7 does not exist (has it been disposed?).")
+            : new JSDisconnectedException("gone");
         ImportReturns(ValueTask.FromResult(_module));
-        _module.InvokeAsync<Microsoft.JSInterop.Infrastructure.IJSVoidResult>("a", Arg.Any<object?[]?>()).ThrowsAsync(new JSDisconnectedException("gone"));
-        _module.DisposeAsync().ThrowsAsync(new JSDisconnectedException("gone"));
+        _module.InvokeAsync<Microsoft.JSInterop.Infrastructure.IJSVoidResult>("a", Arg.Any<object?[]?>()).ThrowsAsync(Gone());
+        _module.DisposeAsync().ThrowsAsync(Gone());
         var module = new JsModule(_js, Path);
 
         Assert.False(await module.InvokeVoidAsync("a"));

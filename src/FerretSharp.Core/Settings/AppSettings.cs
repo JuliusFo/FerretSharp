@@ -355,14 +355,35 @@ public sealed class AppSettingsService(SettingsStore store, AppSettings initial)
 
     /// <summary>
     /// The settings of this session: read from the file, or – if it cannot be read – defaults, with a copy of the file kept
-    /// and the user told at start (R4a). Without a copy, nothing is saved in this session, so the file stays as it is.
+    /// and the user told at start (R4a). Without a copy, nothing is saved in this session, so the file stays as it is. A
+    /// file with single settings this version cannot read keeps the others; those get their defaults, the same way.
     /// </summary>
     public static async Task<AppSettingsService> OpenAsync(SettingsStore store, DateTimeOffset now, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(store);
         try
         {
-            return new AppSettingsService(store, await store.LoadAsync(cancellationToken));
+            var read = await store.ReadAsync(cancellationToken);
+            if (read.Skipped.Count == 0)
+            {
+                return new AppSettingsService(store, read.Settings);
+            }
+
+            // Formatted when asked: the language is one of the settings read, and the app sets it only after this (code review).
+            var names = string.Join(", ", read.Skipped);
+            try
+            {
+                var copy = store.KeepCopy(now);
+                return new AppSettingsService(store, read.Settings) { LaterNotice = () => TextFormat.Format(SettingsText.SomeNotReadKept, store.FilePath, names, copy) };
+            }
+            catch (Exception copyFailed) when (copyFailed is IOException or UnauthorizedAccessException)
+            {
+                return new AppSettingsService(store, read.Settings)
+                {
+                    LaterNotice = () => TextFormat.Format(SettingsText.SomeNotReadNotSaving, store.FilePath, names),
+                    NotSavingLater = true,
+                };
+            }
         }
         catch (Exception ex) when (ex is SettingsStoreException or IOException or UnauthorizedAccessException)
         {
@@ -383,13 +404,26 @@ public sealed class AppSettingsService(SettingsStore store, AppSettings initial)
     }
 
     /// <summary>What the user should know about the settings file at start (it could not be read, R4a); null if nothing.</summary>
-    public string? StartupNotice { get; init; }
+    public string? StartupNotice
+    {
+        get => field ?? LaterNotice?.Invoke();
+        init;
+    }
+
+    /// <summary>The notice of a file read in part, in the language of the moment it is shown.</summary>
+    private Func<string>? LaterNotice { get; init; }
 
     /// <summary>
     /// Why changes are not saved in this session; null if they are. Set when the file could not be read and no copy of it
     /// could be kept: a save would replace it with defaults (R4a).
     /// </summary>
-    public string? NotSaving { get; init; }
+    public string? NotSaving
+    {
+        get => field ?? (NotSavingLater ? SettingsText.NotSavingThisSession : null);
+        init;
+    }
+
+    private bool NotSavingLater { get; init; }
 
     /// <summary>Applies the change at once and saves all settings.</summary>
     /// <exception cref="IOException">The file could not be written (or is not, <see cref="NotSaving"/>); the change stays in effect for this session.</exception>
