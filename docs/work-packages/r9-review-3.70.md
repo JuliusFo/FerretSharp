@@ -1,5 +1,5 @@
 # R9 Fehler, Struktur, Tests und Doku nach dem Gesamt-Review 3.70.0
-Teil A bis D des Gesamt-Reviews (`docs/review-3.70.0.md`) in **einem** Paket und einem Release (Entscheidung 1 des Nutzers, 2026-11-12). Branch `wp/r9-review-3.70` mit dem Review-Commit vorne, 2026-11-12, noch ohne Release. Gebaut in einer Session ohne weitere Agenten. Reihenfolge: reine Verschiebungen, Teil A mit Tests, B, C, D, E2E. Die Entscheidungen des Nutzers stehen im Review.
+Teil A bis D des Gesamt-Reviews (`docs/review-3.70.0.md`) in **einem** Paket und einem Release (Entscheidung 1 des Nutzers, 2026-11-12). Branch `wp/r9-review-3.70` mit dem Review-Commit vorne, 2026-11-12, Release 3.71.0. Gebaut in einer Session ohne weitere Agenten. Reihenfolge: reine Verschiebungen, Teil A mit Tests, B, C, D, E2E. Die Entscheidungen des Nutzers stehen im Review.
 
 ## Verschiebungen
 - `AuditTemplateSource.GroupEntry` → `ConnectionSearch.GroupEntry` (B9); `SqlBindListsTests` zur Quelle nach `Query/SqlEditor` (C14).

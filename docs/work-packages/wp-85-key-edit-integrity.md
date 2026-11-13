@@ -1,6 +1,6 @@
-# WP-85 Editieren mit Schlüsseln: keine stillen Fehlzuordnungen → Release (offen)
+# WP-85 Editieren mit Schlüsseln: keine stillen Fehlzuordnungen → Release 3.71.0
 
-Branch `wp/85-key-edit-integrity` (von `main`), 2026-11-12/13.
+Branch `wp/85-key-edit-integrity` (von `main`), 2026-11-12/13, Release 3.71.0.
 
 ## Planung
 Vorschlag aus der Backlog-Priorisierung (2026-11-12, `docs/roadmap.md`): Commit und Rollback sind nur so viel wert, wie die Anzeige der Änderungen stimmt – vier Fehler zeigten still die falsche Zeile oder verloren den Bezug (Backlog „Bekannte Fehler und Lücken“, Code-Review `small-pk-edit`, Gesamt-Review 3.31.0 A33). Plan am 2026-11-12 vom Nutzer so freigegeben („Ja, so umsetzen“). Entscheidungen dabei:

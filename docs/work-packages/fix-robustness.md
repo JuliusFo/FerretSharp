@@ -1,4 +1,4 @@
-# Fixes „Robustheit“ → Release (offen)
+# Fixes „Robustheit“ → Release 3.71.0
 
 Kleine, sichere Fixes aus „Bekannte Fehler und Lücken“ und „Verbindungen“ des Backlogs, als ein Patch-Release. Branch `fix/robustness`.
 
