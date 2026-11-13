@@ -239,6 +239,11 @@ developer works with an Oracle database day to day:
   (`-- @target customer_id CUSTOMER.CUSTOMER_ID`, typed at the top of the SQL tab) shows in the **right-click menu of a cell** of that column and of every
   column referring to it, and runs right away with the cell's value; a `list` parameter takes the values of all marked
   rows (`IN (:ids)`). Other parameters are asked for in a small dialog; a script that writes only opens.
+- **Help on SQL scripts:** the editor completes header lines after `-- @` (directives, types, the SQL's binds, tables and
+  columns of a target), explains a line on hover – for a `@target` also whether the connection has its column and in
+  which cell menus the script shows – and marks lines that cannot be used while you type. The help button in the SQL
+  tab's toolbar (also in the explorer's *Scripts*, the save dialog and the command palette) opens a short guide beside the
+  editor.
 - **Keep results:** *Keep result* above a query's result keeps it, with its rows as they were read, when the next
   statement runs – up to ten per tab, side by side in the bar above the grid, each named by its table and time (a double
   click renames it). A kept result never reads again: it sorts, copies and exports the rows it holds. Every result shows

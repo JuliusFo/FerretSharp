@@ -50,6 +50,14 @@ Der SQL-Tab zeigt oben die Kopfzeilen, für die es sonst keinen Platz gibt: `@ta
 SELECT * FROM auftrag WHERE kunde_id = :kunde_id;
 ```
 
+### Hilfe im Editor (WP-89, ADR 0051)
+
+- **Completion** nach `-- @` auf einer Zeile, über der nur Kopfzeilen stehen (Leerzeilen nur vor der ersten): die Kopfzeilen; nach `@param name` die Typen, danach `list`; nach `@param` bzw. `@target` die Binds des SQL (`@param` nur die ohne eigene Zeile); nach `@target name` die Tabellen, Views und Synonyme ohne Owner, nach `TABELLE.` deren Spalten. Vorschläge kommen auch beim Tippen in Kommentaren (nur der SQL-Editor); auf anderen Kommentarzeilen antwortet die Completion mit nichts.
+- **Marker beim Tippen** (eigener Besitzer, Laufzeitfehler bleiben): alles, was das Speichern meldet (`ScriptSave.Errors`, gleiche Regeln), eine unbekannte Kopfzeile als Hinweis (bis zu zwei Tippfehler von einer bekannten entfernt als Warnung: „meintest du @target?“), eine bekannte Kopfzeile unter dem Kopf als Warnung („wirkt nicht“), mit Schema eine fehlende Tabelle als Hinweis (das Skript kann für ein anderes Produkt sein) und eine fehlende Spalte als Warnung.
+- **Hover** über einer Kopfzeile: was sie bewirkt; über `@target` außerdem gefunden/nicht gefunden und die Spalten, in deren Zellmenü das Skript erscheint (rückwärts über dieselben Beziehungen wie das Zellmenü, `ScriptTargets.ReachedBy`, höchstens acht genannt).
+- **Hilfe-Panel** neben dem Editor (Knopf in der Leiste, Link in der Kopf-Meldung, im Speichern-Dialog und unter Explorer › *Skripte*, Aktion „Hilfe: SQL-Skripte“ in der Befehlspalette); eine der drei Seitenleisten (Skripte, Verlauf, Hilfe) zur Zeit.
+- Über dem Ergebnis, in den Chips und im Verlauf steht das Statement ohne die führenden Kopfzeilen (`ScriptHeaderHelp.WithoutHeader`); ausgeführt wird der Text, wie er ist.
+
 **Tipp:** Tabellen ohne Owner schreiben – dann läuft ein Skript auf jeder Umgebung (das Default-Schema der Verbindung).
 
 ## Abrufen
