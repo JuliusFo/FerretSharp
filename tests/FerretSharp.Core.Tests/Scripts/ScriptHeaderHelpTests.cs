@@ -28,10 +28,16 @@ public sealed class ScriptHeaderHelpTests
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
-    private static async Task<SchemaCache> SchemaAsync()
+    private static async Task<SchemaCache> SchemaAsync(TableDetails? extra = null)
     {
         var reader = Substitute.For<ISchemaReader>();
-        reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Customer.Table, Orders.Table, Foreign]);
+        reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(
+            (IReadOnlyList<TableSummary>)[Customer.Table, Orders.Table, Foreign, .. extra is null ? [] : new[] { extra.Table }]);
+        if (extra is not null)
+        {
+            reader.GetDetailsAsync(Arg.Is<TableSummary>(t => t.Name == extra.Table.Name), Arg.Any<CancellationToken>()).Returns(extra);
+        }
+
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([Country], []));
         reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(
             (IReadOnlyList<ForeignKeyInfo>)[new("FK_ORDERS_CUSTOMER", Orders.Table.Ref, ["CUSTOMER_ID"], Customer.Table.Ref, ["ID"], FkSource.Declared)]);
@@ -46,11 +52,11 @@ public sealed class ScriptHeaderHelpTests
     private static string Marked(ScriptHeaderMarker marker, string text) => text.Substring(marker.Start, marker.Length);
 
     [Fact]
-    public async Task Lines_saving_reports_are_marked_where_they_stand_also_with_CRLF()
+    public void Lines_saving_reports_are_marked_where_they_stand_also_with_CRLF()
     {
         const string text = "-- @target customer_id CUSTOMER.ID\r\n-- @param gone number\r\n\r\nSELECT * FROM orders WHERE id = :id";
 
-        var markers = await ScriptHeaderHelp.MarkersAsync(text, null, Token);
+        var markers = ScriptHeaderHelp.Markers(text);
 
         Assert.Equal(2, markers.Count);
         Assert.Equal("-- @target customer_id CUSTOMER.ID", Marked(markers[0], text));
@@ -62,16 +68,17 @@ public sealed class ScriptHeaderHelpTests
     [Fact]
     public async Task A_text_without_header_lines_has_no_marks()
     {
-        Assert.Empty(await ScriptHeaderHelp.MarkersAsync("-- a comment\nSELECT * FROM orders WHERE id = :id", await SchemaAsync(), Token));
-        Assert.Empty(await ScriptHeaderHelp.MarkersAsync("", null, Token));
+        Assert.Empty(ScriptHeaderHelp.Markers("-- a comment\nSELECT * FROM orders WHERE id = :id"));
+        Assert.Empty(await ScriptHeaderHelp.TargetMarkersAsync("-- a comment\nSELECT * FROM orders WHERE id = :id", await SchemaAsync(), Token));
+        Assert.Empty(ScriptHeaderHelp.Markers(""));
     }
 
     [Fact]
-    public async Task An_unknown_directive_is_a_hint_and_a_typo_of_a_known_one_a_warning()
+    public void An_unknown_directive_is_a_hint_and_a_typo_of_a_known_one_a_warning()
     {
         const string text = "-- @owner team-a\n-- @tagret id ORDERS.ID\n-- @parm id number\nSELECT * FROM orders WHERE id = :id";
 
-        var markers = await ScriptHeaderHelp.MarkersAsync(text, null, Token);
+        var markers = ScriptHeaderHelp.Markers(text);
 
         Assert.Equal(
             [
@@ -86,9 +93,9 @@ public sealed class ScriptHeaderHelpTests
     [InlineData("SELECT 1 FROM dual;\n-- @target id ORDERS.ID\nSELECT * FROM orders WHERE id = :id", "-- @target id ORDERS.ID")]
     [InlineData("-- what it does\n-- @param id number\nSELECT * FROM orders WHERE id = :id", "-- @param id number")]
     [InlineData("-- @description Orders\n\n-- @target id ORDERS.ID\nSELECT * FROM orders WHERE id = :id", "-- @target id ORDERS.ID")]
-    public async Task A_known_directive_below_the_header_is_marked_as_without_effect(string text, string line)
+    public void A_known_directive_below_the_header_is_marked_as_without_effect(string text, string line)
     {
-        var markers = await ScriptHeaderHelp.MarkersAsync(text, null, Token);
+        var markers = ScriptHeaderHelp.Markers(text);
 
         var marker = Assert.Single(markers);
         Assert.Equal(line, Marked(marker, text));
@@ -101,7 +108,7 @@ public sealed class ScriptHeaderHelpTests
         const string text = "-- @target id CUSTOMER.ID\n-- @target id PRODUCT.ID\n-- @target id ORDERS.NOPE\n-- @target id country.code\nSELECT * FROM orders WHERE id = :id";
         var schema = await SchemaAsync();
 
-        var markers = await ScriptHeaderHelp.MarkersAsync(text, schema, Token);
+        var markers = await ScriptHeaderHelp.TargetMarkersAsync(text, schema, Token);
 
         Assert.Equal(
             [
@@ -122,7 +129,7 @@ public sealed class ScriptHeaderHelpTests
         Assert.Equal((0, "-- @target id CUSTOMER.ID".Length), (hover.Start, hover.Length));
         Assert.Equal(ScriptText.Hover_Target, hover.Paragraphs[0]);
         Assert.Equal(
-            TextFormat.Format(ScriptText.Hover_TargetFound, "`CUSTOMER.ID`", "NUMBER(10)") + " "
+            TextFormat.Format(ScriptText.Hover_TargetFound, "`CUSTOMER.ID`", "`NUMBER(10)`") + " "
             + TextFormat.Plural(1, ScriptText.Hover_TargetShowsOnOne, ScriptText.Hover_TargetShowsOnOther, "`ORDERS.CUSTOMER_ID`"),
             hover.Paragraphs[1]);
         Assert.Equal(ScriptText.Hover_More, hover.Paragraphs[^1]);
@@ -150,6 +157,32 @@ public sealed class ScriptHeaderHelpTests
         Assert.Equal(TextFormat.Format(ScriptText.Hover_UnknownSimilar, "`@tagret`", "`@target`"), (await ScriptHeaderHelp.HoverAsync(text, 50, null, Token))!.Paragraphs[0]);
         Assert.Null(await ScriptHeaderHelp.HoverAsync(text, text.IndexOf("FROM", StringComparison.Ordinal), null, Token));
         Assert.Equal([ScriptText.Hover_NotHeader], (await ScriptHeaderHelp.HoverAsync(text, text.Length - 2, null, Token))!.Paragraphs);
+    }
+
+    /// <summary>
+    /// Review WP-89, 2: the dictionary's text (an object type's quoted name) goes into the untrusted Markdown only as code –
+    /// an image or link in it would be loaded or offered.
+    /// </summary>
+    [Fact]
+    public async Task A_type_name_from_the_dictionary_stays_code_in_the_hover()
+    {
+        const string type = "![x](https://example.invalid/p.png)";
+        var typed = new TableDetails(new TableSummary(Owner, "SHAPES", TableKind.Table), [new("SHAPE", type, null, true, null, null, false, false, null, 1)], [], [], false);
+
+        var hover = await ScriptHeaderHelp.HoverAsync("-- @target id SHAPES.SHAPE\nSELECT :id FROM dual", 3, await SchemaAsync(typed), Token);
+
+        Assert.Contains("`" + type + "`", hover!.Paragraphs[1], StringComparison.Ordinal);
+        Assert.Equal(1, hover.Paragraphs[1].Split(type).Length - 1);
+    }
+
+    /// <summary>Review WP-89, 5: a directive name has no limit (a shared file); a long one is no typo and costs no table of its length.</summary>
+    [Fact]
+    public void A_very_long_directive_is_unknown_without_a_comparison()
+    {
+        var name = new string('a', 1_000_000);
+
+        Assert.Null(ScriptHeaderHelp.Similar(name));
+        Assert.Equal(ScriptMarkerSeverity.Info, Assert.Single(ScriptHeaderHelp.Markers("-- @" + name + "\nSELECT 1 FROM dual")).Severity);
     }
 
     [Fact]

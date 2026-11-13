@@ -33,12 +33,13 @@ public static partial class ScriptHeaderHelp
     internal const int ShownColumns = 8;
 
     /// <summary>
-    /// The marks for <paramref name="text"/>: header lines saving reports (a <c>@param</c> or <c>@target</c> without its bind,
-    /// a syntax error, a target twice), unknown directives (a typo close to a known one is a warning), a <c>-- @param</c>,
-    /// <c>@target</c> or <c>@description</c> below the header (it has no effect there) – and with a schema, a target whose
-    /// table or column the connection does not have. A dictionary error leaves the schema's marks out.
+    /// The marks for <paramref name="text"/> that need no schema: header lines saving reports (a <c>@param</c> or
+    /// <c>@target</c> without its bind, a syntax error, a target twice), unknown directives (a typo close to a known one is a
+    /// warning), a <c>-- @param</c>, <c>@target</c> or <c>@description</c> below the header (it has no effect there). The
+    /// schema's marks come apart (<see cref="TargetMarkersAsync"/>): they may wait for the dictionary, these never do
+    /// (review WP-89, 4).
     /// </summary>
-    public static async Task<IReadOnlyList<ScriptHeaderMarker>> MarkersAsync(string text, SchemaCache? schema, CancellationToken cancellationToken)
+    public static IReadOnlyList<ScriptHeaderMarker> Markers(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
         var (spans, lines) = Lines(text);
@@ -61,17 +62,6 @@ public static partial class ScriptHeaderHelp
                         : Mark(text, spans[i], ScriptMarkerSeverity.Info, TextFormat.Format(ScriptText.Marker_Unknown, name)));
                 }
             }
-
-            if (schema is not null)
-            {
-                foreach (var (target, line) in read.Targets)
-                {
-                    if (await TargetProblemAsync(target, schema, cancellationToken) is { } problem)
-                    {
-                        markers.Add(Mark(text, spans[line - 1], problem.Severity, problem.Message));
-                    }
-                }
-            }
         }
 
         for (var i = read.DirectivesEnd; i < lines.Length; i++)
@@ -86,6 +76,28 @@ public static partial class ScriptHeaderHelp
     }
 
     /// <summary>
+    /// The marks of the targets in <paramref name="text"/>'s header that the connection's schema contradicts: a table it does
+    /// not have (a hint – the script may be for another product), a column its table lacks (a warning). Reads table
+    /// structures through the schema cache; a dictionary error leaves the marks out.
+    /// </summary>
+    public static async Task<IReadOnlyList<ScriptHeaderMarker>> TargetMarkersAsync(string text, SchemaCache schema, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(schema);
+        var (spans, lines) = Lines(text);
+        var markers = new List<ScriptHeaderMarker>();
+        foreach (var (target, line) in ScriptHeaders.ReadLines(lines).Targets)
+        {
+            if (await TargetProblemAsync(target, schema, cancellationToken) is { } problem)
+            {
+                markers.Add(Mark(text, spans[line - 1], problem.Severity, problem.Message));
+            }
+        }
+
+        return markers;
+    }
+
+    /// <summary>
     /// The hover at <paramref name="offset"/>: on a header line what it does (on a <c>@target</c> also whether the
     /// connection has its column and on which columns the script shows); on a known directive below the header why it has
     /// no effect; elsewhere null.
@@ -93,6 +105,12 @@ public static partial class ScriptHeaderHelp
     public static async Task<ScriptHeaderHover?> HoverAsync(string text, int offset, SchemaCache? schema, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(text);
+        // Every hover anywhere in the SQL asks: the line under the mouse first, the whole text only for a header line (review WP-89, 6).
+        if (!ScriptHeaders.Directive().IsMatch(LineAround(text, offset)))
+        {
+            return null;
+        }
+
         var (spans, lines) = Lines(text);
         var index = LineAt(spans, offset);
         if (index < 0 || ScriptHeaders.Directive().Match(lines[index]) is not { Success: true } directive)
@@ -146,6 +164,12 @@ public static partial class ScriptHeaderHelp
     {
         ArgumentNullException.ThrowIfNull(text);
         offset = Math.Clamp(offset, 0, text.Length);
+        // Asked on every completion in the SQL: the line at the cursor first (review WP-89, 6).
+        if (!HeaderStart().IsMatch(LineAround(text, offset, toOffset: true)))
+        {
+            return null;
+        }
+
         var (spans, lines) = Lines(text);
         var index = LineAt(spans, offset);
         if (index < 0 || !OnlyHeaderAbove(lines, index))
@@ -231,6 +255,11 @@ public static partial class ScriptHeaderHelp
     public static string WithoutHeader(string statement)
     {
         ArgumentNullException.ThrowIfNull(statement);
+        if (!statement.AsSpan().TrimStart().StartsWith("--", StringComparison.Ordinal))
+        {
+            return statement; // asked on every render (result header, chips): most statements have no header (review WP-89, 6)
+        }
+
         var lines = statement.ReplaceLineEndings("\n").Split('\n');
         var read = ScriptHeaders.ReadLines(lines);
         if (read.DirectivesEnd == 0)
@@ -279,7 +308,7 @@ public static partial class ScriptHeaderHelp
         }
         catch (DatabaseException ex)
         {
-            return TextFormat.Format(ScriptText.Hover_TargetUnchecked, ex.Message);
+            return TextFormat.Format(ScriptText.Hover_TargetUnchecked, Code(ex.Message));
         }
 
         if (details.Columns.FirstOrDefault(c => c.Name == target.Column) is not { } column)
@@ -288,7 +317,8 @@ public static partial class ScriptHeaderHelp
         }
 
         var reached = ScriptTargets.ReachedBy(new ColumnRef(table.Ref, column.Name), schema.Tables.Select(t => t.Ref), schema.LinksOf);
-        var found = TextFormat.Format(ScriptText.Hover_TargetFound, Code(table.DisplayName + "." + column.Name), column.DisplayType);
+        // The type too is the dictionary's text (an object type's quoted name): only in a code span (review WP-89, 2).
+        var found = TextFormat.Format(ScriptText.Hover_TargetFound, Code(table.DisplayName + "." + column.Name), Code(column.DisplayType));
         if (reached.Count == 1)
         {
             return found + " " + ScriptText.Hover_TargetAlone;
@@ -309,8 +339,25 @@ public static partial class ScriptHeaderHelp
     private static bool IsKnown(string name) => Known.Contains(name, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The known directive a typo is close to (at most two edits, <c>@tagret</c>, <c>@parm</c>); null for none.</summary>
-    internal static string? Similar(string name) =>
-        name.Length < 3 ? null : Known.Where(k => Distance(name.ToLowerInvariant(), k) <= 2).OrderBy(k => Distance(name.ToLowerInvariant(), k)).FirstOrDefault();
+    /// <remarks>
+    /// Only names within two characters of a known one's length are compared: the name comes from shared files and has no
+    /// limit, the distance's table grows with it (review WP-89, 5).
+    /// </remarks>
+    internal static string? Similar(string name)
+    {
+        if (name.Length < 3)
+        {
+            return null;
+        }
+
+        var lower = name.ToLowerInvariant();
+        return Known.Where(k => Math.Abs(k.Length - lower.Length) <= 2)
+            .Select(k => (Known: k, Distance: Distance(lower, k)))
+            .Where(k => k.Distance <= 2)
+            .OrderBy(k => k.Distance)
+            .Select(k => k.Known)
+            .FirstOrDefault();
+    }
 
     /// <summary>Edit distance with swapped neighbors as one edit (optimal string alignment).</summary>
     private static int Distance(string a, string b)
@@ -385,6 +432,30 @@ public static partial class ScriptHeaderHelp
         return new ScriptHeaderMarker(start, end - start, severity, message);
     }
 
+    /// <summary>
+    /// The line holding <paramref name="offset"/>, without splitting the whole text – up to <paramref name="offset"/> with
+    /// <paramref name="toOffset"/>. The separators are those of <see cref="Lines"/>.
+    /// </summary>
+    private static string LineAround(string text, int offset, bool toOffset = false)
+    {
+        offset = Math.Clamp(offset, 0, text.Length);
+        var start = offset;
+        while (start > 0 && !IsLineBreak(text[start - 1]))
+        {
+            start--;
+        }
+
+        var end = offset;
+        while (!toOffset && end < text.Length && !IsLineBreak(text[end]))
+        {
+            end++;
+        }
+
+        return text[start..end];
+    }
+
+    private static bool IsLineBreak(char c) => c is '\r' or '\n' or '\f' or '\u0085' or '\u2028' or '\u2029';
+
     /// <summary>The line holding <paramref name="offset"/> (its end belongs to it); -1 outside the text.</summary>
     private static int LineAt(IReadOnlyList<(int Start, int Length)> spans, int offset)
     {
@@ -409,7 +480,7 @@ public static partial class ScriptHeaderHelp
         var start = 0;
         for (var i = 0; i < text.Length; i++)
         {
-            if (text[i] is '\r' or '\n' or '\f' or '\u0085' or '\u2028' or '\u2029')
+            if (IsLineBreak(text[i]))
             {
                 spans.Add((start, i - start));
                 if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
