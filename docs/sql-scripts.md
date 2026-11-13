@@ -34,6 +34,21 @@ SELECT *
 - Unbekannte `-- @…`-Zeilen und Zeilen mit Fehlern bleiben beim Speichern erhalten (Fehler mit Zeilennummer im Tooltip des Skripts).
 - Beim Speichern schreibt FerretSharp den Kopf neu: Beschreibung, dann die Parameter der Binds, die der Text benutzt, mit den Typen der Variablen, dann die übrigen Zeilen.
 
+### Kopf im SQL-Editor
+
+Der SQL-Tab zeigt oben die Kopfzeilen, für die es sonst keinen Platz gibt: `@target` und Zeilen, die FerretSharp nicht kennt, dann eine Leerzeile und das SQL. Dort werden sie geschrieben, geändert und gelöscht; *Speichern* nimmt alle `-- @…`-Zeilen ganz oben im Text als Kopf.
+
+- `@param` steht in den Variablen (Typ), `@description` im Speichern-Dialog. Oben getippt, werden sie übernommen (Typ und `list`; der Wert der Variable bleibt) und verschwinden danach aus dem Text.
+- Ein `@target` braucht im Tab kein `@param`: Es muss nur einen Bind des SQL nennen.
+- Steht davor ein gewöhnlicher Kommentar oder SQL, ist es kein Kopf mehr.
+- Kopfzeilen, die sich nicht verwenden lassen (Ziel ohne passenden Bind, Tippfehler), meldet die Leiste über dem Editor nach dem Speichern mit Zeilennummer; gespeichert werden sie trotzdem, wie sie sind.
+
+```sql
+-- @target kunde_id KUNDE.KUNDE_ID
+
+SELECT * FROM auftrag WHERE kunde_id = :kunde_id;
+```
+
 **Tipp:** Tabellen ohne Owner schreiben – dann läuft ein Skript auf jeder Umgebung (das Default-Schema der Verbindung).
 
 ## Abrufen

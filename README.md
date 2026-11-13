@@ -236,7 +236,7 @@ developer works with an Oracle database day to day:
   repository). The explorer lists them as a tree (*Scripts*); a click opens one in a new tab without running it, and the
   panel beside the history inserts one at the cursor. A tab opened from a script saves only when asked and reloads when
   the file changes on disk (format: `docs/sql-scripts.md`). A script that names the column its parameter comes from
-  (`-- @target customer_id CUSTOMER.CUSTOMER_ID`) shows in the **right-click menu of a cell** of that column and of every
+  (`-- @target customer_id CUSTOMER.CUSTOMER_ID`, typed at the top of the SQL tab) shows in the **right-click menu of a cell** of that column and of every
   column referring to it, and runs right away with the cell's value; a `list` parameter takes the values of all marked
   rows (`IN (:ids)`). Other parameters are asked for in a small dialog; a script that writes only opens.
 - **Keep results:** *Keep result* above a query's result keeps it, with its rows as they were read, when the next

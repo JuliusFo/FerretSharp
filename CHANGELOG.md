@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- SQL scripts: header lines typed at the top of a SQL tab (`-- @target`, `-- @param`, `-- @description`) are saved as the script's header. Before, they ended up in the SQL below it, and a `@target` written in FerretSharp was never read. A tab opened from a script now shows its targets (and header lines FerretSharp does not know) above the SQL, where they are changed or deleted; header lines that cannot be used are reported right after saving.
+
 ## [3.71.0] - 2026-11-13
 
 Fixes, structure, tests and docs after the review of 3.70.0 (R9), robustness fixes from the backlog, and editing by key without
