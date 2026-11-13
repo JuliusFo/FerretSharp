@@ -12,6 +12,9 @@ public enum SqlCompletionKind
     Synonym,
     Column,
     Keyword,
+
+    /// <summary>A bind of the SQL (the header of a script, WP-89).</summary>
+    Variable,
 }
 
 /// <param name="Label">What the list shows (<c>KUNDEN</c>, <c>KUNDE_ID</c>).</param>
@@ -141,7 +144,7 @@ public static class SqlCompletion
                 : TableItem(t, $"{Quote(t.Owner)}.{Quote(t.Name)}", $"{t.Owner}.{t.Name}", entityOf))
             .ToList();
 
-    private static SqlCompletionItem TableItem(TableSummary table, string insert, string label, Func<TableRef, string?> entityOf)
+    internal static SqlCompletionItem TableItem(TableSummary table, string insert, string label, Func<TableRef, string?> entityOf)
     {
         var (kind, text) = table switch
         {

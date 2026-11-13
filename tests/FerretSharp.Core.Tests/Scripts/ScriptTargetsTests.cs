@@ -54,6 +54,22 @@ public sealed class ScriptTargetsTests
     }
 
     [Fact]
+    public void The_columns_reaching_a_target_are_exactly_those_whose_cell_menu_offers_it()
+    {
+        TableRef[] tables = [Customer, Orders, Invoice, Person, Supplier];
+        var columns = Links.SelectMany(l => l.FromColumns.Select(c => new ColumnRef(l.From, c)).Concat(l.ToColumns.Select(c => new ColumnRef(l.To, c))))
+            .Distinct().ToList();
+
+        foreach (var target in columns)
+        {
+            var reaching = ScriptTargets.ReachedBy(target, tables, LinksOf);
+
+            Assert.Equal(target, reaching[0]);
+            Assert.Equal(columns.Where(c => ScriptTargets.Reached(c, LinksOf).Contains(target)).ToHashSet(), reaching.ToHashSet());
+        }
+    }
+
+    [Fact]
     public void A_cycle_of_relationships_ends()
     {
         ForeignKeyInfo[] cycle =

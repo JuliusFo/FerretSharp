@@ -124,4 +124,100 @@
     <value>The script no longer takes this column (the file changed). Open the menu again.</value>
     <comment>A script of the cell menu whose file changed since the menu opened</comment>
   </data>
+  <data name="Marker_Unknown" xml:space="preserve">
+    <value>FerretSharp does not know @{0}: the line is kept as it is, without effect.</value>
+    <comment>Mark in the SQL editor on an unknown header line; {0}: the directive as typed, e.g. owner</comment>
+  </data>
+  <data name="Marker_UnknownSimilar" xml:space="preserve">
+    <value>FerretSharp does not know @{0} – did you mean @{1}? The line is kept as it is, without effect.</value>
+    <comment>Mark on a header line with a typo; {0}: the directive as typed (tagret); {1}: the known one (target)</comment>
+  </data>
+  <data name="Marker_NotHeader" xml:space="preserve">
+    <value>Not part of the header, so without effect: header lines stand at the very top, before any other comment or SQL and without a blank line between them.</value>
+    <comment>Mark on a -- @param/@target/@description line below the header</comment>
+  </data>
+  <data name="Target_TableMissing" xml:space="preserve">
+    <value>This connection has no table or view {0}: the script shows in no cell menu here.</value>
+    <comment>Mark and hover on a @target; {0}: table name</comment>
+  </data>
+  <data name="Target_ColumnMissing" xml:space="preserve">
+    <value>{0} has no column {1}: the script shows in no cell menu here.</value>
+    <comment>Mark and hover on a @target; {0}: table; {1}: column</comment>
+  </data>
+  <data name="Hover_NotHeader" xml:space="preserve">
+    <value>**Not part of the header** – without effect. Header lines stand at the very top of the text, before any other comment or SQL and without a blank line between them.</value>
+    <comment>Markdown, hover in the SQL editor; keep ** as is</comment>
+  </data>
+  <data name="Hover_Description" xml:space="preserve">
+    <value>**@description** *text* – the script’s description, shown in the tooltip of the script in the explorer. Several lines make several paragraphs. Saving takes it into the save dialog; the line then leaves the text.</value>
+    <comment>Markdown, hover over a -- @description line; keep ** and * as is</comment>
+  </data>
+  <data name="Hover_Param" xml:space="preserve">
+    <value>**@param** *name type* [`list`] – the type a bind of the SQL is bound as: {0}. With `list` the bind stands alone in `IN ( … )` and takes the values of several marked rows. Saving takes the type into the variables; the line then leaves the text. Never a value.</value>
+    <comment>Markdown, hover over a -- @param line; {0}: the type names, comma separated</comment>
+  </data>
+  <data name="Hover_Target" xml:space="preserve">
+    <value>**@target** *name TABLE.COLUMN* – the column the parameter takes its value from: the script shows in the cell menu of this column and of every column that refers to it. Write the table without owner; the parameter needs a bind in the SQL.</value>
+    <comment>Markdown, hover over a -- @target line</comment>
+  </data>
+  <data name="Hover_Unknown" xml:space="preserve">
+    <value>FerretSharp does not know {0}: the line is kept as it is (a newer version’s or a colleague’s line), without effect.</value>
+    <comment>Markdown, hover over an unknown header line; {0}: the directive as code</comment>
+  </data>
+  <data name="Hover_UnknownSimilar" xml:space="preserve">
+    <value>FerretSharp does not know {0} – did you mean {1}? The line is kept as it is, without effect.</value>
+    <comment>Markdown, hover over a header line with a typo; {0}: as typed; {1}: the known directive</comment>
+  </data>
+  <data name="Hover_More" xml:space="preserve">
+    <value>More on scripts: *Help* in the SQL tab’s toolbar.</value>
+    <comment>Markdown, last line of the hover over a header line; Help is the button label</comment>
+  </data>
+  <data name="Hover_TargetFound" xml:space="preserve">
+    <value>Found: {0} ({1}).</value>
+    <comment>Markdown; {0}: TABLE.COLUMN as code; {1}: column type, e.g. NUMBER(10)</comment>
+  </data>
+  <data name="Hover_TargetAlone" xml:space="preserve">
+    <value>The script shows in the cell menu of this column only – no other column refers to it.</value>
+    <comment>Hover over a @target whose column no relationship leads to</comment>
+  </data>
+  <data name="Hover_TargetShowsOnOne" xml:space="preserve">
+    <value>It also shows in the cell menu of {1}, which refers to it.</value>
+    <comment>Markdown; {0}: 1; {1}: the column as code</comment>
+  </data>
+  <data name="Hover_TargetShowsOnOther" xml:space="preserve">
+    <value>It also shows in the cell menu of {0} columns that refer to it: {1}.</value>
+    <comment>Markdown; {0}: number of columns; {1}: the columns as code, comma separated, maybe followed by “and N more”</comment>
+  </data>
+  <data name="Hover_TargetAndMore" xml:space="preserve">
+    <value>and {0} more</value>
+    <comment>{0}: number of columns not named</comment>
+  </data>
+  <data name="Hover_TargetUnchecked" xml:space="preserve">
+    <value>The schema could not be read: {0}</value>
+    <comment>{0}: error message as code</comment>
+  </data>
+  <data name="Completion_Description" xml:space="preserve">
+    <value>Description of the script</value>
+    <comment>Detail of a completion item in the SQL editor</comment>
+  </data>
+  <data name="Completion_Param" xml:space="preserve">
+    <value>Type of a bind: name type [list]</value>
+    <comment>Detail of a completion item; keep list as is</comment>
+  </data>
+  <data name="Completion_Target" xml:space="preserve">
+    <value>Column the value comes from: name TABLE.COLUMN</value>
+    <comment>Detail of a completion item</comment>
+  </data>
+  <data name="Completion_Type" xml:space="preserve">
+    <value>Type of the bind</value>
+    <comment>Detail of a completion item</comment>
+  </data>
+  <data name="Completion_List" xml:space="preserve">
+    <value>Takes the values of several rows: IN (:name)</value>
+    <comment>Detail of a completion item</comment>
+  </data>
+  <data name="Completion_Bind" xml:space="preserve">
+    <value>Bind of the SQL</value>
+    <comment>Detail of a completion item</comment>
+  </data>
 </root>
