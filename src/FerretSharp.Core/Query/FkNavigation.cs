@@ -139,6 +139,9 @@ public static class FkNavigation
         (ColumnCategory.Number, int or long or short) => Convert.ToString(value, CultureInfo.InvariantCulture),
         (ColumnCategory.Date, DateTime dt) => dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
         (ColumnCategory.Timestamp, DateTime dt) => dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture),
+        // A TIMESTAMP(8/9) key (WP-85): a filter holds 7 digits – only a value without the last two parses back to it.
+        (ColumnCategory.Timestamp, PreciseTimestamp p) when p.Nanosecond % 100 == 0 =>
+            p.Value.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture),
         // A CHAR value without its padding (review 3.31.0, A32): a CHAR target compares blank-padded anyway, a VARCHAR2 one
         // (a relationship of the C# model or by convention) found nothing with it.
         (ColumnCategory.Text, string s) when s.Length > 0 => OracleTypes.IsFixedChar(column.DataType) && s.TrimEnd(' ') is { Length: > 0 } trimmed ? trimmed : s,

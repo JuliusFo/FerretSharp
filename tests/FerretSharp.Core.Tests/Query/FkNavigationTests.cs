@@ -333,21 +333,30 @@ public class FkNavigationTests
         Assert.Equal("1234", FkNavigation.FilterValue(column, 1234m));
     }
 
+    /// <summary>A TIMESTAMP(9) key (WP-85) beyond the 7 digits a filter holds has no filter text; within them it has.</summary>
     [Theory]
     [InlineData("CLOB")]
     [InlineData("BINARY_DOUBLE")]
     [InlineData("NUMBER")]
+    [InlineData("TIMESTAMP(9)")]
     public void Types_without_exact_equality_are_not_navigable(string type)
     {
         object value = type switch
         {
             "CLOB" => new LobValue("x", 1),
             "BINARY_DOUBLE" => 1.5d,
+            "TIMESTAMP(9)" => new PreciseTimestamp(new DateTime(2026, 10, 1, 13, 45, 7), 123456789),
             _ => new BigNumber("12345678901234567890123456789012345678"),
         };
 
         Assert.Null(FkNavigation.FilterValue(Col("C", type), value));
     }
+
+    /// <summary>A TIMESTAMP(9) key (WP-85) without its last two digits has the filter text of a DateTime.</summary>
+    [Fact]
+    public void A_precise_timestamp_within_seven_digits_is_navigable() =>
+        Assert.Equal("2026-10-01 13:45:07.1234500", FkNavigation.FilterValue(
+            Col("C", "TIMESTAMP(9)", scale: 9), new PreciseTimestamp(new DateTime(2026, 10, 1, 13, 45, 7), 123450000)));
 
     [Fact]
     public async Task Count_returns_the_number_of_referencing_rows()

@@ -31,6 +31,9 @@ public interface IFormGrid
 
     /// <summary>The key a row has now that had <paramref name="key"/> (its primary key was changed and written); the same otherwise.</summary>
     RowKey KeyNow(RowKey key) => key;
+
+    /// <summary>Whether the tab's changes still hold <paramref name="change"/> (a commit or rollback cleared them).</summary>
+    bool Tracks(RowChange change) => false;
 }
 
 /// <summary>What became of the shown row after the grid's rows changed (<see cref="FormCursor.RowsChanged"/>).</summary>
@@ -74,6 +77,15 @@ public sealed class FormCursor(IFormGrid grid)
     /// <summary>Why nothing is shown any more; null otherwise.</summary>
     public string? Lost { get; private set; }
 
+    /// <summary>
+    /// The change of the shown loaded row, once it has one (WP-85): after a write the form follows its key, not the old one –
+    /// another row may have taken the old key in the same write (a swap 1 → 9, 2 → 1 showed the other row).
+    /// </summary>
+    public RowChange? Change { get; private set; }
+
+    /// <summary>The shown row as the grid held it: the same instance means the grid has not reloaded since.</summary>
+    private RowData? _loaded;
+
     /// <summary>The grid's focus went to another row (or the form moved it there).</summary>
     public void Show(GridCell cell)
     {
@@ -82,6 +94,8 @@ public sealed class FormCursor(IFormGrid grid)
         var row = grid.RowOf(cell);
         Key = row?.Loaded?.Key;
         NewRow = cell.IsNew ? row?.Change : null;
+        Change = cell.IsNew ? null : row?.Change;
+        _loaded = row?.Loaded;
         PastTheEnd(cell);
     }
 
@@ -110,7 +124,9 @@ public sealed class FormCursor(IFormGrid grid)
                 // Inserted by writing: from now on a loaded row like any other.
                 NewRow = null;
                 Key = added.Key;
+                Change = added;
                 Cell = new GridCell(index, null, cell.Column);
+                _loaded = grid.RowAt(index)?.Loaded;
                 return FormFollow.MovedWithNewKey;
             }
 
@@ -124,7 +140,7 @@ public sealed class FormCursor(IFormGrid grid)
             return FormFollow.Unchanged; // inserted, the grid is still loading its first block
         }
 
-        if (grid.RowAt(cell.RowIndex) is not { Loaded: { } loaded })
+        if (grid.RowAt(cell.RowIndex) is not { Loaded: { } loaded } current)
         {
             return PastTheEnd(cell) ? FormFollow.Lost : FormFollow.Unchanged; // its block is not loaded (yet)
         }
@@ -132,17 +148,33 @@ public sealed class FormCursor(IFormGrid grid)
         if (Key is null)
         {
             Key = loaded.Key; // the block arrived after the row was chosen
+            Track(current);
             return FormFollow.KeyKnown;
+        }
+
+        if (Change is { Key: RowKey.PrimaryKey moved } && !Equals(moved, Key))
+        {
+            return FollowChange(cell, loaded, moved);
+        }
+
+        if (Equals(loaded.Key, Key) && Change is { } mine && current.Change is { } other && !ReferenceEquals(mine, other) && grid.Tracks(mine))
+        {
+            // Another row holds the shown row's key now (it was deleted, another took the key in the same write; review of
+            // WP-85): not the shown row – once the rows are read again. A row at another key there goes the usual way below
+            // (sorted elsewhere: Moved).
+            return ReferenceEquals(loaded, _loaded) ? FormFollow.Unchanged : LoseRow(GridText.Form_RowNotLoaded);
         }
 
         if (Key is RowKey.None || Equals(loaded.Key, Key))
         {
+            Track(current);
             return FormFollow.Unchanged;
         }
 
         if (grid.IndexOf(Key) is { } at2)
         {
             Cell = cell with { RowIndex = at2 };
+            Track(grid.RowAt(at2));
             return FormFollow.Moved;
         }
 
@@ -151,19 +183,51 @@ public sealed class FormCursor(IFormGrid grid)
         if (grid.KeyNow(Key) is var now && !Equals(now, Key))
         {
             Key = now;
-            if (Equals(loaded.Key, Key))
-            {
-                return FormFollow.KeyKnown; // in place with its new key: count what points to it
-            }
-
-            if (grid.IndexOf(Key) is { } at3)
-            {
-                Cell = cell with { RowIndex = at3 };
-                return FormFollow.MovedWithNewKey;
-            }
+            return Found(cell, loaded) ?? LoseRow(GridText.Form_RowNotLoaded);
         }
 
         return LoseRow(GridText.Form_RowNotLoaded);
+    }
+
+    /// <summary>
+    /// The shown row's change has another key than the form knows (WP-85): its changed primary key was written, or the write
+    /// was taken back. Rows the grid still holds from before are not the answer – the reload after the write follows.
+    /// </summary>
+    private FormFollow FollowChange(GridCell cell, RowData loaded, RowKey moved)
+    {
+        if (ReferenceEquals(loaded, _loaded))
+        {
+            return FormFollow.Unchanged; // not reloaded yet: the old key may already be another row's
+        }
+
+        Key = moved;
+        return Found(cell, loaded) ?? LoseRow(GridText.Form_RowNotLoaded);
+    }
+
+    /// <summary>The row under its new <see cref="Key"/>: in place or where the key sorts it to; null if it is not loaded.</summary>
+    private FormFollow? Found(GridCell cell, RowData loaded)
+    {
+        if (Equals(loaded.Key, Key))
+        {
+            Track(grid.RowAt(cell.RowIndex));
+            return FormFollow.KeyKnown; // in place with its new key: count what points to it
+        }
+
+        if (grid.IndexOf(Key!) is { } at)
+        {
+            Cell = cell with { RowIndex = at };
+            Track(grid.RowAt(at));
+            return FormFollow.MovedWithNewKey;
+        }
+
+        return null;
+    }
+
+    /// <summary>The shown row was found under its key: its change (one made since, or none after a commit) and its instance.</summary>
+    private void Track(FormRow? row)
+    {
+        Change = row?.Change;
+        _loaded = row?.Loaded;
     }
 
     /// <summary>
@@ -213,6 +277,8 @@ public sealed class FormCursor(IFormGrid grid)
     {
         Cell = null;
         NewRow = null;
+        Change = null;
+        _loaded = null;
         Lost = why;
         return FormFollow.Lost;
     }

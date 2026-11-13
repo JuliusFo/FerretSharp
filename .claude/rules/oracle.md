@@ -21,6 +21,7 @@ Gilt für den Oracle-Layer und alles, was SQL, Typen und Werte anfasst. Domänen
 - Identifier sind uppercase, es sei denn, sie wurden mit `"…"` angelegt → Namen immer aus den `ALL_*`-Views übernehmen und per `OracleIdentifier.Quote()` exakt so quoten.
 - Getippte Namen (Designer, Indizes, Constraints, Audit-Vorlagen) prüft nur `OracleIdentifier.Problem` (Anführungszeichen/NUL, mehr als `MaxBytes` = 128 **Byte**), die Warnung „braucht Anführungszeichen“ nur `NeedsQuotes` (auch reservierte Wörter); gekürzt wird mit `OracleIdentifier.Cut` (nach Bytes, nie ein halbes Zeichen). Vorgeschlagene Namen über `IndexDesign.SuggestName`/`PlainName` (R5b).
 - Text als SQL-Literal (Anzeige, Skripte, nie für ausgeführte Werte – die sind Binds) nur über `OracleLiteral` (`N'…'` für nationale Typen).
+- Regex auf Werte, die aus Links oder Filtervorlagen kommen können (Filtertext), nur mit Längengrenze oder ohne Backtracking: die Offset-Erkennung brauchte für 32 000 Leerzeichen 0,5 s je Prüfung (Review WP-85).
 - Leerer String == NULL. Die UI muss NULL explizit darstellen (kursives `NULL`), nicht als leeres Feld.
 
 ## Typen
@@ -53,7 +54,7 @@ Gilt für den Oracle-Layer und alles, was SQL, Typen und Werte anfasst. Domänen
 - Zeilen lesen über `OracleReading` (`ReadListAsync`, `Text`/`Int`/`Long`/`Date`, `FetchManyRows`).
 - Array Binding (WP-42, `ExecuteNonQueryAsync(BatchSpec)`): ODP.NET braucht je Parameter einen festen `OracleDbType` (aus einem Array leitet es keinen ab), NULL als `DBNull` im Array; CLOB/BLOB gehen (gegen Oracle 23 geprüft). Scheitert eine Zeile, kommt **ORA-24381** („Fehler in Array-DML“), der eigentliche Fehler (ORA-02291 …) steht erst in `OracleException.Errors` – `OracleErrors.Translate` nimmt den ersten Fehler einer Zeile.
 - `ReadOnlyTests` prüfen jeden SELECT/WITH-Text (Konstante oder statisches Feld) aller Typen in `Core/Oracle` gegen die Lesesperre.
-- Row-Key: Bei Tabellen ist ein PK nur Row-Key, wenn er `ENABLED` und `VALIDATED` ist (`TableDetails.PrimaryKeyEnforced`), sonst ROWID; UPDATE/DELETE, das nicht genau eine Zeile trifft, geht zum Savepoint zurück (R5a). Schlüssel über INVISIBLE-Spalten → ROWID (die Spaltenliste filtert `hidden_column = 'NO'`).
+- Row-Key: Bei Tabellen ist ein PK nur Row-Key, wenn er `ENABLED` und `VALIDATED` ist (`TableDetails.PrimaryKeyEnforced`), sonst ROWID; UPDATE/DELETE, das nicht genau eine Zeile trifft, geht zum Savepoint zurück (R5a). Schlüssel über INVISIBLE-Spalten → ROWID (die Spaltenliste filtert `hidden_column = 'NO'`). Eine TIMESTAMP(8/9)-Spalte im PK geht als `PreciseTimestamp` in den Schlüssel (alle neun Stellen, gebunden als `OracleTimeStamp`), der Wert der Zeile bleibt `DateTime` – Schlüsselwerte nie aus den Zeilenwerten nachbauen, sondern aus `RowKey` nehmen bzw. über `WrittenKey` angleichen (WP-85).
 
 ## Dictionary & Performance
 - `ALL_*`-Views immer nach `OWNER` filtern (`docs/architecture.md` 1.3).

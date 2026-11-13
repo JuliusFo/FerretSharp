@@ -29,6 +29,7 @@ public static class CellFormatter
         float f => f.ToString("G9", German),
         DateTimeOffset dto => FormatDateTime(column, dto.DateTime) + " " + dto.ToString("zzz", CultureInfo.InvariantCulture),
         DateTime dt => FormatDateTime(column, dt),
+        PreciseTimestamp precise => FormatPrecise(column, precise),
         bool b => b ? "TRUE" : "FALSE",
         byte[] bytes => FormatRaw(bytes),
         LobValue { Preview: null } blob => $"‹BLOB {FormatSize(blob.Length)}›",
@@ -89,6 +90,14 @@ public static class CellFormatter
         }
 
         return text;
+    }
+
+    /// <summary>A TIMESTAMP(8/9) key (change overview, write problem): every digit of the column, unlike a read value.</summary>
+    private static string FormatPrecise(ColumnInfo column, PreciseTimestamp value)
+    {
+        var text = value.Second.ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+        var digits = Math.Clamp(ColumnCategories.FractionalDigits(column), 0, 9);
+        return digits > 0 ? text + "," + value.Nanosecond.ToString("D9", CultureInfo.InvariantCulture)[..digits] : text;
     }
 
     private static string FormatRaw(byte[] bytes) =>

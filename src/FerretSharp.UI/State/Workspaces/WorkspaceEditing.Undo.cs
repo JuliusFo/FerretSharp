@@ -105,12 +105,26 @@ public sealed partial class WorkspaceEditing
             throw new RefusedException(DataText.RedoNotPossible);
         }
 
-        var editor = await WorkspacesOf(id).GetEditorAsync(id, CancellationToken.None);
-        var tracker = undone.Tab.Changes!;
-        var options = new FlushOptions(settings.Current.LockWaitSeconds, Overwrites(id), RedoOf: next.Id);
-        if (!await FlushTabAsync(workspace, editor, undone.Tab, tracker.PendingOperations(undone.Batch), options, duringCommit: false))
+        var redone = false;
+        try
         {
-            History.RedoStopped(id, undone); // still taken back: the problem dialog decides
+            var editor = await WorkspacesOf(id).GetEditorAsync(id, CancellationToken.None);
+            var tracker = undone.Tab.Changes!;
+            var options = new FlushOptions(settings.Current.LockWaitSeconds, Overwrites(id), RedoOf: next.Id);
+            redone = await FlushTabAsync(workspace, editor, undone.Tab, tracker.PendingOperations(undone.Batch), options, duringCommit: false);
+        }
+        finally
+        {
+            if (!redone)
+            {
+                // Still taken back: the problem dialog decides – or, after an error that is no write problem (a database
+                // error, a lost connection), ↷ offers it again instead of saying "tab closed" (WP-85).
+                History.RedoStopped(id, undone);
+            }
+        }
+
+        if (!redone)
+        {
             return false;
         }
 

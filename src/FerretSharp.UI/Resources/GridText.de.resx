@@ -624,6 +624,9 @@
   <data name="Filter_NumberPlaceholder" xml:space="preserve">
     <value>Zahl, z. B. 4711 oder 12,5</value>
   </data>
+  <data name="Filter_DateOffsetPlaceholder" xml:space="preserve">
+    <value>TT.MM.JJJJ [hh:mm] [+hh:mm]</value>
+  </data>
   <data name="Filter_DatePlaceholder" xml:space="preserve">
     <value>TT.MM.JJJJ [hh:mm]</value>
   </data>

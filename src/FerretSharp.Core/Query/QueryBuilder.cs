@@ -621,45 +621,45 @@ public static partial class QueryBuilder
         private string DateCondition(ColumnInfo column, string c, FilterCondition filter)
         {
             // Only bind what the condition uses: unused bind variables fail with ORA-01036.
-            var first = ParseDate(filter.Values[0]);
+            var first = ParseDate(column, filter.Values[0]);
             switch (filter.Op)
             {
                 case FilterOperator.Equals:
                     return DayOrInstant(column, c, first);
                 case FilterOperator.NotEquals:
                     return NotEqualsIncludingNull(column, c, first.DateOnly
-                        ? $"({c} < {Add(column, first.Value)} OR {c} >= {Add(column, first.Value.AddDays(1))})"
-                        : $"{c} <> {Add(column, first.Value)}");
+                        ? $"({c} < {Add(column, first)} OR {c} >= {Add(column, first.NextDay)})"
+                        : $"{c} <> {Add(column, first)}");
                 case FilterOperator.Gt:
-                    return first.DateOnly ? $"{c} >= {Add(column, first.Value.AddDays(1))}" : $"{c} > {Add(column, first.Value)}";
+                    return first.DateOnly ? $"{c} >= {Add(column, first.NextDay)}" : $"{c} > {Add(column, first)}";
                 case FilterOperator.Gte:
-                    return $"{c} >= {Add(column, first.Value)}";
+                    return $"{c} >= {Add(column, first)}";
                 case FilterOperator.Lt:
-                    return $"{c} < {Add(column, first.Value)}";
+                    return $"{c} < {Add(column, first)}";
                 case FilterOperator.Lte:
-                    return first.DateOnly ? $"{c} < {Add(column, first.Value.AddDays(1))}" : $"{c} <= {Add(column, first.Value)}";
+                    return first.DateOnly ? $"{c} < {Add(column, first.NextDay)}" : $"{c} <= {Add(column, first)}";
                 case FilterOperator.Between:
-                    var to = ParseDate(filter.Values[1]);
+                    var to = ParseDate(column, filter.Values[1]);
                     return to.DateOnly
-                        ? $"({c} >= {Add(column, first.Value)} AND {c} < {Add(column, to.Value.AddDays(1))})"
-                        : $"{c} BETWEEN {Add(column, first.Value)} AND {Add(column, to.Value)}";
+                        ? $"({c} >= {Add(column, first)} AND {c} < {Add(column, to.NextDay)})"
+                        : $"{c} BETWEEN {Add(column, first)} AND {Add(column, to)}";
                 case FilterOperator.In:
-                    var parts = filter.Values.Select(v => DayOrInstant(column, c, ParseDate(v))).ToList();
+                    var parts = filter.Values.Select(v => DayOrInstant(column, c, ParseDate(column, v))).ToList();
                     return parts.Count == 1 ? parts[0] : "(" + string.Join(" OR ", parts) + ")";
                 default:
                     throw new InvalidOperationException($"Unhandled operator {filter.Op}.");
             }
         }
 
-        private string DayOrInstant(ColumnInfo column, string c, (DateTime Value, bool DateOnly) date) =>
+        private string DayOrInstant(ColumnInfo column, string c, FilterDate date) =>
             date.DateOnly
-                ? $"({c} >= {Add(column, date.Value)} AND {c} < {Add(column, date.Value.AddDays(1))})"
-                : $"{c} = {Add(column, date.Value)}";
+                ? $"({c} >= {Add(column, date)} AND {c} < {Add(column, date.NextDay)})"
+                : $"{c} = {Add(column, date)}";
 
-        private static (DateTime Value, bool DateOnly) ParseDate(string text)
+        private static FilterDate ParseDate(ColumnInfo column, string text)
         {
-            ValueInput.TryParseDate(text, out var value, out var dateOnly);
-            return (value, dateOnly);
+            ValueInput.TryParseFilterDate(column, text, out var value);
+            return value;
         }
 
         /// <summary>Like C#/LINQ "!=": rows where the column is NULL count as "not equal".</summary>
@@ -696,11 +696,17 @@ public static partial class QueryBuilder
             return Add(new QueryParameter(NextName(), text, hint));
         }
 
-        private string Add(ColumnInfo column, DateTime value) =>
-            Add(new QueryParameter(
-                NextName(),
-                value,
-                ColumnCategories.Of(column) == ColumnCategory.Date ? OracleTypeHint.Date : OracleTypeHint.TimeStamp));
+        /// <summary>
+        /// A date of a filter: with an offset as TIMESTAMP WITH TIME ZONE (compared as the instant it names, WP-85), without
+        /// one as DATE or TIMESTAMP – in the session's time zone, as Oracle takes a time without one.
+        /// </summary>
+        private string Add(ColumnInfo column, FilterDate date) =>
+            Add(date.Offset is { } offset
+                ? new QueryParameter(NextName(), new DateTimeOffset(date.Value, offset), OracleTypeHint.TimeStampTZ)
+                : new QueryParameter(
+                    NextName(),
+                    date.Value,
+                    ColumnCategories.Of(column) == ColumnCategory.Date ? OracleTypeHint.Date : OracleTypeHint.TimeStamp));
 
         private string Add(QueryParameter parameter)
         {
@@ -722,6 +728,8 @@ public static partial class QueryBuilder
                 $"TO_DATE('{date.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS')",
             (DateTime timestamp, _) =>
                 $"TO_TIMESTAMP('{timestamp.ToString("yyyy-MM-dd HH:mm:ss.fffffff", System.Globalization.CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS.FF7')",
+            (DateTimeOffset stamp, _) =>
+                $"TO_TIMESTAMP_TZ('{stamp.ToString("yyyy-MM-dd HH:mm:ss.fffffff zzz", System.Globalization.CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS.FF7 TZH:TZM')",
             (string text, var type) => OracleLiteral.Text(text, national: type is OracleTypeHint.NVarchar2 or OracleTypeHint.NChar),
             _ => throw new InvalidOperationException($"No literal for a bind of type {parameter.Type}."),
         };

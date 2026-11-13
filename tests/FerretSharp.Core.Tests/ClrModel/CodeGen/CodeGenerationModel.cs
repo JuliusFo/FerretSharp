@@ -32,6 +32,14 @@ internal static class CodeGenerationModel
     public static readonly TableDetails View = new(new TableSummary(Owner, "V_KUNDEN", TableKind.View),
         [new("KUNDE_ID", "NUMBER", null, false, 10, 0, false, false, null, 1)], [], [], false);
 
+    /// <summary>A time with time zone, mapped to <see cref="DateTimeOffset"/> (WP-85: filters with an offset).</summary>
+    public static readonly TableDetails Termine = new(new TableSummary(Owner, "TERMINE", TableKind.Table),
+        [
+            new("TERMIN_ID", "NUMBER", null, false, 10, 0, false, false, null, 1),
+            new("BEGINN", "TIMESTAMP(6) WITH TIME ZONE", null, false, null, 6, false, false, null, 2),
+        ],
+        ["TERMIN_ID"], [], false);
+
     private static PropertyExport Property(string name, string type, string column, bool nullable = false) =>
         new(name, type, nullable, false, column, null, null, null, false, null);
 
@@ -39,7 +47,7 @@ internal static class CodeGenerationModel
     public static async Task<ClrModelMapping> MappingAsync(string? dbSet = "Kunden", string? dropped = null)
     {
         var reader = Substitute.For<ISchemaReader>();
-        reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Kunden.Table, View.Table]);
+        reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Kunden.Table, View.Table, Termine.Table]);
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
         reader.GetColumnsAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)
@@ -47,6 +55,7 @@ internal static class CodeGenerationModel
             {
                 ["KUNDEN"] = Kunden.Columns.Where(c => c.Name != dropped).ToList(),
                 ["V_KUNDEN"] = Kunden.Columns.Where(c => c.Name == "KUNDE_ID").ToList(),
+                ["TERMINE"] = Termine.Columns,
             });
         var schema = new SchemaCache(reader, Owner);
         await schema.LoadAsync(TestContext.Current.CancellationToken);
@@ -72,7 +81,9 @@ internal static class CodeGenerationModel
             ["KundeId"], [], dbSet);
         var view = new EntityExport("Shop.KundeView", "Shop.KundeView", false, null, null, null, "V_KUNDEN", null,
             [Property("KundeId", "int", "KUNDE_ID")], [], []);
-        return await ClrModelMapping.BuildAsync(new ModelExport(1, "8.0.0", "Shop.Ctx", "options", null, [kunde, view]), schema,
+        var termin = new EntityExport("Shop.Termin", "Shop.Termin", false, null, "TERMINE", null, null, null,
+            [Property("TerminId", "int", "TERMIN_ID"), Property("Beginn", "DateTimeOffset", "BEGINN")], ["TerminId"], [], "Termine");
+        return await ClrModelMapping.BuildAsync(new ModelExport(1, "8.0.0", "Shop.Ctx", "options", null, [kunde, view, termin]), schema,
             TestContext.Current.CancellationToken);
     }
 

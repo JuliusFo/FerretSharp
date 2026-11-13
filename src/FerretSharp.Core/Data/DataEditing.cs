@@ -15,7 +15,7 @@ public sealed record FlushOptions(int LockWaitSeconds = DmlBuilder.DefaultLockWa
 
 /// <param name="NewKeys">
 /// Key of each inserted row and of each row whose primary key changed, by <see cref="RowChange.Id"/> – as Oracle stored it
-/// (identity, triggers, CHAR padding).
+/// (identity, triggers, CHAR padding); from the values written if the row cannot be read back (VPD, <see cref="WrittenKey"/>).
 /// </param>
 public sealed record FlushResult(IReadOnlyDictionary<Guid, RowKey> NewKeys)
 {

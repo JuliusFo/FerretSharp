@@ -72,15 +72,7 @@ Entschieden mit dem Nutzer am 2026-11-12 (vorher offene UX-Fragen).
 - **Ctrl+C auf markierte ganze Spalten über der Grenze** (WP-58): Ist die Zeilenzahl bekannt und Zeilen × Spalten über 100 000, wird nicht gelesen, sondern sofort gemeldet, dass es zu viele Zellen sind, mit einem Knopf zum Export. Bei unbekannter Zeilenzahl bleibt es wie heute (lesen bis zur Grenze, dann „nichts kopiert“).
 
 ## Vorschläge aus der Backlog-Priorisierung (2026-11-12)
-Claude hat den Backlog am 2026-11-12 priorisiert; der Nutzer hat die Vorschläge hier eintragen lassen. **Zuschnitt und Inhalt sind Vorschlag (nicht bestätigt)** und werden beim Start wie üblich abgestimmt. Die Einzelheiten stehen weiter im Backlog, die Einträge dort verweisen hierher. Abhängigkeiten: WP-80 braucht WP-87; WP-47 baut auf den Messungen von WP-86 auf; WP-88 teilt die gelesenen Spalten mit dem Modellvergleich (WP-86 liest das Modell dafür ggf. über eine eigene Session). Einschätzung der Dringlichkeit (Vorschlag): WP-85 oder WP-86 zuerst; WP-87 vor WP-80. Die Fixes „Robustheit“ sind gebaut (`docs/work-packages/fix-robustness.md`).
-
-### WP-85 Editieren mit Schlüsseln: keine stillen Fehlzuordnungen
-Branch `wp/85-key-edit-integrity`. Commit und Rollback sind nur so viel wert, wie die Anzeige der Änderungen stimmt – diese Fehler zeigen still die falsche Zeile oder verlieren den Bezug (Backlog „Bekannte Fehler und Lücken“, Code-Review `small-pk-edit` und Gesamt-Review 3.31.0 A33):
-- Formular bei einem Schlüsseltausch: dem `RowChange` der gezeigten Zeile folgen statt ihrem Schlüssel.
-- Zeile nach dem Schreiben nicht zurückzulesen (VPD): die Änderung hängt nach dem Neuladen an ihrer Zeile, nicht an der ROWID.
-- Redo eines Grid-Schreibvorgangs, der an einem Verbindungsverlust scheitert: `RedoStopped` setzen.
-- TIMESTAMP(8/9) als Schlüssel über `OracleTimeStamp` statt `DateTime` (sonst „inzwischen gelöscht“); Filter auf TIMESTAMP WITH TIME ZONE mit Offset.
-- Offen: ob INVISIBLE-Spalten (Backlog) mitkommen oder ein eigenes Paket werden.
+Claude hat den Backlog am 2026-11-12 priorisiert; der Nutzer hat die Vorschläge hier eintragen lassen. **Zuschnitt und Inhalt sind Vorschlag (nicht bestätigt)** und werden beim Start wie üblich abgestimmt. Die Einzelheiten stehen weiter im Backlog, die Einträge dort verweisen hierher. Abhängigkeiten: WP-80 braucht WP-87; WP-47 baut auf den Messungen von WP-86 auf; WP-88 teilt die gelesenen Spalten mit dem Modellvergleich (WP-86 liest das Modell dafür ggf. über eine eigene Session). Einschätzung der Dringlichkeit (Vorschlag): WP-86 zuerst; WP-87 vor WP-80. Gebaut: die Fixes „Robustheit“ (`docs/work-packages/fix-robustness.md`) und WP-85 (`docs/work-packages/wp-85-key-edit-integrity.md`).
 
 ### WP-86 Reaktionszeit über das VPN: messen, dann weniger Roundtrips
 Branch `wp/86-vpn-roundtrips`. Backlog „Reaktionszeit über das VPN“ (Messen, Punkte 2 und 3, „Hänger beim Verbinden“ a und b); der Schema-Cache (Punkt 1) bleibt bei WP-47.

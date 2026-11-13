@@ -486,7 +486,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 if (updated.Outputs.GetValueOrDefault(DmlBuilder.RowIdOutput) is string movedRowId)
                 {
                     // The primary key changed: the row goes on with the key it has now (as stored – a trigger may have had a say).
-                    newKeys[operation.Change.Id] = await ReadKeyAsync(table, movedRowId, cancellationToken);
+                    newKeys[operation.Change.Id] = await ReadKeyAsync(table, operation, movedRowId, cancellationToken);
                 }
 
                 return update;
@@ -500,7 +500,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                             ?? throw new RefusedException(OracleText.NoRowIdReturned);
 
                 // Reload: defaults, identity values and triggers decide what was stored – and the row's real key.
-                newKeys[operation.Change.Id] = await ReadKeyAsync(table, rowId, cancellationToken);
+                newKeys[operation.Change.Id] = await ReadKeyAsync(table, operation, rowId, cancellationToken);
                 return insert;
             }
 
@@ -509,13 +509,17 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
         }
     }
 
-    /// <summary>The key of the row at <paramref name="rowId"/> as stored; the ROWID itself if the row cannot be read back.</summary>
-    private async Task<RowKey> ReadKeyAsync(TableDetails table, string rowId, CancellationToken cancellationToken)
+    /// <summary>
+    /// The key of the row at <paramref name="rowId"/> as stored. A row that cannot be read back (a policy hides it, VPD) gets
+    /// the key from the values written (WP-85: its ROWID matched no row the grid loads by primary key); the ROWID only if those
+    /// do not make the key either.
+    /// </summary>
+    private async Task<RowKey> ReadKeyAsync(TableDetails table, PendingOperation operation, string rowId, CancellationToken cancellationToken)
     {
         var query = QueryBuilder.BuildSelectByRowId(table, rowId);
         var row = await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
             await reader.ReadAsync(ct) ? OracleDataAccess.ReadRow((OracleDataReader)reader, query, table) : null, cancellationToken);
-        return row?.Key ?? new RowKey.RowId(rowId);
+        return row?.Key ?? WrittenKey.Of(table, operation) ?? new RowKey.RowId(rowId);
     }
 
     /// <summary>Current values of <paramref name="columns"/> with the row locked; null if the row is gone.</summary>

@@ -67,7 +67,8 @@ developer works with an Oracle database day to day:
   set the filters first, then load (*Settings › Data view*).
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
   statement (the grid's own or a short `SELECT t.*`) and its execution plan at any time. Combine rows with **OR** and **NOT** groups (NOT treats NULL as C# does,
-  so the grid and a LINQ `Where` keep the same rows).
+  so the grid and a LINQ `Where` keep the same rows). A date without a time means the whole day; a time with time zone
+  takes an offset (`2026-03-15 23:30 +05:00`, `Z`) and finds that instant, whatever offset the rows were stored with.
 - **SQL condition**: filter a table tab by a condition you write, as in the WHERE field of SQL Developer –
   `ID IN (SELECT …)` on other tables, nested as deep as you like – with completion of the columns and tables, the
   conditions last applied to the table, and the filter bar's filter as a start. The tab stays a table tab: edit, jump

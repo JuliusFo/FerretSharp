@@ -50,8 +50,8 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
     /// <summary>The options of the last flush.</summary>
     public FlushOptions? LastFlush { get; private set; }
 
-    /// <summary>A flush fails with this (a lock or concurrency conflict for the problem dialog); null writes.</summary>
-    public Func<IReadOnlyList<PendingOperation>, FlushException?>? FailFlush { get; set; }
+    /// <summary>A flush fails with this (a lock or concurrency conflict for the problem dialog, or a database error); null writes.</summary>
+    public Func<IReadOnlyList<PendingOperation>, Exception?>? FailFlush { get; set; }
 
     /// <summary>A rollback fails with this (the connection is gone); null rolls back.</summary>
     public Exception? FailRollback { get; set; }

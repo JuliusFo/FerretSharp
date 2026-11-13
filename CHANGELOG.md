@@ -5,7 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
-Fixes, structure, tests and docs after the review of 3.70.0 (R9), and robustness fixes from the backlog.
+Fixes, structure, tests and docs after the review of 3.70.0 (R9), robustness fixes from the backlog, and editing by key without
+silent mix-ups (WP-85).
 
 ### Security
 - The estimated plan (EXPLAIN) always writes into Oracle's session-private plan table `SYS.PLAN_TABLE$`. A `PLAN_TABLE` of the schema (an old `utlxplan.sql`) hid it, and FerretSharp committed the plan rows into that table – also on Prod. Without access to `SYS.PLAN_TABLE$` the plan is refused with the grant to ask for.
@@ -24,6 +25,13 @@ Fixes, structure, tests and docs after the review of 3.70.0 (R9), and robustness
 - A self-contained publish stops if the .NET SDK would bundle a runtime without its security fixes.
 
 ### Fixed
+- Editing by key (WP-85):
+  - The form follows its row when one write swaps keys (A 1 → 9, B 2 → 1); it showed the other row without a word.
+  - A row a policy (VPD) hides after the write keeps its primary key; it got its ROWID, and the change hung on no row after the reload.
+  - A grid redo stopped by something other than a write problem (a lost connection, a refusal) stays redoable; the redo button said the tab was closed.
+  - A table keyed by a `TIMESTAMP(8)` or `(9)` can be edited: its key kept only seven digits, and writing said "deleted meanwhile".
+  - A filter on `TIMESTAMP WITH TIME ZONE` takes an offset (`2026-03-15 23:30 +05:00`, `Z`) – in the grid and in the LINQ form; the placeholder names it.
+  - The form on a row deleted while another row takes its key in the same write no longer shows that other row after the reload.
 - A file of FerretSharp saved by hand in another encoding than UTF-8 is reported as not readable instead of stopping the start.
 - A `connections.json` that cannot be read says why (line and position) in a notice and in the log, not only in the status bar's tooltip.
 - A LINQ console helper that ends at start is reported at once with its exit code, not after the start timeout.

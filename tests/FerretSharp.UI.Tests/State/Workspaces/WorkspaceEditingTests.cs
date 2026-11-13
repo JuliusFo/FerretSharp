@@ -594,6 +594,35 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.Equal(undone.Id, Assert.Single(editor.Actions).RedoOf);
     }
 
+    /// <summary>
+    /// WP-85 (code review of `small-pk-edit`): a redo that failed with something other than a write problem was no longer
+    /// taken back – ↷ said "tab closed" though its changes were pending again.
+    /// </summary>
+    [Fact]
+    public async Task A_redo_that_fails_with_a_database_error_stays_redoable()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        Assert.True(await _app.Editing.UndoLastAsync(workspace));
+        var undone = Assert.Single(_app.Editing.SummaryOf(workspace).Undone);
+        var editor = await EditorAsync(scope);
+        editor.FailFlush = _ => new DatabaseException("ORA-00600: interner Fehler", "ORA-00600");
+
+        Assert.False(await _app.Editing.RedoGridAsync(workspace, undone.Id));
+
+        Assert.Null(_app.Editing.Problem); // no write problem: the error was shown
+        Assert.Null(_app.Editing.RedoBlocker(workspace));
+        Assert.NotNull(_app.Editing.History.Undone(workspace.WorkspaceId, undone.Id));
+        Assert.Equal(1, tab.Changes.PendingCount);
+
+        editor.FailFlush = null;
+        Assert.True(await _app.Editing.RedoGridAsync(workspace, undone.Id));
+        Assert.Equal((0, 1), (tab.Changes.PendingCount, tab.Changes.FlushedCount));
+        Assert.Equal(undone.Id, Assert.Single(editor.Actions).RedoOf);
+    }
+
     /// <summary>Review 3.31.0, A13: "overwrite" stayed after cancel and skipped the check of a later write of the row.</summary>
     [Fact]
     public async Task An_overwrite_chosen_before_a_cancel_does_not_carry_over_to_the_next_write()
