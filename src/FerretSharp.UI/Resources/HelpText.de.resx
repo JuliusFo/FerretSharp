@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Panel_Title" xml:space="preserve">
+    <value>Hilfe</value>
+  </data>
+  <data name="Scripts_Title" xml:space="preserve">
+    <value>SQL-Skripte</value>
+  </data>
+  <data name="Scripts_Intro" xml:space="preserve">
+    <value>Ein Skript ist eine .sql-Datei in einem Skriptordner. Der Explorer zeigt es unter Skripte; ein Klick öffnet es in einem SQL-Tab – nichts läuft.</value>
+  </data>
+  <data name="Scripts_FoldersTitle" xml:space="preserve">
+    <value>Ordner</value>
+  </data>
+  <data name="Scripts_Folders" xml:space="preserve">
+    <value>Dein persönlicher Ordner, ein allgemeiner, den jede Verbindung sieht, und einer je Verbindungsgruppe – die letzten beiden oft in einem gemeinsamen Repository.</value>
+  </data>
+  <data name="Scripts_FoldersSettings" xml:space="preserve">
+    <value>Ordner festlegen</value>
+  </data>
+  <data name="Scripts_HeaderTitle" xml:space="preserve">
+    <value>Der Kopf</value>
+  </data>
+  <data name="Scripts_Header" xml:space="preserve">
+    <value>Zeilen mit -- @ ganz oben im Text, vor jedem anderen Kommentar und SQL und ohne Leerzeile dazwischen; die Reihenfolge ist frei.</value>
+  </data>
+  <data name="Scripts_Description" xml:space="preserve">
+    <value>die Beschreibung, im Tooltip im Explorer; mehrere Zeilen ergeben mehrere Absätze.</value>
+  </data>
+  <data name="Scripts_Param" xml:space="preserve">
+    <value>der Typ, mit dem ein Bind des SQL gebunden wird: text, char, number, date, raw oder null. Nie ein Wert.</value>
+  </data>
+  <data name="Scripts_ParamList" xml:space="preserve">
+    <value>der Bind steht allein in IN ( … ) und nimmt die Werte aller markierten Zeilen, je einen Bind.</value>
+  </data>
+  <data name="Scripts_Target" xml:space="preserve">
+    <value>die Spalte, aus der der Parameter seinen Wert nimmt: Das Skript erscheint im Zellmenü dieser Spalte und jeder Spalte, die auf sie zeigt. Die Tabelle ohne Owner.</value>
+  </data>
+  <data name="Scripts_Unknown" xml:space="preserve">
+    <value>Zeilen, die FerretSharp nicht kennt, bleiben, wie sie sind.</value>
+  </data>
+  <data name="Scripts_EditorTitle" xml:space="preserve">
+    <value>Im SQL-Tab</value>
+  </data>
+  <data name="Scripts_EditorSave" xml:space="preserve">
+    <value>Beim Speichern werden oben getippte @param- und @description-Zeilen übernommen: Der Typ geht in die Variablen, die Beschreibung in den Speichern-Dialog, und die Zeilen verschwinden aus dem Text. @target und unbekannte Zeilen bleiben oben stehen.</value>
+  </data>
+  <data name="Scripts_EditorMarks" xml:space="preserve">
+    <value>Zeilen, die sich nicht verwenden lassen, werden beim Tippen markiert. Mit der Maus über einer Zeile siehst du, was sie bewirkt – bei einem @target auch, ob die Verbindung die Spalte hat und wo das Skript erscheint.</value>
+  </data>
+  <data name="Scripts_EditorComplete" xml:space="preserve">
+    <value>Nach -- @ schlägt der Editor die Kopfzeilen vor, die Typen, die Binds des SQL und die Tabellen und Spalten.</value>
+  </data>
+  <data name="Scripts_CellTitle" xml:space="preserve">
+    <value>Aus einer Zelle</value>
+  </data>
+  <data name="Scripts_Cell" xml:space="preserve">
+    <value>Das Zellmenü zeigt die Skripte, deren Ziel die Spalte erreicht. Ein Skript, das nur liest, läuft sofort, auch auf Prod; jedes andere öffnet mit eingesetztem Wert. Ein list-Parameter nimmt die Werte aller markierten Zeilen.</value>
+  </data>
+  <data name="Scripts_SaveTitle" xml:space="preserve">
+    <value>Speichern</value>
+  </data>
+  <data name="Scripts_Save" xml:space="preserve">
+    <value>Speichern schreibt den Tab in seine Datei oder fragt nach Name und Ordner. ● neben dem Titel: Der Tab weicht von seiner Datei ab; eine Änderung der Datei auf der Platte wird gemeldet.</value>
+  </data>
+  <data name="Scripts_DescriptionSyntax" xml:space="preserve">
+    <value>-- @description Text</value>
+  </data>
+  <data name="Scripts_ParamSyntax" xml:space="preserve">
+    <value>-- @param Name Typ</value>
+  </data>
+  <data name="Scripts_ParamListSyntax" xml:space="preserve">
+    <value>-- @param Name Typ list</value>
+  </data>
+  <data name="Scripts_TargetSyntax" xml:space="preserve">
+    <value>-- @target Name TABELLE.SPALTE</value>
+  </data>
+</root>

@@ -14,7 +14,7 @@
         {
             <span class="result-kept-mark" title="@SqlEditorText.Result_HeldTitle">@Icons.Camera</span>
         }
-        <code class="result-header-sql" title="@Run.Statement.Text">@SqlScript.OneLine(Run.Statement.Text)</code>
+        <code class="result-header-sql" title="@Statement">@SqlScript.OneLine(Statement)</code>
         <span class="muted result-header-meta">@TextFormat.Format(SqlEditorText.Result_RanAt, TimeText.TimeOfDay(Run.At))</span>
         @if (Kept && Run.Held is { } held)
         {
@@ -40,7 +40,7 @@
     @if (Open)
     {
         <div class="linq-sql result-header-statement">
-            <SqlCode Sql="@Run.Statement.Text" Class="linq-sql-code" />
+            <SqlCode Sql="@Statement" Class="linq-sql-code" />
             @if (Run.Variables.Count > 0)
             {
                 <div class="linq-params">
@@ -60,6 +60,9 @@
 
     [Parameter, EditorRequired]
     public SqlRun Run { get; set; } = null!;
+
+    /// <summary>The statement without a script's header lines (WP-89): they ran as a comment, the SQL is what counts here.</summary>
+    private string Statement => FerretSharp.Core.Scripts.ScriptHeaderHelp.WithoutHeader(Run.Statement.Text);
 
     /// <summary>The result is kept (WP-81): "Let go" instead of "Keep", with its rows. Held rows (also all loaded, or let go) say they were read in a transaction.</summary>
     [Parameter]

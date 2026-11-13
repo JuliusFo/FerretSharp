@@ -326,6 +326,25 @@ public sealed partial class ShellState
     }
 
     /// <summary>
+    /// The help on SQL scripts (WP-89) beside the active SQL tab, or beside a new one if another tab is active – the help
+    /// explains what is typed there. Nothing without a workspace.
+    /// </summary>
+    public void ShowScriptHelp()
+    {
+        if (ActiveTab is SqlTab active)
+        {
+            active.HelpOpen = true;
+            RequestTabCommand(active, TabCommand.ShowHelp);
+            return;
+        }
+
+        if (OpenSql() is { } tab)
+        {
+            tab.HelpOpen = true;
+        }
+    }
+
+    /// <summary>
     /// Inserts a script of the library into the active SQL tab at its cursor (WP-77, explorer menu); false if the active
     /// tab is no SQL tab. The tab's view reads the file and inserts it.
     /// </summary>

@@ -84,6 +84,12 @@ public sealed record ScriptSave(ScriptHeader Header, string Body, string Text, I
     public string SavedText { get; init; } = Text;
 
     /// <summary>
+    /// The header lines that cannot be used, by their number in the text saved (1-based) – what <see cref="Problems"/> names;
+    /// the editor marks them while typing (WP-89).
+    /// </summary>
+    public IReadOnlyList<ScriptHeaderError> Errors { get; init; } = [];
+
+    /// <summary>
     /// The link after writing, <paramref name="link"/> made for <see cref="Text"/>: a tab that did not get the text with
     /// the file's lines joined (typed during the write, <see cref="TextFor"/>) does not show them – its text cannot be the
     /// truth yet, or the next save would drop the file's targets (second review N2).
@@ -120,6 +126,9 @@ public static partial class ScriptHeaders
         ["raw"] = SqlVariableType.Raw,
         ["null"] = SqlVariableType.Null,
     };
+
+    /// <summary>The type names of <c>@param</c> in the order the help names them (WP-89).</summary>
+    internal static IEnumerable<string> TypeNamesWritten => TypeNames.Keys;
 
     /// <summary>The name <c>@param</c> writes for a type.</summary>
     public static string TypeName(SqlVariableType type) => type.ToString().ToLowerInvariant();
@@ -239,7 +248,7 @@ public static partial class ScriptHeaders
         // shows them, and a change on disk asks instead of reloading them away (third review K2).
         var savedText = unwritten.Count == 0 ? after : Rebuilt(new HashSet<int>(taken.Concat(unwritten)));
         var problems = errors.Select(e => TextFormat.Format(ScriptText.HeaderLineProblem, lines[e.Line - 1].Trim(), e.Message)).ToList();
-        return new ScriptSave(header, body, after, typed, problems, joined.Count > 0) { SavedText = savedText };
+        return new ScriptSave(header, body, after, typed, problems, joined.Count > 0) { SavedText = savedText, Errors = errors };
 
         string Rebuilt(IReadOnlySet<int> leaving)
         {
@@ -277,7 +286,7 @@ public static partial class ScriptHeaders
         Directive().Match(OneLine(line)) is { Success: true } match && match.Groups["name"].Value.ToLowerInvariant() is not ("param" or "description");
 
     /// <summary>The header lines at the top of <paramref name="lines"/>, with what each one is; never throws.</summary>
-    private static HeaderLines ReadLines(string[] lines)
+    internal static HeaderLines ReadLines(string[] lines)
     {
         var first = 0;
         while (first < lines.Length && lines[first].Trim().Length == 0)
@@ -388,7 +397,7 @@ public static partial class ScriptHeaders
     /// <param name="First">The index of the first header line.</param>
     /// <param name="DirectivesEnd">The index after the last header line.</param>
     /// <param name="End">The index of the body's first line (one blank line after the header belongs to it).</param>
-    private sealed record HeaderLines(
+    internal sealed record HeaderLines(
         string? Description, List<ScriptParameter> Parameters, List<int> ParameterLines, List<(ScriptTarget Target, int Line)> Targets,
         List<(string Text, int Line)> Other, List<ScriptHeaderError> Errors, List<int> Taken, int First, int DirectivesEnd, int End);
 
@@ -542,7 +551,7 @@ public static partial class ScriptHeaders
     }
 
     [GeneratedRegex(@"^\s*--\s*@(?<name>[A-Za-z][A-Za-z-]*)(\s+(?<value>.*))?\s*$")]
-    private static partial Regex Directive();
+    internal static partial Regex Directive();
 
     [GeneratedRegex(@"^:?(?:""(?<quoted>[^""]+)""|(?<plain>[\p{L}\p{N}_$#]+))\s+(?<type>\S+)(?:\s+(?<list>[Ll][Ii][Ss][Tt]))?$")]
     private static partial Regex ParamValue();

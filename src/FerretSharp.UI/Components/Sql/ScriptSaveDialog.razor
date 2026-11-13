@@ -5,7 +5,7 @@
 <ModalFrame Label="@Title" Class="script-save" OnCancel="OnCancel">
     <header>
         <span>@Title</span>
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnCancel">@Icons.Close</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" disabled="@Busy" @onclick="OnCancel">@Icons.Close</button>
     </header>
     <div class="dialog-body form-grid">
         <label for="@($"{_id}-name")">@ScriptViewText.Save_Name</label>
@@ -61,8 +61,12 @@
         }
     </div>
     <footer>
+        @if (OnHelp.HasDelegate)
+        {
+            <button class="link-btn" disabled="@Busy" @onclick="OnHelp">@ScriptViewText.Help_Scripts</button>
+        }
         <span class="spacer"></span>
-        <button class="btn ghost" @onclick="OnCancel">@CommonText.Cancel</button>
+        <button class="btn ghost" disabled="@Busy" @onclick="OnCancel">@CommonText.Cancel</button>
         <button class="btn primary" disabled="@(Busy)" @onclick="SaveAsync">@CommonText.Save</button>
     </footer>
 </ModalFrame>
@@ -83,6 +87,10 @@
 
     [Parameter]
     public string? Error { get; set; }
+
+    /// <summary>"How do scripts work?" (WP-89): the help beside the SQL tab.</summary>
+    [Parameter]
+    public EventCallback OnHelp { get; set; }
 
     [Parameter]
     public bool Busy { get; set; }

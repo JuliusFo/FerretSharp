@@ -130,5 +130,29 @@ public sealed class ScriptTabsTests : IAsyncDisposable
         Assert.Equal([(sql, TabCommand.InsertScript)], commands);
     }
 
+    /// <summary>WP-89: the help on scripts opens beside the active SQL tab – or beside a new one, never in another tab.</summary>
+    [Fact]
+    public async Task The_help_on_scripts_opens_beside_the_active_sql_tab_or_a_new_one()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        var table = _app.Shell.OpenTable(TestApp.Kunden);
+        var commands = new List<(WorkspaceTab, TabCommand)>();
+        _app.Shell.TabCommandRequested += (t, c) => commands.Add((t, c));
+
+        _app.Shell.ShowScriptHelp();
+
+        var opened = Assert.IsType<SqlTab>(_app.Shell.ActiveTab);
+        Assert.NotSame(table, opened);
+        Assert.True(opened.HelpOpen);
+        Assert.Empty(commands); // a new view opens with the help
+
+        opened.HelpOpen = false;
+        _app.Shell.ShowScriptHelp();
+
+        Assert.Same(opened, _app.Shell.ActiveTab);
+        Assert.True(opened.HelpOpen);
+        Assert.Equal([(opened, TabCommand.ShowHelp)], commands);
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }

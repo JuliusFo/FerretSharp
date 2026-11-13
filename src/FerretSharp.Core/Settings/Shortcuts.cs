@@ -59,6 +59,9 @@ public enum ShortcutAction
 
     /// <summary>Keeps the result shown in the active SQL tab, or lets it go (WP-81); no default key.</summary>
     KeepResult,
+
+    /// <summary>The help on SQL scripts beside the active SQL tab, or a new one (WP-89); no default key.</summary>
+    ScriptHelp,
 }
 
 /// <summary>Where a shortcut is caught.</summary>
@@ -149,6 +152,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.TimeTravel, SettingsText.GroupData, SettingsText.ActionTimeTravel, null, ShortcutScope.Global, SettingsText.HintTimeTravel),
         new(ShortcutAction.ToggleCondition, SettingsText.GroupData, SettingsText.ActionToggleCondition, null, ShortcutScope.Global, SettingsText.HintToggleCondition),
         new(ShortcutAction.KeepResult, SettingsText.GroupSqlAndLinq, SettingsText.ActionKeepResult, null, ShortcutScope.Global, SettingsText.HintKeepResult),
+        new(ShortcutAction.ScriptHelp, SettingsText.GroupSqlAndLinq, SettingsText.ActionScriptHelp, null, ShortcutScope.Global, SettingsText.HintScriptHelp),
     ];
 
     /// <summary>The fixed shortcuts; a property for the same reason as <see cref="Definitions"/>.</summary>

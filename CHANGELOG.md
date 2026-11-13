@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Help on SQL scripts (WP-89):
+  - The SQL editor completes a script’s header lines after `-- @`: the directives, the types of `@param` and `list`, the binds of the SQL, and the tables and columns of a `@target`.
+  - Hovering a header line explains it; on a `@target` it also says whether the connection has the column and in which cell menus the script shows.
+  - Header lines that cannot be used are marked while typing – a target without its bind, a typo like `@tagret`, a `@param` below the header, a table or column the connection does not have – not only after saving.
+  - A help panel beside the SQL editor explains folders, the header, scripts in the cell menu and saving; it opens from the SQL tab’s toolbar, the notice after saving, the save dialog, the explorer’s *Scripts* and the command palette (*Help: SQL scripts*, no default key).
+
+### Changed
+- The line above a result, its chips and the SQL history show a statement without the script’s header lines at its start; what runs is unchanged.
+
 ## [3.71.1] - 2026-11-13
 
 A fix for SQL scripts: header lines typed in the SQL editor are saved as the script’s header.

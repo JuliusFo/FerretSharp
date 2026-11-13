@@ -591,6 +591,9 @@
             case ShortcutAction.NewSql:
                 _state.OpenSql();
                 break;
+            case ShortcutAction.ScriptHelp:
+                _state.ShowScriptHelp();
+                break;
             case ShortcutAction.SchemaSynonyms:
                 _state.OpenSynonymList();
                 break;

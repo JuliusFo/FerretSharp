@@ -96,4 +96,76 @@
   <data name="Target_Gone" xml:space="preserve">
     <value>Das Skript nimmt diese Spalte nicht mehr (die Datei hat sich geändert). Menü neu öffnen.</value>
   </data>
+  <data name="Marker_Unknown" xml:space="preserve">
+    <value>FerretSharp kennt @{0} nicht: Die Zeile bleibt, wie sie ist, ohne Wirkung.</value>
+  </data>
+  <data name="Marker_UnknownSimilar" xml:space="preserve">
+    <value>FerretSharp kennt @{0} nicht – meintest du @{1}? Die Zeile bleibt, wie sie ist, ohne Wirkung.</value>
+  </data>
+  <data name="Marker_NotHeader" xml:space="preserve">
+    <value>Gehört nicht zum Kopf und wirkt deshalb nicht: Kopfzeilen stehen ganz oben, vor jedem anderen Kommentar und SQL und ohne Leerzeile dazwischen.</value>
+  </data>
+  <data name="Target_TableMissing" xml:space="preserve">
+    <value>Diese Verbindung hat keine Tabelle oder View {0}: Das Skript erscheint hier in keinem Zellmenü.</value>
+  </data>
+  <data name="Target_ColumnMissing" xml:space="preserve">
+    <value>{0} hat keine Spalte {1}: Das Skript erscheint hier in keinem Zellmenü.</value>
+  </data>
+  <data name="Hover_NotHeader" xml:space="preserve">
+    <value>**Gehört nicht zum Kopf** – ohne Wirkung. Kopfzeilen stehen ganz oben im Text, vor jedem anderen Kommentar und SQL und ohne Leerzeile dazwischen.</value>
+  </data>
+  <data name="Hover_Description" xml:space="preserve">
+    <value>**@description** *Text* – die Beschreibung des Skripts, im Tooltip des Skripts im Explorer. Mehrere Zeilen ergeben mehrere Absätze. Beim Speichern wandert sie in den Speichern-Dialog und verschwindet aus dem Text.</value>
+  </data>
+  <data name="Hover_Param" xml:space="preserve">
+    <value>**@param** *Name Typ* [`list`] – der Typ, mit dem ein Bind des SQL gebunden wird: {0}. Mit `list` steht der Bind allein in `IN ( … )` und nimmt die Werte mehrerer markierter Zeilen. Beim Speichern wandert der Typ in die Variablen und die Zeile verschwindet aus dem Text. Nie ein Wert.</value>
+  </data>
+  <data name="Hover_Target" xml:space="preserve">
+    <value>**@target** *Name TABELLE.SPALTE* – die Spalte, aus der der Parameter seinen Wert nimmt: Das Skript erscheint im Zellmenü dieser Spalte und jeder Spalte, die auf sie zeigt. Die Tabelle ohne Owner schreiben; der Parameter braucht einen Bind im SQL.</value>
+  </data>
+  <data name="Hover_Unknown" xml:space="preserve">
+    <value>FerretSharp kennt {0} nicht: Die Zeile bleibt, wie sie ist (eine Zeile einer neueren Version oder von Kollegen), ohne Wirkung.</value>
+  </data>
+  <data name="Hover_UnknownSimilar" xml:space="preserve">
+    <value>FerretSharp kennt {0} nicht – meintest du {1}? Die Zeile bleibt, wie sie ist, ohne Wirkung.</value>
+  </data>
+  <data name="Hover_More" xml:space="preserve">
+    <value>Mehr zu Skripten: *Hilfe* in der Leiste des SQL-Tabs.</value>
+  </data>
+  <data name="Hover_TargetFound" xml:space="preserve">
+    <value>Gefunden: {0} ({1}).</value>
+  </data>
+  <data name="Hover_TargetAlone" xml:space="preserve">
+    <value>Das Skript erscheint nur im Zellmenü dieser Spalte – keine andere Spalte zeigt auf sie.</value>
+  </data>
+  <data name="Hover_TargetShowsOnOne" xml:space="preserve">
+    <value>Es erscheint auch im Zellmenü von {1}, die auf sie zeigt.</value>
+  </data>
+  <data name="Hover_TargetShowsOnOther" xml:space="preserve">
+    <value>Es erscheint auch im Zellmenü von {0} Spalten, die auf sie zeigen: {1}.</value>
+  </data>
+  <data name="Hover_TargetAndMore" xml:space="preserve">
+    <value>und {0} weitere</value>
+  </data>
+  <data name="Hover_TargetUnchecked" xml:space="preserve">
+    <value>Das Schema ließ sich nicht lesen: {0}</value>
+  </data>
+  <data name="Completion_Description" xml:space="preserve">
+    <value>Beschreibung des Skripts</value>
+  </data>
+  <data name="Completion_Param" xml:space="preserve">
+    <value>Typ eines Binds: Name Typ [list]</value>
+  </data>
+  <data name="Completion_Target" xml:space="preserve">
+    <value>Spalte, aus der der Wert kommt: Name TABELLE.SPALTE</value>
+  </data>
+  <data name="Completion_Type" xml:space="preserve">
+    <value>Typ des Binds</value>
+  </data>
+  <data name="Completion_List" xml:space="preserve">
+    <value>Nimmt die Werte mehrerer Zeilen: IN (:name)</value>
+  </data>
+  <data name="Completion_Bind" xml:space="preserve">
+    <value>Bind des SQL</value>
+  </data>
 </root>

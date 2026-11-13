@@ -489,4 +489,11 @@
   <data name="HintKeepResult" xml:space="preserve">
     <value>In the SQL editor: the result shown stays when the next statement runs.</value>
   </data>
+  <data name="ActionScriptHelp" xml:space="preserve">
+    <value>Help: SQL scripts</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintScriptHelp" xml:space="preserve">
+    <value>Opens the help on SQL scripts beside the SQL tab – in a new one if no SQL tab is active.</value>
+  </data>
 </root>

@@ -13,6 +13,8 @@ globalThis.ferretSharpEditorTyping = typing;
 const startVersions = new Map(); // element id → the model's version when created (edited or not, reportEdits)
 const completions = new Map(); // model uri → { id, dotnet } of editors that ask .NET for completion items
 const providers = new Set(); // languages with a registered completion provider
+const hovers = new Map(); // model uri → { id, dotnet } of editors that ask .NET for hovers (WP-89)
+const hoverProviders = new Set(); // languages with a registered hover provider
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 let loading = null;
 
@@ -184,6 +186,8 @@ export async function create(elementId, dotnet, text, options) {
     wordWrap: options.wordWrap ? 'on' : 'off',
     fixedOverflowWidgets: true,
     placeholder: options.placeholder ?? undefined,
+    // A script's header lines are comments (WP-89): suggestions while typing there too; .NET answers only on a header line.
+    quickSuggestions: options.commentSuggestions ? { other: true, comments: true, strings: false } : undefined,
     // 'prompt' asked with a native English dialog and removed U+2028/U+2029 on OK – they are text like any other here.
     unusualLineTerminators: 'off',
   });
@@ -232,6 +236,10 @@ export async function create(elementId, dotnet, text, options) {
   if (options.completion) {
     completions.set(editor.getModel().uri.toString(), { id: elementId, dotnet });
     registerProvider(monaco, options.language ?? 'csharp');
+  }
+  if (options.hover) {
+    hovers.set(editor.getModel().uri.toString(), { id: elementId, dotnet });
+    registerHoverProvider(monaco, options.language ?? 'csharp');
   }
 }
 
@@ -299,7 +307,8 @@ function registerProvider(monaco, language) {
     Namespace: kinds.Module, Event: kinds.Event,
   };
   monaco.languages.registerCompletionItemProvider(language, {
-    triggerCharacters: ['.'],
+    // '@' starts a header line of a SQL script (WP-89); in C# it starts a verbatim string.
+    triggerCharacters: language === 'sql' ? ['.', '@'] : ['.'],
     provideCompletionItems: async (model, position) => {
       const target = completions.get(model.uri.toString());
       if (!target) return { suggestions: [] };
@@ -322,6 +331,33 @@ function registerProvider(monaco, language) {
           sortText: `${i.rank}${String(index).padStart(5, '0')}`,
           range,
         })),
+      };
+    },
+  });
+}
+
+/** One hover provider per language; it asks the .NET side of the editor whose model is hovered (WP-89). */
+function registerHoverProvider(monaco, language) {
+  if (hoverProviders.has(language)) return;
+  hoverProviders.add(language);
+  monaco.languages.registerHoverProvider(language, {
+    provideHover: async (model, position) => {
+      const target = hovers.get(model.uri.toString());
+      if (!target) return null;
+      let hover = null;
+      try {
+        hover = await target.dotnet.invokeMethodAsync('OnHover', target.id, model.getValue(), model.getOffsetAt(position));
+      } catch (err) {
+        console.debug('Hover not received', err);
+        return null;
+      }
+      if (!hover) return null;
+      const from = model.getPositionAt(hover.start);
+      const to = model.getPositionAt(hover.start + hover.length);
+      return {
+        range: new monaco.Range(from.lineNumber, from.column, to.lineNumber, to.column),
+        // Untrusted Markdown: no HTML, no command links – names in it come from the user's files.
+        contents: hover.paragraphs.map(value => ({ value, isTrusted: false, supportHtml: false })),
       };
     },
   });
@@ -350,18 +386,21 @@ export function flash(elementId, start, length) {
   setTimeout(() => decorations.clear(), 900);
 }
 
-/** Markers by text offsets: [{ start, length, severity: 'error'|'warning', message }]. */
-export function setOffsetMarkers(elementId, markers) {
+/**
+ * Markers by text offsets: [{ start, length, severity: 'error'|'warning'|'info', message }]. owner: marks of one owner
+ * replace only that owner's (a run's errors, the header marks while typing).
+ */
+export function setOffsetMarkers(elementId, markers, owner) {
   const editor = editors.get(elementId);
   if (!editor || !window.monaco) return;
   const model = editor.getModel();
   const severity = window.monaco.MarkerSeverity;
-  window.monaco.editor.setModelMarkers(model, 'ferretsharp', (markers ?? []).map(m => {
+  window.monaco.editor.setModelMarkers(model, owner ?? 'ferretsharp', (markers ?? []).map(m => {
     const from = model.getPositionAt(m.start);
     const to = model.getPositionAt(m.start + Math.max(1, m.length));
     return {
       startLineNumber: from.lineNumber, startColumn: from.column, endLineNumber: to.lineNumber, endColumn: to.column,
-      severity: m.severity === 'error' ? severity.Error : severity.Warning, message: m.message,
+      severity: m.severity === 'error' ? severity.Error : m.severity === 'info' ? severity.Info : severity.Warning, message: m.message,
     };
   }));
 }
@@ -473,7 +512,10 @@ export function destroy(elementId) {
   const editor = editors.get(elementId);
   if (editor) {
     const model = editor.getModel();
-    if (model) completions.delete(model.uri.toString());
+    if (model) {
+      completions.delete(model.uri.toString());
+      hovers.delete(model.uri.toString());
+    }
     model?.dispose();
     editor.dispose();
     editors.delete(elementId);

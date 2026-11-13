@@ -9,9 +9,11 @@
         @foreach (var entry in Filtered)
         {
             var e = entry;
+            // WP-89: shown without a script's header lines; the entry keeps them (adopt, save as script – review WP-89, 1).
+            var shown = Core.Scripts.ScriptHeaderHelp.WithoutHeader(e.Sql);
             <div class="sql-history-row">
-                <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@e.Sql" @onclick="() => OnAdopt.InvokeAsync(e)">
-                    <span class="sql-history-sql">@SqlScript.OneLine(e.Sql)</span>
+                <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@shown" @onclick="() => OnAdopt.InvokeAsync(e)">
+                    <span class="sql-history-sql">@SqlScript.OneLine(shown)</span>
                     <span class="sql-history-meta">@e.ExecutedAt.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture) · @Outcome(e)</span>
                 </button>
                 @* WP-77: a statement of the history as a script of the library. *@

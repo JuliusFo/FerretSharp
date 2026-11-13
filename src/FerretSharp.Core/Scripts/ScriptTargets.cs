@@ -29,12 +29,15 @@ public static class ScriptTargets
     /// name leads to; null if neither is there (the script is then offered nowhere, without error – it may be for another
     /// product).
     /// </summary>
-    public static TableRef? Resolve(string table, IReadOnlyList<TableSummary> tables, string owner)
+    public static TableRef? Resolve(string table, IReadOnlyList<TableSummary> tables, string owner) => Find(table, tables, owner)?.Ref;
+
+    /// <summary>The object <see cref="Resolve"/> finds, with its kind and synonym (completion, hover in the editor, WP-89).</summary>
+    public static TableSummary? Find(string table, IReadOnlyList<TableSummary> tables, string owner)
     {
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(tables);
-        return tables.FirstOrDefault(t => t.Synonym is null && t.Owner == owner && t.Name == table)?.Ref
-            ?? tables.FirstOrDefault(t => t.Synonym?.Name == table)?.Ref;
+        return tables.FirstOrDefault(t => t.Synonym is null && t.Owner == owner && t.Name == table)
+            ?? tables.FirstOrDefault(t => t.Synonym?.Name == table);
     }
 
     /// <summary>
@@ -67,6 +70,59 @@ public static class ScriptTargets
         }
 
         return reached;
+    }
+
+    /// <summary>
+    /// The columns whose cell menu offers a script with a target on <paramref name="target"/> (WP-89, the hover over a
+    /// <c>@target</c>): every column that <see cref="Reached"/> leads to it – found backwards over the same relationships
+    /// and the same number of steps, so both always agree. <paramref name="target"/> itself is first.
+    /// </summary>
+    /// <param name="tables">The tables whose relationships count (the schema's objects).</param>
+    public static IReadOnlyList<ColumnRef> ReachedBy(ColumnRef target, IEnumerable<TableRef> tables, Func<TableRef, IEnumerable<ForeignKeyInfo>> links)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(tables);
+        ArgumentNullException.ThrowIfNull(links);
+        var into = new Dictionary<ColumnRef, List<ColumnRef>>();
+        foreach (var table in tables.Distinct())
+        {
+            foreach (var fk in links(table))
+            {
+                for (var i = 0; i < fk.FromColumns.Count && i < fk.ToColumns.Count; i++)
+                {
+                    var to = new ColumnRef(fk.To, fk.ToColumns[i]);
+                    if (!into.TryGetValue(to, out var from))
+                    {
+                        into[to] = from = [];
+                    }
+
+                    from.Add(new ColumnRef(table, fk.FromColumns[i]));
+                }
+            }
+        }
+
+        var result = new List<ColumnRef> { target };
+        var seen = new HashSet<ColumnRef> { target };
+        var current = new List<ColumnRef> { target };
+        for (var step = 0; step < MaxSteps && current.Count > 0; step++)
+        {
+            var next = new List<ColumnRef>();
+            foreach (var to in current)
+            {
+                foreach (var from in into.GetValueOrDefault(to) ?? [])
+                {
+                    if (seen.Add(from))
+                    {
+                        next.Add(from);
+                        result.Add(from);
+                    }
+                }
+            }
+
+            current = next;
+        }
+
+        return result;
     }
 
     /// <summary>

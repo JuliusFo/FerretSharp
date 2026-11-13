@@ -123,6 +123,24 @@
     /// <param name="Rank">Lower comes first; Monaco still ranks by how well an item matches what was typed.</param>
     public sealed record CompletionItem(string Label, string InsertText, string Kind, string? Detail, int Rank);
 
+    /// <summary>
+    /// The hover for (text, cursor offset); null = no hover from .NET (WP-89: a script's header lines in the SQL editor).
+    /// Read only when the editor is created.
+    /// </summary>
+    [Parameter]
+    public Func<string, int, Task<HoverInfo?>>? Hover { get; set; }
+
+    /// <param name="Start">Offset of the range the hover is about.</param>
+    /// <param name="Paragraphs">Markdown, shown untrusted (no HTML, no command links).</param>
+    public sealed record HoverInfo(int Start, int Length, IReadOnlyList<string> Paragraphs);
+
+    /// <summary>
+    /// Suggestions while typing also in comments (WP-89: a script's header lines are comments); <see cref="Completion"/>
+    /// answers there with nothing but on a header line. Read only when the editor is created.
+    /// </summary>
+    [Parameter]
+    public bool SuggestInComments { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -138,7 +156,8 @@
             await CallAsync("create", _id, _selfRef, Text,
                 new
                 {
-                    language = Language, minimal = Minimal, field = Field, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly,
+                    language = Language, minimal = Minimal, field = Field, placeholder = Placeholder, completion = Completion is not null, hover = Hover is not null,
+                    commentSuggestions = SuggestInComments, readOnly = ReadOnly,
                     readOnlyMessage = ReadOnlyMessage, wordWrap = WordWrap, lineFeed = LineFeed, reportEdits = OnEdit.HasDelegate,
                     uiLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
                     contextActions = ContextActions.Select(a => new { id = a.Id, label = a.Label }),
@@ -214,6 +233,13 @@
         return items.Select(i => (object)new { label = i.Label, insertText = i.InsertText, kind = i.Kind, detail = i.Detail, rank = i.Rank }).ToArray();
     }, []);
 
+    /// <summary>Monaco's hover provider asks (WP-89); null shows nothing.</summary>
+    [JSInvokable]
+    public Task<object?> OnHover(string elementId, string text, int offset) => GuardAsync<object?>(async () =>
+        Hover is not null && await Hover(text, offset) is { } hover
+            ? new { start = hover.Start, length = hover.Length, paragraphs = hover.Paragraphs }
+            : null, null);
+
     /// <summary>The text with selection start and end (equal without a selection) as offsets; null if the editor is gone.</summary>
     public Task<EditorRunContext?> GetRunContextAsync() => CallAsync<EditorRunContext?>("getRunContext", _id);
 
@@ -221,8 +247,18 @@
     public Task FlashAsync(int start, int length) => CallAsync("flash", _id, start, length);
 
     /// <summary>Marks ranges by text offset (SQL errors); an empty list clears them.</summary>
-    public Task SetOffsetMarkersAsync(IEnumerable<EditorMarker> markers) =>
-        CallAsync("setOffsetMarkers", _id, markers.Select(m => new { start = m.Start, length = m.Length, severity = m.Severity, message = m.Message }));
+    /// <param name="owner">
+    /// Marks of one owner replace only that owner's: the header marks while typing (WP-89, <see cref="HeaderMarkers"/>) and
+    /// the errors of a run do not clear each other.
+    /// </param>
+    public Task SetOffsetMarkersAsync(IEnumerable<EditorMarker> markers, string owner = RunMarkers) =>
+        CallAsync("setOffsetMarkers", _id, markers.Select(m => new { start = m.Start, length = m.Length, severity = m.Severity, message = m.Message }), owner);
+
+    /// <summary>The owner of the marks of a run (errors, warnings of the script plan).</summary>
+    public const string RunMarkers = "ferretsharp";
+
+    /// <summary>The owner of the marks on a script's header lines (WP-89).</summary>
+    public const string HeaderMarkers = "ferretsharp-header";
 
     public Task RevealOffsetAsync(int offset) => CallAsync("revealOffset", _id, offset);
 
@@ -231,6 +267,7 @@
 
     public sealed record EditorRunContext(string Text, int Start, int End);
 
+    /// <param name="Severity"><c>error</c>, <c>warning</c> or <c>info</c>.</param>
     public sealed record EditorMarker(int Start, int Length, string Severity, string Message);
 
     public Task SetTextAsync(string text) => CallAsync("setText", _id, text);
