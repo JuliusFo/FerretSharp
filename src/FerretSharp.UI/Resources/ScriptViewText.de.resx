@@ -237,4 +237,13 @@
   <data name="CellMenu_RowsNotLoaded" xml:space="preserve">
     <value>{0} der Auswahl sind nicht geladen: Ihre Werte fehlten in der Liste. Bis dorthin scrollen oder weniger auswählen.</value>
   </data>
+  <data name="Help_Scripts" xml:space="preserve">
+    <value>Wie funktionieren Skripte?</value>
+  </data>
+  <data name="SqlView_HelpTitle" xml:space="preserve">
+    <value>Hilfe zu SQL-Skripten</value>
+  </data>
+  <data name="Notice_Help" xml:space="preserve">
+    <value>Hilfe</value>
+  </data>
 </root>

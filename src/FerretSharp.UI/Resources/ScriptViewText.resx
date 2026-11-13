@@ -312,4 +312,16 @@
     <value>{0} of the selection are not loaded: the list would miss their values. Scroll to them or select fewer.</value>
     <comment>{0}: rows text such as "3 rows"</comment>
   </data>
+  <data name="Help_Scripts" xml:space="preserve">
+    <value>How do scripts work?</value>
+    <comment>Link to the help on SQL scripts (explorer, save dialog)</comment>
+  </data>
+  <data name="SqlView_HelpTitle" xml:space="preserve">
+    <value>Help on SQL scripts</value>
+    <comment>Tooltip of the help button in the SQL tab's toolbar</comment>
+  </data>
+  <data name="Notice_Help" xml:space="preserve">
+    <value>Help</value>
+    <comment>Link in the notice about unusable header lines</comment>
+  </data>
 </root>

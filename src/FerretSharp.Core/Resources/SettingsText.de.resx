@@ -402,4 +402,10 @@
   <data name="HintKeepResult" xml:space="preserve">
     <value>Im SQL-Editor: Das gezeigte Ergebnis bleibt stehen, wenn das nächste Statement läuft.</value>
   </data>
+  <data name="ActionScriptHelp" xml:space="preserve">
+    <value>Hilfe: SQL-Skripte</value>
+  </data>
+  <data name="HintScriptHelp" xml:space="preserve">
+    <value>Öffnet die Hilfe zu SQL-Skripten neben dem SQL-Tab – in einem neuen, wenn kein SQL-Tab aktiv ist.</value>
+  </data>
 </root>

@@ -7,6 +7,7 @@
 @using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@using FerretSharp.Core.Scripts
 @using FerretSharp.Core.Workspaces
 @inherits FerretComponent
 @implements IDisposable
@@ -35,6 +36,8 @@
         <MoreMenu ButtonClass="btn ghost" Title="@ScriptViewText.SqlView_ScriptMenuTitle" Items="ScriptMenu" />
         <button class="btn ghost @(_scriptsOpen ? "active" : "")" title="@ScriptViewText.SqlView_ScriptsTitle" @onclick="ToggleScripts">@ScriptViewText.SqlView_Scripts</button>
         <button class="btn ghost @(_historyOpen ? "active" : "")" title="@SqlEditorText.SqlView_HistoryTitle" @onclick="ToggleHistoryAsync">@SqlEditorText.SqlView_History</button>
+        <button class="icon-btn ghost @(Tab.HelpOpen ? "active" : "")" title="@ScriptViewText.SqlView_HelpTitle" aria-pressed="@(Tab.HelpOpen ? "true" : "false")"
+                @onclick="ToggleHelp">@Icons.Help</button>
         @if (Tab.ShownRun is { Info.IsQuery: true, Error: null } && _error is null)
         {
             <button class="btn ghost" title="@SqlEditorText.SqlView_PlanTitle" @onclick="() => _planOpen = true">@SqlEditorText.Plan_Open</button>
@@ -58,6 +61,10 @@
             }
             else
             {
+                @if (notice.Help)
+                {
+                    <button class="link-btn" @onclick="ShowHelp">@ScriptViewText.Notice_Help</button>
+                }
                 <button class="icon-btn ghost" title="@CommonText.Close" @onclick="() => _scriptNotice = null">@Icons.Close</button>
             }
         </div>
@@ -65,7 +72,7 @@
 
     <div class="sql-main">
         <div class="sql-editors">
-            <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync" FocusOnCreate="_focusOnCreate"
+            <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync" Hover="HoverAsync" SuggestInComments="true" FocusOnCreate="_focusOnCreate"
                           OnCreated="OnEditorCreated" ContextActions="EditorActions" Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
             <SqlVariablesEditor Variables="Tab.Variables" Binds="_binds" OnChange="SetVariables" />
         </div>
@@ -77,6 +84,10 @@
         @if (_scriptsOpen)
         {
             <SqlScriptsPanel Profile="Active.Profile" OnInsert="InsertScriptAsync" />
+        }
+        @if (Tab.HelpOpen)
+        {
+            <HelpPanel Topic="HelpTopic.Scripts" OnClose="ToggleHelp" />
         }
 
         <ResizeHandle Edge="ResizeEdge.Bottom" Min="EditorMinHeight" MaxFraction="EditorMaxFraction" Variable="@PanelSizes.SqlEditorHeight"
@@ -124,7 +135,7 @@
                     }
                     else
                     {
-                        <button class="@css" title="@run.Statement.Text" @onclick="() => SelectRun(run)">
+                        <button class="@css" title="@ScriptHeaderHelp.WithoutHeader(run.Statement.Text)" @onclick="() => SelectRun(run)">
                             @(run.Number > 0 ? run.Number + " · " : "")@run.Info.FirstWord · @RunOutcome(run)@Duration(run)
                         </button>
                     }
@@ -136,7 +147,7 @@
         {
             <RunProgress @key="current" WorkspaceId="Tab.WorkspaceId" Started="_currentStarted" OnCancel="Cancel"
                          Title="@RunTitle(current)" Hint="@(current.Info.IsDdl ? SqlEditorText.Run_DdlWaiting : null)" MayWaitForLock="!current.Info.IsQuery"
-                         Detail="@current.Statement.Text" ScriptStarted="@(_total > 1 ? _scriptStarted : null)" />
+                         Detail="@ScriptHeaderHelp.WithoutHeader(current.Statement.Text)" ScriptStarted="@(_total > 1 ? _scriptStarted : null)" />
         }
         else if (Tab.ShownRun is { } run && _error is null)
         {
@@ -268,7 +279,8 @@
 
 @if (_save is { } draft)
 {
-    <ScriptSaveDialog Draft="draft" Folders="FoldersOf" Error="@_saveError" Busy="_saving" OnSave="() => SaveDraftAsync(replace: false)" OnCancel="CloseSaveDialog" />
+    <ScriptSaveDialog Draft="draft" Folders="FoldersOf" Error="@_saveError" Busy="_saving" OnSave="() => SaveDraftAsync(replace: false)" OnCancel="CloseSaveDialog"
+                      OnHelp="ShowHelpFromSave" />
 }
 
 @if (_scriptConfirm is { } question)
@@ -394,6 +406,7 @@
 
     private void OnEditorCreated()
     {
+        Fire(() => UpdateHeaderMarkersAsync(Tab.Text));
         if (_runOnCreate)
         {
             _runOnCreate = false;
@@ -451,6 +464,10 @@
             case TabCommand.KeepResult:
                 Fire(ToggleKeep);
                 break;
+            case TabCommand.ShowHelp:
+                ShowHelp();
+                StateHasChanged();
+                break;
             case TabCommand.FindColumn when _editor is not null:
                 // The focus in the result's form: its field search (review 3.44.0, A9), else the editor's search.
                 Fire(async () =>
@@ -470,7 +487,59 @@
     {
         Tab.Text = text;
         Shell.MarkDirty();
+        Fire(() => UpdateHeaderMarkersAsync(text)); // may read table structures: typing goes on meanwhile
         await UpdateVariablesAsync(text);
+    }
+
+    /// <summary>Counts <see cref="UpdateHeaderMarkersAsync"/> calls; only the newest may show its marks.</summary>
+    private int _headerMarkersVersion;
+
+    /// <summary>
+    /// Marks the script's header lines that cannot be used while typing (WP-89): the rules of saving, unknown or misplaced
+    /// directives, and targets whose table or column the connection lacks. Their own owner: a run's errors stay.
+    /// </summary>
+    private async Task UpdateHeaderMarkersAsync(string text)
+    {
+        var version = ++_headerMarkersVersion;
+        var markers = await ScriptHeaderHelp.MarkersAsync(text, Active.Schema, CancellationToken.None);
+        if (version == _headerMarkersVersion && _editor is not null)
+        {
+            await _editor.SetOffsetMarkersAsync(
+                markers.Select(m => new MonacoEditor.EditorMarker(m.Start, m.Length, m.Severity == ScriptMarkerSeverity.Info ? "info" : "warning", m.Message)),
+                MonacoEditor.HeaderMarkers);
+        }
+    }
+
+    /// <summary>The hover over a header line (WP-89); nothing elsewhere.</summary>
+    private async Task<MonacoEditor.HoverInfo?> HoverAsync(string text, int offset) =>
+        await ScriptHeaderHelp.HoverAsync(text, offset, Active.Schema, CancellationToken.None) is { } hover
+            ? new MonacoEditor.HoverInfo(hover.Start, hover.Length, hover.Paragraphs)
+            : null;
+
+    /// <summary>The help on scripts beside the editor, or closed (WP-89); one panel beside the editor at a time.</summary>
+    private void ToggleHelp()
+    {
+        if (Tab.HelpOpen)
+        {
+            Tab.HelpOpen = false;
+        }
+        else
+        {
+            ShowHelp();
+        }
+    }
+
+    private void ShowHelp()
+    {
+        Tab.HelpOpen = true;
+        (_historyOpen, _scriptsOpen) = (false, false);
+    }
+
+    /// <summary>"How do scripts work?" in the save dialog: the dialog closes (it would cover the help), the help opens.</summary>
+    private void ShowHelpFromSave()
+    {
+        CloseSaveDialog();
+        ShowHelp();
     }
 
     /// <summary>Variables follow the binds of the script; new ones get the type of the column they are compared with.</summary>
@@ -708,7 +777,8 @@
     private async Task<SqlRun> RunOneAsync(SqlRun run, CancellationToken token)
     {
         run = run with { At = DateTimeOffset.Now };
-        var log = new StatementLog(run.Statement.Text, Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList());
+        // The history keeps the SQL without the script's header lines (WP-89); what runs keeps them.
+        var log = new StatementLog(ScriptHeaderHelp.WithoutHeader(run.Statement.Text), Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList());
         run = run with { Variables = log.Variables };
         var outcome = run.Info.IsQuery ? await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, run.Query, SqlResultGrid.PageSize, log, token)
             : run.Info.IsDdl ? await Lifecycle.Statements.DdlAsync(Tab.WorkspaceId, run.Query.Sql, log, token)
@@ -825,7 +895,7 @@
 
     /// <summary>A kept result's tooltip: its name in full (the chip may cut it, second review), the statement, how to rename.</summary>
     private static string ChipTitle(SqlRun run) =>
-        (run.Name is { } name ? name + "\n\n" : "") + TextFormat.Format(SqlEditorText.Result_ChipTitle, run.Statement.Text);
+        (run.Name is { } name ? name + "\n\n" : "") + TextFormat.Format(SqlEditorText.Result_ChipTitle, ScriptHeaderHelp.WithoutHeader(run.Statement.Text));
 
     /// <summary>The shortcut: keeps the result shown, or lets it go if it is kept.</summary>
     private void ToggleKeep()
@@ -1023,6 +1093,7 @@
     {
         _historyOpen = !_historyOpen;
         _scriptsOpen &= !_historyOpen; // one panel beside the editor at a time
+        Tab.HelpOpen &= !_historyOpen;
         if (_historyOpen && Active.Profile is { } profile)
         {
             _history = await History.LoadAsync(profile.Id, CancellationToken.None);
@@ -1052,6 +1123,12 @@
     /// <summary>Completion for the statement around the cursor (also one still being written).</summary>
     private async Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteAsync(string text, int cursor)
     {
+        // A script's header line being typed (WP-89): its own items, also without a schema (directives, types, binds).
+        if (await ScriptHeaderHelp.CompleteAsync(text, cursor, Active.Schema, CancellationToken.None) is { } header)
+        {
+            return header.Select(i => new MonacoEditor.CompletionItem(i.Label, i.InsertText, i.Kind.ToString(), i.Detail, i.Rank)).ToList();
+        }
+
         if (Active.Schema is not { } schema)
         {
             return [];

@@ -1,0 +1,34 @@
+@* The help beside a view (WP-89, ADR 0051): a topic's short guide where it is needed – first SQL scripts beside the SQL
+   editor, so it can be read while typing. The texts are HelpText (English and German), written for users, not a copy of
+   the internal docs. *@
+
+<aside class="sql-history help-panel" aria-label="@HelpText.Panel_Title">
+    <div class="help-head">
+        @Icons.Help
+        <span class="help-title">@TopicTitle</span>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
+    </div>
+    <div class="help-body">
+        @switch (Topic)
+        {
+            case HelpTopic.Scripts:
+                <ScriptHelp />
+                break;
+        }
+    </div>
+</aside>
+
+@code {
+    [Parameter]
+    public HelpTopic Topic { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string TopicTitle => Topic switch
+    {
+        HelpTopic.Scripts => HelpText.Scripts_Title,
+        _ => HelpText.Panel_Title,
+    };
+}

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Panel_Title" xml:space="preserve">
+    <value>Help</value>
+    <comment>Heading of the help panel beside the SQL editor</comment>
+  </data>
+  <data name="Scripts_Title" xml:space="preserve">
+    <value>SQL scripts</value>
+    <comment>Topic of the help panel</comment>
+  </data>
+  <data name="Scripts_Intro" xml:space="preserve">
+    <value>A script is a .sql file in a script folder. The explorer lists it under Scripts; a click opens it in a SQL tab – nothing runs.</value>
+    <comment>Help on scripts</comment>
+  </data>
+  <data name="Scripts_FoldersTitle" xml:space="preserve">
+    <value>Folders</value>
+    <comment>Heading in the help</comment>
+  </data>
+  <data name="Scripts_Folders" xml:space="preserve">
+    <value>Your personal folder, a general one every connection sees and one per connection group – the last two are often in a shared repository.</value>
+    <comment>Help on scripts</comment>
+  </data>
+  <data name="Scripts_FoldersSettings" xml:space="preserve">
+    <value>Set the folders</value>
+    <comment>Link to Settings › SQL scripts</comment>
+  </data>
+  <data name="Scripts_HeaderTitle" xml:space="preserve">
+    <value>The header</value>
+    <comment>Heading in the help</comment>
+  </data>
+  <data name="Scripts_Header" xml:space="preserve">
+    <value>Lines starting with -- @ at the very top of the text, before any other comment or SQL and without a blank line between them; their order is free.</value>
+    <comment>Help on the header; keep -- @ as is</comment>
+  </data>
+  <data name="Scripts_Description" xml:space="preserve">
+    <value>the description, shown in the tooltip in the explorer; several lines make several paragraphs.</value>
+    <comment>Follows the code -- @description text</comment>
+  </data>
+  <data name="Scripts_Param" xml:space="preserve">
+    <value>the type a bind of the SQL is bound as: text, char, number, date, raw or null. Never a value.</value>
+    <comment>Follows the code -- @param name type; keep the type names as is</comment>
+  </data>
+  <data name="Scripts_ParamList" xml:space="preserve">
+    <value>the bind stands alone in IN ( … ) and takes the values of all marked rows, one bind each.</value>
+    <comment>Follows the code -- @param name type list</comment>
+  </data>
+  <data name="Scripts_Target" xml:space="preserve">
+    <value>the column the parameter takes its value from: the script shows in the cell menu of that column and of every column that refers to it. The table without owner.</value>
+    <comment>Follows the code -- @target name TABLE.COLUMN</comment>
+  </data>
+  <data name="Scripts_Unknown" xml:space="preserve">
+    <value>Lines FerretSharp does not know are kept as they are.</value>
+    <comment>Help on the header</comment>
+  </data>
+  <data name="Scripts_EditorTitle" xml:space="preserve">
+    <value>In the SQL tab</value>
+    <comment>Heading in the help</comment>
+  </data>
+  <data name="Scripts_EditorSave" xml:space="preserve">
+    <value>Saving takes the @param and @description lines typed at the top: the type goes to the variables, the description into the save dialog, and the lines leave the text. @target and unknown lines stay at the top.</value>
+    <comment>Help on the header in the SQL editor</comment>
+  </data>
+  <data name="Scripts_EditorMarks" xml:space="preserve">
+    <value>Lines that cannot be used are marked while you type. Hover a line to see what it does – on a @target also whether the connection has its column and where the script shows.</value>
+    <comment>Help on the header in the SQL editor</comment>
+  </data>
+  <data name="Scripts_EditorComplete" xml:space="preserve">
+    <value>After -- @ the editor suggests the header lines, the types, the binds of the SQL and the tables and columns.</value>
+    <comment>Help on the header in the SQL editor; keep -- @ as is</comment>
+  </data>
+  <data name="Scripts_CellTitle" xml:space="preserve">
+    <value>From a cell</value>
+    <comment>Heading in the help</comment>
+  </data>
+  <data name="Scripts_Cell" xml:space="preserve">
+    <value>The cell menu lists the scripts whose target the column reaches. A script that only reads runs at once, also on Prod; any other opens with the value filled in. A list parameter takes the values of all marked rows.</value>
+    <comment>Help on scripts in the cell menu</comment>
+  </data>
+  <data name="Scripts_SaveTitle" xml:space="preserve">
+    <value>Saving</value>
+    <comment>Heading in the help</comment>
+  </data>
+  <data name="Scripts_Save" xml:space="preserve">
+    <value>Save writes the tab into its file, or asks for name and folder. ● beside the title: the tab differs from its file; a change of the file on disk is reported.</value>
+    <comment>Help on saving scripts</comment>
+  </data>
+</root>

@@ -75,6 +75,10 @@ internal static class Icons
     public static readonly MarkupString Locked = Svg(
         """<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>""");
 
+    /// <summary>Lucide <c>circle-question-mark</c>: the help on a topic beside the view (WP-89, SQL scripts).</summary>
+    public static readonly MarkupString Help = Svg(
+        """<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>""");
+
     /// <summary>Lucide <c>info</c>: more about a view in its tooltip.</summary>
     public static readonly MarkupString Info = Svg(
         """<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>""");

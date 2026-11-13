@@ -64,6 +64,11 @@
     {
         <div class="sidebar-error">@_error</div>
     }
+    @if (!Searching)
+    {
+        @* WP-89: the help opens beside a SQL tab – where a script is written. *@
+        <button class="link-btn script-help-link" @onclick="Shell.ShowScriptHelp">@Icons.Help @ScriptViewText.Help_Scripts</button>
+    }
 </div>
 
 <ContextMenuHost @ref="_menu" TItem="ScriptEntry" Width="260" EstimatedHeight="180">

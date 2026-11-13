@@ -61,6 +61,10 @@
         }
     </div>
     <footer>
+        @if (OnHelp.HasDelegate)
+        {
+            <button class="link-btn" @onclick="OnHelp">@ScriptViewText.Help_Scripts</button>
+        }
         <span class="spacer"></span>
         <button class="btn ghost" @onclick="OnCancel">@CommonText.Cancel</button>
         <button class="btn primary" disabled="@(Busy)" @onclick="SaveAsync">@CommonText.Save</button>
@@ -83,6 +87,10 @@
 
     [Parameter]
     public string? Error { get; set; }
+
+    /// <summary>"How do scripts work?" (WP-89): the help beside the SQL tab.</summary>
+    [Parameter]
+    public EventCallback OnHelp { get; set; }
 
     [Parameter]
     public bool Busy { get; set; }

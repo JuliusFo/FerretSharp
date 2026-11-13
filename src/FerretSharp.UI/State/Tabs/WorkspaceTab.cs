@@ -172,6 +172,9 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
     /// </summary>
     public bool RunOnOpen { get; set; }
 
+    /// <summary>The help on SQL scripts beside the editor (WP-89, <see cref="ShellState.ShowScriptHelp"/>); not saved.</summary>
+    public bool HelpOpen { get; set; }
+
     /// <summary>Height of the editor as dragged, in CSS pixels; null for the default (decision of the user: per tab).</summary>
     public int? EditorHeight { get; set; }
 

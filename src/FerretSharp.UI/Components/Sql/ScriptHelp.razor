@@ -1,0 +1,49 @@
+@* The help on SQL scripts (WP-89) in the help panel beside the SQL editor: folders, the header with an example, what the
+   SQL tab does with it, scripts in the cell menu and saving. Directives and the example are code and stay as they are
+   (docs/localization.md); the rest is HelpText. *@
+
+<p>@HelpText.Scripts_Intro</p>
+
+<h3>@HelpText.Scripts_FoldersTitle</h3>
+<p>@HelpText.Scripts_Folders</p>
+<p><button class="link-btn" @onclick="() => Shell.ShowSettings(SettingsPart.Scripts)">@HelpText.Scripts_FoldersSettings</button></p>
+
+<h3>@HelpText.Scripts_HeaderTitle</h3>
+<p>@HelpText.Scripts_Header</p>
+<SqlCode Sql="@Example" Class="help-example" />
+<ul class="help-list">
+    <li><code>-- @@description text</code> – @HelpText.Scripts_Description</li>
+    <li><code>-- @@param name type</code> – @HelpText.Scripts_Param</li>
+    <li><code>-- @@param name type list</code> – @HelpText.Scripts_ParamList</li>
+    <li><code>-- @@target name TABLE.COLUMN</code> – @HelpText.Scripts_Target</li>
+</ul>
+<p>@HelpText.Scripts_Unknown</p>
+
+<h3>@HelpText.Scripts_EditorTitle</h3>
+<p>@HelpText.Scripts_EditorSave</p>
+<p>@HelpText.Scripts_EditorMarks</p>
+<p>@HelpText.Scripts_EditorComplete</p>
+
+<h3>@HelpText.Scripts_CellTitle</h3>
+<p>@HelpText.Scripts_Cell</p>
+
+<h3>@HelpText.Scripts_SaveTitle</h3>
+<p>@HelpText.Scripts_Save</p>
+
+@code {
+    /// <summary>Code, not text: the same in every language (neutral names, no customer schema).</summary>
+    private const string Example = """
+        -- @description Open orders of a customer
+        -- @param customer_id number
+        -- @param since date
+        -- @target customer_id CUSTOMER.CUSTOMER_ID
+
+        SELECT *
+          FROM orders
+         WHERE customer_id = :customer_id
+           AND created >= :since;
+        """;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+}
