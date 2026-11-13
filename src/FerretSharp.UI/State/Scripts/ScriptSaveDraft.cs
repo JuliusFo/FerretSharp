@@ -21,13 +21,14 @@ public enum ScriptSaveSource
 /// <param name="Link">The file the tab is linked to, for "Save as" (root and folder preset, description kept).</param>
 public sealed record ScriptSaveRequest(ScriptSaveSource Source, string Text, IReadOnlyList<SqlVariable> Variables, string Name, ScriptLink? Link = null);
 
+/// <summary>The entries of a save dialog (<see cref="ScriptSaveDraft.Inputs"/>).</summary>
+/// <param name="TextDescription">The description the text gave the dialog when it opened; one typed into the text since then wins.</param>
+public sealed record ScriptSaveInputs(ScriptRoot Root, string Name, string Folder, string Description, string? TextDescription);
+
 /// <summary>
 /// The fields of the "Save as script" dialog (WP-77): name, folder of the settings, folder below it, description. Checks
 /// name and folder as the file system will (<see cref="ScriptPaths"/>); the dialog shows the errors at the fields.
 /// </summary>
-/// <summary>The entries of a save dialog (<see cref="ScriptSaveDraft.Inputs"/>).</summary>
-public sealed record ScriptSaveInputs(ScriptRoot Root, string Name, string Folder, string Description);
-
 public sealed class ScriptSaveDraft
 {
     public ScriptSaveDraft(ScriptSaveRequest request, IReadOnlyList<ScriptRoot> roots)
@@ -80,19 +81,25 @@ public sealed class ScriptSaveDraft
     public string Description { get; set; } = "";
 
     /// <summary>What was entered (WP-89: kept while the help is read, <see cref="Take"/>).</summary>
-    public ScriptSaveInputs Inputs => new(Root, Name, Folder, Description);
+    public ScriptSaveInputs Inputs => new(Root, Name, Folder, Description, Save.Header.Description);
 
     /// <summary>
-    /// Takes the entries of an earlier dialog of the same tab: name, folder and description; the folder of the settings only
-    /// if this connection still sees it.
+    /// Takes the entries of an earlier dialog of the same tab: the name; the description unless the text has another one
+    /// now (typed after reading the help – review WP-89, N1); the folder of the settings with the folder below it, only if
+    /// this connection still sees it (a subfolder belongs to its root – N5).
     /// </summary>
     public void Take(ScriptSaveInputs inputs)
     {
         ArgumentNullException.ThrowIfNull(inputs);
-        (Name, Folder, Description) = (inputs.Name, inputs.Folder, inputs.Description);
+        Name = inputs.Name;
+        if (Save.Header.Description == inputs.TextDescription)
+        {
+            Description = inputs.Description;
+        }
+
         if (Roots.Contains(inputs.Root))
         {
-            Root = inputs.Root;
+            (Root, Folder) = (inputs.Root, inputs.Folder);
         }
     }
 

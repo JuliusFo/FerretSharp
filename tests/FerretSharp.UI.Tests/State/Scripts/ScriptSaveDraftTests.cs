@@ -12,27 +12,31 @@ public sealed class ScriptSaveDraftTests
     private static readonly IReadOnlyList<ScriptRoot> Roots = [Personal, Erp];
 
     /// <summary>
-    /// Review WP-89, 7: the save dialog closed for the help gives its entries to the next one – with the text as it is then,
-    /// and a folder of the settings only if the connection still sees it.
+    /// Review WP-89, 7: the save dialog closed for the help gives its entries to the next one – with the text as it is then.
+    /// A description typed into the text meanwhile wins over the dialog's (N1); the subfolder comes only with its folder of
+    /// the settings, and that only if the connection still sees it (N5).
     /// </summary>
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void A_new_draft_takes_the_entries_of_one_closed_for_the_help(bool rootStillSeen)
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void A_new_draft_takes_the_entries_of_one_closed_for_the_help(bool rootStillSeen, bool descriptionTyped)
     {
         var closed = new ScriptSaveDraft(new ScriptSaveRequest(ScriptSaveSource.Window, "SELECT 1 FROM dual", [], ""), Roots)
         {
             Root = Erp, Name = "Open orders", Folder = "Orders", Description = "By customer",
         };
 
-        // The text as it is now: a target typed after reading the help counts.
+        // The text as it is now: a target (and maybe a description) typed after reading the help counts.
+        var header = (descriptionTyped ? "-- @description Typed in the text\n" : "") + "-- @target id ORDERS.ID\n\n";
         var next = new ScriptSaveDraft(
-            new ScriptSaveRequest(ScriptSaveSource.Window, "-- @target id ORDERS.ID\n\nSELECT * FROM orders WHERE id = :id", [], ""),
+            new ScriptSaveRequest(ScriptSaveSource.Window, header + "SELECT * FROM orders WHERE id = :id", [], ""),
             rootStillSeen ? Roots : [Personal]);
         next.Take(closed.Inputs);
 
-        Assert.Equal(("Open orders", "Orders", "By customer"), (next.Name, next.Folder, next.Description));
-        Assert.Equal(rootStillSeen ? Erp : Personal, next.Root);
+        Assert.Equal("Open orders", next.Name);
+        Assert.Equal(descriptionTyped ? "Typed in the text" : "By customer", next.Description);
+        Assert.Equal(rootStillSeen ? (Erp, "Orders") : (Personal, ""), (next.Root, next.Folder));
         Assert.Single(next.Save.Header.Targets);
     }
 
