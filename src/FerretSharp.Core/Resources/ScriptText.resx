@@ -96,6 +96,18 @@
     <value>@target names {0}, but there is no @param {0}.</value>
     <comment>{0}: name of the parameter</comment>
   </data>
+  <data name="TargetUnknownBind" xml:space="preserve">
+    <value>@target names {0}, but the SQL has no bind :{0}.</value>
+    <comment>{0}: name of the parameter</comment>
+  </data>
+  <data name="ParamUnknownBind" xml:space="preserve">
+    <value>@param names {0}, but the SQL has no bind :{0} – not saved.</value>
+    <comment>{0}: name of the parameter</comment>
+  </data>
+  <data name="HeaderLineProblem" xml:space="preserve">
+    <value>“{0}”: {1}</value>
+    <comment>{0}: the header line as typed; {1}: what is wrong with it</comment>
+  </data>
   <data name="TargetRepeated" xml:space="preserve">
     <value>The target {0} is declared twice for this parameter.</value>
     <comment>{0}: TABLE.COLUMN</comment>

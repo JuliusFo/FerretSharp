@@ -11,16 +11,25 @@ namespace FerretSharp.Core.Scripts;
 /// <param name="Group">The group of a <see cref="ScriptRootKind.Group"/> folder, as the settings name it.</param>
 /// <param name="Path">Relative to the folder, with <c>/</c>.</param>
 /// <param name="FileHash">The file's bytes when last read or written: a save over a file changed since asks first.</param>
-/// <param name="SavedHash">The SQL below the header as the file holds it (<see cref="BodyHash"/>): the tab shows "●" when its own differs.</param>
+/// <param name="SavedHash">
+/// The tab's text when the file was last read or written (<see cref="BodyHash"/>): the tab shows "●" when its own differs.
+/// With <see cref="HeaderInText"/> the text the tab showed (<see cref="ScriptHeaders.EditorText"/>), else the SQL below the header.
+/// </param>
 /// <param name="Header">The file's header: written back with the parameters of the tab's text.</param>
 public sealed record ScriptLink(ScriptRootKind Root, string? Group, string Path, string FileHash, string SavedHash, ScriptHeader Header)
 {
+    /// <summary>
+    /// The tab's text holds the file's targets and the lines FerretSharp keeps as they are (fix-script-header-in-editor):
+    /// saving takes them from the text. False for a link of a workspace written before – saving keeps the file's lines.
+    /// </summary>
+    public bool HeaderInText { get; init; }
+
     /// <summary>The script's name: the tab's title.</summary>
     public string Name => ScriptPaths.NameOf(Path);
 
-    /// <summary>A link to the file just read or written.</summary>
-    public static ScriptLink To(ScriptRoot root, string path, ScriptHeader header, string body, string fileHash) =>
-        new(root.Kind, root.Group, path, fileHash, BodyHash(body), header);
+    /// <summary>A link to the file just read or written, for a tab showing <paramref name="text"/> (<see cref="ScriptHeaders.EditorText"/>).</summary>
+    public static ScriptLink To(ScriptRoot root, string path, ScriptHeader header, string text, string fileHash) =>
+        new(root.Kind, root.Group, path, fileHash, BodyHash(text), header) { HeaderInText = true };
 
     /// <summary>
     /// All parts there: a link from a workspace file edited by hand may lack its path or header (System.Text.Json leaves
@@ -32,9 +41,8 @@ public sealed record ScriptLink(ScriptRootKind Root, string? Group, string Path,
         && Header.Other.All(line => line is not null)
         && Header.Targets is not null && Header.Targets.All(t => t is { Parameter: not null, Table: not null, Column: not null });
 
-    /// <summary>The header to write for the tab's text: the file's, with the parameters of the text's binds.</summary>
-    public ScriptHeader HeaderFor(string text, IReadOnlyList<SqlVariable> variables) =>
-        Header with { Parameters = ScriptHeaders.ParametersOf(text, variables, Header.Parameters) };
+    /// <summary>What saving the tab's text writes into this file (<see cref="ScriptHeaders.ForSave"/>).</summary>
+    public ScriptSave SaveOf(string text, IReadOnlyList<SqlVariable> variables) => ScriptHeaders.ForSave(text, variables, Header, HeaderInText);
 
     /// <summary>
     /// The tab's text differs from the file as last read or written, or a parameter of the file has a variable of another
@@ -46,6 +54,6 @@ public sealed record ScriptLink(ScriptRootKind Root, string? Group, string Path,
         BodyHash(text) != SavedHash
         || Header.Parameters.Any(p => variables.FirstOrDefault(v => string.Equals(v.Name, p.Name, StringComparison.OrdinalIgnoreCase)) is { } v && v.Type != p.Type);
 
-    /// <summary>The hash of the SQL below the header, line breaks ignored.</summary>
+    /// <summary>The hash of a tab's text or the SQL below a header, line breaks ignored.</summary>
     public static string BodyHash(string body) => ScriptFiles.HashOf(body);
 }

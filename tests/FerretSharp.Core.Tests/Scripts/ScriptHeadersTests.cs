@@ -179,14 +179,138 @@ public sealed class ScriptHeadersTests
     }
 
     [Fact]
-    public void Saving_keeps_a_list_parameter_a_list_and_the_targets_of_the_file()
+    public void Saving_a_tab_of_an_older_workspace_keeps_a_list_parameter_a_list_and_puts_the_file_s_targets_into_its_text()
     {
-        var header = new ScriptHeader(null, [new("ids", SqlVariableType.Text, List: true)], []) { Targets = [new("ids", "CUSTOMER", "ID")] };
-        var link = ScriptLink.To(new ScriptRoot(ScriptRootKind.Personal, "/s"), "a.sql", header, "SELECT 1", "hash");
+        var header = new ScriptHeader(null, [new("ids", SqlVariableType.Text, List: true)], ["-- @connections all"]) { Targets = [new("ids", "CUSTOMER", "ID")] };
+        // Written before fix-script-header-in-editor: the tab shows the body only.
+        var link = ScriptLink.To(new ScriptRoot(ScriptRootKind.Personal, "/s"), "a.sql", header, "SELECT 1", "hash") with { HeaderInText = false };
+        const string body = "SELECT * FROM t WHERE id IN (:ids) AND x = :x";
 
-        var saved = link.HeaderFor("SELECT * FROM t WHERE id IN (:ids) AND x = :x", [new SqlVariable("ids", SqlVariableType.Number, "")]);
+        var saved = link.SaveOf(body, [new SqlVariable("ids", SqlVariableType.Number, "")]);
 
-        Assert.Equal([new ScriptParameter("ids", SqlVariableType.Number, List: true), new ScriptParameter("x", SqlVariableType.Text)], saved.Parameters);
-        Assert.Equal(header.Targets, saved.Targets);
+        Assert.Equal([new ScriptParameter("ids", SqlVariableType.Number, List: true), new ScriptParameter("x", SqlVariableType.Text)], saved.Header.Parameters);
+        Assert.Equal(header.Targets, saved.Header.Targets);
+        Assert.Equal(header.Other, saved.Header.Other);
+        Assert.Equal(body, saved.Body);
+        Assert.Equal("-- @target ids CUSTOMER.ID\n-- @connections all\n\n" + body, saved.Text); // from now on the text holds them
+        Assert.True(saved.Joined);
+
+        // Second review N2: typed during the write, the tab kept its text without the targets – its link must not claim the
+        // text holds them, or the next save drops them from the shared file.
+        var after = ScriptLink.To(new ScriptRoot(ScriptRootKind.Personal, "/s"), "a.sql", saved.Header, saved.Text, "hash2");
+        Assert.True(saved.LinkAfter(after, textShown: true).HeaderInText);
+        var notShown = saved.LinkAfter(after, textShown: false);
+        Assert.False(notShown.HeaderInText);
+        Assert.Equal(header.Targets, notShown.SaveOf(body + " -- typed meanwhile", []).Header.Targets);
+    }
+
+    [Fact]
+    public void Header_lines_typed_at_the_top_of_a_tab_are_saved_as_the_header_and_the_targets_stay_in_the_text()
+    {
+        // The case of the user (2026-11-13): typed in the SQL editor, the target ended up in the body and was never read.
+        const string typed = "-- @description Rows of an order\n-- @param ID text\n-- @param ids number list\n-- @target id orders.id\n"
+                             + "SELECT * FROM order_rows WHERE order_id = :id OR order_id IN (:ids);";
+
+        var saved = ScriptHeaders.ForSave(typed, [new SqlVariable("id", SqlVariableType.Number, "7")], null, false);
+
+        Assert.Empty(saved.Problems);
+        Assert.Equal("Rows of an order", saved.Header.Description);
+        Assert.Equal([new ScriptParameter("id", SqlVariableType.Text), new ScriptParameter("ids", SqlVariableType.Number, List: true)], saved.Header.Parameters);
+        Assert.Equal([new ScriptTarget("id", "ORDERS", "ID")], saved.Header.Targets);
+        // @param and @description live in the variables and the dialog: they leave the text, the value typed stays.
+        Assert.Equal([new SqlVariable("id", SqlVariableType.Text, "7"), new SqlVariable("ids", SqlVariableType.Number, "")],
+            ScriptHeaders.Apply([new SqlVariable("id", SqlVariableType.Number, "7")], saved.Typed));
+        // The other lines stay as typed; the file writes the target in its form.
+        Assert.Equal("-- @target id orders.id\n\nSELECT * FROM order_rows WHERE order_id = :id OR order_id IN (:ids);", saved.Text);
+        var file = ScriptHeaders.Parse(ScriptHeaders.Compose(saved.Header, saved.Body));
+        Assert.True(file.Header.SameAs(saved.Header));
+        Assert.Equal(saved.Body, file.Body);
+    }
+
+    [Fact]
+    public void A_tab_showing_the_file_saves_it_unchanged_and_its_text_decides_the_targets()
+    {
+        var header = new ScriptHeader("x", [new("id", SqlVariableType.Number)], ["-- @connections all"]) { Targets = [new("id", "CUSTOMER", "ID")] };
+        const string body = "SELECT * FROM orders WHERE customer_id = :id";
+        var shown = ScriptHeaders.EditorText(header, body);
+        var variables = ScriptHeaders.Apply([], header.Parameters);
+
+        Assert.Equal("-- @target id CUSTOMER.ID\n-- @connections all\n\n" + body, shown);
+        var same = ScriptHeaders.ForSave(shown, variables, header, true);
+        Assert.True(same.Header.SameAs(header));
+        Assert.Equal((body, shown), (same.Body, same.Text));
+        Assert.Equal(body, ScriptHeaders.EditorText(ScriptHeader.Empty, body));
+
+        // A line deleted in the text is gone; a target whose bind the SQL lacks is reported with its line in the text and kept.
+        var edited = ScriptHeaders.ForSave("-- @target other CUSTOMER.ID\n" + body, variables, header, true);
+
+        Assert.Empty(edited.Header.Targets);
+        Assert.Equal(["-- @target other CUSTOMER.ID"], edited.Header.Other);
+        // Named by the line, not its number; the bind is missing, not a @param line.
+        Assert.Equal(["„-- @target other CUSTOMER.ID“: @target nennt other, aber das SQL hat keinen Bind :other."], edited.Problems);
+        Assert.Equal("x", edited.Header.Description); // the file's, nothing typed
+        Assert.Equal("-- @target other CUSTOMER.ID\n" + body, edited.Text); // nothing taken out: as typed
+    }
+
+    [Fact]
+    public void A_typed_param_without_its_bind_is_reported_and_stays_in_the_text_named_by_its_line()
+    {
+        // Review fix-script-header-in-editor, 2 and 4: the line vanished with its type, and a number pointed elsewhere once
+        // the text was rebuilt (the description line leaves it).
+        const string typed = "-- @description d\n-- @param customerid number\n-- @target customer_id CUSTOMER.ID\nSELECT :customer_id FROM dual";
+
+        var saved = ScriptHeaders.ForSave(typed, [], null, false);
+
+        Assert.Empty(saved.Typed); // no variable for it
+        Assert.Equal([new ScriptParameter("customer_id", SqlVariableType.Text)], saved.Header.Parameters);
+        Assert.Equal([new ScriptTarget("customer_id", "CUSTOMER", "ID")], saved.Header.Targets);
+        Assert.Empty(saved.Header.Other); // not written (second review N1): the file would read it as a parameter
+        Assert.Equal(["„-- @param customerid number“: @param nennt customerid, aber das SQL hat keinen Bind :customerid – nicht gespeichert."], saved.Problems);
+        Assert.Equal("-- @param customerid number\n-- @target customer_id CUSTOMER.ID\n\nSELECT :customer_id FROM dual", saved.Text);
+        Assert.Equal(saved.Header.Parameters, ScriptHeaders.Parse(ScriptHeaders.Compose(saved.Header, saved.Body)).Header.Parameters);
+
+        // Third review K2: the file lacks the line, so the tab showing it counts as changed – a change on disk asks then.
+        Assert.Equal("-- @target customer_id CUSTOMER.ID\n\nSELECT :customer_id FROM dual", saved.SavedText);
+        var link = ScriptLink.To(new ScriptRoot(ScriptRootKind.Personal, "/s"), "a.sql", saved.Header, saved.SavedText, "hash");
+        Assert.True(link.IsChanged(saved.Text, []));
+        Assert.False(link.IsChanged(saved.SavedText, []));
+    }
+
+    [Fact]
+    public void A_param_of_the_file_kept_with_errors_is_not_shown_and_saving_leaves_the_type()
+    {
+        // Review fix-script-header-in-editor, 3: shown in the tab, the second line of a parameter (after a merge) was taken as
+        // typed on the next save and turned the type unseen.
+        var file = ScriptHeaders.Parse("-- @param id number\n-- @param id text\n-- @connections all\nSELECT :id FROM dual").Header;
+        var shown = ScriptHeaders.EditorText(file, "SELECT :id FROM dual");
+
+        var saved = ScriptHeaders.ForSave(shown, ScriptHeaders.Apply([], file.Parameters), file, true);
+
+        Assert.Equal("-- @connections all\n\nSELECT :id FROM dual", shown);
+        Assert.Equal([new ScriptParameter("id", SqlVariableType.Number)], saved.Header.Parameters);
+        Assert.Equal(["-- @connections all", "-- @param id text"], saved.Header.Other); // kept in the file as before
+        Assert.Equal(shown, saved.Text);
+
+        // Second review N3: a @param of that name typed settles it – the hidden line goes, else it could never be removed.
+        var settled = ScriptHeaders.ForSave("-- @param id text\n" + shown, ScriptHeaders.Apply([], file.Parameters), file, true);
+
+        Assert.Equal([new ScriptParameter("id", SqlVariableType.Text)], settled.Header.Parameters);
+        Assert.Equal(["-- @connections all"], settled.Header.Other);
+
+        // Third review K3: hidden @param lines without effect – no name, or no bind in the SQL – go; with a bind they stay.
+        var stale = file with { Other = ["-- @param", "-- @param gone numbr", "-- @param id numbr"] };
+        Assert.Equal(["-- @connections all", "-- @param id numbr"], ScriptHeaders.ForSave(shown, [], stale, true).Header.Other);
+    }
+
+    [Theory]
+    [InlineData("-- @param id text\nSELECT :id FROM dual", "SELECT :id FROM dual")] // still what was saved: the rebuilt text
+    [InlineData("-- @param id text\r\nSELECT :id FROM dual", "SELECT :id FROM dual")] // line breaks do not count
+    [InlineData("-- @param id text\nSELECT :id, 1 FROM dual", null)] // typed during the write: stays (review 1)
+    public void After_writing_the_tab_gets_the_rebuilt_text_only_while_it_still_holds_the_saved_one(string current, string? expected)
+    {
+        const string saved = "-- @param id text\nSELECT :id FROM dual";
+
+        Assert.Equal(expected, ScriptHeaders.ForSave(saved, [], null, false).TextFor(current, saved));
+        Assert.Null(ScriptHeaders.ForSave("SELECT 1 FROM dual", [], null, false).TextFor("SELECT 1 FROM dual", "SELECT 1 FROM dual")); // nothing rebuilt
     }
 }

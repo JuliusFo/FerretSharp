@@ -26,13 +26,29 @@ SELECT *
    AND angelegt >= :seit;
 ```
 
-- Der **Kopf** sind die `-- @…`-Zeilen ganz oben (Leerzeilen davor erlaubt); die erste andere Zeile beendet ihn, eine Leerzeile direkt danach gehört noch dazu. Was darunter steht, zeigt der SQL-Tab.
+- Der **Kopf** sind die `-- @…`-Zeilen ganz oben (Leerzeilen davor erlaubt); die erste andere Zeile beendet ihn, eine Leerzeile direkt danach gehört noch dazu. Der SQL-Tab zeigt das SQL darunter und darüber nur Ziele und unbekannte Zeilen (unten, *Kopf im SQL-Editor*).
 - `-- @description text` – Beschreibung; mehrere Zeilen ergeben mehrere Absätze.
 - `-- @param name typ` – ein Bind des Skripts mit seinem Typ: `text`, `char`, `number`, `date`, `raw`, `null` (wie im Variablen-Editor). Ein Name mit Leerzeichen in Anführungszeichen (`-- @param "ab datum" date`). **Nie ein Wert.**
 - `-- @param name typ list` (WP-84) – ein Bind, der mehrere Werte nimmt: Er steht allein in `IN ( … )` (`WHERE kunde_id IN (:kunden)`). Mit einem Wert ist er ein gewöhnlicher Bind; mit mehreren (Start aus markierten Zeilen, unten) wird er zu je einem Bind pro Wert (`:kunden_1, :kunden_2, …`), höchstens 1000 (Grenze von Oracle). Ein Wert wird nie zum Literal.
-- `-- @target name TABELLE.SPALTE` (WP-84) – die Spalte, aus der der Parameter seinen Wert nimmt: Das Skript erscheint im Zellmenü dieser Spalte und jeder Spalte, die auf sie zeigt (unten). Tabelle **ohne Owner**, Namen ohne Anführungszeichen werden groß geschrieben (`kunde.kunde_id` = `KUNDE.KUNDE_ID`), mit Anführungszeichen genau so. Der Parameter braucht ein `@param`; mehrere Ziele je Parameter sind mehrere Zeilen. Die Reihenfolge der Kopfzeilen ist frei.
+- `-- @target name TABELLE.SPALTE` (WP-84) – die Spalte, aus der der Parameter seinen Wert nimmt: Das Skript erscheint im Zellmenü dieser Spalte und jeder Spalte, die auf sie zeigt (unten). Tabelle **ohne Owner**, Namen ohne Anführungszeichen werden groß geschrieben (`kunde.kunde_id` = `KUNDE.KUNDE_ID`), mit Anführungszeichen genau so. In der Datei braucht der Parameter ein `@param` (im Tab nicht, das schreibt FerretSharp beim Speichern selbst); mehrere Ziele je Parameter sind mehrere Zeilen. Die Reihenfolge der Kopfzeilen ist frei.
 - Unbekannte `-- @…`-Zeilen und Zeilen mit Fehlern bleiben beim Speichern erhalten (Fehler mit Zeilennummer im Tooltip des Skripts).
 - Beim Speichern schreibt FerretSharp den Kopf neu: Beschreibung, dann die Parameter der Binds, die der Text benutzt, mit den Typen der Variablen, dann die übrigen Zeilen.
+
+### Kopf im SQL-Editor
+
+Der SQL-Tab zeigt oben die Kopfzeilen, für die es sonst keinen Platz gibt: `@target` und Zeilen, die FerretSharp nicht kennt, dann eine Leerzeile und das SQL. Dort werden sie geschrieben, geändert und gelöscht; *Speichern* nimmt alle `-- @…`-Zeilen ganz oben im Text als Kopf.
+
+- `@param` steht in den Variablen (Typ), `@description` im Speichern-Dialog. Oben getippt, werden sie übernommen (Typ und `list`; der Wert der Variable bleibt) und verschwinden danach aus dem Text – ein `@param` nur, wenn das SQL seinen Bind hat; sonst wird es gemeldet, bleibt im Tab stehen und wird nicht gespeichert (in der Datei wäre es ein Parameter, nach dem das Zellmenü fragt). `@param`-Zeilen der Datei mit Fehlern (ein Parameter doppelt) zeigt der Tab nicht; sie bleiben in der Datei, bis oben ein `@param` desselben Namens getippt wird.
+- Was während des Speicherns getippt wird, bleibt stehen; der Tab zeigt dann „●“.
+- Ein `@target` braucht im Tab kein `@param`: Es muss nur einen Bind des SQL nennen.
+- Steht davor ein gewöhnlicher Kommentar oder SQL, ist es kein Kopf mehr.
+- Kopfzeilen, die sich nicht verwenden lassen (Ziel ohne passenden Bind, Tippfehler), meldet die Leiste über dem Editor nach dem Speichern – mit der Zeile selbst, nicht ihrer Nummer; gespeichert werden sie trotzdem, wie sie sind – außer einem `@param` ohne Bind (oben), das nur im Tab bleibt; solange es dort steht, zeigt der Tab „●“. Ausgeblendete `@param`-Zeilen der Datei ohne Wirkung (ohne Namen oder ohne Bind im SQL) fallen beim Speichern weg.
+
+```sql
+-- @target kunde_id KUNDE.KUNDE_ID
+
+SELECT * FROM auftrag WHERE kunde_id = :kunde_id;
+```
 
 **Tipp:** Tabellen ohne Owner schreiben – dann läuft ein Skript auf jeder Umgebung (das Default-Schema der Verbindung).
 
@@ -50,7 +66,7 @@ Rechtsklick auf eine Zelle zeigt unter **Skripte** die Skripte, deren `@target` 
 - **Reihenfolge:** zuletzt aus einer Zelle gestartete zuerst (`script-usage.json` im Datenordner: Ordnerart, Gruppe, Pfad, Zeit – keine Werte), dann wie in der Liste. Bis zu fünf stehen offen, der Rest hinter „N weitere“; das Filterfeld des Menüs sucht in Name, Beschreibung und Ordner.
 - **Wert:** der Wert der Zelle, wie die Datenbank ihn hat (nicht der Anzeigename eines Enums). Ein `list`-Parameter nimmt die Werte der Spalte aus allen markierten Zeilen, jeden einmal, ohne NULL – der Eintrag zeigt „· N Werte“. NULL, LOBs und Gleitkommazahlen lassen sich nicht übergeben (Eintrag gesperrt, Grund im Tooltip); eine Liste auch nicht, solange markierte Zeilen nicht geladen sind (ihre Werte fehlten) oder mehr als 1000 Werte zusammenkommen. Aus einem Zeitreise-Tab kommt der Wert von damals, das Skript liest den Stand von jetzt.
 - **Ausführen:** Besteht das Skript nur aus Abfragen (SELECT/WITH ohne `FOR UPDATE`), öffnet ein SQL-Tab im Workspace der Tabelle und führt es sofort aus – auch auf Prod, es liest nur. Haben weitere Parameter keinen Wert aus der Zelle, fragt vorher ein Dialog danach (*Ausführen* oder *Im Editor öffnen*); die Werte merkt sich FerretSharp für den nächsten Start, nur bis zum Beenden. Ein Skript mit DML öffnet nur, vorbelegt, und führt nichts aus.
-- **Tab:** Ein Tab, der schon mit der Datei verbunden ist, wird genommen, seine Variablen gesetzt – aber nur, wenn sein Text dem der Datei gleicht; sonst öffnet ein neuer Tab mit dem Text der Datei (nicht verbunden), der bearbeitete bleibt, wie er ist. Ausgeführt wird immer das ganze Skript, nie nur eine Markierung, und nur, wenn der Text im Editor aus Abfragen besteht. Mit mehreren Werten eines `list`-Parameters öffnet ein neuer Tab mit dem aufgeklappten Text, **nicht** mit der Datei verbunden (Speichern schriebe sonst die aufgeklappten Binds ins Skript).
+- **Tab:** Ein Tab, der schon mit der Datei verbunden ist, wird genommen, seine Variablen gesetzt – aber nur, wenn sein SQL dem der Datei gleicht (die Kopfzeilen darüber zählen nicht); sonst öffnet ein neuer Tab mit dem Text der Datei (nicht verbunden), der bearbeitete bleibt, wie er ist. Ausgeführt wird immer das ganze Skript, nie nur eine Markierung, und nur, wenn der Text im Editor aus Abfragen besteht. Mit mehreren Werten eines `list`-Parameters öffnet ein neuer Tab mit dem aufgeklappten Text, **nicht** mit der Datei verbunden (Speichern schriebe sonst die aufgeklappten Binds ins Skript).
 
 ## Speichern
 

@@ -50,7 +50,9 @@ public sealed class ScriptCellLaunchTests : IAsyncDisposable
         var tab = await ScriptCellLaunch.StartAsync(_app.Shell, Usage, start, null, run: true, TestContext.Current.CancellationToken);
 
         Assert.NotNull(tab);
-        Assert.Equal(("orders", "SELECT * FROM orders WHERE customer_id = :id"), (tab.Title, tab.Text));
+        // The target shows above the SQL (fix-script-header-in-editor); the parameter is a variable.
+        Assert.Equal(("orders", "-- @target id CUSTOMER.ID\n\nSELECT * FROM orders WHERE customer_id = :id"), (tab.Title, tab.Text));
+        Assert.False(tab.ScriptChanged);
         Assert.Equal([new SqlVariable("id", SqlVariableType.Number, "4711")], tab.Variables);
         Assert.Equal("orders.sql", tab.Script?.Path);
         Assert.True(tab.RunOnOpen);

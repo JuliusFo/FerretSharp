@@ -204,11 +204,11 @@ public partial class SqlView
         (_saving, _saveError) = (true, null);
         try
         {
-            var (root, path, header, text) = (draft.Root, draft.Path, draft.Header, draft.Request.Text);
+            var (root, path, header, save) = (draft.Root, draft.Path, draft.Header, draft.Save);
             ScriptWrite result;
             try
             {
-                result = await ScriptFiles.WriteAsync(root.Path, path, header, text, replace ? ScriptWriteMode.Replace : ScriptWriteMode.New, null,
+                result = await ScriptFiles.WriteAsync(root.Path, path, header, save.Body, replace ? ScriptWriteMode.Replace : ScriptWriteMode.New, null,
                     CancellationToken.None, createRoot: root.Kind == ScriptRootKind.Personal);
             }
             catch (RefusedException ex)
@@ -223,22 +223,28 @@ public partial class SqlView
                 return;
             }
 
+            _save = null;
             if (draft.Request.Source == ScriptSaveSource.Window)
             {
                 // The tab now shows the file: named after it, saved only by "Save" from here on.
-                Tab.Script = ScriptLink.To(root, path, header, text, result.FileHash!);
+                var linked = ScriptLink.To(root, path, header, save.SavedText, result.FileHash!);
+                Tab.Script = linked;
                 (_checkedStamp, _keptHash) = (null, null);
                 // Renders the shell: the tab bar shows the new name, cut to fit a tab title (review WP-77, K5).
                 Shell.RenameTab(Tab, Workspace.FitName(ScriptPaths.NameOf(path)));
-                Shell.MarkDirty();
-                _scriptNotice = null;
+                _scriptNotice = HeaderNotice(save);
+                var shown = await ShowSavedAsync(save, draft.Request.Text);
+                if (Tab.Script == linked)
+                {
+                    Tab.Script = save.LinkAfter(linked, shown);
+                }
             }
             else
             {
-                _scriptNotice = new(ScriptNoticeKind.Info, TextFormat.Format(ScriptViewText.Notice_Saved, ScriptPaths.NameOf(path), ScriptTree.RootLabel(root)));
+                _scriptNotice = HeaderNotice(save)
+                                ?? new(ScriptNoticeKind.Info, TextFormat.Format(ScriptViewText.Notice_Saved, ScriptPaths.NameOf(path), ScriptTree.RootLabel(root)));
             }
 
-            _save = null;
             Fire(() => Library.RefreshAsync()); // all folders are read again: the dialog does not wait for them (review WP-77, M4)
         }
         finally
@@ -250,11 +256,11 @@ public partial class SqlView
     /// <summary>Writes the tab into its file; a file changed on disk since it was read is replaced only after asking.</summary>
     private async Task WriteLinkedAsync(ScriptRoot root, ScriptLink link, string text, ScriptWriteMode mode)
     {
-        var header = link.HeaderFor(text, Tab.Variables);
+        var save = link.SaveOf(text, Tab.Variables);
         ScriptWrite result;
         try
         {
-            result = await ScriptFiles.WriteAsync(root.Path, link.Path, header, text, mode, link.FileHash, CancellationToken.None,
+            result = await ScriptFiles.WriteAsync(root.Path, link.Path, save.Header, save.Body, mode, link.FileHash, CancellationToken.None,
                 createRoot: root.Kind == ScriptRootKind.Personal);
         }
         catch (RefusedException ex)
@@ -269,11 +275,47 @@ public partial class SqlView
             return;
         }
 
-        Tab.Script = ScriptLink.To(root, link.Path, header, text, result.FileHash!);
-        (_checkedStamp, _keptHash, _scriptNotice) = (null, null, null);
-        Shell.MarkDirty();
+        Tab.Script = ScriptLink.To(root, link.Path, save.Header, save.SavedText, result.FileHash!);
+        (_checkedStamp, _keptHash, _scriptNotice) = (null, null, HeaderNotice(save));
+        var linked = Tab.Script;
+        var shown = await ShowSavedAsync(save, text);
+        if (Tab.Script == linked)
+        {
+            Tab.Script = save.LinkAfter(linked, shown);
+        }
+
         Fire(() => Library.RefreshAsync());
     }
+
+    /// <summary>
+    /// The tab after saving <paramref name="saved"/>: the <c>@param</c> and <c>@description</c> lines typed at the top went
+    /// into variables and description, the file's targets of a tab from an older workspace joined the text
+    /// (fix-script-header-in-editor). Writing takes a while on a share over the VPN: what was typed meanwhile – text or a
+    /// variable's value – stays (review fix-script-header-in-editor, 1). True if the tab got <see cref="ScriptSave.Text"/>.
+    /// </summary>
+    private async Task<bool> ShowSavedAsync(ScriptSave save, string saved)
+    {
+        var current = _editor is not null && await _editor.GetTextAsync() is { } now ? now : Tab.Text;
+        var text = save.TextFor(current, saved);
+        if (text is not null)
+        {
+            Tab.Text = text;
+            if (_editor is not null)
+            {
+                await _editor.SetTextAsync(text);
+            }
+        }
+
+        Tab.Variables = ScriptHeaders.Apply(Tab.Variables, save.Typed); // the variables as they are now
+        await UpdateVariablesAsync(Tab.Text);
+        Shell.MarkDirty();
+        return text is not null || save.Text == saved;
+    }
+
+    /// <summary>Header lines at the top of the text that were saved but cannot be used (a target whose bind the SQL lacks): said at once.</summary>
+    private static ScriptNotice? HeaderNotice(ScriptSave save) => save.Problems.Count == 0
+        ? null
+        : new(ScriptNoticeKind.Error, TextFormat.Format(ScriptViewText.Notice_HeaderErrors, string.Join(" · ", save.Problems)));
 
     private string ScriptConfirmText(ScriptConfirm question) => question == ScriptConfirm.ReplaceExisting && _save is { } draft
         ? TextFormat.Format(ScriptViewText.Confirm_ReplaceText, draft.Path, ScriptTree.RootLabel(draft.Root))
@@ -455,16 +497,17 @@ public partial class SqlView
         }
 
         var script = document.Script;
-        Tab.Text = script.Body;
+        var text = ScriptHeaders.EditorText(script.Header, script.Body);
+        Tab.Text = text;
         Tab.Variables = ScriptHeaders.Apply(Tab.Variables, script.Header.Parameters);
-        Tab.Script = ScriptLink.To(root, link.Path, script.Header, script.Body, document.FileHash);
+        Tab.Script = ScriptLink.To(root, link.Path, script.Header, text, document.FileHash);
         (_keptHash, _scriptNotice) = (null, null);
         if (_editor is not null)
         {
-            await _editor.SetTextAsync(script.Body);
+            await _editor.SetTextAsync(text);
         }
 
-        await UpdateVariablesAsync(script.Body);
+        await UpdateVariablesAsync(text);
         Shell.MarkDirty();
     }
 

@@ -38,13 +38,14 @@ public sealed class ScriptSaveDraft
 
         Request = request;
         Roots = roots;
-        Parameters = ScriptHeaders.ParametersOf(request.Text, request.Variables, request.Link?.Header.Parameters);
+        Save = request.Link?.SaveOf(request.Text, request.Variables) ?? ScriptHeaders.ForSave(request.Text, request.Variables, null, false);
         Name = request.Name;
+        // A description typed at the top of the text, else the file's.
+        Description = Save.Header.Description ?? "";
         if (request.Link is { } link)
         {
             Root = ScriptRoots.Find(roots, link.Root, link.Group) ?? roots[0];
             Folder = Root.Is(link.Root, link.Group) ? ScriptPaths.FolderOf(link.Path) : "";
-            Description = link.Header.Description ?? "";
         }
         else
         {
@@ -54,8 +55,14 @@ public sealed class ScriptSaveDraft
 
     public ScriptSaveRequest Request { get; }
 
-    /// <summary>The binds of the text with the types of its variables – worked out once, not on every keystroke (review WP-77, K8).</summary>
-    public IReadOnlyList<ScriptParameter> Parameters { get; }
+    /// <summary>
+    /// Header, body and the tab afterwards, from the text's header lines and the types of its variables – worked out once,
+    /// not on every keystroke (review WP-77, K8).
+    /// </summary>
+    public ScriptSave Save { get; }
+
+    /// <summary>The binds of the text with their types.</summary>
+    public IReadOnlyList<ScriptParameter> Parameters => Save.Header.Parameters;
 
     /// <summary>The folders of the settings the connection sees: personal, its group's, general.</summary>
     public IReadOnlyList<ScriptRoot> Roots { get; }
@@ -95,14 +102,8 @@ public sealed class ScriptSaveDraft
     public string Path => ScriptPaths.Of(ScriptPaths.Folder(Folder), Name.Trim());
 
     /// <summary>
-    /// The header to write: the description as typed, the parameters of the text's binds with the types of its variables,
-    /// and for "Save as" the targets (WP-84) and the lines of the linked file FerretSharp does not know.
+    /// The header to write: the description as typed in the dialog, the parameters of the text's binds with their types,
+    /// the targets (WP-84) and the lines FerretSharp keeps as they are – from the top of the text (<see cref="ScriptHeaders.ForSave"/>).
     /// </summary>
-    public ScriptHeader Header => new(
-        string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
-        Parameters,
-        Request.Link?.Header.Other ?? [])
-    {
-        Targets = Request.Link?.Header.Targets ?? [],
-    };
+    public ScriptHeader Header => Save.Header with { Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim() };
 }
