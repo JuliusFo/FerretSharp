@@ -1,6 +1,6 @@
 # Fix: Coverage-Badge auf main an Zeilenenden gescheitert
 
-Branch `fix/line-endings` (von `main`), 2026-11-12, PR #178, noch ohne Release.
+Branch `fix/line-endings` (von `main`), 2026-11-12, PR #178, Release 3.71.0.
 
 ## Anlass (Meldung des Nutzers, 2026-11-12)
 - „Das CI auf main ist gefailed“: Lauf 43249065190 nach dem Merge von #177. Build und Tests grün, der Job „Coverage badge“ brach in `git switch --force-create badges FETCH_HEAD` ab („Your local changes … would be overwritten by checkout: src/FerretSharp.Core/Connections/ConnectionSearch.cs“).

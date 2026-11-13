@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.71.0] - 2026-11-13
+
 Fixes, structure, tests and docs after the review of 3.70.0 (R9), robustness fixes from the backlog, and editing by key without
 silent mix-ups (WP-85).
 
