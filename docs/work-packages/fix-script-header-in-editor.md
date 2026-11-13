@@ -51,5 +51,5 @@ Separater Reviewer, zwei Runden plus Nachprüfung der Fixes. Entscheidung des Nu
   - K1 (K) Doku nannte die Ausnahme für `@param` ohne Bind nicht: behoben.
   - K2 (K) Ein nicht gespeichertes `@param` stand ohne „●“ im Tab, ein Pull lud es still weg: behoben – der Link hasht den Text ohne die nicht geschriebenen Zeilen (`ScriptSave.SavedText`). Im E2E bestätigt („●“ nach dem Speichern).
   - K3 (K) Ausgeblendete `@param`-Zeilen ohne Namen oder ohne Bind blieben unlöschbar: behoben – sie fallen beim Speichern weg (ohne Wirkung).
-- Vierte Runde: K1–K3 gedeckt. Optional offen (dem Nutzer vorgelegt): R1 – „●“ bleibt nach dem Löschen einer nicht gespeicherten Zeile stehen, wenn der Kopf ohne Leerzeile getippt war (kosmetisch, verschwindet beim nächsten Speichern); R2 – ADR 0046 nennt den Wegfall wirkungsloser `@param`-Zeilen nicht.
+- Vierte Runde: K1–K3 gedeckt. Entscheidung des Nutzers: „R2 und pushen“. R1 (K) „●“ bleibt nach dem Löschen einer nicht gespeicherten Zeile stehen, wenn der Kopf ohne Leerzeile getippt war: nicht geändert (kosmetisch, verschwindet beim nächsten Speichern). R2 (K) ADR 0046 nannte den Wegfall wirkungsloser `@param`-Zeilen nicht: behoben (Nachtrag).
 - Vorher schon da (Backlog): Ein unverbundener Tab aus dem Zellmenü (anderer Text im verbundenen) bekommt nur das SQL ohne Ziele; „Als Skript speichern“ aus ihm verliert sie.
