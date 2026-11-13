@@ -512,23 +512,33 @@
         var schema = Active.Schema;
         _headerMarkersSchema = (schema, schema?.LoadedAt);
         var markers = ScriptHeaderHelp.Markers(text);
-        await ShowHeaderMarkersAsync(version, markers);
         if (schema is null)
         {
+            await ShowHeaderMarkersAsync(version, markers);
             return;
+        }
+
+        // With the structures in the cache the targets are known at once: one call, else every keystroke took the
+        // target marks away and put them back – a flicker (review WP-89, N3).
+        var reading = ScriptHeaderHelp.TargetMarkersAsync(text, schema, CancellationToken.None);
+        var shown = false;
+        if (!reading.IsCompletedSuccessfully)
+        {
+            await ShowHeaderMarkersAsync(version, markers);
+            shown = true;
         }
 
         IReadOnlyList<ScriptHeaderMarker> targets;
         try
         {
-            targets = await ScriptHeaderHelp.TargetMarkersAsync(text, schema, CancellationToken.None).WaitAsync(TargetMarkersLimit);
+            targets = await reading.WaitAsync(TargetMarkersLimit);
         }
         catch (TimeoutException)
         {
             return;
         }
 
-        if (targets.Count > 0)
+        if (targets.Count > 0 || !shown)
         {
             await ShowHeaderMarkersAsync(version, [.. markers, .. targets]);
         }
