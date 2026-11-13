@@ -116,6 +116,10 @@ public sealed class ScriptHeaderHelpTests
                 (ScriptMarkerSeverity.Warning, TextFormat.Format(ScriptText.Target_ColumnMissing, "ORDERS", "NOPE"), "-- @target id ORDERS.NOPE"),
             ],
             markers.Select(m => (m.Severity, m.Message, Marked(m, text))));
+
+        // Review WP-89, N3: with the structures in the cache the marks are there at once – the editor sets them in one call.
+        var again = ScriptHeaderHelp.TargetMarkersAsync(text, schema, Token);
+        Assert.True(again.IsCompletedSuccessfully);
     }
 
     [Fact]
@@ -175,13 +179,18 @@ public sealed class ScriptHeaderHelpTests
         Assert.Equal(1, hover.Paragraphs[1].Split(type).Length - 1);
     }
 
-    /// <summary>Review WP-89, 5: a directive name has no limit (a shared file); a long one is no typo and costs no table of its length.</summary>
+    /// <summary>
+    /// Review WP-89, 5: a directive name has no limit (a shared file); a long one is no typo and costs no table of its length.
+    /// The allocation shows it (N4): the comparison table of one directive alone took megabytes.
+    /// </summary>
     [Fact]
     public void A_very_long_directive_is_unknown_without_a_comparison()
     {
         var name = new string('a', 1_000_000);
 
+        var before = GC.GetAllocatedBytesForCurrentThread();
         Assert.Null(ScriptHeaderHelp.Similar(name));
+        Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - before, 0, 64 * 1024);
         Assert.Equal(ScriptMarkerSeverity.Info, Assert.Single(ScriptHeaderHelp.Markers("-- @" + name + "\nSELECT 1 FROM dual")).Severity);
     }
 

@@ -350,8 +350,15 @@ public static partial class ScriptHeaderHelp
             return null;
         }
 
+        // Only names of about the same length can be typos: a long name costs no table of its length, nor a lowered copy.
+        var candidates = Known.Where(k => Math.Abs(k.Length - name.Length) <= 2).ToList();
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
         var lower = name.ToLowerInvariant();
-        return Known.Where(k => Math.Abs(k.Length - lower.Length) <= 2)
+        return candidates
             .Select(k => (Known: k, Distance: Distance(lower, k)))
             .Where(k => k.Distance <= 2)
             .OrderBy(k => k.Distance)
