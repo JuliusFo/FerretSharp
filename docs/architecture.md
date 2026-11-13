@@ -275,6 +275,7 @@ Eine Aktion im Grid (`ShortcutScope.Grid`, `GridAndForm`) bekommt nie Ctrl+C –
 | Alt+X | Im SQL-Tab: das ganze Skript (bzw. die markierten Statements) nacheinander ausführen | 3.3 |
 | – (frei belegbar) | Im SQL-Tab: das gezeigte Ergebnis behalten bzw. loslassen | WP-81 |
 | – (frei belegbar) | Im SQL-Tab: das Skript in seine Datei speichern bzw. als neues Skript anlegen | WP-77 |
+| – (frei belegbar) | Hilfe zu SQL-Skripten neben dem aktiven SQL-Tab, sonst neben einem neuen | WP-89 |
 | – (frei belegbar) | Zeitreise: den aktiven Tabellen-Tab zu einem Zeitpunkt der Vergangenheit öffnen | WP-78 |
 | – (frei belegbar) | SQL-Bedingung des aktiven Tabellen-Tabs ein- bzw. ausschalten | WP-79 |
 | Alt+Enter | Im Grid: Formular der fokussierten Zeile öffnen/schließen; bei mehreren markierten Zeilen: vergleichen. Im Formular: schließen. Nur lokal (nicht in `shortcuts.js`), damit Monaco seine Tasten behält | WP-21 |
