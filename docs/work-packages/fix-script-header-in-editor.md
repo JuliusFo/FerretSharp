@@ -1,6 +1,6 @@
 # Fix: Kopf eines Skripts im SQL-Editor (`@target` anlegen)
 
-Branch `fix/script-header-in-editor` (von `main`), 2026-11-13 (Feedback zu WP-84).
+Branch `fix/script-header-in-editor` (von `main`), 2026-11-13 (Feedback zu WP-84), PR #182, Release 3.71.1.
 
 ## Anlass
 Im SQL-Editor getippt (Beispiel neutral nachgestellt):
