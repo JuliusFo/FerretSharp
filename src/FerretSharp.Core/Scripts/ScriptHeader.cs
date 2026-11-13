@@ -78,6 +78,12 @@ public sealed record ParsedScript(ScriptHeader Header, string Body, IReadOnlyLis
 public sealed record ScriptSave(ScriptHeader Header, string Body, string Text, IReadOnlyList<ScriptParameter> Typed, IReadOnlyList<string> Problems, bool Joined = false)
 {
     /// <summary>
+    /// The file's state as a tab would show it – <see cref="Text"/> without the lines not written; the link's
+    /// <see cref="ScriptLink.SavedHash"/> (third review K2). Equal to <see cref="Text"/> when every line was written.
+    /// </summary>
+    public string SavedText { get; init; } = Text;
+
+    /// <summary>
     /// The link after writing, <paramref name="link"/> made for <see cref="Text"/>: a tab that did not get the text with
     /// the file's lines joined (typed during the write, <see cref="TextFor"/>) does not show them – its text cannot be the
     /// truth yet, or the next save would drop the file's targets (second review N2).
@@ -169,6 +175,7 @@ public static partial class ScriptHeaders
         // A typed @param counts only with its bind in the SQL; otherwise it would vanish with its type (review 2).
         var binds = ParametersOf(body, [], null);
         var typed = new List<ScriptParameter>();
+        var unwritten = new HashSet<int>();
         for (var i = 0; i < read.Parameters.Count; i++)
         {
             if (binds.Any(b => SameName(b.Name, read.Parameters[i].Name)))
@@ -182,6 +189,7 @@ public static partial class ScriptHeaders
                 var index = read.ParameterLines[i];
                 errors.Add(new(index + 1, TextFormat.Format(ScriptText.ParamUnknownBind, read.Parameters[i].Name)));
                 taken.Remove(index);
+                unwritten.Add(index);
             }
         }
 
@@ -205,9 +213,11 @@ public static partial class ScriptHeaders
             {
                 if (!ShownInText(line))
                 {
-                    // The text never showed it (review 3): kept as it is – unless a @param of that name was typed, which
-                    // settles the parameter; else such a line could never be removed in the app (second review N3).
-                    if (ParameterNameOf(line) is not { } name || !typed.Any(t => SameName(t.Name, name)))
+                    // The text never showed it (review 3): kept as it is – unless it is a @param line that a typed @param
+                    // of its name settles, or one without effect (no name, no bind in the SQL); else such a line could
+                    // never be removed in the app (second review N3, third review K3).
+                    if (!IsParameterLine(line)
+                        || (ParameterNameOf(line) is { } name && binds.Any(b => SameName(b.Name, name)) && !typed.Any(t => SameName(t.Name, name))))
                     {
                         other.Add(line);
                     }
@@ -224,16 +234,22 @@ public static partial class ScriptHeaders
         var header = new ScriptHeader(read.Description ?? file?.Description, parameters, other) { Targets = targets };
         // The @param and @description lines that took effect leave the text, the file's lines join it; every other line
         // stays as typed. Nothing to change: the text as it is (the cursor stays where it is).
-        var after = text;
-        if (taken.Count > 0 || joined.Count > 0)
-        {
-            var kept = Enumerable.Range(read.First, read.DirectivesEnd - read.First).Where(i => !taken.Contains(i)).Select(i => lines[i]).Concat(joined).ToList();
-            after = kept.Count == 0 ? body : string.Join('\n', kept) + "\n\n" + body;
-        }
-
+        var after = taken.Count > 0 || joined.Count > 0 ? Rebuilt(taken) : text;
+        // What the file holds, as the tab would show it: without the lines not written, so "●" stays while the tab
+        // shows them, and a change on disk asks instead of reloading them away (third review K2).
+        var savedText = unwritten.Count == 0 ? after : Rebuilt(new HashSet<int>(taken.Concat(unwritten)));
         var problems = errors.Select(e => TextFormat.Format(ScriptText.HeaderLineProblem, lines[e.Line - 1].Trim(), e.Message)).ToList();
-        return new ScriptSave(header, body, after, typed, problems, joined.Count > 0);
+        return new ScriptSave(header, body, after, typed, problems, joined.Count > 0) { SavedText = savedText };
+
+        string Rebuilt(IReadOnlySet<int> leaving)
+        {
+            var kept = Enumerable.Range(read.First, read.DirectivesEnd - read.First).Where(i => !leaving.Contains(i)).Select(i => lines[i]).Concat(joined).ToList();
+            return kept.Count == 0 ? body : string.Join('\n', kept) + "\n\n" + body;
+        }
     }
+
+    private static bool IsParameterLine(string line) =>
+        Directive().Match(OneLine(line)) is { Success: true } match && match.Groups["name"].Value.Equals("param", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The name a <c>@param</c> line gives, also with a wrong or missing type; null for another line.</summary>
     private static string? ParameterNameOf(string line) =>

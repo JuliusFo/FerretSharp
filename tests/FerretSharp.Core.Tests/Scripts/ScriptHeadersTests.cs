@@ -268,6 +268,12 @@ public sealed class ScriptHeadersTests
         Assert.Equal(["„-- @param customerid number“: @param nennt customerid, aber das SQL hat keinen Bind :customerid – nicht gespeichert."], saved.Problems);
         Assert.Equal("-- @param customerid number\n-- @target customer_id CUSTOMER.ID\n\nSELECT :customer_id FROM dual", saved.Text);
         Assert.Equal(saved.Header.Parameters, ScriptHeaders.Parse(ScriptHeaders.Compose(saved.Header, saved.Body)).Header.Parameters);
+
+        // Third review K2: the file lacks the line, so the tab showing it counts as changed – a change on disk asks then.
+        Assert.Equal("-- @target customer_id CUSTOMER.ID\n\nSELECT :customer_id FROM dual", saved.SavedText);
+        var link = ScriptLink.To(new ScriptRoot(ScriptRootKind.Personal, "/s"), "a.sql", saved.Header, saved.SavedText, "hash");
+        Assert.True(link.IsChanged(saved.Text, []));
+        Assert.False(link.IsChanged(saved.SavedText, []));
     }
 
     [Fact]
@@ -290,6 +296,10 @@ public sealed class ScriptHeadersTests
 
         Assert.Equal([new ScriptParameter("id", SqlVariableType.Text)], settled.Header.Parameters);
         Assert.Equal(["-- @connections all"], settled.Header.Other);
+
+        // Third review K3: hidden @param lines without effect – no name, or no bind in the SQL – go; with a bind they stay.
+        var stale = file with { Other = ["-- @param", "-- @param gone numbr", "-- @param id numbr"] };
+        Assert.Equal(["-- @connections all", "-- @param id numbr"], ScriptHeaders.ForSave(shown, [], stale, true).Header.Other);
     }
 
     [Theory]

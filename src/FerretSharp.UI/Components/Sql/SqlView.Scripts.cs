@@ -227,7 +227,7 @@ public partial class SqlView
             if (draft.Request.Source == ScriptSaveSource.Window)
             {
                 // The tab now shows the file: named after it, saved only by "Save" from here on.
-                var linked = ScriptLink.To(root, path, header, save.Text, result.FileHash!);
+                var linked = ScriptLink.To(root, path, header, save.SavedText, result.FileHash!);
                 Tab.Script = linked;
                 (_checkedStamp, _keptHash) = (null, null);
                 // Renders the shell: the tab bar shows the new name, cut to fit a tab title (review WP-77, K5).
@@ -275,7 +275,7 @@ public partial class SqlView
             return;
         }
 
-        Tab.Script = ScriptLink.To(root, link.Path, save.Header, save.Text, result.FileHash!);
+        Tab.Script = ScriptLink.To(root, link.Path, save.Header, save.SavedText, result.FileHash!);
         (_checkedStamp, _keptHash, _scriptNotice) = (null, null, HeaderNotice(save));
         var linked = Tab.Script;
         var shown = await ShowSavedAsync(save, text);

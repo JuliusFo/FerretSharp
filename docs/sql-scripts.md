@@ -42,7 +42,7 @@ Der SQL-Tab zeigt oben die Kopfzeilen, für die es sonst keinen Platz gibt: `@ta
 - Was während des Speicherns getippt wird, bleibt stehen; der Tab zeigt dann „●“.
 - Ein `@target` braucht im Tab kein `@param`: Es muss nur einen Bind des SQL nennen.
 - Steht davor ein gewöhnlicher Kommentar oder SQL, ist es kein Kopf mehr.
-- Kopfzeilen, die sich nicht verwenden lassen (Ziel ohne passenden Bind, Tippfehler), meldet die Leiste über dem Editor nach dem Speichern – mit der Zeile selbst, nicht ihrer Nummer; gespeichert werden sie trotzdem, wie sie sind.
+- Kopfzeilen, die sich nicht verwenden lassen (Ziel ohne passenden Bind, Tippfehler), meldet die Leiste über dem Editor nach dem Speichern – mit der Zeile selbst, nicht ihrer Nummer; gespeichert werden sie trotzdem, wie sie sind – außer einem `@param` ohne Bind (oben), das nur im Tab bleibt; solange es dort steht, zeigt der Tab „●“. Ausgeblendete `@param`-Zeilen der Datei ohne Wirkung (ohne Namen oder ohne Bind im SQL) fallen beim Speichern weg.
 
 ```sql
 -- @target kunde_id KUNDE.KUNDE_ID
