@@ -232,7 +232,7 @@ public partial class SqlView
                 // Renders the shell: the tab bar shows the new name, cut to fit a tab title (review WP-77, K5).
                 Shell.RenameTab(Tab, Workspace.FitName(ScriptPaths.NameOf(path)));
                 _scriptNotice = HeaderNotice(save);
-                await ShowSavedAsync(save);
+                await ShowSavedAsync(save, draft.Request.Text);
             }
             else
             {
@@ -272,34 +272,37 @@ public partial class SqlView
 
         Tab.Script = ScriptLink.To(root, link.Path, save.Header, save.Text, result.FileHash!);
         (_checkedStamp, _keptHash, _scriptNotice) = (null, null, HeaderNotice(save));
-        await ShowSavedAsync(save);
+        await ShowSavedAsync(save, text);
         Fire(() => Library.RefreshAsync());
     }
 
     /// <summary>
-    /// The tab after saving its text: the <c>@param</c> and <c>@description</c> lines typed at the top went into variables
-    /// and description, the file's targets of a tab from an older workspace joined the text (fix-script-header-in-editor).
+    /// The tab after saving <paramref name="saved"/>: the <c>@param</c> and <c>@description</c> lines typed at the top went
+    /// into variables and description, the file's targets of a tab from an older workspace joined the text
+    /// (fix-script-header-in-editor). Writing takes a while on a share over the VPN: what was typed meanwhile – text or a
+    /// variable's value – stays (review fix-script-header-in-editor, 1).
     /// </summary>
-    private async Task ShowSavedAsync(ScriptSave save)
+    private async Task ShowSavedAsync(ScriptSave save, string saved)
     {
-        Tab.Variables = save.Variables;
-        if (save.Text != Tab.Text)
+        var current = _editor is not null && await _editor.GetTextAsync() is { } now ? now : Tab.Text;
+        if (save.TextFor(current, saved) is { } text)
         {
-            Tab.Text = save.Text;
+            Tab.Text = text;
             if (_editor is not null)
             {
-                await _editor.SetTextAsync(save.Text);
+                await _editor.SetTextAsync(text);
             }
         }
 
+        Tab.Variables = ScriptHeaders.Apply(Tab.Variables, save.Typed); // the variables as they are now
         await UpdateVariablesAsync(Tab.Text);
         Shell.MarkDirty();
     }
 
     /// <summary>Header lines at the top of the text that were saved but cannot be used (a target whose bind the SQL lacks): said at once.</summary>
-    private static ScriptNotice? HeaderNotice(ScriptSave save) => save.Errors.Count == 0
+    private static ScriptNotice? HeaderNotice(ScriptSave save) => save.Problems.Count == 0
         ? null
-        : new(ScriptNoticeKind.Error, TextFormat.Format(ScriptViewText.Notice_HeaderErrors, string.Join(" · ", save.Errors.Select(e => e.ToString()))));
+        : new(ScriptNoticeKind.Error, TextFormat.Format(ScriptViewText.Notice_HeaderErrors, string.Join(" · ", save.Problems)));
 
     private string ScriptConfirmText(ScriptConfirm question) => question == ScriptConfirm.ReplaceExisting && _save is { } draft
         ? TextFormat.Format(ScriptViewText.Confirm_ReplaceText, draft.Path, ScriptTree.RootLabel(draft.Root))

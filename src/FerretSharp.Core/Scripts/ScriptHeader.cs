@@ -65,9 +65,28 @@ public sealed record ParsedScript(ScriptHeader Header, string Body, IReadOnlyLis
 /// <param name="Header">The header to write.</param>
 /// <param name="Body">The SQL below it.</param>
 /// <param name="Text">The tab's text after saving: as typed, unless lines left it or joined it.</param>
-/// <param name="Variables">The tab's variables, with the types of the <c>@param</c> lines typed.</param>
-/// <param name="Errors">Header lines that cannot be used, numbered as in the tab's text; they are written as they are.</param>
-public sealed record ScriptSave(ScriptHeader Header, string Body, string Text, IReadOnlyList<SqlVariable> Variables, IReadOnlyList<ScriptHeaderError> Errors);
+/// <param name="Typed">
+/// The <c>@param</c> lines typed that took effect (their bind is in the SQL): their types go to the tab's variables –
+/// applied to the variables as they are after saving, not to those it was saved with (review fix-script-header-in-editor, 1).
+/// </param>
+/// <param name="Problems">
+/// Header lines that cannot be used, each named by the line itself – a number would point elsewhere once the text was
+/// rebuilt, or into a selection (review fix-script-header-in-editor, 4). They are written as they are.
+/// </param>
+public sealed record ScriptSave(ScriptHeader Header, string Body, string Text, IReadOnlyList<ScriptParameter> Typed, IReadOnlyList<string> Problems)
+{
+    /// <summary>
+    /// The text to put into the tab after the file was written, or null to leave it: only when the editor still holds the
+    /// text that was saved – typed during the write (a share over the VPN), it stays; "●" then shows the difference
+    /// (review fix-script-header-in-editor, 1).
+    /// </summary>
+    public string? TextFor(string current, string saved)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(saved);
+        return Text != saved && current.ReplaceLineEndings("\n") == saved.ReplaceLineEndings("\n") ? Text : null;
+    }
+}
 
 /// <summary>Reads and writes the header of a SQL script (WP-77). Syntax: <c>docs/sql-scripts.md</c>.</summary>
 public static partial class ScriptHeaders
@@ -114,12 +133,14 @@ public static partial class ScriptHeaders
     /// FerretSharp has no other place for show in the editor). The <c>-- @…</c> lines at the top of the text are its
     /// header: <c>@target</c> and unknown lines as they stand; <c>@param</c> gives a parameter its type (and <c>list</c>),
     /// <c>@description</c> the description – both are taken out of the text, they live in the variables and the dialog.
-    /// The rest is the body. A target is checked against the binds of the body, not against <c>@param</c> lines of the text.
+    /// The rest is the body. A target or <c>@param</c> is checked against the binds of the body: without its bind it is
+    /// reported and stays in the text (review fix-script-header-in-editor, 2).
     /// </summary>
     /// <param name="file">The header of the linked file; null for a new script.</param>
     /// <param name="fileHeaderInText">
     /// The tab shows the file's targets and unknown lines (<see cref="ScriptLink.HeaderInText"/>): its text is the truth, a
     /// line deleted there is gone. A tab of a workspace written before keeps the file's lines; they are put into its text.
+    /// The file's <c>@param</c>/<c>@description</c> lines with errors never show in the text and are always kept.
     /// </param>
     public static ScriptSave ForSave(string text, IReadOnlyList<SqlVariable> variables, ScriptHeader? file, bool fileHeaderInText)
     {
@@ -128,49 +149,90 @@ public static partial class ScriptHeaders
         var lines = text.ReplaceLineEndings("\n").Split('\n');
         var read = ReadLines(lines);
         var body = string.Join('\n', lines[read.End..]);
-        var typed = read.Parameters;
-        var typedVariables = Apply(variables, typed);
-        IReadOnlyList<ScriptParameter> previous = [.. typed, .. (file?.Parameters ?? []).Where(p => !typed.Any(t => SameName(t.Name, p.Name)))];
-        var parameters = ParametersOf(body, typedVariables, previous);
-
         var other = read.Other.Select(o => o.Text).ToList();
         var errors = read.Errors.ToList();
-        var targets = Checked(read.Targets, parameters, lines, other, errors, ScriptText.TargetUnknownBind);
-        var added = false;
-        if (!fileHeaderInText && file is not null)
+        var taken = new HashSet<int>(read.Taken);
+
+        // A typed @param counts only with its bind in the SQL; otherwise it would vanish with its type (review 2).
+        var binds = ParametersOf(body, [], null);
+        var typed = new List<ScriptParameter>();
+        for (var i = 0; i < read.Parameters.Count; i++)
         {
-            foreach (var target in file.Targets.Where(t => !targets.Any(k => SameName(k.Parameter, t.Parameter) && k.Table == t.Table && k.Column == t.Column)))
+            if (binds.Any(b => SameName(b.Name, read.Parameters[i].Name)))
             {
-                targets.Add(target);
-                added = true;
+                typed.Add(read.Parameters[i]);
+            }
+            else
+            {
+                var index = read.ParameterLines[i];
+                errors.Add(new(index + 1, TextFormat.Format(ScriptText.ParamUnknownBind, read.Parameters[i].Name)));
+                other.Add(lines[index]);
+                taken.Remove(index);
+            }
+        }
+
+        IReadOnlyList<ScriptParameter> previous = [.. typed, .. (file?.Parameters ?? []).Where(p => !typed.Any(t => SameName(t.Name, p.Name)))];
+        var parameters = ParametersOf(body, Apply(variables, typed), previous);
+        var targets = Checked(read.Targets, parameters, lines, other, errors, ScriptText.TargetUnknownBind);
+
+        var joined = new List<string>();
+        if (file is not null)
+        {
+            if (!fileHeaderInText)
+            {
+                foreach (var target in file.Targets.Where(t => !targets.Any(k => SameName(k.Parameter, t.Parameter) && k.Table == t.Table && k.Column == t.Column)))
+                {
+                    targets.Add(target);
+                    joined.AddRange(TargetLines([target]));
+                }
             }
 
             foreach (var line in file.Other.Where(l => !other.Contains(l, StringComparer.Ordinal)))
             {
-                other.Add(line);
-                added = true;
+                if (!ShownInText(line))
+                {
+                    other.Add(line); // the text never showed it (review 3): kept as it is
+                }
+                else if (!fileHeaderInText)
+                {
+                    other.Add(line);
+                    joined.Add(OneLine(line));
+                }
             }
         }
 
         errors.Sort((a, b) => a.Line.CompareTo(b.Line));
         var header = new ScriptHeader(read.Description ?? file?.Description, parameters, other) { Targets = targets };
-        // Typed @param and @description lines leave the text; so do the file's lines join it. Otherwise it stays as typed
-        // (the cursor stays where it is).
-        var after = read.Taken > 0 || added ? EditorText(header, body) : text;
-        return new ScriptSave(header, body, after, typedVariables, errors);
+        // The @param and @description lines that took effect leave the text, the file's lines join it; every other line
+        // stays as typed. Nothing to change: the text as it is (the cursor stays where it is).
+        var after = text;
+        if (taken.Count > 0 || joined.Count > 0)
+        {
+            var kept = Enumerable.Range(read.First, read.DirectivesEnd - read.First).Where(i => !taken.Contains(i)).Select(i => lines[i]).Concat(joined).ToList();
+            after = kept.Count == 0 ? body : string.Join('\n', kept) + "\n\n" + body;
+        }
+
+        var problems = errors.Select(e => TextFormat.Format(ScriptText.HeaderLineProblem, lines[e.Line - 1].Trim(), e.Message)).ToList();
+        return new ScriptSave(header, body, after, typed, problems);
     }
 
     /// <summary>
     /// What a SQL tab shows of a script: the header lines FerretSharp has no other place for – targets, then the lines it
-    /// keeps as they are – a blank line and the body. Without such lines the body alone.
+    /// keeps as they are – a blank line and the body. Without such lines the body alone. Kept <c>@param</c> and
+    /// <c>@description</c> lines (with errors: a parameter twice, an unknown type) are not shown: saving would take them as
+    /// typed and change the file's type unseen (review fix-script-header-in-editor, 3).
     /// </summary>
     public static string EditorText(ScriptHeader header, string body)
     {
         ArgumentNullException.ThrowIfNull(header);
         ArgumentNullException.ThrowIfNull(body);
-        var shown = TargetLines(header.Targets).Concat(KeptLines(header.Other)).ToList();
+        var shown = TargetLines(header.Targets).Concat(KeptLines(header.Other).Where(ShownInText)).ToList();
         return shown.Count == 0 ? body : string.Join('\n', shown) + "\n\n" + body;
     }
+
+    /// <summary>A kept header line the tab shows: a header line that is no <c>@param</c> or <c>@description</c>.</summary>
+    private static bool ShownInText(string line) =>
+        Directive().Match(OneLine(line)) is { Success: true } match && match.Groups["name"].Value.ToLowerInvariant() is not ("param" or "description");
 
     /// <summary>The header lines at the top of <paramref name="lines"/>, with what each one is; never throws.</summary>
     private static HeaderLines ReadLines(string[] lines)
@@ -183,15 +245,16 @@ public static partial class ScriptHeaders
 
         if (first >= lines.Length || !Directive().IsMatch(lines[first]))
         {
-            return new HeaderLines(null, [], [], [], [], 0, 0);
+            return new HeaderLines(null, [], [], [], [], [], [], 0, 0, 0);
         }
 
         string? description = null;
         var parameters = new List<ScriptParameter>();
+        var parameterLines = new List<int>();
         var targets = new List<(ScriptTarget Target, int Line)>();
         var other = new List<(string Text, int Line)>();
         var errors = new List<ScriptHeaderError>();
-        var taken = 0;
+        var taken = new List<int>();
         var n = first;
         for (; n < lines.Length && Directive().Match(lines[n]) is { Success: true } directive; n++)
         {
@@ -201,7 +264,7 @@ public static partial class ScriptHeaders
             {
                 case "description":
                     description = description is null ? value : description + "\n" + value;
-                    taken++;
+                    taken.Add(n);
                     break;
                 case "param" when Parameter(value, n + 1, errors) is { } parameter:
                     if (parameters.Any(p => SameName(p.Name, parameter.Name)))
@@ -212,7 +275,8 @@ public static partial class ScriptHeaders
                     else
                     {
                         parameters.Add(parameter);
-                        taken++;
+                        parameterLines.Add(n);
+                        taken.Add(n);
                     }
 
                     break;
@@ -233,12 +297,14 @@ public static partial class ScriptHeaders
             }
         }
 
+        var directivesEnd = n;
         if (n < lines.Length && lines[n].Trim().Length == 0)
         {
             n++;
         }
 
-        return new HeaderLines(string.IsNullOrWhiteSpace(description) ? null : description, parameters, targets, other, errors, n, taken);
+        return new HeaderLines(
+            string.IsNullOrWhiteSpace(description) ? null : description, parameters, parameterLines, targets, other, errors, taken, first, directivesEnd, n);
     }
 
     /// <summary>
@@ -274,12 +340,15 @@ public static partial class ScriptHeaders
 
     private static bool SameName(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
+    /// <param name="ParameterLines">The index of each parameter's line, in the order of <paramref name="Parameters"/>.</param>
     /// <param name="Other">Lines kept as they are, with their number (1-based).</param>
+    /// <param name="Taken">The indexes of the lines that gave the description or a parameter.</param>
+    /// <param name="First">The index of the first header line.</param>
+    /// <param name="DirectivesEnd">The index after the last header line.</param>
     /// <param name="End">The index of the body's first line (one blank line after the header belongs to it).</param>
-    /// <param name="Taken">How many lines gave the description or a parameter.</param>
     private sealed record HeaderLines(
-        string? Description, List<ScriptParameter> Parameters, List<(ScriptTarget Target, int Line)> Targets, List<(string Text, int Line)> Other,
-        List<ScriptHeaderError> Errors, int End, int Taken);
+        string? Description, List<ScriptParameter> Parameters, List<int> ParameterLines, List<(ScriptTarget Target, int Line)> Targets,
+        List<(string Text, int Line)> Other, List<ScriptHeaderError> Errors, List<int> Taken, int First, int DirectivesEnd, int End);
 
     /// <summary>
     /// The file's text: the header's lines (description, parameters, targets, then the kept ones), a blank line and the body. Line

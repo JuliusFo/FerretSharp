@@ -78,6 +78,12 @@
   <data name="TargetUnknownBind" xml:space="preserve">
     <value>@target nennt {0}, aber das SQL hat keinen Bind :{0}.</value>
   </data>
+  <data name="ParamUnknownBind" xml:space="preserve">
+    <value>@param nennt {0}, aber das SQL hat keinen Bind :{0}.</value>
+  </data>
+  <data name="HeaderLineProblem" xml:space="preserve">
+    <value>„{0}“: {1}</value>
+  </data>
   <data name="TargetRepeated" xml:space="preserve">
     <value>Das Ziel {0} steht für diesen Parameter doppelt da.</value>
   </data>

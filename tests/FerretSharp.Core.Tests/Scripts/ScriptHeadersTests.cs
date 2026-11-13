@@ -204,13 +204,15 @@ public sealed class ScriptHeadersTests
 
         var saved = ScriptHeaders.ForSave(typed, [new SqlVariable("id", SqlVariableType.Number, "7")], null, false);
 
-        Assert.Empty(saved.Errors);
+        Assert.Empty(saved.Problems);
         Assert.Equal("Rows of an order", saved.Header.Description);
         Assert.Equal([new ScriptParameter("id", SqlVariableType.Text), new ScriptParameter("ids", SqlVariableType.Number, List: true)], saved.Header.Parameters);
         Assert.Equal([new ScriptTarget("id", "ORDERS", "ID")], saved.Header.Targets);
         // @param and @description live in the variables and the dialog: they leave the text, the value typed stays.
-        Assert.Equal([new SqlVariable("id", SqlVariableType.Text, "7"), new SqlVariable("ids", SqlVariableType.Number, "")], saved.Variables);
-        Assert.Equal("-- @target id ORDERS.ID\n\nSELECT * FROM order_rows WHERE order_id = :id OR order_id IN (:ids);", saved.Text);
+        Assert.Equal([new SqlVariable("id", SqlVariableType.Text, "7"), new SqlVariable("ids", SqlVariableType.Number, "")],
+            ScriptHeaders.Apply([new SqlVariable("id", SqlVariableType.Number, "7")], saved.Typed));
+        // The other lines stay as typed; the file writes the target in its form.
+        Assert.Equal("-- @target id orders.id\n\nSELECT * FROM order_rows WHERE order_id = :id OR order_id IN (:ids);", saved.Text);
         var file = ScriptHeaders.Parse(ScriptHeaders.Compose(saved.Header, saved.Body));
         Assert.True(file.Header.SameAs(saved.Header));
         Assert.Equal(saved.Body, file.Body);
@@ -235,9 +237,54 @@ public sealed class ScriptHeadersTests
 
         Assert.Empty(edited.Header.Targets);
         Assert.Equal(["-- @target other CUSTOMER.ID"], edited.Header.Other);
-        Assert.Equal([1], edited.Errors.Select(e => e.Line));
-        Assert.Contains(":other", edited.Errors[0].Message, StringComparison.Ordinal); // the bind is missing, not a @param line
+        // Named by the line, not its number; the bind is missing, not a @param line.
+        Assert.Equal(["„-- @target other CUSTOMER.ID“: @target nennt other, aber das SQL hat keinen Bind :other."], edited.Problems);
         Assert.Equal("x", edited.Header.Description); // the file's, nothing typed
         Assert.Equal("-- @target other CUSTOMER.ID\n" + body, edited.Text); // nothing taken out: as typed
+    }
+
+    [Fact]
+    public void A_typed_param_without_its_bind_is_reported_and_stays_in_the_text_named_by_its_line()
+    {
+        // Review fix-script-header-in-editor, 2 and 4: the line vanished with its type, and a number pointed elsewhere once
+        // the text was rebuilt (the description line leaves it).
+        const string typed = "-- @description d\n-- @param customerid number\n-- @target customer_id CUSTOMER.ID\nSELECT :customer_id FROM dual";
+
+        var saved = ScriptHeaders.ForSave(typed, [], null, false);
+
+        Assert.Empty(saved.Typed); // no variable for it
+        Assert.Equal([new ScriptParameter("customer_id", SqlVariableType.Text)], saved.Header.Parameters);
+        Assert.Equal([new ScriptTarget("customer_id", "CUSTOMER", "ID")], saved.Header.Targets);
+        Assert.Equal(["-- @param customerid number"], saved.Header.Other);
+        Assert.Equal(["„-- @param customerid number“: @param nennt customerid, aber das SQL hat keinen Bind :customerid."], saved.Problems);
+        Assert.Equal("-- @param customerid number\n-- @target customer_id CUSTOMER.ID\n\nSELECT :customer_id FROM dual", saved.Text);
+    }
+
+    [Fact]
+    public void A_param_of_the_file_kept_with_errors_is_not_shown_and_saving_leaves_the_type()
+    {
+        // Review fix-script-header-in-editor, 3: shown in the tab, the second line of a parameter (after a merge) was taken as
+        // typed on the next save and turned the type unseen.
+        var file = ScriptHeaders.Parse("-- @param id number\n-- @param id text\n-- @connections all\nSELECT :id FROM dual").Header;
+        var shown = ScriptHeaders.EditorText(file, "SELECT :id FROM dual");
+
+        var saved = ScriptHeaders.ForSave(shown, ScriptHeaders.Apply([], file.Parameters), file, true);
+
+        Assert.Equal("-- @connections all\n\nSELECT :id FROM dual", shown);
+        Assert.Equal([new ScriptParameter("id", SqlVariableType.Number)], saved.Header.Parameters);
+        Assert.Equal(["-- @connections all", "-- @param id text"], saved.Header.Other); // kept in the file as before
+        Assert.Equal(shown, saved.Text);
+    }
+
+    [Theory]
+    [InlineData("-- @param id text\nSELECT :id FROM dual", "SELECT :id FROM dual")] // still what was saved: the rebuilt text
+    [InlineData("-- @param id text\r\nSELECT :id FROM dual", "SELECT :id FROM dual")] // line breaks do not count
+    [InlineData("-- @param id text\nSELECT :id, 1 FROM dual", null)] // typed during the write: stays (review 1)
+    public void After_writing_the_tab_gets_the_rebuilt_text_only_while_it_still_holds_the_saved_one(string current, string? expected)
+    {
+        const string saved = "-- @param id text\nSELECT :id FROM dual";
+
+        Assert.Equal(expected, ScriptHeaders.ForSave(saved, [], null, false).TextFor(current, saved));
+        Assert.Null(ScriptHeaders.ForSave("SELECT 1 FROM dual", [], null, false).TextFor("SELECT 1 FROM dual", "SELECT 1 FROM dual")); // nothing rebuilt
     }
 }
