@@ -75,6 +75,9 @@
   <data name="TargetUnknownParameter" xml:space="preserve">
     <value>@target nennt {0}, aber es gibt kein @param {0}.</value>
   </data>
+  <data name="TargetUnknownBind" xml:space="preserve">
+    <value>@target nennt {0}, aber das SQL hat keinen Bind :{0}.</value>
+  </data>
   <data name="TargetRepeated" xml:space="preserve">
     <value>Das Ziel {0} steht für diesen Parameter doppelt da.</value>
   </data>

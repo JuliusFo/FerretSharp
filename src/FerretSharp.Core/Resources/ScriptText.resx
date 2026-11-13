@@ -96,6 +96,10 @@
     <value>@target names {0}, but there is no @param {0}.</value>
     <comment>{0}: name of the parameter</comment>
   </data>
+  <data name="TargetUnknownBind" xml:space="preserve">
+    <value>@target names {0}, but the SQL has no bind :{0}.</value>
+    <comment>{0}: name of the parameter</comment>
+  </data>
   <data name="TargetRepeated" xml:space="preserve">
     <value>The target {0} is declared twice for this parameter.</value>
     <comment>{0}: TABLE.COLUMN</comment>

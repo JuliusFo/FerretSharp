@@ -186,6 +186,9 @@
   <data name="Notice_NothingSelected" xml:space="preserve">
     <value>Markiere die Statements, die du speichern willst, oder setze den Cursor in eines.</value>
   </data>
+  <data name="Notice_HeaderErrors" xml:space="preserve">
+    <value>Gespeichert – diese Kopfzeilen lassen sich nicht verwenden und bleiben, wie sie sind: {0}</value>
+  </data>
   <data name="Notice_Saved" xml:space="preserve">
     <value>Als Skript „{0}“ in „{1}“ gespeichert.</value>
   </data>

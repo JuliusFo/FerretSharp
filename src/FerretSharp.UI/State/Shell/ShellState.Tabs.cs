@@ -246,11 +246,12 @@ public sealed partial class ShellState
         }
 
         var script = document.Script;
+        var text = Core.Scripts.ScriptHeaders.EditorText(script.Header, script.Body); // targets shown (fix-script-header-in-editor)
         var tab = new SqlTab(workspace.WorkspaceId, Workspace.FitName(Core.Scripts.ScriptPaths.NameOf(path))) // review WP-77, K5
         {
-            Text = script.Body,
+            Text = text,
             Variables = Core.Scripts.ScriptHeaders.Apply([], script.Header.Parameters),
-            Script = Core.Scripts.ScriptLink.To(root, path, script.Header, script.Body, document.FileHash),
+            Script = Core.Scripts.ScriptLink.To(root, path, script.Header, text, document.FileHash),
             Visited = true,
             FocusOnOpen = true,
         };
@@ -283,7 +284,9 @@ public sealed partial class ShellState
         SqlTab tab;
         var linked = workspace.Tabs.OfType<SqlTab>().FirstOrDefault(t => t.Script is { } link && root.Is(link.Root, link.Group)
             && string.Equals(link.Path, path, StringComparison.OrdinalIgnoreCase));
-        if (spread is null && linked is { } open && Core.Scripts.ScriptLink.BodyHash(open.Text) == Core.Scripts.ScriptLink.BodyHash(script.Body))
+        // The SQL counts, not the header lines above it: a tab of an older workspace shows none (fix-script-header-in-editor).
+        if (spread is null && linked is { } open
+            && Core.Scripts.ScriptLink.BodyHash(Core.Scripts.ScriptHeaders.Parse(open.Text).Body) == Core.Scripts.ScriptLink.BodyHash(script.Body))
         {
             tab = open;
             Set(() =>
@@ -302,11 +305,12 @@ public sealed partial class ShellState
         }
         else
         {
+            var text = Core.Scripts.ScriptHeaders.EditorText(script.Header, script.Body);
             tab = InsertAfterActive(workspace, new SqlTab(workspaceId, name)
             {
-                Text = spread ?? script.Body,
+                Text = spread ?? (linked is null ? text : script.Body),
                 Variables = variables,
-                Script = spread is null && linked is null ? Core.Scripts.ScriptLink.To(root, path, script.Header, script.Body, document.FileHash) : null,
+                Script = spread is null && linked is null ? Core.Scripts.ScriptLink.To(root, path, script.Header, text, document.FileHash) : null,
                 Visited = true,
                 FocusOnOpen = !run,
                 RunOnOpen = run,
