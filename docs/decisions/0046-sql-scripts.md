@@ -40,3 +40,11 @@ Entscheidungen des Nutzers (2026-11-11):
 - „Zuletzt benutzt“ in einer eigenen Datei ohne Werte; die Werte des Dialogs nur im Speicher.
 
 Sicherheit: Weiter kein neuer Weg zur Datenbank – der Tab führt das Skript über den Leseweg aus, die Lesesperre prüft jedes Statement wie sonst. „Sofort ausführen“ gilt nur, wenn **jedes** Statement eine reine Abfrage ist (`SqlStatementInfo.IsQuery`); alles andere öffnet nur. Werte aus der Zelle sind Binds; eine Liste wird zu einem Bind je Wert (`SqlBindLists`, nur allein in `IN ( … )`), nie zu einem Literal. Ein Ziel nennt nur, wo das Skript im Menü steht – es wird nie zu SQL. Grenze wie bei jedem SELECT (CLAUDE.md 2): Ruft eine Abfrage eine Funktion mit `PRAGMA AUTONOMOUS_TRANSACTION` auf, schreibt sie trotz Lesesperre – mit dem Zellmenü genügt dafür ein Klick auf ein Skript aus einem geteilten Ordner; für Prod bleibt die Empfehlung ein User mit reinen SELECT-Grants.
+
+## Nachtrag fix-script-header-in-editor (2026-11-13): Kopf im SQL-Editor
+
+Entscheidung des Nutzers (2026-11-13): Die Kopfzeilen, für die es in der App sonst keinen Platz gibt – `@target` und unbekannte Zeilen –, stehen **sichtbar oben im SQL-Tab** und werden dort geschrieben, geändert und gelöscht (statt nur beim Speichern übernommen oder als Feld im Speichern-Dialog). `@param` bleibt in den Variablen, `@description` im Dialog; oben getippt, werden sie übernommen. Grund: Skripte im SQL-Editor anzulegen ist der Normalweg; ein dort getipptes `@target` landete vorher still im SQL. Protokoll: `docs/work-packages/fix-script-header-in-editor.md`.
+
+Folgen:
+- Der Workspace merkt sich je verbundenem Tab, ob sein Text den Kopf zeigt (`ScriptLink.HeaderInText`); ältere Workspace-Dateien zeigen ihn nicht, beim Speichern behält FerretSharp dann die Zeilen der Datei.
+- Die Zeile „Kopfangaben werden nie zu SQL“ (Sicherheit) gilt weiter für die Datei und für alles, was FerretSharp aus dem Kopf macht (Ziele, Typen). Im Tab stehen Ziele und unbekannte Zeilen aber als `--`-Kommentare über dem SQL und laufen beim Ausführen als Kommentar vor dem ersten Statement mit. Sie bleiben reine Kommentarzeilen: Gezeigt wird nur, was als Kopfzeile erkannt ist, je Zeile ohne Zeilenumbruch (`KeptLines`), die Lesesperre prüft den ganzen Text wie sonst.
