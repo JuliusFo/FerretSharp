@@ -75,4 +75,16 @@
   <data name="Scripts_Save" xml:space="preserve">
     <value>Speichern schreibt den Tab in seine Datei oder fragt nach Name und Ordner. ● neben dem Titel: Der Tab weicht von seiner Datei ab; eine Änderung der Datei auf der Platte wird gemeldet.</value>
   </data>
+  <data name="Scripts_DescriptionSyntax" xml:space="preserve">
+    <value>-- @description Text</value>
+  </data>
+  <data name="Scripts_ParamSyntax" xml:space="preserve">
+    <value>-- @param Name Typ</value>
+  </data>
+  <data name="Scripts_ParamListSyntax" xml:space="preserve">
+    <value>-- @param Name Typ list</value>
+  </data>
+  <data name="Scripts_TargetSyntax" xml:space="preserve">
+    <value>-- @target Name TABELLE.SPALTE</value>
+  </data>
 </root>

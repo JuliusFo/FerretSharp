@@ -279,7 +279,7 @@
 
 @if (_save is { } draft)
 {
-    <ScriptSaveDialog Draft="draft" Folders="FoldersOf" Error="@_saveError" Busy="_saving" OnSave="() => SaveDraftAsync(replace: false)" OnCancel="CloseSaveDialog"
+    <ScriptSaveDialog Draft="draft" Folders="FoldersOf" Error="@_saveError" Busy="_saving" OnSave="() => SaveDraftAsync(replace: false)" OnCancel="CancelSaveDialog"
                       OnHelp="ShowHelpFromSave" />
 }
 
@@ -406,7 +406,7 @@
 
     private void OnEditorCreated()
     {
-        Fire(() => UpdateHeaderMarkersAsync(Tab.Text));
+        Fire(RefreshHeaderMarkersAsync);
         if (_runOnCreate)
         {
             _runOnCreate = false;
@@ -494,19 +494,65 @@
     /// <summary>Counts <see cref="UpdateHeaderMarkersAsync"/> calls; only the newest may show its marks.</summary>
     private int _headerMarkersVersion;
 
+    /// <summary>The schema (and its load) the header marks were worked out with; another one works them out again.</summary>
+    private (SchemaCache? Schema, DateTimeOffset? LoadedAt) _headerMarkersSchema;
+
+    /// <summary>How long the marks of the targets wait for table structures (a silent VPN); the others are already shown.</summary>
+    private static readonly TimeSpan TargetMarkersLimit = TimeSpan.FromSeconds(10);
+
     /// <summary>
     /// Marks the script's header lines that cannot be used while typing (WP-89): the rules of saving, unknown or misplaced
-    /// directives, and targets whose table or column the connection lacks. Their own owner: a run's errors stay.
+    /// directives at once, then the targets whose table or column the connection lacks – those read table structures and
+    /// may wait (review WP-89, 4). Their own owner: a run's errors stay.
     /// </summary>
+    /// <param name="text">The editor's text, as Monaco has it: the offsets are its.</param>
     private async Task UpdateHeaderMarkersAsync(string text)
     {
         var version = ++_headerMarkersVersion;
-        var markers = await ScriptHeaderHelp.MarkersAsync(text, Active.Schema, CancellationToken.None);
+        var schema = Active.Schema;
+        _headerMarkersSchema = (schema, schema?.LoadedAt);
+        var markers = ScriptHeaderHelp.Markers(text);
+        await ShowHeaderMarkersAsync(version, markers);
+        if (schema is null)
+        {
+            return;
+        }
+
+        IReadOnlyList<ScriptHeaderMarker> targets;
+        try
+        {
+            targets = await ScriptHeaderHelp.TargetMarkersAsync(text, schema, CancellationToken.None).WaitAsync(TargetMarkersLimit);
+        }
+        catch (TimeoutException)
+        {
+            return;
+        }
+
+        if (targets.Count > 0)
+        {
+            await ShowHeaderMarkersAsync(version, [.. markers, .. targets]);
+        }
+    }
+
+    private async Task ShowHeaderMarkersAsync(int version, IEnumerable<ScriptHeaderMarker> markers)
+    {
         if (version == _headerMarkersVersion && _editor is not null)
         {
             await _editor.SetOffsetMarkersAsync(
                 markers.Select(m => new MonacoEditor.EditorMarker(m.Start, m.Length, m.Severity == ScriptMarkerSeverity.Info ? "info" : "warning", m.Message)),
                 MonacoEditor.HeaderMarkers);
+        }
+    }
+
+    /// <summary>
+    /// The header marks for the editor's text as it is now: when the editor is created (Monaco unified the line ends of the
+    /// text it took, review WP-89, 3) and when the schema was loaded or reloaded since (review WP-89, 4).
+    /// </summary>
+    private async Task RefreshHeaderMarkersAsync()
+    {
+        if (_editor is not null && await _editor.GetTextAsync() is { } text)
+        {
+            await UpdateHeaderMarkersAsync(text);
         }
     }
 
@@ -535,9 +581,19 @@
         (_historyOpen, _scriptsOpen) = (false, false);
     }
 
-    /// <summary>"How do scripts work?" in the save dialog: the dialog closes (it would cover the help), the help opens.</summary>
+    /// <summary>
+    /// "How do scripts work?" in the save dialog: the dialog closes (it would cover the help), the help opens. What was
+    /// entered in it comes back with the next "Save" of the tab (review WP-89, 7); the text is taken anew then – it may
+    /// have changed after reading the help. Not while writing: the answer would have no dialog to go to.
+    /// </summary>
     private void ShowHelpFromSave()
     {
+        if (_saving || _save is not { } draft)
+        {
+            return;
+        }
+
+        _keptSaveInputs = draft.Request.Source == ScriptSaveSource.Window ? draft.Inputs : null;
         CloseSaveDialog();
         ShowHelp();
     }
@@ -777,8 +833,7 @@
     private async Task<SqlRun> RunOneAsync(SqlRun run, CancellationToken token)
     {
         run = run with { At = DateTimeOffset.Now };
-        // The history keeps the SQL without the script's header lines (WP-89); what runs keeps them.
-        var log = new StatementLog(ScriptHeaderHelp.WithoutHeader(run.Statement.Text), Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList());
+        var log = new StatementLog(run.Statement.Text, Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList());
         run = run with { Variables = log.Variables };
         var outcome = run.Info.IsQuery ? await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, run.Query, SqlResultGrid.PageSize, log, token)
             : run.Info.IsDdl ? await Lifecycle.Statements.DdlAsync(Tab.WorkspaceId, run.Query.Sql, log, token)
@@ -842,6 +897,13 @@
         {
             _focusRename = false;
             await _renameInput.FocusAsync();
+        }
+
+        // The schema finished loading or was reloaded (the shell renders the tabs then): the targets' marks again.
+        if (_editor is { IsCreated: true } && Active.Schema is { } schema && (schema, schema.LoadedAt) != _headerMarkersSchema)
+        {
+            _headerMarkersSchema = (schema, schema.LoadedAt);
+            Fire(RefreshHeaderMarkersAsync);
         }
     }
 

@@ -96,4 +96,20 @@
     <value>Save writes the tab into its file, or asks for name and folder. ● beside the title: the tab differs from its file; a change of the file on disk is reported.</value>
     <comment>Help on saving scripts</comment>
   </data>
+  <data name="Scripts_DescriptionSyntax" xml:space="preserve">
+    <value>-- @description text</value>
+    <comment>Syntax line in the help; translate only the placeholder after the directive</comment>
+  </data>
+  <data name="Scripts_ParamSyntax" xml:space="preserve">
+    <value>-- @param name type</value>
+    <comment>Syntax line in the help; translate only the placeholders</comment>
+  </data>
+  <data name="Scripts_ParamListSyntax" xml:space="preserve">
+    <value>-- @param name type list</value>
+    <comment>Syntax line in the help; translate only the placeholders, keep list</comment>
+  </data>
+  <data name="Scripts_TargetSyntax" xml:space="preserve">
+    <value>-- @target name TABLE.COLUMN</value>
+    <comment>Syntax line in the help; translate only the placeholders</comment>
+  </data>
 </root>

@@ -190,10 +190,31 @@ public partial class SqlView
 
     private void OpenSaveDialog(ScriptSaveRequest request)
     {
-        (_save, _saveError, _saving) = (new ScriptSaveDraft(request, Library.RootsFor(Active.Profile)), null, false);
+        var draft = new ScriptSaveDraft(request, Library.RootsFor(Active.Profile));
+        if (request.Source == ScriptSaveSource.Window && _keptSaveInputs is { } kept)
+        {
+            draft.Take(kept); // entered before the help was opened from the dialog (review WP-89, 7)
+        }
+
+        (_save, _saveError, _saving, _keptSaveInputs) = (draft, null, false, null);
     }
 
+    /// <summary>The entries of a save dialog closed for the help (<see cref="ShowHelpFromSave"/>); the next dialog of the tab takes them.</summary>
+    private ScriptSaveInputs? _keptSaveInputs;
+
     private void CloseSaveDialog() => (_save, _saveError, _scriptConfirm) = (null, null, null);
+
+    /// <summary>
+    /// Cancel, ✕ or Esc in the save dialog – not while the file is written: its error or the question "replace?" would have
+    /// no dialog to go to, and "Replace" did nothing (review WP-89, found before).
+    /// </summary>
+    private void CancelSaveDialog()
+    {
+        if (!_saving)
+        {
+            CloseSaveDialog();
+        }
+    }
 
     /// <summary>Writes the dialog's script; a file of that name is replaced only after asking.</summary>
     private async Task SaveDraftAsync(bool replace)

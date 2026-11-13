@@ -25,6 +25,9 @@ public sealed record ScriptSaveRequest(ScriptSaveSource Source, string Text, IRe
 /// The fields of the "Save as script" dialog (WP-77): name, folder of the settings, folder below it, description. Checks
 /// name and folder as the file system will (<see cref="ScriptPaths"/>); the dialog shows the errors at the fields.
 /// </summary>
+/// <summary>The entries of a save dialog (<see cref="ScriptSaveDraft.Inputs"/>).</summary>
+public sealed record ScriptSaveInputs(ScriptRoot Root, string Name, string Folder, string Description);
+
 public sealed class ScriptSaveDraft
 {
     public ScriptSaveDraft(ScriptSaveRequest request, IReadOnlyList<ScriptRoot> roots)
@@ -75,6 +78,23 @@ public sealed class ScriptSaveDraft
     public string Folder { get; set; } = "";
 
     public string Description { get; set; } = "";
+
+    /// <summary>What was entered (WP-89: kept while the help is read, <see cref="Take"/>).</summary>
+    public ScriptSaveInputs Inputs => new(Root, Name, Folder, Description);
+
+    /// <summary>
+    /// Takes the entries of an earlier dialog of the same tab: name, folder and description; the folder of the settings only
+    /// if this connection still sees it.
+    /// </summary>
+    public void Take(ScriptSaveInputs inputs)
+    {
+        ArgumentNullException.ThrowIfNull(inputs);
+        (Name, Folder, Description) = (inputs.Name, inputs.Folder, inputs.Description);
+        if (Roots.Contains(inputs.Root))
+        {
+            Root = inputs.Root;
+        }
+    }
 
     /// <summary>Why the name cannot be used; null if it can.</summary>
     public string? NameError => ScriptPaths.NameProblem(Name.Trim());

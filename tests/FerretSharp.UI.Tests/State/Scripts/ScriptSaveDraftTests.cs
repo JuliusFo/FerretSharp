@@ -11,6 +11,31 @@ public sealed class ScriptSaveDraftTests
     private static readonly ScriptRoot Erp = new(ScriptRootKind.Group, "/erp", "ERP");
     private static readonly IReadOnlyList<ScriptRoot> Roots = [Personal, Erp];
 
+    /// <summary>
+    /// Review WP-89, 7: the save dialog closed for the help gives its entries to the next one – with the text as it is then,
+    /// and a folder of the settings only if the connection still sees it.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_new_draft_takes_the_entries_of_one_closed_for_the_help(bool rootStillSeen)
+    {
+        var closed = new ScriptSaveDraft(new ScriptSaveRequest(ScriptSaveSource.Window, "SELECT 1 FROM dual", [], ""), Roots)
+        {
+            Root = Erp, Name = "Open orders", Folder = "Orders", Description = "By customer",
+        };
+
+        // The text as it is now: a target typed after reading the help counts.
+        var next = new ScriptSaveDraft(
+            new ScriptSaveRequest(ScriptSaveSource.Window, "-- @target id ORDERS.ID\n\nSELECT * FROM orders WHERE id = :id", [], ""),
+            rootStillSeen ? Roots : [Personal]);
+        next.Take(closed.Inputs);
+
+        Assert.Equal(("Open orders", "Orders", "By customer"), (next.Name, next.Folder, next.Description));
+        Assert.Equal(rootStillSeen ? Erp : Personal, next.Root);
+        Assert.Single(next.Save.Header.Targets);
+    }
+
     [Fact]
     public void Name_and_folder_are_checked_and_give_the_path()
     {
