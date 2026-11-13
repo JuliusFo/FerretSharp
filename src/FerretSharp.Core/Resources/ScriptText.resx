@@ -101,7 +101,7 @@
     <comment>{0}: name of the parameter</comment>
   </data>
   <data name="ParamUnknownBind" xml:space="preserve">
-    <value>@param names {0}, but the SQL has no bind :{0}.</value>
+    <value>@param names {0}, but the SQL has no bind :{0} – not saved.</value>
     <comment>{0}: name of the parameter</comment>
   </data>
   <data name="HeaderLineProblem" xml:space="preserve">

@@ -193,6 +193,15 @@ public sealed class ScriptHeadersTests
         Assert.Equal(header.Other, saved.Header.Other);
         Assert.Equal(body, saved.Body);
         Assert.Equal("-- @target ids CUSTOMER.ID\n-- @connections all\n\n" + body, saved.Text); // from now on the text holds them
+        Assert.True(saved.Joined);
+
+        // Second review N2: typed during the write, the tab kept its text without the targets – its link must not claim the
+        // text holds them, or the next save drops them from the shared file.
+        var after = ScriptLink.To(new ScriptRoot(ScriptRootKind.Personal, "/s"), "a.sql", saved.Header, saved.Text, "hash2");
+        Assert.True(saved.LinkAfter(after, textShown: true).HeaderInText);
+        var notShown = saved.LinkAfter(after, textShown: false);
+        Assert.False(notShown.HeaderInText);
+        Assert.Equal(header.Targets, notShown.SaveOf(body + " -- typed meanwhile", []).Header.Targets);
     }
 
     [Fact]
@@ -255,9 +264,10 @@ public sealed class ScriptHeadersTests
         Assert.Empty(saved.Typed); // no variable for it
         Assert.Equal([new ScriptParameter("customer_id", SqlVariableType.Text)], saved.Header.Parameters);
         Assert.Equal([new ScriptTarget("customer_id", "CUSTOMER", "ID")], saved.Header.Targets);
-        Assert.Equal(["-- @param customerid number"], saved.Header.Other);
-        Assert.Equal(["„-- @param customerid number“: @param nennt customerid, aber das SQL hat keinen Bind :customerid."], saved.Problems);
+        Assert.Empty(saved.Header.Other); // not written (second review N1): the file would read it as a parameter
+        Assert.Equal(["„-- @param customerid number“: @param nennt customerid, aber das SQL hat keinen Bind :customerid – nicht gespeichert."], saved.Problems);
         Assert.Equal("-- @param customerid number\n-- @target customer_id CUSTOMER.ID\n\nSELECT :customer_id FROM dual", saved.Text);
+        Assert.Equal(saved.Header.Parameters, ScriptHeaders.Parse(ScriptHeaders.Compose(saved.Header, saved.Body)).Header.Parameters);
     }
 
     [Fact]
@@ -274,6 +284,12 @@ public sealed class ScriptHeadersTests
         Assert.Equal([new ScriptParameter("id", SqlVariableType.Number)], saved.Header.Parameters);
         Assert.Equal(["-- @connections all", "-- @param id text"], saved.Header.Other); // kept in the file as before
         Assert.Equal(shown, saved.Text);
+
+        // Second review N3: a @param of that name typed settles it – the hidden line goes, else it could never be removed.
+        var settled = ScriptHeaders.ForSave("-- @param id text\n" + shown, ScriptHeaders.Apply([], file.Parameters), file, true);
+
+        Assert.Equal([new ScriptParameter("id", SqlVariableType.Text)], settled.Header.Parameters);
+        Assert.Equal(["-- @connections all"], settled.Header.Other);
     }
 
     [Theory]

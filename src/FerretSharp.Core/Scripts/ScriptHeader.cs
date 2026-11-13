@@ -71,10 +71,23 @@ public sealed record ParsedScript(ScriptHeader Header, string Body, IReadOnlyLis
 /// </param>
 /// <param name="Problems">
 /// Header lines that cannot be used, each named by the line itself – a number would point elsewhere once the text was
-/// rebuilt, or into a selection (review fix-script-header-in-editor, 4). They are written as they are.
+/// rebuilt, or into a selection (review fix-script-header-in-editor, 4). They stay in the tab; a <c>@param</c> without its
+/// bind is not written (a file would read it as a parameter, second review N1), every other line is written as it is.
 /// </param>
-public sealed record ScriptSave(ScriptHeader Header, string Body, string Text, IReadOnlyList<ScriptParameter> Typed, IReadOnlyList<string> Problems)
+/// <param name="Joined">The file's targets or lines joined <see cref="Text"/> (a tab of a workspace written before).</param>
+public sealed record ScriptSave(ScriptHeader Header, string Body, string Text, IReadOnlyList<ScriptParameter> Typed, IReadOnlyList<string> Problems, bool Joined = false)
 {
+    /// <summary>
+    /// The link after writing, <paramref name="link"/> made for <see cref="Text"/>: a tab that did not get the text with
+    /// the file's lines joined (typed during the write, <see cref="TextFor"/>) does not show them – its text cannot be the
+    /// truth yet, or the next save would drop the file's targets (second review N2).
+    /// </summary>
+    public ScriptLink LinkAfter(ScriptLink link, bool textShown)
+    {
+        ArgumentNullException.ThrowIfNull(link);
+        return Joined && !textShown ? link with { HeaderInText = false } : link;
+    }
+
     /// <summary>
     /// The text to put into the tab after the file was written, or null to leave it: only when the editor still holds the
     /// text that was saved – typed during the write (a share over the VPN), it stays; "●" then shows the difference
@@ -164,9 +177,10 @@ public static partial class ScriptHeaders
             }
             else
             {
+                // Stays in the tab, reported – not written: a file reads it as a parameter, and the cell menu would ask
+                // for a value the SQL never uses (second review N1).
                 var index = read.ParameterLines[i];
                 errors.Add(new(index + 1, TextFormat.Format(ScriptText.ParamUnknownBind, read.Parameters[i].Name)));
-                other.Add(lines[index]);
                 taken.Remove(index);
             }
         }
@@ -191,7 +205,12 @@ public static partial class ScriptHeaders
             {
                 if (!ShownInText(line))
                 {
-                    other.Add(line); // the text never showed it (review 3): kept as it is
+                    // The text never showed it (review 3): kept as it is – unless a @param of that name was typed, which
+                    // settles the parameter; else such a line could never be removed in the app (second review N3).
+                    if (ParameterNameOf(line) is not { } name || !typed.Any(t => SameName(t.Name, name)))
+                    {
+                        other.Add(line);
+                    }
                 }
                 else if (!fileHeaderInText)
                 {
@@ -213,8 +232,15 @@ public static partial class ScriptHeaders
         }
 
         var problems = errors.Select(e => TextFormat.Format(ScriptText.HeaderLineProblem, lines[e.Line - 1].Trim(), e.Message)).ToList();
-        return new ScriptSave(header, body, after, typed, problems);
+        return new ScriptSave(header, body, after, typed, problems, joined.Count > 0);
     }
+
+    /// <summary>The name a <c>@param</c> line gives, also with a wrong or missing type; null for another line.</summary>
+    private static string? ParameterNameOf(string line) =>
+        Directive().Match(OneLine(line)) is { Success: true } match && match.Groups["name"].Value.Equals("param", StringComparison.OrdinalIgnoreCase)
+        && ParamNameAtStart().Match(match.Groups["value"].Value.Trim()) is { Success: true } name
+            ? name.Groups["quoted"].Success ? name.Groups["quoted"].Value : name.Groups["plain"].Value
+            : null;
 
     /// <summary>
     /// What a SQL tab shows of a script: the header lines FerretSharp has no other place for – targets, then the lines it
@@ -504,6 +530,10 @@ public static partial class ScriptHeaders
 
     [GeneratedRegex(@"^:?(?:""(?<quoted>[^""]+)""|(?<plain>[\p{L}\p{N}_$#]+))\s+(?<type>\S+)(?:\s+(?<list>[Ll][Ii][Ss][Tt]))?$")]
     private static partial Regex ParamValue();
+
+    /// <summary>The name at the start of a <c>@param</c> value, whatever follows.</summary>
+    [GeneratedRegex(@"^:?(?:""(?<quoted>[^""]+)""|(?<plain>[\p{L}\p{N}_$#]+))(?:\s|$)")]
+    private static partial Regex ParamNameAtStart();
 
     /// <summary>Parameter, then <c>TABLE.COLUMN</c> – each name plain or in quotes, no owner (a script runs on any schema).</summary>
     [GeneratedRegex(@"^:?(?:""(?<quoted>[^""]+)""|(?<plain>[\p{L}\p{N}_$#]+))\s+(?<table>""[^""]+""|[\p{L}_$#][\p{L}\p{N}_$#]*)\s*\.\s*(?<column>""[^""]+""|[\p{L}_$#][\p{L}\p{N}_$#]*)$")]

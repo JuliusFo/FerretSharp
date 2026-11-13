@@ -245,7 +245,7 @@
     <comment>Hint</comment>
   </data>
   <data name="Notice_HeaderErrors" xml:space="preserve">
-    <value>Saved – these header lines cannot be used and are kept as they are: {0}</value>
+    <value>Saved – these header lines cannot be used: {0}</value>
     <comment>{0}: each line as typed with its error, separated by ·</comment>
   </data>
   <data name="Notice_Saved" xml:space="preserve">

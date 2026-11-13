@@ -227,12 +227,17 @@ public partial class SqlView
             if (draft.Request.Source == ScriptSaveSource.Window)
             {
                 // The tab now shows the file: named after it, saved only by "Save" from here on.
-                Tab.Script = ScriptLink.To(root, path, header, save.Text, result.FileHash!);
+                var linked = ScriptLink.To(root, path, header, save.Text, result.FileHash!);
+                Tab.Script = linked;
                 (_checkedStamp, _keptHash) = (null, null);
                 // Renders the shell: the tab bar shows the new name, cut to fit a tab title (review WP-77, K5).
                 Shell.RenameTab(Tab, Workspace.FitName(ScriptPaths.NameOf(path)));
                 _scriptNotice = HeaderNotice(save);
-                await ShowSavedAsync(save, draft.Request.Text);
+                var shown = await ShowSavedAsync(save, draft.Request.Text);
+                if (Tab.Script == linked)
+                {
+                    Tab.Script = save.LinkAfter(linked, shown);
+                }
             }
             else
             {
@@ -272,7 +277,13 @@ public partial class SqlView
 
         Tab.Script = ScriptLink.To(root, link.Path, save.Header, save.Text, result.FileHash!);
         (_checkedStamp, _keptHash, _scriptNotice) = (null, null, HeaderNotice(save));
-        await ShowSavedAsync(save, text);
+        var linked = Tab.Script;
+        var shown = await ShowSavedAsync(save, text);
+        if (Tab.Script == linked)
+        {
+            Tab.Script = save.LinkAfter(linked, shown);
+        }
+
         Fire(() => Library.RefreshAsync());
     }
 
@@ -280,12 +291,13 @@ public partial class SqlView
     /// The tab after saving <paramref name="saved"/>: the <c>@param</c> and <c>@description</c> lines typed at the top went
     /// into variables and description, the file's targets of a tab from an older workspace joined the text
     /// (fix-script-header-in-editor). Writing takes a while on a share over the VPN: what was typed meanwhile – text or a
-    /// variable's value – stays (review fix-script-header-in-editor, 1).
+    /// variable's value – stays (review fix-script-header-in-editor, 1). True if the tab got <see cref="ScriptSave.Text"/>.
     /// </summary>
-    private async Task ShowSavedAsync(ScriptSave save, string saved)
+    private async Task<bool> ShowSavedAsync(ScriptSave save, string saved)
     {
         var current = _editor is not null && await _editor.GetTextAsync() is { } now ? now : Tab.Text;
-        if (save.TextFor(current, saved) is { } text)
+        var text = save.TextFor(current, saved);
+        if (text is not null)
         {
             Tab.Text = text;
             if (_editor is not null)
@@ -297,6 +309,7 @@ public partial class SqlView
         Tab.Variables = ScriptHeaders.Apply(Tab.Variables, save.Typed); // the variables as they are now
         await UpdateVariablesAsync(Tab.Text);
         Shell.MarkDirty();
+        return text is not null || save.Text == saved;
     }
 
     /// <summary>Header lines at the top of the text that were saved but cannot be used (a target whose bind the SQL lacks): said at once.</summary>

@@ -79,7 +79,7 @@
     <value>@target nennt {0}, aber das SQL hat keinen Bind :{0}.</value>
   </data>
   <data name="ParamUnknownBind" xml:space="preserve">
-    <value>@param nennt {0}, aber das SQL hat keinen Bind :{0}.</value>
+    <value>@param nennt {0}, aber das SQL hat keinen Bind :{0} – nicht gespeichert.</value>
   </data>
   <data name="HeaderLineProblem" xml:space="preserve">
     <value>„{0}“: {1}</value>
