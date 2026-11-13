@@ -1527,8 +1527,9 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .help-list { margin: 6px 0; padding-left: 16px; }
 .help-list li { margin: 3px 0; }
 .help-body .sql-block { margin: 6px 0; }
-.help-body .help-example { font-size: 11.5px; }
-.script-help-link { display: inline-flex; align-items: center; gap: 6px; margin: 10px 12px; font-size: 12px; }
+.help-body pre.help-example { font-size: 11.5px; white-space: pre; overflow-x: auto; } /* code lines keep their form; the narrow panel scrolls */
+.help-body .link-btn, .script-help-link { padding-left: 0; } /* a link on a line of its own: flush with the text */
+.script-help-link { display: inline-flex; align-items: center; gap: 6px; margin: 10px 18px; font-size: 12px; }
 .dialog.script-save .span-2 { grid-column: 1 / -1; }
 .script-tree .script-folder .chev, .script-tree .script-root .chev { width: 14px; flex: none; display: inline-flex; }
 .script-tree .script-folder .icon { color: var(--muted); }

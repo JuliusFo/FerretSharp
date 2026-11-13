@@ -24,7 +24,15 @@ Plan am 2026-11-13 vom Nutzer so freigegeben („Ja, so umsetzen“), mit Claude
 - Tests: `ScriptHeaderHelpTests` (Marker mit CRLF, Tippfehler, Kopfzeile unter dem Kopf, Schema-Marker, Hover mit Zellmenü-Spalten, Completion je Stelle, `WithoutHeader`, Zeilenteilung wie der Leser), `ScriptTargetsTests.The_columns_reaching_a_target_are_exactly_those_whose_cell_menu_offers_it` (`ReachedBy` ↔ `Reached` für jede Spalte), `ScriptTabsTests.The_help_on_scripts_opens_beside_the_active_sql_tab_or_a_new_one`.
 
 ## E2E
-(folgt)
+Eigene Testinstanz (`--lang=de`, eigener Datenordner, Skripte im Scratchpad) gegen einen eigenen Container mit dem Beispielschema. Klicks mit echter Windows-Eingabe (Probe bestanden), Tippen per CDP (`insertText`).
+- Explorer › *Skripte* › „Wie funktionieren Skripte?“ (echter Klick) öffnet einen neuen SQL-Tab mit Hilfe; der Hilfe-Knopf in der Leiste schaltet sie um (echte Klicks, `aria-pressed`), *Verlauf* schließt sie und umgekehrt.
+- Marker beim Tippen: `@tagret` (Warnung mit Vorschlag), `KUNDEN.NOPE` (Warnung), `GIBTSNICHT.ID` (Hinweis), `@param` ohne Bind und `@target` unter dem SQL (Warnung) – alle unter eigenem Besitzer.
+- Hover (echte Mausbewegung) über `@target kunde_id KUNDEN.KUNDE_ID`: Erklärung, „Gefunden: KUNDEN.KUNDE_ID (NUMBER(10))“ und die drei Spalten, die darauf zeigen.
+- Completion: `-- @` → drei Kopfzeilen (Auslöser `@`), `target k` → `kunde_id`, ` ku` → `KUNDEN` und die View, `.` → die Spalten mit Typ.
+- Ausgeführt mit Kopf: Ergebnis-Kopf und Verlauf zeigen das SQL ohne Kopfzeilen.
+- Speichern-Dialog: der Link schließt ihn und öffnet die Hilfe (echter Klick); nach dem Speichern mit unbrauchbarem `@target` steht „Hilfe“ in der Meldung. Befehlspalette: „>Hilfe“ findet „Hilfe: SQL-Skripte“, Enter öffnet sie.
+- Gefunden und behoben: Der Link im Panel war um das Padding von `.link-btn` eingerückt; das Beispiel brach im schmalen Panel um (jetzt waagrecht scrollbar). Hell und dunkel geprüft; Log ohne Warnungen.
+- Offen (Frage an den Nutzer): Das Panel ist so hoch wie der Editor (wie *Skripte* und *Verlauf*); bei kleinem Editor ist der Lesebereich knapp – über die Ergebnis-Fläche hinweg wäre mehr Platz, aber ein anderer Aufbau des SQL-Tabs.
 
 ## Fallen
 - Das Write-Werkzeug macht aus `' '` in C#-Quelltext das Zeichen selbst – in einem Zeichenliteral ist das ein Zeilenumbruch (CS1010). Nach dem Schreiben solcher Escapes die Datei per Skript prüfen.
