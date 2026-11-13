@@ -33,3 +33,23 @@ und gespeichert. Im Zellmenü von `KUNDE.KUNDE_ID` erschien das Skript nicht. Er
 ## Offen
 - Beim Ausführen laufen die `-- @target`-Zeilen als Kommentar vor dem ersten Statement mit; die Zeile über dem Ergebnis und der Verlauf zeigen sie vorn (`-- @target … SELECT …`). Oracle stört das nicht – Frage an den Nutzer, ob führende Kopfzeilen dort ausgeblendet werden sollen.
 - „Ziel beim Speichern vorschlagen“ (aus `WHERE t.x = :x` erraten) bleibt im Backlog.
+
+## Nachtrag: Code-Review (2026-11-13)
+Separater Reviewer, zwei Runden plus Nachprüfung der Fixes. Entscheidung des Nutzers zur ersten Runde: „Alle beheben, bei 6 bitte komplett ersetzen, auch aus der Branch-Historie.“ Zur zweiten Runde: „Alle beheben“.
+- 1 (M) Tippen während des Speicherns (Freigabe über VPN) wurde zurückgesetzt, Variablenwerte überschrieben: behoben – der Tab bekommt den umgebauten Text nur, wenn der Editor nach dem Schreiben noch den gespeicherten hält (`ScriptSave.TextFor`); auf die Variablen kommen nur die Typen getippter `@param` (`Typed`), auf den Stand nach dem Schreiben. Test `After_writing_the_tab_gets_the_rebuilt_text_only_…`. Nicht im E2E nachgestellt (lokal schreibt die Platte zu schnell).
+- 2 (M) Getipptes `@param` ohne Bind verschwand still: behoben – Meldung `ParamUnknownBind`, die Zeile bleibt im Tab. Test `A_typed_param_without_its_bind_…`.
+- 3 (K) Doppeltes `@param` der Datei drehte beim Speichern still den Typ: behoben – `@param`/`@description`-Zeilen aus `Other` zeigt der Tab nicht (`ShownInText`), sie bleiben in der Datei. Test `A_param_of_the_file_kept_with_errors_…`.
+- 4 (K) Zeilennummer im Hinweis zeigte nach dem Umbau auf eine andere Zeile: behoben – der Hinweis nennt die Zeile selbst (`Problems`, `HeaderLineProblem`).
+- 5 (K) Doku und ADR hinkten hinterher: behoben – `docs/sql-scripts.md` an vier Stellen, Nachtrag in ADR 0046.
+- 6 (M, beim Nachprüfen gefunden) Das Protokoll zitierte Tabellen- und Spaltennamen aus der echten DB des Nutzers: behoben – neutrales Beispiel; der Doku-Commit wurde ersetzt und der Branch per Force-Push überschrieben (auf Wunsch des Nutzers, auch aus der Branch-Historie).
+- Zweite Runde, neu durch die Fixes:
+  - N1 (M) Das gemeldete `@param` ohne Bind wurde in die Datei geschrieben, dort als echter Parameter gelesen (das Zellmenü fragte nach ihm, nach dem Neuöffnen verwaiste Variable, beim nächsten Speichern still weg): behoben – es bleibt nur im Tab, der Hinweis sagt „nicht gespeichert“. Test mit Rundreise über die Datei. Im E2E bestätigt; eine solche Zeile aus dem Zwischenstand vor diesem Fix blieb im Kopf eines wiederhergestellten Tabs stehen (nie veröffentlicht).
+  - N2 (M) Ein Tab aus einem älteren Workspace, in den beim ersten Speichern getippt wurde, galt als „Text ist die Wahrheit“ ohne die Zielzeilen – das nächste Speichern hätte die Ziele der Datei verloren: behoben – `ScriptSave.LinkAfter` lässt `HeaderInText` dann aus. Test im Workspace-Test.
+  - N3 (K) Ausgeblendete `@param`-Fehlerzeilen ließen sich in der App nicht loswerden: behoben – ein getipptes `@param` desselben Namens ersetzt sie.
+  - N4 (K) Review fehlte im Protokoll: dieser Abschnitt.
+- Dritte Runde: N1–N3 gedeckt. Entscheidung des Nutzers: „Alle beheben“.
+  - K1 (K) Doku nannte die Ausnahme für `@param` ohne Bind nicht: behoben.
+  - K2 (K) Ein nicht gespeichertes `@param` stand ohne „●“ im Tab, ein Pull lud es still weg: behoben – der Link hasht den Text ohne die nicht geschriebenen Zeilen (`ScriptSave.SavedText`). Im E2E bestätigt („●“ nach dem Speichern).
+  - K3 (K) Ausgeblendete `@param`-Zeilen ohne Namen oder ohne Bind blieben unlöschbar: behoben – sie fallen beim Speichern weg (ohne Wirkung).
+- Vierte Runde: K1–K3 gedeckt. Optional offen (dem Nutzer vorgelegt): R1 – „●“ bleibt nach dem Löschen einer nicht gespeicherten Zeile stehen, wenn der Kopf ohne Leerzeile getippt war (kosmetisch, verschwindet beim nächsten Speichern); R2 – ADR 0046 nennt den Wegfall wirkungsloser `@param`-Zeilen nicht.
+- Vorher schon da (Backlog): Ein unverbundener Tab aus dem Zellmenü (anderer Text im verbundenen) bekommt nur das SQL ohne Ziele; „Als Skript speichern“ aus ihm verliert sie.
