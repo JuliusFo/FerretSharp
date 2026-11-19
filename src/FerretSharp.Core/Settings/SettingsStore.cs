@@ -105,7 +105,8 @@ public sealed class SettingsStore(string filePath)
         };
         foreach (var property in EnumSettings)
         {
-            if (!Enum.IsDefined(property.PropertyType, property.GetValue(normalized)!))
+            // A nullable enum (Dock, WP-92) may be null – unset; a number it does not define goes like any other (review WP-92).
+            if (property.GetValue(normalized) is { } value && !Enum.IsDefined(EnumOf(property.PropertyType), value))
             {
                 property.SetValue(normalized, property.GetValue(AppSettings.Default)); // a copy of its own, made just above
                 skipped.Add(JsonNamingPolicy.CamelCase.ConvertName(property.Name));
@@ -116,7 +117,9 @@ public sealed class SettingsStore(string filePath)
     }
 
     private static readonly System.Reflection.PropertyInfo[] EnumSettings =
-        typeof(AppSettings).GetProperties().Where(p => p.PropertyType.IsEnum && p.CanWrite).ToArray();
+        typeof(AppSettings).GetProperties().Where(p => EnumOf(p.PropertyType).IsEnum && p.CanWrite).ToArray();
+
+    private static Type EnumOf(Type type) => Nullable.GetUnderlyingType(type) ?? type;
 
     /// <summary>
     /// The settings of a file the serializer could not read, without what it could not read (<paramref name="content"/> is the

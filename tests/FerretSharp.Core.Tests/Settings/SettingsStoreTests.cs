@@ -151,12 +151,12 @@ public sealed class SettingsStoreTests : IDisposable
     public async Task A_setting_this_version_cannot_read_has_its_default_and_the_others_stay()
     {
         await File.WriteAllTextAsync(_store.FilePath,
-            """{ "version": 1, "settings": { "theme": "purple", "language": "german", "fkCounts": 3, "keepAlive": false } }""", Ct);
+            """{ "version": 1, "settings": { "theme": "purple", "language": "german", "fkCounts": 3, "dock": 42, "keepAlive": false } }""", Ct);
 
         var read = await _store.ReadAsync(Ct);
 
         Assert.Equal(AppSettings.Default with { Language = UiLanguage.German, KeepAlive = false }, read.Settings);
-        Assert.Equal(["theme", "fkCounts"], read.Skipped);
+        Assert.Equal(["theme", "fkCounts", "dock"], read.Skipped); // a nullable enum too (review WP-92)
     }
 
     /// <summary>
