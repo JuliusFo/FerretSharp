@@ -28,6 +28,7 @@ Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des 
   - **Ctrl+1 … 9 als Ausnahme** von „neue Aktionen bekommen keine Standardtaste“ (`docs/architecture.md` 3), in den Einstellungen änderbar; die angehefteten Workspaces stehen vorn und haben damit feste Tasten. Der Grund der Regel bleibt: Hat der Nutzer eine dieser Tasten schon einer anderen Aktion gegeben, behält er sie, und der Wechsel bekommt sie nicht.
   - **`Workspace.Notes` kommt mit**, als Feld in der Workspace-Übersicht.
   - Standardname „Workspace N“ mit der kleinsten freien Nummer bleibt (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“).
+- Dazu (Nutzer, 2026-11-19, aus der UX-Ideensammlung): **Transaktion am Workspace-Chip** – Punkt mit Alter („● 12 min“) an jedem Chip und im Verbindungs-Umschalter je offener Verbindung (Backlog „Verbindungen, Sessions, Workspaces“). Kommt WP-92 vorher, öffnet die Workspace-Übersicht im Dock.
 
 ### WP-43 Datenqualität der Beziehungen
 Branch `wp/43-relationship-check`.
@@ -67,8 +68,9 @@ Branch `wp/47-since-last-visit`.
   - **Bedingungen zuerst nur am Ende des Pfads.** Bedingungen auf Zwischentabellen später; das Linkformat `v=3` sieht dafür schon eine Liste je Stufe vor, damit es nicht noch einmal bricht.
 
 ### Kleine Themen
-Entschieden mit dem Nutzer am 2026-11-12 (vorher offene UX-Fragen).
+Entschieden mit dem Nutzer am 2026-11-12 (vorher offene UX-Fragen), der Meldungsverlauf am 2026-11-19.
 - **„Kein Index“ in Spalten-Ansicht und Designer, „Index anlegen“** (`small-usage-filter-without-index.md`): Die Spalten-Ansicht markiert gefilterte Spalten ohne Index wie „ungenutzt“; der Hinweis des Designers nennt sie; der Hinweis bekommt einen Knopf „Index anlegen“, der einen Entwurf in der Index-Ansicht öffnet wie bei Fremdschlüsseln ohne Index.
+- **Meldungsverlauf** (`small-notice-history`, UX-Ideensammlung 2026-11-19, vom Nutzer gewünscht): die letzten Meldungen der Statusleiste mit Uhrzeit und Verbindung hinter einem Symbol in der Statusleiste (Backlog „Verbindungen, Sessions, Workspaces“). Vorschlag (nicht bestätigt): 50 Meldungen, nur für die Laufzeit, ungelesene Fehler markiert.
 - **Ctrl+C auf markierte ganze Spalten über der Grenze** (WP-58): Ist die Zeilenzahl bekannt und Zeilen × Spalten über 100 000, wird nicht gelesen, sondern sofort gemeldet, dass es zu viele Zellen sind, mit einem Knopf zum Export. Bei unbekannter Zeilenzahl bleibt es wie heute (lesen bis zur Grenze, dann „nichts kopiert“).
 
 ## Vorschläge aus der Backlog-Priorisierung (2026-11-12)
@@ -90,7 +92,39 @@ Branch `wp/87-manual-relations`. Voraussetzung für WP-80; nützt WP-43 (Beziehu
 Branch `wp/88-column-quick-search`. Idee des Nutzers (2026-11-12), ausgearbeitet im Backlog („Schema und Explorer“, Spalten in der Schnellsuche): Spalten aller Tabellen und Views auch nach C#-Property-Namen finden, Enter öffnet die Tabelle mit Spaltensprung; `SchemaCache` hält die Spalten je Owner, Modellvergleich und Suche teilen sie. Dazu wahlweise die Suche in Spaltenkommentaren (Backlog, erweiterte Abfrage).
 - Offen wie im Backlog: eigenes Präfix oder Gruppe „Spalten“; Anzeige `TABELLE.SPALTE` mit Typ und `Entity.Property`.
 - Abschaltbar? (Frage des Nutzers 2026-11-12, um Ladezeit und Roundtrips zu sparen.) Einschätzung: Die Spalten laden erst bei der ersten Spaltensuche, ungenutzt kosten sie also nichts; ist ein C#-Projekt verknüpft, liest der Modellvergleich sie ohnehin. Mit eigenem Präfix lädt nie etwas ungefragt – dann braucht es keinen Schalter. Als Gruppe unter den Objekten löst die erste Suche je Verbindung das Laden aus (einige Sekunden auf `all_tab_cols`, ~1–2 MB): dann im Hintergrund laden, Objekte sofort zeigen, Spalten nachreichen, und ein Schalter „Spalten in der Schnellsuche“ (Standard an) als Ventil. Vorschlag (nicht bestätigt): Schalter nur bei der Gruppen-Variante; entscheidet sich mit der Präfix-Frage.
+## Pakete aus der UX-Ideensammlung (2026-11-19)
+Claude hat am 2026-11-19 Ideen zur Bedienung gesammelt; der Nutzer hat je Idee entschieden, die Mockups gesehen und den Zuschnitt in diese Pakete bestätigt. **Die Einzelheiten unter „Vorschlag“ sind nicht bestätigt** und werden beim Start abgestimmt. Abgelehnt („brauche ich erstmal nicht“): Umgebung in Windows-Titelleiste und Taskleiste, Zeilenvergleich über Verbindungen hinweg (Backlog). Abhängigkeiten: Über WP-92 sollte vor WP-39 entschieden sein (die Workspace-Übersicht von WP-39 gehört dann ins Dock); WP-93 braucht WP-92 nicht und zieht mit ihm ins Dock.
 
+### WP-90 Vorschau-Tabs bei FK-Sprüngen, Tabs wieder öffnen
+Branch `wp/90-preview-tabs`. Backlog „Grid, Filter, Formular, Editieren“ (Vorschau-Tabs) und „Verbindungen, Sessions, Workspaces“ (Tabs wieder öffnen). Beide betreffen, wie Tabs entstehen und verschwinden (`ShellState.Tabs`, `TabState`).
+- **Vorschau-Tabs:** Ein Tab aus einem FK-Sprung ist Vorschau (Titel kursiv); der nächste Sprung aus ihm ersetzt ihn, solange er nicht angefasst wurde. Ctrl+Klick auf einen Sprung öffnet immer einen festen Tab. Heute öffnet jeder Sprung einen neuen Tab (`ShellState.OpenFiltered`).
+- **Spur über dem Grid:** die Kette der Sprünge (`KUNDEN 113 › AUFTRAG (12) › AUFTRAG_POSITION`), Glieder klickbar – Alt+←/→ gehen sie heute schon entlang (`Forward`).
+- **Geschlossene Tabs wieder öffnen:** Eintrag im Tab-Kontextmenü und eine Aktion ohne Standardtaste (`docs/architecture.md` 3); der Tab kommt mit seinem `TabState` zurück (Filter, Ansicht, SQL-Text).
+- Entschieden (Nutzer, 2026-11-19): Vorschau-Tabs **mit Einstellung zum Ein- und Ausschalten**.
+- Vorschlag (nicht bestätigt): „Angefasst“ heißt Filter angewendet, Zelle bearbeitet, angeheftet oder Doppelklick auf den Titel; Standard der Einstellung an; einige geschlossene Tabs je Workspace, nur für die Laufzeit; die Rückfrage beim Schließen eines SQL-/LINQ-Tabs nur wegen Text entfällt, bei ausstehenden Änderungen bleibt sie.
+- Offen: zählt ein Wechsel der Ansicht als „angefasst“; Spur auch bei ausgeschalteten Vorschau-Tabs; Sprünge aus Formular, SQL-Ergebnis und LINQ-Konsole.
+
+### WP-91 Explorer-Favoriten und „Zuletzt geöffnet“
+Branch `wp/91-favorites-recent`. Backlog „Schema und Explorer“ (Favoriten; Schnellsuche, „Zuletzt geöffnet“). Favoriten setzt der Nutzer, „Zuletzt geöffnet“ füllt sich von selbst – beides oben im Explorer bzw. in der leeren Schnellsuche.
+- Favoriten: Tabellen, Views und PL/SQL mit Stern oben im Explorer, über dem Buchstabenindex; Stern im Objektmenü (`TableMenuBody`, `PlSqlMenuBody`) und am Eintrag beim Überfahren.
+- „Zuletzt geöffnet“ in der leeren Schnellsuche, auch Tabellen, deren Tab inzwischen geschlossen ist (je Verbindung, eigene Datei).
+- Entschieden (Nutzer, 2026-11-19): Favoriten gewünscht (stehen auch auf seiner eigenen Liste).
+- Vorschlag (nicht bestätigt): Favoriten nach Objektname gespeichert wie die Filter-Vorlagen (WP-37), also auf Dev, Test und Prod gleich; in der leeren Schnellsuche vor „Zuletzt geöffnet“.
+
+### WP-92 Dock rechts mit Spalten-Inspektor
+Branch `wp/92-side-dock`. Backlog „Grid, Filter, Formular, Editieren“ (Dock). Mockup: `docs/images/mockups/wp-92-dock-inspector.png`.
+- **Ein Dock für die rechte Seite** mit Icon-Leiste: Formular, offene Änderungen, Hilfe (WP-89), neu der Inspektor, später die Workspace-Übersicht (WP-39). Klick wechselt, zweiter Klick schließt; die Leiste zeigt die Zahl der offenen Änderungen.
+- **Spalten-Inspektor:** folgt der fokussierten Zelle – Typ, C#-Property, Kommentar, Wert der Zeile mit Anzeigename, FK, Indizes mit der Position der Spalte, Statistik, Verwendung im Code mit Sprung; Links zur Spaltenansicht, „Nach dieser Spalte filtern“, Namen kopieren.
+- Entschieden (Nutzer, 2026-11-19): Mockup passt. **Nur ein Panel zur Zeit** (Formular und offene Änderungen gehen dann nicht mehr gleichzeitig; zwei Panels übereinander wären eine spätere Ergänzung). **Das Dock gehört dem Fenster**, nicht dem Tab: Es bleibt beim Tabwechsel offen, sein Inhalt folgt dem aktiven Tab. Der Formular-Zustand je Tab (`TabState.Form`) wird dafür zum Zustand des Fensters – gespeicherte Workspaces brauchen eine Migration (`VersionedJsonFile`).
+- Vorschlag (nicht bestätigt): Die Skript- und Verlaufsleiste des SQL-Tabs bleibt am Editor; der Inspektor zuerst nur in Tabellen-Tabs, in SQL- und LINQ-Ergebnissen später für Spalten mit bekannter Herkunft (WP-48); Statistik aus `ALL_TAB_COL_STATISTICS` erst beim Zeigen des Inspektors, Indizes und Verwendung aus dem, was Ansichten und Code-Index schon laden.
+- Offen: Breite des Docks je Fenster oder je Inhalt; was ein Tab ohne passenden Inhalt zeigt (Formular in einem SQL-Tab ohne Ergebnis); Tastenkürzel (`ToggleChanges` bleibt, die übrigen Panels ohne Standardtaste).
+
+### WP-93 Datensatz-Akte im Formular
+Branch `wp/93-record-file`. Backlog „Grid, Filter, Formular, Editieren“ (Datensatz-Akte). Mockup: `docs/images/mockups/wp-93-record-file.png`.
+- Unter den Feldern des Formulars Abschnitte „Verweist auf“ (Eltern mit Anzeigenamen, optional eine zweite Zeile mit deren Anzeigespalten) und „Referenziert von“ (je Kindtabelle die Anzahl, aufklappbar zu einer kleinen Liste, „Als Tab öffnen“ mit Filter).
+- Entschieden (Nutzer, 2026-11-19): Mockup passt.
+- Vorschlag (nicht bestätigt): zugeklappt als Standard; Zahlen wie heute über `FkCounts`; eine Liste liest erst beim Aufklappen, höchstens 10 Zeilen, Werte über die Präsentationsschicht; Audit-Tabellen (WP-63) gekennzeichnet; Quellen wie bei der FK-Navigation (auch `ClrModel`).
+- Offen: auch im Formular von SQL-Ergebnis und LINQ-Konsole (Herkunft der Spalten, WP-48); welche Spalten die kleine Liste zeigt (Vorschlag: PK, Anzeigespalten, dann die ersten weiteren).
 
 ## Offene UX-Fragen
 (keine)
