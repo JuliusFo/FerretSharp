@@ -141,12 +141,21 @@
                                         <EmptyState Title="@ShellText.Shell_SelectTable" Text="@NoTabText" />
                                     }
                                 </div>
-                                @if (_state.ChangesOpen && Active.IsConnected)
+                                @if (Active.IsConnected)
                                 {
-                                    @* WP-30: the open changes of the active workspace, beside its tabs. *@
-                                    <ConnectionScopeView @key='(Shown, "changes")' Scope="Shown">
-                                        <ChangesPanel Lifecycle="_lifecycle" />
-                                    </ConnectionScopeView>
+                                    @* The dock on the right (WP-92, ADR 0052): form and inspector are drawn by the active tab (they
+                                       need its grid), the open changes (WP-30) and the help (WP-89) here; the bar beside all. *@
+                                    @if (_state.Dock == DockPanel.Changes)
+                                    {
+                                        <ConnectionScopeView @key='(Shown, "changes")' Scope="Shown">
+                                            <ChangesPanel Lifecycle="_lifecycle" />
+                                        </ConnectionScopeView>
+                                    }
+                                    else if (_state.Dock == DockPanel.Help)
+                                    {
+                                        <HelpPanel Topic="_state.HelpTopic" OnClose="() => _state.CloseDock(DockPanel.Help)" />
+                                    }
+                                    <DockRail Lifecycle="_lifecycle" />
                                 }
                                 </div>
                             </div>
@@ -361,8 +370,8 @@
         _state.Changed += OnChanged;
         _state.Dirty += _lifecycle.SaveTabs;
         _state.ConnectRequested += OnConnectRequested;
-        _state.RestoreChanges(Settings.Current.ChangesPanelOpen);
-        _state.ChangesOpenChanged += OnChangesOpenChanged;
+        _state.RestoreDock(Settings.Current.ShownDock);
+        _state.DockChanged += OnDockChanged;
         Connections.Changed += OnChanged;
         Connections.Changed += OnConnectionsSaved;
         Hub.Changed += OnHubChanged;
@@ -613,6 +622,9 @@
             case ShortcutAction.ToggleChanges:
                 _state.ToggleChanges();
                 break;
+            case ShortcutAction.ToggleInspector:
+                _state.ToggleDock(DockPanel.Inspector);
+                break;
             case ShortcutAction.SwitchWorkClone:
                 _state.OpenWorkClones();
                 break;
@@ -635,9 +647,13 @@
         }
     }
 
-    /// <summary>The change overview opens again after a restart if it was open (WP-30).</summary>
-    private void OnChangesOpenChanged(bool open) =>
-        InvokeAsync(() => _state.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { ChangesPanelOpen = open }, CancellationToken.None)));
+    /// <summary>
+    /// The dock's panel opens again after a restart (WP-92); the change overview's flag goes along, so an older FerretSharp
+    /// still finds it open (WP-30).
+    /// </summary>
+    private void OnDockChanged(DockPanel panel) =>
+        InvokeAsync(() => _state.TrySaveSettingsAsync(() =>
+            Settings.UpdateAsync(s => s with { Dock = panel, ChangesPanelOpen = panel == DockPanel.Changes }, CancellationToken.None)));
 
     /// <summary>Raised by <see cref="ShellState.Connect"/> from anywhere; the lifecycle asks about open changes first.</summary>
     private void OnConnectRequested(ConnectionProfile profile) => Run(() => _lifecycle.ConnectAsync(profile));
@@ -833,7 +849,7 @@
         _state.Changed -= OnChanged;
         _state.Dirty -= _lifecycle.SaveTabs;
         _state.ConnectRequested -= OnConnectRequested;
-        _state.ChangesOpenChanged -= OnChangesOpenChanged;
+        _state.DockChanged -= OnDockChanged;
         Connections.Changed -= OnChanged;
         Connections.Changed -= OnConnectionsSaved;
         Hub.Changed -= OnHubChanged;

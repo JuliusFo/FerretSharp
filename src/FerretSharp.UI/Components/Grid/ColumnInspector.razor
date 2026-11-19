@@ -1,0 +1,463 @@
+@* The column inspector (WP-92, ADR 0052): a panel of the dock beside a table's data view. It follows the focused cell and
+   shows its column – type, C# property, comment, the row's value, the relationships, the indexes with the column's place
+   in each, the optimizer statistics and the use in code – so "is it indexed, who uses it?" needs no other view. Indexes
+   and statistics are read once per tab (one round trip each), the rest comes from what the tab has loaded. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@inherits FerretComponent
+@implements IAsyncDisposable
+@inject ILogger<ColumnInspector> Logger
+@inject IJSRuntime JS
+@inject ShortcutService Shortcuts
+@inject CodeUsageOpener Opener
+
+<aside class="dock-panel inspector-panel" aria-label="@ShellText.Dock_Inspector">
+    <DockResizeHandle />
+    <header class="inspector-head">
+        @Icons.Inspector
+        <strong>@ShellText.Dock_Inspector</strong>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="@GridText.Inspector_ReloadTitle" disabled="@_reading" @onclick="ReloadAsync">@Icons.Refresh</button>
+        <button class="icon-btn ghost" title="@(CommonText.Close + Shortcuts.Hint(ShortcutAction.ToggleInspector))" @onclick="OnClose">@Icons.Close</button>
+    </header>
+
+    @if (_column is not { } column || column >= Details.Columns.Count)
+    {
+        <div class="inspector-empty">@GridText.Inspector_ChooseCell</div>
+    }
+    else
+    {
+        var inspection = ColumnInspection.Of(Details, column, Active.Schema?.LinksOf(Details.Table.Ref) ?? [], Active.Schema?.IncomingOf(Details.Table.Ref) ?? [], Tab.Inspection);
+        var presentation = Presentations.For(Details);
+        var label = presentation.LabelOf(column);
+        var field = FieldOf(column, presentation);
+        <div class="inspector-body">
+            <div class="inspector-title">
+                <span class="mono">@inspection.Info.Name</span>
+                @if (inspection.PrimaryKey)
+                {
+                    <span class="fs-badge pk" title="@GridText.Inspector_PrimaryKey">PK</span>
+                }
+                @if (inspection.References.Count > 0)
+                {
+                    <span class="fs-badge fk">FK</span>
+                }
+            </div>
+            <dl class="inspector-facts">
+                <dt>@GridText.Inspector_Type</dt>
+                <dd class="mono">@ColumnHeaderLines.All.TextOf(inspection.Info)</dd>
+                @if (label.AlternateName is not null || label.ClrType is not null)
+                {
+                    <dt>C#</dt>
+                    <dd><span class="clr">@label.AlternateName</span>@(label.ClrType is { } clrType ? (label.AlternateName is null ? clrType : " · " + clrType) : "")</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(inspection.Info.Comment))
+                {
+                    <dt>@GridText.Inspector_Comment</dt>
+                    <dd class="inspector-comment">@inspection.Info.Comment</dd>
+                }
+                @if (field is not null)
+                {
+                    <dt>@GridText.Inspector_ThisRow</dt>
+                    <dd>
+                        @if (field.IsNull)
+                        {
+                            <span class="null">NULL</span>
+                        }
+                        else
+                        {
+                            <span class="inspector-value" title="@field.Value.Tooltip">@field.Value.Text</span>
+                        }
+                        @if (field.Name is { Text: { } name })
+                        {
+                            <span class="muted"> · @name</span>
+                        }
+                    </dd>
+                }
+            </dl>
+
+            @if (inspection.References.Count + inspection.ReferencedBy.Count > 0)
+            {
+                <section class="inspector-sec">
+                    <h4>@GridText.Inspector_Relationships</h4>
+                    @foreach (var fk in inspection.References)
+                    {
+                        var target = fk;
+                        <div class="inspector-line">
+                            <button class="link-btn mono" title="@GridText.Inspector_OpenTable" @onclick="() => OpenTable(target.To)">→ @Name(target.To, target.ToColumns)</button>
+                            <span class="chip-note">@DiagramStyle.SourceLabel(target.Source)</span>
+                        </div>
+                    }
+                    @foreach (var fk in inspection.ReferencedBy)
+                    {
+                        var source = fk;
+                        <div class="inspector-line">
+                            <button class="link-btn mono" title="@GridText.Inspector_OpenTable" @onclick="() => OpenTable(source.From)">← @Name(source.From, source.FromColumns)</button>
+                            <span class="chip-note">@DiagramStyle.SourceLabel(source.Source)</span>
+                        </div>
+                    }
+                </section>
+            }
+
+            <section class="inspector-sec">
+                <h4>@GridText.Inspector_Indexes @if (inspection.Indexes is { Count: > 0 } counted) { <span class="count">@counted.Count</span> }</h4>
+                @if (inspection.Indexes is not { } indexes)
+                {
+                    @Reading
+                }
+                else if (indexes.Count == 0)
+                {
+                    <div class="muted">@GridText.Inspector_NoIndex</div>
+                }
+                else
+                {
+                    @foreach (var place in indexes)
+                    {
+                        <div class="inspector-index">
+                            <div class="inspector-line">
+                                <span class="mono">@place.Index.Name</span>
+                                <span class="spacer"></span>
+                                <span class="chip-note @(place.Leads ? "good" : "")">@TextFormat.Format(GridText.Inspector_IndexPlace, place.Position, place.Index.Columns.Count)</span>
+                            </div>
+                            <div class="muted mono">
+                                (@string.Join(", ", place.Index.Columns.Select(c => c.Name + (c.Descending ? " DESC" : ""))))
+                                @if (place.Index.Unique)
+                                {
+                                    <span> · UNIQUE</span>
+                                }
+                                @if (place.Index.IsUnusable)
+                                {
+                                    <span class="warn-text"> · @GridText.Inspector_Unusable</span>
+                                }
+                                @if (!place.Index.Visible)
+                                {
+                                    <span> · @GridText.Inspector_Invisible</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+                @if (inspection.NoLeadingIndex)
+                {
+                    <div class="inspector-note">@Icons.Warning <span>@GridText.Inspector_NoLeadingIndex</span></div>
+                }
+            </section>
+
+            <section class="inspector-sec">
+                <h4>@GridText.Inspector_Statistics</h4>
+                @if (Tab.Inspection is null)
+                {
+                    @Reading
+                }
+                else if (inspection.Statistics is not { } stats)
+                {
+                    <div class="muted">@GridText.Inspector_NoStatistics</div>
+                }
+                else
+                {
+                    <dl class="inspector-facts">
+                        <dt>@GridText.Inspector_Distinct</dt>
+                        <dd>@Number(stats.Distinct)</dd>
+                        <dt>NULL</dt>
+                        <dd>@Number(stats.Nulls)</dd>
+                        @if (stats.Histogram is { } histogram && histogram != "NONE")
+                        {
+                            <dt>@GridText.Inspector_Histogram</dt>
+                            <dd>@histogram</dd>
+                        }
+                        <dt>@GridText.Inspector_Analyzed</dt>
+                        <dd>@(stats.LastAnalyzed?.ToString("g", CultureInfo.CurrentCulture) ?? "–")</dd>
+                    </dl>
+                }
+            </section>
+
+            @if (Models.Mapping?.EntityOf(Details.Table.Ref) is not null && Models.State.Link is not null)
+            {
+                <section class="inspector-sec">
+                    @{ var usage = UsageOf(inspection.Info.Name); }
+                    <h4>@GridText.Inspector_Usage @if (usage is { Uses.Count: > 0 } used) { <span class="count">@used.Uses.Count</span> }</h4>
+                    @if (Usage.State.Phase is CodeUsagePhase.Failed && Usage.State.Error is { } error)
+                    {
+                        <div class="muted">@error</div>
+                    }
+                    else if (Usage.State.Result is null)
+                    {
+                        <div class="muted"><span class="spinner small"></span> @GridText.Inspector_UsageReading</div>
+                    }
+                    else if (usage is null || usage.Property is null)
+                    {
+                        <div class="muted">@GridText.Inspector_NoProperty</div>
+                    }
+                    else if (usage.Uses.Count == 0 || usage.Unused)
+                    {
+                        <div class="muted">@GridText.Inspector_Unused</div>
+                    }
+                    @if (usage is { Uses.Count: > 0 })
+                    {
+                        var shown = usage.Uses.OrderBy(u => u.IsTest || u.IsMapping).Take(UsesShown).ToList();
+                        @foreach (var use in shown)
+                        {
+                            var u = use;
+                            <div class="inspector-line">
+                                <span class="chip-note">@CodeUsageRows.Kind(u.Use.Kind)</span>
+                                <button class="link-btn mono inspector-caller" title="@CodeUsageRows.Location(u.Use)" @onclick="() => OpenUseAsync(u)">@CodeUsageRows.Caller(u.Use)</button>
+                                @if (u.Use.Line is { } line)
+                                {
+                                    <span class="muted mono">:@line</span>
+                                }
+                            </div>
+                        }
+                        @if (usage.Uses.Count > UsesShown)
+                        {
+                            <button class="link-btn" @onclick="() => ShowMode(TabMode.Usage)">@TextFormat.Format(GridText.Inspector_MoreUses, usage.Uses.Count - UsesShown)</button>
+                        }
+                    }
+                </section>
+            }
+
+            <div class="inspector-links">
+                <button class="link-btn" @onclick="() => ShowMode(TabMode.Structure)">@GridText.Inspector_ColumnsView</button>
+                @if (!Tab.SqlMode && Tab.TimeTravel is null && field is not null && !field.IsLob)
+                {
+                    <button class="link-btn" title="@GridText.Inspector_FilterValueTitle" @onclick="() => FilterBy(field)">@GridText.Inspector_FilterValue</button>
+                }
+                <button class="link-btn" @onclick="() => CopyAsync(inspection.Info.Name)">@GridText.Inspector_CopyName</button>
+            </div>
+        </div>
+    }
+</aside>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The tab's grid: its focused cell picks the column; null until it is there.</summary>
+    [Parameter]
+    public FerretGrid? Grid { get; set; }
+
+    /// <summary>"Columns view", "N more" uses: the tab on that view.</summary>
+    [Parameter]
+    public EventCallback<TabMode> OnShowMode { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>Uses in code shown before "N more" leads to the "Usage" view.</summary>
+    private const int UsesShown = 5;
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private FerretGrid? _subscribed;
+    private int? _column;
+    private bool _reading;
+    private DomModule? _dom;
+    private bool _disposed;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    private RenderFragment Reading => _readError is { } error
+        ? @<div class="muted">@error</div>
+        : @<div class="muted"><span class="spinner small"></span> @GridText.Inspector_Reading</div>;
+
+    private string? _readError;
+
+    protected override void OnInitialized() => Usage.Changed += OnUsageChanged;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(Grid, _subscribed))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.FocusChanged -= OnFocusChanged;
+                _subscribed.RowsChanged -= OnRowsChanged;
+            }
+
+            _subscribed = Grid;
+            if (Grid is not null)
+            {
+                Grid.FocusChanged += OnFocusChanged;
+                Grid.RowsChanged += OnRowsChanged;
+                _column = Grid.Focused?.Column ?? _column;
+            }
+        }
+
+        if (Tab.Inspection is null && !_reading && _readError is null)
+        {
+            Fire(ReadAsync);
+        }
+
+        // As the columns view: the code usage index is read when a view needs it, not on connecting.
+        if (Usage.State.Phase == CodeUsagePhase.NotBuilt && Models.Mapping?.EntityOf(Details.Table.Ref) is not null)
+        {
+            Fire(() => Usage.EnsureAsync(_lifetime.Token));
+        }
+    }
+
+    /// <summary>Another cell: its column; a row without a column (▲ ▼ of the form) keeps the column shown.</summary>
+    private void OnFocusChanged() => Fire(() =>
+    {
+        if (_disposed || Grid?.Focused is not { } cell)
+        {
+            return;
+        }
+
+        _column = cell.Column ?? _column;
+        StateHasChanged();
+    });
+
+    /// <summary>The row's value may have changed (written, loaded).</summary>
+    private void OnRowsChanged() => Fire(() =>
+    {
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
+    });
+
+    private void OnUsageChanged() => Fire(() =>
+    {
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
+    });
+
+    /// <summary>Indexes and statistics of the table, one round trip each on the explorer session; kept in the tab.</summary>
+    private async Task ReadAsync()
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        _reading = true;
+        _readError = null;
+        var table = Details.Table;
+        var token = _lifetime.Token;
+        var result = await Shell.RunDbAsync(Logger, Active, async () => new ColumnInspectorData(
+            table.Kind == TableKind.View ? [] : await schema.GetIndexesAsync(table.Ref, token),
+            table.Kind == TableKind.View ? [] : await schema.GetColumnStatisticsAsync(table.Ref, token),
+            DateTimeOffset.Now), token);
+        if (_disposed)
+        {
+            return;
+        }
+
+        _reading = false;
+        if (result.Succeeded)
+        {
+            Tab.Inspection = result.Value;
+        }
+        else if (!result.Cancelled)
+        {
+            _readError = result.Error?.Display;
+        }
+
+        StateHasChanged();
+    }
+
+    private Task ReloadAsync()
+    {
+        Tab.Inspection = null;
+        _readError = null;
+        return _reading ? Task.CompletedTask : ReadAsync();
+    }
+
+    /// <summary>The focused row's field of the column (value, display name); null without a loaded row.</summary>
+    private FormField? FieldOf(int column, TablePresentation presentation)
+    {
+        if (Grid?.Focused is not { } cell || Grid.RowOf(cell) is not { } row)
+        {
+            return null;
+        }
+
+        var fields = RowForm.Fields(Details, presentation, row, writable: false, Active.Schema?.LinksOf(Details.Table.Ref) ?? [], Models.Mapping, [], Grid.Names);
+        return fields.FirstOrDefault(f => f.Column == column);
+    }
+
+    private ColumnUsageRow? UsageOf(string column) =>
+        Models.Mapping is { } mapping && Usage.State.Result is { } result ? CodeUsageRows.Column(mapping, result.Index, Details.Table.Ref, column) : null;
+
+    private static string Name(TableRef table, IReadOnlyList<string> columns) => $"{table.Name}.{string.Join(", ", columns)}";
+
+    private static string Number(long? value) => value?.ToString("N0", CultureInfo.CurrentCulture) ?? "–";
+
+    private void OpenTable(TableRef table)
+    {
+        if (Active.Schema is not null)
+        {
+            Shell.OpenTable(FkTargets.SummaryOf(Active, table));
+        }
+    }
+
+    private Task ShowMode(TabMode mode) => OnShowMode.InvokeAsync(mode);
+
+    /// <summary>A filter row for the column with the focused cell's value (or IS NULL); "Apply" runs it, as any typed row.</summary>
+    private void FilterBy(FormField field)
+    {
+        var row = field.IsNull
+            ? new FilterRow { Column = field.Info.Name, Op = FilterOperator.IsNull }
+            : new FilterRow { Column = field.Info.Name, Op = FilterOperator.Equals, Value = field.EditText };
+        Tab.AddFilterRow(row);
+        Shell.MarkDirty();
+        Shell.NotifyChanged();
+    }
+
+    private async Task OpenUseAsync(CodeUsage use)
+    {
+        if (Models.State.Link is not { } link)
+        {
+            return;
+        }
+
+        if (await Opener.OpenAsync(use.Use, link, Usage.Solution, Active.Profile?.Group, _lifetime.Token) is { } notice)
+        {
+            Shell.Notify(notice);
+        }
+    }
+
+    private async Task CopyAsync(string text)
+    {
+        if (!_disposed)
+        {
+            await Dom.CopyTextAsync(Shell, text);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        await _lifetime.CancelAsync();
+        _lifetime.Dispose();
+        Usage.Changed -= OnUsageChanged;
+        if (_subscribed is not null)
+        {
+            _subscribed.FocusChanged -= OnFocusChanged;
+            _subscribed.RowsChanged -= OnRowsChanged;
+        }
+
+        await Dom.DisposeAsync();
+    }
+}

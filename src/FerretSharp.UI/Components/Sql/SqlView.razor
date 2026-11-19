@@ -36,7 +36,7 @@
         <MoreMenu ButtonClass="btn ghost" Title="@ScriptViewText.SqlView_ScriptMenuTitle" Items="ScriptMenu" />
         <button class="btn ghost @(_scriptsOpen ? "active" : "")" title="@ScriptViewText.SqlView_ScriptsTitle" @onclick="ToggleScripts">@ScriptViewText.SqlView_Scripts</button>
         <button class="btn ghost @(_historyOpen ? "active" : "")" title="@SqlEditorText.SqlView_HistoryTitle" @onclick="ToggleHistoryAsync">@SqlEditorText.SqlView_History</button>
-        <button class="icon-btn ghost @(Tab.HelpOpen ? "active" : "")" title="@ScriptViewText.SqlView_HelpTitle" aria-pressed="@(Tab.HelpOpen ? "true" : "false")"
+        <button class="icon-btn ghost @(HelpShown ? "active" : "")" title="@ScriptViewText.SqlView_HelpTitle" aria-pressed="@(HelpShown ? "true" : "false")"
                 @onclick="ToggleHelp">@Icons.Help</button>
         @if (Tab.ShownRun is { Info.IsQuery: true, Error: null } && _error is null)
         {
@@ -84,10 +84,6 @@
         @if (_scriptsOpen)
         {
             <SqlScriptsPanel Profile="Active.Profile" OnInsert="InsertScriptAsync" />
-        }
-        @if (Tab.HelpOpen)
-        {
-            <HelpPanel Topic="HelpTopic.Scripts" OnClose="ToggleHelp" />
         }
 
         <ResizeHandle Edge="ResizeEdge.Bottom" Min="EditorMinHeight" MaxFraction="EditorMaxFraction" Variable="@PanelSizes.SqlEditorHeight"
@@ -464,10 +460,6 @@
             case TabCommand.KeepResult:
                 Fire(ToggleKeep);
                 break;
-            case TabCommand.ShowHelp:
-                ShowHelp();
-                StateHasChanged();
-                break;
             case TabCommand.FindColumn when _editor is not null:
                 // The focus in the result's form: its field search (review 3.44.0, A9), else the editor's search.
                 Fire(async () =>
@@ -572,12 +564,15 @@
             ? new MonacoEditor.HoverInfo(hover.Start, hover.Length, hover.Paragraphs)
             : null;
 
-    /// <summary>The help on scripts beside the editor, or closed (WP-89); one panel beside the editor at a time.</summary>
+    /// <summary>The help on scripts is shown in the dock (WP-89, WP-92).</summary>
+    private bool HelpShown => Shell.Dock == DockPanel.Help && Shell.HelpTopic == HelpTopic.Scripts;
+
+    /// <summary>The help on scripts in the dock on the right (WP-89, since WP-92 there), or closed.</summary>
     private void ToggleHelp()
     {
-        if (Tab.HelpOpen)
+        if (HelpShown)
         {
-            Tab.HelpOpen = false;
+            Shell.CloseDock(DockPanel.Help);
         }
         else
         {
@@ -585,11 +580,7 @@
         }
     }
 
-    private void ShowHelp()
-    {
-        Tab.HelpOpen = true;
-        (_historyOpen, _scriptsOpen) = (false, false);
-    }
+    private void ShowHelp() => Shell.ShowScriptHelp();
 
     /// <summary>
     /// "How do scripts work?" in the save dialog: the dialog closes (it would cover the help), the help opens. What was
@@ -1165,7 +1156,6 @@
     {
         _historyOpen = !_historyOpen;
         _scriptsOpen &= !_historyOpen; // one panel beside the editor at a time
-        Tab.HelpOpen &= !_historyOpen;
         if (_historyOpen && Active.Profile is { } profile)
         {
             _history = await History.LoadAsync(profile.Id, CancellationToken.None);
@@ -1228,12 +1218,8 @@
 
     private string ExportName(SqlStatementInfo info) => InsertTarget(info)?.DisplayName ?? Tab.Title;
 
-    /// <summary>The form beside the result (WP-56): open or close; saved with the tab.</summary>
-    private void ToggleForm()
-    {
-        Tab.FormOpen = !Tab.FormOpen;
-        Shell.MarkDirty();
-    }
+    /// <summary>The form beside the result (WP-56) in the dock (WP-92): open or close – for the window.</summary>
+    private void ToggleForm() => Shell.ToggleDock(DockPanel.Form);
 
     /// <summary>Whether the statement's write is still uncommitted, was taken back (↶) or ended with commit or rollback.</summary>
     private WriteFate FateOf(SqlRun run) =>

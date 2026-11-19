@@ -284,10 +284,10 @@
     <comment>Button: the form view beside the grid</comment>
   </data>
   <data name="Tab_FormTitle" xml:space="preserve">
-    <value>Show the selected row as a form beside the grid</value>
+    <value>Show the selected row as a form in the dock on the right</value>
   </data>
   <data name="Tab_FormTitleWithKey" xml:space="preserve">
-    <value>Show the selected row as a form beside the grid ({0} in the grid; with several rows selected: compare)</value>
+    <value>Show the selected row as a form in the dock on the right ({0} in the grid; with several rows selected: compare)</value>
     <comment>{0} = shortcut like Alt+Enter</comment>
   </data>
   <data name="Tab_LoadingStructure" xml:space="preserve">

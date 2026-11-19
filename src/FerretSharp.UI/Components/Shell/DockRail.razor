@@ -1,0 +1,45 @@
+@* The bar of the dock on the right (WP-92, ADR 0052): a button per panel – a click opens it, a second one closes it. One
+   panel at a time, for the whole window: form and inspector show the active tab's row and column. *@
+@inject ShortcutService Shortcuts
+
+<nav class="dock-rail" aria-label="@ShellText.Dock_Title">
+    @foreach (var panel in DockPanels.InBar)
+    {
+        var p = panel;
+        var open = Shell.Dock == p;
+        var unavailable = DockPanels.Unavailable(p, Shell.ActiveTab);
+        <button class="dock-btn @(open ? "active" : "") @(unavailable is null ? "" : "unavailable")" aria-pressed="@(open ? "true" : "false")"
+                aria-label="@DockPanels.LabelOf(p)" title="@Title(p, unavailable)" @onmousedown:preventDefault="true" @onclick="() => Shell.ToggleDock(p)">
+            @Icon(p)
+            @if (p == DockPanel.Changes && Count is int count and > 0)
+            {
+                <span class="dock-count">@(count > 99 ? "99+" : count.ToString(CultureInfo.CurrentCulture))</span>
+            }
+        </button>
+    }
+</nav>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the bar renders again whenever the shell does (counts, active tab).</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    /// <summary>Pending and written changes of the active workspace, as the status bar counts them.</summary>
+    private int? Count => Shell.ActiveWorkspace is { } workspace && Lifecycle.Editing.SummaryOf(workspace) is var summary
+        ? summary.Pending + summary.Flushed
+        : null;
+
+    private string Title(DockPanel panel, string? unavailable) =>
+        DockPanels.LabelOf(panel) + Shortcuts.Hint(DockPanels.ActionOf(panel)) + (unavailable is null ? "" : Environment.NewLine + unavailable);
+
+    private static MarkupString Icon(DockPanel panel) => panel switch
+    {
+        DockPanel.Inspector => Icons.Inspector,
+        DockPanel.Form => Icons.Form,
+        DockPanel.Changes => Icons.OpenChanges,
+        _ => Icons.Help,
+    };
+}

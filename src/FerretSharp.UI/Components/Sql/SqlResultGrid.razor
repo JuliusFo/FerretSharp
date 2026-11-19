@@ -25,7 +25,7 @@
     <div class="grid-host">
         <div id="@_id" class="ag-host"></div>
     </div>
-    @if (FormTab is { FormOpen: true } formTab)
+    @if (FormShown && FormTab is { } formTab)
     {
         <ResultFormPanel @ref="_form" Tab="formTab" Grid="this" WorkspaceId="WorkspaceId" OnClose="CloseFormAsync" />
     }
@@ -773,7 +773,7 @@
             Compare(selectedRows.Order().ToList());
             await InvokeAsync(StateHasChanged);
         }
-        else if (FormTab is { FormOpen: true })
+        else if (FormShown)
         {
             await CloseFormAsync();
         }
@@ -805,10 +805,23 @@
     /// <summary>The form's copy button: the whole value, with the notes of Ctrl+C.</summary>
     public Task CopyValueAsync(ColumnInfo column, object? value) => ExportActions.CopyCellAsync(Shell, _grid, column, value);
 
+    /// <summary>
+    /// The form of this result is in the dock (WP-92): the dock shows the form and this grid's tab is the active one – the
+    /// dock is the window's, and a form in every mounted tab would each read and count.
+    /// </summary>
+    private bool FormShown => FormTab is not null && Shell.Dock == DockPanel.Form && ReferenceEquals(Shell.ActiveTab, FormTab);
+
     private async Task SetFormOpenAsync(IFormTab tab, bool open)
     {
-        tab.FormOpen = open;
-        Shell.MarkDirty();
+        if (open)
+        {
+            Shell.ShowDock(DockPanel.Form);
+        }
+        else
+        {
+            Shell.CloseDock(DockPanel.Form);
+        }
+
         await InvokeAsync(StateHasChanged);
         await OnFormChanged.InvokeAsync();
     }
@@ -821,7 +834,7 @@
             return;
         }
 
-        if (!tab.FormOpen)
+        if (!FormShown)
         {
             await SetFormOpenAsync(tab, true);
         }

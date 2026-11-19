@@ -605,12 +605,8 @@
 
     private void OnConsoleChanged() => InvokeAsync(StateHasChanged);
 
-    /// <summary>The form beside the result (WP-56): open or close; saved with the tab.</summary>
-    private void ToggleForm()
-    {
-        Tab.FormOpen = !Tab.FormOpen;
-        Shell.MarkDirty();
-    }
+    /// <summary>The form beside the result (WP-56) in the dock (WP-92): open or close – for the window.</summary>
+    private void ToggleForm() => Shell.ToggleDock(DockPanel.Form);
 
     public void Dispose()
     {

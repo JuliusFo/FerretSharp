@@ -66,17 +66,11 @@ public interface ITitledTab
 }
 
 /// <summary>
-/// A tab with the form beside its grid (WP-21; the result of the SQL editor and the LINQ console since WP-56), saved with
-/// the tab as <see cref="TabState.Form"/>.
+/// A tab with a form of its grid's row (WP-21; the result of the SQL editor and the LINQ console since WP-56), saved with
+/// the tab as <see cref="TabState.Form"/>. Whether the form shows and how wide is the dock's (WP-92: the window's), not the tab's.
 /// </summary>
 public interface IFormTab
 {
-    /// <summary>The form beside the grid is open.</summary>
-    bool FormOpen { get; set; }
-
-    /// <summary>Width of the form in CSS pixels; null for the default.</summary>
-    int? FormWidth { get; set; }
-
     /// <summary>"Leere ausblenden" in the form, per tab (decision of the user).</summary>
     bool FormHideEmpty { get; set; }
 }
@@ -92,14 +86,14 @@ public interface IResultPinTab
 
 public static class FormTabs
 {
-    /// <summary>What is saved of the form; null if it was never used in the tab.</summary>
-    public static FormTabState? Save(IFormTab tab) =>
-        tab.FormOpen || tab.FormWidth is not null || tab.FormHideEmpty ? new FormTabState(tab.FormOpen, tab.FormWidth, tab.FormHideEmpty) : null;
+    /// <summary>
+    /// What is saved of the form: only "hide empty" since the dock (WP-92) – open and width of a file before it are not
+    /// read any more; null if nothing differs from the default.
+    /// </summary>
+    public static FormTabState? Save(IFormTab tab) => tab.FormHideEmpty ? new FormTabState(Open: false, HideEmpty: true) : null;
 
     public static T WithForm<T>(this T tab, FormTabState? state) where T : IFormTab
     {
-        tab.FormOpen = state?.Open ?? false;
-        tab.FormWidth = state?.Width;
         tab.FormHideEmpty = state?.HideEmpty ?? false;
         return tab;
     }
@@ -123,10 +117,6 @@ public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(works
 
     /// <summary>Height of the query editor as dragged, in CSS pixels; null for the default (decision of the user: per tab).</summary>
     public int? EditorHeight { get; set; }
-
-    public bool FormOpen { get; set; }
-
-    public int? FormWidth { get; set; }
 
     public bool FormHideEmpty { get; set; }
 
@@ -172,15 +162,8 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
     /// </summary>
     public bool RunOnOpen { get; set; }
 
-    /// <summary>The help on SQL scripts beside the editor (WP-89, <see cref="ShellState.ShowScriptHelp"/>); not saved.</summary>
-    public bool HelpOpen { get; set; }
-
     /// <summary>Height of the editor as dragged, in CSS pixels; null for the default (decision of the user: per tab).</summary>
     public int? EditorHeight { get; set; }
-
-    public bool FormOpen { get; set; }
-
-    public int? FormWidth { get; set; }
 
     public bool FormHideEmpty { get; set; }
 

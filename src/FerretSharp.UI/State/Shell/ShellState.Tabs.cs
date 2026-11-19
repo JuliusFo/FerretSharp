@@ -5,6 +5,7 @@ using FerretSharp.Core.Relations;
 using FerretSharp.Core.Resources;
 using FerretSharp.UI.Resources;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.UI.State;
@@ -325,23 +326,11 @@ public sealed partial class ShellState
         return tab;
     }
 
-    /// <summary>
-    /// The help on SQL scripts (WP-89) beside the active SQL tab, or beside a new one if another tab is active – the help
-    /// explains what is typed there. Nothing without a workspace.
-    /// </summary>
+    /// <summary>The help on SQL scripts (WP-89) in the dock (WP-92): it needs no SQL tab any more.</summary>
     public void ShowScriptHelp()
     {
-        if (ActiveTab is SqlTab active)
-        {
-            active.HelpOpen = true;
-            RequestTabCommand(active, TabCommand.ShowHelp);
-            return;
-        }
-
-        if (OpenSql() is { } tab)
-        {
-            tab.HelpOpen = true;
-        }
+        HelpTopic = HelpTopic.Scripts;
+        ShowDock(DockPanel.Help);
     }
 
     /// <summary>

@@ -114,7 +114,6 @@ public partial class SqlView
     {
         _scriptsOpen = !_scriptsOpen;
         _historyOpen &= !_scriptsOpen; // one panel beside the editor at a time
-        Tab.HelpOpen &= !_scriptsOpen;
     }
 
     /// <summary>The editor's text now (it reports changes only after a pause).</summary>

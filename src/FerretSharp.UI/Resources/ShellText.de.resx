@@ -1278,4 +1278,22 @@
   <data name="DataDiff_Restoring" xml:space="preserve">
     <value>Liest die Zeilen zum Zurücksetzen …</value>
   </data>
+  <data name="Dock_Title" xml:space="preserve">
+    <value>Seitenpanels</value>
+  </data>
+  <data name="Dock_Inspector" xml:space="preserve">
+    <value>Spalten-Inspektor</value>
+  </data>
+  <data name="Dock_Form" xml:space="preserve">
+    <value>Formular</value>
+  </data>
+  <data name="Dock_Help" xml:space="preserve">
+    <value>Hilfe</value>
+  </data>
+  <data name="Dock_InspectorUnavailable" xml:space="preserve">
+    <value>Erscheint in der Datenansicht einer Tabelle.</value>
+  </data>
+  <data name="Dock_FormUnavailable" xml:space="preserve">
+    <value>Erscheint in der Datenansicht einer Tabelle und neben einem Ergebnis von SQL-Editor oder LINQ-Konsole.</value>
+  </data>
 </root>

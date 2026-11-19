@@ -164,6 +164,18 @@
 
     public void FocusSearch() => _frame?.FocusSearch();
 
+    /// <summary>
+    /// The form leaves the dock (another tab, another panel, another view – WP-92): typed values become pending changes, as
+    /// when the form moves to another row; one that cannot be taken stays only as it was typed and goes.
+    /// </summary>
+    public void TakeTypedValues()
+    {
+        if (!_disposed)
+        {
+            CommitDrafts();
+        }
+    }
+
     /// <summary>"+ Row" with the form open: the new row is filled here, starting with its first editable field.</summary>
     public void FocusFirstFieldOfNewRow() => _frame?.FocusFirstInput();
 
