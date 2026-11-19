@@ -27,9 +27,12 @@
     [Parameter, EditorRequired]
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
-    /// <summary>Pending and written changes of the active workspace, as the status bar counts them.</summary>
+    /// <summary>
+    /// What the open changes list: pending edits of the grid and uncommitted actions – grid writes as well as statements of
+    /// the SQL editor and the LINQ console (review WP-92: written rows alone missed an UPDATE from the SQL editor).
+    /// </summary>
     private int? Count => Shell.ActiveWorkspace is { } workspace && Lifecycle.Editing.SummaryOf(workspace) is var summary
-        ? summary.Pending + summary.Flushed
+        ? summary.Pending + summary.Actions.Count
         : null;
 
     private string Title(DockPanel panel, string? unavailable) =>

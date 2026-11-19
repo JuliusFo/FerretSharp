@@ -1522,7 +1522,7 @@
     <value>Analysiert</value>
   </data>
   <data name="Inspector_NoStatistics" xml:space="preserve">
-    <value>Keine Statistik – die Tabelle wurde nie analysiert.</value>
+    <value>Keine Statistik für diese Spalte.</value>
   </data>
   <data name="Inspector_Usage" xml:space="preserve">
     <value>Verwendung im Code</value>
@@ -1553,5 +1553,11 @@
   </data>
   <data name="Inspector_TestsAndMapping" xml:space="preserve">
     <value>{0} weitere in Tests und Mapping</value>
+  </data>
+  <data name="Form_TypedValueDropped" xml:space="preserve">
+    <value>Nicht aus dem Formular übernommen: {0} – {1}</value>
+  </data>
+  <data name="Inspector_ViewNoIndexes" xml:space="preserve">
+    <value>Eine View hat keine eigenen Indizes und keine Statistik – es zählen die ihrer Tabellen.</value>
   </data>
 </root>

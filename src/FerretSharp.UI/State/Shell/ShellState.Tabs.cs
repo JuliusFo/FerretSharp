@@ -329,7 +329,7 @@ public sealed partial class ShellState
     /// <summary>The help on SQL scripts (WP-89) in the dock (WP-92): it needs no SQL tab any more.</summary>
     public void ShowScriptHelp()
     {
-        HelpTopic = HelpTopic.Scripts;
+        Set(() => HelpTopic = HelpTopic.Scripts); // renders also when the help is open already (review WP-92)
         ShowDock(DockPanel.Help);
     }
 

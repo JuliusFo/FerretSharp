@@ -1936,7 +1936,7 @@
     <comment>Label: when Oracle last gathered the statistics</comment>
   </data>
   <data name="Inspector_NoStatistics" xml:space="preserve">
-    <value>No statistics – the table was never analyzed.</value>
+    <value>No statistics for this column.</value>
   </data>
   <data name="Inspector_Usage" xml:space="preserve">
     <value>Use in code</value>
@@ -1970,5 +1970,12 @@
   <data name="Inspector_TestsAndMapping" xml:space="preserve">
     <value>{0} more in tests and mapping</value>
     <comment>{0}: number of uses of the property in tests and in the EF configuration; opens the view Usage</comment>
+  </data>
+  <data name="Form_TypedValueDropped" xml:space="preserve">
+    <value>Not taken from the form: {0} – {1}</value>
+    <comment>Status bar notice when the form leaves the dock with a typed value that is not valid; {0}: column name, {1}: why the value is not valid</comment>
+  </data>
+  <data name="Inspector_ViewNoIndexes" xml:space="preserve">
+    <value>A view has no indexes or statistics of its own – those of its tables count.</value>
   </data>
 </root>

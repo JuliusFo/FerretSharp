@@ -37,6 +37,7 @@
   --warn-text: #8a5600;       /* text on a warn fill: 5.3:1 on 14 % (review 3.54.0, A28; --warn there 3.0:1) */
   --pending: #d4a106;         /* marker of a pending (unwritten) value */
   --yellow: #eab308;          /* fill of pending values, primary keys, advice */
+  --on-yellow: #3b2b00;       /* text on the full yellow (the count in the dock's bar, WP-92) */
   --key: #b7791f;             /* text of a primary key badge */
   --green: #22a05a;           /* fill of new rows, display columns */
   --green-text: #1f8a4c;      /* text on a green fill */
@@ -79,6 +80,7 @@
     --warn: #e8a33c;
   --warn-text: #e8a33c;
     --pending: #e3b341;
+    --on-yellow: #3b2b00;
     --key: #e0b04a;
     --green: #3cc47a;
     --green-text: #6ad89c;
@@ -708,7 +710,7 @@ dl.keys dd { margin: 0; }
 .dock-btn.unavailable:not(.active) { opacity: .5; }
 /* Chosen, but the active tab has no such panel: the choice stays for the next tab that has it. */
 .dock-btn.active.unavailable { background: var(--hover); color: var(--muted); }
-.dock-count { position: absolute; top: -2px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--yellow); color: #3b2b00; font: 700 9px/15px var(--sans); text-align: center; }
+.dock-count { position: absolute; top: -2px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--yellow); color: var(--on-yellow); font: 700 9px/15px var(--sans); text-align: center; }
 .tabview-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
 .pages { flex: 1; position: relative; min-height: 0; min-width: 0; }
 .page { position: absolute; inset: 0; display: none; }

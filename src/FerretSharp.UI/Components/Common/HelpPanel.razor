@@ -8,7 +8,7 @@
         @Icons.Help
         <span class="help-title">@TopicTitle</span>
         <span class="spacer"></span>
-        <button class="icon-btn ghost" title="@(CommonText.Close + Shortcuts.Hint(ShortcutAction.ScriptHelp))" @onclick="OnClose">@Icons.Close</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">@Icons.Close</button>
     </div>
     <div class="help-body">
         @switch (Topic)
@@ -21,9 +21,6 @@
 </aside>
 
 @code {
-    [Inject]
-    public ShortcutService Shortcuts { get; set; } = null!;
-
     [Parameter]
     public HelpTopic Topic { get; set; }
 
