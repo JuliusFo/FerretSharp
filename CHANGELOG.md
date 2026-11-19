@@ -16,7 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Changed
 - The line above a result, its chips and the SQL history show a statement without the script’s header lines at its start; what runs is unchanged.
-- The form, the open changes and the help on SQL scripts are panels of the dock (WP-92): one at a time, for the whole window. The form no longer opens per tab – a form left open in a tab before this version does not open again by itself; the open changes come back as they were, with their width. The help opens beside any tab, no SQL tab is opened for it any more.
+- The form, the open changes and the help on SQL scripts are panels of the dock (WP-92): one at a time, for the whole window. The form no longer opens per tab – a form left open in a tab before this version does not open again by itself; the open changes come back as they were, with their width. The help opens beside any tab, no SQL tab is opened for it any more. A value typed into the form that cannot be taken when the form leaves the dock is named in the status bar.
 
 ## [3.71.1] - 2026-11-13
 

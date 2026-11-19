@@ -61,3 +61,19 @@ Befunde (alle behoben, mit erneutem Lauf geprüft):
 5. Ein neuer SQL-Tab ohne Ergebnis zeigte „Formular“ aktiv und nichts. Jetzt gilt das Formular dort als nicht verfügbar (SQL-Tab nur mit gezeigter Abfrage, LINQ-Tab mit Lauf).
 6. Ohne Index standen „Kein Index enthält diese Spalte“ und die Warnung untereinander – nur noch die Warnung.
 7. Im Kopf der Hilfe stand das ✕ direkt hinter dem Titel und der Kopf war niedriger als bei den anderen Panels.
+
+## Nachtrag: Code-Review (2026-11-20)
+Unabhängiger Reviewer (Agent), Bereich `8236b379..b7ef02bd`; kein S, drei M, zehn K. Entscheidung des Nutzers: „Alle fixen, #13 mit Meldung“. Zweiter Durchgang über die Fix-Commits: zwei Reste (N1, N2) gleich mit behoben, N3 ist dieser Nachtrag.
+- M1 Views: Der Inspektor warnte an jeder Spalte einer View „kein Index“ und meldete „nie analysiert“ – behoben: `ColumnInspection.OwnIndexes`, bei Views ein Hinweis statt Indizes und Statistik (Test, E2E mit `V_KUNDEN_AUFTRAEGE`).
+- M2 „Nach diesem Wert filtern“ nahm den Bearbeitungstext (INTERVAL abgelehnt, TIMESTAMP(9)/Gleitkomma/ausstehende Werte fanden still nichts) – behoben: `ColumnInspection.FilterOf` über `FkNavigation.FilterValue`, kein Link für Typen ohne Gleichheit und ausstehende Werte; N1: auch nicht für TIMESTAMP(8/9) außerhalb eines Schlüssels (Theory mit CHAR, TIMESTAMP(6/9), BINARY_DOUBLE).
+- M3 Indizes und Statistik blieben nach DDL im selben Tab stehen – behoben: `TableTab.UseStructure` leert `Inspection` (Test).
+- K1 Das ✕ der Hilfe nannte die Hilfe-Taste, die nur öffnet – Hinweis entfernt.
+- K2 Feste Farbe der Zahl an der Leiste – Token `--on-yellow`.
+- K3 Hilfe-Thema bei offener Hilfe ohne Neuzeichnen – über `Set(...)`.
+- K4 Unbekannte Zahl für das Nullable-Enum `dock` blieb in der Datei – `SettingsStore` behandelt Nullable-Enums wie andere (Testfall `"dock": 42`).
+- K5 „Tabelle nie analysiert“ zu absolut – „Keine Statistik für diese Spalte.“
+- K6 Die Zahl an der Leiste ließ Statements aus SQL-Editor und LINQ-Konsole aus – jetzt ausstehend + nicht committete Aktionen (E2E: UPDATE im SQL-Tab → 1).
+- K7 Ungültiger getippter Formularwert ging beim Tabwechsel still verloren – Entscheidung des Nutzers: mit Meldung; `TakeTypedValues` nennt Spalte und Grund in der Statusleiste (E2E: „abc“ in KUNDE_ID).
+- K8 Die ganze Zeile wurde bei jedem Rendern neu aufbereitet – das Feld der Zeile wird nach Zelle, Zeilen, Namen und Präsentation behalten; N2: die Fakten der Spalte (billig) jedes Mal neu, sonst zeigten sie nach „Schema neu laden“ alte Beziehungen.
+- K9 Totes Feld `ColumnInspectorData.ReadAt` – entfernt. K10 Veralteter Kommentar in `ScriptHelp` – nachgezogen.
+- Ohne Befund geprüft (Reviewer): Lesesperre (nur ein SELECT mit Binds, `ReadOnlyTests`), Quellen → Senken (Dictionary- und Zellwerte nur als Text bzw. Bind, Spaltenname nur auf Klick in die Zwischenablage, `settings.json` nur als Enum bzw. begrenzte CSS-Breite), Lebensdauer und Abbruch des Inspektors, Übergabe getippter Werte, Texte en/de.
