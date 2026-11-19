@@ -38,6 +38,11 @@ public static class ObjectDetailsSchema
         "CREATE TABLE OD_TEMP (ID NUMBER, X NUMBER)",
         "CREATE VIEW OD_V_KAPUTT AS SELECT ID, X FROM OD_TEMP",
         "ALTER TABLE OD_TEMP DROP COLUMN X", // the view is INVALID from now on
+        // WP-92: column statistics – ten rows, three codes, four notes missing, analyzed.
+        "CREATE TABLE OD_STAT (ID NUMBER PRIMARY KEY, CODE VARCHAR2(5), NOTE VARCHAR2(10))",
+        "INSERT INTO OD_STAT SELECT LEVEL, 'C' || MOD(LEVEL, 3), CASE WHEN LEVEL > 4 THEN 'N' END FROM DUAL CONNECT BY LEVEL <= 10",
+        "COMMIT",
+        "BEGIN DBMS_STATS.GATHER_TABLE_STATS(USER, 'OD_STAT', estimate_percent => 100); END;",
     ];
 
     public static async Task EnsureCreatedAsync(string connectionString, CancellationToken cancellationToken)

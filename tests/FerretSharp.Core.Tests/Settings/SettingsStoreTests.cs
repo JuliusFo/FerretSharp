@@ -80,6 +80,7 @@ public sealed class SettingsStoreTests : IDisposable
         _ when type == typeof(int?) => (int?)current is { } n ? n + 1 : 520,
         _ when type == typeof(string) => current is null ? "C:\\team\\file.json" : null,
         _ when type.IsEnum => Enum.GetValues(type).Cast<object>().First(v => !v.Equals(current)),
+        _ when Nullable.GetUnderlyingType(type) is { IsEnum: true } underlying => current is null ? Enum.GetValues(underlying).Cast<object>().Last() : null,
         _ when type == typeof(TableListMap) => TableListMap.Empty.With(Guid.Empty.ToString(), [new("APP", "BENUTZER")]),
         _ => throw new InvalidOperationException($"No changed value for a setting of type {type.Name}: add one here."),
     };
@@ -89,6 +90,24 @@ public sealed class SettingsStoreTests : IDisposable
         var copy = settings with { };
         property.SetValue(copy, value);
         return copy;
+    }
+
+    /// <summary>
+    /// WP-92: settings written before the dock open the change overview in it if it was open, with its dragged width; once
+    /// the dock was used, its own values count.
+    /// </summary>
+    [Theory]
+    [InlineData("\"changesPanelOpen\": true, \"changesPanelWidth\": 450", DockPanel.Changes, 450)]
+    [InlineData("\"changesPanelOpen\": false", DockPanel.None, null)]
+    [InlineData("\"changesPanelOpen\": true, \"changesPanelWidth\": 450, \"dock\": \"form\", \"dockWidth\": 380", DockPanel.Form, 380)]
+    [InlineData("\"changesPanelOpen\": true, \"dock\": \"none\"", DockPanel.None, null)]
+    public async Task The_dock_takes_the_change_overview_of_settings_before_it(string settings, DockPanel shown, int? width)
+    {
+        await File.WriteAllTextAsync(_store.FilePath, $$"""{ "version": 1, "settings": { {{settings}} } }""", Ct);
+
+        var loaded = await _store.LoadAsync(Ct);
+
+        Assert.Equal((shown, width), (loaded.ShownDock, loaded.ShownDockWidth));
     }
 
     [Fact]

@@ -132,6 +132,19 @@ public sealed class ObjectDetailsTests(OracleContainerFixture oracle) : IAsyncLi
         Assert.False(Assert.Single(foreignKeys, f => f.Name == "FK_OD_AUFTRAG_VERK").Enforced);
     }
 
+    /// <summary>WP-92, the column inspector: the statistics of each analyzed column in one round trip; none for a view.</summary>
+    [Fact]
+    public async Task Column_statistics_come_per_column_once_the_table_is_analyzed()
+    {
+        var stats = (await Reader.GetColumnStatisticsAsync(new TableRef(_owner, "OD_STAT"), Ct)).ToDictionary(s => s.Column);
+
+        Assert.Equal((10L, 0L), (stats["ID"].Distinct, stats["ID"].Nulls));
+        Assert.Equal((3L, 0L), (stats["CODE"].Distinct, stats["CODE"].Nulls));
+        Assert.Equal((1L, 4L), (stats["NOTE"].Distinct, stats["NOTE"].Nulls));
+        Assert.NotNull(stats["CODE"].LastAnalyzed);
+        Assert.Empty(await Reader.GetColumnStatisticsAsync(new TableRef(_owner, "OD_V_KUNDE"), Ct));
+    }
+
     /// <summary>
     /// Review 3.54.0, A14: names a constraint or index of OD_KUNDE cannot take – the other tables' constraints and indexes
     /// (OD_KUNDE's own are the designer's to rename) – in one round trip that passes the read guard. Tables and views are not

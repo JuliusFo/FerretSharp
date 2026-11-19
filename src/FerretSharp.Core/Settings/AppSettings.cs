@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Settings;
@@ -8,6 +9,27 @@ public enum ThemeMode
     System,
     Light,
     Dark,
+}
+
+/// <summary>
+/// What the dock on the right shows (WP-92, ADR 0052): one panel at a time, for the whole window. Form and inspector show
+/// the active tab's row and column; the change overview and the help belong to no tab.
+/// </summary>
+public enum DockPanel
+{
+    None,
+
+    /// <summary>The column of the focused cell: type, keys, indexes, statistics, use in code.</summary>
+    Inspector,
+
+    /// <summary>The focused row as a form (WP-21, WP-56).</summary>
+    Form,
+
+    /// <summary>The open changes of the active workspace (WP-30).</summary>
+    Changes,
+
+    /// <summary>The help on a topic (WP-89).</summary>
+    Help,
 }
 
 /// <summary>Where the C# model's entity and property names appear next to table and column names (WP-12).</summary>
@@ -186,11 +208,31 @@ public sealed record AppSettings
     /// </summary>
     public TableListMap PathAvoidedTables { get; init; } = TableListMap.Empty;
 
-    /// <summary>The change overview (WP-30) is open beside the tabs – it opens again after a restart.</summary>
+    /// <summary>
+    /// The change overview (WP-30) was open beside the tabs – the setting before the dock (WP-92), read only while
+    /// <see cref="Dock"/> is not set (<see cref="ShownDock"/>) and written alongside it, so an older FerretSharp still finds it.
+    /// </summary>
     public bool ChangesPanelOpen { get; init; }
 
-    /// <summary>Width of the change overview in pixels, as the user dragged it; null for the default.</summary>
+    /// <summary>Width of the change overview before the dock (WP-92); read only while <see cref="DockWidth"/> is not set.</summary>
     public int? ChangesPanelWidth { get; init; }
+
+    /// <summary>
+    /// The panel open in the dock on the right (WP-92, ADR 0052) – it opens again after a restart. Null in settings of a
+    /// version before the dock: then <see cref="ChangesPanelOpen"/> decides (<see cref="ShownDock"/>).
+    /// </summary>
+    public DockPanel? Dock { get; init; }
+
+    /// <summary>Width of the dock in pixels, one for every panel, as the user dragged it; null for the default.</summary>
+    public int? DockWidth { get; init; }
+
+    /// <summary>The panel of the dock, also from settings written before the dock (an open change overview).</summary>
+    [JsonIgnore]
+    public DockPanel ShownDock => Dock ?? (ChangesPanelOpen ? DockPanel.Changes : DockPanel.None);
+
+    /// <summary>The dragged width of the dock, also the one of the change overview before the dock; null for the default.</summary>
+    [JsonIgnore]
+    public int? ShownDockWidth => DockWidth ?? ChangesPanelWidth;
 
     /// <summary>Width of the explorer in pixels, as the user dragged it; null for the default. One for every connection.</summary>
     public int? ExplorerWidth { get; init; }
