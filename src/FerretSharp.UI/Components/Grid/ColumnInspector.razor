@@ -409,24 +409,24 @@
     }
 
     /// <summary>
-    /// What the panel shows of the column, kept until the cell, the rows, the names beside them, the presentation or the read
-    /// indexes change – the inspector renders with every change of the shell, i.e. every cell edit anywhere (review WP-92).
+    /// What the panel shows of the column. The row's field – the whole row presented, the costly part – is kept until the
+    /// cell, the rows, the names beside them or the presentation change: the inspector renders with every change of the shell,
+    /// i.e. every cell edit anywhere (review WP-92). The column's facts are cheap and taken anew, so relationships of a schema
+    /// loaded again show at once (second review WP-92).
     /// </summary>
     private (ColumnInspection Inspection, FormField? Field) Shown(int column, TablePresentation presentation)
     {
-        var key = (column, _version, Tab.Inspection, Grid?.Names, Presentations.Version); // For() builds a new presentation each time
-        if (_shown is { } shown && shown.Key == key)
+        var inspection = ColumnInspection.Of(Details, column, Active.Schema?.LinksOf(Details.Table.Ref) ?? [], Active.Schema?.IncomingOf(Details.Table.Ref) ?? [], Tab.Inspection);
+        var key = (column, _version, Grid?.Names, Presentations.Version); // For() builds a new presentation each time
+        if (_field is not { } kept || kept.Key != key)
         {
-            return (shown.Inspection, shown.Field);
+            _field = kept = (key, FieldOf(column, presentation));
         }
 
-        var inspection = ColumnInspection.Of(Details, column, Active.Schema?.LinksOf(Details.Table.Ref) ?? [], Active.Schema?.IncomingOf(Details.Table.Ref) ?? [], Tab.Inspection);
-        var field = FieldOf(column, presentation);
-        _shown = (key, inspection, field);
-        return (inspection, field);
+        return (inspection, kept.Field);
     }
 
-    private ((int, int, ColumnInspectorData?, Core.Display.DisplayNames?, int) Key, ColumnInspection Inspection, FormField? Field)? _shown;
+    private ((int, int, Core.Display.DisplayNames?, int) Key, FormField? Field)? _field;
 
     /// <summary>Bumped when the focused cell or the rows change (<see cref="Shown"/>).</summary>
     private int _version;

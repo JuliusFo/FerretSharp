@@ -94,10 +94,19 @@ public sealed class ColumnInspectionTests
     [InlineData("INTERVAL DAY(2) TO SECOND(6)", "+01 02:00:00", null, null)]
     [InlineData("CLOB", "text", null, null)]
     [InlineData("BINARY_DOUBLE", "1E+20", null, null)]
+    [InlineData("CHAR", "AB  ", null, "Equals AB")] // compared blank-padded: the text without the padding finds it
+    [InlineData("TIMESTAMP(6)", "2026-11-19 22:03:00.123456", null, "Equals 2026-11-19 22:03:00.1234560")]
+    [InlineData("TIMESTAMP(9)", "2026-11-19 22:03:00.123456", null, null)] // read with 7 digits: nanoseconds would be missing
     public void Filtering_by_a_value_takes_its_exact_text_or_offers_nothing(string type, string? raw, ChangeStage? stage, string? expected)
     {
-        var column = new ColumnInfo("WERT", type, null, false, null, null, true, false, null, 1);
-        object? value = raw is null ? null : type == "NUMBER" ? decimal.Parse(raw, System.Globalization.CultureInfo.InvariantCulture) : raw;
+        var column = type.StartsWith("TIMESTAMP", StringComparison.Ordinal)
+            ? new ColumnInfo("WERT", "TIMESTAMP", null, false, null, type.EndsWith("(9)", StringComparison.Ordinal) ? 9 : 6, true, false, null, 1)
+            : new ColumnInfo("WERT", type, null, false, null, null, true, false, null, 1);
+        object? value = raw is null ? null
+            : type == "NUMBER" ? decimal.Parse(raw, System.Globalization.CultureInfo.InvariantCulture)
+            : type == "BINARY_DOUBLE" ? double.Parse(raw, System.Globalization.CultureInfo.InvariantCulture)
+            : type.StartsWith("TIMESTAMP", StringComparison.Ordinal) ? DateTime.Parse(raw, System.Globalization.CultureInfo.InvariantCulture)
+            : raw;
         var field = new FormField(0, column, new ColumnLabel("WERT", null, null), new PresentedValue(raw), value, raw ?? "", stage, null, false, false, null, [], []);
 
         var filter = ColumnInspection.FilterOf(field);

@@ -74,6 +74,13 @@ public sealed record ColumnInspection(
             return new FilterRow { Column = field.Info.Name, Op = FilterOperator.IsNull };
         }
 
+        // TIMESTAMP(8/9) outside a key reads as DateTime with 7 digits: a text of it misses a value with nanoseconds
+        // (second review WP-92; a key's PreciseTimestamp FilterValue checks itself).
+        if (value is DateTime && ColumnCategories.LosesFractionsWhenRead(field.Info))
+        {
+            return null;
+        }
+
         return FkNavigation.FilterValue(field.Info, value) is { } text
             ? new FilterRow { Column = field.Info.Name, Op = FilterOperator.Equals, Value = text }
             : null;
