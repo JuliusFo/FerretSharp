@@ -1,3 +1,7 @@
+using FerretSharp.Core.ClrModel;
+using FerretSharp.Core.Data;
+using FerretSharp.Core.Forms;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
 
@@ -42,8 +46,7 @@ public sealed class ColumnInspectionTests
     {
         var data = new ColumnInspectorData(
             [Index("PK_AUFTRAG", "ID"), Index("IX_AUFTRAG_SUCHE", "STATUS", "KUNDE_ID")],
-            [new ColumnStatistics("KUNDE_ID", 3212, 0, new DateTime(2026, 11, 17), "NONE")],
-            DateTimeOffset.Now);
+            [new ColumnStatistics("KUNDE_ID", 3212, 0, new DateTime(2026, 11, 17), "NONE")]);
 
         var unread = ColumnInspection.Of(Details, 1, [], [], data: null);
         var kunde = ColumnInspection.Of(Details, 1, [], [], data);
@@ -55,5 +58,51 @@ public sealed class ColumnInspectionTests
         Assert.True(kunde.NoLeadingIndex);
         Assert.False(key.NoLeadingIndex);
         Assert.Null(key.Statistics); // not analyzed
+    }
+
+    /// <summary>Review WP-92: a view has no indexes or statistics of its own – no warning on every column.</summary>
+    [Fact]
+    public void A_view_shows_neither_indexes_nor_statistics_and_warns_about_none()
+    {
+        var view = Details with { Table = new TableSummary("APP", "V_AUFTRAG", TableKind.View) };
+
+        var inspection = ColumnInspection.Of(view, 1, [], [], new ColumnInspectorData([], []));
+
+        Assert.Equal((false, null, null, false), (inspection.OwnIndexes, inspection.Indexes, inspection.Statistics, inspection.NoLeadingIndex));
+    }
+
+    /// <summary>Review WP-92: a new structure (DDL in the designer) reads indexes and statistics again.</summary>
+    [Fact]
+    public void A_new_structure_forgets_what_the_inspector_read()
+    {
+        var tab = new TableTab(Guid.NewGuid(), Auftrag) { Inspection = new ColumnInspectorData([Index("IX_AUFTRAG_SUCHE", "STATUS")], []) };
+
+        tab.UseStructure(Details);
+
+        Assert.Null(tab.Inspection);
+    }
+
+    /// <summary>
+    /// Review WP-92: "Filter by this value" takes the text that parses back to exactly the value, as a foreign key jump – none
+    /// for a type without equality, none for a value not written yet; NULL as IS NULL.
+    /// </summary>
+    [Theory]
+    [InlineData("NUMBER", "29", null, "Equals 29")]
+    [InlineData("NUMBER", null, null, "IsNull ")]
+    [InlineData("NUMBER", "29", ChangeStage.Pending, null)] // the database does not have it yet
+    [InlineData("NUMBER", "29", ChangeStage.Flushed, "Equals 29")] // written in the workspace's transaction: its session sees it
+    [InlineData("INTERVAL DAY(2) TO SECOND(6)", "+01 02:00:00", null, null)]
+    [InlineData("CLOB", "text", null, null)]
+    [InlineData("BINARY_DOUBLE", "1E+20", null, null)]
+    public void Filtering_by_a_value_takes_its_exact_text_or_offers_nothing(string type, string? raw, ChangeStage? stage, string? expected)
+    {
+        var column = new ColumnInfo("WERT", type, null, false, null, null, true, false, null, 1);
+        object? value = raw is null ? null : type == "NUMBER" ? decimal.Parse(raw, System.Globalization.CultureInfo.InvariantCulture) : raw;
+        var field = new FormField(0, column, new ColumnLabel("WERT", null, null), new PresentedValue(raw), value, raw ?? "", stage, null, false, false, null, [], []);
+
+        var filter = ColumnInspection.FilterOf(field);
+
+        Assert.Equal(expected, filter is null ? null : $"{filter.Op} {filter.Value}");
+        Assert.True(filter is null || filter.Column == "WERT");
     }
 }

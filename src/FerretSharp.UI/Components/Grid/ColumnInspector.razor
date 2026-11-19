@@ -31,10 +31,9 @@
     }
     else
     {
-        var inspection = ColumnInspection.Of(Details, column, Active.Schema?.LinksOf(Details.Table.Ref) ?? [], Active.Schema?.IncomingOf(Details.Table.Ref) ?? [], Tab.Inspection);
         var presentation = Presentations.For(Details);
         var label = presentation.LabelOf(column);
-        var field = FieldOf(column, presentation);
+        var (inspection, field) = Shown(column, presentation);
         <div class="inspector-body">
             <div class="inspector-title">
                 <span class="mono">@inspection.Info.Name</span>
@@ -109,6 +108,15 @@
                 </section>
             }
 
+            @if (!inspection.OwnIndexes)
+            {
+                <section class="inspector-sec">
+                    <h4>@GridText.Inspector_Indexes</h4>
+                    <div class="muted">@GridText.Inspector_ViewNoIndexes</div>
+                </section>
+            }
+            else
+            {
             <section class="inspector-sec">
                 <h4>@GridText.Inspector_Indexes @if (inspection.Indexes is { Count: > 0 } counted) { <span class="count">@counted.Count</span> }</h4>
                 @if (inspection.Indexes is not { } indexes)
@@ -177,6 +185,7 @@
                     </dl>
                 }
             </section>
+            }
 
             @if (Models.Mapping?.EntityOf(Details.Table.Ref) is not null && Models.State.Link is not null)
             {
@@ -234,9 +243,9 @@
 
             <div class="inspector-links">
                 <button class="link-btn" @onclick="() => ShowMode(TabMode.Structure)">@GridText.Inspector_ColumnsView</button>
-                @if (!Tab.SqlMode && Tab.TimeTravel is null && field is not null && !field.IsLob)
+                @if (!Tab.SqlMode && Tab.TimeTravel is null && field is not null && ColumnInspection.FilterOf(field) is { } filter)
                 {
-                    <button class="link-btn" title="@GridText.Inspector_FilterValueTitle" @onclick="() => FilterBy(field)">@GridText.Inspector_FilterValue</button>
+                    <button class="link-btn" title="@GridText.Inspector_FilterValueTitle" @onclick="() => FilterBy(filter)">@GridText.Inspector_FilterValue</button>
                 }
                 <button class="link-btn" @onclick="() => CopyAsync(inspection.Info.Name)">@GridText.Inspector_CopyName</button>
             </div>
@@ -337,6 +346,7 @@
         }
 
         _column = cell.Column ?? _column;
+        _version++;
         StateHasChanged();
     });
 
@@ -345,6 +355,7 @@
     {
         if (!_disposed)
         {
+            _version++;
             StateHasChanged();
         }
     });
@@ -371,8 +382,7 @@
         var token = _lifetime.Token;
         var result = await Shell.RunDbAsync(Logger, Active, async () => new ColumnInspectorData(
             table.Kind == TableKind.View ? [] : await schema.GetIndexesAsync(table.Ref, token),
-            table.Kind == TableKind.View ? [] : await schema.GetColumnStatisticsAsync(table.Ref, token),
-            DateTimeOffset.Now), token);
+            table.Kind == TableKind.View ? [] : await schema.GetColumnStatisticsAsync(table.Ref, token)), token);
         if (_disposed)
         {
             return;
@@ -397,6 +407,29 @@
         _readError = null;
         return _reading ? Task.CompletedTask : ReadAsync();
     }
+
+    /// <summary>
+    /// What the panel shows of the column, kept until the cell, the rows, the names beside them, the presentation or the read
+    /// indexes change – the inspector renders with every change of the shell, i.e. every cell edit anywhere (review WP-92).
+    /// </summary>
+    private (ColumnInspection Inspection, FormField? Field) Shown(int column, TablePresentation presentation)
+    {
+        var key = (column, _version, Tab.Inspection, Grid?.Names, Presentations.Version); // For() builds a new presentation each time
+        if (_shown is { } shown && shown.Key == key)
+        {
+            return (shown.Inspection, shown.Field);
+        }
+
+        var inspection = ColumnInspection.Of(Details, column, Active.Schema?.LinksOf(Details.Table.Ref) ?? [], Active.Schema?.IncomingOf(Details.Table.Ref) ?? [], Tab.Inspection);
+        var field = FieldOf(column, presentation);
+        _shown = (key, inspection, field);
+        return (inspection, field);
+    }
+
+    private ((int, int, ColumnInspectorData?, Core.Display.DisplayNames?, int) Key, ColumnInspection Inspection, FormField? Field)? _shown;
+
+    /// <summary>Bumped when the focused cell or the rows change (<see cref="Shown"/>).</summary>
+    private int _version;
 
     /// <summary>The focused row's field of the column (value, display name); null without a loaded row.</summary>
     private FormField? FieldOf(int column, TablePresentation presentation)
@@ -435,12 +468,9 @@
 
     private Task ShowMode(TabMode mode) => OnShowMode.InvokeAsync(mode);
 
-    /// <summary>A filter row for the column with the focused cell's value (or IS NULL); "Apply" runs it, as any typed row.</summary>
-    private void FilterBy(FormField field)
+    /// <summary>A filter row for the column with the focused cell's value (<see cref="ColumnInspection.FilterOf"/>); "Apply" runs it, as any typed row.</summary>
+    private void FilterBy(FilterRow row)
     {
-        var row = field.IsNull
-            ? new FilterRow { Column = field.Info.Name, Op = FilterOperator.IsNull }
-            : new FilterRow { Column = field.Info.Name, Op = FilterOperator.Equals, Value = field.EditText };
         Tab.AddFilterRow(row);
         Shell.MarkDirty();
         Shell.NotifyChanged();

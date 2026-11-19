@@ -520,6 +520,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         }
 
         StructureStale = false;
+        Inspection = null; // indexes and statistics of the old structure (review WP-92: an index made in the designer stayed unknown)
         if (FitToStructure)
         {
             FitToStructure = false;
