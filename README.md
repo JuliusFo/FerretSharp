@@ -54,8 +54,16 @@ developer works with an Oracle database day to day:
   views on request in a section of their own. **Right-click an object** (or the head of its tab) to open it in a view,
   as `SELECT *` in the SQL editor, as its DbSet in the LINQ console, in the designer or on another connection, and to
   copy its name, `OWNER.NAME`, entity or link. A tab can be duplicated with its filters or shown in the explorer.
-- Drag the explorer wider or narrower (for every connection) and the SQL and LINQ editors taller or lower (each tab its
-  own height) – kept after a restart; a double click on the edge goes back to the default.
+- Drag the explorer wider or narrower (for every connection), the dock on the right too (one width for all its panels),
+  and the SQL and LINQ editors taller or lower (each tab its own height) – kept after a restart; a double click on the
+  edge goes back to the default.
+- **Dock on the right**: a bar at the right edge opens one side panel at a time – the column inspector, the form, the
+  open changes or the help. It belongs to the window: it stays open when you switch tabs and shows the active tab's row
+  and column.
+- **Column inspector**: the column of the focused cell at a glance – type, C# property, comment, the row's value with its
+  name, the relationships it is part of, every index with the column's place in it (and a warning when none starts with
+  it), the optimizer statistics (distinct values, NULLs, last analyzed) and the methods of your code that use it, one
+  click from Visual Studio. Filter by the cell's value or copy the column's name from there.
 - Drag tabs into the order you like; many tabs in one row that scrolls sideways or in several rows (*Settings ›
   Appearance*).
 - **Quick open and command palette**: one box at the top of the window – type a name to open a table, view or PL/SQL
@@ -97,7 +105,7 @@ developer works with an Oracle database day to day:
 - PL/SQL to look at: packages, procedures, functions and triggers with their source (read-only, coloured, compile
   errors marked), parameters per subprogram and overload, compile errors and dependencies – and a search through all
   PL/SQL of the schema. Nothing is run or compiled.
-- Form view for wide tables: the focused row beside the grid, one field per column (searchable, empty ones hidden on
+- Form view for wide tables: the focused row in the dock beside the grid, one field per column (searchable, empty ones hidden on
   request, editable like the grid); select several rows and compare them side by side with the differences marked
   (<kbd>Alt</kbd>+<kbd>Enter</kbd>). The same for the results of the SQL editor and the LINQ console.
 - Copy rows as table, `INSERT` statements or C# object initializers; save as **Excel file**, CSV or SQL script. The Excel
@@ -155,7 +163,7 @@ developer works with an Oracle database day to day:
 - **Undo and redo** across the whole workspace: grid writes and statements from the SQL editor or the LINQ console share
   one history – take back the last one or everything up to an action, and apply it again. Pending edits have their own
   <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> in the grid.
-- **Open changes** beside the tabs: everything the workspace has not committed – pending edits per tab, written actions
+- **Open changes** in the dock on the right: everything the workspace has not committed – pending edits per tab, written actions
   with their SQL, what was taken back – one click from the counts in the status bar.
 - **Data diff**: set a start point for a workspace and later see which rows of the chosen tables are new, changed or
   deleted since – whoever changed them (your app, a job, a colleague). Oracle compares the committed state with the
@@ -242,8 +250,8 @@ developer works with an Oracle database day to day:
 - **Help on SQL scripts:** the editor completes header lines after `-- @` (directives, types, the SQL's binds, tables and
   columns of a target), explains a line on hover – for a `@target` also whether the connection has its column and in
   which cell menus the script shows – and marks lines that cannot be used while you type. The help button in the SQL
-  tab's toolbar (also in the explorer's *Scripts*, the save dialog and the command palette) opens a short guide beside the
-  editor.
+  tab's toolbar (also in the explorer's *Scripts*, the save dialog and the command palette) opens a short guide in the
+  dock on the right.
 - **Keep results:** *Keep result* above a query's result keeps it, with its rows as they were read, when the next
   statement runs – up to ten per tab, side by side in the bar above the grid, each named by its table and time (a double
   click renames it). A kept result never reads again: it sorts, copies and exports the rows it holds. Every result shows
@@ -388,7 +396,7 @@ The defaults – every one of them can be changed under *Settings › Shortcuts*
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> | Undo / redo a pending edit in the grid |
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Write pending changes (no commit) |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> | Commit |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd> | Show or hide the open changes |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd> | Show or hide the open changes in the dock |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | New SQL editor / new LINQ console |
 | <kbd>Alt</kbd>+<kbd>X</kbd> | Run the whole SQL script |
 
