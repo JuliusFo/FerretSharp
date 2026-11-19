@@ -42,6 +42,22 @@ Aus der UX-Ideensammlung vom 2026-11-19 (`docs/roadmap.md`, „Pakete aus der UX
 - Inspektor im Ergebnis von SQL-Editor und LINQ-Konsole für Spalten mit bekannter Herkunft (WP-48).
 - Zwei Panels übereinander (z. B. Formular und Änderungen), falls „eins zur Zeit“ im Alltag stört.
 - „Spaltenansicht“ aus dem Inspektor springt noch nicht zur Spalte (die Spaltenansicht hat keinen Sprung von außen).
+- Der Ansichtsschalter eines Tabellen-Tabs hat zehn Einträge und bricht neben dem Dock in zwei Zeilen um; „Mehr ▾“ für die seltenen (`docs/architecture.md` 2) wäre die Alternative.
 
 ## E2E
-Noch offen – der Nutzer gibt das Go (2026-11-19: „Pausiere aber vor dem E2E, bis ich mein Go gebe“). Ebenso der Integrationstest der Statistik (Docker lief nicht).
+Eigene Testinstanz (`--lang=de`, hell und dunkel, eigener Datenordner) gegen einen eigenen Container mit dem Beispielschema (`ferret-e2e-wp92`, Port 1532, Schema analysiert), Verbindung mit verknüpftem `samples`-Projekt. Klicks mit echter Windows-Eingabe (Probe bestanden), Tasten und Auslesen per CDP.
+- Leiste: Inspektor, Formular, Hilfe per echtem Klick; Ctrl+Shift+U öffnet die Änderungen. Ein Panel zur Zeit, `aria-pressed` folgt, Zahl der ausstehenden Änderungen an der Leiste.
+- Inspektor an KUNDE_ID, AUFTRAG_ID und STATUS (Klick in die Zelle): Typ, C#-Property, Wert, Beziehungen (ausgehend und eingehend), Indizes mit „Spalte 1 von 1“, Statistik, Warnung ohne Index (STATUS), Verwendung; „Nach diesem Wert filtern“ legt `KUNDE_ID = 29` an.
+- Formular im Dock: im Tabellen-Tab über die volle Höhe, im SQL-Tab neben dem Ergebnis (Entscheidung B). Getippter, nicht bestätigter Wert im Formular, dann „+ SQL“ (echter Klick): der Wert ist eine ausstehende Änderung (Statusleiste „1 ausstehend“).
+- PL/SQL-Tab: Inspektor und Formular als nicht verfügbar markiert, Grund im Tooltip; die Wahl bleibt.
+- Breite: Ziehen am Rand mit echter Maus 420 → 520, `dockWidth` in `settings.json`; nach dem Neustart öffnen Dock und Breite wie verlassen, Tabs werden wiederhergestellt.
+- Log ohne `[ERR]`/`[WRN]`. Integrationstest `ObjectDetailsTests` (Statistik) gegen einen Testcontainer grün.
+
+Befunde (alle behoben, mit erneutem Lauf geprüft):
+1. Die Werkzeugleiste eines Tabellen-Tabs wurde neben dem Dock abgeschnitten („+ Zeile“, „Formular“, „Spalte“ und der Ansichtsschalter ab „Verwendung“ unsichtbar; Teile schienen hinter der Leiste durch) – vorher stand das Formular nur neben dem Grid. Jetzt bricht die Leiste um, der Ansichtsschalter nur, wenn er nicht in eine Zeile passt.
+2. „Verwendung im Code“ sagte „Kein Code nutzt die Property …“ und listete darunter dreimal dieselbe Mapping-Zeile. Jetzt nur Anwendungscode, jede Stelle einmal; Tests und Mapping als Zahl mit Link zur Ansicht „Verwendung“.
+3. Beziehungen zeigten „Constraints“ als Herkunft (die Beschriftung des Diagramm-Schalters). Jetzt keine Marke für Constraints, „aus C#-Modell“ wie im Zellmenü.
+4. Der aktive Leistenknopf zeigte eine Klammer (Inset-Schatten mit Rundung) – nur noch Fläche und Farbe.
+5. Ein neuer SQL-Tab ohne Ergebnis zeigte „Formular“ aktiv und nichts. Jetzt gilt das Formular dort als nicht verfügbar (SQL-Tab nur mit gezeigter Abfrage, LINQ-Tab mit Lauf).
+6. Ohne Index standen „Kein Index enthält diese Spalte“ und die Warnung untereinander – nur noch die Warnung.
+7. Im Kopf der Hilfe stand das ✕ direkt hinter dem Titel und der Kopf war niedriger als bei den anderen Panels.
