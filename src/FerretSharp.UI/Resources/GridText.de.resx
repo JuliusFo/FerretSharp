@@ -1503,9 +1503,6 @@
   <data name="Inspector_Invisible" xml:space="preserve">
     <value>unsichtbar</value>
   </data>
-  <data name="Inspector_NoIndex" xml:space="preserve">
-    <value>Kein Index enthält diese Spalte.</value>
-  </data>
   <data name="Inspector_NoLeadingIndex" xml:space="preserve">
     <value>Kein nutzbarer Index beginnt mit dieser Spalte – ein Filter nur auf sie liest womöglich die ganze Tabelle.</value>
   </data>
@@ -1553,5 +1550,8 @@
   </data>
   <data name="Inspector_CopyName" xml:space="preserve">
     <value>Namen kopieren</value>
+  </data>
+  <data name="Inspector_TestsAndMapping" xml:space="preserve">
+    <value>{0} weitere in Tests und Mapping</value>
   </data>
 </root>

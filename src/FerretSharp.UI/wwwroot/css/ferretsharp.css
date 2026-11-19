@@ -704,10 +704,10 @@ dl.keys dd { margin: 0; }
 .dock-btn { position: relative; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--muted); }
 .dock-btn .icon { width: 16px; height: 16px; }
 .dock-btn:hover { background: var(--hover); color: var(--text); }
-.dock-btn.active { background: var(--accent-weak); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+.dock-btn.active { background: var(--accent-weak); color: var(--accent); }
 .dock-btn.unavailable:not(.active) { opacity: .5; }
 /* Chosen, but the active tab has no such panel: the choice stays for the next tab that has it. */
-.dock-btn.active.unavailable { background: transparent; color: var(--muted); box-shadow: inset 2px 0 0 var(--border-strong); }
+.dock-btn.active.unavailable { background: var(--hover); color: var(--muted); }
 .dock-count { position: absolute; top: -2px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--yellow); color: #3b2b00; font: 700 9px/15px var(--sans); text-align: center; }
 .tabview-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
 .pages { flex: 1; position: relative; min-height: 0; min-width: 0; }
@@ -716,10 +716,12 @@ dl.keys dd { margin: 0; }
 .table-item.open:not(.active) .name { font-weight: 600; }
 
 .tabview { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.tab-toolbar { display: flex; align-items: center; gap: 12px; height: 42px; flex: none; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
+/* Wraps instead of cutting off when the tab gets narrow (WP-92: the dock beside the whole tab hid "+ Row", "Form" and the column jump). */
+.tab-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 42px; flex: none; padding: 4px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .toolbar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); color: var(--faint); }
-/* The view switch keeps one line when the change overview makes the tab narrow; the object name gives way. */
-.tab-toolbar .segmented { flex: none; flex-wrap: nowrap; }
+/* The view switch keeps one line while it fits (the object name gives way first); wider than the tab beside the dock
+   (WP-92), it wraps instead of cutting off its last views. */
+.tab-toolbar .segmented { flex: none; flex-wrap: wrap; max-width: 100%; }
 .tab-toolbar .spacer { flex: 1; }
 .tab-data { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 /* detail views (Spalten, Constraints, Indizes, Abhängigkeiten, DDL) below a common object header */
@@ -1531,7 +1533,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .script-notice > span { flex: 1; }
 .dialog.script-save { width: min(560px, 94vw); }
 /* WP-89: the help, a panel of the dock since WP-92, and the link to it in the explorer. */
-.help-head { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+.help-head { display: flex; align-items: center; gap: 6px; height: 38px; flex: none; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+.help-head .spacer { flex: 1; } /* WP-92: in the dock the ✕ sits at the right edge, as in the other panels */
 .help-head > .icon { flex: none; color: var(--muted); }
 .help-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 12px 12px; font-size: 12.5px; line-height: 1.5; }
 .help-body h3 { margin: 14px 0 4px; font-size: 12.5px; font-weight: 600; }

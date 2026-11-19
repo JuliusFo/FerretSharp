@@ -21,7 +21,10 @@ public static class DockPanels
     public static string? Unavailable(DockPanel panel, WorkspaceTab? tab) => panel switch
     {
         DockPanel.Inspector => tab is TableTab { Mode: TabMode.Data } ? null : ShellText.Dock_InspectorUnavailable,
-        DockPanel.Form => tab is TableTab { Mode: TabMode.Data } or SqlTab or LinqTab ? null : ShellText.Dock_FormUnavailable,
+        // A SQL or LINQ tab only beside a query's rows (E2E WP-92: an empty new SQL tab showed the form chosen and nothing).
+        DockPanel.Form => tab is TableTab { Mode: TabMode.Data } or SqlTab { ShownRun: { Info.IsQuery: true, Error: null } } or LinqTab { LastRun: not null }
+            ? null
+            : ShellText.Dock_FormUnavailable,
         _ => null,
     };
 

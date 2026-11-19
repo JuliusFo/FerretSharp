@@ -47,7 +47,7 @@ public sealed class DockTests : IAsyncDisposable
     [InlineData("data", DockPanel.Form, true)]
     [InlineData("columns", DockPanel.Inspector, false)] // a table's other views have no grid beside them
     [InlineData("columns", DockPanel.Form, false)]
-    [InlineData("sql", DockPanel.Form, true)] // beside the result
+    [InlineData("sql", DockPanel.Form, false)] // only beside a query's rows: a new SQL tab has none (E2E WP-92)
     [InlineData("sql", DockPanel.Inspector, false)]
     [InlineData("plsql", DockPanel.Form, false)]
     [InlineData("plsql", DockPanel.Changes, true)]

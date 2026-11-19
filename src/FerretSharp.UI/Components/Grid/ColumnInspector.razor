@@ -89,7 +89,10 @@
                         var target = fk;
                         <div class="inspector-line">
                             <button class="link-btn mono" title="@GridText.Inspector_OpenTable" @onclick="() => OpenTable(target.To)">→ @Name(target.To, target.ToColumns)</button>
-                            <span class="chip-note">@DiagramStyle.SourceLabel(target.Source)</span>
+                            @if (SourceNote(target.Source) is { } note)
+                            {
+                                <span class="chip-note">@note</span>
+                            }
                         </div>
                     }
                     @foreach (var fk in inspection.ReferencedBy)
@@ -97,7 +100,10 @@
                         var source = fk;
                         <div class="inspector-line">
                             <button class="link-btn mono" title="@GridText.Inspector_OpenTable" @onclick="() => OpenTable(source.From)">← @Name(source.From, source.FromColumns)</button>
-                            <span class="chip-note">@DiagramStyle.SourceLabel(source.Source)</span>
+                            @if (SourceNote(source.Source) is { } note)
+                            {
+                                <span class="chip-note">@note</span>
+                            }
                         </div>
                     }
                 </section>
@@ -109,12 +115,9 @@
                 {
                     @Reading
                 }
-                else if (indexes.Count == 0)
-                {
-                    <div class="muted">@GridText.Inspector_NoIndex</div>
-                }
                 else
                 {
+                    @* No index at all: the warning below says it (E2E WP-92: two lines for one fact). *@
                     @foreach (var place in indexes)
                     {
                         <div class="inspector-index">
@@ -178,8 +181,15 @@
             @if (Models.Mapping?.EntityOf(Details.Table.Ref) is not null && Models.State.Link is not null)
             {
                 <section class="inspector-sec">
-                    @{ var usage = UsageOf(inspection.Info.Name); }
-                    <h4>@GridText.Inspector_Usage @if (usage is { Uses.Count: > 0 } used) { <span class="count">@used.Uses.Count</span> }</h4>
+                    @{
+                        var usage = UsageOf(inspection.Info.Name);
+                        // The application's uses, each place once (a configuration names a property in several calls on one line);
+                        // tests and mapping only as a count (E2E WP-92: three mapping lines under "no code uses it").
+                        var uses = usage?.Uses.Where(u => !u.IsTest && !u.IsMapping)
+                            .DistinctBy(u => (u.Use.Kind, u.Use.CallerType, u.Use.CallerMethod, u.Use.Line)).ToList() ?? [];
+                        var others = usage?.Uses.Count(u => u.IsTest || u.IsMapping) ?? 0;
+                    }
+                    <h4>@GridText.Inspector_Usage @if (uses.Count > 0) { <span class="count">@uses.Count</span> }</h4>
                     @if (Usage.State.Phase is CodeUsagePhase.Failed && Usage.State.Error is { } error)
                     {
                         <div class="muted">@error</div>
@@ -188,18 +198,17 @@
                     {
                         <div class="muted"><span class="spinner small"></span> @GridText.Inspector_UsageReading</div>
                     }
-                    else if (usage is null || usage.Property is null)
+                    else if (usage?.Property is null)
                     {
                         <div class="muted">@GridText.Inspector_NoProperty</div>
                     }
-                    else if (usage.Uses.Count == 0 || usage.Unused)
+                    else
                     {
-                        <div class="muted">@GridText.Inspector_Unused</div>
-                    }
-                    @if (usage is { Uses.Count: > 0 })
-                    {
-                        var shown = usage.Uses.OrderBy(u => u.IsTest || u.IsMapping).Take(UsesShown).ToList();
-                        @foreach (var use in shown)
+                        @if (uses.Count == 0)
+                        {
+                            <div class="muted">@GridText.Inspector_Unused</div>
+                        }
+                        @foreach (var use in uses.Take(UsesShown))
                         {
                             var u = use;
                             <div class="inspector-line">
@@ -211,9 +220,13 @@
                                 }
                             </div>
                         }
-                        @if (usage.Uses.Count > UsesShown)
+                        @if (uses.Count > UsesShown)
                         {
-                            <button class="link-btn" @onclick="() => ShowMode(TabMode.Usage)">@TextFormat.Format(GridText.Inspector_MoreUses, usage.Uses.Count - UsesShown)</button>
+                            <button class="link-btn" @onclick="() => ShowMode(TabMode.Usage)">@TextFormat.Format(GridText.Inspector_MoreUses, uses.Count - UsesShown)</button>
+                        }
+                        @if (others > 0)
+                        {
+                            <button class="link-btn muted" @onclick="() => ShowMode(TabMode.Usage)">@TextFormat.Format(GridText.Inspector_TestsAndMapping, others)</button>
                         }
                     }
                 </section>
@@ -399,6 +412,14 @@
 
     private ColumnUsageRow? UsageOf(string column) =>
         Models.Mapping is { } mapping && Usage.State.Result is { } result ? CodeUsageRows.Column(mapping, result.Index, Details.Table.Ref, column) : null;
+
+    /// <summary>Where a relationship comes from, beside it – none for a constraint, the usual case.</summary>
+    private static string? SourceNote(FkSource source) => source switch
+    {
+        FkSource.Declared => null,
+        FkSource.ClrModel => GridText.FkJump_FromModel,
+        _ => DiagramStyle.SourceLabel(source),
+    };
 
     private static string Name(TableRef table, IReadOnlyList<string> columns) => $"{table.Name}.{string.Join(", ", columns)}";
 
