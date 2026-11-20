@@ -1302,4 +1302,10 @@
   <data name="Palette_Recent" xml:space="preserve">
     <value>Zuletzt geöffnet</value>
   </data>
+  <data name="Palette_MoreFavoritesOne" xml:space="preserve">
+    <value>1 weiterer im Explorer</value>
+  </data>
+  <data name="Palette_MoreFavoritesOther" xml:space="preserve">
+    <value>{0} weitere im Explorer</value>
+  </data>
 </root>

@@ -43,7 +43,7 @@
 
                 @if (group.More > 0)
                 {
-                    <div class="palette-more">@TextFormat.Plural(group.More, ShellText.Palette_MoreOne, ShellText.Palette_MoreOther)</div>
+                    <div class="palette-more">@(group.FavoritesMore ? TextFormat.Plural(group.More, ShellText.Palette_MoreFavoritesOne, ShellText.Palette_MoreFavoritesOther) : TextFormat.Plural(group.More, ShellText.Palette_MoreOne, ShellText.Palette_MoreOther))</div>
                 }
             }
         </div>
@@ -58,7 +58,8 @@
     private sealed record PaletteRow(
         TableSummary? Table = null, PlSqlObjectSummary? Unit = null, PaletteCommand? Command = null, WorkspaceTab? Tab = null, ScriptEntry? Script = null);
 
-    private sealed record PaletteGroup(string Title, IReadOnlyList<PaletteRow> Rows, int More = 0);
+    /// <param name="FavoritesMore">The favorites of the empty box: the rest is in the explorer, there is no search to narrow.</param>
+    private sealed record PaletteGroup(string Title, IReadOnlyList<PaletteRow> Rows, int More = 0, bool FavoritesMore = false);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -226,7 +227,7 @@
         var (favorites, more) = QuickPaletteSearch.Favorites(schema.Tables, schema.PlSqlObjects, Favorites.IsFavorite, Favorites.IsFavorite);
         if (favorites.Count > 0)
         {
-            groups.Add(new PaletteGroup(ShellText.Palette_Favorites, [.. favorites.Select(o => new PaletteRow(Table: o.Table, Unit: o.Unit))], more));
+            groups.Add(new PaletteGroup(ShellText.Palette_Favorites, [.. favorites.Select(o => new PaletteRow(Table: o.Table, Unit: o.Unit))], more, FavoritesMore: true));
         }
 
         List<PaletteRow> open =
