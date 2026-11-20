@@ -83,12 +83,52 @@ developer works with an Oracle database day to day:
     </td>
     <td width="50%" valign="top">
       <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/model-report-dark.png">
+        <img src="docs/images/model-report-light.png" alt="Report on how the C# model and the database fit: tiles with counts, a relationship only in the model with Create constraint, and columns whose length or NULL does not fit, each with what will fail">
+      </picture>
+      <b>Model and database, side by side</b><br>
+      One report shows where your EF Core model and the schema drift apart – and what will fail at runtime because of
+      it, with the fix one click away.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/schema-compare-dark.png">
+        <img src="docs/images/schema-compare-light.png" alt="Schema comparison of DEV, TEST and PROD in one matrix: a different default, a missing index, a shorter column, an extra column and a changed view definition">
+      </picture>
+      <b>Schema comparison</b><br>
+      DEV, TEST and PROD in one matrix – columns, keys, indexes and views – and a DDL proposal that aligns one side
+      with another.
+    </td>
+    <td width="50%" valign="top">
+      <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/images/designer-dark.png">
         <img src="docs/images/designer-light.png" alt="Table designer in tabs: a changed and a new column, the head with the statements it will run and Run, Save and Close, and a C# tab for the new column">
       </picture>
       <b>Table designer</b><br>
       Change columns, keys and indexes, see the DDL before it runs – and write the matching entity changes into your
       C# project.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/query-builder-dark.png">
+        <img src="docs/images/query-builder-light.png" alt="Relationship diagram of a table two levels deep, with a dashed relationship from the C# model, and the query built in it as LINQ">
+      </picture>
+      <b>Build queries in the diagram</b><br>
+      Click relationships and tick columns – FerretSharp writes the LINQ in the style of your query extensions and the
+      SQL with the right joins.
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/app-statements-dark.png">
+        <img src="docs/images/app-statements-light.png" alt="Statements of a running app grouped by origin – lazy loading, LINQ, SaveChanges – with an N+1 pattern marked">
+      </picture>
+      <b>What your app really sends</b><br>
+      Attach to your running app – no code change – and see every EF Core statement by origin, the most expensive
+      ones and N+1 patterns.
     </td>
   </tr>
   <tr>
@@ -103,11 +143,12 @@ developer works with an Oracle database day to day:
     </td>
     <td width="50%" valign="top">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/images/explain-plan-dark.png">
-        <img src="docs/images/explain-plan-light.png" alt="Execution plan dialog">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/column-inspector-dark.png">
+        <img src="docs/images/column-inspector-light.png" alt="Column inspector beside the grid: type, C# property, the relationship, a warning that no index starts with the column, and its optimizer statistics">
       </picture>
-      <b>Execution plans</b><br>
-      Estimated or actual, with the row counts of the real execution and misestimates flagged.
+      <b>Column inspector</b><br>
+      The focused column at a glance – C# property, relationships, indexes with a warning when none fits, statistics
+      and the code that uses it.
     </td>
   </tr>
 </table>

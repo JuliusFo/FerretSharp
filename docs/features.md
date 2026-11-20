@@ -41,6 +41,11 @@ Everything FerretSharp does, by area. For the short tour, see the [README](../RE
   and the SQL and LINQ editors taller or lower (each tab its own height) – kept after a restart; a double click on the
   edge goes back to the default.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/column-inspector-dark.png">
+  <img src="images/column-inspector-light.png" alt="Column inspector beside the grid: type, C# property, the relationship, a warning that no index starts with the column, and its optimizer statistics">
+</picture>
+
 ## Browse and filter data
 
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,
@@ -103,6 +108,11 @@ Everything FerretSharp does, by area. For the short tour, see the [README](../RE
   and copy them as shown, as a table or as an `IN` list; rows not loaded are read in the background, with cancel.
 
 ## Diagrams
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/query-builder-dark.png">
+  <img src="images/query-builder-light.png" alt="Relationship diagram of a table two levels deep, with a dashed relationship from the C# model, and the query built in it as LINQ">
+</picture>
 
 - **Relationship diagram**: the "Relations" view of a table – parents left, children right, one or two levels, "+n"
   handles to go further, kinds of relationship to switch off, zoom, copy as Mermaid for a ticket.
@@ -253,6 +263,11 @@ Everything FerretSharp does, by area. For the short tour, see the [README](../RE
 
 ## Schema comparison
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/schema-compare-dark.png">
+  <img src="images/schema-compare-light.png" alt="Schema comparison of DEV, TEST and PROD in one matrix: a different default, a missing index, a shorter column, an extra column and a changed view definition">
+</picture>
+
 - Compare any number of connections or schemas – Dev, Test, Prod, customer databases – in one matrix: tables, views,
   columns (type, length, NULL, default, identity), keys, foreign keys, checks and indexes. Sides with the same definition
   share a colour; names Oracle generated (`SYS_C…`) are matched by content.
@@ -322,6 +337,21 @@ changes, and a new build is picked up automatically:
   linked C# project they name the methods of your solution that may send it – guessed from its tables and the columns it
   filters by, ranked, with a meter of how much of the statement each covers – and a click opens the line in Visual Studio.
   Projects of the solution that are not built are marked there, as their methods are missing, with *Build projects* at hand.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/model-report-dark.png">
+  <img src="images/model-report-light.png" alt="Report on how the C# model and the database fit: tiles with counts, a relationship only in the model with Create constraint, and columns whose length or NULL does not fit, each with what will fail">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/app-statements-dark.png">
+  <img src="images/app-statements-light.png" alt="Statements of a running app grouped by origin – lazy loading, LINQ, SaveChanges – with an N+1 pattern marked">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/server-load-dark.png">
+  <img src="images/server-load-light.png" alt="Server load: host CPU, active sessions and what they wait for, a chart of the last minutes and the top statements by CPU">
+</picture>
 
 ## Install, updates and your data
 
