@@ -28,7 +28,7 @@ Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des 
   - **Ctrl+1 … 9 als Ausnahme** von „neue Aktionen bekommen keine Standardtaste“ (`docs/architecture.md` 3), in den Einstellungen änderbar; die angehefteten Workspaces stehen vorn und haben damit feste Tasten. Der Grund der Regel bleibt: Hat der Nutzer eine dieser Tasten schon einer anderen Aktion gegeben, behält er sie, und der Wechsel bekommt sie nicht.
   - **`Workspace.Notes` kommt mit**, als Feld in der Workspace-Übersicht.
   - Standardname „Workspace N“ mit der kleinsten freien Nummer bleibt (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“).
-- Dazu (Nutzer, 2026-11-19, aus der UX-Ideensammlung): **Transaktion am Workspace-Chip** – Punkt mit Alter („● 12 min“) an jedem Chip und im Verbindungs-Umschalter je offener Verbindung (Backlog „Verbindungen, Sessions, Workspaces“). Kommt WP-92 vorher, öffnet die Workspace-Übersicht im Dock.
+- Dazu (Nutzer, 2026-11-19, aus der UX-Ideensammlung): **Transaktion am Workspace-Chip** – Punkt mit Alter („● 12 min“) an jedem Chip und im Verbindungs-Umschalter je offener Verbindung (Backlog „Verbindungen, Sessions, Workspaces“). WP-92 ist gebaut, die Workspace-Übersicht öffnet also im Dock.
 
 ### WP-43 Datenqualität der Beziehungen
 Branch `wp/43-relationship-check`.
@@ -93,7 +93,7 @@ Branch `wp/88-column-quick-search`. Idee des Nutzers (2026-11-12), ausgearbeitet
 - Offen wie im Backlog: eigenes Präfix oder Gruppe „Spalten“; Anzeige `TABELLE.SPALTE` mit Typ und `Entity.Property`.
 - Abschaltbar? (Frage des Nutzers 2026-11-12, um Ladezeit und Roundtrips zu sparen.) Einschätzung: Die Spalten laden erst bei der ersten Spaltensuche, ungenutzt kosten sie also nichts; ist ein C#-Projekt verknüpft, liest der Modellvergleich sie ohnehin. Mit eigenem Präfix lädt nie etwas ungefragt – dann braucht es keinen Schalter. Als Gruppe unter den Objekten löst die erste Suche je Verbindung das Laden aus (einige Sekunden auf `all_tab_cols`, ~1–2 MB): dann im Hintergrund laden, Objekte sofort zeigen, Spalten nachreichen, und ein Schalter „Spalten in der Schnellsuche“ (Standard an) als Ventil. Vorschlag (nicht bestätigt): Schalter nur bei der Gruppen-Variante; entscheidet sich mit der Präfix-Frage.
 ## Pakete aus der UX-Ideensammlung (2026-11-19)
-Claude hat am 2026-11-19 Ideen zur Bedienung gesammelt; der Nutzer hat je Idee entschieden, die Mockups gesehen und den Zuschnitt in diese Pakete bestätigt. **Die Einzelheiten unter „Vorschlag“ sind nicht bestätigt** und werden beim Start abgestimmt. Abgelehnt („brauche ich erstmal nicht“): Umgebung in Windows-Titelleiste und Taskleiste, Zeilenvergleich über Verbindungen hinweg (Backlog). Abhängigkeiten: Über WP-92 sollte vor WP-39 entschieden sein (die Workspace-Übersicht von WP-39 gehört dann ins Dock); WP-93 braucht WP-92 nicht und zieht mit ihm ins Dock.
+Claude hat am 2026-11-19 Ideen zur Bedienung gesammelt; der Nutzer hat je Idee entschieden, die Mockups gesehen und den Zuschnitt in diese Pakete bestätigt. **Die Einzelheiten unter „Vorschlag“ sind nicht bestätigt** und werden beim Start abgestimmt. Abgelehnt („brauche ich erstmal nicht“): Umgebung in Windows-Titelleiste und Taskleiste, Zeilenvergleich über Verbindungen hinweg (Backlog). Abhängigkeiten: WP-92 ist gebaut; die Workspace-Übersicht von WP-39 gehört damit ins Dock, und WP-93 erweitert das Formular, das jetzt ein Panel des Docks ist.
 
 ### WP-90 Vorschau-Tabs bei FK-Sprüngen, Tabs wieder öffnen
 Branch `wp/90-preview-tabs`. Backlog „Grid, Filter, Formular, Editieren“ (Vorschau-Tabs) und „Verbindungen, Sessions, Workspaces“ (Tabs wieder öffnen). Beide betreffen, wie Tabs entstehen und verschwinden (`ShellState.Tabs`, `TabState`).
@@ -112,7 +112,7 @@ Branch `wp/91-favorites-recent`. Backlog „Schema und Explorer“ (Favoriten; S
 - Vorschlag (nicht bestätigt): Favoriten nach Objektname gespeichert wie die Filter-Vorlagen (WP-37), also auf Dev, Test und Prod gleich; in der leeren Schnellsuche vor „Zuletzt geöffnet“.
 
 ### WP-92 Dock rechts mit Spalten-Inspektor
-In Arbeit: Planung und Entscheidungen in `docs/work-packages/wp-92-side-dock.md`, ADR 0052.
+Gebaut und in `main` gemergt (PR #185), noch nicht released (`CHANGELOG.md`, „Unreleased“). Planung und Entscheidungen in `docs/work-packages/wp-92-side-dock.md`, ADR 0052; der Abschnitt hier entfällt mit dem Release.
 
 ### WP-93 Datensatz-Akte im Formular
 Branch `wp/93-record-file`. Backlog „Grid, Filter, Formular, Editieren“ (Datensatz-Akte). Mockup: `docs/images/mockups/wp-93-record-file.png`.
