@@ -399,13 +399,13 @@
     }
 
     /// <summary>
-    /// The bookmark beside an entry (WP-91): shown on hover to mark it, filled for a favorite. A button of its own beside the
+    /// The heart beside an entry (WP-91): shown on hover to mark it, filled for a favorite. A button of its own beside the
     /// entry's, not in it – a button in a button is no valid HTML.
     /// </summary>
     private RenderFragment FavoriteToggle(Favorite favorite, bool on) =>
         @<button type="button" class="fav-toggle @(on ? "fav-on" : "")" aria-pressed="@(on ? "true" : "false")"
                  title="@(on ? SchemaViewText.Explorer_FavoriteRemove : SchemaViewText.Explorer_FavoriteAdd)"
-                 @onclick="() => ToggleFavoriteAsync(favorite)">@Icons.Bookmark</button>;
+                 @onclick="() => ToggleFavoriteAsync(favorite)">@Icons.Favorite</button>;
 
     private async Task ToggleFavoriteAsync(Favorite favorite)
     {

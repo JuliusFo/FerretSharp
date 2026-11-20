@@ -2447,14 +2447,14 @@
   </data>
   <data name="Explorer_FavoriteAdd" xml:space="preserve">
     <value>Add to favorites</value>
-    <comment>Tooltip of the bookmark at an explorer entry, and the object menu action</comment>
+    <comment>Tooltip of the heart at an explorer entry, and the object menu action</comment>
   </data>
   <data name="Explorer_FavoriteRemove" xml:space="preserve">
     <value>Remove from favorites</value>
-    <comment>Tooltip of the filled bookmark at an explorer entry, and the object menu action</comment>
+    <comment>Tooltip of the filled heart at an explorer entry, and the object menu action</comment>
   </data>
   <data name="ObjectMenu_FavoriteCaption" xml:space="preserve">
     <value>Favorite</value>
-    <comment>Short caption under the bookmark icon in the object menu</comment>
+    <comment>Short caption under the heart icon in the object menu</comment>
   </data>
 </root>
