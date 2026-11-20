@@ -57,6 +57,25 @@ public sealed class RecentObjectsTests : IDisposable
         Assert.Empty(recent.For(Connection));
     }
 
+    /// <summary>
+    /// Review WP-91, 2: a file of a newer FerretSharp (or one locked for the moment) takes no visits – they stay in memory,
+    /// all of them, not only the last one.
+    /// </summary>
+    [Fact]
+    public async Task Visits_a_newer_file_does_not_take_stay_in_memory()
+    {
+        const string newer = """{ "version": 2, "entries": [], "somethingNew": true }""";
+        await File.WriteAllTextAsync(Path.Combine(_folder.Path, Connection.ToString("D") + ".json"), newer, Ct);
+        var recent = Service();
+
+        recent.Track(Connection, new TableTab(Workspace, Auftrag));
+        recent.Track(Connection, new TableTab(Workspace, TestApp.Kunden));
+        await recent.IdleAsync();
+
+        Assert.Equal(["KUNDEN", "AUFTRAG"], Names(recent.For(Connection)));
+        Assert.Equal(newer, await File.ReadAllTextAsync(Path.Combine(_folder.Path, Connection.ToString("D") + ".json"), Ct));
+    }
+
     /// <summary>The file is read on first use; a tab shown before the read ends stays in front of what the file held.</summary>
     [Fact]
     public async Task A_visit_before_the_file_was_read_stays_in_front()

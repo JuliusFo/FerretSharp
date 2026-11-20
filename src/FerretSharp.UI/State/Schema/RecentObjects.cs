@@ -6,7 +6,8 @@ namespace FerretSharp.UI.State;
 /// <summary>
 /// The tables, views and PL/SQL units last opened, per connection (WP-91): every tab of one that becomes active counts –
 /// from the explorer, the quick open, a FK jump or a link –, a time travel tab does not (it shows another point in time).
-/// Read from the connection's file on first use; each visit is shown at once and written in the order it came. Used from
+/// Read from the connection's file on first use; each visit is shown at once and written in the order it came – the list
+/// in memory is what counts, a file that takes no entry does not shorten it. Used from
 /// the UI thread only.
 /// </summary>
 public sealed class RecentObjects(RecentObjectStore store, ILogger<RecentObjects> logger, TimeProvider? time = null)
@@ -48,7 +49,9 @@ public sealed class RecentObjects(RecentObjectStore store, ILogger<RecentObjects
         var list = For(id); // starts reading the file on first use; what it holds comes behind this entry (Use)
         _byConnection[id] = [entry, .. list.Where(e => !e.Same(entry)).Take(RecentObjectStore.MaxEntries - 1)];
         Changed?.Invoke();
-        Enqueue(async () => Use(id, await store.AddAsync(id, entry, CancellationToken.None)));
+        // The list in memory stays as it is (review WP-91, 2): a file that takes no entry (of a newer FerretSharp, locked for
+        // the moment) answers with this entry alone, and the visits before were gone from the quick open.
+        Enqueue(() => store.AddAsync(id, entry, CancellationToken.None));
     }
 
     /// <summary>What a tab counts as; null for SQL, LINQ and other tabs, and for a time travel tab.</summary>
@@ -60,17 +63,14 @@ public sealed class RecentObjects(RecentObjectStore store, ILogger<RecentObjects
     };
 
     /// <summary>
-    /// A list read or written: the object tracked last stays in front – a read, or the write of an earlier visit, can end
-    /// after a later visit was shown.
+    /// The connection's file was read: the visits since (shown already, newest first) stay in front of what it holds – a read
+    /// can end after the first visits of the connection.
     /// </summary>
-    private void Use(Guid connectionId, IReadOnlyList<RecentObject> list)
+    private void Use(Guid connectionId, IReadOnlyList<RecentObject> read)
     {
-        if (_last.TryGetValue(connectionId, out var last) && (list.Count == 0 || !list[0].Same(last)))
-        {
-            list = [last, .. list.Where(e => !e.Same(last)).Take(RecentObjectStore.MaxEntries - 1)];
-        }
-
-        _byConnection[connectionId] = list;
+        var shown = _byConnection.GetValueOrDefault(connectionId) ?? [];
+        _byConnection[connectionId] = [.. shown, .. read.Where(r => !shown.Any(r.Same))
+            .Take(Math.Max(0, RecentObjectStore.MaxEntries - shown.Count))];
         Changed?.Invoke();
     }
 
