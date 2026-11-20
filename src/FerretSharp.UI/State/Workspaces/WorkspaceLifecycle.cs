@@ -20,6 +20,7 @@ public sealed partial class WorkspaceLifecycle(
     ConnectionManager connections,
     SqlHistoryStore history,
     ConditionHistoryStore conditions,
+    RecentObjectStore recentObjects,
     WorkspaceEditing editing,
     ILogger<WorkspaceLifecycle> logger,
     TimeProvider? time = null)

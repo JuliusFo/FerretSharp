@@ -1581,4 +1581,12 @@
     <value>Shows in the data view of a table and beside a result of the SQL editor or the LINQ console.</value>
     <comment>Tooltip line of the form button when the active tab has no grid with rows</comment>
   </data>
+  <data name="Palette_Favorites" xml:space="preserve">
+    <value>Favorites</value>
+    <comment>Group heading in the empty quick open</comment>
+  </data>
+  <data name="Palette_Recent" xml:space="preserve">
+    <value>Recently opened</value>
+    <comment>Group heading in the empty quick open: tables and PL/SQL opened before, also ones whose tab is closed</comment>
+  </data>
 </root>

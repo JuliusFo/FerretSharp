@@ -2001,4 +2001,22 @@
   <data name="CodeChange_LinkedClone" xml:space="preserve">
     <value>Der Arbeits-Klon ist der verknüpfte Klon einer Verbindung: Er muss zu ihrer Datenbank passen und wird gepullt, deshalb schreibt FerretSharp dort nicht. Bitte einen eigenen Arbeits-Klon wählen.</value>
   </data>
+  <data name="Favorites_NotLoaded" xml:space="preserve">
+    <value>Die Favoriten konnten noch nicht gelesen werden.</value>
+  </data>
+  <data name="Favorites_TooMany" xml:space="preserve">
+    <value>Es gehen höchstens {0} Favoriten.</value>
+  </data>
+  <data name="Explorer_Favorites" xml:space="preserve">
+    <value>Favoriten</value>
+  </data>
+  <data name="Explorer_FavoriteAdd" xml:space="preserve">
+    <value>Zu den Favoriten</value>
+  </data>
+  <data name="Explorer_FavoriteRemove" xml:space="preserve">
+    <value>Aus den Favoriten nehmen</value>
+  </data>
+  <data name="ObjectMenu_FavoriteCaption" xml:space="preserve">
+    <value>Favorit</value>
+  </data>
 </root>

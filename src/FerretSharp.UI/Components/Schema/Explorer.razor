@@ -7,6 +7,7 @@
 @inject ILogger<Explorer> Logger
 @inject AppSettingsService Settings
 @inject FerretSharp.Core.Scripts.ScriptLibrary Scripts
+@inject FavoriteService Favorites
 
 @{ _shellKey = ShellKey(); _shownSeparateViews = SeparateViews; }
 <aside class="sidebar explorer">
@@ -74,6 +75,7 @@
             <LetterIndexBar Available="@((letters?.Keys.AsEnumerable() ?? units!.Keys).ToHashSet())" OnJump="JumpAsync" />
 
             <div class="table-list">
+                @FavoritesBlock()
                 @if (letters is not null)
                 {
                     @if (Schema is not null && letters.Count == 0)
@@ -331,7 +333,11 @@
         Presentation.Changed += OnPresentationChanged;
         Settings.Changed += OnSettingsChanged;
         Scripts.Changed += OnScriptsChanged;
+        Favorites.Changed += OnChanged;
     }
+
+    /// <summary>The favorites (WP-91), read once for all connections; a file that cannot be read is named in the list.</summary>
+    protected override Task OnInitializedAsync() => Favorites.EnsureLoadedAsync();
 
     /// <summary>The script folders changed (WP-77): the count in the head and "N hits in Scripts" follow; the tree renders itself.</summary>
     private void OnScriptsChanged() => InvokeAsync(() =>
@@ -363,27 +369,83 @@
         }
     });
 
-    private RenderFragment TableItem(TableSummary t)
+    /// <param name="inFavorites">The entry in the favorites on top: "Show in explorer" marks the one in the list below.</param>
+    private RenderFragment TableItem(TableSummary t, bool inFavorites = false)
     {
         var entity = Presentation.ShownEntityNameOf(t.Ref);
         var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
-        var revealed = _revealed is { Table: { } r } && r == t.Ref;
-        return @<button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")"
-                        id="@(revealed ? RevealId : null)" title="@Tooltip(t, entity)"
-                        @onclick="() => Shell.OpenTable(t)" @oncontextmenu="e => _tableMenu!.OpenAsync(e, t)" @oncontextmenu:preventDefault="true">
-                    <ObjectItemContent Table="t" Entity="@entity" EntityFirst="front" />
-                </button>;
+        var revealed = !inFavorites && _revealed is { Table: { } r } && r == t.Ref;
+        return @<div class="item-row">
+                    <button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")"
+                            id="@(revealed ? RevealId : null)" title="@Tooltip(t, entity)"
+                            @onclick="() => Shell.OpenTable(t)" @oncontextmenu="e => _tableMenu!.OpenAsync(e, t)" @oncontextmenu:preventDefault="true">
+                        <ObjectItemContent Table="t" Entity="@entity" EntityFirst="front" />
+                    </button>
+                    @FavoriteToggle(Favorite.Of(t), Favorites.IsFavorite(t))
+                </div>;
     }
 
-    private RenderFragment PlSqlItem(PlSqlObjectSummary u)
+    private RenderFragment PlSqlItem(PlSqlObjectSummary u, bool inFavorites = false)
     {
-        var revealed = _revealed is { Unit: { } r } && r == u.Ref;
-        return @<button class="table-item @((Shell.ActiveTab as PlSqlTab)?.Unit.Ref == u.Ref ? "active" : "") @(IsOpen(u) ? "open" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
-                 id="@(revealed ? RevealId : null)" title="@Tooltip(u)"
-                 @onclick="() => Shell.OpenPlSql(u)" @oncontextmenu="e => _unitMenu!.OpenAsync(e, u)" @oncontextmenu:preventDefault="true">
-            <ObjectItemContent Unit="u" />
-        </button>;
+        var revealed = !inFavorites && _revealed is { Unit: { } r } && r == u.Ref;
+        return @<div class="item-row">
+            <button class="table-item @((Shell.ActiveTab as PlSqlTab)?.Unit.Ref == u.Ref ? "active" : "") @(IsOpen(u) ? "open" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
+                    id="@(revealed ? RevealId : null)" title="@Tooltip(u)"
+                    @onclick="() => Shell.OpenPlSql(u)" @oncontextmenu="e => _unitMenu!.OpenAsync(e, u)" @oncontextmenu:preventDefault="true">
+                <ObjectItemContent Unit="u" />
+            </button>
+            @FavoriteToggle(Favorite.Of(u), Favorites.IsFavorite(u))
+        </div>;
     }
+
+    /// <summary>
+    /// The bookmark beside an entry (WP-91): shown on hover to mark it, filled for a favorite. A button of its own beside the
+    /// entry's, not in it – a button in a button is no valid HTML.
+    /// </summary>
+    private RenderFragment FavoriteToggle(Favorite favorite, bool on) =>
+        @<button type="button" class="fav-toggle @(on ? "fav-on" : "")" aria-pressed="@(on ? "true" : "false")"
+                 title="@(on ? SchemaViewText.Explorer_FavoriteRemove : SchemaViewText.Explorer_FavoriteAdd)"
+                 @onclick="() => ToggleFavoriteAsync(favorite)">@Icons.Bookmark</button>;
+
+    private async Task ToggleFavoriteAsync(Favorite favorite)
+    {
+        if (await Favorites.ToggleAsync(favorite) is { } error)
+        {
+            Shell.Notify(error);
+        }
+    }
+
+    /// <summary>
+    /// The favorites of the section on top of the list (WP-91), found by the search like the list; nothing without one.
+    /// A file that cannot be read is named here, as the filter presets name theirs in their menu.
+    /// </summary>
+    private RenderFragment FavoritesBlock() => __builder =>
+    {
+        if (Schema is null)
+        {
+            return;
+        }
+
+        List<RenderFragment> items = Section == ExplorerSection.PlSql
+            ? [.. ExplorerList.Filter(Schema.PlSqlObjects.Where(Favorites.IsFavorite), _query).Select(u => PlSqlItem(u, inFavorites: true))]
+            : [.. TablesIn(Section).Where(Favorites.IsFavorite).Where(TableMatches).Select(t => TableItem(t, inFavorites: true))];
+        if (items.Count == 0 && Favorites.LoadError is null)
+        {
+            return;
+        }
+
+        <div class="favorites">
+            <div class="group-head">@SchemaViewText.Explorer_Favorites</div>
+            @if (Favorites.LoadError is { } error)
+            {
+                <div class="sidebar-error">@error</div>
+            }
+            @foreach (var item in items)
+            {
+                @item
+            }
+        </div>
+    };
 
     private RenderFragment SourceResults() => __builder =>
     {
@@ -608,6 +670,7 @@
         Presentation.Changed -= OnPresentationChanged;
         Settings.Changed -= OnSettingsChanged;
         Scripts.Changed -= OnScriptsChanged;
+        Favorites.Changed -= OnChanged;
         _searchCts?.Cancel();
         await Dom.DisposeAsync();
     }

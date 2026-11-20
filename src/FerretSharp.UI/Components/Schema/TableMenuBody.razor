@@ -39,6 +39,7 @@
             <QuickAction Icon="Icons.Edit" Label="@SchemaViewText.ObjectMenu_Designer" Caption="@SchemaViewText.ObjectMenu_DesignerCaption"
                          Title="@SchemaViewText.Designer_EditTitle" Unavailable="@DataOnly" OnClick="() => ShowAsync(TabMode.Structure, DesignerSection.Columns)" />
         }
+        <FavoriteAction Favorite="Favorite.Of(Table)" OnClose="OnClose" />
     </QuickBar>
 </div>
 

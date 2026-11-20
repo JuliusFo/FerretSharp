@@ -1296,4 +1296,10 @@
   <data name="Dock_FormUnavailable" xml:space="preserve">
     <value>Erscheint in der Datenansicht einer Tabelle und neben einem Ergebnis von SQL-Editor oder LINQ-Konsole.</value>
   </data>
+  <data name="Palette_Favorites" xml:space="preserve">
+    <value>Favoriten</value>
+  </data>
+  <data name="Palette_Recent" xml:space="preserve">
+    <value>Zuletzt geöffnet</value>
+  </data>
 </root>

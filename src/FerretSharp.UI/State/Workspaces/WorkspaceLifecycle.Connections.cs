@@ -232,5 +232,6 @@ public sealed partial class WorkspaceLifecycle
         await hub.Shown.Workspaces.DeleteForConnectionAsync(profile.Id);
         history.Delete(profile.Id);
         conditions.Delete(profile.Id);
+        recentObjects.Delete(profile.Id);
     }
 }

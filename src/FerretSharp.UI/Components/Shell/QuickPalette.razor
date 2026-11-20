@@ -10,6 +10,8 @@
 @implements IAsyncDisposable
 @inject ShortcutService Shortcuts
 @inject ScriptLibrary Scripts
+@inject FavoriteService Favorites
+@inject RecentObjects Recent
 @inject IJSRuntime JS
 
 @if (Shell.Palette is not null)
@@ -182,16 +184,7 @@
 
         if (query.Length == 0)
         {
-            List<PaletteRow> open =
-            [
-                .. Shell.Tabs.Select(t => t switch
-                {
-                    TableTab table => new PaletteRow(Table: table.Table, Tab: table),
-                    PlSqlTab unit => new PaletteRow(Unit: unit.Unit, Tab: unit),
-                    _ => null,
-                }).OfType<PaletteRow>(),
-            ];
-            return open.Count == 0 ? [] : [new PaletteGroup(ShellText.Palette_OpenTabs, open)];
+            return StartGroups(schema);
         }
 
         var key = (query, (object)schema.Tables, (object)schema.PlSqlObjects, Presentation.Version, Presentation.Names);
@@ -221,6 +214,62 @@
         }
 
         return groups;
+    }
+
+    /// <summary>
+    /// The empty box (WP-91): the favorites the schema has, the open tables and PL/SQL units of the active workspace, then
+    /// those opened last on this connection that are not open.
+    /// </summary>
+    private List<PaletteGroup> StartGroups(SchemaCache schema)
+    {
+        List<PaletteGroup> groups = [];
+        var favorites = QuickPaletteSearch.Favorites(schema.Tables, schema.PlSqlObjects, Favorites.IsFavorite, Favorites.IsFavorite);
+        if (favorites.Count > 0)
+        {
+            groups.Add(new PaletteGroup(ShellText.Palette_Favorites, [.. favorites.Select(o => new PaletteRow(Table: o.Table, Unit: o.Unit))]));
+        }
+
+        List<PaletteRow> open =
+        [
+            .. Shell.Tabs.Select(t => t switch
+            {
+                TableTab table => new PaletteRow(Table: table.Table, Tab: table),
+                PlSqlTab unit => new PaletteRow(Unit: unit.Unit, Tab: unit),
+                _ => null,
+            }).OfType<PaletteRow>(),
+        ];
+        if (open.Count > 0)
+        {
+            groups.Add(new PaletteGroup(ShellText.Palette_OpenTabs, open));
+        }
+
+        if (Active.Profile is { } profile)
+        {
+            var recent = QuickPaletteSearch.Recent(Recent.For(profile.Id), schema.Find, schema.FindPlSql,
+                o => open.Exists(r => o.Table is { } t ? r.Table?.Ref == t.Ref : r.Unit?.Ref == o.Unit!.Ref));
+            if (recent.Count > 0)
+            {
+                groups.Add(new PaletteGroup(ShellText.Palette_Recent, [.. recent.Select(o => new PaletteRow(Table: o.Table, Unit: o.Unit))]));
+            }
+        }
+
+        return groups;
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        Favorites.Changed += OnListsChanged;
+        Recent.Changed += OnListsChanged;
+        return Favorites.EnsureLoadedAsync();
+    }
+
+    /// <summary>Favorites read or a list read from its file: the open box shows them.</summary>
+    private void OnListsChanged()
+    {
+        if (Shell.Palette is not null)
+        {
+            InvokeAsync(StateHasChanged);
+        }
     }
 
     private RenderFragment Row(PaletteRow row, int rowIndex) => row switch
@@ -325,5 +374,10 @@
         }
     }
 
-    public async ValueTask DisposeAsync() => await Dom.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        Favorites.Changed -= OnListsChanged;
+        Recent.Changed -= OnListsChanged;
+        await Dom.DisposeAsync();
+    }
 }

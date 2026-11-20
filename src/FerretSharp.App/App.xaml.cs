@@ -13,6 +13,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
+using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.Resources;
@@ -172,6 +173,11 @@ public partial class App : Application
         // Filter presets (WP-37): one file for all connections.
         builder.Services.AddSingleton(new FilterPresetStore(paths.FilterPresetsFile));
         builder.Services.AddSingleton<FilterPresetService>();
+        // Favorites of the explorer (WP-91): one file for all connections; the objects last opened, one file per connection.
+        builder.Services.AddSingleton(new FavoriteStore(paths.FavoritesFile));
+        builder.Services.AddSingleton<FavoriteService>();
+        builder.Services.AddSingleton(new RecentObjectStore(paths.RecentObjectsDirectory));
+        builder.Services.AddSingleton<RecentObjects>();
         // Links (WP-37, ADR 0026): from the start argument and, from a second start, through the pipe.
         builder.Services.AddSingleton<LinkInbox>();
         builder.Services.AddSingleton<IProtocolRegistration, ProtocolRegistration>();

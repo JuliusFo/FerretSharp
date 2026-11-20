@@ -1,5 +1,6 @@
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
+using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
 
 namespace FerretSharp.UI.Tests.State;
@@ -106,5 +107,42 @@ public sealed class QuickPaletteSearchTests
         Assert.Null(shell.Palette);
         shell.TogglePalette(commands: false);
         Assert.False(shell.SwitcherOpen);
+    }
+
+    private static readonly TableSummary Auftrag = new("APP", "AUFTRAG", TableKind.Table);
+    private static readonly TableSummary Kunden = new("APP", "KUNDEN", TableKind.Table);
+    private static readonly PlSqlObjectSummary Rechnung = new("APP", "PKG_RECHNUNG", PlSqlKind.Package, "VALID");
+    private static readonly PlSqlObjectSummary Trigger = new("APP", "AUFTRAG", PlSqlKind.Trigger, "VALID");
+
+    /// <summary>WP-91: the favorites the schema has, tables and PL/SQL together by name, ten at most.</summary>
+    [Fact]
+    public void The_empty_box_offers_the_favorites_by_name()
+    {
+        TableSummary[] many = [.. Enumerable.Range(0, 12).Select(i => new TableSummary("APP", $"T{i:00}", TableKind.Table))];
+
+        var favorites = QuickPaletteSearch.Favorites([Kunden, Auftrag, .. many], [Rechnung, Trigger], t => t != Kunden && !t.Name.StartsWith('T'), u => u == Rechnung);
+        var limited = QuickPaletteSearch.Favorites(many, [], _ => true, _ => false);
+
+        Assert.Equal(["AUFTRAG", "PKG_RECHNUNG"], favorites.Select(o => o.DisplayName));
+        Assert.Equal(Rechnung, favorites[1].Unit);
+        Assert.Equal(QuickPaletteSearch.StartLimit, limited.Count);
+    }
+
+    /// <summary>WP-91: the objects opened last that the schema still has, newest first, without the open ones; a trigger is found as one.</summary>
+    [Fact]
+    public void The_empty_box_offers_the_objects_opened_last_that_are_there_and_not_open()
+    {
+        var now = DateTimeOffset.Now;
+        RecentObject[] recent =
+        [
+            RecentObject.Of(Trigger, now), RecentObject.Of(Kunden, now), new(SchemaObjectKind.Table, "APP", "GELOESCHT", now),
+            RecentObject.Of(Auftrag, now), RecentObject.Of(Rechnung, now),
+        ];
+
+        var offered = QuickPaletteSearch.Recent(recent, t => new[] { Auftrag, Kunden }.FirstOrDefault(x => x.Ref == t),
+            u => new[] { Rechnung, Trigger }.FirstOrDefault(x => x.Ref == u), o => o.Table == Kunden);
+
+        Assert.Equal([Trigger, null, Rechnung], offered.Select(o => o.Unit));
+        Assert.Equal(Auftrag, offered[1].Table);
     }
 }

@@ -262,6 +262,13 @@ internal static class Icons
     public static readonly MarkupString Star = Svg(
         """<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>""");
 
+    /// <summary>
+    /// Lucide <c>bookmark</c>: a favorite of the explorer (WP-91) – outlined to mark one, filled (<c>.fav-on</c> in the
+    /// stylesheet) for one that is.
+    /// </summary>
+    public static readonly MarkupString Bookmark = Svg(
+        """<path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/>""");
+
     /// <summary>Lucide <c>lock-open</c>: a workspace unlocked for writing (WP-10).</summary>
     public static readonly MarkupString Unlocked = Svg(
         """<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>""");
