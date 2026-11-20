@@ -49,9 +49,10 @@ public sealed class RecentObjects(RecentObjectStore store, ILogger<RecentObjects
         var list = For(id); // starts reading the file on first use; what it holds comes behind this entry (Use)
         _byConnection[id] = [entry, .. list.Where(e => !e.Same(entry)).Take(RecentObjectStore.MaxEntries - 1)];
         Changed?.Invoke();
-        // The list in memory stays as it is (review WP-91, 2): a file that takes no entry (of a newer FerretSharp, locked for
-        // the moment) answers with this entry alone, and the visits before were gone from the quick open.
-        Enqueue(() => store.AddAsync(id, entry, CancellationToken.None));
+        // What the write answers is merged behind the list in memory, never put in its place (review WP-91, 2 and A): a file
+        // that takes no entry (of a newer FerretSharp, locked for the moment) answers with this entry alone – the visits before
+        // were gone from the quick open –, and one that could not be read at first brings what it holds with the next write.
+        Enqueue(async () => Use(id, await store.AddAsync(id, entry, CancellationToken.None)));
     }
 
     /// <summary>What a tab counts as; null for SQL, LINQ and other tabs, and for a time travel tab.</summary>
@@ -63,8 +64,8 @@ public sealed class RecentObjects(RecentObjectStore store, ILogger<RecentObjects
     };
 
     /// <summary>
-    /// The connection's file was read: the visits since (shown already, newest first) stay in front of what it holds – a read
-    /// can end after the first visits of the connection.
+    /// The connection's file was read or written: the visits since (shown already, newest first) stay in front of what it
+    /// holds – a read can end after the first visits of the connection, a write answers with what the file took.
     /// </summary>
     private void Use(Guid connectionId, IReadOnlyList<RecentObject> read)
     {

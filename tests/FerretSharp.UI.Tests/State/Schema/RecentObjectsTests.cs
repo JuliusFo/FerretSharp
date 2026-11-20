@@ -76,6 +76,28 @@ public sealed class RecentObjectsTests : IDisposable
         Assert.Equal(newer, await File.ReadAllTextAsync(Path.Combine(_folder.Path, Connection.ToString("D") + ".json"), Ct));
     }
 
+    /// <summary>
+    /// Second review of WP-91, A: a file that could not be read at first (locked, of a newer FerretSharp) and can be later –
+    /// the next write brings what it holds behind the visits of this session.
+    /// </summary>
+    [Fact]
+    public async Task What_a_file_holds_comes_back_with_the_next_write_after_a_first_read_failed()
+    {
+        var file = Path.Combine(_folder.Path, Connection.ToString("D") + ".json");
+        await File.WriteAllTextAsync(file, """{ "version": 2, "entries": [] }""", Ct);
+        var recent = Service();
+        recent.Track(Connection, new TableTab(Workspace, Auftrag));
+        await recent.IdleAsync();
+
+        await File.WriteAllTextAsync(file, """
+            { "version": 1, "entries": [ { "kind": "package", "owner": "APP_USER", "name": "PKG_RECHNUNG", "openedAt": "2026-11-19T10:00:00+01:00" } ] }
+            """, Ct);
+        recent.Track(Connection, new TableTab(Workspace, TestApp.Kunden));
+        await recent.IdleAsync();
+
+        Assert.Equal(["KUNDEN", "AUFTRAG", "PKG_RECHNUNG"], Names(recent.For(Connection)));
+    }
+
     /// <summary>The file is read on first use; a tab shown before the read ends stays in front of what the file held.</summary>
     [Fact]
     public async Task A_visit_before_the_file_was_read_stays_in_front()

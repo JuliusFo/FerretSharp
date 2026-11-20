@@ -12,7 +12,7 @@ public sealed class FavoriteServiceTests : IDisposable
     private static readonly TableSummary KundenTest = new("ERP_TEST", "KUNDEN", TableKind.Table);
     private static readonly TableSummary KundenProd = new("ERP_PROD", "KUNDEN", TableKind.Table);
     private static readonly TableSummary AuftragTest = new("ERP_TEST", "AUFTRAG", TableKind.Table);
-    private static readonly PlSqlObjectSummary Rechnung =new("ERP_TEST", "PKG_RECHNUNG", PlSqlKind.Package, "VALID");
+    private static readonly PlSqlObjectSummary Rechnung = new("ERP_TEST", "PKG_RECHNUNG", PlSqlKind.Package, "VALID");
 
     private readonly TestFolder _folder = new();
 
