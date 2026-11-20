@@ -185,6 +185,8 @@ Geschrieben wird atomar (`AtomicJsonFile`) mit `JsonFiles.Options`, gelesen übe
 | `history*.json` | Kopie `.bad-…`, dann neuer Verlauf | nur anzeigen, nicht schreiben | nur anzeigen, nicht schreiben |
 | `conditions*.json` (WP-79, zuletzt angewendete Bedingungen) | wie `history*.json` (gemeinsam über `HistoryFileStore`) | wie `history*.json` | wie `history*.json` |
 | `comparisons.json` | Fehler auf der Seite (leer = keine), Speichern verweigert (Gesamt-Review 3.40.0, ST-8) | Fehler, beim nächsten Besuch oder Speichern erneut gelesen; Speichern erst danach | Fehler, Speichern verweigert |
+| `favorites.json` (WP-91, Favoriten aller Verbindungen nach Art und angezeigtem Namen) | Fehler oben in der Explorer-Liste, nie überschrieben | Fehler, Markieren verweigert, bis ein erneuter Versuch (Markieren) gelingt | Fehler, nie überschrieben |
+| `recent-objects*.json` (WP-91, zuletzt geöffnete Tabellen und PL/SQL je Verbindung, nur Namen) | wie `history*.json` (gemeinsam über `HistoryFileStore`) | wie `history*.json` | wie `history*.json` |
 | `filter-presets.json` (WP-37) | Fehler im Menü „Vorlagen“, nie überschrieben | Fehler im Menü, Speichern verweigert, bis ein erneuter Versuch (Menü öffnen) gelingt | Fehler, nie überschrieben |
 | `work-clones.json` (WP-40) | kein Arbeits-Klon gewählt | wie kaputt | keiner gewählt, Datei bleibt (Wahl nur im Speicher) |
 | `script-usage.json` (WP-84, zuletzt aus einer Zelle gestartete Skripte, keine Werte) | keins benutzt | wie kaputt | keins benutzt, Datei bleibt (Starts nur im Speicher) |

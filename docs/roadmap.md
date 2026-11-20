@@ -105,11 +105,7 @@ Branch `wp/90-preview-tabs`. Backlog „Grid, Filter, Formular, Editieren“ (Vo
 - Offen: zählt ein Wechsel der Ansicht als „angefasst“; Spur auch bei ausgeschalteten Vorschau-Tabs; Sprünge aus Formular, SQL-Ergebnis und LINQ-Konsole.
 
 ### WP-91 Explorer-Favoriten und „Zuletzt geöffnet“
-Branch `wp/91-favorites-recent`. Backlog „Schema und Explorer“ (Favoriten; Schnellsuche, „Zuletzt geöffnet“). Favoriten setzt der Nutzer, „Zuletzt geöffnet“ füllt sich von selbst – beides oben im Explorer bzw. in der leeren Schnellsuche.
-- Favoriten: Tabellen, Views und PL/SQL mit Stern oben im Explorer, über dem Buchstabenindex; Stern im Objektmenü (`TableMenuBody`, `PlSqlMenuBody`) und am Eintrag beim Überfahren.
-- „Zuletzt geöffnet“ in der leeren Schnellsuche, auch Tabellen, deren Tab inzwischen geschlossen ist (je Verbindung, eigene Datei).
-- Entschieden (Nutzer, 2026-11-19): Favoriten gewünscht (stehen auch auf seiner eigenen Liste).
-- Vorschlag (nicht bestätigt): Favoriten nach Objektname gespeichert wie die Filter-Vorlagen (WP-37), also auf Dev, Test und Prod gleich; in der leeren Schnellsuche vor „Zuletzt geöffnet“.
+In Arbeit: Planung und Entscheidungen in `docs/work-packages/wp-91-favorites-recent.md`.
 
 ### WP-92 Dock rechts mit Spalten-Inspektor
 Gebaut und in `main` gemergt (PR #185), noch nicht released (`CHANGELOG.md`, „Unreleased“). Planung und Entscheidungen in `docs/work-packages/wp-92-side-dock.md`, ADR 0052; der Abschnitt hier entfällt mit dem Release.
