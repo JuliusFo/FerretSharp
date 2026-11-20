@@ -36,4 +36,13 @@
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} ist kein gültiges Workspace-JSON: {1}</value>
   </data>
+  <data name="FavoritesFileInvalid" xml:space="preserve">
+    <value>{0} ist keine gültige Datei mit Favoriten: {1}</value>
+  </data>
+  <data name="FavoritesFileInvalidNotOverwritten" xml:space="preserve">
+    <value>{0} ist keine gültige Datei mit Favoriten und wird nicht überschrieben: {1}</value>
+  </data>
+  <data name="FavoritesFileUnreadable" xml:space="preserve">
+    <value>{0} konnte nicht gelesen werden: {1}</value>
+  </data>
 </root>
