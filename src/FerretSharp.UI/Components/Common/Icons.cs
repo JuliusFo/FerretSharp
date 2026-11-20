@@ -75,7 +75,7 @@ internal static class Icons
     public static readonly MarkupString Locked = Svg(
         """<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>""");
 
-    /// <summary>Lucide <c>circle-question-mark</c>: the help on a topic beside the view (WP-89, SQL scripts).</summary>
+    /// <summary>Lucide <c>circle-question-mark</c>: the help on a topic (WP-89, SQL scripts), in the dock since WP-92.</summary>
     public static readonly MarkupString Help = Svg(
         """<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>""");
 
@@ -219,9 +219,17 @@ internal static class Icons
     public static readonly MarkupString Document = Svg(
         """<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>""");
 
-    /// <summary>Lucide <c>notebook-text</c>: the row as a form (WP-61).</summary>
+    /// <summary>Lucide <c>notebook-text</c>: the row as a form (WP-61), its button in the dock's bar (WP-92).</summary>
     public static readonly MarkupString Form = Svg(
         """<path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9.5 8h5"/><path d="M9.5 12H16"/><path d="M9.5 16H14"/>""");
+
+    /// <summary>Lucide <c>scan-search</c>: the column inspector in the dock (WP-92).</summary>
+    public static readonly MarkupString Inspector = Svg(
+        """<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/><path d="m16 16-1.9-1.9"/>""");
+
+    /// <summary>Lucide <c>list-checks</c>: the open changes of the workspace in the dock (WP-30, WP-92).</summary>
+    public static readonly MarkupString OpenChanges = Svg(
+        """<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>""");
 
     /// <summary>Lucide <c>arrow-right-left</c>: copy rows into another connection (WP-61).</summary>
     public static readonly MarkupString Transfer = Svg(

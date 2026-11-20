@@ -406,6 +406,12 @@
     <value>Hilfe: SQL-Skripte</value>
   </data>
   <data name="HintScriptHelp" xml:space="preserve">
-    <value>Öffnet die Hilfe zu SQL-Skripten neben dem SQL-Tab – in einem neuen, wenn kein SQL-Tab aktiv ist.</value>
+    <value>Öffnet die Hilfe zu SQL-Skripten im Dock rechts.</value>
+  </data>
+  <data name="ActionToggleInspector" xml:space="preserve">
+    <value>Spalten-Inspektor zeigen/ausblenden</value>
+  </data>
+  <data name="HintToggleInspector" xml:space="preserve">
+    <value>Die Spalte der fokussierten Zelle im Dock rechts: Typ, Schlüssel, Indizes, Statistik, Verwendung im Code. In der Datenansicht einer Tabelle.</value>
   </data>
 </root>

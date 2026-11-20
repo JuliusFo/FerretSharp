@@ -56,6 +56,12 @@ public sealed partial class OracleSchemaReader
            AND table_name = :name
         """;
 
+    private const string ColumnStatisticsSql = """
+        SELECT column_name, num_distinct, num_nulls, last_analyzed, histogram
+          FROM all_tab_col_statistics
+         WHERE owner = :owner AND table_name = :name
+        """;
+
     // STANDARD/DBMS_STANDARD are referenced by everything and say nothing.
     private const string UsesSql = """
         SELECT DISTINCT d.referenced_owner, d.referenced_name, d.referenced_type, o.status
@@ -160,6 +166,11 @@ public sealed partial class OracleSchemaReader
         var columnsByIndex = await ReadIndexColumnsAsync(IndexColumnsSql, IndexExpressionsSql, parameters, many: false, cancellationToken);
         return await session.ReadListAsync(IndexesSql, parameters, reader => ReadIndex(reader, columnsByIndex), cancellationToken);
     }
+
+    public async Task<IReadOnlyList<ColumnStatistics>> GetColumnStatisticsAsync(TableRef table, CancellationToken cancellationToken) =>
+        await session.ReadListAsync(ColumnStatisticsSql, [new("owner", table.Owner), new("name", table.Name)],
+            reader => new ColumnStatistics(reader.GetString(0), Long(reader, 1), Long(reader, 2), Date(reader, 3), Text(reader, 4)),
+            cancellationToken, many: true);
 
     public async Task<SchemaNames> GetNamesElsewhereAsync(TableRef table, CancellationToken cancellationToken)
     {

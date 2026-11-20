@@ -10,10 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
   - The SQL editor completes a script’s header lines after `-- @`: the directives, the types of `@param` and `list`, the binds of the SQL, and the tables and columns of a `@target`.
   - Hovering a header line explains it; on a `@target` it also says whether the connection has the column and in which cell menus the script shows.
   - Header lines that cannot be used are marked while typing – a target without its bind, a typo like `@tagret`, a `@param` below the header, a table or column the connection does not have – not only after saving.
-  - A help panel beside the SQL editor explains folders, the header, scripts in the cell menu and saving; it opens from the SQL tab’s toolbar, the notice after saving, the save dialog, the explorer’s *Scripts* and the command palette (*Help: SQL scripts*, no default key).
+  - A help panel explains folders, the header, scripts in the cell menu and saving; it opens from the SQL tab’s toolbar, the notice after saving, the save dialog, the explorer’s *Scripts* and the command palette (*Help: SQL scripts*, no default key).
+- Dock on the right (WP-92): a bar at the right edge opens one side panel at a time – the column inspector, the form, the open changes or the help. The dock belongs to the window: it stays open when another tab is activated and shows that tab’s row and column; a tab without the panel (the form in a PL/SQL tab) shows none and the bar keeps the choice. One width for all panels, kept after a restart.
+- Column inspector (WP-92): the column of the focused cell – type, C# property, comment, the row’s value with its name, the relationships it is part of, every index with the column’s place in it and a warning when no usable index starts with it, the optimizer statistics (distinct values, NULLs, histogram, last analyzed) and the methods of the linked project that use it. “Filter by this value” adds a filter row; *Show/hide column inspector* in the command palette (no default key).
 
 ### Changed
 - The line above a result, its chips and the SQL history show a statement without the script’s header lines at its start; what runs is unchanged.
+- The form, the open changes and the help on SQL scripts are panels of the dock (WP-92): one at a time, for the whole window. The form no longer opens per tab – a form left open in a tab before this version does not open again by itself; the open changes come back as they were, with their width. The help opens beside any tab, no SQL tab is opened for it any more. A value typed into the form that cannot be taken when the form leaves the dock is named in the status bar.
 
 ## [3.71.1] - 2026-11-13
 

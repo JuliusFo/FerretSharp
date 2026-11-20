@@ -14,6 +14,7 @@
 @inject FerretSharp.Core.Workspaces.ConditionHistoryStore ConditionHistory
 @inject FerretSharp.Core.Scripts.ScriptUsage ScriptUsage
 
+<div class="tabview-split">
 <div class="tabview">
     <div class="tab-toolbar">
         @if (Tab.BackTarget(Shell.Tabs) is { } back)
@@ -49,7 +50,7 @@
             {
                 <button class="btn ghost" title="@TextFormat.Format(SchemaViewText.Tab_AddRowTitle, Shortcuts.Hint(ShortcutAction.Flush))" @onclick="AddRowAsync">@SchemaViewText.Tab_AddRow</button>
             }
-            <button class="btn ghost @(Tab.FormOpen ? "active" : "")" aria-pressed="@(Tab.FormOpen ? "true" : "false")"
+            <button class="btn ghost @(FormShown ? "active" : "")" aria-pressed="@(FormShown ? "true" : "false")"
                     title="@(Shortcuts.Label(ShortcutAction.ToggleForm) is { } key ? TextFormat.Format(SchemaViewText.Tab_FormTitleWithKey, key) : SchemaViewText.Tab_FormTitle)" @onclick="ToggleForm">
                 @SchemaViewText.Tab_Form <Kbd Action="ShortcutAction.ToggleForm" />
             </button>
@@ -115,10 +116,6 @@
                                     OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
                                     OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" OnFormRequested="OnFormRequested" />
                     </div>
-                    @if (Tab.FormOpen)
-                    {
-                        <RowFormPanel @ref="_form" Tab="Tab" Details="_details" Grid="_grid" OnClose="CloseFormAsync" />
-                    }
                 </div>
                 <TabFooter @ref="_footer" Tab="Tab" Details="_details" Grid="_grid" Loading="_grid?.LoadingFirstPage == true" OnLoad="() => RefreshAsync()" />
             </div>
@@ -171,6 +168,17 @@
             </div>
         }
     }
+</div>
+@* The dock's panels of this tab (WP-92, ADR 0052): beside the whole view, only while it is the active tab – the dock is the
+   window's, and a form or inspector in every mounted tab would each read and count. *@
+@if (_dockShown == DockPanel.Form)
+{
+    <RowFormPanel @ref="_form" Tab="Tab" Details="_details!" Grid="_grid" OnClose="CloseFormAsync" />
+}
+else if (_dockShown == DockPanel.Inspector)
+{
+    <ColumnInspector Tab="Tab" Details="_details!" Grid="_grid" OnShowMode="SetMode" OnClose="() => Shell.CloseDock(DockPanel.Inspector)" />
+}
 </div>
 
 @if (_menu is { } menu && _details is not null)
@@ -472,11 +480,36 @@
                 Shell.NotifyChanged();
                 Shell.MarkDirty();
             }
+
+            _dockShown = DockShown; // the structure is there: the dock's panel may show now
         }
     }
 
     /// <summary>The mode may also change from outside (a table link opens the structure of an open tab).</summary>
-    protected override void OnParametersSet() => Visit(Tab.Mode);
+    protected override void OnParametersSet()
+    {
+        Visit(Tab.Mode);
+        var shown = DockShown;
+        if (_dockShown == DockPanel.Form && shown != DockPanel.Form)
+        {
+            _form?.TakeTypedValues(); // the form goes (another tab, panel or view): typed values become pending, as on a row change
+        }
+
+        _dockShown = shown;
+    }
+
+    /// <summary>The dock's panel this tab draws now (<see cref="DockPanel.None"/> for none), as of the last parameters.</summary>
+    private DockPanel _dockShown;
+
+    /// <summary>Form and inspector are drawn by the active tab in its data view once the structure is there.</summary>
+    private DockPanel DockShown =>
+        _details is not null && Tab.DataShown && ReferenceEquals(Shell.ActiveTab, Tab) && DockPanels.ShowsIn(Shell.Dock, Tab) && Shell.Dock is DockPanel.Form or DockPanel.Inspector
+            ? Shell.Dock
+            : DockPanel.None;
+
+    /// <summary>The form is open in the dock: the button and Alt+Enter close it, "+ Row" fills the new row there.</summary>
+    private bool FormShown => _dockShown == DockPanel.Form;
+
 
     private void Visit(TabMode mode)
     {
@@ -693,26 +726,19 @@
         }
     }
 
-    /// <summary>The form beside the grid (WP-21): open or close; saved with the tab.</summary>
-    private void ToggleForm()
-    {
-        Tab.FormOpen = !Tab.FormOpen;
-        Shell.MarkDirty();
-    }
+    /// <summary>The form in the dock (WP-21, WP-92): open or close – for the window, it stays open in the next tab.</summary>
+    private void ToggleForm() => Shell.ToggleDock(DockPanel.Form);
 
     private Task CloseFormAsync()
     {
-        Tab.FormOpen = false;
-        Shell.MarkDirty();
+        Shell.CloseDock(DockPanel.Form);
         return _grid?.FocusRowAsync(_grid.Focused ?? new GridCell(0, null, null), keepFocus: false) ?? Task.CompletedTask;
     }
 
     /// <summary>Opens the form on a row (context menu, a compared row's heading).</summary>
     private async Task OpenFormAsync(int rowIndex, int? column)
     {
-        Tab.FormOpen = true;
-        Shell.MarkDirty();
-        StateHasChanged();
+        Shell.ShowDock(DockPanel.Form);
         if (_grid is not null)
         {
             await _grid.FocusRowAsync(new GridCell(rowIndex, null, column), keepFocus: false);
@@ -728,13 +754,12 @@
             return Task.CompletedTask;
         }
 
-        if (Tab.FormOpen)
+        if (FormShown)
         {
             return CloseFormAsync();
         }
 
-        Tab.FormOpen = true;
-        Shell.MarkDirty();
+        Shell.ShowDock(DockPanel.Form);
         return Task.CompletedTask;
     }
 
@@ -769,7 +794,7 @@
             return;
         }
 
-        if (Tab.FormOpen && _form is not null)
+        if (FormShown && _form is not null)
         {
             _form.FocusFirstFieldOfNewRow();
             await _grid.AddRowAsync(inGrid: false);

@@ -2,6 +2,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.UI.State;
@@ -292,23 +293,52 @@ public sealed partial class ShellState
         }
     });
 
-    /// <summary>The change overview of the active workspace is open beside the tabs (WP-30).</summary>
-    public bool ChangesOpen { get; private set; }
+    /// <summary>
+    /// The panel open in the dock on the right (WP-92, ADR 0052): one at a time, for the whole window – form and inspector
+    /// show the active tab's row and column, the change overview and the help belong to no tab.
+    /// </summary>
+    public DockPanel Dock { get; private set; }
 
-    /// <summary>The user opened or closed the change overview; the shell remembers it in the settings.</summary>
-    public event Action<bool>? ChangesOpenChanged;
+    /// <summary>The topic of the help in the dock (WP-89).</summary>
+    public HelpTopic HelpTopic { get; private set; } = HelpTopic.Scripts;
 
-    public void ToggleChanges() => SetChangesOpen(!ChangesOpen);
+    /// <summary>The user opened, switched or closed a panel of the dock; the shell remembers it in the settings.</summary>
+    public event Action<DockPanel>? DockChanged;
 
-    public void CloseChanges() => SetChangesOpen(false);
+    /// <summary>The change overview of the active workspace is open in the dock (WP-30).</summary>
+    public bool ChangesOpen => Dock == DockPanel.Changes;
+
+    /// <summary>The panel, or closed if it is the open one (a click in the dock's bar, a shortcut).</summary>
+    public void ToggleDock(DockPanel panel) => SetDock(Dock == panel ? DockPanel.None : panel);
+
+    /// <summary>The panel, whichever was open.</summary>
+    public void ShowDock(DockPanel panel) => SetDock(panel);
+
+    /// <summary>Closes the panel if it is the open one (its ✕: another panel opened meanwhile stays).</summary>
+    public void CloseDock(DockPanel panel)
+    {
+        if (Dock == panel)
+        {
+            SetDock(DockPanel.None);
+        }
+    }
+
+    public void ToggleChanges() => ToggleDock(DockPanel.Changes);
+
+    public void CloseChanges() => CloseDock(DockPanel.Changes);
 
     /// <summary>As it was when the app was closed (start, no event).</summary>
-    public void RestoreChanges(bool open) => ChangesOpen = open;
+    public void RestoreDock(DockPanel panel) => Dock = Enum.IsDefined(panel) ? panel : DockPanel.None;
 
-    private void SetChangesOpen(bool open)
+    private void SetDock(DockPanel panel)
     {
-        Set(() => ChangesOpen = open);
-        ChangesOpenChanged?.Invoke(open);
+        if (Dock == panel)
+        {
+            return;
+        }
+
+        Set(() => Dock = panel);
+        DockChanged?.Invoke(panel);
     }
 
     /// <summary>

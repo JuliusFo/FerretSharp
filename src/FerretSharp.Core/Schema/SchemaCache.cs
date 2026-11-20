@@ -173,6 +173,10 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(TableRef table, CancellationToken cancellationToken) =>
         reader.GetIndexesAsync(table, cancellationToken);
 
+    /// <summary>The optimizer statistics of the table's columns (WP-92, column inspector); not cached.</summary>
+    public Task<IReadOnlyList<ColumnStatistics>> GetColumnStatisticsAsync(TableRef table, CancellationToken cancellationToken) =>
+        reader.GetColumnStatisticsAsync(table, cancellationToken);
+
     public Task<SchemaNames> GetNamesElsewhereAsync(TableRef table, CancellationToken cancellationToken) =>
         reader.GetNamesElsewhereAsync(table, cancellationToken);
 

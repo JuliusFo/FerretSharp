@@ -5,30 +5,31 @@ using FerretSharp.UI.State;
 namespace FerretSharp.UI.Tests.State;
 
 /// <summary>
-/// WP-56: SQL and LINQ tabs keep their form beside the result like table tabs (WP-21), in the same file format; since WP-73
-/// also the pinned result columns, and the dragged editor height (per tab, decision of the user).
+/// WP-56: SQL and LINQ tabs keep their form like table tabs (WP-21), in the same file format; since WP-73 also the pinned
+/// result columns, and the dragged editor height (per tab, decision of the user). Since WP-92 whether the form shows and
+/// how wide is the dock's (the window's): the tab keeps only "hide empty".
 /// </summary>
 public sealed class FormTabsTests
 {
     [Fact]
     public void Sql_and_linq_tabs_save_and_restore_their_form_and_editor_height()
     {
-        var sql = new SqlTab(Guid.NewGuid(), "SQL 1") { Text = "SELECT 1 FROM DUAL", FormOpen = true, FormWidth = 520, ResultPins = [new("ID", 1)], EditorHeight = 420 };
+        var sql = new SqlTab(Guid.NewGuid(), "SQL 1") { Text = "SELECT 1 FROM DUAL", ResultPins = [new("ID", 1)], EditorHeight = 420 };
         var linq = new LinqTab(Guid.NewGuid(), "LINQ 1") { FormHideEmpty = true, ResultPins = [new("Name")], EditorHeight = 150 };
 
         var sqlState = sql.Save([sql, linq]);
         var linqState = linq.Save([sql, linq]);
 
-        Assert.Equal(new FormTabState(true, 520, false), sqlState.Form);
+        Assert.Null(sqlState.Form);
         Assert.Equal(new FormTabState(false, null, true), linqState.Form);
         Assert.Equal([new ResultColumnPin("ID", 1)], sqlState.ResultPins);
         var restoredSql = SqlTab.Restore(Guid.NewGuid(), sqlState.Sql!, sqlState.Form, sqlState.ResultPins);
         Assert.Equal(sqlState.ResultPins, restoredSql.ResultPins);
-        Assert.Equal((true, 520, false), (restoredSql.FormOpen, restoredSql.FormWidth, restoredSql.FormHideEmpty));
+        Assert.False(restoredSql.FormHideEmpty);
         Assert.Equal(("SELECT 1 FROM DUAL", (int?)420), (restoredSql.Text, restoredSql.EditorHeight));
         var restoredLinq = LinqTab.Restore(Guid.NewGuid(), linqState.Linq!, linqState.Form, linqState.ResultPins);
         Assert.Equal([new ResultColumnPin("Name")], restoredLinq.ResultPins);
-        Assert.Equal((false, null, true), (restoredLinq.FormOpen, restoredLinq.FormWidth, restoredLinq.FormHideEmpty));
+        Assert.True(restoredLinq.FormHideEmpty);
         Assert.Equal(150, restoredLinq.EditorHeight);
     }
 
@@ -39,6 +40,16 @@ public sealed class FormTabsTests
 
         Assert.Null(sql.Save([sql]).Form);
         Assert.Null(sql.Save([sql]).ResultPins); // nothing pinned: nothing in the file
-        Assert.False(SqlTab.Restore(Guid.NewGuid(), new SqlTabState("SQL 1", "", []), form: null).FormOpen);
+        Assert.False(SqlTab.Restore(Guid.NewGuid(), new SqlTabState("SQL 1", "", []), form: null).FormHideEmpty);
+    }
+
+    /// <summary>WP-92: a file from before the dock may say the form was open and how wide – the tab takes only "hide empty".</summary>
+    [Fact]
+    public void An_open_form_of_a_file_before_the_dock_is_not_the_tab_s_any_more()
+    {
+        var restored = SqlTab.Restore(Guid.NewGuid(), new SqlTabState("SQL 1", "", []), new FormTabState(Open: true, Width: 520, HideEmpty: true));
+
+        Assert.True(restored.FormHideEmpty);
+        Assert.Equal(new FormTabState(false, null, true), restored.Save([restored]).Form);
     }
 }

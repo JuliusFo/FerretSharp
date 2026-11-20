@@ -184,7 +184,7 @@ public class ReadOnlyTests
         { typeof(IRowLookup), ["LookupAsync"] },
         {
             typeof(ISchemaReader), [
-                "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetCursorByIdAsync", "GetDdlAsync", "GetDependenciesAsync",
+                "ExplainAsync", "GetColumnStatisticsAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetCursorByIdAsync", "GetDdlAsync", "GetDependenciesAsync",
                 "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetGrantsAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetNameTakenAsync", "GetNamesElsewhereAsync", "GetObjectInfoAsync",
                 "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetPrimaryKeysAsync", "GetSchemaGrantsAsync", "GetSchemaSynonymsAsync", "GetSessionActivityAsync", "GetSourceAsync", "GetSubprogramsAsync",
                 "GetSynonymTargetsAsync", "GetSynonymsAsync", "GetTableTriggersAsync", "GetTablesAsync", "GetTablespacesAsync", "GetTriggerColumnsAsync", "GetUserNamesAsync", "ReadSnapshotAsync", "SearchSourceAsync",

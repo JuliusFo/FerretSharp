@@ -118,6 +118,20 @@ public sealed record IndexInfo(
     public static bool IsGenerated(string name) => name.StartsWith("SYS_", StringComparison.Ordinal);
 }
 
+/// <summary>
+/// The optimizer statistics of one column (<c>ALL_TAB_COL_STATISTICS</c>, WP-92: the column inspector) as of the last
+/// analysis – estimates, possibly old; null where Oracle has none.
+/// </summary>
+/// <param name="Histogram">NONE, FREQUENCY, HEIGHT BALANCED, TOP-FREQUENCY or HYBRID.</param>
+public sealed record ColumnStatistics(string Column, long? Distinct, long? Nulls, DateTime? LastAnalyzed, string? Histogram);
+
+/// <summary>An index with a column in it (WP-92): its 1-based place among the index's columns.</summary>
+public sealed record IndexPosition(IndexInfo Index, int Position)
+{
+    /// <summary>The column leads the index and Oracle may use it to find rows by the column (<see cref="IndexAdvice.HasIndexFor"/>).</summary>
+    public bool Leads => Position == 1 && Index.Visible && !Index.IsUnusable;
+}
+
 /// <param name="Type"><c>ALL_OBJECTS.OBJECT_TYPE</c>, e.g. TABLE, VIEW, PACKAGE BODY, SYNONYM.</param>
 /// <param name="Status">VALID or INVALID; null if the object is not visible to the session.</param>
 public sealed record DependencyInfo(string Owner, string Name, string Type, string? Status)
@@ -144,6 +158,19 @@ public static class IndexAdvice
     /// </summary>
     public static bool HasIndexFor(string column, IReadOnlyList<IndexInfo> indexes) =>
         indexes.Any(index => index.Visible && !index.IsUnusable && Covers(index, [column]));
+
+    /// <summary>
+    /// The indexes with <paramref name="column"/> as a plain column (not inside an expression), where it stands in each –
+    /// those it leads first, then by place and name (WP-92, column inspector).
+    /// </summary>
+    public static IReadOnlyList<IndexPosition> PositionsOf(string column, IReadOnlyList<IndexInfo> indexes) =>
+        indexes
+            .Select(index => new IndexPosition(index, index.Columns.ToList().FindIndex(c => !c.IsExpression && c.Name == column) + 1))
+            .Where(p => p.Position > 0)
+            .OrderBy(p => p.Leads ? 0 : 1)
+            .ThenBy(p => p.Position)
+            .ThenBy(p => p.Index.Name, StringComparer.Ordinal)
+            .ToList();
 
     /// <summary>The index starts with <paramref name="columns"/> (in any order), so lookups by them can use it.</summary>
     public static bool Covers(IndexInfo index, IReadOnlyList<string> columns)

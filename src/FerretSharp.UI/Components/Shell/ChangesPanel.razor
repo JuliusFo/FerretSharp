@@ -1,4 +1,4 @@
-@* Open changes of the active workspace (WP-30), beside the tabs: what is pending (only in FerretSharp), what is written
+@* Open changes of the active workspace (WP-30), in the dock on the right (WP-92): what is pending (only in FerretSharp), what is written
    but not committed (in the transaction, rows locked) and what was undone and can be redone – with the SQL, undo up to
    an action, redo, discarding and jumps to the row or the tab a change came from. *@
 @using FerretSharp.Core.Connections
@@ -9,8 +9,8 @@
 @inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
 
-<aside class="changes-panel" style="@WidthStyle" aria-label="@ShellText.Changes_Title">
-    <ResizeHandle Edge="ResizeEdge.Left" Min="MinWidth" MaxFraction="MaxFraction" OnResized="w => SaveWidthAsync(w)" OnReset="() => SaveWidthAsync(null)" />
+<aside class="dock-panel changes-panel" aria-label="@ShellText.Changes_Title">
+    <DockResizeHandle />
     <header class="changes-head">
         <strong>@ShellText.Changes_Title</strong>
         @if (Workspace is { } shown)
@@ -201,23 +201,6 @@
     private WorkspaceEditing Editing => Lifecycle.Editing;
 
     private WorkspaceTabs? Workspace => Shell.ActiveWorkspace;
-
-    public const int DefaultWidth = 380;
-    private const int MinWidth = 300;
-    private const double MaxFraction = 0.6;
-
-    private string WidthStyle => FormattableString.Invariant($"width: {Settings.Current.ChangesPanelWidth ?? DefaultWidth}px;");
-
-    /// <summary>Dragging the left edge sets the width – one for the whole app, kept in the settings; null for the default.</summary>
-    private async Task SaveWidthAsync(int? width)
-    {
-        if (width == Settings.Current.ChangesPanelWidth)
-        {
-            return;
-        }
-
-        await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { ChangesPanelWidth = width }, CancellationToken.None));
-    }
 
     /// <summary>The written action whose "up to here" the mouse is on: it and every later one are marked.</summary>
     private int? _undoFrom;

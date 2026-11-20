@@ -112,12 +112,7 @@ Branch `wp/91-favorites-recent`. Backlog „Schema und Explorer“ (Favoriten; S
 - Vorschlag (nicht bestätigt): Favoriten nach Objektname gespeichert wie die Filter-Vorlagen (WP-37), also auf Dev, Test und Prod gleich; in der leeren Schnellsuche vor „Zuletzt geöffnet“.
 
 ### WP-92 Dock rechts mit Spalten-Inspektor
-Branch `wp/92-side-dock`. Backlog „Grid, Filter, Formular, Editieren“ (Dock). Mockup: `docs/images/mockups/wp-92-dock-inspector.png`.
-- **Ein Dock für die rechte Seite** mit Icon-Leiste: Formular, offene Änderungen, Hilfe (WP-89), neu der Inspektor, später die Workspace-Übersicht (WP-39). Klick wechselt, zweiter Klick schließt; die Leiste zeigt die Zahl der offenen Änderungen.
-- **Spalten-Inspektor:** folgt der fokussierten Zelle – Typ, C#-Property, Kommentar, Wert der Zeile mit Anzeigename, FK, Indizes mit der Position der Spalte, Statistik, Verwendung im Code mit Sprung; Links zur Spaltenansicht, „Nach dieser Spalte filtern“, Namen kopieren.
-- Entschieden (Nutzer, 2026-11-19): Mockup passt. **Nur ein Panel zur Zeit** (Formular und offene Änderungen gehen dann nicht mehr gleichzeitig; zwei Panels übereinander wären eine spätere Ergänzung). **Das Dock gehört dem Fenster**, nicht dem Tab: Es bleibt beim Tabwechsel offen, sein Inhalt folgt dem aktiven Tab. Der Formular-Zustand je Tab (`TabState.Form`) wird dafür zum Zustand des Fensters – gespeicherte Workspaces brauchen eine Migration (`VersionedJsonFile`).
-- Vorschlag (nicht bestätigt): Die Skript- und Verlaufsleiste des SQL-Tabs bleibt am Editor; der Inspektor zuerst nur in Tabellen-Tabs, in SQL- und LINQ-Ergebnissen später für Spalten mit bekannter Herkunft (WP-48); Statistik aus `ALL_TAB_COL_STATISTICS` erst beim Zeigen des Inspektors, Indizes und Verwendung aus dem, was Ansichten und Code-Index schon laden.
-- Offen: Breite des Docks je Fenster oder je Inhalt; was ein Tab ohne passenden Inhalt zeigt (Formular in einem SQL-Tab ohne Ergebnis); Tastenkürzel (`ToggleChanges` bleibt, die übrigen Panels ohne Standardtaste).
+In Arbeit: Planung und Entscheidungen in `docs/work-packages/wp-92-side-dock.md`, ADR 0052.
 
 ### WP-93 Datensatz-Akte im Formular
 Branch `wp/93-record-file`. Backlog „Grid, Filter, Formular, Editieren“ (Datensatz-Akte). Mockup: `docs/images/mockups/wp-93-record-file.png`.

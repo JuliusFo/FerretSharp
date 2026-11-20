@@ -191,8 +191,9 @@ public sealed record RecordTabState(
     public TableRef Table => new(Owner, Name);
 }
 
-/// <summary>The form view of a tab (WP-21, WP-56): whether the panel is open, its width and "leere ausblenden".</summary>
-/// <param name="Width">Width of the panel in CSS pixels; null for the default.</param>
+/// <summary>The form view of a tab (WP-21, WP-56): "leere ausblenden"; whether it shows is the dock's since WP-92.</summary>
+/// <param name="Open">The form was open – before the dock (WP-92); not read any more, written as false.</param>
+/// <param name="Width">The form's width before the dock (WP-92); not read any more.</param>
 public sealed record FormTabState(bool Open, int? Width = null, bool HideEmpty = false);
 
 /// <summary>The views of a PL/SQL tab (WP-28). <see cref="Source"/> is a package's specification.</summary>

@@ -1869,4 +1869,113 @@
     <value>The values come from the rows the result holds, as they were read – the query does not run again. More than {0:N0} values are not copied.</value>
     <comment>Tooltip in a kept SQL result (WP-81); {0}: the limit</comment>
   </data>
+  <data name="Inspector_ChooseCell" xml:space="preserve">
+    <value>Click a cell: its column shows here.</value>
+    <comment>Column inspector without a focused cell</comment>
+  </data>
+  <data name="Inspector_ReloadTitle" xml:space="preserve">
+    <value>Read indexes and statistics again</value>
+  </data>
+  <data name="Inspector_PrimaryKey" xml:space="preserve">
+    <value>Part of the primary key</value>
+    <comment>Tooltip of the PK badge in the column inspector</comment>
+  </data>
+  <data name="Inspector_Type" xml:space="preserve">
+    <value>Type</value>
+    <comment>Label: the column's Oracle type</comment>
+  </data>
+  <data name="Inspector_Comment" xml:space="preserve">
+    <value>Comment</value>
+    <comment>Label: the column's comment in the database</comment>
+  </data>
+  <data name="Inspector_ThisRow" xml:space="preserve">
+    <value>This row</value>
+    <comment>Label: the value of the focused row in this column</comment>
+  </data>
+  <data name="Inspector_Relationships" xml:space="preserve">
+    <value>Relationships</value>
+    <comment>Heading: foreign keys from and to this column</comment>
+  </data>
+  <data name="Inspector_OpenTable" xml:space="preserve">
+    <value>Open the table</value>
+  </data>
+  <data name="Inspector_Indexes" xml:space="preserve">
+    <value>Indexes</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Inspector_IndexPlace" xml:space="preserve">
+    <value>column {0} of {1}</value>
+    <comment>{0}: place of this column in the index (1 = leading), {1}: number of columns of the index</comment>
+  </data>
+  <data name="Inspector_Unusable" xml:space="preserve">
+    <value>unusable</value>
+    <comment>State of an index (UNUSABLE)</comment>
+  </data>
+  <data name="Inspector_Invisible" xml:space="preserve">
+    <value>invisible</value>
+    <comment>State of an index (INVISIBLE)</comment>
+  </data>
+  <data name="Inspector_NoLeadingIndex" xml:space="preserve">
+    <value>No usable index starts with this column – a filter on it alone may read the whole table.</value>
+  </data>
+  <data name="Inspector_Reading" xml:space="preserve">
+    <value>Reading indexes and statistics …</value>
+  </data>
+  <data name="Inspector_Statistics" xml:space="preserve">
+    <value>Statistics</value>
+    <comment>Heading: optimizer statistics of the column</comment>
+  </data>
+  <data name="Inspector_Distinct" xml:space="preserve">
+    <value>Distinct values</value>
+  </data>
+  <data name="Inspector_Histogram" xml:space="preserve">
+    <value>Histogram</value>
+  </data>
+  <data name="Inspector_Analyzed" xml:space="preserve">
+    <value>Analyzed</value>
+    <comment>Label: when Oracle last gathered the statistics</comment>
+  </data>
+  <data name="Inspector_NoStatistics" xml:space="preserve">
+    <value>No statistics for this column.</value>
+  </data>
+  <data name="Inspector_Usage" xml:space="preserve">
+    <value>Use in code</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Inspector_UsageReading" xml:space="preserve">
+    <value>Reading the code …</value>
+  </data>
+  <data name="Inspector_NoProperty" xml:space="preserve">
+    <value>The column has no property in the C# model.</value>
+  </data>
+  <data name="Inspector_Unused" xml:space="preserve">
+    <value>No code uses the property outside tests and mapping.</value>
+  </data>
+  <data name="Inspector_MoreUses" xml:space="preserve">
+    <value>{0} more in the view “Usage”</value>
+    <comment>{0}: number of further uses in code not listed</comment>
+  </data>
+  <data name="Inspector_ColumnsView" xml:space="preserve">
+    <value>Columns view</value>
+  </data>
+  <data name="Inspector_FilterValue" xml:space="preserve">
+    <value>Filter by this value</value>
+  </data>
+  <data name="Inspector_FilterValueTitle" xml:space="preserve">
+    <value>Adds a filter row for the column with the focused cell's value; Apply runs it.</value>
+  </data>
+  <data name="Inspector_CopyName" xml:space="preserve">
+    <value>Copy name</value>
+  </data>
+  <data name="Inspector_TestsAndMapping" xml:space="preserve">
+    <value>{0} more in tests and mapping</value>
+    <comment>{0}: number of uses of the property in tests and in the EF configuration; opens the view Usage</comment>
+  </data>
+  <data name="Form_TypedValueDropped" xml:space="preserve">
+    <value>Not taken from the form: {0} – {1}</value>
+    <comment>Status bar notice when the form leaves the dock with a typed value that is not valid; {0}: column name, {1}: why the value is not valid</comment>
+  </data>
+  <data name="Inspector_ViewNoIndexes" xml:space="preserve">
+    <value>A view has no indexes or statistics of its own – those of its tables count.</value>
+  </data>
 </root>

@@ -53,7 +53,8 @@
     <span class="spacer"></span>
     @if (FormTab is { } tab)
     {
-        <button class="btn ghost small @(tab.FormOpen ? "active" : "")" aria-pressed="@(tab.FormOpen ? "true" : "false")"
+        var formShown = Shell.Dock == DockPanel.Form && ReferenceEquals(Shell.ActiveTab, tab);
+        <button class="btn ghost small @(formShown ? "active" : "")" aria-pressed="@(formShown ? "true" : "false")"
                 title="@(Shortcuts.Label(ShortcutAction.ToggleForm) is { } key ? TextFormat.Format(SchemaViewText.Tab_FormTitleWithKey, key) : SchemaViewText.Tab_FormTitle)" @onclick="OnToggleForm">
             @SchemaViewText.Tab_Form <Kbd Action="ShortcutAction.ToggleForm" />
         </button>

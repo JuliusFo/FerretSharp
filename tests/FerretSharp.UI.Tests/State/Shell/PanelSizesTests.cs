@@ -11,6 +11,8 @@ public sealed class PanelSizesTests
     {
         Assert.Null(PanelSizes.Style(AppSettings.Default));
         Assert.Equal("--explorer-width: 340px;", PanelSizes.Style(AppSettings.Default with { ExplorerWidth = 340 }));
+        Assert.Equal("--explorer-width: 340px;--dock-width: 480px;", PanelSizes.Style(AppSettings.Default with { ExplorerWidth = 340, DockWidth = 480 }));
+        Assert.Equal("--dock-width: 450px;", PanelSizes.Style(AppSettings.Default with { ChangesPanelWidth = 450 })); // dragged before the dock (WP-92)
         Assert.Equal("--sql-editor-height: 260px;", PanelSizes.Property(PanelSizes.SqlEditorHeight, 260));
         Assert.Null(PanelSizes.Property(PanelSizes.LinqEditorHeight, null));
         Assert.Null(PanelSizes.Property(PanelSizes.LinqEditorHeight, -5)); // a hand-edited workspace file

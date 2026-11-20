@@ -1,8 +1,9 @@
-@* The help beside a view (WP-89, ADR 0051): a topic's short guide where it is needed – first SQL scripts beside the SQL
-   editor, so it can be read while typing. The texts are HelpText (English and German), written for users, not a copy of
+@* The help (WP-89, ADR 0051) in the dock on the right (WP-92, ADR 0052): a topic's short guide beside whatever view is
+   active, so it can be read while typing. The texts are HelpText (English and German), written for users, not a copy of
    the internal docs. *@
 
-<aside class="sql-history help-panel" aria-label="@HelpText.Panel_Title">
+<aside class="dock-panel help-panel" aria-label="@HelpText.Panel_Title">
+    <DockResizeHandle />
     <div class="help-head">
         @Icons.Help
         <span class="help-title">@TopicTitle</span>

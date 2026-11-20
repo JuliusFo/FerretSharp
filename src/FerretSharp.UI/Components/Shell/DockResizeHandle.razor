@@ -1,0 +1,25 @@
+@* The left edge of a panel of the dock (WP-92): dragging sets the dock's width – one for every panel, kept in the settings;
+   a double click goes back to the default. While dragging, dom.js sets PanelSizes.DockWidth on the app root. *@
+@inject AppSettingsService Settings
+
+<ResizeHandle Edge="ResizeEdge.Left" Min="MinWidth" MaxFraction="MaxFraction" Variable="@PanelSizes.DockWidth"
+              OnResized="w => SaveAsync(w)" OnReset="() => SaveAsync(null)" />
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    private const int MinWidth = 300;
+    private const double MaxFraction = 0.7;
+
+    private async Task SaveAsync(int? width)
+    {
+        if (width == Settings.Current.ShownDockWidth)
+        {
+            return;
+        }
+
+        // The change overview's width before the dock goes along: else going back to the default would find it again.
+        await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { DockWidth = width, ChangesPanelWidth = null }, CancellationToken.None));
+    }
+}

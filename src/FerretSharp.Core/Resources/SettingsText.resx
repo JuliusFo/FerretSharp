@@ -340,7 +340,7 @@
   </data>
   <data name="ActionToggleChanges" xml:space="preserve">
     <value>Show/hide open changes</value>
-    <comment>Shortcut action: opens or closes the change overview beside the tabs</comment>
+    <comment>Shortcut action: opens or closes the change overview in the dock on the right</comment>
   </data>
   <data name="NotReadKept" xml:space="preserve">
     <value>{0} FerretSharp starts with the default settings; the file was kept as {1}.</value>
@@ -494,6 +494,13 @@
     <comment>Shortcut action</comment>
   </data>
   <data name="HintScriptHelp" xml:space="preserve">
-    <value>Opens the help on SQL scripts beside the SQL tab – in a new one if no SQL tab is active.</value>
+    <value>Opens the help on SQL scripts in the dock on the right.</value>
+  </data>
+  <data name="ActionToggleInspector" xml:space="preserve">
+    <value>Show/hide column inspector</value>
+    <comment>Shortcut action: opens or closes the column inspector in the dock on the right</comment>
+  </data>
+  <data name="HintToggleInspector" xml:space="preserve">
+    <value>The column of the focused cell in the dock on the right: type, keys, indexes, statistics, use in code. In a table's data view.</value>
   </data>
 </root>

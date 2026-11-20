@@ -58,7 +58,7 @@ public static class ShellActions
             ?? (context.ActiveTab is TableTab { TimeTravel: null } ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.RevealInExplorer => WithTab(context) ?? (context.ActiveTab is TableTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.NewSql or ShortcutAction.ToggleChanges or ShortcutAction.SchemaSynonyms or ShortcutAction.SchemaGrants
-            or ShortcutAction.ScriptHelp => InExplorer(context),
+            or ShortcutAction.ScriptHelp or ShortcutAction.ToggleInspector => InExplorer(context),
         ShortcutAction.NewLinq => InExplorer(context) ?? (context.LinkedProject ? null : ShellText.Palette_NoLinkedProject),
         ShortcutAction.SwitchWorkClone => !context.Connected ? WorkspaceText.NoActiveConnection : context.LinkedProject ? null : ShellText.Palette_NoLinkedProject,
         ShortcutAction.Flush or ShortcutAction.Commit => InExplorer(context) ?? (context.Writable ? null : ShellText.Palette_ReadOnly),

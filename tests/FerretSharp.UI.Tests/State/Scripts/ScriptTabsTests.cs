@@ -1,5 +1,6 @@
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Scripts;
+using FerretSharp.Core.Settings;
 using FerretSharp.UI.State;
 
 namespace FerretSharp.UI.Tests.State;
@@ -130,28 +131,22 @@ public sealed class ScriptTabsTests : IAsyncDisposable
         Assert.Equal([(sql, TabCommand.InsertScript)], commands);
     }
 
-    /// <summary>WP-89: the help on scripts opens beside the active SQL tab – or beside a new one, never in another tab.</summary>
+    /// <summary>
+    /// WP-89, since WP-92 in the dock: the help on scripts opens on the right beside whatever tab is active – no SQL tab is
+    /// opened for it any more (decision of the user), and it replaces the panel that was open.
+    /// </summary>
     [Fact]
-    public async Task The_help_on_scripts_opens_beside_the_active_sql_tab_or_a_new_one()
+    public async Task The_help_on_scripts_opens_in_the_dock_beside_any_tab()
     {
         await _app.OpenAsync(TestApp.Profile("Test"));
         var table = _app.Shell.OpenTable(TestApp.Kunden);
-        var commands = new List<(WorkspaceTab, TabCommand)>();
-        _app.Shell.TabCommandRequested += (t, c) => commands.Add((t, c));
+        _app.Shell.ShowDock(DockPanel.Form);
 
         _app.Shell.ShowScriptHelp();
 
-        var opened = Assert.IsType<SqlTab>(_app.Shell.ActiveTab);
-        Assert.NotSame(table, opened);
-        Assert.True(opened.HelpOpen);
-        Assert.Empty(commands); // a new view opens with the help
-
-        opened.HelpOpen = false;
-        _app.Shell.ShowScriptHelp();
-
-        Assert.Same(opened, _app.Shell.ActiveTab);
-        Assert.True(opened.HelpOpen);
-        Assert.Equal([(opened, TabCommand.ShowHelp)], commands);
+        Assert.Same(table, _app.Shell.ActiveTab);
+        Assert.Single(_app.Shell.Tabs);
+        Assert.Equal((DockPanel.Help, HelpTopic.Scripts), (_app.Shell.Dock, _app.Shell.HelpTopic));
     }
 
     public ValueTask DisposeAsync() => _app.DisposeAsync();

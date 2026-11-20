@@ -37,6 +37,7 @@
   --warn-text: #8a5600;       /* text on a warn fill: 5.3:1 on 14 % (review 3.54.0, A28; --warn there 3.0:1) */
   --pending: #d4a106;         /* marker of a pending (unwritten) value */
   --yellow: #eab308;          /* fill of pending values, primary keys, advice */
+  --on-yellow: #3b2b00;       /* text on the full yellow (the count in the dock's bar, WP-92) */
   --key: #b7791f;             /* text of a primary key badge */
   --green: #22a05a;           /* fill of new rows, display columns */
   --green-text: #1f8a4c;      /* text on a green fill */
@@ -79,6 +80,7 @@
     --warn: #e8a33c;
   --warn-text: #e8a33c;
     --pending: #e3b341;
+    --on-yellow: #3b2b00;
     --key: #e0b04a;
     --green: #3cc47a;
     --green-text: #6ad89c;
@@ -696,16 +698,32 @@ dl.keys dd { margin: 0; }
 .tab.drop-after { box-shadow: inset -3px 0 var(--accent); }
 .tab-menu kbd { margin-left: auto; }
 .work-split { flex: 1; display: flex; min-height: 0; }
+/* WP-92 (ADR 0052): the dock on the right – one panel at a time (inspector, form, open changes, help), one width for all,
+   kept in the settings as --dock-width on the app root; the bar with a button per panel beside it. Form and inspector are
+   drawn by the active tab (.tabview-split), the others by the shell – all at the same place. */
+.dock-panel { position: relative; flex: none; display: flex; flex-direction: column; width: var(--dock-width, 420px); min-width: 300px; max-width: 70%; min-height: 0; border-left: 1px solid var(--border); background: var(--surface); }
+.dock-rail { flex: none; width: 40px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; border-left: 1px solid var(--border); background: var(--surface-2); }
+.dock-btn { position: relative; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--muted); }
+.dock-btn .icon { width: 16px; height: 16px; }
+.dock-btn:hover { background: var(--hover); color: var(--text); }
+.dock-btn.active { background: var(--accent-weak); color: var(--accent); }
+.dock-btn.unavailable:not(.active) { opacity: .5; }
+/* Chosen, but the active tab has no such panel: the choice stays for the next tab that has it. */
+.dock-btn.active.unavailable { background: var(--hover); color: var(--muted); }
+.dock-count { position: absolute; top: -2px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--yellow); color: var(--on-yellow); font: 700 9px/15px var(--sans); text-align: center; }
+.tabview-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
 .pages { flex: 1; position: relative; min-height: 0; min-width: 0; }
 .page { position: absolute; inset: 0; display: none; }
 .page.active { display: flex; }
 .table-item.open:not(.active) .name { font-weight: 600; }
 
 .tabview { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.tab-toolbar { display: flex; align-items: center; gap: 12px; height: 42px; flex: none; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
+/* Wraps instead of cutting off when the tab gets narrow (WP-92: the dock beside the whole tab hid "+ Row", "Form" and the column jump). */
+.tab-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 42px; flex: none; padding: 4px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .toolbar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); color: var(--faint); }
-/* The view switch keeps one line when the change overview makes the tab narrow; the object name gives way. */
-.tab-toolbar .segmented { flex: none; flex-wrap: nowrap; }
+/* The view switch keeps one line while it fits (the object name gives way first); wider than the tab beside the dock
+   (WP-92), it wraps instead of cutting off its last views. */
+.tab-toolbar .segmented { flex: none; flex-wrap: wrap; max-width: 100%; }
 .tab-toolbar .spacer { flex: 1; }
 .tab-data { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 /* detail views (Spalten, Constraints, Indizes, Abhängigkeiten, DDL) below a common object header */
@@ -1516,9 +1534,9 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .script-notice { display: flex; align-items: center; gap: 12px; margin: 0; padding: 6px 12px; border-radius: 0; flex: none; }
 .script-notice > span { flex: 1; }
 .dialog.script-save { width: min(560px, 94vw); }
-/* WP-89: the help beside the SQL editor (a panel like the history) and the link to it in the explorer. */
-.help-panel { gap: 0; padding: 0; }
-.help-head { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+/* WP-89: the help, a panel of the dock since WP-92, and the link to it in the explorer. */
+.help-head { display: flex; align-items: center; gap: 6px; height: 38px; flex: none; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+.help-head .spacer { flex: 1; } /* WP-92: in the dock the ✕ sits at the right edge, as in the other panels */
 .help-head > .icon { flex: none; color: var(--muted); }
 .help-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 12px 12px; font-size: 12.5px; line-height: 1.5; }
 .help-body h3 { margin: 14px 0 4px; font-size: 12.5px; font-weight: 600; }
@@ -1641,7 +1659,7 @@ table.compare-matrix tr.definition td.cell .mono { display: -webkit-box; -webkit
 .grid-split > .grid-host { flex: 1; min-width: 0; }
 .result-split { height: 100%; }
 .tab-toolbar .btn.active, .tab-footer .btn.active { color: var(--accent); background: var(--accent-weak); }
-.form-panel { position: relative; flex: none; display: flex; flex-direction: column; min-height: 0; min-width: 300px; max-width: 75%; border-left: 1px solid var(--border); background: var(--surface); }
+/* .form-panel is a .dock-panel (WP-92): width, edge and background come from there. */
 .form-head { display: flex; align-items: center; gap: 2px; height: 38px; flex: none; padding: 0 6px 0 8px; border-bottom: 1px solid var(--border); }
 .form-head .spacer { flex: 1; }
 .form-pos { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-left: 6px; overflow: hidden; white-space: nowrap; font-size: 12px; }
@@ -1779,7 +1797,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- open changes of the active workspace (WP-30): beside the tabs ---------- */
 .statusbar .item.tx.status-link.open { color: var(--accent); }
-.changes-panel { position: relative; flex: none; display: flex; flex-direction: column; width: 380px; min-width: 300px; max-width: 60%; min-height: 0; border-left: 1px solid var(--border); background: var(--surface); font-size: 12.5px; }
+.changes-panel { font-size: 12.5px; } /* a .dock-panel (WP-92) */
 .changes-head { display: flex; align-items: center; gap: 8px; height: 38px; flex: none; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); }
 .changes-head .spacer, .changes-group-head .spacer, .change-row-head .spacer, .change-action-tools .spacer, .changes-section .spacer, .changes-other .spacer { flex: 1; }
 .changes-ws { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
@@ -2349,3 +2367,33 @@ table.diff .diff-status input[type="checkbox"] { margin: 0 6px 0 0; vertical-ali
 .time-point { display: flex; flex-direction: column; gap: 10px; }
 .time-point .field { width: 240px; }
 .time-point .hint.warn { color: var(--warn-text); }
+
+/* WP-92: the column inspector, a panel of the dock beside a table's data view. */
+.inspector-head { display: flex; align-items: center; gap: 6px; height: 38px; flex: none; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); }
+.inspector-head > .icon { flex: none; color: var(--muted); }
+.inspector-head .spacer { flex: 1; }
+.inspector-empty { padding: 16px 12px; color: var(--muted); }
+.inspector-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 16px; font-size: 12.5px; user-select: text; }
+.inspector-title { display: flex; align-items: center; margin-bottom: 8px; font-weight: 600; }
+.inspector-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; }
+.inspector-facts dt { color: var(--muted); }
+.inspector-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.inspector-facts .clr { color: var(--clr); }
+.inspector-facts .null { color: var(--faint); font-style: italic; }
+.inspector-comment { white-space: pre-wrap; }
+.inspector-sec { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.inspector-sec h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.inspector-sec h4 .count { padding: 0 6px; border-radius: 8px; background: var(--hover); letter-spacing: 0; font-weight: 500; }
+.inspector-line { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 2px 0; }
+.inspector-line .spacer { flex: 1; }
+.inspector-line .link-btn { padding-left: 0; }
+.inspector-index { padding: 3px 0; }
+.inspector-index .mono, .inspector-line .mono, .inspector-title .mono { font: 12px var(--mono); }
+.inspector-caller { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inspector-note { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; color: var(--warn-text); }
+.inspector-note .icon { flex: none; margin-top: 2px; color: var(--warn); }
+.inspector-links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
+.inspector-links .link-btn { padding-left: 0; }
+.chip-note { flex: none; padding: 0 7px; border-radius: 9px; background: var(--hover); color: var(--muted); font-size: 11px; white-space: nowrap; }
+.chip-note.good { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green-text); }
+.inspector-panel .muted { color: var(--muted); }

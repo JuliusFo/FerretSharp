@@ -93,4 +93,22 @@ public class ObjectDetailsTests
         Assert.False(IndexAdvice.HasIndexFor("LAND", indexes));
         Assert.False(IndexAdvice.HasIndexFor("NAME", indexes));
     }
+
+    /// <summary>WP-92, the column inspector: where a column stands in each index – those it leads (usable) first, then by place.</summary>
+    [Fact]
+    public void A_column_s_indexes_list_its_place_the_ones_it_leads_first()
+    {
+        var indexes = new[]
+        {
+            Index("IX_B", Col("STATUS"), Col("KUNDE_ID")),
+            Index("IX_HIDDEN", Col("KUNDE_ID")) with { Visible = false },
+            Index("IX_A", Col("KUNDE_ID"), Col("DATUM")),
+            Index("IX_UPPER", new IndexColumn("UPPER(\"KUNDE_ID\")", true, false)),
+            Index("IX_DATUM", Col("DATUM")),
+        };
+
+        Assert.Equal(
+            [("IX_A", 1, true), ("IX_HIDDEN", 1, false), ("IX_B", 2, false)],
+            IndexAdvice.PositionsOf("KUNDE_ID", indexes).Select(p => (p.Index.Name, p.Position, p.Leads)));
+    }
 }

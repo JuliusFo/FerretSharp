@@ -1467,4 +1467,97 @@
   <data name="ColumnMenu_HeldValuesTitle" xml:space="preserve">
     <value>Die Werte kommen aus den Zeilen, die das Ergebnis hält, so wie sie gelesen wurden – die Abfrage läuft nicht noch einmal. Mehr als {0:N0} Werte werden nicht kopiert.</value>
   </data>
+  <data name="Inspector_ChooseCell" xml:space="preserve">
+    <value>Klicke in eine Zelle: ihre Spalte erscheint hier.</value>
+  </data>
+  <data name="Inspector_ReloadTitle" xml:space="preserve">
+    <value>Indizes und Statistik neu lesen</value>
+  </data>
+  <data name="Inspector_PrimaryKey" xml:space="preserve">
+    <value>Teil des Primärschlüssels</value>
+  </data>
+  <data name="Inspector_Type" xml:space="preserve">
+    <value>Typ</value>
+  </data>
+  <data name="Inspector_Comment" xml:space="preserve">
+    <value>Kommentar</value>
+  </data>
+  <data name="Inspector_ThisRow" xml:space="preserve">
+    <value>Diese Zeile</value>
+  </data>
+  <data name="Inspector_Relationships" xml:space="preserve">
+    <value>Beziehungen</value>
+  </data>
+  <data name="Inspector_OpenTable" xml:space="preserve">
+    <value>Tabelle öffnen</value>
+  </data>
+  <data name="Inspector_Indexes" xml:space="preserve">
+    <value>Indizes</value>
+  </data>
+  <data name="Inspector_IndexPlace" xml:space="preserve">
+    <value>Spalte {0} von {1}</value>
+  </data>
+  <data name="Inspector_Unusable" xml:space="preserve">
+    <value>unbrauchbar</value>
+  </data>
+  <data name="Inspector_Invisible" xml:space="preserve">
+    <value>unsichtbar</value>
+  </data>
+  <data name="Inspector_NoLeadingIndex" xml:space="preserve">
+    <value>Kein nutzbarer Index beginnt mit dieser Spalte – ein Filter nur auf sie liest womöglich die ganze Tabelle.</value>
+  </data>
+  <data name="Inspector_Reading" xml:space="preserve">
+    <value>Lese Indizes und Statistik …</value>
+  </data>
+  <data name="Inspector_Statistics" xml:space="preserve">
+    <value>Statistik</value>
+  </data>
+  <data name="Inspector_Distinct" xml:space="preserve">
+    <value>Verschiedene Werte</value>
+  </data>
+  <data name="Inspector_Histogram" xml:space="preserve">
+    <value>Histogramm</value>
+  </data>
+  <data name="Inspector_Analyzed" xml:space="preserve">
+    <value>Analysiert</value>
+  </data>
+  <data name="Inspector_NoStatistics" xml:space="preserve">
+    <value>Keine Statistik für diese Spalte.</value>
+  </data>
+  <data name="Inspector_Usage" xml:space="preserve">
+    <value>Verwendung im Code</value>
+  </data>
+  <data name="Inspector_UsageReading" xml:space="preserve">
+    <value>Lese den Code …</value>
+  </data>
+  <data name="Inspector_NoProperty" xml:space="preserve">
+    <value>Die Spalte hat keine Property im C#-Modell.</value>
+  </data>
+  <data name="Inspector_Unused" xml:space="preserve">
+    <value>Kein Code nutzt die Property außerhalb von Tests und Mapping.</value>
+  </data>
+  <data name="Inspector_MoreUses" xml:space="preserve">
+    <value>{0} weitere in der Ansicht „Verwendung“</value>
+  </data>
+  <data name="Inspector_ColumnsView" xml:space="preserve">
+    <value>Spaltenansicht</value>
+  </data>
+  <data name="Inspector_FilterValue" xml:space="preserve">
+    <value>Nach diesem Wert filtern</value>
+  </data>
+  <data name="Inspector_FilterValueTitle" xml:space="preserve">
+    <value>Fügt eine Filterzeile für die Spalte mit dem Wert der fokussierten Zelle hinzu; „Anwenden“ führt sie aus.</value>
+  </data>
+  <data name="Inspector_CopyName" xml:space="preserve">
+    <value>Namen kopieren</value>
+  </data>
+  <data name="Inspector_TestsAndMapping" xml:space="preserve">
+    <value>{0} weitere in Tests und Mapping</value>
+  </data>
+  <data name="Form_TypedValueDropped" xml:space="preserve">
+    <value>Nicht aus dem Formular übernommen: {0} – {1}</value>
+  </data>
+  <data name="Inspector_ViewNoIndexes" xml:space="preserve">
+    <value>Eine View hat keine eigenen Indizes und keine Statistik – es zählen die ihrer Tabellen.</value>
+  </data>
 </root>

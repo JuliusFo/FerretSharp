@@ -1,5 +1,5 @@
-@* The frame of a form beside a grid (review 3.44.0, B1: shared by the table's form, WP-21, and the result's form, WP-56):
-   width handle, ▲ ▼ with the position, search and "hide empty", the field count, the fields as the caller renders them
+@* The frame of a form beside a grid (review 3.44.0, B1: shared by the table's form, WP-21, and the result's form, WP-56),
+   a panel of the dock on the right since WP-92 (its width is the dock's): width handle, ▲ ▼ with the position, search and "hide empty", the field count, the fields as the caller renders them
    and the rows referencing the shown one. What differs – editing, the key, notes, more switches – the caller passes in. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
@@ -11,8 +11,8 @@
 @inject ShortcutService Shortcuts
 
 @* tabindex: a click on a label keeps the focus in the form, so Ctrl+F opens its search, not the grid's column jump. *@
-<aside class="form-panel" style="@WidthStyle" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
-    <ResizeHandle Edge="ResizeEdge.Left" Min="MinWidth" MaxFraction="MaxFraction" OnResized="w => SetWidth(w)" OnReset="() => SetWidth(null)" />
+<aside class="dock-panel form-panel" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
+    <DockResizeHandle />
     <header class="form-head">
         <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_PreviousRow, Shortcuts.Hint(ShortcutAction.FormPrevious))" disabled="@(!CanPrevious)" @onclick="() => OnMove.InvokeAsync(-1)">@Icons.ChevronUp</button>
         <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_NextRow, Shortcuts.Hint(ShortcutAction.FormNext))" disabled="@(!CanNext)" @onclick="() => OnMove.InvokeAsync(1)">@Icons.ChevronDown</button>
@@ -110,12 +110,6 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
-    /// <summary>Default width; the user drags the left edge (saved per tab).</summary>
-    public const int DefaultWidth = 440;
-
-    private const int MinWidth = 300;
-    private const double MaxFraction = 0.75;
-
     private readonly string _idPrefix = "ff-" + Guid.NewGuid().ToString("N")[..8] + "-";
     private ElementReference _panel;
     private ElementReference _fields;
@@ -196,8 +190,6 @@
     [Parameter]
     public EventCallback<FkJump> OnJump { get; set; }
 
-    private string WidthStyle => FormattableString.Invariant($"width: {Tab.FormWidth ?? DefaultWidth}px;");
-
     private string FieldId(int column) => _idPrefix + column.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>Scrolls a field into view after the next render (the grid's focus or column jump chose it).</summary>
@@ -272,16 +264,6 @@
     {
         Tab.FormHideEmpty = hide;
         Shell.MarkDirty();
-    }
-
-    /// <summary>The dragged width, kept in the tab; null for the default.</summary>
-    private void SetWidth(int? width)
-    {
-        if (Tab.FormWidth != width)
-        {
-            Tab.FormWidth = width;
-            Shell.MarkDirty();
-        }
     }
 
     public async ValueTask DisposeAsync()

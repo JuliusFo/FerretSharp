@@ -461,14 +461,14 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 
     public TableTab? ForwardTarget(IReadOnlyCollection<WorkspaceTab> open) => Forward is { } tab && open.Contains(tab) ? tab : null;
 
-    /// <summary>The form beside the grid is open (WP-21); saved with the workspace.</summary>
-    public bool FormOpen { get; set; }
-
-    /// <summary>Width of the form in CSS pixels; null for the default.</summary>
-    public int? FormWidth { get; set; }
-
     /// <summary>"Leere ausblenden" in the form, per tab (decision of the user).</summary>
     public bool FormHideEmpty { get; set; }
+
+    /// <summary>
+    /// Indexes and column statistics the column inspector read for the table (WP-92): once per tab, again by its reload
+    /// button; not saved.
+    /// </summary>
+    public ColumnInspectorData? Inspection { get; set; }
 
     /// <summary>The table's structure once the tab has loaded it (for labels outside the tab, e.g. its header).</summary>
     public TableDetails? Details { get; set; }
@@ -520,6 +520,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         }
 
         StructureStale = false;
+        Inspection = null; // indexes and statistics of the old structure (review WP-92: an index made in the designer stayed unknown)
         if (FitToStructure)
         {
             FitToStructure = false;

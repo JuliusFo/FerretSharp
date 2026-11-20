@@ -164,6 +164,19 @@
 
     public void FocusSearch() => _frame?.FocusSearch();
 
+    /// <summary>
+    /// The form leaves the dock (another tab, another panel, another view – WP-92): typed values become pending changes, as
+    /// when the form moves to another row. One that cannot be taken goes with the form – the status bar says which and why
+    /// (decision of the user, review WP-92: before the dock the form stayed in the hidden tab and kept it).
+    /// </summary>
+    public void TakeTypedValues()
+    {
+        if (!_disposed && CommitDrafts() is { } failed)
+        {
+            Shell.Notify(TextFormat.Format(GridText.Form_TypedValueDropped, Details.Columns[failed].Name, _errors.GetValueOrDefault(failed)));
+        }
+    }
+
     /// <summary>"+ Row" with the form open: the new row is filled here, starting with its first editable field.</summary>
     public void FocusFirstFieldOfNewRow() => _frame?.FocusFirstInput();
 

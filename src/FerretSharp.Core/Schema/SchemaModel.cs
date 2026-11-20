@@ -236,6 +236,12 @@ public interface ISchemaReader
     Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(TableRef table, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The optimizer statistics of the table's columns (<c>ALL_TAB_COL_STATISTICS</c>, WP-92), one round trip; empty for a
+    /// view or a table never analyzed.
+    /// </summary>
+    Task<IReadOnlyList<ColumnStatistics>> GetColumnStatisticsAsync(TableRef table, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Names a constraint or index of <paramref name="table"/> cannot take because another object of its owner has them – Oracle
     /// wants them unique in the schema (ORA-02264, ORA-00955; review 3.54.0, A14). One round trip.
     /// </summary>
