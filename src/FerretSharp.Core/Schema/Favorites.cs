@@ -5,7 +5,9 @@ namespace FerretSharp.Core.Schema;
 
 /// <summary>
 /// What kind of object the explorer lists (WP-91): a table, view or materialized view – one namespace in Oracle – or a
-/// PL/SQL unit by its kind (a trigger has a namespace of its own).
+/// PL/SQL unit by its kind (a trigger has a namespace of its own). Stored as text: a new kind raises the version of
+/// <see cref="FavoriteStore"/> and <see cref="Workspaces.RecentObjectStore"/> – an older FerretSharp reads an unknown text as a
+/// broken file, not as an entry to leave out (only an unknown number is left out; review WP-91, 3).
 /// </summary>
 public enum SchemaObjectKind
 {

@@ -501,7 +501,7 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .item-row:hover > .fav-toggle, .fav-toggle.fav-on { display: inline-flex; }
 .fav-toggle:hover { background: var(--hover); color: var(--accent); }
 .fav-toggle.fav-on { color: var(--accent); }
-.fav-toggle.fav-on svg { fill: currentColor; }
+.fav-toggle.fav-on svg, .quick-btn.fav-action.active svg { fill: currentColor; } /* the heart of a favorite, also in the object menu (review WP-91, 5) */
 .favorites { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 .kind-tag.syn, .chip.syn { border-color: color-mix(in srgb, var(--dev) 50%, transparent); color: var(--dev); }
 

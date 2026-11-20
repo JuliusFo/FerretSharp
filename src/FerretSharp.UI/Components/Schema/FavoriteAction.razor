@@ -4,7 +4,7 @@
 @implements IDisposable
 @inject FavoriteService Favorites
 
-<QuickAction Icon="Icons.Favorite" Active="@On" Caption="@SchemaViewText.ObjectMenu_FavoriteCaption"
+<QuickAction Icon="Icons.Favorite" Class="fav-action" Active="@On" Caption="@SchemaViewText.ObjectMenu_FavoriteCaption"
              Label="@(On ? SchemaViewText.Explorer_FavoriteRemove : SchemaViewText.Explorer_FavoriteAdd)" OnClick="ToggleAsync" />
 
 @code {

@@ -223,10 +223,10 @@
     private List<PaletteGroup> StartGroups(SchemaCache schema)
     {
         List<PaletteGroup> groups = [];
-        var favorites = QuickPaletteSearch.Favorites(schema.Tables, schema.PlSqlObjects, Favorites.IsFavorite, Favorites.IsFavorite);
+        var (favorites, more) = QuickPaletteSearch.Favorites(schema.Tables, schema.PlSqlObjects, Favorites.IsFavorite, Favorites.IsFavorite);
         if (favorites.Count > 0)
         {
-            groups.Add(new PaletteGroup(ShellText.Palette_Favorites, [.. favorites.Select(o => new PaletteRow(Table: o.Table, Unit: o.Unit))]));
+            groups.Add(new PaletteGroup(ShellText.Palette_Favorites, [.. favorites.Select(o => new PaletteRow(Table: o.Table, Unit: o.Unit))], more));
         }
 
         List<PaletteRow> open =

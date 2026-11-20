@@ -3,7 +3,7 @@
 
 @if (Filter?.Matches(Label, Caption) != false)
 {
-    <button type="button" class="quick-btn @(Active || Primary ? "active" : "")" disabled="@(Unavailable is not null)" title="@Tooltip" aria-label="@Label"
+    <button type="button" class="quick-btn @Class @(Active || Primary ? "active" : "")" disabled="@(Unavailable is not null)" title="@Tooltip" aria-label="@Label"
             aria-pressed="@(Active ? "true" : null)" @onclick="OnClick">
         @Icon
         @if (Caption is not null)
@@ -50,6 +50,10 @@
 
     [Parameter]
     public EventCallback OnClick { get; set; }
+
+    /// <summary>A class of the action's own, for a look only it has (the filled heart of a favorite, WP-91).</summary>
+    [Parameter]
+    public string? Class { get; set; }
 
     private string Tooltip => (Unavailable ?? Title) is { Length: > 0 } second ? Label + Environment.NewLine + second : Label;
 }

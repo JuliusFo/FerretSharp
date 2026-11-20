@@ -114,7 +114,7 @@ public sealed class QuickPaletteSearchTests
     private static readonly PlSqlObjectSummary Rechnung = new("APP", "PKG_RECHNUNG", PlSqlKind.Package, "VALID");
     private static readonly PlSqlObjectSummary Trigger = new("APP", "AUFTRAG", PlSqlKind.Trigger, "VALID");
 
-    /// <summary>WP-91: the favorites the schema has, tables and PL/SQL together by name, ten at most.</summary>
+    /// <summary>WP-91: the favorites the schema has, tables and PL/SQL together by name, ten at most and how many more (review WP-91, 4).</summary>
     [Fact]
     public void The_empty_box_offers_the_favorites_by_name()
     {
@@ -123,9 +123,11 @@ public sealed class QuickPaletteSearchTests
         var favorites = QuickPaletteSearch.Favorites([Kunden, Auftrag, .. many], [Rechnung, Trigger], t => t != Kunden && !t.Name.StartsWith('T'), u => u == Rechnung);
         var limited = QuickPaletteSearch.Favorites(many, [], _ => true, _ => false);
 
-        Assert.Equal(["AUFTRAG", "PKG_RECHNUNG"], favorites.Select(o => o.DisplayName));
-        Assert.Equal(Rechnung, favorites[1].Unit);
-        Assert.Equal(QuickPaletteSearch.StartLimit, limited.Count);
+        Assert.Equal(["AUFTRAG", "PKG_RECHNUNG"], favorites.Shown.Select(o => o.DisplayName));
+        Assert.Equal(Rechnung, favorites.Shown[1].Unit);
+        Assert.Equal(0, favorites.More);
+        Assert.Equal(QuickPaletteSearch.StartLimit, limited.Shown.Count);
+        Assert.Equal(2, limited.More);
     }
 
     /// <summary>WP-91: the objects opened last that the schema still has, newest first, without the open ones; a trigger is found as one.</summary>

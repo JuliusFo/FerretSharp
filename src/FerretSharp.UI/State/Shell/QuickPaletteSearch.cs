@@ -68,15 +68,21 @@ public static class QuickPaletteSearch
     /// <summary>At most this many favorites and recently opened objects in the empty box (WP-91).</summary>
     public const int StartLimit = 10;
 
-    /// <summary>The favorites the schema has, tables and PL/SQL together by the name shown (WP-91).</summary>
-    public static IReadOnlyList<PaletteObject> Favorites(
-        IReadOnlyList<TableSummary> tables, IReadOnlyList<PlSqlObjectSummary> units, Func<TableSummary, bool> isTable, Func<PlSqlObjectSummary, bool> isUnit) =>
-    [
-        .. tables.Where(isTable).Select(t => new PaletteObject(Table: t))
-            .Concat(units.Where(isUnit).Select(u => new PaletteObject(Unit: u)))
-            .OrderBy(o => o.DisplayName, StringComparer.Ordinal)
-            .Take(StartLimit),
-    ];
+    /// <summary>
+    /// The favorites the schema has, tables and PL/SQL together by the name shown (WP-91), and how many more there are than
+    /// shown ("N more", review WP-91, 4).
+    /// </summary>
+    public static (IReadOnlyList<PaletteObject> Shown, int More) Favorites(
+        IReadOnlyList<TableSummary> tables, IReadOnlyList<PlSqlObjectSummary> units, Func<TableSummary, bool> isTable, Func<PlSqlObjectSummary, bool> isUnit)
+    {
+        List<PaletteObject> all =
+        [
+            .. tables.Where(isTable).Select(t => new PaletteObject(Table: t))
+                .Concat(units.Where(isUnit).Select(u => new PaletteObject(Unit: u)))
+                .OrderBy(o => o.DisplayName, StringComparer.Ordinal),
+        ];
+        return ([.. all.Take(StartLimit)], Math.Max(0, all.Count - StartLimit));
+    }
 
     /// <summary>
     /// The objects last opened that the schema still has, newest first, without those <paramref name="skip"/> leaves out
