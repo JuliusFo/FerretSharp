@@ -490,6 +490,19 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .table-item.active .icon { color: var(--accent); }
 .table-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
 .kind-tag { font-size: 9px; font-weight: 700; padding: 0 4px; border-radius: 4px; border: 1px solid var(--border-strong); color: var(--muted); }
+/* WP-91: the heart beside an explorer entry – on hover to mark it, always for a favorite; the entry makes room for it. */
+.item-row { position: relative; }
+.item-row:hover > .table-item, .item-row:has(> .fav-on) > .table-item { padding-right: 30px; }
+.fav-toggle {
+  position: absolute; top: 3px; right: 4px; display: none; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--faint); cursor: pointer;
+}
+.fav-toggle svg { width: 14px; height: 14px; }
+.item-row:hover > .fav-toggle, .fav-toggle.fav-on { display: inline-flex; }
+.fav-toggle:hover { background: var(--hover); color: var(--accent); }
+.fav-toggle.fav-on { color: var(--accent); }
+.fav-toggle.fav-on svg, .quick-btn.fav-action.active svg { fill: currentColor; } /* the heart of a favorite, also in the object menu (review WP-91, 5) */
+.favorites { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 .kind-tag.syn, .chip.syn { border-color: color-mix(in srgb, var(--dev) 50%, transparent); color: var(--dev); }
 
 /* ---------- table structure ---------- */

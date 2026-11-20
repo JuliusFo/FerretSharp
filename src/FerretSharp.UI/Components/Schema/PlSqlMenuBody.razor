@@ -6,13 +6,14 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-@if (!InTab)
-{
-    <QuickBar Captions="true">
+<QuickBar Captions="true">
+    @if (!InTab)
+    {
         <QuickAction Icon="Icons.For(Unit.Kind)" Label="@SchemaViewText.ObjectMenu_Open" Caption="@SchemaViewText.ObjectMenu_Open" Primary="true"
                      OnClick="() => RunAsync(() => Shell.OpenPlSql(Unit))" />
-    </QuickBar>
-}
+    }
+    <FavoriteAction Favorite="Favorite.Of(Unit)" OnClose="OnClose" />
+</QuickBar>
 
 <div class="ctx-section">
     <div class="group-head-btn static">@SchemaViewText.ObjectMenu_Views</div>

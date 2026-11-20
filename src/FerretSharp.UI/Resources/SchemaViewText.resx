@@ -2434,4 +2434,27 @@
   <data name="CodeChange_LinkedClone" xml:space="preserve">
     <value>The work clone is the linked clone of a connection: it must match its database and is pulled, so FerretSharp does not write there. Choose a work clone of your own.</value>
   </data>
+  <data name="Favorites_NotLoaded" xml:space="preserve">
+    <value>The favorites could not be read yet.</value>
+  </data>
+  <data name="Favorites_TooMany" xml:space="preserve">
+    <value>There can be at most {0} favorites.</value>
+    <comment>{0}: maximum number of favorites</comment>
+  </data>
+  <data name="Explorer_Favorites" xml:space="preserve">
+    <value>Favorites</value>
+    <comment>Heading of the favorites at the top of the explorer list</comment>
+  </data>
+  <data name="Explorer_FavoriteAdd" xml:space="preserve">
+    <value>Add to favorites</value>
+    <comment>Tooltip of the heart at an explorer entry, and the object menu action</comment>
+  </data>
+  <data name="Explorer_FavoriteRemove" xml:space="preserve">
+    <value>Remove from favorites</value>
+    <comment>Tooltip of the filled heart at an explorer entry, and the object menu action</comment>
+  </data>
+  <data name="ObjectMenu_FavoriteCaption" xml:space="preserve">
+    <value>Favorite</value>
+    <comment>Short caption under the heart icon in the object menu</comment>
+  </data>
 </root>

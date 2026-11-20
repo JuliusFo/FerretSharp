@@ -71,6 +71,12 @@ public sealed class AppPaths
     /// <summary>Saved schema comparisons (WP-20).</summary>
     public string ComparisonsFile => Path.Combine(Root, "comparisons.json");
 
+    /// <summary>The objects last opened, one file per connection (WP-91).</summary>
+    public string RecentObjectsDirectory => Path.Combine(Root, "recent-objects");
+
+    /// <summary>The favorites of the explorer, for all connections (WP-91).</summary>
+    public string FavoritesFile => Path.Combine(Root, "favorites.json");
+
     /// <summary>Filter presets of all tables (WP-37).</summary>
     public string FilterPresetsFile => Path.Combine(Root, "filter-presets.json");
 

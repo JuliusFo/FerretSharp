@@ -1581,4 +1581,20 @@
     <value>Shows in the data view of a table and beside a result of the SQL editor or the LINQ console.</value>
     <comment>Tooltip line of the form button when the active tab has no grid with rows</comment>
   </data>
+  <data name="Palette_Favorites" xml:space="preserve">
+    <value>Favorites</value>
+    <comment>Group heading in the empty quick open</comment>
+  </data>
+  <data name="Palette_Recent" xml:space="preserve">
+    <value>Recently opened</value>
+    <comment>Group heading in the empty quick open: tables and PL/SQL opened before, also ones whose tab is closed</comment>
+  </data>
+  <data name="Palette_MoreFavoritesOne" xml:space="preserve">
+    <value>1 more in the explorer</value>
+    <comment>Below the favorites in the empty quick open: one favorite is not shown there, the explorer lists all</comment>
+  </data>
+  <data name="Palette_MoreFavoritesOther" xml:space="preserve">
+    <value>{0} more in the explorer</value>
+    <comment>{0}: number of favorites not shown in the empty quick open</comment>
+  </data>
 </root>

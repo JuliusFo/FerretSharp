@@ -17,6 +17,8 @@
 @inject IJSRuntime JS
 @inject FerretSharp.Core.Workspaces.SqlHistoryStore SqlHistory
 @inject FerretSharp.Core.Workspaces.ConditionHistoryStore ConditionHistory
+@inject FerretSharp.Core.Workspaces.RecentObjectStore RecentObjectFiles
+@inject RecentObjects RecentObjects
 @inject ILoggerFactory LoggerFactory
 @inject LinkInbox Links
 
@@ -345,7 +347,7 @@
     {
         _state.CurrentSettings = () => Settings.Current;
         _editing = new WorkspaceEditing(_state, Hub, Settings, LoggerFactory.CreateLogger<WorkspaceEditing>());
-        _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, ConditionHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>(), TimeProvider.System);
+        _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, ConditionHistory, RecentObjectFiles, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>(), TimeProvider.System);
         _reconnect = new AutoReconnect(_state, Hub, _editing, Settings, _lifecycle.ReconnectInPlaceAsync, Run, LoggerFactory.CreateLogger<AutoReconnect>());
         ExitGuard.CanExit = () => _lifecycle.CanExit;
         ExitGuard.RequestExit = () => InvokeAsync(() => _lifecycle.RequestExitAsync(ExitGuard.ApproveExit));
@@ -836,7 +838,11 @@
             _pageBefore = _state.Page;
         }
 
-        InvokeAsync(StateHasChanged);
+        InvokeAsync(() =>
+        {
+            RecentObjects.Track(_state.CurrentConnection, _state.ActiveTab); // WP-91: the active table or PL/SQL tab, on the UI thread
+            StateHasChanged();
+        });
     }
 
     private static bool IsSidePage(ShellPage page) => page is ShellPage.Settings or ShellPage.Compare or ShellPage.AppStatements or ShellPage.Report or ShellPage.ServerLoad;

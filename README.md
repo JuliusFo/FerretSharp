@@ -67,7 +67,10 @@ developer works with an Oracle database day to day:
 - Drag tabs into the order you like; many tabs in one row that scrolls sideways or in several rows (*Settings ›
   Appearance*).
 - **Quick open and command palette**: one box at the top of the window – type a name to open a table, view or PL/SQL
-  (also by its C# entity name), or ">" to find an action with its shortcut.
+  (also by its C# entity name), or ">" to find an action with its shortcut. Empty, it offers your favorites, the open
+  tabs and what you opened last on this connection, also tables whose tab is closed.
+- **Favorites**: mark a table, view or PL/SQL unit with the heart beside it in the explorer (or in its object menu);
+  it stays on top of the explorer's list – on every connection that has an object of that name.
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,
   exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F). The row selection follows the
   keyboard as in the Windows Explorer: Shift+↑/↓, Ctrl+A, Space.

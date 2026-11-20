@@ -40,4 +40,16 @@
     <value>{0} is not a valid workspace JSON file: {1}</value>
     <comment>{0}: file name of a workspace; {1}: error message of the JSON reader</comment>
   </data>
+  <data name="FavoritesFileInvalid" xml:space="preserve">
+    <value>{0} is not a valid favorites file: {1}</value>
+    <comment>{0}: file path; {1}: error message of the JSON reader</comment>
+  </data>
+  <data name="FavoritesFileInvalidNotOverwritten" xml:space="preserve">
+    <value>{0} is not a valid favorites file and will not be overwritten: {1}</value>
+    <comment>{0}: file path; {1}: error message of the JSON reader</comment>
+  </data>
+  <data name="FavoritesFileUnreadable" xml:space="preserve">
+    <value>{0} could not be read: {1}</value>
+    <comment>{0}: file path; {1}: error message</comment>
+  </data>
 </root>

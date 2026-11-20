@@ -1,0 +1,41 @@
+@* The heart in an object menu's quick bar (WP-91): marks the table, view or PL/SQL unit as favorite or takes the mark
+   away, for every connection (by the name shown). The same switch as the heart beside the explorer entry. *@
+@using FerretSharp.Core.Schema
+@implements IDisposable
+@inject FavoriteService Favorites
+
+<QuickAction Icon="Icons.Favorite" Class="fav-action" Active="@On" Caption="@SchemaViewText.ObjectMenu_FavoriteCaption"
+             Label="@(On ? SchemaViewText.Explorer_FavoriteRemove : SchemaViewText.Explorer_FavoriteAdd)" OnClick="ToggleAsync" />
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Favorite Favorite { get; set; } = null!;
+
+    /// <summary>Closes the menu before the switch acts.</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private bool On => Favorites.IsFavorite(Favorite);
+
+    protected override Task OnInitializedAsync()
+    {
+        Favorites.Changed += OnFavoritesChanged;
+        return Favorites.EnsureLoadedAsync();
+    }
+
+    private void OnFavoritesChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task ToggleAsync()
+    {
+        await OnClose.InvokeAsync();
+        if (await Favorites.ToggleAsync(Favorite) is { } error)
+        {
+            Shell.Notify(error);
+        }
+    }
+
+    public void Dispose() => Favorites.Changed -= OnFavoritesChanged;
+}
