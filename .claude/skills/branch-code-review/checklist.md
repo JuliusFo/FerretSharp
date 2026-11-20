@@ -66,7 +66,7 @@ A security finding names the concrete path from source to sink, the check at the
 
 ## Docs
 
-- `CHANGELOG.md`, work-package protocol plus index line, ADR for non-trivial decisions, `docs/architecture.md`, `.claude/rules/` and `README.md` (every visible function) still true after the change.
+- `CHANGELOG.md`, work-package protocol plus index line, ADR for non-trivial decisions, `docs/architecture.md`, `.claude/rules/`, `docs/features.md` (every visible function) and the overview in `README.md` still true after the change.
 - No names or structure from the user's customer database in code, tests, docs or commits; neutral examples only.
 
 ## Not a finding

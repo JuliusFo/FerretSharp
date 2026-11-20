@@ -111,7 +111,7 @@ available also `tools/coverage/Get-Coverage.ps1` (writes only under `artifacts/`
 
 ## DO – Docs
 
-- `README.md` matches the app (features, screenshots, requirements).
+- `README.md` (overview, highlights, screenshots, requirements) and `docs/features.md` (every visible function) match the app.
 - `CLAUDE.md`: still true, still only what always applies; estimate its size in tokens and name what could move into a
   rule.
 - `.claude/rules/`: every `paths` glob matches files, no rule without `paths`, size per rule, contradictions between rules,
