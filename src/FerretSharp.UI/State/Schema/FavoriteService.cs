@@ -17,14 +17,17 @@ public sealed class FavoriteService(FavoriteStore store, ILogger<FavoriteService
     private bool _loaded;
     private Task? _loading;
 
+    /// <summary>
+    /// One switch at a time (review WP-91, 1): a click while the one before is still saving acts on what that one left – it
+    /// would otherwise compute from the list before, and the first mark was lost; a double click would mark twice.
+    /// </summary>
+    private readonly SemaphoreSlim _switching = new(1, 1);
+
     /// <summary>Raised after the favorites were read or changed.</summary>
     public event Action? Changed;
 
     /// <summary>Why the favorites could not be read; null if fine. Marking one tries again.</summary>
     public string? LoadError { get; private set; }
-
-    /// <summary>Counts reads and changes, for whoever keeps what it found among the favorites.</summary>
-    public int Version { get; private set; }
 
     /// <summary>Reads the file unless it was read already; after an error it tries again. Callers at the same time share one read.</summary>
     public Task EnsureLoadedAsync()
@@ -49,7 +52,6 @@ public sealed class FavoriteService(FavoriteStore store, ILogger<FavoriteService
         {
             logger.LogWarning(ex, "Favorites could not be read from {File}", store.FilePath);
             LoadError = ex.Message;
-            Version++;
         }
 
         Changed?.Invoke();
@@ -67,28 +69,37 @@ public sealed class FavoriteService(FavoriteStore store, ILogger<FavoriteService
     {
         ArgumentNullException.ThrowIfNull(favorite);
         await EnsureLoadedAsync();
-        if (!_loaded)
-        {
-            return LoadError ?? SchemaViewText.Favorites_NotLoaded;
-        }
-
-        if (!IsFavorite(favorite) && _favorites.Count >= FavoriteStore.MaxEntries)
-        {
-            return TextFormat.Format(SchemaViewText.Favorites_TooMany, FavoriteStore.MaxEntries);
-        }
-
-        var favorites = IsFavorite(favorite) ? _favorites.Where(f => f != favorite).ToList() : [.. _favorites, favorite];
+        await _switching.WaitAsync();
         try
         {
-            await store.SaveAsync(favorites, CancellationToken.None);
+            if (!_loaded)
+            {
+                return LoadError ?? SchemaViewText.Favorites_NotLoaded;
+            }
+
+            if (!IsFavorite(favorite) && _favorites.Count >= FavoriteStore.MaxEntries)
+            {
+                return TextFormat.Format(SchemaViewText.Favorites_TooMany, FavoriteStore.MaxEntries);
+            }
+
+            var favorites = IsFavorite(favorite) ? _favorites.Where(f => f != favorite).ToList() : [.. _favorites, favorite];
+            try
+            {
+                await store.SaveAsync(favorites, CancellationToken.None);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Favorites could not be saved to {File}", store.FilePath);
+                return TextFormat.Format(CommonText.SaveFailed, ex.Message);
+            }
+
+            Use(favorites);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        finally
         {
-            logger.LogWarning(ex, "Favorites could not be saved to {File}", store.FilePath);
-            return TextFormat.Format(CommonText.SaveFailed, ex.Message);
+            _switching.Release();
         }
 
-        Use(favorites);
         Changed?.Invoke();
         return null;
     }
@@ -97,6 +108,5 @@ public sealed class FavoriteService(FavoriteStore store, ILogger<FavoriteService
     {
         _favorites = favorites;
         _set = [.. favorites];
-        Version++;
     }
 }

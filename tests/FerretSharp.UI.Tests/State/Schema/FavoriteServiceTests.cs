@@ -11,7 +11,8 @@ public sealed class FavoriteServiceTests : IDisposable
 
     private static readonly TableSummary KundenTest = new("ERP_TEST", "KUNDEN", TableKind.Table);
     private static readonly TableSummary KundenProd = new("ERP_PROD", "KUNDEN", TableKind.Table);
-    private static readonly PlSqlObjectSummary Rechnung = new("ERP_TEST", "PKG_RECHNUNG", PlSqlKind.Package, "VALID");
+    private static readonly TableSummary AuftragTest = new("ERP_TEST", "AUFTRAG", TableKind.Table);
+    private static readonly PlSqlObjectSummary Rechnung =new("ERP_TEST", "PKG_RECHNUNG", PlSqlKind.Package, "VALID");
 
     private readonly TestFolder _folder = new();
 
@@ -43,6 +44,24 @@ public sealed class FavoriteServiceTests : IDisposable
 
         Assert.Null(await reread.ToggleAsync(Favorite.Of(KundenProd)));
         Assert.False((await ServiceAsync()).IsFavorite(KundenTest));
+    }
+
+    /// <summary>
+    /// Review WP-91, 1: clicks faster than the file is written – a second heart while the first one saves, a double click on
+    /// the same – each acts on what the one before left, none is lost.
+    /// </summary>
+    [Fact]
+    public async Task Clicks_while_saving_act_one_after_the_other()
+    {
+        var service = await ServiceAsync();
+
+        await Task.WhenAll(service.ToggleAsync(Favorite.Of(KundenTest)), service.ToggleAsync(Favorite.Of(Rechnung)),
+            service.ToggleAsync(Favorite.Of(AuftragTest)), service.ToggleAsync(Favorite.Of(AuftragTest)));
+
+        var reread = await ServiceAsync();
+        Assert.True(reread.IsFavorite(KundenTest));
+        Assert.True(reread.IsFavorite(Rechnung));
+        Assert.False(reread.IsFavorite(AuftragTest)); // on and off again
     }
 
     /// <summary>A broken file keeps the favorites it holds: named as the reason, marking one is refused, the file stays.</summary>
